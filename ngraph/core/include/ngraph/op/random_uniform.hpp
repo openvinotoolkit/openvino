@@ -7,7 +7,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -33,7 +33,7 @@ namespace ngraph
                 RandomUniform(const Output<Node>& out_shape,
                               const Output<Node>& min_val,
                               const Output<Node>& max_val,
-                              const ngraph::element::Type& out_type,
+                              const ov::element::Type& out_type,
                               uint64_t global_seed,
                               uint64_t op_seed);
 
@@ -45,8 +45,8 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 /// \return The output tensor type.
-                const ngraph::element::Type& get_out_type() const { return m_output_type; }
-                void set_out_type(const ngraph::element::Type& output_type)
+                const ov::element::Type& get_out_type() const { return m_output_type; }
+                void set_out_type(const ov::element::Type& output_type)
                 {
                     m_output_type = output_type;
                 }
@@ -60,10 +60,10 @@ namespace ngraph
                 void set_op_seed(uint64_t seed2) { m_op_seed = seed2; }
 
             protected:
-                ngraph::element::Type m_output_type;
+                ov::element::Type m_output_type;
                 uint64_t m_global_seed;
                 uint64_t m_op_seed;
             };
         } // namespace v8
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

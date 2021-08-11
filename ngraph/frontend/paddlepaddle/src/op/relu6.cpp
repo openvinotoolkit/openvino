@@ -6,7 +6,7 @@
 #include <node_context.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -19,10 +19,10 @@ namespace ngraph
                     auto data = node.get_ng_input("X");
                     auto threshold = node.get_attribute<float>("threshold", 6.0f);
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Clamp>(data, 0.0, threshold)}, {"Out"});
+                        {std::make_shared<ov::opset6::Clamp>(data, 0.0, threshold)}, {"Out"});
                 }
 
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

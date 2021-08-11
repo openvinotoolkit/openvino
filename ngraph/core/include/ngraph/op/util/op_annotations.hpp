@@ -9,7 +9,7 @@
 #include "ngraph/except.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -55,4 +55,4 @@ namespace ngraph
             };
         } // namespace util
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

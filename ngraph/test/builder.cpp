@@ -8,7 +8,7 @@
 #include "util/all_close.hpp"
 #include "util/test_tools.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 shared_ptr<runtime::Tensor>

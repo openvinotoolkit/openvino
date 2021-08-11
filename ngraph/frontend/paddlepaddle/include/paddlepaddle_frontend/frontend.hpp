@@ -8,7 +8,7 @@
 #include "exceptions.hpp"
 #include "model.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -74,4 +74,4 @@ namespace ngraph
         };
 
     } // namespace frontend
-} // namespace ngraph
+} // namespace ov

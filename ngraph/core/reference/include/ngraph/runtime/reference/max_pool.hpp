@@ -8,7 +8,7 @@
 #include <numeric>
 #include "ngraph/coordinate_transform.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -124,4 +124,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

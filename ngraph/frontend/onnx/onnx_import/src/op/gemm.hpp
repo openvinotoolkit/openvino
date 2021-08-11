@@ -7,7 +7,7 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -29,4 +29,4 @@ namespace ngraph
 
     } // namespace  onnx_import
 
-} // namespace  ngraph
+} // namespace ov

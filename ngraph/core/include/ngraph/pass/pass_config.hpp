@@ -13,12 +13,12 @@
 #include "ngraph/node.hpp"
 #include "ngraph/util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pass
     {
-        using param_callback = std::function<bool(const std::shared_ptr<const ::ngraph::Node>)>;
-        using param_callback_map = std::map<ngraph::DiscreteTypeInfo, param_callback>;
+        using param_callback = std::function<bool(const std::shared_ptr<const ::ov::Node>)>;
+        using param_callback_map = std::map<ov::DiscreteTypeInfo, param_callback>;
 
         /// \brief Class representing a transformations config that is used for disabling/enabling
         /// transformations registered inside pass::Manager and also allows to set callback for all
@@ -94,8 +94,8 @@ namespace ngraph
             ///
             /// Example below show how to set callback for one or multiple passes using this method.
             ///
-            ///     pass_config->set_callback<ngraph::pass::ConvertBatchToSpace,
-            ///                               ngraph::pass::ConvertSpaceToBatch>(
+            ///     pass_config->set_callback<ov::pass::ConvertBatchToSpace,
+            ///                               ov::pass::ConvertSpaceToBatch>(
             ///              [](const_node_ptr &node) -> bool {
             ///                   // Disable transformations for cases when input shape rank is not
             ///                   equal to 4
@@ -176,7 +176,7 @@ namespace ngraph
             void add_disabled_passes(const PassConfig& rhs);
 
         private:
-            param_callback m_callback = [](const std::shared_ptr<const ::ngraph::Node>&) {
+            param_callback m_callback = [](const std::shared_ptr<const ::ov::Node>&) {
                 return false;
             };
             param_callback_map m_callback_map;
@@ -184,4 +184,4 @@ namespace ngraph
             std::unordered_set<DiscreteTypeInfo> m_enabled;
         };
     } // namespace pass
-} // namespace ngraph
+} // namespace ov

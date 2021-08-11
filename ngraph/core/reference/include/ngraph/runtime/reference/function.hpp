@@ -9,7 +9,7 @@
 #include <vector>
 #include "ngraph/function.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -20,4 +20,4 @@ namespace ngraph
                           HostTensorVector& outputs);
         }
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

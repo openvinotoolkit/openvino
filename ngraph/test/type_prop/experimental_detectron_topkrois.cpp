@@ -8,7 +8,7 @@
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 using ExperimentalTopKROIs = op::v6::ExperimentalDetectronTopKROIs;
 

@@ -7,7 +7,7 @@
 #include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 // ExtractImagePatches v3
 
@@ -106,12 +106,10 @@ void op::v3::ExtractImagePatches::validate_and_infer_types()
         if (out_cols < 0)
             out_cols = 0;
 
-        ngraph::Dimension::value_type out_depth_cast = static_cast<ngraph::Dimension::value_type>(
+        ov::Dimension::value_type out_depth_cast = static_cast<ov::Dimension::value_type>(
             input_depth * m_patch_sizes[0] * m_patch_sizes[1]);
-        ngraph::Dimension::value_type out_rows_cast =
-            static_cast<ngraph::Dimension::value_type>(out_rows);
-        ngraph::Dimension::value_type out_cols_cast =
-            static_cast<ngraph::Dimension::value_type>(out_cols);
+        ov::Dimension::value_type out_rows_cast = static_cast<ov::Dimension::value_type>(out_rows);
+        ov::Dimension::value_type out_cols_cast = static_cast<ov::Dimension::value_type>(out_cols);
 
         PartialShape output_pshape;
         if (input_pshape[0].is_dynamic())
@@ -121,8 +119,8 @@ void op::v3::ExtractImagePatches::validate_and_infer_types()
         }
         else
         {
-            ngraph::Dimension::value_type input_batch_cast =
-                static_cast<ngraph::Dimension::value_type>(input_pshape[0].get_length());
+            ov::Dimension::value_type input_batch_cast =
+                static_cast<ov::Dimension::value_type>(input_pshape[0].get_length());
             output_pshape =
                 PartialShape{input_batch_cast, out_depth_cast, out_rows_cast, out_cols_cast};
         }

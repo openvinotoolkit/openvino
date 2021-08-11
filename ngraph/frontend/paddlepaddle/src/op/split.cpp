@@ -6,7 +6,7 @@
 #include <node_context.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -16,7 +16,7 @@ namespace ngraph
             {
                 NamedOutputs split(const NodeContext& node)
                 {
-                    using namespace ngraph;
+                    using namespace ov;
                     using namespace opset7;
                     const auto& data = node.get_ng_input("X");
                     Output<Node> axis;
@@ -33,7 +33,7 @@ namespace ngraph
                         {
                             dim = node.get_attribute<int32_t>("axis");
                         }
-                        axis = std::make_shared<Constant>(ngraph::element::i32, Shape{}, dim);
+                        axis = std::make_shared<Constant>(ov::element::i32, Shape{}, dim);
                     }
                     auto num_or_sections = node.get_attribute<int32_t>("num");
                     NamedOutputs named_outputs;
@@ -44,7 +44,7 @@ namespace ngraph
                         if (node.has_ng_input("SectionsTensorList"))
                         {
                             auto inputs = node.get_ng_inputs("SectionsTensorList");
-                            sections_node = std::make_shared<ngraph::opset7::Concat>(inputs, 0);
+                            sections_node = std::make_shared<ov::opset7::Concat>(inputs, 0);
                         }
                         else
                         {
@@ -77,4 +77,4 @@ namespace ngraph
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

@@ -11,7 +11,7 @@
 #include "ngraph/validation_util.hpp"
 #include "utils/convpool.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -88,25 +88,24 @@ namespace ngraph
                 return detail::get_attribute_value(node, "dilations", kernel_rank);
             }
 
-            ngraph::op::RoundingType get_rounding_type(const Node& node)
+            ov::op::RoundingType get_rounding_type(const Node& node)
             {
-                return static_cast<ngraph::op::RoundingType>(
+                return static_cast<ov::op::RoundingType>(
                     node.get_attribute_value<std::int64_t>("ceil_mode", 0));
             }
 
-            ngraph::op::PadType get_auto_pad(const Node& node)
+            ov::op::PadType get_auto_pad(const Node& node)
             {
                 // Default value means use explicitly provided padding values.
-                ngraph::op::PadType pad_type{ngraph::op::PadType::NOTSET};
+                ov::op::PadType pad_type{ov::op::PadType::NOTSET};
                 if (node.has_attribute("auto_pad"))
                 {
-                    static std::unordered_multimap<std::string, ngraph::op::PadType>
-                        auto_pad_values{
-                            {"VALID", ngraph::op::PadType::VALID},
-                            {"SAME_UPPER", ngraph::op::PadType::SAME_UPPER},
-                            {"SAME_LOWER", ngraph::op::PadType::SAME_LOWER},
-                            {"NOTSET", ngraph::op::PadType::NOTSET},
-                        };
+                    static std::unordered_multimap<std::string, ov::op::PadType> auto_pad_values{
+                        {"VALID", ov::op::PadType::VALID},
+                        {"SAME_UPPER", ov::op::PadType::SAME_UPPER},
+                        {"SAME_LOWER", ov::op::PadType::SAME_LOWER},
+                        {"NOTSET", ov::op::PadType::NOTSET},
+                    };
 
                     const std::string& pad_str{
                         node.get_attribute_value<std::string>("auto_pad", "NOTSET")};
@@ -164,30 +163,29 @@ namespace ngraph
                                      const Shape& filter_shape,
                                      const Strides& strides,
                                      const Strides& dilations,
-                                     const ngraph::op::PadType& pad_type,
+                                     const ov::op::PadType& pad_type,
                                      CoordinateDiff& padding_below,
                                      CoordinateDiff& padding_above)
             {
-                if (pad_type == ngraph::op::PadType::SAME_UPPER ||
-                    pad_type == ngraph::op::PadType::SAME_LOWER)
+                if (pad_type == ov::op::PadType::SAME_UPPER ||
+                    pad_type == ov::op::PadType::SAME_LOWER)
                 {
                     padding_below.clear();
                     padding_above.clear();
                     // Extract kernel shape - remove (N,C) channels
                     Shape kernel_shape(std::next(std::begin(filter_shape), 2),
                                        std::end(filter_shape));
-                    ngraph::infer_auto_padding(data_shape,
-                                               kernel_shape,
-                                               strides,
-                                               dilations,
-                                               pad_type,
-                                               padding_above,
-                                               padding_below);
+                    ov::infer_auto_padding(data_shape,
+                                           kernel_shape,
+                                           strides,
+                                           dilations,
+                                           pad_type,
+                                           padding_above,
+                                           padding_below);
                 }
             }
 
-            Output<ngraph::Node> get_reshaped_filters(const Output<ngraph::Node>& filters,
-                                                      int64_t groups)
+            Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t groups)
             {
                 const auto zero_node = default_opset::Constant::create(element::i64, Shape(), {0});
                 const auto split_lengths =
@@ -211,4 +209,4 @@ namespace ngraph
             }
         } // namespace convpool
     }     // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

@@ -9,7 +9,7 @@
 #include "op/rnn.hpp"
 #include "utils/recurrent.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -69,4 +69,4 @@ namespace ngraph
             } // namespace set_1
         }     // namespace op
     }         // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

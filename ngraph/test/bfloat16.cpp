@@ -13,7 +13,7 @@
 #include "util/float_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 template <typename T>
 std::string to_hex(T value)
@@ -147,7 +147,7 @@ TEST(bfloat16, numeric_limits)
 TEST(benchmark, bfloat16)
 {
     size_t buffer_size = 128 * 3 * 224 * 224;
-    ngraph::runtime::AlignedBuffer data(buffer_size * sizeof(float), 4096);
+    ov::runtime::AlignedBuffer data(buffer_size * sizeof(float), 4096);
     float* f = static_cast<float*>(data.get_ptr());
     // vector<float> data(buffer_size);
     std::mt19937 rng(2112);
@@ -159,7 +159,7 @@ TEST(benchmark, bfloat16)
     NGRAPH_INFO << "buffer size " << buffer_size << " floats or " << data.size() << " bytes";
 
     {
-        ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
+        ov::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
         bfloat16* p = static_cast<bfloat16*>(bf_data.get_ptr());
         stopwatch timer;
         timer.start();
@@ -173,7 +173,7 @@ TEST(benchmark, bfloat16)
     }
 
     {
-        ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
+        ov::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
         bfloat16* p = static_cast<bfloat16*>(bf_data.get_ptr());
         stopwatch timer;
         timer.start();
@@ -187,7 +187,7 @@ TEST(benchmark, bfloat16)
     }
 
     {
-        ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
+        ov::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
         bfloat16* p = static_cast<bfloat16*>(bf_data.get_ptr());
         stopwatch timer;
         timer.start();
@@ -201,7 +201,7 @@ TEST(benchmark, bfloat16)
     }
 
     {
-        ngraph::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
+        ov::runtime::AlignedBuffer bf_data(buffer_size * sizeof(bfloat16), 4096);
         bfloat16* p = static_cast<bfloat16*>(bf_data.get_ptr());
         stopwatch timer;
         timer.start();

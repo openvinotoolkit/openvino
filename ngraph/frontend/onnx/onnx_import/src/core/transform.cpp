@@ -11,7 +11,7 @@
 #include "ngraph/file_util.hpp"
 #include "ops_bridge.hpp"
 
-void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto)
+void ov::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto)
 {
     auto graph_proto = model_proto.mutable_graph();
 
@@ -62,8 +62,8 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
     }
 }
 
-void ngraph::onnx_import::transform::update_external_data_paths(
-    ONNX_NAMESPACE::ModelProto& model_proto, const std::string& model_path)
+void ov::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
+                                                            const std::string& model_path)
 {
     if (model_path.empty())
     {
@@ -96,7 +96,7 @@ void ngraph::onnx_import::transform::update_external_data_paths(
     }
 }
 
-void ngraph::onnx_import::transform::fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto)
+void ov::onnx_import::transform::fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto)
 {
     auto graph_proto = model_proto.mutable_graph();
     for (auto& node : *graph_proto->mutable_node())

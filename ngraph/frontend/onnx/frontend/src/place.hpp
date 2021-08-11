@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <memory>
 #include <frontend_manager/place.hpp>
+#include <memory>
 #include <onnx_editor/editor.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -53,7 +53,8 @@ namespace ngraph
         class PlaceTensorONNX : public Place
         {
         public:
-            PlaceTensorONNX(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+            PlaceTensorONNX(const std::string& name,
+                            std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
             std::vector<std::string> get_names() const override;
 
@@ -75,4 +76,4 @@ namespace ngraph
         };
     } // namespace frontend
 
-} // namespace ngraph
+} // namespace ov

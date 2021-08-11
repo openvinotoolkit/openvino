@@ -10,7 +10,7 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pass/pass.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace pass
     {
@@ -44,7 +44,7 @@ namespace ngraph
          */
 
         class NGRAPH_DEPRECATED("Use LowLatency2 instead.") NGRAPH_API LowLatency
-            : public ngraph::pass::MatcherPass
+            : public ov::pass::MatcherPass
         {
         public:
             NGRAPH_RTTI_DECLARATION;
@@ -73,7 +73,7 @@ namespace ngraph
          * After applying the transformation, the resulting network can be inferred
          * step by step, the states will store between inferences.
          */
-        class NGRAPH_API LowLatency2 : public ngraph::pass::FunctionPass
+        class NGRAPH_API LowLatency2 : public ov::pass::FunctionPass
         {
         public:
             NGRAPH_RTTI_DECLARATION;
@@ -83,10 +83,10 @@ namespace ngraph
             {
             }
 
-            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+            bool run_on_function(std::shared_ptr<ov::Function> f) override;
 
         private:
             bool m_use_const_initializer;
         };
     } // namespace pass
-} // namespace ngraph
+} // namespace ov

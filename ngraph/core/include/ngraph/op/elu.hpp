@@ -7,7 +7,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -17,7 +17,7 @@ namespace ngraph
             /// x <  0 => f(x) = alpha * (exp(x) - 1.)
             /// x >= 0 => f(x) = x
             ///
-            class NGRAPH_API Elu : public ngraph::op::Op
+            class NGRAPH_API Elu : public ov::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -43,4 +43,4 @@ namespace ngraph
         } // namespace v0
         using v0::Elu;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

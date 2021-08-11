@@ -10,7 +10,7 @@
 
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -24,4 +24,4 @@ namespace ngraph
                                   const int64_t group);
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

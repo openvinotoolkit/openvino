@@ -10,7 +10,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -41,4 +41,4 @@ namespace ngraph
         } // namespace v0
         using v0::Unsqueeze;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

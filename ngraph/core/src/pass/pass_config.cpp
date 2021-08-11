@@ -4,7 +4,7 @@
 
 #include "ngraph/pass/pass_config.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 pass::param_callback pass::PassConfig::get_callback(const DiscreteTypeInfo& type_info) const
 {
@@ -19,13 +19,13 @@ pass::param_callback pass::PassConfig::get_callback(const DiscreteTypeInfo& type
     }
 }
 
-void pass::PassConfig::enable(const ngraph::DiscreteTypeInfo& type_info)
+void pass::PassConfig::enable(const ov::DiscreteTypeInfo& type_info)
 {
     m_disabled.erase(type_info);
     m_enabled.insert(type_info);
 }
 
-void pass::PassConfig::disable(const ngraph::DiscreteTypeInfo& type_info)
+void pass::PassConfig::disable(const ov::DiscreteTypeInfo& type_info)
 {
     m_enabled.erase(type_info);
     m_disabled.insert(type_info);

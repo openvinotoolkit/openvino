@@ -14,7 +14,7 @@
 #include "random.hpp"
 #include "test_tools.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -97,8 +97,8 @@ namespace ngraph
         /// \param atol Absolute tolerance
         /// Returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
         template <typename T>
-        ::testing::AssertionResult all_close(const std::shared_ptr<ngraph::runtime::Tensor>& a,
-                                             const std::shared_ptr<ngraph::runtime::Tensor>& b,
+        ::testing::AssertionResult all_close(const std::shared_ptr<ov::runtime::Tensor>& a,
+                                             const std::shared_ptr<ov::runtime::Tensor>& b,
                                              T rtol = 1e-5f,
                                              T atol = 1e-8f)
         {
@@ -119,8 +119,8 @@ namespace ngraph
         /// Returns true if shapes match and for all elements, |a_i-b_i| <= atol + rtol*|b_i|.
         template <typename T>
         ::testing::AssertionResult
-            all_close(const std::vector<std::shared_ptr<ngraph::runtime::Tensor>>& as,
-                      const std::vector<std::shared_ptr<ngraph::runtime::Tensor>>& bs,
+            all_close(const std::vector<std::shared_ptr<ov::runtime::Tensor>>& as,
+                      const std::vector<std::shared_ptr<ov::runtime::Tensor>>& bs,
                       T rtol,
                       T atol)
         {
@@ -140,16 +140,16 @@ namespace ngraph
             return ::testing::AssertionSuccess();
         }
     } // namespace test
-} // namespace ngraph
+} // namespace ov
 
 // apply pass, execute and compare with INTERPRETER using random data
 template <typename T, typename TIN, typename TOUT = TIN>
-bool compare_pass_int(std::shared_ptr<ngraph::Function>& baseline_f,
-                      std::shared_ptr<ngraph::Function>& optimized_f,
+bool compare_pass_int(std::shared_ptr<ov::Function>& baseline_f,
+                      std::shared_ptr<ov::Function>& optimized_f,
                       std::vector<std::vector<TIN>> args = std::vector<std::vector<TIN>>{})
 {
-    ngraph::pass::Manager pass_manager;
-    pass_manager.register_pass<ngraph::pass::Validate>();
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::Validate>();
     pass_manager.register_pass<T>();
     pass_manager.run_passes(optimized_f);
 
@@ -164,12 +164,12 @@ bool compare_pass_int(std::shared_ptr<ngraph::Function>& baseline_f,
             }
             else
             {
-                static ngraph::test::Uniform<float> rng{0, 1, 0};
+                static ov::test::Uniform<float> rng{0, 1, 0};
                 rng.initialize(args.back());
             }
         }
     }
     auto baseline_results = execute<TIN, TOUT>(baseline_f, args, "INTERPRETER");
     auto optimized_results = execute<TIN, TOUT>(optimized_f, args, "INTERPRETER");
-    return ngraph::test::all_close(baseline_results.at(0), optimized_results.at(0));
+    return ov::test::all_close(baseline_results.at(0), optimized_results.at(0));
 }

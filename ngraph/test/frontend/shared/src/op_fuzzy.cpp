@@ -10,11 +10,11 @@
 #include "util/test_control.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace InferenceEngine;
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 using TestEngine = test::IE_CPU_Engine;
 
 std::string
@@ -72,7 +72,7 @@ static std::string getModelFolder(const std::string& modelFile)
     return modelFile.substr(0, found);
 };
 
-void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Function> function,
+void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ov::Function> function,
                                             const std::string& modelFile)
 {
     auto modelFolder = getModelFolder(modelFile);
@@ -150,7 +150,7 @@ TEST_P(FrontEndFuzzyOpTest, testOpFuzzy)
     ASSERT_NO_THROW(doLoadFromFile());
 
     // convert
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     function = m_frontEnd->convert(m_inputModel);
     ASSERT_NE(function, nullptr);
 

@@ -7,7 +7,7 @@
 #include "ngraph/op/ctc_greedy_decoder_seq_len.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v6::CTCGreedyDecoderSeqLen, "CTCGreedyDecoderSeqLen", 6);
 
@@ -74,7 +74,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
         {
             Shape blank_index_shape = blank_index_partial_shape.to_shape();
             NODE_VALIDATION_CHECK(this,
-                                  ngraph::is_scalar(blank_index_shape) ||
+                                  ov::is_scalar(blank_index_shape) ||
                                       (is_vector(blank_index_shape) && (blank_index_shape[0] == 1)),
                                   "Expected 0D or 1D tensor for the 'blank_index' input. Got: ",
                                   blank_index_shape);
@@ -82,8 +82,8 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
     }
 
     // validate input shapes and compute output shape
-    ngraph::Dimension batch_size = Dimension::dynamic();
-    ngraph::Dimension time_size = Dimension::dynamic();
+    ov::Dimension batch_size = Dimension::dynamic();
+    ov::Dimension time_size = Dimension::dynamic();
 
     if (logits_is_static_rank)
     {

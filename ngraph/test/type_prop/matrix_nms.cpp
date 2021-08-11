@@ -7,7 +7,7 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, matrix_nms_incorrect_boxes_rank)
 {
@@ -83,8 +83,7 @@ TEST(type_prop, matrix_nms_incorrect_boxes_rank2)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "The third dimension of the 'boxes' must be 4");
+        EXPECT_HAS_SUBSTRING(error.what(), "The third dimension of the 'boxes' must be 4");
     }
 }
 
@@ -95,14 +94,13 @@ TEST(type_prop, matrix_nms_incorrect_output_type)
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
         op::v8::MatrixNms::Attributes attrs;
-        attrs.output_type = ngraph::element::f32;
+        attrs.output_type = ov::element::f32;
 
         make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Output type must be i32 or i64");
+        EXPECT_HAS_SUBSTRING(error.what(), "Output type must be i32 or i64");
     }
 }
 
@@ -119,8 +117,7 @@ TEST(type_prop, matrix_nms_incorrect_nms_topk)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "The 'nms_top_k' must be great or equal -1");
+        EXPECT_HAS_SUBSTRING(error.what(), "The 'nms_top_k' must be great or equal -1");
     }
 }
 
@@ -137,8 +134,7 @@ TEST(type_prop, matrix_nms_incorrect_keep_topk)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "The 'keep_top_k' must be great or equal -1");
+        EXPECT_HAS_SUBSTRING(error.what(), "The 'keep_top_k' must be great or equal -1");
     }
 }
 
@@ -155,8 +151,7 @@ TEST(type_prop, matrix_nms_incorrect_background_class)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "The 'background_class' must be great or equal -1");
+        EXPECT_HAS_SUBSTRING(error.what(), "The 'background_class' must be great or equal -1");
     }
 }
 
@@ -187,7 +182,8 @@ TEST(type_prop, matrix_nms_output_shape_1dim_max_out)
     ASSERT_EQ(nms->get_output_element_type(2), element::i64);
 
     // batch * class * box
-    EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
+    EXPECT_EQ(nms->get_output_partial_shape(0),
+              PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7), 1}));
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
@@ -205,7 +201,8 @@ TEST(type_prop, matrix_nms_output_shape_1dim_nms_topk)
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);
     ASSERT_EQ(nms->get_output_element_type(2), element::i64);
     // batch * class * min(nms_topk, box)
-    EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 3), Dimension(6)}));
+    EXPECT_EQ(nms->get_output_partial_shape(0),
+              PartialShape({Dimension(0, 2 * 5 * 3), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 3), 1}));
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
@@ -234,7 +231,7 @@ TEST(type_prop, matrix_nms_output_shape_i32)
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
     op::v8::MatrixNms::Attributes attrs;
-    attrs.output_type = ngraph::element::i32;
+    attrs.output_type = ov::element::i32;
 
     const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
@@ -242,7 +239,8 @@ TEST(type_prop, matrix_nms_output_shape_i32)
     ASSERT_EQ(nms->get_output_element_type(1), element::i32);
     ASSERT_EQ(nms->get_output_element_type(2), element::i32);
     // batch * class * box
-    EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
+    EXPECT_EQ(nms->get_output_partial_shape(0),
+              PartialShape({Dimension(0, 2 * 5 * 7), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 7), 1}));
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }

@@ -12,7 +12,7 @@
 #include "ngraph/op/detection_output.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -41,7 +41,7 @@ namespace ngraph
                 };
                 using LabelBBox = std::map<int, std::vector<NormalizedBBox>>;
 
-                ngraph::op::DetectionOutputAttrs attrs;
+                ov::op::DetectionOutputAttrs attrs;
                 size_t numImages;
                 size_t priorSize;
                 size_t numPriors;
@@ -544,10 +544,10 @@ namespace ngraph
                 }
 
             public:
-                referenceDetectionOutput(const ngraph::op::DetectionOutputAttrs& _attrs,
-                                         const ngraph::Shape& locShape,
-                                         const ngraph::Shape& priorsShape,
-                                         const ngraph::Shape& outShape)
+                referenceDetectionOutput(const ov::op::DetectionOutputAttrs& _attrs,
+                                         const ov::Shape& locShape,
+                                         const ov::Shape& priorsShape,
+                                         const ov::Shape& outShape)
                     : attrs(_attrs)
                 {
                     numImages = locShape[0];
@@ -734,4 +734,4 @@ namespace ngraph
             };
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

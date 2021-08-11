@@ -5,7 +5,7 @@
 #include "op/image_scaler.hpp"
 #include "default_opset.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -48,4 +48,4 @@ namespace ngraph
             } // namespace set_1
         }     // namespace op
     }         // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

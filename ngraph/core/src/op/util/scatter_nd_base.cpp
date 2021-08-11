@@ -8,7 +8,7 @@
 #include "ngraph/shape.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::util::ScatterNDBase::type_info;
 constexpr int op::util::ScatterNDBase::INPUTS;

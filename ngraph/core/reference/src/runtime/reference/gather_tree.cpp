@@ -10,7 +10,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/runtime/reference/gather_tree.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 static size_t _asIndex(const char* source, const element::Type& element_type)
 {
@@ -19,8 +19,8 @@ static size_t _asIndex(const char* source, const element::Type& element_type)
     {
     case element::Type_t::f16:
     {
-        ngraph::float16 tmpBuff = 0.f;
-        memcpy(&tmpBuff, source, sizeof(ngraph::float16));
+        ov::float16 tmpBuff = 0.f;
+        memcpy(&tmpBuff, source, sizeof(ov::float16));
         return tmpBuff;
     }
     case element::Type_t::f32:
@@ -84,7 +84,7 @@ void runtime::reference::gather_tree(const char* step_ids,
     }
 
     NGRAPH_SUPPRESS_DEPRECATED_START
-    ngraph::CoordinateTransform cordinate_transform(step_ids_shape);
+    ov::CoordinateTransform cordinate_transform(step_ids_shape);
 
     for (const auto& coord : cordinate_transform)
     {

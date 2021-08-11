@@ -10,7 +10,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::OneHot, "OneHot", 1);
 
@@ -70,7 +70,7 @@ void op::v1::OneHot::validate_and_infer_types()
         std::vector<Dimension> out_dims{indices_shape};
         const auto indices_rank = indices_shape.rank().get_length();
         m_axis =
-            ngraph::normalize_axis(this, m_axis, indices_rank + 1, -indices_rank - 1, indices_rank);
+            ov::normalize_axis(this, m_axis, indices_rank + 1, -indices_rank - 1, indices_rank);
 
         auto depth_element_type = depth->get_output_element_type(0);
         NODE_VALIDATION_CHECK(this,
@@ -100,7 +100,7 @@ void op::v1::OneHot::validate_and_infer_types()
     set_output_type(0, on_value_et, result_shape);
 }
 
-bool ngraph::op::v1::OneHot::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::OneHot::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_OneHot_visit_attributes);
     visitor.on_attribute("axis", m_axis);
@@ -181,8 +181,8 @@ bool op::v1::OneHot::has_evaluate() const
     NGRAPH_OP_SCOPE(v1_OneHot_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64: return true;
+    case ov::element::i32:
+    case ov::element::i64: return true;
     default: break;
     }
     return false;

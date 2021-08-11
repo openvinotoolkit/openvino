@@ -14,16 +14,16 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
-static const std::vector<ngraph::element::Type> base_types = {
-    ngraph::element::from<float>(),
-    ngraph::element::from<int32_t>(),
-    ngraph::element::from<int64_t>(),
-    ngraph::element::from<uint32_t>(),
-    ngraph::element::from<uint64_t>(),
+static const std::vector<ov::element::Type> base_types = {
+    ov::element::from<float>(),
+    ov::element::from<int32_t>(),
+    ov::element::from<int64_t>(),
+    ov::element::from<uint32_t>(),
+    ov::element::from<uint64_t>(),
 };
 
 template <typename OP>

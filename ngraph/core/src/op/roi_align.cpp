@@ -10,7 +10,7 @@
 #include "ngraph/util.hpp" // for host_tensor_2_vector
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::v3::ROIAlign::type_info;
 
@@ -176,7 +176,7 @@ shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new
                                  m_mode);
 }
 
-namespace ngraph
+namespace ov
 {
     constexpr DiscreteTypeInfo AttributeAdapter<op::v3::ROIAlign::PoolingMode>::type_info;
 
@@ -195,7 +195,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov
 
 namespace roi_alinop
 {
@@ -301,9 +301,9 @@ bool op::v3::ROIAlign::has_evaluate() const
     NGRAPH_OP_SCOPE(v3_ROIAlign_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::bf16:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;

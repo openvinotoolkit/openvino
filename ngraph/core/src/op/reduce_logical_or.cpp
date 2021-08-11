@@ -10,7 +10,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/logical_reduction.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 NGRAPH_RTTI_DEFINITION(op::v1::ReduceLogicalOr,

@@ -9,7 +9,7 @@
 #include "ngraph/specialize_function.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::TensorIterator, "TensorIterator", 0, op::util::SubGraphOp);
 
@@ -267,8 +267,8 @@ std::shared_ptr<Node>
                  get_friendly_name());
     op->set_output_size(m_output_descriptions[0].size());
 
-    std::vector<::ngraph::element::Type> types(m_bodies[0]->get_parameters().size());
-    std::vector<::ngraph::PartialShape> new_shapes(m_bodies[0]->get_parameters().size());
+    std::vector<::ov::element::Type> types(m_bodies[0]->get_parameters().size());
+    std::vector<::ov::PartialShape> new_shapes(m_bodies[0]->get_parameters().size());
 
     for (size_t input_index = 0; input_index < new_args.size(); ++input_index)
     {
@@ -283,9 +283,9 @@ std::shared_ptr<Node>
 
                 if (new_shapes[input_description->m_body_parameter_index].is_static())
                 {
-                    if (auto slice_in = ::ngraph::as_type_ptr<
-                            ngraph::op::v0::TensorIterator::SliceInputDescription>(
-                            input_description))
+                    if (auto slice_in =
+                            ::ov::as_type_ptr<ov::op::v0::TensorIterator::SliceInputDescription>(
+                                input_description))
                     {
                         new_shapes[slice_in->m_body_parameter_index][slice_in->m_axis] =
                             slice_in->m_part_size;

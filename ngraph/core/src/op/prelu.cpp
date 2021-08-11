@@ -9,7 +9,7 @@
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::PRelu, "PRelu", 0);
 
@@ -24,13 +24,13 @@ op::PRelu::PRelu(const Output<Node>& data, const Output<Node>& slope)
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::PRelu::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::PRelu::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_PRelu_visit_attributes);
     return true;
 }
 
-void ngraph::op::v0::PRelu::validate_and_infer_types()
+void ov::op::v0::PRelu::validate_and_infer_types()
 {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
@@ -87,10 +87,10 @@ bool op::PRelu::has_evaluate() const
     NGRAPH_OP_SCOPE(v0_PRelu_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::i8:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::i8:
+    case ov::element::bf16:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;

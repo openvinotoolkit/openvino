@@ -6,7 +6,7 @@
 #include <node_context.hpp>
 #include "paddlepaddle_frontend/utility.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -28,4 +28,4 @@ namespace ngraph
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

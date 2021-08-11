@@ -8,7 +8,7 @@
 #include "ngraph/op/util/embeddingbag_offsets_base.hpp"
 #include "ngraph/op/util/index_reduction.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -61,4 +61,4 @@ namespace ngraph
         } // namespace v3
         using v3::EmbeddingBagOffsetsSum;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

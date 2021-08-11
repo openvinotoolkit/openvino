@@ -11,7 +11,7 @@
 #include "onnx_import/core/model.hpp"
 #include "onnx_import/utils/onnx_internal.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -29,7 +29,7 @@ namespace ngraph
                     const bool is_dangling_parameter = std::all_of(
                         parameter_users.begin(),
                         parameter_users.end(),
-                        [](const std::shared_ptr<ngraph::Node>& node) -> bool {
+                        [](const std::shared_ptr<ov::Node>& node) -> bool {
                             return std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node) !=
                                    nullptr;
                         });
@@ -48,12 +48,10 @@ namespace ngraph
                     // we can remove Result from function if after function conversion,
                     // Result is connected to NullNode only
                     const auto result_inputs = result->input_values();
-                    const bool is_dangling_result =
-                        std::all_of(result_inputs.begin(),
-                                    result_inputs.end(),
-                                    [](const Output<ngraph::Node>& node) -> bool {
-                                        return ngraph::op::is_null(node);
-                                    });
+                    const bool is_dangling_result = std::all_of(
+                        result_inputs.begin(),
+                        result_inputs.end(),
+                        [](const Output<ov::Node>& node) -> bool { return ov::op::is_null(node); });
                     if (is_dangling_result)
                     {
                         function->remove_result(result);
@@ -116,4 +114,4 @@ namespace ngraph
             }
         } // namespace detail
     }     // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

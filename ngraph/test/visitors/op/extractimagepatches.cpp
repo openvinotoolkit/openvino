@@ -14,9 +14,9 @@
 #include "util/visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
+using ov::test::ValueMap;
 
 TEST(attributes, extractimagepatches_op)
 {
@@ -26,7 +26,7 @@ TEST(attributes, extractimagepatches_op)
     auto sizes = Shape{3, 3};
     auto strides = Strides{5, 5};
     auto rates = Shape{1, 1};
-    auto padtype_padding = ngraph::op::PadType::VALID;
+    auto padtype_padding = ov::op::PadType::VALID;
 
     auto extractimagepatches =
         make_shared<opset3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);

@@ -7,7 +7,7 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(aligned_buffer, alignment)
 {

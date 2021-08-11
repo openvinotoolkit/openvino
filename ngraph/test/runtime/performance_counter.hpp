@@ -10,7 +10,7 @@
 #include "backend_visibility.hpp"
 #include "ngraph/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -34,5 +34,5 @@ namespace ngraph
             size_t m_total_microseconds;
             size_t m_call_count;
         };
-    }
-}
+    } // namespace runtime
+} // namespace ov

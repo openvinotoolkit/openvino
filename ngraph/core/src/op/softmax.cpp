@@ -19,7 +19,7 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 namespace
 {
@@ -60,7 +60,7 @@ op::v1::Softmax::Softmax(const Output<Node>& arg, const size_t axis)
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::Softmax::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::Softmax::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Softmax_visit_attributes);
     visitor.on_attribute("axis", m_axis);
@@ -104,10 +104,10 @@ bool op::v1::Softmax::has_evaluate() const
     NGRAPH_OP_SCOPE(v1_Softmax_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
-    case ngraph::element::f64: return true;
+    case ov::element::bf16:
+    case ov::element::f16:
+    case ov::element::f32:
+    case ov::element::f64: return true;
     default: break;
     }
     return false;

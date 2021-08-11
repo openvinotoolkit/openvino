@@ -9,7 +9,7 @@
 #include "ngraph/validation_util.hpp"
 #include "op/squeeze.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -25,7 +25,7 @@ namespace ngraph
                     const auto data_rank = data.get_partial_shape().rank();
 
                     std::vector<std::size_t> normalized_axes =
-                        ngraph::normalize_axes(node.get_description(), axes, data_rank);
+                        ov::normalize_axes(node.get_description(), axes, data_rank);
                     auto axes_node = std::make_shared<default_opset::Constant>(
                         element::u64, Shape{normalized_axes.size()}, normalized_axes);
 
@@ -53,4 +53,4 @@ namespace ngraph
             } // namespace set_13
         }     // namespace op
     }         // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

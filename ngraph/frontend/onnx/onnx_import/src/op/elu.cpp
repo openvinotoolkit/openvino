@@ -8,7 +8,7 @@
 #include "default_opset.hpp"
 #include "op/elu.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -30,4 +30,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

@@ -7,7 +7,7 @@
 #include "ngraph/node.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 void AttributeVisitor::start_structure(const string& name)
 {
@@ -159,7 +159,7 @@ void AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::vector<
 }
 
 void AttributeVisitor::on_adapter(const string& name,
-                                  ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter)
+                                  ValueAccessor<std::shared_ptr<ov::Function>>& adapter)
 {
     on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
 }

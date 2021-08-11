@@ -12,7 +12,7 @@
 #include <vector>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v5::RNNSequence, "RNNSequence", 4);
 
@@ -70,7 +70,7 @@ void op::v5::RNNSequence::validate_and_infer_types()
     auto r_pshape = get_input_partial_shape(4);
     auto b_pshape = get_input_partial_shape(5);
 
-    ngraph::op::util::validate_seq_input_rank_dimension(
+    ov::op::util::validate_seq_input_rank_dimension(
         {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape});
 
     // Validate input types and save result for output type
@@ -164,8 +164,7 @@ bool op::v5::RNNSequence::visit_attributes(AttributeVisitor& visitor)
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-shared_ptr<Node>
-    op::v5::RNNSequence::clone_with_new_inputs(const ngraph::OutputVector& new_args) const
+shared_ptr<Node> op::v5::RNNSequence::clone_with_new_inputs(const ov::OutputVector& new_args) const
 {
     NGRAPH_OP_SCOPE(v5_RNNSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);

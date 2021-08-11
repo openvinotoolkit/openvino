@@ -13,7 +13,7 @@
 #include "op/reshape.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -26,7 +26,7 @@ namespace ngraph
                     OutputVector ng_inputs{node.get_ng_inputs()};
                     const auto data = ng_inputs.at(0);
 
-                    Output<ngraph::Node> pattern;
+                    Output<ov::Node> pattern;
                     bool special_zero = true;
                     // Since opset 5 the target shape is provided as input
                     if (ng_inputs.size() == 2)
@@ -54,4 +54,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

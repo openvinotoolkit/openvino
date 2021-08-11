@@ -8,7 +8,7 @@
 
 #include "ngraph/op/util/max_pool_base.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -137,4 +137,4 @@ namespace ngraph
             };
         } // namespace v8
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

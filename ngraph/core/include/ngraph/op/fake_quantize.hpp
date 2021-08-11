@@ -8,7 +8,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -27,7 +27,7 @@ namespace ngraph
             ///                 (levels-1) * (output_high - output_low) + output_low
             ///
             ///
-            class NGRAPH_API FakeQuantize : public ngraph::op::Op
+            class NGRAPH_API FakeQuantize : public ov::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -75,4 +75,4 @@ namespace ngraph
         } // namespace v0
         using v0::FakeQuantize;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

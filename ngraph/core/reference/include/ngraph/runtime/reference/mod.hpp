@@ -9,7 +9,7 @@
 
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -30,4 +30,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

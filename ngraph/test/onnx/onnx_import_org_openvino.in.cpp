@@ -41,7 +41,7 @@
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-using namespace ngraph;
+using namespace ov;
 
 static std::string s_manifest = "${MANIFEST}";
 
@@ -52,8 +52,8 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_prior_box)
 {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/prior_box.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/prior_box.onnx"));
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     std::vector<float> A(3 * 2 * 2);
     std::vector<float> B(3 * 6 * 6);
@@ -95,8 +95,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_most_attrs_default)
 {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/priorbox_clustered_most_attrs_default.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/priorbox_clustered_most_attrs_default.onnx"));
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     std::vector<float> A(1 * 1 * 2 * 1);
@@ -133,7 +133,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_first_input_bad_shape)
             SERIALIZED_ZOO, "onnx/priorbox_clustered_first_input_bad_shape.onnx"));
         FAIL() << "Expected exception was not thrown";
     }
-    catch (const ngraph::ngraph_error& e)
+    catch (const ov::ngraph_error& e)
     {
         EXPECT_HAS_SUBSTRING(
             e.what(),
@@ -153,7 +153,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_second_input_bad_shape)
             SERIALIZED_ZOO, "onnx/priorbox_clustered_second_input_bad_shape.onnx"));
         FAIL() << "Expected exception was not thrown";
     }
-    catch (const ngraph::ngraph_error& e)
+    catch (const ov::ngraph_error& e)
     {
         EXPECT_HAS_SUBSTRING(
             e.what(),
@@ -246,8 +246,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_5d)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize)
 {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/normalize.onnx"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/normalize.onnx"));
     auto test_case = test::TestCase<TestEngine>(function);
     std::vector<float> data(12);
     std::iota(data.begin(), data.end(), 1);
@@ -301,8 +301,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_swish_without_beta)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output)
 {
     auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO,
-        "onnx/org.openvinotoolkit/experimental_detectron/detection_output.onnx"));
+        SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/detection_output.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     // rois
@@ -593,8 +592,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d)
 {
-    auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/org.openvinotoolkit/deformable_conv_2d.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/deformable_conv_2d.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 

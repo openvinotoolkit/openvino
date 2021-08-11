@@ -16,7 +16,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::Squeeze, "Squeeze", 0);
 
@@ -145,7 +145,7 @@ void op::Squeeze::validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), PartialShape(output_data_shape));
 }
 
-bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Squeeze_visit_attributes);
     return true;
@@ -272,14 +272,14 @@ bool op::v0::Squeeze::has_evaluate() const
     {
         switch (get_input_element_type(1))
         {
-        case ngraph::element::i8:
-        case ngraph::element::i16:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
-        case ngraph::element::u8:
-        case ngraph::element::u16:
-        case ngraph::element::u32:
-        case ngraph::element::u64: return true;
+        case ov::element::i8:
+        case ov::element::i16:
+        case ov::element::i32:
+        case ov::element::i64:
+        case ov::element::u8:
+        case ov::element::u16:
+        case ov::element::u32:
+        case ov::element::u64: return true;
         default: break;
         }
         return false;

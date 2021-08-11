@@ -10,7 +10,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::LogicalAnd, "LogicalAnd", 1, util::BinaryElementwiseLogical);
 
@@ -82,7 +82,7 @@ bool op::v1::LogicalAnd::has_evaluate() const
     NGRAPH_OP_SCOPE(v1_LogicalAnd_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::boolean: return true;
+    case ov::element::boolean: return true;
     default: break;
     }
     return false;

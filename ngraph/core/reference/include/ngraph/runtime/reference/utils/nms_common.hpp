@@ -11,7 +11,7 @@
 #include <vector>
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -77,7 +77,7 @@ namespace ngraph
                 void nms_common_postprocessing(void* prois,
                                                void* pscores,
                                                void* pselected_num,
-                                               const ngraph::element::Type& output_type,
+                                               const ov::element::Type& output_type,
                                                const std::vector<float>& selected_outputs,
                                                const std::vector<int64_t>& selected_indices,
                                                const std::vector<int64_t>& valid_outputs);
@@ -85,4 +85,4 @@ namespace ngraph
             } // namespace nms_common
         }     // namespace reference
     }         // namespace runtime
-} // namespace ngraph
+} // namespace ov

@@ -30,7 +30,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -45,9 +45,9 @@ NGRAPH_TEST(${BACKEND_NAME}, tanh_f32)
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::f32, shape);
     const vector<float> input{2.f, 1.f, 0.5f, 0.f, -0.f, -0.5f, -1.f, -2.f};
-    const auto expected = [&]{
-        vector<float> e(input.size(),0);
-        std::transform(begin(input), end(input), begin(e), [](float v){return std::tanh(v);});
+    const auto expected = [&] {
+        vector<float> e(input.size(), 0);
+        std::transform(begin(input), end(input), begin(e), [](float v) { return std::tanh(v); });
         return e;
     }();
     copy_data(a, input);

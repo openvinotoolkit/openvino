@@ -7,7 +7,7 @@
 #include "backend_visibility.hpp"
 #include "ngraph/pass/pass.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pass
     {
@@ -18,7 +18,7 @@ namespace ngraph
                 : FunctionPass()
             {
             }
-            virtual bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+            virtual bool run_on_function(std::shared_ptr<ov::Function> f) override;
         };
-    }
-}
+    } // namespace pass
+} // namespace ov

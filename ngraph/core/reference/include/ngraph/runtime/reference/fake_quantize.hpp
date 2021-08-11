@@ -15,7 +15,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -266,4 +266,4 @@ namespace ngraph
             } // namespace v0
         }     // namespace reference
     }         // namespace runtime
-} // namespace ngraph
+} // namespace ov

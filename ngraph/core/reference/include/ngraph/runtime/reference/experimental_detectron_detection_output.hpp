@@ -26,7 +26,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -46,7 +46,7 @@ namespace ngraph
                 void* pboxes,
                 void* pclasses,
                 void* pscores,
-                const ngraph::element::Type output_type,
+                const ov::element::Type output_type,
                 const std::vector<float>& output_boxes,
                 const std::vector<int32_t>& output_classes,
                 const std::vector<float>& output_scores,
@@ -55,4 +55,4 @@ namespace ngraph
                 const Shape& output_scores_shape);
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

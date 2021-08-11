@@ -10,7 +10,7 @@
 #include "ngraph/runtime/reference/floor.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::Floor, "Floor", 0, util::UnaryElementwiseArithmetic);
 
@@ -20,7 +20,7 @@ op::Floor::Floor(const Output<Node>& arg)
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Floor::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::Floor::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Floor_visit_attributes);
     return true;
@@ -87,17 +87,17 @@ bool op::Floor::has_evaluate() const
     NGRAPH_OP_SCOPE(v0_Floor_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::boolean:
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::boolean:
+    case ov::element::i8:
+    case ov::element::i16:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u8:
+    case ov::element::u16:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;

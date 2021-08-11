@@ -17,7 +17,7 @@
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -197,4 +197,4 @@ namespace ngraph
         } // namespace v5
     }     // namespace op
 
-} // namespace ngraph
+} // namespace ov

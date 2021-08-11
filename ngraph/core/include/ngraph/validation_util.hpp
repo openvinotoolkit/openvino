@@ -12,7 +12,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/variable_context.hpp"
 
-namespace ngraph
+namespace ov
 {
     NGRAPH_API
     Strides conv_default_strides(const Node* node,
@@ -357,4 +357,4 @@ namespace ngraph
                                               CoordinateDiff& pads_begin,
                                               CoordinateDiff& pads_end);
     } // namespace opset1
-} // namespace ngraph
+} // namespace ov

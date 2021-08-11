@@ -8,7 +8,7 @@
 #include "ngraph/op/util/scatter_base.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -49,4 +49,4 @@ namespace ngraph
             };
         } // namespace v3
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

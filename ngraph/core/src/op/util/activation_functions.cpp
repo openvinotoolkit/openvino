@@ -15,7 +15,7 @@
 #include "ngraph/op/util/activation_functions.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static shared_ptr<Node> sigmoid(const shared_ptr<Node>& arg, float /* alpha */, float /* beta */)
 {

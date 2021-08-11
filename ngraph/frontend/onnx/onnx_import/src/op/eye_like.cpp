@@ -8,7 +8,7 @@
 #include "op/eye_like.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -41,7 +41,7 @@ namespace ngraph
                                      input_shape.size(),
                                      " is unsupported, only 2D shapes are supported");
 
-                    std::shared_ptr<ngraph::Node> eye_like_matrix =
+                    std::shared_ptr<ov::Node> eye_like_matrix =
                         common::shifted_square_identity(input_shape, target_type, shift);
 
                     return {eye_like_matrix};
@@ -53,4 +53,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

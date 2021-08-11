@@ -14,7 +14,7 @@
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 // ------------------------------ V1 ------------------------------
 
@@ -60,21 +60,18 @@ std::shared_ptr<Node>
                           new_args.size() >= 2 && new_args.size() <= 5,
                           "Number of inputs must be 2, 3, 4 or 5");
 
-    const auto& arg2 = new_args.size() > 2
-                           ? new_args.at(2)
-                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
-    const auto& arg3 = new_args.size() > 3
-                           ? new_args.at(3)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
-    const auto& arg4 = new_args.size() > 4
-                           ? new_args.at(4)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg2 =
+        new_args.size() > 2 ? new_args.at(2) : ov::op::Constant::create(element::i32, Shape{}, {0});
+    const auto& arg3 = new_args.size() > 3 ? new_args.at(3)
+                                           : ov::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg4 = new_args.size() > 4 ? new_args.at(4)
+                                           : ov::op::Constant::create(element::f32, Shape{}, {.0f});
 
     return std::make_shared<op::v1::NonMaxSuppression>(
         new_args.at(0), new_args.at(1), arg2, arg3, arg4, m_box_encoding, m_sort_result_descending);
 }
 
-bool ngraph::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
@@ -190,7 +187,7 @@ int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const
     return max_output_boxes;
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     EnumNames<op::v1::NonMaxSuppression::BoxEncodingType>&
@@ -211,7 +208,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov
 
 // ------------------------------ V3 ------------------------------
 
@@ -261,15 +258,12 @@ std::shared_ptr<Node>
                           new_args.size() >= 2 && new_args.size() <= 5,
                           "Number of inputs must be 2, 3, 4 or 5");
 
-    const auto& arg2 = new_args.size() > 2
-                           ? new_args.at(2)
-                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
-    const auto& arg3 = new_args.size() > 3
-                           ? new_args.at(3)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
-    const auto& arg4 = new_args.size() > 4
-                           ? new_args.at(4)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg2 =
+        new_args.size() > 2 ? new_args.at(2) : ov::op::Constant::create(element::i32, Shape{}, {0});
+    const auto& arg3 = new_args.size() > 3 ? new_args.at(3)
+                                           : ov::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg4 = new_args.size() > 4 ? new_args.at(4)
+                                           : ov::op::Constant::create(element::f32, Shape{}, {.0f});
 
     return std::make_shared<op::v3::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),
@@ -281,7 +275,7 @@ std::shared_ptr<Node>
                                                        m_output_type);
 }
 
-bool ngraph::op::v3::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v3::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v3_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
@@ -407,7 +401,7 @@ int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const
     return max_output_boxes;
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     EnumNames<op::v3::NonMaxSuppression::BoxEncodingType>&
@@ -428,7 +422,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov
 
 // ------------------------------ V4 ------------------------------
 
@@ -482,15 +476,12 @@ std::shared_ptr<Node>
                           new_args.size() >= 2 && new_args.size() <= 5,
                           "Number of inputs must be 2, 3, 4 or 5");
 
-    const auto& arg2 = new_args.size() > 2
-                           ? new_args.at(2)
-                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
-    const auto& arg3 = new_args.size() > 3
-                           ? new_args.at(3)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
-    const auto& arg4 = new_args.size() > 4
-                           ? new_args.at(4)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg2 =
+        new_args.size() > 2 ? new_args.at(2) : ov::op::Constant::create(element::i32, Shape{}, {0});
+    const auto& arg3 = new_args.size() > 3 ? new_args.at(3)
+                                           : ov::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg4 = new_args.size() > 4 ? new_args.at(4)
+                                           : ov::op::Constant::create(element::f32, Shape{}, {.0f});
 
     return std::make_shared<op::v4::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),
@@ -702,7 +693,7 @@ namespace
 
         Shape shape = p.to_shape();
 
-        return ngraph::is_scalar(shape) || (is_vector(shape) && (shape[0] == 1));
+        return ov::is_scalar(shape) || (is_vector(shape) && (shape[0] == 1));
     }
 } // namespace
 
@@ -880,7 +871,7 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const
 bool op::v5::NonMaxSuppression::is_soft_nms_sigma_constant_and_default() const
 {
     auto soft_nms_sigma_node = input_value(soft_nms_sigma_port).get_node_shared_ptr();
-    if (inputs().size() < 6 || !ngraph::op::is_constant(soft_nms_sigma_node))
+    if (inputs().size() < 6 || !ov::op::is_constant(soft_nms_sigma_node))
     {
         return false;
     }
@@ -888,7 +879,7 @@ bool op::v5::NonMaxSuppression::is_soft_nms_sigma_constant_and_default() const
     return soft_nms_sigma_input->cast_vector<float>().at(0) == 0.0f;
 }
 
-bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v5_NonMaxSuppression_visit_attributes);
     visitor.on_attribute("box_encoding", m_box_encoding);
@@ -930,7 +921,7 @@ void op::v5::NonMaxSuppression::validate_and_infer_types()
     set_output_type(2, m_output_type, Shape{1});
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>&
@@ -951,4 +942,4 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov

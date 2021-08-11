@@ -22,7 +22,7 @@
 #include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -46,7 +46,7 @@ namespace
         test_case.template add_expected_output<T>(static_shape, output);
         return test_case.run();
     }
-}
+} // namespace
 
 TEST(op_eval, clamp_float_dynamic)
 {

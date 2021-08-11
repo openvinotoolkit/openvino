@@ -7,7 +7,7 @@
 #include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::RegionYolo, "RegionYolo", 0);
 
@@ -33,7 +33,7 @@ op::RegionYolo::RegionYolo(const Output<Node>& input,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::RegionYolo::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::RegionYolo::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_RegionYolo_visit_attributes);
     visitor.on_attribute("anchors", m_anchors);

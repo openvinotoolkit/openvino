@@ -11,7 +11,7 @@
 #include <memory>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 std::shared_ptr<op::DetectionOutput>
     create_detection_output(const PartialShape& box_logits_shape,

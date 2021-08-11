@@ -6,7 +6,7 @@
 #include "ngraph/node.hpp"
 #include "utils/pooling_factory.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -25,4 +25,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

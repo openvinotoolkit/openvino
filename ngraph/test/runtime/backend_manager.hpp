@@ -24,18 +24,18 @@
 #include "backend_visibility.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
         class Backend;
         class BackendManager;
         using BackendConstructor =
-            std::function<std::shared_ptr<ngraph::runtime::Backend>(const std::string& config)>;
-    }
-}
+            std::function<std::shared_ptr<ov::runtime::Backend>(const std::string& config)>;
+    } // namespace runtime
+} // namespace ov
 
-class ngraph::runtime::BackendManager
+class ov::runtime::BackendManager
 {
     friend class Backend;
 

@@ -11,7 +11,7 @@
 #include "ngraph/runtime/reference/concat.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::Concat, "Concat", 0);
 

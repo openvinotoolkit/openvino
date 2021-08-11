@@ -6,9 +6,9 @@
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Validate, "ngraph::pass::Validate", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::Validate, "ov::pass::Validate", 0);
 
 bool pass::Validate::run_on_function(std::shared_ptr<Function> f)
 {

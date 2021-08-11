@@ -17,7 +17,7 @@
 #include "ngraph/type/element_type_traits.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::v3::ShapeOf::type_info;
 
@@ -39,7 +39,7 @@ void op::v3::ShapeOf::validate_and_infer_types()
     set_output_type(0, m_output_type, PartialShape{input_partial_shape.rank()});
 }
 
-bool ngraph::op::v3::ShapeOf::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v3::ShapeOf::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v3_ShapeOf_visit_attributes);
     visitor.on_attribute("output_type", m_output_type);
@@ -149,9 +149,9 @@ namespace shape_of
             for (const auto& i : input_partial_shape)
                 dynamic_mask.push_back(Dimension(i.get_interval().get_max_val()).is_dynamic());
             auto mask_const =
-                ngraph::op::Constant::create(element::boolean, {dynamic_mask.size()}, dynamic_mask);
-            auto dynamic_min_const = ngraph::op::Constant::create(output_et, {}, {0});
-            auto dynamic_max_const = ngraph::op::Constant::create(
+                ov::op::Constant::create(element::boolean, {dynamic_mask.size()}, dynamic_mask);
+            auto dynamic_min_const = ov::op::Constant::create(output_et, {}, {0});
+            auto dynamic_max_const = ov::op::Constant::create(
                 output_et,
                 {},
                 {output_et == element::i64 ? std::numeric_limits<int64_t>::max()
@@ -184,10 +184,10 @@ bool op::v3::ShapeOf::has_evaluate() const
     NGRAPH_OP_SCOPE(v3_ShapeOf_has_evaluate);
     switch (get_output_element_type(0))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64: return true;
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u32:
+    case ov::element::u64: return true;
     default: break;
     }
     return false;
@@ -227,7 +227,7 @@ void op::v0::ShapeOf::validate_and_infer_types()
     set_output_type(0, element::i64, PartialShape{get_input_partial_shape(0).rank()});
 }
 
-bool ngraph::op::v0::ShapeOf::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::ShapeOf::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_ShapeOf_visit_attributes);
     return true;
@@ -261,10 +261,10 @@ bool op::v0::ShapeOf::has_evaluate() const
     NGRAPH_OP_SCOPE(v0_ShapeOf_has_evaluate);
     switch (get_output_element_type(0))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64: return true;
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u32:
+    case ov::element::u64: return true;
     default: break;
     }
     return false;

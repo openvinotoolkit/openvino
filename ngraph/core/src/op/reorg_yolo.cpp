@@ -7,7 +7,7 @@
 #include "ngraph/runtime/reference/reorg_yolo.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::ReorgYolo, "ReorgYolo", 0);
 

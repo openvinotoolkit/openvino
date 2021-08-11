@@ -16,7 +16,7 @@
 #include <numeric>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::util::BroadcastBase, "BroadcastBase", 0);
 

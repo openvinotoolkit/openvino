@@ -7,7 +7,7 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 // Since v3::TopK is backward compatible with v1::TopK all of these tests should pass
 template <typename T>

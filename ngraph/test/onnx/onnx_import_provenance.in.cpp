@@ -12,8 +12,8 @@
 #include "util/test_control.hpp"
 #include "util/type_prop.hpp"
 
-using namespace ngraph;
-using namespace ngraph::onnx_import;
+using namespace ov;
+using namespace ov::onnx_import;
 
 static std::string s_manifest = "${MANIFEST}";
 

@@ -16,7 +16,7 @@
 #include "onnx_import/core/node.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -57,10 +57,10 @@ namespace ngraph
                     return common::get_ngraph_element_type(
                         m_value_info_proto->type().tensor_type().elem_type());
                 }
-                return ngraph::element::dynamic;
+                return ov::element::dynamic;
             }
 
-            std::shared_ptr<ngraph::Node>
+            std::shared_ptr<ov::Node>
                 get_ng_node(ParameterVector& parameters,
                             const std::map<std::string, Tensor>& initializers) const
             {
@@ -74,16 +74,16 @@ namespace ngraph
             }
 
         protected:
-            std::shared_ptr<ngraph::op::Parameter> get_ng_parameter() const
+            std::shared_ptr<ov::op::Parameter> get_ng_parameter() const
             {
                 auto parameter =
-                    std::make_shared<ngraph::op::Parameter>(get_element_type(), get_shape());
+                    std::make_shared<ov::op::Parameter>(get_element_type(), get_shape());
                 parameter->set_friendly_name(get_name());
                 parameter->get_output_tensor(0).set_names({get_name()});
                 return parameter;
             }
 
-            std::shared_ptr<ngraph::op::Constant> get_ng_constant(const Tensor& tensor) const
+            std::shared_ptr<ov::op::Constant> get_ng_constant(const Tensor& tensor) const
             {
                 return tensor.get_ng_constant();
             }
@@ -100,4 +100,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

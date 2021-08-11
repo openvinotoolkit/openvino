@@ -20,7 +20,7 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 static std::string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});

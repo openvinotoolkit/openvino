@@ -13,8 +13,8 @@
 
 #include "util/visitor.hpp"
 
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, parameter_op)
 {

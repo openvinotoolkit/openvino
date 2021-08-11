@@ -8,7 +8,7 @@
 
 #include "ngraph/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -23,4 +23,4 @@ namespace ngraph
             Op(const OutputVector& arguments);
         };
     } // namespace op
-} // namespace ngraph
+} // namespace ov

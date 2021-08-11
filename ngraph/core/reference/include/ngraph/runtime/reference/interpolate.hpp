@@ -15,15 +15,15 @@
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
         namespace reference
         {
-            using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
-            using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
-            using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
+            using Nearest_mode = ov::op::v4::Interpolate::NearestMode;
+            using Transform_mode = ov::op::v4::Interpolate::CoordinateTransformMode;
+            using InterpolateMode = ov::op::v4::Interpolate::InterpolateMode;
 
             /// \brief Calculation of nearest pixel.
             class GetNearestPixel final
@@ -667,4 +667,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

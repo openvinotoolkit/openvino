@@ -6,8 +6,8 @@
 #include <fstream>
 #include "utils.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 std::string
     FrontEndLoadFromTest::getTestCaseName(const testing::TestParamInfo<LoadFromFEParam>& obj)
@@ -38,7 +38,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFilePath)
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(model_path));
     ASSERT_NE(m_inputModel, nullptr);
 
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(function, nullptr);
 }
@@ -58,7 +58,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromTwoFiles)
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(model_path, weights_path));
     ASSERT_NE(m_inputModel, nullptr);
 
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     function = m_frontEnd->convert(m_inputModel);
     ASSERT_NE(function, nullptr);
 }
@@ -77,7 +77,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromStream)
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(is));
     ASSERT_NE(m_inputModel, nullptr);
 
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(function, nullptr);
 }
@@ -102,7 +102,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromTwoStreams)
     ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(model_is, weights_is));
     ASSERT_NE(m_inputModel, nullptr);
 
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(function, nullptr);
 }

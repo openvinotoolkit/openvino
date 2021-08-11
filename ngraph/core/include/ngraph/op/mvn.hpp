@@ -8,7 +8,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -18,7 +18,7 @@ namespace ngraph
         {
             /// \brief Operator performing Mean Variance Normalization
             ///
-            class NGRAPH_API MVN : public ngraph::op::util::FusedOp
+            class NGRAPH_API MVN : public ov::op::util::FusedOp
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -95,7 +95,7 @@ namespace ngraph
         {
             /// \brief Operator performing Mean Variance Normalization
             ///
-            class NGRAPH_API MVN : public ngraph::op::Op
+            class NGRAPH_API MVN : public ov::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -148,4 +148,4 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::MVNEpsMode>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

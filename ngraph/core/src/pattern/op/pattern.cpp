@@ -7,7 +7,7 @@
 
 #include "ngraph/pattern/op/pattern.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pattern
     {
@@ -115,4 +115,4 @@ namespace ngraph
             };
         }
     } // namespace pattern
-} // namespace ngraph
+} // namespace ov

@@ -8,7 +8,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -45,4 +45,4 @@ namespace ngraph
         } // namespace v1
         using v1::Transpose;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

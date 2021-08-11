@@ -8,7 +8,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -81,4 +81,4 @@ namespace ngraph
             };
         } // namespace util
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

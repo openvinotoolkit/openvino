@@ -9,7 +9,7 @@
 #include "ngraph/shape.hpp"
 #include "utils/span.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -65,4 +65,4 @@ namespace ngraph
 
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

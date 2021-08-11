@@ -13,7 +13,7 @@
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// \brief Run-time opset information
     class NGRAPH_API OpSet
@@ -55,10 +55,10 @@ namespace ngraph
 
         const std::set<NodeTypeInfo>& get_types_info() const { return m_op_types; }
         /// \brief Create the op named name using it's factory
-        ngraph::Node* create(const std::string& name) const;
+        ov::Node* create(const std::string& name) const;
 
         /// \brief Create the op named name using it's factory
-        ngraph::Node* create_insensitive(const std::string& name) const;
+        ov::Node* create_insensitive(const std::string& name) const;
 
         /// \brief Return true if OP_TYPE is in the opset
         bool contains_type(const NodeTypeInfo& type_info) const
@@ -97,7 +97,7 @@ namespace ngraph
         }
 
         const std::set<NodeTypeInfo>& get_type_info_set() const { return m_op_types; }
-        ngraph::FactoryRegistry<ngraph::Node>& get_factory_registry() { return m_factory_registry; }
+        ov::FactoryRegistry<ov::Node>& get_factory_registry() { return m_factory_registry; }
 
     protected:
         static std::string to_upper_name(const std::string& name)
@@ -111,7 +111,7 @@ namespace ngraph
             return upper_name;
         }
 
-        ngraph::FactoryRegistry<ngraph::Node> m_factory_registry;
+        ov::FactoryRegistry<ov::Node> m_factory_registry;
         std::set<NodeTypeInfo> m_op_types;
         std::map<std::string, NodeTypeInfo> m_name_type_info_map;
         std::map<std::string, NodeTypeInfo> m_case_insensitive_type_info_map;
@@ -125,4 +125,4 @@ namespace ngraph
     const NGRAPH_API OpSet& get_opset6();
     const NGRAPH_API OpSet& get_opset7();
     const NGRAPH_API OpSet& get_opset8();
-} // namespace ngraph
+} // namespace ov

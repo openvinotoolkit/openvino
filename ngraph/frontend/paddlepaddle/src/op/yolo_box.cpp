@@ -7,7 +7,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -137,9 +137,9 @@ namespace ngraph
                     auto node_prob = node_split_input->output(5);
 
                     // x/y
-                    std::shared_ptr<ngraph::Node> node_box_x_sigmoid =
+                    std::shared_ptr<ov::Node> node_box_x_sigmoid =
                         std::make_shared<Sigmoid>(node_box_x);
-                    std::shared_ptr<ngraph::Node> node_box_y_sigmoid =
+                    std::shared_ptr<ov::Node> node_box_y_sigmoid =
                         std::make_shared<Sigmoid>(node_box_y);
 
                     if (std::fabs(scale_x_y - default_scale) > 1e-6)
@@ -354,7 +354,7 @@ namespace ngraph
                     auto node_pred_box_y2_squeeze =
                         std::make_shared<Multiply>(node_pred_box_y2_reshape, node_img_height_cast);
 
-                    std::shared_ptr<ngraph::Node> node_pred_box_result;
+                    std::shared_ptr<ov::Node> node_pred_box_result;
                     if (clip_bbox)
                     {
                         auto node_number_one = Constant::create<float>(f32, {1}, {1.0});
@@ -430,4 +430,4 @@ namespace ngraph
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

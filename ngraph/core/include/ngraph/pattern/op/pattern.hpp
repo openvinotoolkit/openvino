@@ -8,7 +8,7 @@
 
 #include "ngraph/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pattern
     {
@@ -102,4 +102,4 @@ namespace ngraph
             };
         } // namespace op
     }     // namespace pattern
-} // namespace ngraph
+} // namespace ov

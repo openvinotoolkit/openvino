@@ -9,7 +9,7 @@
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate_range.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -50,4 +50,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

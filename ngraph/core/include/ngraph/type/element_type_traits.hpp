@@ -6,7 +6,7 @@
 
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph
+namespace ov
 {
     template <element::Type_t>
     struct element_type_traits
@@ -111,4 +111,4 @@ namespace ngraph
     {
         using value_type = uint64_t;
     };
-} // namespace ngraph
+} // namespace ov

@@ -12,7 +12,7 @@
 #include "ngraph/type.hpp"
 
 ///
-namespace ngraph
+namespace ov
 {
     class AttributeVisitor;
 
@@ -557,4 +557,4 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<string>>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

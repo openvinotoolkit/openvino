@@ -6,14 +6,14 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-namespace ngraph
+namespace ov
 {
     namespace op
     {
         namespace v0
         {
             /// \brief Performs a SELU activation function on all elements of the input node
-            class NGRAPH_API Selu : public ngraph::op::Op
+            class NGRAPH_API Selu : public ov::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -38,4 +38,4 @@ namespace ngraph
         } // namespace v0
         using v0::Selu;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

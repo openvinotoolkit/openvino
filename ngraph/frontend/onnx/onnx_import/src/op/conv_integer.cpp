@@ -12,9 +12,9 @@
 #include "ngraph/opsets/opset0.hpp"
 #include "utils/convpool.hpp"
 
-using namespace ngraph::builder;
+using namespace ov::builder;
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -39,7 +39,7 @@ namespace ngraph
                     auto window_movement_strides = convpool::get_strides(node);
                     auto window_dilation_strides = convpool::get_dilations(node);
                     auto paddings = convpool::get_pads(node);
-                    ngraph::op::PadType auto_pad_type = convpool::get_auto_pad(node);
+                    ov::op::PadType auto_pad_type = convpool::get_auto_pad(node);
                     auto& padding_below = paddings.first;
                     auto& padding_above = paddings.second;
                     convpool::calculate_auto_pads(input.get_shape(),
@@ -51,14 +51,14 @@ namespace ngraph
                                                   padding_above);
 
                     const Strides default_data_dilation_strides(input.get_shape().size() - 2, 1);
-                    auto scale_one = make_constant(ngraph::element::f32, Shape{}, 1);
+                    auto scale_one = make_constant(ov::element::f32, Shape{}, 1);
                     auto input_zero_point = make_constant(input.get_element_type(), Shape{}, 0);
                     auto filters_zero_point = make_constant(filters.get_element_type(), Shape{}, 0);
-                    auto output_zero_point = make_constant(ngraph::element::i32, Shape{}, 0);
+                    auto output_zero_point = make_constant(ov::element::i32, Shape{}, 0);
 
                     if (num_inputs == 2)
                     {
-                        return {std::make_shared<ngraph::opset0::QuantizedConvolution>(
+                        return {std::make_shared<ov::opset0::QuantizedConvolution>(
                             input,
                             filters,
                             window_movement_strides,
@@ -72,10 +72,10 @@ namespace ngraph
                             filters_zero_point,
                             scale_one,
                             output_zero_point,
-                            ngraph::element::i32,
-                            ngraph::AxisSet{},
-                            ngraph::AxisSet{},
-                            ngraph::AxisSet{})};
+                            ov::element::i32,
+                            ov::AxisSet{},
+                            ov::AxisSet{},
+                            ov::AxisSet{})};
                     }
 
                     input_zero_point = inputs.at(2);
@@ -84,7 +84,7 @@ namespace ngraph
                         filters_zero_point = inputs.at(3);
                     }
 
-                    return {std::make_shared<ngraph::opset0::QuantizedConvolution>(
+                    return {std::make_shared<ov::opset0::QuantizedConvolution>(
                         input,
                         filters,
                         window_movement_strides,
@@ -98,10 +98,10 @@ namespace ngraph
                         filters_zero_point,
                         scale_one,
                         output_zero_point,
-                        ngraph::element::i32,
-                        ngraph::AxisSet{},
-                        ngraph::AxisSet{},
-                        ngraph::AxisSet{})};
+                        ov::element::i32,
+                        ov::AxisSet{},
+                        ov::AxisSet{},
+                        ov::AxisSet{})};
                 }
             } // namespace set_1
 
@@ -109,4 +109,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

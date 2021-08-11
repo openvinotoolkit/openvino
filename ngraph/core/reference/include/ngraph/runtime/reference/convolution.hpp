@@ -18,7 +18,7 @@
 #include "ngraph/runtime/reference/split.hpp"
 #include "ngraph/util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -293,7 +293,7 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov
 
 // can't be removed currently due to arm-plugin dependency
 #include "ngraph/runtime/reference/convolution_backprop_data.hpp"

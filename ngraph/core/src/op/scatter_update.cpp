@@ -11,7 +11,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::v3::ScatterUpdate::type_info;
 
@@ -68,7 +68,7 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
     if (axis_val < 0)
     {
         axis_val =
-            ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
+            ov::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
     }
 
     std::vector<int64_t> indices_casted_vector;
@@ -111,14 +111,14 @@ bool op::v3::ScatterUpdate::has_evaluate() const
 
     switch (get_input_element_type(1))
     {
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64: return true;
+    case ov::element::i8:
+    case ov::element::i16:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u8:
+    case ov::element::u16:
+    case ov::element::u32:
+    case ov::element::u64: return true;
     default: break;
     }
     return false;

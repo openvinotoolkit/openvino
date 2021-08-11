@@ -6,7 +6,7 @@
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 struct ConstantAxesAndConstantSignalSizeTestParams
 {

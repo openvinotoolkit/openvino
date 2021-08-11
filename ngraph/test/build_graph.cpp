@@ -17,7 +17,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(build_graph, build_simple)
 {
@@ -469,7 +469,8 @@ TEST(build_graph, build_graph_parameters_variables_autodetection)
     auto arg2 = make_shared<Parameter>(element::f32, Shape{2, 2});
     auto init_const = Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
 
-    auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
+    auto variable =
+        make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
     auto read = make_shared<ReadValue>(init_const, variable);
     auto assign = make_shared<Assign>(read, variable);
     assign->add_control_dependency(read);
@@ -498,7 +499,8 @@ TEST(build_graph, build_graph_variables_ctors)
     auto arg2 = make_shared<Parameter>(element::f32, Shape{2, 2});
     auto init_const = Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
 
-    auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
+    auto variable =
+        make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
     auto read = make_shared<ReadValue>(init_const, variable);
     auto assign = make_shared<Assign>(read, variable);
     assign->add_control_dependency(read);
@@ -511,8 +513,10 @@ TEST(build_graph, build_graph_variables_ctors)
     auto res2 = make_shared<Result>(crop, "v0");
 
     {
-        auto f = make_shared<Function>(OutputVector{res, res2}, SinkVector{assign},
-                                       ParameterVector{arg, arg2}, VariableVector{variable});
+        auto f = make_shared<Function>(OutputVector{res, res2},
+                                       SinkVector{assign},
+                                       ParameterVector{arg, arg2},
+                                       VariableVector{variable});
 
         NodeVector nodes = f->get_ops();
         EXPECT_EQ(nodes.size(), 10);
@@ -524,8 +528,8 @@ TEST(build_graph, build_graph_variables_ctors)
 
     // autodetect variables
     {
-        auto f = make_shared<Function>(OutputVector{res, res2}, SinkVector{assign},
-                                         ParameterVector{arg, arg2});
+        auto f = make_shared<Function>(
+            OutputVector{res, res2}, SinkVector{assign}, ParameterVector{arg, arg2});
         NodeVector nodes = f->get_ops();
         EXPECT_EQ(nodes.size(), 10);
         ParameterVector params = f->get_parameters();
@@ -542,8 +546,10 @@ TEST(build_graph, build_graph_unregistred_variables)
     auto arg2 = make_shared<Parameter>(element::f32, Shape{2, 2});
     auto init_const = Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
 
-    auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
-    auto variable_2 = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v1"});
+    auto variable =
+        make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
+    auto variable_2 =
+        make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v1"});
     auto read = make_shared<ReadValue>(init_const, variable);
     auto read_2 = make_shared<ReadValue>(init_const, variable_2);
     auto assign = make_shared<Assign>(read, variable);
@@ -557,6 +563,8 @@ TEST(build_graph, build_graph_unregistred_variables)
     auto crop = make_shared<Split>(pattern, axis, 3);
     auto res2 = make_shared<Result>(crop, "v0");
 
-    EXPECT_ANY_THROW(make_shared<Function>(OutputVector{res, res2}, SinkVector{assign, assign_2},
-                                   ParameterVector{arg, arg2}, VariableVector{variable}));
+    EXPECT_ANY_THROW(make_shared<Function>(OutputVector{res, res2},
+                                           SinkVector{assign, assign_2},
+                                           ParameterVector{arg, arg2},
+                                           VariableVector{variable}));
 }

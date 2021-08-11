@@ -15,7 +15,7 @@
 #include "ngraph/enum_names.hpp"
 #include "utils/recurrent.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -48,12 +48,12 @@ namespace ngraph
                     shape_of_r, default_opset::Constant::create(element::i32, Shape{1}, {2}), axes);
 
                 // ------ Optional inputs ------
-                if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
+                if (ng_inputs.size() > 3 && !ov::op::is_null(ng_inputs.at(3)))
                 {
                     auto bias = ng_inputs.at(3);
                     auto split_bias = builder::opset1::split(bias, 2, 1);
                     m_map[OpInput::B] =
-                        std::make_shared<ngraph::op::v1::Add>(split_bias.at(0), split_bias.at(1));
+                        std::make_shared<ov::op::v1::Add>(split_bias.at(0), split_bias.at(1));
                 }
                 else
                 {
@@ -69,7 +69,7 @@ namespace ngraph
                             m_map[OpInput::X].get_element_type(), Shape{}, {0}),
                         b_shape);
                 }
-                if (ng_inputs.size() > 4 && !ngraph::op::is_null(ng_inputs.at(4)))
+                if (ng_inputs.size() > 4 && !ov::op::is_null(ng_inputs.at(4)))
                 {
                     m_map[OpInput::SEQ_LENGTHS] = ng_inputs.at(4);
                 }
@@ -79,7 +79,7 @@ namespace ngraph
                         seq_length_node, batch_size_node);
                 }
                 // The initial value of the hidden.
-                if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5)))
+                if (ng_inputs.size() > 5 && !ov::op::is_null(ng_inputs.at(5)))
                 {
                     m_map[OpInput::INIT_H] =
                         builder::opset1::reorder_axes(ng_inputs.at(5), {1, 0, 2});
@@ -100,8 +100,8 @@ namespace ngraph
             {
             }
 
-            Output<ngraph::Node>& OpInputMap::at(const OpInput& key) { return m_map.at(key); }
-            const Output<ngraph::Node>& OpInputMap::at(const OpInput& key) const
+            Output<ov::Node>& OpInputMap::at(const OpInput& key) { return m_map.at(key); }
+            const Output<ov::Node>& OpInputMap::at(const OpInput& key) const
             {
                 return m_map.at(key);
             }
@@ -123,10 +123,10 @@ namespace ngraph
             {
                 m_clip_threshold = std::abs(m_clip_threshold);
                 std::string direction =
-                    ngraph::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
-                m_direction = ngraph::as_enum<ngraph::op::RecurrentSequenceDirection>(direction);
+                    ov::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
+                m_direction = ov::as_enum<ov::op::RecurrentSequenceDirection>(direction);
             }
 
         } // namespace recurrent
     }     // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

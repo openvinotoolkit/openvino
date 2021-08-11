@@ -13,7 +13,7 @@
 #include "ngraph/type/element_type_traits.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 //
 // The code in the following three functions is a bit awkward, to work around some compiler
@@ -57,7 +57,7 @@ op::v4::Range::Range(const Output<Node>& start,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v4::Range::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v4::Range::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v4_Range_visit_attributes);
     visitor.on_attribute("output_type", m_output_type);
@@ -305,18 +305,18 @@ bool op::v4::Range::has_evaluate() const
     NGRAPH_OP_SCOPE(v4_Range_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
-    case ngraph::element::f64:
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64: return true;
+    case ov::element::bf16:
+    case ov::element::f16:
+    case ov::element::f32:
+    case ov::element::f64:
+    case ov::element::i8:
+    case ov::element::i16:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u8:
+    case ov::element::u16:
+    case ov::element::u32:
+    case ov::element::u64: return true;
     default: break;
     }
     return false;
@@ -430,7 +430,7 @@ static PartialShape infer_output_shape(const op::v0::Range* node, const element:
     return result;
 }
 
-bool ngraph::op::v0::Range::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::Range::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Range_visit_attributes);
     return true;
@@ -528,18 +528,18 @@ bool op::v0::Range::has_evaluate() const
     NGRAPH_OP_SCOPE(v0_Range_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
-    case ngraph::element::f64:
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64: return true;
+    case ov::element::bf16:
+    case ov::element::f16:
+    case ov::element::f32:
+    case ov::element::f64:
+    case ov::element::i8:
+    case ov::element::i16:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u8:
+    case ov::element::u16:
+    case ov::element::u32:
+    case ov::element::u64: return true;
     default: break;
     }
     return false;

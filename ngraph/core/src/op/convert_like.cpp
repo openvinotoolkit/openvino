@@ -10,7 +10,7 @@
 #include "ngraph/op/convert_like.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::ConvertLike, "ConvertLike", 1);
 

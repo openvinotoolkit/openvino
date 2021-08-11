@@ -8,7 +8,7 @@
 
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -50,4 +50,4 @@ namespace ngraph
 
     } // namespace runtime
 
-} // namespace ngraph
+} // namespace ov

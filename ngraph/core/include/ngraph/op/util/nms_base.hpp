@@ -6,7 +6,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -34,7 +34,7 @@ namespace ngraph
                 /// class, -1 meaning to keep all boxes
                 /// \param keep_top_k Specifies maximum number of boxes to be selected per
                 /// batch element, -1 meaning to keep all boxes
-                NmsBase(ngraph::element::Type& output_type, int& nms_top_k, int& keep_top_k);
+                NmsBase(ov::element::Type& output_type, int& nms_top_k, int& keep_top_k);
 
                 /// \brief Constructs a NmsBase operation
                 ///
@@ -47,7 +47,7 @@ namespace ngraph
                 /// batch element, -1 meaning to keep all boxes
                 NmsBase(const Output<Node>& boxes,
                         const Output<Node>& scores,
-                        ngraph::element::Type& output_type,
+                        ov::element::Type& output_type,
                         int& nms_top_k,
                         int& keep_top_k);
 
@@ -65,7 +65,7 @@ namespace ngraph
                 int get_keep_top_k() const { return m_keep_top_k; }
 
             protected:
-                ngraph::element::Type& m_output_type;
+                ov::element::Type& m_output_type;
                 int& m_nms_top_k;
                 int& m_keep_top_k;
                 virtual void validate();
@@ -90,4 +90,4 @@ namespace ngraph
             "AttributeAdapter<op::util::NmsBase::SortResultType>", 1};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

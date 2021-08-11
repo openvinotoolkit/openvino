@@ -6,7 +6,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -98,4 +98,4 @@ namespace ngraph
             "AttributeAdapter<op::v3::ROIAlign::PoolingMode>", 3};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

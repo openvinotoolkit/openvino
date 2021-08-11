@@ -15,7 +15,7 @@
 #include "ngraph/runtime/reference/broadcast.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v3::Broadcast, "Broadcast", 3, op::util::BroadcastBase);
 

@@ -9,7 +9,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::v3::ScatterNDUpdate::type_info;
 
@@ -104,19 +104,19 @@ bool op::v3::ScatterNDUpdate::has_evaluate() const
 
     switch (get_output_element_type(0))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
-    case ngraph::element::boolean: break;
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32:
+    case ov::element::boolean: break;
     default: return false;
     }
     switch (get_input_element_type(1))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64: break;
+    case ov::element::i32:
+    case ov::element::i64: break;
     default: return false;
     }
     return true;

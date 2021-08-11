@@ -38,7 +38,7 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(_pyngraph, m)
 {
-    m.doc() = "Package ngraph.impl that wraps nGraph's namespace ngraph";
+    m.doc() = "Package ngraph.impl that wraps nGraph's namespace ov";
     regclass_pyngraph_PyRTMap(m);
     regmodule_pyngraph_types(m);
     regclass_pyngraph_Dimension(m); // Dimension must be registered before PartialShape
@@ -62,7 +62,7 @@ PYBIND11_MODULE(_pyngraph, m)
     regclass_pyngraph_AxisSet(m);
     regclass_pyngraph_AxisVector(m);
     regclass_pyngraph_Coordinate(m);
-    py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ngraph::op");
+    py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");
     regclass_pyngraph_op_Constant(m_op);
     regclass_pyngraph_op_Parameter(m_op);
     regclass_pyngraph_op_Result(m_op);

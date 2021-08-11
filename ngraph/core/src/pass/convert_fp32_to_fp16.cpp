@@ -8,15 +8,15 @@
 #include "transformations/convert_precision.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertFP32ToFP16, "ConvertFP32ToFP16", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertFP32ToFP16, "ConvertFP32ToFP16", 0);
 
-bool ngraph::pass::ConvertFP32ToFP16::run_on_function(std::shared_ptr<ngraph::Function> f)
+bool ov::pass::ConvertFP32ToFP16::run_on_function(std::shared_ptr<ov::Function> f)
 {
-    ngraph::pass::Manager m(get_pass_config());
-    m.register_pass<ngraph::pass::ConvertPrecision>(
-        precisions_array{{ngraph::element::f32, ngraph::element::f16}});
+    ov::pass::Manager m(get_pass_config());
+    m.register_pass<ov::pass::ConvertPrecision>(
+        precisions_array{{ov::element::f32, ov::element::f16}});
     m.run_passes(f);
     return false;
 }

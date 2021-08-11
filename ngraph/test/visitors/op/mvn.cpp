@@ -15,9 +15,9 @@
 #include "util/visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
+using ov::test::ValueMap;
 
 TEST(attributes, mvn_v1_op)
 {
@@ -43,13 +43,9 @@ TEST(attributes, mvn_v6_op)
 {
     NodeBuilder::get_ops().register_factory<opset6::MVN>();
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
-    auto axes = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { 2, 3 });
+    auto axes = ov::opset6::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});
 
-    const auto op = make_shared<opset6::MVN>(data,
-                    axes,
-                    false,
-                    0.1,
-                    op::MVNEpsMode::INSIDE_SQRT);
+    const auto op = make_shared<opset6::MVN>(data, axes, false, 0.1, op::MVNEpsMode::INSIDE_SQRT);
 
     NodeBuilder builder(op);
     const auto g_op = as_type_ptr<opset6::MVN>(builder.create());

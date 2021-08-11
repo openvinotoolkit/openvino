@@ -12,7 +12,7 @@
 #include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace reduction
     {
@@ -41,4 +41,4 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<reduction::Type>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

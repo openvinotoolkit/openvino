@@ -10,10 +10,10 @@
 #include "ngraph/runtime/reference/non_max_suppression.hpp"
 #include "ngraph/shape.hpp"
 
-using namespace ngraph;
-using namespace ngraph::runtime::reference;
+using namespace ov;
+using namespace ov::runtime::reference;
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -290,11 +290,11 @@ namespace ngraph
             }
 
             void nms5_postprocessing(const HostTensorVector& outputs,
-                                     const ngraph::element::Type output_type,
+                                     const ov::element::Type output_type,
                                      const std::vector<int64_t>& selected_indices,
                                      const std::vector<float>& selected_scores,
                                      int64_t valid_outputs,
-                                     const ngraph::element::Type selected_scores_type)
+                                     const ov::element::Type selected_scores_type)
             {
                 outputs[0]->set_element_type(output_type);
                 outputs[0]->set_shape(Shape{static_cast<size_t>(valid_outputs), 3});
@@ -315,7 +315,7 @@ namespace ngraph
 
                 size_t selected_size = valid_outputs * 3;
 
-                if (output_type == ngraph::element::i64)
+                if (output_type == ov::element::i64)
                 {
                     int64_t* indices_ptr = outputs[0]->get_data_ptr<int64_t>();
                     memcpy(indices_ptr, selected_indices.data(), selected_size * sizeof(int64_t));
@@ -370,7 +370,7 @@ namespace ngraph
                     return;
                 }
 
-                if (output_type == ngraph::element::i64)
+                if (output_type == ov::element::i64)
                 {
                     int64_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int64_t>();
                     *valid_outputs_ptr = valid_outputs;
@@ -383,4 +383,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

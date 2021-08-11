@@ -6,13 +6,13 @@
 
 #include <cstddef>
 
-namespace ngraph
+namespace ov
 {
     class Coordinate;
     class Shape;
-} // namespace ngraph
+} // namespace ov
 
-namespace ngraph
+namespace ov
 {
     std::size_t coordinate_index(const Coordinate& c, const Shape& s);
 }

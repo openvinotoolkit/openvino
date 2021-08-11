@@ -8,7 +8,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "op/compress.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -29,7 +29,7 @@ namespace ngraph
                     else
                     {
                         data = std::make_shared<default_opset::Squeeze>(
-                            ngraph::builder::opset1::flatten(data, axis));
+                            ov::builder::opset1::flatten(data, axis));
                     }
                     auto axis_node = default_opset::Constant::create(element::i64, Shape{}, {axis});
                     auto zero_node = default_opset::Constant::create(element::i64, Shape{}, {0});
@@ -47,4 +47,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

@@ -14,7 +14,7 @@
 #include "utils/onnx_importer_visibility.hpp"
 
 /// \brief              Top level nGraph namespace.
-namespace ngraph
+namespace ov
 {
     /// \brief          ONNX importer features namespace.
     ///                 Functions in this namespace make it possible to use ONNX models.
@@ -80,4 +80,4 @@ namespace ngraph
         void convert_decoded_function(std::shared_ptr<Function> function);
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

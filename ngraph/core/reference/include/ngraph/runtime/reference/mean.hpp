@@ -15,7 +15,7 @@
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -65,4 +65,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

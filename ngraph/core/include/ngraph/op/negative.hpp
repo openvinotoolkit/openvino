@@ -6,7 +6,7 @@
 
 #include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -36,4 +36,4 @@ namespace ngraph
     } // namespace op
     NGRAPH_API
     std::shared_ptr<Node> operator-(const Output<Node>& arg0);
-} // namespace ngraph
+} // namespace ov

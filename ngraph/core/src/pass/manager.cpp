@@ -23,9 +23,9 @@
 #include "perf_counters.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-namespace ngraph
+namespace ov
 {
     namespace pass
     {
@@ -38,7 +38,7 @@ namespace ngraph
             }
         } // namespace internal
     }     // namespace pass
-} // namespace ngraph
+} // namespace ov
 
 pass::Manager::Manager()
     : m_pass_config(std::make_shared<PassConfig>())
@@ -48,7 +48,7 @@ pass::Manager::Manager()
 
 pass::Manager::~Manager() {}
 
-pass::Manager::Manager(std::shared_ptr<ngraph::pass::PassConfig> pass_config)
+pass::Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config)
     : m_pass_config(std::move(pass_config))
 {
 }
@@ -91,7 +91,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
                 continue;
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
-            // on on entire ngraph::Function
+            // on on entire ov::Function
             function_changed = GraphRewrite(matcher_pass).run_on_function(func);
         }
         else if (auto function_pass = dynamic_pointer_cast<FunctionPass>(pass))

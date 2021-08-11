@@ -16,7 +16,7 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace builder
     {
@@ -33,14 +33,12 @@ namespace ngraph
         std::shared_ptr<Node> get_num_elements(const Output<Node>& value,
                                                const Output<Node>& reduction_axes)
         {
-            const auto value_shape = std::make_shared<ngraph::opset1::ShapeOf>(value);
-            const auto dim_values = std::make_shared<ngraph::opset1::Gather>(
-                value_shape,
-                reduction_axes,
-                ngraph::opset1::Constant::create(element::i64, {}, {0}));
+            const auto value_shape = std::make_shared<ov::opset1::ShapeOf>(value);
+            const auto dim_values = std::make_shared<ov::opset1::Gather>(
+                value_shape, reduction_axes, ov::opset1::Constant::create(element::i64, {}, {0}));
 
-            return std::make_shared<ngraph::opset1::ReduceProd>(
-                dim_values, ngraph::opset1::Constant::create(element::i64, {}, {0}));
+            return std::make_shared<ov::opset1::ReduceProd>(
+                dim_values, ov::opset1::Constant::create(element::i64, {}, {0}));
         }
 
         std::shared_ptr<Node> builder::opset1::mean(const Output<Node>& value,
@@ -49,24 +47,23 @@ namespace ngraph
         {
             std::shared_ptr<Node> elems_number;
             const auto value_elem_type = value.get_element_type();
-            const auto reduction_axes_const = ngraph::opset1::Constant::create(
+            const auto reduction_axes_const = ov::opset1::Constant::create(
                 element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector());
             const auto value_elems_sum =
-                std::make_shared<ngraph::opset1::ReduceSum>(value, reduction_axes_const, keep_dims);
+                std::make_shared<ov::opset1::ReduceSum>(value, reduction_axes_const, keep_dims);
             if (value.get_partial_shape().is_static())
             {
                 const auto elems_number_value = get_num_elements(value.get_shape(), reduction_axes);
-                elems_number = ngraph::opset1::Constant::create(
-                    value_elem_type, Shape{}, {elems_number_value});
+                elems_number =
+                    ov::opset1::Constant::create(value_elem_type, Shape{}, {elems_number_value});
             }
             else
             {
                 elems_number = get_num_elements(value, reduction_axes_const);
-                elems_number =
-                    std::make_shared<ngraph::opset1::Convert>(elems_number, value_elem_type);
+                elems_number = std::make_shared<ov::opset1::Convert>(elems_number, value_elem_type);
             }
 
-            return std::make_shared<ngraph::opset1::Divide>(value_elems_sum, elems_number)
+            return std::make_shared<ov::opset1::Divide>(value_elems_sum, elems_number)
                 ->add_provenance_group_members_above({value});
         }
 
@@ -77,11 +74,11 @@ namespace ngraph
             std::shared_ptr<Node> elems_number;
             const auto value_elem_type = value.get_element_type();
             const auto value_elems_sum =
-                std::make_shared<ngraph::opset1::ReduceSum>(value, reduction_axes, keep_dims);
+                std::make_shared<ov::opset1::ReduceSum>(value, reduction_axes, keep_dims);
             elems_number = get_num_elements(value, reduction_axes);
-            elems_number = std::make_shared<ngraph::opset1::Convert>(elems_number, value_elem_type);
+            elems_number = std::make_shared<ov::opset1::Convert>(elems_number, value_elem_type);
 
-            return std::make_shared<ngraph::opset1::Divide>(value_elems_sum, elems_number)
+            return std::make_shared<ov::opset1::Divide>(value_elems_sum, elems_number)
                 ->add_provenance_group_members_above({value});
         }
 
@@ -92,11 +89,11 @@ namespace ngraph
             const bool keep_dims = true;
             std::shared_ptr<Node> mu = opset1::mean(value, reduction_axes, keep_dims);
 
-            Output<Node> diff = std::make_shared<ngraph::opset1::Subtract>(value, mu);
+            Output<Node> diff = std::make_shared<ov::opset1::Subtract>(value, mu);
 
-            diff = std::make_shared<ngraph::opset1::ReduceSum>(
-                std::make_shared<ngraph::opset1::Multiply>(diff, diff),
-                ngraph::opset1::Constant::create(
+            diff = std::make_shared<ov::opset1::ReduceSum>(
+                std::make_shared<ov::opset1::Multiply>(diff, diff),
+                ov::opset1::Constant::create(
                     element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector()),
                 false);
 
@@ -106,13 +103,13 @@ namespace ngraph
             std::shared_ptr<Node> result;
             if (bessel_correction)
             {
-                const auto N1const = ngraph::opset1::Constant::create(et, Shape{}, {N - 1});
-                result = std::make_shared<ngraph::opset1::Divide>(diff, N1const);
+                const auto N1const = ov::opset1::Constant::create(et, Shape{}, {N - 1});
+                result = std::make_shared<ov::opset1::Divide>(diff, N1const);
             }
             else
             {
-                const auto Nconst = ngraph::opset1::Constant::create(et, Shape{}, {N});
-                result = std::make_shared<ngraph::opset1::Divide>(diff, Nconst);
+                const auto Nconst = ov::opset1::Constant::create(et, Shape{}, {N});
+                result = std::make_shared<ov::opset1::Divide>(diff, Nconst);
             }
             return result->add_provenance_group_members_above({value});
         }
@@ -124,25 +121,25 @@ namespace ngraph
         {
             std::shared_ptr<Node> mu = opset1::mean(value, reduction_axes, keep_dims);
 
-            Output<Node> diff = std::make_shared<ngraph::opset1::Subtract>(value, mu);
+            Output<Node> diff = std::make_shared<ov::opset1::Subtract>(value, mu);
 
-            diff = std::make_shared<ngraph::opset1::ReduceSum>(
-                std::make_shared<ngraph::opset1::Multiply>(diff, diff), reduction_axes, keep_dims);
+            diff = std::make_shared<ov::opset1::ReduceSum>(
+                std::make_shared<ov::opset1::Multiply>(diff, diff), reduction_axes, keep_dims);
 
             const auto& et = value.get_element_type();
             auto N = get_num_elements(value, reduction_axes);
-            N = std::make_shared<ngraph::opset1::Convert>(N, et);
+            N = std::make_shared<ov::opset1::Convert>(N, et);
 
             std::shared_ptr<Node> result;
             if (bessel_correction)
             {
-                const auto one = std::make_shared<ngraph::opset1::Constant>(et, Shape{}, 1);
-                N = std::make_shared<ngraph::opset1::Subtract>(N, one);
+                const auto one = std::make_shared<ov::opset1::Constant>(et, Shape{}, 1);
+                N = std::make_shared<ov::opset1::Subtract>(N, one);
             }
 
-            result = std::make_shared<ngraph::opset1::Divide>(diff, N);
+            result = std::make_shared<ov::opset1::Divide>(diff, N);
             return result->add_provenance_group_members_above({value});
         }
 
     } // namespace builder
-} // namespace ngraph
+} // namespace ov

@@ -15,14 +15,14 @@
 #include "onnx_editor/editor.hpp"
 #include "onnx_editor/editor_types.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_editor
     {
         /// \brief A class representing a set of utilities allowing modification of an ONNX model
         ///
         /// \note This class can be used to modify an ONNX model before it gets translated to
-        ///       an ngraph::Function by the import_onnx_model function. It lets you modify the
+        ///       an ov::Function by the import_onnx_model function. It lets you modify the
         ///       model's input types and shapes, extract a subgraph and more.
         class ONNX_IMPORTER_API ONNXModelEditor final
         {
@@ -51,7 +51,7 @@ namespace ngraph
             ///                     be used to modified the ONNX model loaded from a file. This
             ///                     method throws an exception if the model doesn't contain any of
             ///                     the inputs specified in its parameter.
-            void set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes);
+            void set_input_shapes(const std::map<std::string, ov::PartialShape>& input_shapes);
 
             /// \brief Get shape of ONNX tensor indicated by the tensor_name.
             ///
@@ -84,7 +84,7 @@ namespace ngraph
             ///                     update the ONNX model. Initializers already existing are
             ///                     overwritten.
             void set_input_values(
-                const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
+                const std::map<std::string, std::shared_ptr<ov::op::Constant>>& input_values);
 
             /// \brief Returns a serialized ONNX model, possibly modified by the editor.
             std::string model_string() const;
@@ -200,4 +200,4 @@ namespace ngraph
             std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
         };
     } // namespace onnx_editor
-} // namespace ngraph
+} // namespace ov

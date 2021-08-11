@@ -12,7 +12,7 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pattern/matcher.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pattern
     {
@@ -117,16 +117,16 @@ namespace ngraph
                         label_exclusions.push_back(entry.second.get_node_shared_ptr());
                     }
                 }
-                return ngraph::get_subgraph_outputs(
+                return ov::get_subgraph_outputs(
                            get_matched_nodes(), label_exclusions, ignore_unused)
                            .size() < 2;
             }
 
-            return ngraph::get_subgraph_outputs(get_matched_nodes(), exclusions).size() < 2;
+            return ov::get_subgraph_outputs(get_matched_nodes(), exclusions).size() < 2;
         }
 
-        bool Matcher::match_value(const ngraph::Output<Node>& pattern_value,
-                                  const ngraph::Output<Node>& graph_value)
+        bool Matcher::match_value(const ov::Output<Node>& pattern_value,
+                                  const ov::Output<Node>& graph_value)
         {
             std::shared_ptr<Node> pattern_node = pattern_value.get_node_shared_ptr();
             std::shared_ptr<Node> graph_node = graph_value.get_node_shared_ptr();
@@ -175,14 +175,15 @@ namespace ngraph
                 return false;
             }
 
-            if (ngraph::op::is_commutative(graph_node))
+            if (ov::op::is_commutative(graph_node))
             {
                 // TODO: [nikolayk] we don't really have to use lexicographically-based perms,
                 // heap's algo should be faster
                 std::sort(begin(pattern_args),
                           end(pattern_args),
-                          [](const ngraph::Output<ngraph::Node>& n1,
-                             const ngraph::Output<ngraph::Node>& n2) { return n1 < n2; });
+                          [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
+                              return n1 < n2;
+                          });
                 do
                 {
                     auto saved = start_match();
@@ -190,11 +191,11 @@ namespace ngraph
                     {
                         return saved.finish(true);
                     }
-                } while (std::next_permutation(
-                    begin(pattern_args),
-                    end(pattern_args),
-                    [](const ngraph::Output<ngraph::Node>& n1,
-                       const ngraph::Output<ngraph::Node>& n2) { return n1 < n2; }));
+                } while (
+                    std::next_permutation(begin(pattern_args),
+                                          end(pattern_args),
+                                          [](const ov::Output<ov::Node>& n1,
+                                             const ov::Output<ov::Node>& n2) { return n1 < n2; }));
             }
             else
             {
@@ -306,4 +307,4 @@ namespace ngraph
             return matched;
         }
     } // namespace pattern
-} // namespace ngraph
+} // namespace ov

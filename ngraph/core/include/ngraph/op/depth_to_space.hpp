@@ -7,7 +7,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -84,4 +84,4 @@ namespace ngraph
             "AttributeAdapter<op::v0::DepthToSpace::DepthToSpaceMode>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

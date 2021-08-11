@@ -8,7 +8,7 @@
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 using Attrs = op::v6::ExperimentalDetectronPriorGridGenerator::Attributes;
 using GridGenerator = op::v6::ExperimentalDetectronPriorGridGenerator;

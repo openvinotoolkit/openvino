@@ -10,8 +10,8 @@
 
 #include <ngraph/coordinate_range.hpp>
 
-using namespace ngraph;
-using namespace ngraph::coordinates;
+using namespace ov;
+using namespace ov::coordinates;
 using Index = size_t;
 using ExpectedOutput = std::vector<std::pair<Index, Coordinate>>;
 

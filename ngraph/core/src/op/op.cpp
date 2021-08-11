@@ -10,7 +10,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/type/element_type.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 op::Op::Op(const OutputVector& args)

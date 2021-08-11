@@ -8,7 +8,7 @@
 
 #include "ngraph/type/element_type.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 TEST(element_type, from)
 {

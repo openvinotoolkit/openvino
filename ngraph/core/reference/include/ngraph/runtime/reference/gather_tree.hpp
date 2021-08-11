@@ -6,7 +6,7 @@
 
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -24,4 +24,4 @@ namespace ngraph
                              const element::Type& type);
         }
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

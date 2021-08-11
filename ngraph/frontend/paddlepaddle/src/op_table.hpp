@@ -12,7 +12,7 @@
 
 #include "node_context.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -24,4 +24,4 @@ namespace ngraph
 
         } // namespace pdpd
     }     // namespace frontend
-} // namespace ngraph
+} // namespace ov

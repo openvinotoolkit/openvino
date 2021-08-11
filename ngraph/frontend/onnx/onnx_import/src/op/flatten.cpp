@@ -9,7 +9,7 @@
 #include "ngraph/validation_util.hpp"
 #include "op/flatten.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -28,13 +28,13 @@ namespace ngraph
                     {
                         const std::int64_t data_rank_value = data_rank.get_length();
                         // Accepted range is [-r, r] where r = rank(input).
-                        axis = ngraph::normalize_axis(node.get_description(),
-                                                      axis,
-                                                      data_rank_value,
-                                                      -data_rank_value,
-                                                      data_rank_value);
+                        axis = ov::normalize_axis(node.get_description(),
+                                                  axis,
+                                                  data_rank_value,
+                                                  -data_rank_value,
+                                                  data_rank_value);
                     }
-                    return {ngraph::builder::opset1::flatten(data, axis)};
+                    return {ov::builder::opset1::flatten(data, axis)};
                 }
 
             } // namespace set_1
@@ -43,4 +43,4 @@ namespace ngraph
 
     } // namespace  onnx_import
 
-} // namespace  ngraph
+} // namespace ov

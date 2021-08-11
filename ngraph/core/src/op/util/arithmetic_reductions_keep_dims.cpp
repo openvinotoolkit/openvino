@@ -9,20 +9,18 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::util::ArithmeticReductionKeepDims, "ArithmeticReductionKeepDims", 0);
 
 op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(
-    const ngraph::Output<ngraph::Node>& arg,
-    const ngraph::Output<ngraph::Node>& reduction_axes,
-    bool keep_dims)
+    const ov::Output<ov::Node>& arg, const ov::Output<ov::Node>& reduction_axes, bool keep_dims)
     : ArithmeticReduction(arg, reduction_axes)
     , m_keep_dims{keep_dims}
 {
 }
 
-bool ngraph::op::util::ArithmeticReductionKeepDims::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::util::ArithmeticReductionKeepDims::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_util_ArithmeticReductionKeepDims_visit_attributes);
     visitor.on_attribute("keep_dims", m_keep_dims);

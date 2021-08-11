@@ -7,7 +7,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/variant.hpp"
 
-namespace ngraph
+namespace ov
 {
     Output<Node>::Output(Node* node, size_t index)
         : m_node(node->shared_from_this())
@@ -190,4 +190,4 @@ namespace ngraph
                << "[" << output.get_index() << "]:" << output.get_element_type()
                << output.get_partial_shape();
     }
-} // namespace ngraph
+} // namespace ov

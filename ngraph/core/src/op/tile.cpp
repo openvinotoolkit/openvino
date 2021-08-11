@@ -10,7 +10,7 @@
 #include "ngraph/runtime/reference/tile.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::Tile, "Tile", 0);
 
@@ -20,7 +20,7 @@ op::v0::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats)
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Tile::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::Tile::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Tile_visit_attributes);
     return true;

@@ -16,7 +16,7 @@
 
 #include <onnx_framework_node.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -31,4 +31,4 @@ namespace ngraph
         NGRAPH_RTTI_DEFINITION(ONNXSubgraphFrameworkNode, "ONNXSubgraphFrameworkNode", 1);
 
     } // namespace frontend
-} // namespace ngraph
+} // namespace ov

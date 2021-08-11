@@ -5,7 +5,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -16,7 +16,7 @@ namespace ngraph
                 NamedOutputs fill_constant(const NodeContext& node)
                 {
                     auto shape = node.get_attribute<std::vector<int64_t>>("shape");
-                    auto dtype = node.get_attribute<ngraph::element::Type>("dtype");
+                    auto dtype = node.get_attribute<ov::element::Type>("dtype");
                     Output<Node> value_node;
                     Output<Node> shape_node;
                     if (node.has_ng_input("ValueTensor"))
@@ -63,11 +63,10 @@ namespace ngraph
                     }
 
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Broadcast>(value_node, shape_node)},
-                        {"Out"});
+                        {std::make_shared<ov::opset6::Broadcast>(value_node, shape_node)}, {"Out"});
                 }
 
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

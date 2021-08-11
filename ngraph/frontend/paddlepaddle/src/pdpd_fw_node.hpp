@@ -7,7 +7,7 @@
 #include <ngraph_ops/framework_node.hpp>
 #include "decoder.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -50,4 +50,4 @@ namespace ngraph
             std::vector<std::string> m_inputs_names;
         };
     } // namespace frontend
-} // namespace ngraph
+} // namespace ov

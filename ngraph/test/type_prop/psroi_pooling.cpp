@@ -8,7 +8,7 @@
 #include "ngraph/op/psroi_pooling.hpp"
 #include "util/type_prop.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, psroi_pooling_average)
 {

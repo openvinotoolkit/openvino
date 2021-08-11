@@ -5,7 +5,7 @@
 #include <node_context.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -15,7 +15,7 @@ namespace ngraph
             {
                 NamedOutputs matrix_nms(const NodeContext& node)
                 {
-                    using namespace ngraph;
+                    using namespace ov;
                     using namespace opset8;
                     using namespace element;
 
@@ -97,4 +97,4 @@ namespace ngraph
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

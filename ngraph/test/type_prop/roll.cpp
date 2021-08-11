@@ -8,7 +8,7 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, roll_output_shape_type_test)
 {

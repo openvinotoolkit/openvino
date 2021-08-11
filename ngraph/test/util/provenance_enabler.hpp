@@ -4,7 +4,7 @@
 
 #include "ngraph/provenance.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -25,5 +25,5 @@ namespace ngraph
         private:
             bool saved_enable_state;
         };
-    }
-}
+    } // namespace test
+} // namespace ov

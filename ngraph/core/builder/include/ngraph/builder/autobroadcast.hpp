@@ -12,21 +12,21 @@
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace builder
     {
-        class numpy_autobroadcast_incompatible_shapes : public ngraph::ngraph_error
+        class numpy_autobroadcast_incompatible_shapes : public ov::ngraph_error
         {
         public:
-            numpy_autobroadcast_incompatible_shapes(const ngraph::Shape& shape1,
-                                                    const ngraph::Shape& shape2);
+            numpy_autobroadcast_incompatible_shapes(const ov::Shape& shape1,
+                                                    const ov::Shape& shape2);
 
         private:
-            const ngraph::Shape m_shape1;
-            const ngraph::Shape m_shape2;
+            const ov::Shape m_shape1;
+            const ov::Shape m_shape2;
 
-            static std::string error_str(const ngraph::Shape& shape1, const ngraph::Shape& shape2);
+            static std::string error_str(const ov::Shape& shape1, const ov::Shape& shape2);
         };
 
         ///
@@ -39,7 +39,7 @@ namespace ngraph
         ///
         /// \param      values  Vector of output values.
         ///
-        /// \exception  ngraph::builder::numpy_autobroadcast_incompatible_shapes
+        /// \exception  ov::builder::numpy_autobroadcast_incompatible_shapes
         ///
         /// \return     Vector of broadcasted values.
         ///
@@ -66,7 +66,7 @@ namespace ngraph
         /// std::pair will have the same value as \p args.
         ///
         /// If \p args.first and \p args.second produce different shapes, then this function creates
-        /// new ngraph::op::Reshape and/or ngraph::op::Broadcast nodes, as needed, to wrap
+        /// new ov::op::Reshape and/or ov::op::Broadcast nodes, as needed, to wrap
         /// \p args.first and/or \p args.second in a manner that yields values with the same shape.
         ///
         /// There are some shape combinations which the autobroadcast algoritm cannot handle.
@@ -77,13 +77,13 @@ namespace ngraph
         /// - \p args.second is not null
         ///
         /// \post
-        /// - The ngraph::Node objects pointed to by \p args.first and \p args.second have not been
+        /// - The ov::Node objects pointed to by \p args.first and \p args.second have not been
         ///   altered by this function, except by possibly having added consumers of their values.
         ///
         /// - If an exception was not thrown, then the return value's \p first and \p second
-        ///   elements point to ngraph::Node objects whose output values have the same shape.
+        ///   elements point to ov::Node objects whose output values have the same shape.
         ///
-        /// \exception ngraph::builder::numpy_autobroadcast_incompatible_shapes
+        /// \exception ov::builder::numpy_autobroadcast_incompatible_shapes
         std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>>
             numpy_broadcast(const std::pair<Output<Node>, Output<Node>>& args);
 
@@ -243,4 +243,4 @@ namespace ngraph
 
         } // namespace opset1
     }     // namespace builder
-} // namespace ngraph
+} // namespace ov

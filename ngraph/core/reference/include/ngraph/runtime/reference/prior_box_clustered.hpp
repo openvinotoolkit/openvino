@@ -11,7 +11,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/prior_box_clustered.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -105,4 +105,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

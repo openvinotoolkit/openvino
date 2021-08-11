@@ -7,14 +7,14 @@
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v8::RandomUniform, "RandomUniform", 8);
 
 op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape,
                                      const Output<Node>& min_val,
                                      const Output<Node>& max_val,
-                                     const ngraph::element::Type& out_type,
+                                     const ov::element::Type& out_type,
                                      uint64_t global_seed,
                                      uint64_t op_seed)
     : Op({out_shape, min_val, max_val})
@@ -88,8 +88,8 @@ void op::v8::RandomUniform::validate_and_infer_types()
     {
         if (const auto& const_max = get_constant_from_source(input_value(2)))
         {
-            if (get_out_type() == ngraph::element::Type_t::i64 ||
-                get_out_type() == ngraph::element::Type_t::i32)
+            if (get_out_type() == ov::element::Type_t::i64 ||
+                get_out_type() == ov::element::Type_t::i32)
             {
                 int64_t min_val = const_min->cast_vector<int64_t>()[0];
                 int64_t max_val = const_max->cast_vector<int64_t>()[0];

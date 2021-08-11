@@ -15,7 +15,7 @@ namespace ONNX_NAMESPACE
     class ModelProto;
 }
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -56,4 +56,4 @@ namespace ngraph
             void convert_decoded_function(std::shared_ptr<Function> function);
         } // namespace detail
     }     // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

@@ -8,7 +8,7 @@
 
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -22,4 +22,4 @@ namespace ngraph
                         size_t elem_size);
         }
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

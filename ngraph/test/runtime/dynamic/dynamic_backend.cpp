@@ -18,7 +18,7 @@
 #include "pass/shape_relevance.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 runtime::dynamic::DynamicBackend::DynamicBackend(shared_ptr<runtime::Backend> wrapped_backend)
     : m_wrapped_backend(std::move(wrapped_backend))
@@ -80,7 +80,7 @@ bool is_dynamic_op(const std::shared_ptr<Node>& op)
 }
 
 // Helper for a vile hack in DynamicExecutable::call. See body of that function for details.
-static size_t count_dyn_nodes(const shared_ptr<ngraph::Function>& f)
+static size_t count_dyn_nodes(const shared_ptr<ov::Function>& f)
 {
     size_t count = 0;
     for (auto op : f->get_ops())
@@ -335,7 +335,7 @@ const element::Type& runtime::dynamic::DynamicTensor::get_element_type() const
     }
 }
 
-const ngraph::Shape& runtime::dynamic::DynamicTensor::get_shape() const
+const ov::Shape& runtime::dynamic::DynamicTensor::get_shape() const
 {
     NGRAPH_CHECK(m_wrapped_tensor != nullptr,
                  "asked for shape of a dynamic tensor with no allocated storage");
@@ -390,7 +390,7 @@ void runtime::dynamic::DynamicTensor::make_storage(const element::Type& element_
     }
 }
 
-const std::shared_ptr<ngraph::runtime::Tensor>&
+const std::shared_ptr<ov::runtime::Tensor>&
     runtime::dynamic::DynamicTensor::get_wrapped_tensor() const
 {
     return m_wrapped_tensor;

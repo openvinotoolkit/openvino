@@ -9,7 +9,7 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     //
     // In various places, like ConstantFolding, it is
@@ -55,4 +55,4 @@ namespace ngraph
                                          const AxisSet& new_axis_mask,
                                          const AxisSet& shrink_axis_mask,
                                          const AxisSet& ellipsis_mask);
-} // namespace ngraph
+} // namespace ov

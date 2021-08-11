@@ -8,7 +8,7 @@
 #include "ngraph/op/util/elementwise_args.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::util::BinaryElementwiseComparison, "BinaryElementwiseComparison", 0);
 

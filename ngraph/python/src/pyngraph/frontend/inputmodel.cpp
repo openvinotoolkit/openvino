@@ -13,12 +13,12 @@ namespace py = pybind11;
 
 void regclass_pyngraph_InputModel(py::module m)
 {
-    py::class_<ngraph::frontend::InputModel, std::shared_ptr<ngraph::frontend::InputModel>> im(
+    py::class_<ov::frontend::InputModel, std::shared_ptr<ov::frontend::InputModel>> im(
         m, "InputModel", py::dynamic_attr());
-    im.doc() = "ngraph.impl.InputModel wraps ngraph::frontend::InputModel";
+    im.doc() = "ngraph.impl.InputModel wraps ov::frontend::InputModel";
 
     im.def("get_place_by_tensor_name",
-           &ngraph::frontend::InputModel::get_place_by_tensor_name,
+           &ov::frontend::InputModel::get_place_by_tensor_name,
            py::arg("tensorName"),
            R"(
                 Returns a tensor place by a tensor name following framework conventions, or
@@ -36,7 +36,7 @@ void regclass_pyngraph_InputModel(py::module m)
              )");
 
     im.def("get_place_by_operation_name",
-           &ngraph::frontend::InputModel::get_place_by_operation_name,
+           &ov::frontend::InputModel::get_place_by_operation_name,
            py::arg("operationName"),
            R"(
                 Returns an operation place by an operation name following framework conventions, or
@@ -54,7 +54,7 @@ void regclass_pyngraph_InputModel(py::module m)
              )");
 
     im.def("get_place_by_operation_name_and_input_port",
-           &ngraph::frontend::InputModel::get_place_by_operation_name_and_input_port,
+           &ov::frontend::InputModel::get_place_by_operation_name_and_input_port,
            py::arg("operationName"),
            py::arg("inputPortIndex"),
            R"(
@@ -75,7 +75,7 @@ void regclass_pyngraph_InputModel(py::module m)
              )");
 
     im.def("get_place_by_operation_name_and_output_port",
-           &ngraph::frontend::InputModel::get_place_by_operation_name_and_output_port,
+           &ov::frontend::InputModel::get_place_by_operation_name_and_output_port,
            py::arg("operationName"),
            py::arg("outputPortIndex"),
            R"(
@@ -96,7 +96,7 @@ void regclass_pyngraph_InputModel(py::module m)
              )");
 
     im.def("set_name_for_tensor",
-           &ngraph::frontend::InputModel::set_name_for_tensor,
+           &ov::frontend::InputModel::set_name_for_tensor,
            py::arg("tensor"),
            py::arg("newName"),
            R"(
@@ -112,7 +112,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("add_name_for_tensor",
-           &ngraph::frontend::InputModel::add_name_for_tensor,
+           &ov::frontend::InputModel::add_name_for_tensor,
            py::arg("tensor"),
            py::arg("newName"),
            R"(
@@ -128,7 +128,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("set_name_for_operation",
-           &ngraph::frontend::InputModel::set_name_for_operation,
+           &ov::frontend::InputModel::set_name_for_operation,
            py::arg("operation"),
            py::arg("newName"),
            R"(
@@ -144,7 +144,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("free_name_for_tensor",
-           &ngraph::frontend::InputModel::free_name_for_tensor,
+           &ov::frontend::InputModel::free_name_for_tensor,
            py::arg("name"),
            R"(
                 Unassign specified name from tensor place(s).
@@ -156,7 +156,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("free_name_for_operation",
-           &ngraph::frontend::InputModel::free_name_for_operation,
+           &ov::frontend::InputModel::free_name_for_operation,
            py::arg("name"),
            R"(
                 Unassign specified name from operation place(s).
@@ -168,7 +168,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("set_name_for_dimension",
-           &ngraph::frontend::InputModel::set_name_for_dimension,
+           &ov::frontend::InputModel::set_name_for_dimension,
            py::arg("place"),
            py::arg("dimIndex"),
            py::arg("dimName"),
@@ -188,7 +188,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("cut_and_add_new_input",
-           &ngraph::frontend::InputModel::cut_and_add_new_input,
+           &ov::frontend::InputModel::cut_and_add_new_input,
            py::arg("place"),
            py::arg("newName") = std::string(),
            R"(
@@ -205,7 +205,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("cut_and_add_new_output",
-           &ngraph::frontend::InputModel::cut_and_add_new_output,
+           &ov::frontend::InputModel::cut_and_add_new_output,
            py::arg("place"),
            py::arg("newName") = std::string(),
            R"(
@@ -222,7 +222,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("add_output",
-           &ngraph::frontend::InputModel::add_output,
+           &ov::frontend::InputModel::add_output,
            py::arg("place"),
            R"(
                 Assign this place as new output or add necessary nodes to represent a new output.
@@ -234,7 +234,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("remove_output",
-           &ngraph::frontend::InputModel::remove_output,
+           &ov::frontend::InputModel::remove_output,
            py::arg("place"),
            R"(
                 Removes any sinks directly attached to this place with all inbound data flow
@@ -247,7 +247,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("set_partial_shape",
-           &ngraph::frontend::InputModel::set_partial_shape,
+           &ov::frontend::InputModel::set_partial_shape,
            py::arg("place"),
            py::arg("shape"),
            R"(
@@ -266,7 +266,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("get_partial_shape",
-           &ngraph::frontend::InputModel::get_partial_shape,
+           &ov::frontend::InputModel::get_partial_shape,
            py::arg("place"),
            R"(
                 Returns current partial shape used for this place.
@@ -283,7 +283,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("get_inputs",
-           &ngraph::frontend::InputModel::get_inputs,
+           &ov::frontend::InputModel::get_inputs,
            R"(
                 Returns all inputs for a model.
 
@@ -294,7 +294,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("get_outputs",
-           &ngraph::frontend::InputModel::get_outputs,
+           &ov::frontend::InputModel::get_outputs,
            R"(
                 Returns all outputs for a model. An output is a terminal place in a graph where data escapes the flow.
 
@@ -305,7 +305,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("extract_subgraph",
-           &ngraph::frontend::InputModel::extract_subgraph,
+           &ov::frontend::InputModel::extract_subgraph,
            py::arg("inputs"),
            py::arg("outputs"),
            R"(
@@ -321,7 +321,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("override_all_inputs",
-           &ngraph::frontend::InputModel::override_all_inputs,
+           &ov::frontend::InputModel::override_all_inputs,
            py::arg("inputs"),
            R"(
                 Modifies the graph to use new inputs instead of existing ones. New inputs
@@ -334,7 +334,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("override_all_outputs",
-           &ngraph::frontend::InputModel::override_all_outputs,
+           &ov::frontend::InputModel::override_all_outputs,
            py::arg("outputs"),
            R"(
                 Replaces all existing outputs with new ones removing all data flow that
@@ -347,7 +347,7 @@ void regclass_pyngraph_InputModel(py::module m)
             )");
 
     im.def("set_element_type",
-           &ngraph::frontend::InputModel::set_element_type,
+           &ov::frontend::InputModel::set_element_type,
            py::arg("place"),
            py::arg("type"),
            R"(

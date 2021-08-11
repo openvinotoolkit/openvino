@@ -16,7 +16,7 @@
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -648,24 +648,24 @@ namespace ngraph
 #endif
                 }
                 template <
-                    ngraph::element::Type_t Type,
+                    ov::element::Type_t Type,
                     typename ValueT,
-                    typename std::enable_if<Type == ngraph::element::Type_t::u4, bool>::type = true>
-                static ngraph::fundamental_type_for<Type> value_in_range(const ValueT& value)
+                    typename std::enable_if<Type == ov::element::Type_t::u4, bool>::type = true>
+                static ov::fundamental_type_for<Type> value_in_range(const ValueT& value)
                 {
-                    const auto result = ngraph::fundamental_type_for<Type>(value);
+                    const auto result = ov::fundamental_type_for<Type>(value);
                     NGRAPH_CHECK(0 <= result && result <= 15,
                                  "assigned value out of range u4 values");
                     return result;
                 }
 
                 template <
-                    ngraph::element::Type_t Type,
+                    ov::element::Type_t Type,
                     typename ValueT,
-                    typename std::enable_if<Type == ngraph::element::Type_t::i4, bool>::type = true>
-                static ngraph::fundamental_type_for<Type> value_in_range(const ValueT& value)
+                    typename std::enable_if<Type == ov::element::Type_t::i4, bool>::type = true>
+                static ov::fundamental_type_for<Type> value_in_range(const ValueT& value)
                 {
-                    const auto result = ngraph::fundamental_type_for<Type>(value);
+                    const auto result = ov::fundamental_type_for<Type>(value);
                     NGRAPH_CHECK(-8 <= result && result <= 7,
                                  "assigned value out of range i4 values");
                     return result;
@@ -697,4 +697,4 @@ namespace ngraph
         } // namespace v0
         using v0::Constant;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

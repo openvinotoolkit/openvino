@@ -7,7 +7,7 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, bucketize)
 {
@@ -102,17 +102,17 @@ TEST(type_prop, bucketize_invalid_input_types)
 
 TEST(type_prop, bucketize_invalid_output_types)
 {
-    vector<ngraph::element::Type_t> output_types = {ngraph::element::f64,
-                                                    ngraph::element::f32,
-                                                    ngraph::element::f16,
-                                                    ngraph::element::bf16,
-                                                    ngraph::element::i16,
-                                                    ngraph::element::i8,
-                                                    ngraph::element::u64,
-                                                    ngraph::element::u32,
-                                                    ngraph::element::u16,
-                                                    ngraph::element::u8,
-                                                    ngraph::element::boolean};
+    vector<ov::element::Type_t> output_types = {ov::element::f64,
+                                                ov::element::f32,
+                                                ov::element::f16,
+                                                ov::element::bf16,
+                                                ov::element::i16,
+                                                ov::element::i8,
+                                                ov::element::u64,
+                                                ov::element::u32,
+                                                ov::element::u16,
+                                                ov::element::u8,
+                                                ov::element::boolean};
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension::dynamic()});
     auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
     for (auto output_type : output_types)

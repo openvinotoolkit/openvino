@@ -10,14 +10,14 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
         namespace v1
         {
             /// \brief Splits the input tensor into a list of equal sized tensors
-            class NGRAPH_API Split : public ngraph::op::Op
+            class NGRAPH_API Split : public ov::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -48,4 +48,4 @@ namespace ngraph
             };
         } // namespace v1
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

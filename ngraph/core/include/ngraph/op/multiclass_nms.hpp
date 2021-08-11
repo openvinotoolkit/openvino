@@ -6,7 +6,7 @@
 
 #include "ngraph/op/util/nms_base.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -28,7 +28,7 @@ namespace ngraph
                     // not
                     bool sort_result_across_batch = false;
                     // specifies the output tensor type
-                    ngraph::element::Type output_type = ngraph::element::i64;
+                    ov::element::Type output_type = ov::element::i64;
                     // specifies intersection over union threshold
                     float iou_threshold = 0.0f;
                     // specifies minimum score to consider box for the processing
@@ -72,4 +72,4 @@ namespace ngraph
             };
         } // namespace v8
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

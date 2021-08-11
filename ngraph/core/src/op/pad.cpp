@@ -13,7 +13,7 @@
 #include "ngraph/runtime/reference/pad.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::Pad, "Pad", 1);
 
@@ -58,7 +58,7 @@ CoordinateDiff op::v1::Pad::get_pads_end() const
     return pads_end_coord;
 }
 
-bool ngraph::op::v1::Pad::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::Pad::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Pad_visit_attributes);
     visitor.on_attribute("pad_mode", m_pad_mode);
@@ -215,15 +215,15 @@ bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs,
     }
     const auto& out = outputs[0];
 
-    ngraph::runtime::reference::pad(data->get_data_ptr<char>(),
-                                    pad_value,
-                                    out->get_data_ptr<char>(),
-                                    elem_size,
-                                    data->get_shape(),
-                                    out->get_shape(),
-                                    get_pads_begin(),
-                                    get_pads_end(),
-                                    get_pad_mode());
+    ov::runtime::reference::pad(data->get_data_ptr<char>(),
+                                pad_value,
+                                out->get_data_ptr<char>(),
+                                elem_size,
+                                data->get_shape(),
+                                out->get_shape(),
+                                get_pads_begin(),
+                                get_pads_end(),
+                                get_pad_mode());
 
     return true;
 }

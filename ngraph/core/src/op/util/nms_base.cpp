@@ -13,11 +13,11 @@
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::util::NmsBase, "NmsBase", 0);
 
-op::util::NmsBase::NmsBase(ngraph::element::Type& output_type, int& nms_top_k, int& keep_top_k)
+op::util::NmsBase::NmsBase(ov::element::Type& output_type, int& nms_top_k, int& keep_top_k)
     : m_output_type(output_type)
     , m_nms_top_k(nms_top_k)
     , m_keep_top_k(keep_top_k)
@@ -26,7 +26,7 @@ op::util::NmsBase::NmsBase(ngraph::element::Type& output_type, int& nms_top_k, i
 
 op::util::NmsBase::NmsBase(const Output<Node>& boxes,
                            const Output<Node>& scores,
-                           ngraph::element::Type& output_type,
+                           ov::element::Type& output_type,
                            int& nms_top_k,
                            int& keep_top_k)
     : Op({boxes, scores})
@@ -160,7 +160,7 @@ void op::util::NmsBase::validate_and_infer_types()
     }
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     NGRAPH_API EnumNames<op::util::NmsBase::SortResultType>&
@@ -180,4 +180,4 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov

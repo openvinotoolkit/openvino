@@ -7,7 +7,7 @@
 #include "ngraph/op/space_to_depth.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -22,4 +22,4 @@ namespace ngraph
                                 const size_t elem_size);
         }
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

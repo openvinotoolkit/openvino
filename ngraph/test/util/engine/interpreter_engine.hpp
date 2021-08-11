@@ -11,7 +11,7 @@
 #include "util/engine/engine_traits.hpp"
 #include "util/engine/test_case_engine.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -47,14 +47,13 @@ namespace ngraph
             }
 
             template <typename T>
-            void add_expected_output(const ngraph::Shape& expected_shape,
-                                     const std::vector<T>& values)
+            void add_expected_output(const ov::Shape& expected_shape, const std::vector<T>& values)
             {
                 const auto results = m_function->get_results();
 
                 const auto function_output_type = results.at(m_output_index)->get_element_type();
 
-                m_expected_outputs.emplace_back(std::make_shared<ngraph::op::Constant>(
+                m_expected_outputs.emplace_back(std::make_shared<ov::op::Constant>(
                     function_output_type, expected_shape, values));
 
                 ++m_output_index;
@@ -71,10 +70,10 @@ namespace ngraph
 
             const std::shared_ptr<Function> m_function;
             std::shared_ptr<runtime::Backend> m_backend;
-            std::shared_ptr<ngraph::runtime::Executable> m_executable;
-            std::vector<std::shared_ptr<ngraph::runtime::Tensor>> m_input_tensors;
-            std::vector<std::shared_ptr<ngraph::runtime::Tensor>> m_result_tensors;
-            std::vector<std::shared_ptr<ngraph::op::Constant>> m_expected_outputs;
+            std::shared_ptr<ov::runtime::Executable> m_executable;
+            std::vector<std::shared_ptr<ov::runtime::Tensor>> m_input_tensors;
+            std::vector<std::shared_ptr<ov::runtime::Tensor>> m_result_tensors;
+            std::vector<std::shared_ptr<ov::op::Constant>> m_expected_outputs;
             size_t m_input_index = 0;
             size_t m_output_index = 0;
         };
@@ -84,5 +83,5 @@ namespace ngraph
         {
             static constexpr bool value = true;
         };
-    }
-}
+    } // namespace test
+} // namespace ov

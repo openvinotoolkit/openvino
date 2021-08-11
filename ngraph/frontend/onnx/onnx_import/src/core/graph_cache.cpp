@@ -5,11 +5,11 @@
 #include <core/graph_cache.hpp>
 #include <ngraph/except.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
-        void GraphCache::emplace_node(const std::string& name, Output<ngraph::Node>&& node)
+        void GraphCache::emplace_node(const std::string& name, Output<ov::Node>&& node)
         {
             m_graph_cache_map[name] = std::move(node);
         }
@@ -23,7 +23,7 @@ namespace ngraph
             }
         }
 
-        Output<ngraph::Node> GraphCache::get_node(const std::string& name) const
+        Output<ov::Node> GraphCache::get_node(const std::string& name) const
         {
             try
             {
@@ -40,4 +40,4 @@ namespace ngraph
             return (m_graph_cache_map.count(name) > 0);
         }
     } // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

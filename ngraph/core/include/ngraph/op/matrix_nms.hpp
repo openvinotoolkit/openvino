@@ -6,7 +6,7 @@
 
 #include "ngraph/op/util/nms_base.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -34,7 +34,7 @@ namespace ngraph
                     // not
                     bool sort_result_across_batch = false;
                     // specifies the output tensor type
-                    ngraph::element::Type output_type = ngraph::element::i64;
+                    ov::element::Type output_type = ov::element::i64;
                     // specifies minimum score to consider box for the processing
                     float score_threshold = 0.0f;
                     // specifies maximum number of boxes to be selected per class, -1 meaning to
@@ -99,4 +99,4 @@ namespace ngraph
             "AttributeAdapter<op::v8::MatrixNms::DecayFunction>", 1};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

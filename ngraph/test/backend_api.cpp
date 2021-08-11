@@ -10,7 +10,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(backend_api, registered_devices)
 {
@@ -22,7 +22,7 @@ TEST(backend_api, registered_devices)
 
 TEST(backend_api, invalid_name)
 {
-    ASSERT_ANY_THROW(ngraph::runtime::Backend::create("COMPLETELY-BOGUS-NAME"));
+    ASSERT_ANY_THROW(ov::runtime::Backend::create("COMPLETELY-BOGUS-NAME"));
 }
 
 TEST(backend_api, config)

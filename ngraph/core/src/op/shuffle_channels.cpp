@@ -15,7 +15,7 @@
 #include "ngraph/type/element_type_traits.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::ShuffleChannels, "ShuffleChannels", 0);
 
@@ -29,7 +29,7 @@ op::ShuffleChannels::ShuffleChannels(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::ShuffleChannels::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::ShuffleChannels::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_ShuffleChannels_visit_attributes);
     visitor.on_attribute("axis", m_axis);

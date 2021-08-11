@@ -14,7 +14,7 @@
 #include "ngraph/shape.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -75,7 +75,7 @@ namespace ngraph
                 return inferred_dims;
             }
 
-            Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node)
+            Output<ov::Node> interpret_as_scalar(const Output<ov::Node>& node)
             {
                 Shape node_shape = node.get_shape();
 
@@ -90,21 +90,21 @@ namespace ngraph
                              node_shape);
 
                 // If node is a Constant, recreate as Constant with Shape{}
-                if (ngraph::op::is_constant(node.get_node()))
+                if (ov::op::is_constant(node.get_node()))
                 {
                     const auto value =
-                        ngraph::as_type_ptr<default_opset::Constant>(node.get_node_shared_ptr())
+                        ov::as_type_ptr<default_opset::Constant>(node.get_node_shared_ptr())
                             ->get_data_ptr();
                     return std::make_shared<default_opset::Constant>(
-                        node.get_element_type(), ngraph::Shape{}, value);
+                        node.get_element_type(), ov::Shape{}, value);
                 }
 
                 return builder::opset1::reshape(node, Shape{});
             }
 
-            Output<ngraph::Node>
-                reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
-                                                    const Output<ngraph::Node>& expected_rank)
+            Output<ov::Node>
+                reshape_channel_shaped_node_to_nchw(const Output<ov::Node>& node,
+                                                    const Output<ov::Node>& expected_rank)
             {
                 // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
                 const auto one_const = default_opset::Constant::create(element::i64, Shape{1}, {1});
@@ -124,4 +124,4 @@ namespace ngraph
 
         } // namespace  reshape
     }     // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

@@ -7,7 +7,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -39,9 +39,9 @@ namespace ngraph
                     }
                     else
                     {
-                        // This broadcast can be implemented by either ngraph::Reshape or
-                        // ngraph::Broadcast. Since PDPD implicates y_shape is a subsequence of
-                        // x_shape starting from axis, to use ngraph::Reshape like Paddle2ONNX,
+                        // This broadcast can be implemented by either ov::Reshape or
+                        // ov::Broadcast. Since PDPD implicates y_shape is a subsequence of
+                        // x_shape starting from axis, to use ov::Reshape like Paddle2ONNX,
                         // which is more friendly to PnP.
                         auto broadcast_shape = std::vector<int64_t>(x_rank, 1);
                         PartialShape y_shape = y.get_partial_shape();
@@ -49,12 +49,9 @@ namespace ngraph
                         for (auto it = y_shape.begin(); it != y_shape.end(); ++i, ++it)
                             broadcast_shape[axis + i] = (*it).get_length();
 
-                        auto reshape_node =
-                            ngraph::opset6::Constant::create(ngraph::element::i64,
-                                                             ngraph::Shape{broadcast_shape.size()},
-                                                             broadcast_shape);
-                        auto y_node =
-                            std::make_shared<ngraph::opset6::Reshape>(y, reshape_node, false);
+                        auto reshape_node = ov::opset6::Constant::create(
+                            ov::element::i64, ov::Shape{broadcast_shape.size()}, broadcast_shape);
+                        auto y_node = std::make_shared<ov::opset6::Reshape>(y, reshape_node, false);
                         return node.default_single_output_mapping({std::make_shared<T>(x, y_node)},
                                                                   {"Out"});
                     }
@@ -63,50 +60,50 @@ namespace ngraph
                 //
                 NamedOutputs elementwise_add(const NodeContext& node_context)
                 {
-                    return elementwise_ops<ngraph::opset6::Add>(node_context);
+                    return elementwise_ops<ov::opset6::Add>(node_context);
                 }
 
                 NamedOutputs elementwise_sub(const NodeContext& node_context)
                 {
-                    return elementwise_ops<ngraph::opset6::Subtract>(node_context);
+                    return elementwise_ops<ov::opset6::Subtract>(node_context);
                 }
 
                 NamedOutputs elementwise_mul(const NodeContext& node_context)
                 {
-                    return elementwise_ops<ngraph::opset6::Multiply>(node_context);
+                    return elementwise_ops<ov::opset6::Multiply>(node_context);
                 }
 
                 NamedOutputs elementwise_div(const NodeContext& node_context)
                 {
-                    return elementwise_ops<ngraph::opset6::Divide>(node_context);
+                    return elementwise_ops<ov::opset6::Divide>(node_context);
                 }
 
                 NamedOutputs elementwise_min(const NodeContext& node_context)
                 {
-                    return elementwise_ops<ngraph::opset6::Minimum>(node_context);
+                    return elementwise_ops<ov::opset6::Minimum>(node_context);
                 }
 
                 NamedOutputs elementwise_max(const NodeContext& node_context)
                 {
-                    return elementwise_ops<ngraph::opset6::Maximum>(node_context);
+                    return elementwise_ops<ov::opset6::Maximum>(node_context);
                 }
 
                 NamedOutputs elementwise_pow(const NodeContext& node_context)
                 {
-                    return elementwise_ops<ngraph::opset6::Power>(node_context);
+                    return elementwise_ops<ov::opset6::Power>(node_context);
                 }
 
                 NamedOutputs elementwise_equal(const NodeContext& node_context)
                 {
-                    return elementwise_ops<ngraph::opset6::Equal>(node_context);
+                    return elementwise_ops<ov::opset6::Equal>(node_context);
                 }
 
                 NamedOutputs elementwise_greater_equal(const NodeContext& node_context)
                 {
-                    return elementwise_ops<ngraph::opset6::GreaterEqual>(node_context);
+                    return elementwise_ops<ov::opset6::GreaterEqual>(node_context);
                 }
 
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

@@ -8,7 +8,7 @@
 #include "ngraph/ops.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::ReadValueBase, "ReadValueBase", 0);
 NGRAPH_RTTI_DEFINITION(op::v3::ReadValue, "ReadValue", 3);

@@ -7,7 +7,7 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, bin_convolution_auto_padding_same)
 {
@@ -176,7 +176,8 @@ TEST(type_prop, bin_convolution_invalid_inputs_et)
     const auto auto_pad = op::PadType::EXPLICIT;
     try
     {
-        const auto data_batch = make_shared<op::Parameter>(element::boolean, PartialShape{1, 1, 5, 5});
+        const auto data_batch =
+            make_shared<op::Parameter>(element::boolean, PartialShape{1, 1, 5, 5});
         const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3, 3});
         const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                      filters,

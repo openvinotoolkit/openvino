@@ -10,7 +10,7 @@
 #include "ngraph/check.hpp"
 #include "ngraph/runtime/reference/tile.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace
 {

@@ -9,7 +9,7 @@
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -18,7 +18,7 @@ namespace ngraph
         {
             /// \brief Gaussian Error Linear Unit
             /// f(x) = 0.5 * x * (1 + erf( x / sqrt(2) )
-            class NGRAPH_API Gelu : public ngraph::op::util::FusedOp
+            class NGRAPH_API Gelu : public ov::op::util::FusedOp
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Gelu", 0};
@@ -100,4 +100,4 @@ namespace ngraph
                                                     0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

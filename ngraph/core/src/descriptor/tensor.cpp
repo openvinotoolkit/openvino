@@ -5,7 +5,7 @@
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/node.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 descriptor::Tensor::Tensor(const element::Type& element_type,

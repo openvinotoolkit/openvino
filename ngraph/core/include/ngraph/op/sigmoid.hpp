@@ -9,7 +9,7 @@
 #include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 #include "ngraph/util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -31,4 +31,4 @@ namespace ngraph
         } // namespace v0
         using v0::Sigmoid;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

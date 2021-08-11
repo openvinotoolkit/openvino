@@ -11,7 +11,7 @@
 
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -25,4 +25,4 @@ namespace ngraph
                            Shape out_shape);
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

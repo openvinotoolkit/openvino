@@ -12,7 +12,7 @@
 #include "ngraph/shape.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -27,16 +27,15 @@ namespace ngraph
             ///
             /// \return nGraph node equivalent of the ONNX operation
             template <class T>
-            inline OutputVector
-                make_ng_variadic_op(const Node& node,
-                                    const ngraph::op::AutoBroadcastSpec& auto_broadcast =
-                                        ngraph::op::AutoBroadcastSpec::NUMPY)
+            inline OutputVector make_ng_variadic_op(
+                const Node& node,
+                const ov::op::AutoBroadcastSpec& auto_broadcast = ov::op::AutoBroadcastSpec::NUMPY)
             {
                 const OutputVector ng_inputs{node.get_ng_inputs()};
 
                 // Templated binary operation - Creates Add, Minimum, Maximum, etc.
-                const auto binary_operation = [&auto_broadcast](const Output<ngraph::Node>& arg0,
-                                                                const Output<ngraph::Node>& arg1) {
+                const auto binary_operation = [&auto_broadcast](const Output<ov::Node>& arg0,
+                                                                const Output<ov::Node>& arg1) {
                     return std::make_shared<T>(arg0, arg1, auto_broadcast);
                 };
 
@@ -54,4 +53,4 @@ namespace ngraph
 
     } // namespace  onnx_import
 
-} // namespace  ngraph
+} // namespace ov

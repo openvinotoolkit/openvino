@@ -6,7 +6,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -55,4 +55,4 @@ namespace ngraph
         } // namespace v3
         using v3::Bucketize;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

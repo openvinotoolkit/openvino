@@ -26,7 +26,7 @@
 #include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -39,7 +39,6 @@ NGRAPH_TEST(${BACKEND_NAME}, softplus)
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(vector<float>{-1.0, 0.0, 1.0, 20.0});
-    test_case.add_expected_output(
-        vector<float>{0.31326166, 0.69314718, 1.3132616, 20.0});
+    test_case.add_expected_output(vector<float>{0.31326166, 0.69314718, 1.3132616, 20.0});
     test_case.run();
 }

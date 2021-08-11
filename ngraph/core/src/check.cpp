@@ -4,7 +4,7 @@
 
 #include "ngraph/check.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 std::string CheckFailure::make_what(const CheckLocInfo& check_loc_info,
                                     const std::string& context_info,

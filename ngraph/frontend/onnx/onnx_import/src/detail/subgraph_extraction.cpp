@@ -9,7 +9,7 @@
 #include "ngraph/check.hpp"
 #include "subgraph_extraction.hpp"
 
-using namespace ngraph::onnx_editor;
+using namespace ov::onnx_editor;
 
 enum class PortType
 {
@@ -98,9 +98,8 @@ namespace
             }
         }
 
-        throw ngraph::ngraph_error{
-            "Source node not found in the graph for node: " + std::to_string(current_node_idx) +
-            " and input name: " + input_name};
+        throw ov::ngraph_error{"Source node not found in the graph for node: " +
+                               std::to_string(current_node_idx) + " and input name: " + input_name};
     }
 
     /// \brief Looks up a descriptor for a given tensor name. This descriptor contains inferred

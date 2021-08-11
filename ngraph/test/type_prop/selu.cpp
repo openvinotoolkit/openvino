@@ -7,7 +7,7 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, selu_basic_inference_f32_3D)
 {
@@ -67,7 +67,8 @@ TEST(type_prop, selu_incompatible_input_type_boolean)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types must be floating-point"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Input element types must be floating-point"));
     }
     catch (...)
     {
@@ -89,7 +90,8 @@ TEST(type_prop, selu_incompatible_input_type_i32)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types must be floating-point"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Input element types must be floating-point"));
     }
     catch (...)
     {
@@ -111,7 +113,8 @@ TEST(type_prop, selu_incompatible_input_type_u16)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types must be floating-point"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Input element types must be floating-point"));
     }
     catch (...)
     {

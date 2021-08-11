@@ -14,7 +14,7 @@
 
 #include "ngraph/ngraph_visibility.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// Supports three functions, is_type<Type>, as_type<Type>, and as_type_ptr<Type> for type-safe
     /// dynamic conversions via static_cast/static_ptr_cast without using C++ RTTI.
@@ -109,13 +109,13 @@ namespace ngraph
         return is_type<Type>(value) ? std::static_pointer_cast<Type>(value)
                                     : std::shared_ptr<Type>();
     }
-} // namespace ngraph
+} // namespace ov
 
 namespace std
 {
     template <>
-    struct NGRAPH_API hash<ngraph::DiscreteTypeInfo>
+    struct NGRAPH_API hash<ov::DiscreteTypeInfo>
     {
-        size_t operator()(const ngraph::DiscreteTypeInfo& k) const;
+        size_t operator()(const ov::DiscreteTypeInfo& k) const;
     };
 } // namespace std

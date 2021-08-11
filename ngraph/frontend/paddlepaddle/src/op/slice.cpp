@@ -6,7 +6,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -26,7 +26,7 @@ namespace ngraph
                     else if (node.has_ng_input("StartsTensorList"))
                     {
                         auto inputs = node.get_ng_inputs("StartsTensorList");
-                        start_idx_node = std::make_shared<ngraph::opset6::Concat>(inputs, 0);
+                        start_idx_node = std::make_shared<ov::opset6::Concat>(inputs, 0);
                     }
                     else
                     {
@@ -42,7 +42,7 @@ namespace ngraph
                     else if (node.has_ng_input("EndsTensorList"))
                     {
                         auto inputs = node.get_ng_inputs("EndsTensorList");
-                        end_idx_node = std::make_shared<ngraph::opset6::Concat>(inputs, 0);
+                        end_idx_node = std::make_shared<ov::opset6::Concat>(inputs, 0);
                     }
                     else
                     {
@@ -69,14 +69,14 @@ namespace ngraph
                         end_node, axes_node, end_idx_node);
 
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::StridedSlice>(data,
-                                                                        fixed_start_node,
-                                                                        fixed_end_node,
-                                                                        std::vector<int64_t>{},
-                                                                        std::vector<int64_t>{})},
+                        {std::make_shared<ov::opset6::StridedSlice>(data,
+                                                                    fixed_start_node,
+                                                                    fixed_end_node,
+                                                                    std::vector<int64_t>{},
+                                                                    std::vector<int64_t>{})},
                         {"Out"});
                 }
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

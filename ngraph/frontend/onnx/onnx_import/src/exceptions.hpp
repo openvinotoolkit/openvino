@@ -11,7 +11,7 @@
 #include "onnx_import/core/node.hpp"
 #include "utils/tensor_external_data.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -46,8 +46,8 @@ namespace ngraph
 
     } // namespace  onnx_import
 
-} // namespace  ngraph
+} // namespace ov
 
 #define CHECK_VALID_NODE(node_, cond_, ...)                                                        \
     NGRAPH_CHECK_HELPER(                                                                           \
-        ::ngraph::onnx_import::error::OnnxNodeValidationFailure, (node_), (cond_), ##__VA_ARGS__)
+        ::ov::onnx_import::error::OnnxNodeValidationFailure, (node_), (cond_), ##__VA_ARGS__)

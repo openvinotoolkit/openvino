@@ -5,7 +5,7 @@
 #include "ngraph/node_input.hpp"
 #include "ngraph/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     Input<Node>::Input(Node* node, size_t index)
         : m_node(node)
@@ -163,4 +163,4 @@ namespace ngraph
                << ".input(" << input.get_index() << "):" << input.get_element_type()
                << input.get_partial_shape();
     }
-} // namespace ngraph
+} // namespace ov

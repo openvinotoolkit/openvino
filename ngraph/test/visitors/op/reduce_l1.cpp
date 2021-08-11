@@ -4,5 +4,5 @@
 
 #include "reduce_ops.hpp"
 
-using Type = ::testing::Types<ngraph::op::v4::ReduceL1>;
+using Type = ::testing::Types<ov::op::v4::ReduceL1>;
 INSTANTIATE_TYPED_TEST_SUITE_P(attributes_reduce_l1, ReduceOpsAttrTest, Type);

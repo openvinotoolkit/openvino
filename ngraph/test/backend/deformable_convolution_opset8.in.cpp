@@ -16,7 +16,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -55,7 +55,7 @@ static void DeformableConvolutionOpset8Test(const std::vector<float>& inputs,
                                                            deformable_group,
                                                            use_bilinear_interpolation_padding);
     auto f =
-            make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
+        make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(inputs);
     test_case.add_input<float>(offsets);
@@ -101,8 +101,8 @@ static void DeformableConvolutionOpset8Test(const std::vector<float>& inputs,
                                                            group,
                                                            deformable_group,
                                                            use_bilinear_interpolation_padding);
-    auto f =
-            make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param, mask_param});
+    auto f = make_shared<Function>(
+        conv, ParameterVector{inputs_param, offsets_param, filter_param, mask_param});
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(inputs);
     test_case.add_input<float>(offsets);
@@ -131,7 +131,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_def
                                     -1.0f, -2.0f};
 
     const Shape offsets_shape{1, 8, 3, 3};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 1, 3, 3};
     const std::vector<float> outputs{-12.0f, -12.0f, -12.0f,
@@ -158,7 +158,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_pad
                                     0.0f, 1.0f};
 
     const Shape offsets_shape{1, 8, 4, 4};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 1, 4, 4};
     const std::vector<float> outputs{1.0f, 3.0f, 5.0f, 0.0f,
@@ -189,7 +189,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_str
                                     3.0f, 2.0f, 1.0f};
 
     const Shape offsets_shape{1, 18, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 1, 2, 2};
     const std::vector<float> outputs{57.0f, 94.0f,
@@ -220,7 +220,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_dil
                                     3.0f, 1.0f, 2.0f};
 
     const Shape offsets_shape{1, 18, 3, 3};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 1, 3, 3};
     const std::vector<float> outputs{78.0f, 106.0f, 134.0f,
@@ -252,7 +252,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_pad
                                     3.0f, 1.0f, 2.0f};
 
     const Shape offsets_shape{1, 18, 4, 4};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 1, 4, 4};
     const std::vector<float> outputs{15.0f, 38.0f, 70.0f, 66.0f,
@@ -295,7 +295,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_inp
             4.0f, 2.0f, -4.0f};
 
     const Shape offsets_shape{1, 18, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 1, 2, 2};
     const std::vector<float> outputs{142.0f, 102.0f,
@@ -330,7 +330,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_out
             4.0f, 2.0f, -4.0f};
 
     const Shape offsets_shape{1, 18, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 2, 2, 2};
     const std::vector<float> outputs{
@@ -370,7 +370,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_bat
                                     4.0f, 2.0f, -4.0f};
 
     const Shape offsets_shape{2, 18, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{2, 1, 2, 2};
     const std::vector<float> outputs{
@@ -426,7 +426,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_gro
             -7.0f, -8.0f};
 
     const Shape offsets_shape{1, 8, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 2, 2, 2};
     const std::vector<float> outputs{ // channel 1
@@ -507,7 +507,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_gro
             -15.0f, -16.0f};
 
     const Shape offsets_shape{1, 8, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 4, 2, 2};
     const std::vector<float> outputs{ // channel 1
@@ -556,7 +556,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_def
             -3.0f, -4.0f};
 
     const Shape offsets_shape{1, 8, 3, 3};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 1, 3, 3};
     const std::vector<float> outputs{-40.0f, -40.0f, -40.0f,
@@ -602,7 +602,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_gro
     };
 
     const Shape offsets_shape{1, 16, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 2, 2, 2};
     const std::vector<float> outputs{356.0f, 392.0f,
@@ -2022,7 +2022,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_defau
                                     -1.0f, -2.0f};
 
     const Shape offsets_shape{1, 8, 3, 3};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{1, 1, 3, 3};
     const std::vector<float> outputs{-11.999998f, -11.999999f, -4.000000f,
@@ -2055,7 +2055,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_paddi
                                     3.0f, 2.0f, 1.0f};
 
     const Shape offsets_shape{1, 18, 4, 4};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{1, 1, 4, 4};
     const std::vector<float> outputs{54.870006f, 61.630001f, 43.230003f, 28.600002f,
@@ -2090,7 +2090,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_strid
                                     3.0f, 2.0f, 1.0f};
 
     const Shape offsets_shape{1, 18, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{1, 1, 2, 2};
     const std::vector<float> outputs{61.229999f, 29.509998f,
@@ -2125,7 +2125,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_paddi
                                     3.0f, 1.0f, 2.0f};
 
     const Shape offsets_shape{1, 18, 4, 4};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{1, 1, 4, 4};
     const std::vector<float> outputs{15.260000f, 24.119997f, 6.439994f, -3.940005f,
@@ -2172,7 +2172,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_input
             4.0f, 2.0f, -4.0f};
 
     const Shape offsets_shape{1, 18, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{1, 1, 2, 2};
     const std::vector<float> outputs{148.000000f, 43.259998f,
@@ -2207,7 +2207,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_outpu
             -3.0f, -4.0f};
 
     const Shape offsets_shape{1, 8, 3, 3};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{1, 2, 3, 3};
     const std::vector<float> outputs{
@@ -2251,7 +2251,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_batch
                                     -1.0f, -2.0f};
 
     const Shape offsets_shape{2, 8, 3, 3};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{2, 1, 3, 3};
     const std::vector<float> outputs{// batch 1
@@ -2311,7 +2311,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_group
             -7.0f, -8.0f};
 
     const Shape offsets_shape{1, 8, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{1, 2, 2, 2};
     const std::vector<float> outputs{ // channel 1
@@ -2396,7 +2396,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_group
             -15.0f, -16.0f};
 
     const Shape offsets_shape{1, 8, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{1, 4, 2, 2};
     const std::vector<float> outputs{ // channel 1
@@ -2453,7 +2453,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_defor
             -7.0f, -8.0f};
 
     const Shape offsets_shape{1, 16, 3, 3};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{1, 2, 3, 3};
     const std::vector<float> outputs{// output 1
@@ -2529,7 +2529,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_defor
             -7.0f, -8.0f};
 
     const Shape offsets_shape{1, 32, 3, 3};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{1, 2, 3, 3};
     const std::vector<float> outputs{// output 1
@@ -2604,7 +2604,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_defor
             -7.0f, -8.0f};
 
     const Shape offsets_shape{1, 16, 3, 3};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{1, 2, 3, 3};
     const std::vector<float> outputs{// output 1
@@ -2657,7 +2657,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_group
     };
 
     const Shape offsets_shape{1, 16, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1f);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1f);
 
     const Shape outputs_shape{1, 2, 2, 2};
     const std::vector<float> outputs{505.800020f, 235.800000f,
@@ -2688,7 +2688,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_v8_zeroed_offsets_
                                     -1.0f, -2.0f};
 
     const Shape offsets_shape{1, 8, 3, 3};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 1, 3, 3};
     const std::vector<float> outputs{-6.0f, -6.0f, -6.0f,
@@ -2748,7 +2748,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_group
     };
 
     const Shape offsets_shape{1, 16, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1);
 
     const Shape outputs_shape{1, 2, 2, 2};
     const std::vector<float> outputs{220.15443f ,   38.199608f,
@@ -2822,7 +2822,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_group
                                     -7.0f, -8.0f,
     };
     const Shape offsets_shape{1, 16, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 1.1);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), 1.1);
     const Shape outputs_shape{1, 2, 2, 2};
     const std::vector<float> outputs{184.25163,  101.04752,
                                      77.46842,   77.56562,
@@ -2893,7 +2893,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_neg_offsets_groups
                                     -7.0f, -8.0f,
     };
     const Shape offsets_shape{1, 16, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), -1.1);
+    const std::vector<float> offsets(ov::shape_size(offsets_shape), -1.1);
     const Shape outputs_shape{1, 2, 2, 2};
     const std::vector<float> outputs{45.910797,  104.8302,
                                      63.12059 ,  151.47789,

@@ -8,7 +8,7 @@
 #include "ngraph/node.hpp"
 #include "op/softplus.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -28,4 +28,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

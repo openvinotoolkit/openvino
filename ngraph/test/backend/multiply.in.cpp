@@ -28,7 +28,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -70,7 +70,7 @@ namespace
     template <typename Value>
     void multiply_broadcst()
     {
-        const auto element_type = ngraph::element::from<Value>();
+        const auto element_type = ov::element::from<Value>();
         const Shape shape_a{3, 2, 1};
         const Shape shape_b{1, 6};
         const Shape shape_o{3, 2, 6};

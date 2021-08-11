@@ -6,7 +6,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -40,8 +40,8 @@ namespace ngraph
                 /// input.
                 SpaceToBatch(const Output<Node>& data,
                              const Output<Node>& block_shape,
-                             const Output<ngraph::Node>& pads_begin,
-                             const Output<ngraph::Node>& pads_end);
+                             const Output<ov::Node>& pads_begin,
+                             const Output<ov::Node>& pads_end);
 
                 void validate_and_infer_types() override;
                 std::shared_ptr<Node>
@@ -59,4 +59,4 @@ namespace ngraph
         } // namespace v1
         using v1::SpaceToBatch;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

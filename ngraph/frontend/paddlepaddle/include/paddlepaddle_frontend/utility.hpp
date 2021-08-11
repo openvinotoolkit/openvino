@@ -13,7 +13,7 @@
 #define PDPD_API NGRAPH_HELPER_DLL_IMPORT
 #endif // paddlepaddle_ngraph_frontend_EXPORTS
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -28,4 +28,4 @@ namespace ngraph
 #define NOT_IMPLEMENTED(msg) throw std::runtime_error(std::string(msg) + " is not implemented")
 
     } // namespace frontend
-} // namespace ngraph
+} // namespace ov

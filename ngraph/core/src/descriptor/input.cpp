@@ -8,7 +8,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/type/element_type.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace descriptor;
 
 descriptor::Input::Input(Node* node, size_t index, Output& output)

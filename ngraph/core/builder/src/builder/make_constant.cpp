@@ -4,7 +4,7 @@
 
 #include "ngraph/builder/make_constant.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace builder
     {
@@ -13,54 +13,54 @@ namespace ngraph
         {
             auto ceil_func = [](double x) { return ceil(x); };
 
-            std::shared_ptr<ngraph::Node> result = nullptr;
+            std::shared_ptr<ov::Node> result = nullptr;
             switch (type)
             {
             case element::Type_t::i8:
             {
-                result = std::make_shared<ngraph::op::Constant>(
+                result = std::make_shared<ov::op::Constant>(
                     type, shape, double_to_int<int8_t>(num, ceil_func));
                 break;
             }
             case element::Type_t::i16:
             {
-                result = std::make_shared<ngraph::op::Constant>(
+                result = std::make_shared<ov::op::Constant>(
                     type, shape, double_to_int<int16_t>(num, ceil_func));
                 break;
             }
             case element::Type_t::i32:
             {
-                result = std::make_shared<ngraph::op::Constant>(
+                result = std::make_shared<ov::op::Constant>(
                     type, shape, double_to_int<int32_t>(num, ceil_func));
                 break;
             }
             case element::Type_t::i64:
             {
-                result = std::make_shared<ngraph::op::Constant>(
+                result = std::make_shared<ov::op::Constant>(
                     type, shape, double_to_int<int64_t>(num, ceil_func));
                 break;
             }
             case element::Type_t::u8:
             {
-                result = std::make_shared<ngraph::op::Constant>(
+                result = std::make_shared<ov::op::Constant>(
                     type, shape, double_to_int<uint8_t>(num, ceil_func));
                 break;
             }
             case element::Type_t::u16:
             {
-                result = std::make_shared<ngraph::op::Constant>(
+                result = std::make_shared<ov::op::Constant>(
                     type, shape, double_to_int<uint16_t>(num, ceil_func));
                 break;
             }
             case element::Type_t::u32:
             {
-                result = std::make_shared<ngraph::op::Constant>(
+                result = std::make_shared<ov::op::Constant>(
                     type, shape, double_to_int<uint32_t>(num, ceil_func));
                 break;
             }
             case element::Type_t::u64:
             {
-                result = std::make_shared<ngraph::op::Constant>(
+                result = std::make_shared<ov::op::Constant>(
                     type, shape, double_to_int<uint64_t>(num, ceil_func));
                 break;
             }
@@ -91,4 +91,4 @@ namespace ngraph
             return result;
         }
     } // namespace builder
-} // namespace ngraph
+} // namespace ov

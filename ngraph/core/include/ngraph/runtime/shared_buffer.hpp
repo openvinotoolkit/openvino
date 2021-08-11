@@ -8,13 +8,13 @@
 
 #include "ngraph/runtime/aligned_buffer.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
         /// \brief SharedBuffer class to store pointer to pre-acclocated buffer.
         template <typename T>
-        class SharedBuffer : public ngraph::runtime::AlignedBuffer
+        class SharedBuffer : public ov::runtime::AlignedBuffer
         {
         public:
             SharedBuffer(char* data, size_t size, const T& shared_object)
@@ -36,4 +36,4 @@ namespace ngraph
             T _shared_object;
         };
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

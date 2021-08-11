@@ -4,7 +4,7 @@
 
 #include <pdpd_fw_node.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -45,4 +45,4 @@ namespace ngraph
         }
 
     } // namespace frontend
-} // namespace ngraph
+} // namespace ov

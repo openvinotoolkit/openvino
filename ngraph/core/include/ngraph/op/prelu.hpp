@@ -7,7 +7,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -17,7 +17,7 @@ namespace ngraph
             /// x <  0 => f(x) = x * slope
             /// x >= 0 => f(x) = x
             ///
-            class NGRAPH_API PRelu : public ngraph::op::Op
+            class NGRAPH_API PRelu : public ov::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -42,4 +42,4 @@ namespace ngraph
         } // namespace v0
         using v0::PRelu;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

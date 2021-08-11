@@ -8,7 +8,7 @@
 #include "ngraph/check.hpp"
 #include "ngraph/runtime/reference/split.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 void runtime::reference::split(const char* data,
                                const Shape& data_shape,

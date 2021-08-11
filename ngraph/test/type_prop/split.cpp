@@ -9,7 +9,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, split_v1_axis_const_positive)
 {
@@ -99,8 +99,7 @@ TEST(type_prop, split_v1_axis_const_data_axis_dim_interval_known_divisible)
     EXPECT_EQ(split->outputs().size(), num_splits);
     for (size_t i = 0; i < num_splits; ++i)
     {
-        EXPECT_EQ(split->get_output_partial_shape(i),
-                  (PartialShape{4, Dimension(1, 2), 3, 5}));
+        EXPECT_EQ(split->get_output_partial_shape(i), (PartialShape{4, Dimension(1, 2), 3, 5}));
     }
 }
 
@@ -115,8 +114,7 @@ TEST(type_prop, split_v1_axis_const_data_axis_dim_interval_known_upper_bound_div
     EXPECT_EQ(split->outputs().size(), num_splits);
     for (size_t i = 0; i < num_splits; ++i)
     {
-        EXPECT_EQ(split->get_output_partial_shape(i),
-                  (PartialShape{4, Dimension(0, 1), 3, 5}));
+        EXPECT_EQ(split->get_output_partial_shape(i), (PartialShape{4, Dimension(0, 1), 3, 5}));
     }
 }
 
@@ -131,15 +129,17 @@ TEST(type_prop, split_v1_axis_const_invalid_data_axis_dim_interval_known)
         const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
         FAIL() << "Invalid dimension of data input along axis not detected";
     }
-    catch(const NodeValidationFailure& error)
+    catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
             "The interval maximum of the dimension for data input shape along 'axis' must be "
             "greater or equal to 'num_splits' attribute.");
     }
     catch (...)
     {
-        FAIL() << "Invalid dimension of data input along axis validation check failed for unexpected reason";
+        FAIL() << "Invalid dimension of data input along axis validation check failed for "
+                  "unexpected reason";
     }
 }
 
@@ -228,7 +228,7 @@ TEST(type_prop, split_v1_invalid_axis_et)
     {
         EXPECT_HAS_SUBSTRING(error.what(), "Element type of 'axis' input must be integer.");
     }
-    catch(...)
+    catch (...)
     {
         FAIL() << "Element type of 'axis' input validation check failed for unexpected reason";
     }
@@ -244,7 +244,7 @@ TEST(type_prop, split_v1_invalid_axis_et)
     {
         EXPECT_HAS_SUBSTRING(error.what(), "Element type of 'axis' input must be integer.");
     }
-    catch(...)
+    catch (...)
     {
         FAIL() << "Element type of 'axis' input validation check failed for unexpected reason";
     }
@@ -263,8 +263,7 @@ TEST(type_prop, split_v1_invalid_axis_not_a_scalar)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("'axis' input must be a scalar."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("'axis' input must be a scalar."));
     }
     catch (...)
     {
@@ -287,7 +286,7 @@ TEST(type_prop, split_v1_invalid_num_splits)
     {
         EXPECT_HAS_SUBSTRING(error.what(), "Attribute 'num_splits' must be greater than zero");
     }
-    catch(...)
+    catch (...)
     {
         FAIL() << "Attribute 'num_splits' validation check failed for unexpected reason";
     }
@@ -308,7 +307,7 @@ TEST(type_prop, split_v1_invalid_axis_value)
     {
         EXPECT_HAS_SUBSTRING(error.what(), "Parameter axis -5 out of the tensor rank range");
     }
-    catch(...)
+    catch (...)
     {
         FAIL() << "'axis' value validation check failed for unexpected reason";
     }
@@ -333,7 +332,7 @@ TEST(type_prop, split_v1_incompatible_data_shape_with_num_splits)
             std::string("Dimension of data input shape along 'axis': 6 must be evenly "
                         "divisible by 'num_splits' attribute value: 4"));
     }
-    catch(...)
+    catch (...)
     {
         FAIL() << "Data input shape along 'axis' dimension validation check with "
                   "'num_splits' attribute, failed for unexpected reason";

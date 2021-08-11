@@ -21,8 +21,8 @@
 
 #include "plugin_loader.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 #ifdef WIN32
 #define DLOPEN(file_str) LoadLibrary(TEXT(file_str.c_str()))
@@ -40,7 +40,7 @@ static std::vector<std::string> list_files(const std::string& path)
     std::vector<std::string> res;
     try
     {
-        ngraph::file_util::iterate_files(
+        ov::file_util::iterate_files(
             path,
             [&res](const std::string& file, bool is_dir) {
                 if (!is_dir && file.find("_ngraph_frontend") != std::string::npos)
@@ -68,7 +68,7 @@ static std::vector<std::string> list_files(const std::string& path)
     return res;
 }
 
-std::vector<PluginData> ngraph::frontend::load_plugins(const std::string& dir_name)
+std::vector<PluginData> ov::frontend::load_plugins(const std::string& dir_name)
 {
     auto files = list_files(dir_name);
     std::vector<PluginData> res;

@@ -12,7 +12,7 @@
 #include "executable.hpp"
 #include "ngraph/runtime/tensor.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -24,13 +24,14 @@ namespace ngraph
             public:
                 IE_Executable(std::shared_ptr<Function> func, std::string device);
                 virtual ~IE_Executable() {}
-                bool call(const std::vector<std::shared_ptr<runtime::Tensor>>& outputs,
-                          const std::vector<std::shared_ptr<runtime::Tensor>>& inputs) override final;
+                bool call(
+                    const std::vector<std::shared_ptr<runtime::Tensor>>& outputs,
+                    const std::vector<std::shared_ptr<runtime::Tensor>>& inputs) override final;
 
             private:
                 InferenceEngine::CNNNetwork m_network;
                 std::string m_device;
             };
-        }
-    }
-}
+        } // namespace ie
+    }     // namespace runtime
+} // namespace ov

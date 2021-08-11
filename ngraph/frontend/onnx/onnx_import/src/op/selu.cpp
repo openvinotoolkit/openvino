@@ -10,7 +10,7 @@
 #include "ngraph/op/selu.hpp"
 #include "op/selu.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -41,4 +41,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

@@ -6,10 +6,10 @@
 
 #include "ngraph/provenance.hpp"
 
-namespace ngraph
+namespace ov
 {
     static bool s_provenance_enabled = getenv_bool("NGRAPH_PROVENANCE_ENABLE");
 
     void set_provenance_enabled(bool enabled) { s_provenance_enabled = enabled; }
     bool get_provenance_enabled() { return s_provenance_enabled; }
-} // namespace ngraph
+} // namespace ov

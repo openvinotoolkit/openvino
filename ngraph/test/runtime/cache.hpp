@@ -16,7 +16,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -45,5 +45,5 @@ namespace ngraph
             std::list<std::vector<int>> m_list;
             std::mutex m_mutex;
         };
-    }
-}
+    } // namespace runtime
+} // namespace ov

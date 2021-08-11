@@ -11,7 +11,7 @@
 #include "ngraph/runtime/reference/round.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 namespace roundop
 {
@@ -73,7 +73,7 @@ op::v5::Round::Round(const Output<Node>& arg, RoundMode mode)
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v5::Round::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v5::Round::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v5_Round_visit_attributes);
     visitor.on_attribute("mode", m_mode);
@@ -108,24 +108,24 @@ bool op::v5::Round::has_evaluate() const
     NGRAPH_OP_SCOPE(v5_Round_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::boolean:
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
-    case ngraph::element::bf16: return true;
+    case ov::element::boolean:
+    case ov::element::i8:
+    case ov::element::i16:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u8:
+    case ov::element::u16:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32:
+    case ov::element::bf16: return true;
     default: break;
     }
     return false;
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     EnumNames<op::v5::Round::RoundMode>& EnumNames<op::v5::Round::RoundMode>::get()
@@ -143,4 +143,4 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov

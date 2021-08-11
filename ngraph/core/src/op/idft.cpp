@@ -15,7 +15,7 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v7::IDFT, "IDFT", 7, util::FFTBase);
 

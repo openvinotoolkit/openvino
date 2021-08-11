@@ -12,7 +12,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/activation_functions.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -87,7 +87,7 @@ namespace ngraph
                 /// \param[in]  input           Vector with RNN-Cell op inputs in following order:
                 ///                             X, initial_hidden_state, W, R and B.
                 ///
-                void validate_input_rank_dimension(const std::vector<ngraph::PartialShape>& input);
+                void validate_input_rank_dimension(const std::vector<ov::PartialShape>& input);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 std::size_t get_hidden_size() const { return m_hidden_size; }
@@ -160,4 +160,4 @@ namespace ngraph
             };
         } // namespace util
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

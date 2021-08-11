@@ -15,19 +15,19 @@
 #include "util/test_control.hpp"
 #include "util/type_prop.hpp"
 
-using namespace ngraph;
-using namespace ngraph::onnx_import;
+using namespace ov;
+using namespace ov::onnx_import;
 
 static std::string s_manifest = "${MANIFEST}";
 
 namespace
 {
     template <typename T>
-    void test_constant_folding(std::shared_ptr<ngraph::Function> ng_function,
+    void test_constant_folding(std::shared_ptr<ov::Function> ng_function,
                                const std::vector<T> expected_output,
                                const PartialShape expected_shape = PartialShape::dynamic())
     {
-        ngraph::pass::Manager pass_manager;
+        ov::pass::Manager pass_manager;
         pass_manager.register_pass<pass::ConstantFolding>();
         pass_manager.run_passes(ng_function);
 
@@ -38,7 +38,7 @@ namespace
                 const auto folded_node = as_type_ptr<default_opset::Constant>(ng_node);
                 const auto output_values = folded_node->cast_vector<T>();
 
-                EXPECT_TRUE(ngraph::test::all_close(expected_output, output_values));
+                EXPECT_TRUE(ov::test::all_close(expected_output, output_values));
 
                 if (expected_shape.is_static())
                 {
@@ -51,7 +51,7 @@ namespace
 
         FAIL() << "ONNX model import with constant folding failed.";
     }
-}
+} // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_const_folding_model_scatter_elements)
 {

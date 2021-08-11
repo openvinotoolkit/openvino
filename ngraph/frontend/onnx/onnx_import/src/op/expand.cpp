@@ -10,7 +10,7 @@
 #include "ngraph/op/multiply.hpp"
 #include "op/expand.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -20,11 +20,11 @@ namespace ngraph
             {
                 OutputVector expand(const Node& node)
                 {
-                    const Output<ngraph::Node> data{node.get_ng_inputs().at(0)};
-                    const Output<ngraph::Node> shape{node.get_ng_inputs().at(1)};
+                    const Output<ov::Node> data{node.get_ng_inputs().at(0)};
+                    const Output<ov::Node> shape{node.get_ng_inputs().at(1)};
 
                     return {std::make_shared<default_opset::Broadcast>(
-                        data, shape, ngraph::op::BroadcastType::BIDIRECTIONAL)};
+                        data, shape, ov::op::BroadcastType::BIDIRECTIONAL)};
                 }
 
             } // namespace set_1
@@ -33,4 +33,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

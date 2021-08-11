@@ -7,7 +7,7 @@
 
 #include <xbyak/xbyak_util.h>
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -235,4 +235,4 @@ namespace ngraph
             }
         } // namespace jit
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

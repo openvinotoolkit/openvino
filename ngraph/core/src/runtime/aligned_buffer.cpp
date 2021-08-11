@@ -8,7 +8,7 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 runtime::AlignedBuffer::AlignedBuffer()
@@ -69,7 +69,7 @@ runtime::AlignedBuffer& runtime::AlignedBuffer::operator=(AlignedBuffer&& other)
     return *this;
 }
 
-namespace ngraph
+namespace ov
 {
     constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::type_info;
 
@@ -78,4 +78,4 @@ namespace ngraph
         : DirectValueAccessor<shared_ptr<runtime::AlignedBuffer>>(value)
     {
     }
-} // namespace ngraph
+} // namespace ov

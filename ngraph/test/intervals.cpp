@@ -8,7 +8,7 @@
 #include "ngraph/interval.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using ::testing::Return;
 
 TEST(intervals, size)

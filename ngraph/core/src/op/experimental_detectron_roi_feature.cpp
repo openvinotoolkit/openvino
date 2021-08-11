@@ -11,7 +11,7 @@
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronROIFeatureExtractor,
                        "ExperimentalDetectronROIFeatureExtractor",

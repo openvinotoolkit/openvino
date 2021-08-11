@@ -8,7 +8,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::util::LogicalReduction, "LogicalReduction", 1);
 

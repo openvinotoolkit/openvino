@@ -7,7 +7,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/prior_box.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, prior_box1)
 {

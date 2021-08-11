@@ -8,7 +8,7 @@
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::Proposal, "Proposal", 0);
 

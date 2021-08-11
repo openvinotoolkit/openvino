@@ -10,7 +10,7 @@
 
 #include "ngraph/runtime/reference/utils/span.hpp"
 
-using namespace ngraph::runtime::reference;
+using namespace ov::runtime::reference;
 
 TEST(span_util, create_from_vector)
 {

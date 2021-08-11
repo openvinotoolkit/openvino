@@ -7,7 +7,7 @@
 #include <frontend_manager/input_model.hpp>
 #include <onnx_editor/editor.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -21,9 +21,9 @@ namespace ngraph
             Place::Ptr get_place_by_tensor_name(const std::string& tensor_name) const override;
             Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operation_name,
                                                                   int input_port_index) override;
-            void set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) override;
-            ngraph::PartialShape get_partial_shape(Place::Ptr place) const override;
-            void set_element_type(Place::Ptr place, const ngraph::element::Type& type) override;
+            void set_partial_shape(Place::Ptr place, const ov::PartialShape& shape) override;
+            ov::PartialShape get_partial_shape(Place::Ptr place) const override;
+            void set_element_type(Place::Ptr place, const ov::element::Type& type) override;
 
             std::shared_ptr<Function> decode();
             std::shared_ptr<Function> convert();
@@ -40,4 +40,4 @@ namespace ngraph
 
     } // namespace frontend
 
-} // namespace ngraph
+} // namespace ov

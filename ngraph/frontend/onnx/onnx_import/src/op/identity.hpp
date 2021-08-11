@@ -10,7 +10,7 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -21,10 +21,10 @@ namespace ngraph
                 inline OutputVector identity(const Node& node)
                 {
                     auto input = node.get_ng_inputs().at(0);
-                    if (input.get_element_type() == ngraph::element::boolean)
+                    if (input.get_element_type() == ov::element::boolean)
                     {
                         const auto logic_zero =
-                            default_opset::Constant::create(ngraph::element::boolean, {}, {false});
+                            default_opset::Constant::create(ov::element::boolean, {}, {false});
                         return {std::make_shared<default_opset::LogicalOr>(input, logic_zero)};
                     }
                     const auto zero =
@@ -37,4 +37,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

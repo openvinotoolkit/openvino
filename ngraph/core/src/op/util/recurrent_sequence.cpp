@@ -5,9 +5,9 @@
 #include "ngraph/op/util/recurrent_sequence.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-void op::util::validate_seq_input_rank_dimension(const std::vector<ngraph::PartialShape>& input)
+void op::util::validate_seq_input_rank_dimension(const std::vector<ov::PartialShape>& input)
 {
     enum
     {

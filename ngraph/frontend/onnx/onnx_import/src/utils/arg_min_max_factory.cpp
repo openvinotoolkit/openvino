@@ -7,7 +7,7 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/validation_util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -22,21 +22,20 @@ namespace ngraph
             {
             }
 
-            std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_arg_max() const
+            std::shared_ptr<ov::Node> ArgMinMaxFactory::make_arg_max() const
             {
                 return make_topk_subgraph(default_opset::TopK::Mode::MAX);
             }
 
-            std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_arg_min() const
+            std::shared_ptr<ov::Node> ArgMinMaxFactory::make_arg_min() const
             {
                 return make_topk_subgraph(default_opset::TopK::Mode::MIN);
             }
 
-            std::shared_ptr<ngraph::Node>
+            std::shared_ptr<ov::Node>
                 ArgMinMaxFactory::make_topk_subgraph(default_opset::TopK::Mode mode) const
             {
-                const auto k_node =
-                    default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
+                const auto k_node = default_opset::Constant::create(ov::element::i64, Shape{}, {1});
 
                 if (m_select_last_index == 1)
                 {
@@ -65,7 +64,7 @@ namespace ngraph
                     // result = res_index - 1 = 3 - 1 = 2
 
                     const auto axis_node =
-                        default_opset::Constant::create(ngraph::element::i64, Shape{1}, {m_axis});
+                        default_opset::Constant::create(ov::element::i64, Shape{1}, {m_axis});
                     const auto reverse = std::make_shared<opset1::Reverse>(
                         m_input_node, axis_node, opset1::Reverse::Mode::INDEX);
 
@@ -76,14 +75,14 @@ namespace ngraph
                     const auto dims_on_axis = std::make_shared<default_opset::Gather>(
                         data_shape,
                         axis_node,
-                        default_opset::Constant::create(ngraph::element::i64, Shape{}, {0}));
+                        default_opset::Constant::create(ov::element::i64, Shape{}, {0}));
 
                     const auto res_index = std::make_shared<default_opset::Subtract>(
                         dims_on_axis,
                         std::make_shared<default_opset::Convert>(topk->output(1), element::i64));
                     const auto result = std::make_shared<default_opset::Subtract>(
                         res_index,
-                        default_opset::Constant::create(ngraph::element::i64, Shape{1}, {1}));
+                        default_opset::Constant::create(ov::element::i64, Shape{1}, {1}));
 
                     if (m_keep_dims == 0)
                     {
@@ -114,4 +113,4 @@ namespace ngraph
             }
         } // namespace utils
     }     // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

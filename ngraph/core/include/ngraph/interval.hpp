@@ -12,7 +12,7 @@
 
 #include "ngraph/ngraph_visibility.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// \brief Interval arithmetic
     ///
@@ -107,4 +107,4 @@ namespace ngraph
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& str, const Interval& interval);
-} // namespace ngraph
+} // namespace ov

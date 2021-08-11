@@ -11,7 +11,7 @@
 
 #include "onnx_import/core/operator_set.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -82,4 +82,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

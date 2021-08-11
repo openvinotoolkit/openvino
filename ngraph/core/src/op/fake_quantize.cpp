@@ -13,7 +13,7 @@
 #include "ngraph/shape.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::FakeQuantize, "FakeQuantize", 0);
 
@@ -66,7 +66,7 @@ void op::FakeQuantize::validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-bool ngraph::op::v0::FakeQuantize::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::FakeQuantize::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_FakeQuantize_visit_attributes);
     visitor.on_attribute("levels", m_levels);

@@ -19,7 +19,7 @@
 #include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -119,7 +119,6 @@ NGRAPH_TEST(${BACKEND_NAME}, avg_pool_2d_ceil_stride_pad)
         A, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_type, pad_type);
     auto f = make_shared<Function>(avgPool, ParameterVector{A});
 
-
     std::vector<float> a{1, 2, 3, 4, 5};
     std::vector<float> result{1.5, 3, 4.5};
 
@@ -146,7 +145,6 @@ NGRAPH_TEST(${BACKEND_NAME}, avg_pool_2d_ceil_stride_pad_include_padding)
         A, strides, pads_begin, pads_end, kernel, exclude_pad, rounding_type, pad_type);
     auto f = make_shared<Function>(avgPool, ParameterVector{A});
 
-
     std::vector<float> a{2.5, 2, 12, 4, 5};
     std::vector<float> result{0.5, 2, 1};
 
@@ -155,7 +153,6 @@ NGRAPH_TEST(${BACKEND_NAME}, avg_pool_2d_ceil_stride_pad_include_padding)
     test_case.add_expected_output<float>(out_shape, result);
     test_case.run();
 }
-
 
 NGRAPH_TEST(${BACKEND_NAME}, avg_pool_2d_same_upper)
 {

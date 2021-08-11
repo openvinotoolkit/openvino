@@ -9,11 +9,11 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConstantFolding, "ConstantFolding", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConstantFolding, "ConstantFolding", 0);
 
-bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Function> f)
+bool ov::pass::ConstantFolding::run_on_function(std::shared_ptr<ov::Function> f)
 {
     bool rewritten = pre_calculated_values_folding(f);
 
@@ -71,7 +71,7 @@ bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Func
     return rewritten;
 }
 
-void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
+void ov::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
     const std::shared_ptr<Node>& node, const Output<Node>& replacement)
 {
     for (auto& input : replacement.get_target_inputs())
@@ -81,8 +81,8 @@ void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
     }
 }
 
-bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(
-    const std::shared_ptr<ngraph::Function>& f)
+bool ov::pass::ConstantFolding::pre_calculated_values_folding(
+    const std::shared_ptr<ov::Function>& f)
 {
     deque<shared_ptr<Node>> nodes;
     set<shared_ptr<Node>> visited;

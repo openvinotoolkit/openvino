@@ -9,7 +9,7 @@
 #include "onnx_import/core/node.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -20,7 +20,7 @@ namespace ngraph
                 namespace
                 {
                     std::shared_ptr<default_opset::StridedSlice>
-                        make_slice(std::shared_ptr<ngraph::Node> node, int64_t start, int64_t end)
+                        make_slice(std::shared_ptr<ov::Node> node, int64_t start, int64_t end)
                     {
                         return std::make_shared<default_opset::StridedSlice>(
                             node,
@@ -46,7 +46,7 @@ namespace ngraph
                     auto output_shape_slice = detail::make_slice(output_shape, 2, 4);
                     auto image_shape_slice = detail::make_slice(image_shape, 2, 4);
 
-                    ngraph::op::PriorBoxAttrs attrs;
+                    ov::op::PriorBoxAttrs attrs;
                     attrs.min_size = node.get_attribute_value<std::vector<float>>("min_size", {});
                     attrs.max_size = node.get_attribute_value<std::vector<float>>("max_size", {});
                     attrs.aspect_ratio =
@@ -95,7 +95,7 @@ namespace ngraph
                     auto output_shape_slice = detail::make_slice(output_shape, 2, 4);
                     auto image_shape_slice = detail::make_slice(image_shape, 2, 4);
 
-                    ngraph::op::PriorBoxClusteredAttrs attrs{};
+                    ov::op::PriorBoxClusteredAttrs attrs{};
                     attrs.widths = node.get_attribute_value<std::vector<float>>("width");
                     attrs.heights = node.get_attribute_value<std::vector<float>>("height");
                     attrs.clip = static_cast<bool>(node.get_attribute_value<int64_t>("clip", 0));
@@ -120,4 +120,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

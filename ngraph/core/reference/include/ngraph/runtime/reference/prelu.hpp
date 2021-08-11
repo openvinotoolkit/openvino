@@ -11,7 +11,7 @@
 
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -37,9 +37,9 @@ namespace ngraph
                                     out,
                                     arg_shape,
                                     slope_shape_tmp,
-                                    ngraph::op::AutoBroadcastType::NUMPY,
+                                    ov::op::AutoBroadcastType::NUMPY,
                                     [](T x, T y) -> T { return x < T(0) ? T(x * y) : x; });
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

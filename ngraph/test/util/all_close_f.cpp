@@ -10,7 +10,7 @@
 #include "util/all_close_f.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 union FloatUnion {
     float f;

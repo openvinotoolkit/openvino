@@ -4,7 +4,7 @@
 
 #pragma once
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -26,5 +26,5 @@ namespace ngraph
         // struct supports_dynamic<EngineName> {
         //     static constexpr const bool value = true;
         // };
-    }
-}
+    } // namespace test
+} // namespace ov

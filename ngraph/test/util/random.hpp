@@ -10,7 +10,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "test_tools.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -52,5 +52,5 @@ namespace ngraph
             std::uniform_real_distribution<T> m_distribution;
             std::function<T()> m_r;
         };
-    }
-}
+    } // namespace test
+} // namespace ov

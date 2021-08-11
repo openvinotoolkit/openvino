@@ -12,7 +12,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -43,14 +43,14 @@ namespace ngraph
             ///
             struct OpInputMap
             {
-                using container_type = std::map<OpInput, Output<ngraph::Node>>;
+                using container_type = std::map<OpInput, Output<ov::Node>>;
 
                 explicit OpInputMap(const onnx_import::Node& node, std::size_t gates_count);
                 OpInputMap(container_type&& map);
                 virtual ~OpInputMap() = default;
 
-                Output<ngraph::Node>& at(const OpInput& key);
-                const Output<ngraph::Node>& at(const OpInput& key) const;
+                Output<ov::Node>& at(const OpInput& key);
+                const Output<ov::Node>& at(const OpInput& key) const;
 
                 container_type m_map;
             };
@@ -65,7 +65,7 @@ namespace ngraph
                 explicit OpAttributes(const Node& node);
                 virtual ~OpAttributes() = default;
 
-                ngraph::op::RecurrentSequenceDirection m_direction;
+                ov::op::RecurrentSequenceDirection m_direction;
                 std::int64_t m_hidden_size;
                 float m_clip_threshold;
                 std::vector<std::string> m_activations;
@@ -75,4 +75,4 @@ namespace ngraph
 
         } // namespace recurrent
     }     // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

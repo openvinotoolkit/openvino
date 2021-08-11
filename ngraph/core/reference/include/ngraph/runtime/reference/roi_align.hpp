@@ -8,7 +8,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/roi_align.hpp" // for ROIAlign:PoolingMode
 #include "ngraph/shape.hpp"
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -231,4 +231,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

@@ -9,7 +9,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 // ------------------------------ V1 ------------------------------
 
@@ -110,8 +110,9 @@ TEST(type_prop, gather_v1_axis_out_of_input_rank)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Normalized axis must be >= 0 and < data_rank. But instead got axis"));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Normalized axis must be >= 0 and < data_rank. But instead got axis"));
     }
     catch (...)
     {
@@ -305,7 +306,8 @@ TEST(type_prop, gather_7_axis_not_set)
     PartialShape data_shape{1, 1, 200, 400};
     PartialShape indices_shape{2, 2};
     // default batch_dims = 0
-    PartialShape out_shape = PartialShape::dynamic(5);  // out_rank = data_rank + indices_rank - 1 - batch_dims
+    PartialShape out_shape =
+        PartialShape::dynamic(5); // out_rank = data_rank + indices_rank - 1 - batch_dims
 
     auto D = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
@@ -321,10 +323,8 @@ TEST(type_prop, gather_7_axis_not_set_positive_batch_dims)
     PartialShape data_shape{2, 1, 200, 400};
     PartialShape indices_shape{2, 2};
     int64_t batch_dims = 1;
-    PartialShape out_shape = PartialShape({2,
-                                           Dimension::dynamic(),
-                                           Dimension::dynamic(),
-                                           Dimension::dynamic()});
+    PartialShape out_shape =
+        PartialShape({2, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
 
     auto D = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
@@ -375,7 +375,8 @@ TEST(type_prop, gather_7_axis_out_of_input_rank)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("Normalized axis must be >= 0 and < data_rank. But instead got"));
+            error.what(),
+            std::string("Normalized axis must be >= 0 and < data_rank. But instead got"));
     }
     catch (...)
     {
@@ -432,8 +433,9 @@ TEST(type_prop, gather_7_batch_dims_less_check)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("After normalization batch_dims must be <= axis. But instead got: batch_dims ="));
+            error.what(),
+            std::string(
+                "After normalization batch_dims must be <= axis. But instead got: batch_dims ="));
     }
     catch (...)
     {
@@ -460,9 +462,7 @@ TEST(type_prop, gather_7_batch_dims_less_indices_rank_check)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("batch_dims must be <= indices_rank"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("batch_dims must be <= indices_rank"));
     }
     catch (...)
     {
@@ -490,8 +490,7 @@ TEST(type_prop, gather_7_indices_type_check)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("Indices element type must be of an integral number type"));
+            error.what(), std::string("Indices element type must be of an integral number type"));
     }
     catch (...)
     {
@@ -518,9 +517,8 @@ TEST(type_prop, gather_7_axis_type_check)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("Axis element type must be of an integral number type"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Axis element type must be of an integral number type"));
     }
     catch (...)
     {
@@ -704,7 +702,8 @@ TEST(type_prop, gather_v8_axis_not_set)
     PartialShape data_shape{1, 1, 200, 400};
     PartialShape indices_shape{2, 2};
     // default batch_dims = 0
-    PartialShape out_shape = PartialShape::dynamic(5);  // out_rank = data_rank + indices_rank - 1 - batch_dims
+    PartialShape out_shape =
+        PartialShape::dynamic(5); // out_rank = data_rank + indices_rank - 1 - batch_dims
 
     auto D = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
@@ -720,10 +719,8 @@ TEST(type_prop, gather_v8_axis_not_set_positive_batch_dims)
     PartialShape data_shape{2, 1, 200, 400};
     PartialShape indices_shape{2, 2};
     int64_t batch_dims = 1;
-    PartialShape out_shape = PartialShape({2,
-                                           Dimension::dynamic(),
-                                           Dimension::dynamic(),
-                                           Dimension::dynamic()});
+    PartialShape out_shape =
+        PartialShape({2, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
 
     auto D = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
@@ -774,7 +771,8 @@ TEST(type_prop, gather_v8_axis_out_of_input_rank)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-                error.what(), std::string("Normalized axis must be >= 0 and < data_rank. But instead got"));
+            error.what(),
+            std::string("Normalized axis must be >= 0 and < data_rank. But instead got"));
     }
     catch (...)
     {
@@ -802,8 +800,8 @@ TEST(type_prop, gather_v8_dynamic_batch_dims_inconsistent)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("data and indices must have equal or intersecting sizes until batch_dims"));
+            error.what(),
+            std::string("data and indices must have equal or intersecting sizes until batch_dims"));
     }
     catch (...)
     {
@@ -831,8 +829,9 @@ TEST(type_prop, gather_v8_batch_dims_less_check)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("After normalization batch_dims must be <= axis. But instead got: batch_dims ="));
+            error.what(),
+            std::string(
+                "After normalization batch_dims must be <= axis. But instead got: batch_dims ="));
     }
     catch (...)
     {
@@ -859,9 +858,7 @@ TEST(type_prop, gather_v8_batch_dims_less_indices_rank_check)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("batch_dims must be <= indices_rank"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("batch_dims must be <= indices_rank"));
     }
     catch (...)
     {
@@ -889,8 +886,7 @@ TEST(type_prop, gather_v8_indices_type_check)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("Indices element type must be of an integral number type"));
+            error.what(), std::string("Indices element type must be of an integral number type"));
     }
     catch (...)
     {
@@ -917,9 +913,8 @@ TEST(type_prop, gather_v8_axis_type_check)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("Axis element type must be of an integral number type"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Axis element type must be of an integral number type"));
     }
     catch (...)
     {

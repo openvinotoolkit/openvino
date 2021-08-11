@@ -6,7 +6,7 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -16,7 +16,7 @@ namespace ngraph
             {
                 OutputVector experimental_detectron_detection_output(const Node& node)
                 {
-                    using DetectionOutput = ngraph::op::v6::ExperimentalDetectronDetectionOutput;
+                    using DetectionOutput = ov::op::v6::ExperimentalDetectronDetectionOutput;
 
                     auto inputs = node.get_ng_inputs();
                     auto rois = inputs[0];
@@ -52,4 +52,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

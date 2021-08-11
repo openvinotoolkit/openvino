@@ -5,7 +5,7 @@
 #include "cache.hpp"
 #include "ngraph/env_util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 // Constructor

@@ -19,7 +19,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -162,7 +162,7 @@ namespace ngraph
                 *(it++) = init;
                 return it;
             }
-        }
+        } // namespace init
 
         template <typename T>
         class NDArrayBase
@@ -211,5 +211,5 @@ namespace ngraph
                     NDArrayBase<T>::m_elements.begin(), NDArrayBase<T>::m_shape, initial_value);
             }
         };
-    }
-}
+    } // namespace test
+} // namespace ov

@@ -11,7 +11,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "tensor.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -62,4 +62,4 @@ namespace ngraph
             return (outs << "<Sparse Tensor>");
         }
     } // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

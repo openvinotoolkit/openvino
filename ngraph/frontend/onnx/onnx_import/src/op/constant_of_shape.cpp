@@ -8,7 +8,7 @@
 #include "op/constant.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -18,7 +18,7 @@ namespace ngraph
             {
                 OutputVector constant_of_shape(const onnx_import::Node& node)
                 {
-                    Output<ngraph::Node> constant_value;
+                    Output<ov::Node> constant_value;
                     if (node.has_attribute("value"))
                     {
                         auto value_tensor = node.get_attribute_value<Tensor>("value");
@@ -39,4 +39,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

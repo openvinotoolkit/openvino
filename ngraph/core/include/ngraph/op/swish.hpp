@@ -7,7 +7,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -17,7 +17,7 @@ namespace ngraph
             /// f(x) =  x / (1.0 + exp(-beta * x)) or
             /// f(x) = x * sigmoid(beta * x)
             ///
-            class NGRAPH_API Swish : public ngraph::op::Op
+            class NGRAPH_API Swish : public ov::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -42,4 +42,4 @@ namespace ngraph
             };
         } // namespace v4
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

@@ -8,7 +8,7 @@
 #include "ngraph/op/util/attr_types.hpp" // for op::PadMode
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -25,4 +25,4 @@ namespace ngraph
                      const op::PadMode pad_mode);
         }
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

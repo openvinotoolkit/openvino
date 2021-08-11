@@ -6,9 +6,9 @@
 #include "ngraph/node.hpp"
 #include "ngraph/variant.hpp"
 
-ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes)
+ov::Node::RTMap mergeRuntimeInfo(const ov::NodeVector& nodes)
 {
-    std::unordered_map<std::string, std::vector<std::shared_ptr<ngraph::Variant>>> attrs;
+    std::unordered_map<std::string, std::vector<std::shared_ptr<ov::Variant>>> attrs;
     for (const auto& node : nodes)
     {
         for (const auto& item : node->get_rt_info())
@@ -20,7 +20,7 @@ ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes)
         }
     }
 
-    ngraph::Node::RTMap merged_attrs;
+    ov::Node::RTMap merged_attrs;
     for (auto& item : attrs)
     {
         auto attr = *item.second.begin();
@@ -37,7 +37,7 @@ ngraph::Node::RTMap mergeRuntimeInfo(const ngraph::NodeVector& nodes)
     return merged_attrs;
 }
 
-void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to)
+void ov::copy_runtime_info(std::shared_ptr<ov::Node> from, std::shared_ptr<ov::Node> to)
 {
     auto& attrs = to->get_rt_info();
     attrs.clear();
@@ -51,7 +51,7 @@ void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_p
     }
 }
 
-void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, ngraph::NodeVector to)
+void ov::copy_runtime_info(std::shared_ptr<ov::Node> from, ov::NodeVector to)
 {
     for (auto& op : to)
     {
@@ -59,13 +59,13 @@ void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, ngraph::NodeV
     }
 }
 
-void ngraph::copy_runtime_info(const ngraph::NodeVector& from, std::shared_ptr<ngraph::Node> to)
+void ov::copy_runtime_info(const ov::NodeVector& from, std::shared_ptr<ov::Node> to)
 {
     auto& rtInfoTo = to->get_rt_info();
     rtInfoTo = mergeRuntimeInfo(from);
 }
 
-void ngraph::copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVector to)
+void ov::copy_runtime_info(const ov::NodeVector& from, ov::NodeVector to)
 {
     auto mergedInfo = mergeRuntimeInfo(from);
     for (auto& node : to)

@@ -5,7 +5,7 @@
 #include <node_context.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -26,15 +26,15 @@ namespace ngraph
                     }
                     else
                     {
-                        factor_node = ngraph::opset6::Constant::create(
+                        factor_node = ov::opset6::Constant::create(
                             dtype, Shape{1}, {node.get_attribute<float>("factor")});
                     }
 
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Power>(x, factor_node)}, {"Out"});
+                        {std::make_shared<ov::opset6::Power>(x, factor_node)}, {"Out"});
                 }
 
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

@@ -11,12 +11,11 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pattern/matcher.hpp"
 
-namespace ngraph
+namespace ov
 {
-    using matcher_pass_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
-    using graph_rewrite_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
-    using recurrent_graph_rewrite_callback =
-        std::function<bool(ngraph::pattern::RecurrentMatcher& m)>;
+    using matcher_pass_callback = std::function<bool(ov::pattern::Matcher& m)>;
+    using graph_rewrite_callback = std::function<bool(ov::pattern::Matcher& m)>;
+    using recurrent_graph_rewrite_callback = std::function<bool(ov::pattern::RecurrentMatcher& m)>;
     using handler_callback = std::function<bool(const std::shared_ptr<Node>& node)>;
     namespace pass
     {
@@ -40,11 +39,11 @@ namespace ngraph
         /// sure that they were registered in topological order.
         /// Note: when implementing pattern for Matcher make sure that root node is an operation
         /// from opset
-        /// or has ngraph::pattern::op::WrapType. That will help GraphRewrite to execute matcher
+        /// or has ov::pattern::op::WrapType. That will help GraphRewrite to execute matcher
         /// passes more
         /// efficient.
 
-        class NGRAPH_API MatcherPass : public ngraph::pass::PassBase
+        class NGRAPH_API MatcherPass : public ov::pass::PassBase
         {
         public:
             NGRAPH_RTTI_DECLARATION;
@@ -67,7 +66,7 @@ namespace ngraph
                 set_property(property, true);
             }
 
-            bool apply(std::shared_ptr<ngraph::Node> node);
+            bool apply(std::shared_ptr<ov::Node> node);
 
             template <typename T, class... Args>
             std::shared_ptr<T> register_new_node(Args&&... args)
@@ -84,23 +83,20 @@ namespace ngraph
                 return node;
             }
 
-            const std::vector<std::shared_ptr<ngraph::Node>>& get_new_nodes()
-            {
-                return m_new_nodes;
-            }
+            const std::vector<std::shared_ptr<ov::Node>>& get_new_nodes() { return m_new_nodes; }
             void clear_new_nodes() { m_new_nodes.clear(); }
             std::shared_ptr<pattern::Matcher> get_matcher() { return m_matcher; }
 
         protected:
             void register_matcher(
                 const std::shared_ptr<pattern::Matcher>& m,
-                const ngraph::graph_rewrite_callback& callback,
+                const ov::graph_rewrite_callback& callback,
                 const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE);
 
         private:
             handler_callback m_handler;
             std::shared_ptr<pattern::Matcher> m_matcher;
-            std::vector<std::shared_ptr<ngraph::Node>> m_new_nodes;
+            std::vector<std::shared_ptr<ov::Node>> m_new_nodes;
         };
 
         /// \brief GraphRewrite is a container for MatcherPasses that allows to run them on Function
@@ -119,11 +115,11 @@ namespace ngraph
         /// pattern::op::WrapType.
         /// Note: when implementing pattern for Matcher make sure that root node is an operation
         /// from opset
-        /// or has ngraph::pattern::op::WrapType. That will help GraphRewrite to execute matcher
+        /// or has ov::pattern::op::WrapType. That will help GraphRewrite to execute matcher
         /// passes more
         /// efficient.
 
-        class NGRAPH_API GraphRewrite : public ngraph::pass::FunctionPass
+        class NGRAPH_API GraphRewrite : public ov::pass::FunctionPass
         {
         public:
             NGRAPH_RTTI_DECLARATION;
@@ -176,12 +172,12 @@ namespace ngraph
             /// passes registered in its ctor.
             /// For example:
             ///
-            ///    class ngraph::pass::LinFusions: public ngraph::pass::GraphRewrite {
+            ///    class ov::pass::LinFusions: public ov::pass::GraphRewrite {
             ///    public:
             ///         NGRAPH_RTTI_DECLARATION;
             ///         Fusions() {
-            ///             add_matcher<ngraph::pass::AddFusion>();
-            ///             add_matcher<ngraph::pass::MulFusion>();
+            ///             add_matcher<ov::pass::AddFusion>();
+            ///             add_matcher<ov::pass::MulFusion>();
             ///         }
             ///     };
             ///
@@ -214,14 +210,14 @@ namespace ngraph
 
             NGRAPH_DEPRECATED("Use MatcherPass instead")
             void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                             const ngraph::graph_rewrite_callback& callback,
+                             const ov::graph_rewrite_callback& callback,
                              const PassPropertyMask& property);
 
             NGRAPH_DEPRECATED("Use MatcherPass instead")
             void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                             const ngraph::graph_rewrite_callback& callback);
+                             const ov::graph_rewrite_callback& callback);
 
-            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+            bool run_on_function(std::shared_ptr<ov::Function> f) override;
 
             void set_pass_config(const std::shared_ptr<PassConfig>& pass_config) override;
 
@@ -231,10 +227,10 @@ namespace ngraph
 
             bool m_enable_shape_inference = false;
 
-            std::vector<std::shared_ptr<ngraph::pass::MatcherPass>> m_matchers;
+            std::vector<std::shared_ptr<ov::pass::MatcherPass>> m_matchers;
         };
 
-        class NGRAPH_API BackwardGraphRewrite : public ngraph::pass::GraphRewrite
+        class NGRAPH_API BackwardGraphRewrite : public ov::pass::GraphRewrite
         {
         public:
             NGRAPH_RTTI_DECLARATION;
@@ -246,10 +242,10 @@ namespace ngraph
             {
             }
 
-            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+            bool run_on_function(std::shared_ptr<ov::Function> f) override;
         };
 
-        class NGRAPH_API RecurrentGraphRewrite : public ngraph::pass::FunctionPass
+        class NGRAPH_API RecurrentGraphRewrite : public ov::pass::FunctionPass
         {
         public:
             RecurrentGraphRewrite(size_t num_iters = 10)
@@ -259,19 +255,19 @@ namespace ngraph
             }
 
             void add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
-                             const ngraph::recurrent_graph_rewrite_callback& callback,
+                             const ov::recurrent_graph_rewrite_callback& callback,
                              const PassPropertyMask& property);
 
             // TODO: This interface may deprecate after all passes are refactored.
             void add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
-                             const ngraph::recurrent_graph_rewrite_callback& callback);
+                             const ov::recurrent_graph_rewrite_callback& callback);
 
-            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+            bool run_on_function(std::shared_ptr<ov::Function> f) override;
 
         private:
             size_t m_num_iters;
 
-            std::vector<std::shared_ptr<ngraph::pass::MatcherPass>> m_matchers;
+            std::vector<std::shared_ptr<ov::pass::MatcherPass>> m_matchers;
         };
     } // namespace pass
-} // namespace ngraph
+} // namespace ov

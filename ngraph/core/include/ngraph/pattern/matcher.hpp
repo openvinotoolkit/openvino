@@ -16,7 +16,7 @@
 #include "ngraph/pattern/op/label.hpp"
 #include "ngraph/pattern/op/skip.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pass
     {
@@ -57,12 +57,12 @@ namespace ngraph
         /// the inputs can match in any order. If the matcher is in strict mode, the graph value
         /// element type and shape must also match.
         ///
-        /// Pattern nodes that have different match behavior are in ngraph::pattern::op and have
+        /// Pattern nodes that have different match behavior are in ov::pattern::op and have
         /// descriptions of their match behavior.
         class NGRAPH_API Matcher
         {
         public:
-            using PatternMap = ngraph::pattern::PatternMap;
+            using PatternMap = ov::pattern::PatternMap;
 
             // Avoid implicit string construction from nullptr.
             Matcher(const std::shared_ptr<Node> pattern_node, std::nullptr_t name) = delete;
@@ -155,8 +155,8 @@ namespace ngraph
 
             size_t add_node(Output<Node> node);
 
-            bool virtual match_value(const ngraph::Output<Node>& pattern_value,
-                                     const ngraph::Output<Node>& graph_value);
+            bool virtual match_value(const ov::Output<Node>& pattern_value,
+                                     const ov::Output<Node>& graph_value);
 
             bool is_strict_mode() { return m_strict_mode; }
             virtual bool match_arguments(Node* pattern_node,
@@ -273,4 +273,4 @@ namespace ngraph
             Output<Node> m_match_root;
         };
     } // namespace pattern
-} // namespace ngraph
+} // namespace ov

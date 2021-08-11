@@ -9,7 +9,7 @@
 #include "onnx_import/core/node.hpp"
 #include "utils/variadic.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -20,7 +20,7 @@ namespace ngraph
                 inline OutputVector min(const Node& node)
                 {
                     return variadic::make_ng_variadic_op<default_opset::Minimum>(
-                        node, ngraph::op::AutoBroadcastSpec::NONE);
+                        node, ov::op::AutoBroadcastSpec::NONE);
                 }
 
             } // namespace set_1
@@ -38,4 +38,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

@@ -17,8 +17,8 @@
 
 // OK to have 'using' in mock header
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 ////////////////////////////////
 
@@ -267,8 +267,8 @@ struct MOCK_API ModelStat
     Place::Ptr m_lastArgPlace = nullptr;
     std::vector<Place::Ptr> m_lastArgInputPlaces;
     std::vector<Place::Ptr> m_lastArgOutputPlaces;
-    ngraph::element::Type m_lastArgElementType;
-    ngraph::PartialShape m_lastArgPartialShape;
+    ov::element::Type m_lastArgElementType;
+    ov::PartialShape m_lastArgPartialShape;
 
     // Getters
     int get_inputs() const { return m_get_inputs; }
@@ -306,8 +306,8 @@ struct MOCK_API ModelStat
     Place::Ptr get_lastArgPlace() const { return m_lastArgPlace; }
     std::vector<Place::Ptr> get_lastArgInputPlaces() const { return m_lastArgInputPlaces; }
     std::vector<Place::Ptr> get_lastArgOutputPlaces() const { return m_lastArgOutputPlaces; }
-    ngraph::element::Type get_lastArgElementType() const { return m_lastArgElementType; }
-    ngraph::PartialShape get_lastArgPartialShape() const { return m_lastArgPartialShape; }
+    ov::element::Type get_lastArgElementType() const { return m_lastArgElementType; }
+    ov::PartialShape get_lastArgPartialShape() const { return m_lastArgPartialShape; }
 };
 
 class MOCK_API InputModelMockPy : public InputModel
@@ -450,21 +450,21 @@ public:
     }
 
     // Setting tensor properties
-    void set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) override
+    void set_partial_shape(Place::Ptr place, const ov::PartialShape& shape) override
     {
         m_stat.m_set_partial_shape++;
         m_stat.m_lastArgPlace = place;
         m_stat.m_lastArgPartialShape = shape;
     }
 
-    ngraph::PartialShape get_partial_shape(Place::Ptr place) const override
+    ov::PartialShape get_partial_shape(Place::Ptr place) const override
     {
         m_stat.m_get_partial_shape++;
         m_stat.m_lastArgPlace = place;
         return {};
     }
 
-    void set_element_type(Place::Ptr place, const ngraph::element::Type& type) override
+    void set_element_type(Place::Ptr place, const ov::element::Type& type) override
     {
         m_stat.m_set_element_type++;
         m_stat.m_lastArgPlace = place;
@@ -527,30 +527,27 @@ public:
         return false;
     }
 
-    std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override
+    std::shared_ptr<ov::Function> convert(InputModel::Ptr model) const override
     {
         m_stat.m_convert_model++;
-        return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
+        return std::make_shared<ov::Function>(NodeVector{}, ParameterVector{});
     }
 
-    void convert(std::shared_ptr<ngraph::Function> func) const override { m_stat.m_convert++; }
+    void convert(std::shared_ptr<ov::Function> func) const override { m_stat.m_convert++; }
 
-    std::shared_ptr<ngraph::Function> convert_partially(InputModel::Ptr model) const override
+    std::shared_ptr<ov::Function> convert_partially(InputModel::Ptr model) const override
     {
         m_stat.m_convert_partially++;
-        return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
+        return std::make_shared<ov::Function>(NodeVector{}, ParameterVector{});
     }
 
-    std::shared_ptr<ngraph::Function> decode(InputModel::Ptr model) const override
+    std::shared_ptr<ov::Function> decode(InputModel::Ptr model) const override
     {
         m_stat.m_decode++;
-        return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
+        return std::make_shared<ov::Function>(NodeVector{}, ParameterVector{});
     }
 
-    void normalize(std::shared_ptr<ngraph::Function> function) const override
-    {
-        m_stat.m_normalize++;
-    }
+    void normalize(std::shared_ptr<ov::Function> function) const override { m_stat.m_normalize++; }
 
     std::string get_name() const override
     {

@@ -11,8 +11,8 @@
 #include "util/visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 void static test_normalize_l2_attributes(float eps, op::EpsMode eps_mode)
 {

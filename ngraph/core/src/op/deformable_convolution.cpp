@@ -11,7 +11,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::DeformableConvolution,
                        "DeformableConvolution",
@@ -205,7 +205,7 @@ namespace deformable_convolution
                          const CoordinateDiff& pads_begin,
                          const CoordinateDiff& pads_end,
                          const Strides& dilations,
-                         const ngraph::op::PadType& auto_pad,
+                         const ov::op::PadType& auto_pad,
                          const int64_t group,
                          const int64_t deformable_group,
                          const bool use_bilinear_interpolation_padding)
@@ -259,7 +259,7 @@ namespace deformable_convolution
                                          const Strides& dilations,
                                          const CoordinateDiff& pads_begin,
                                          const CoordinateDiff& pads_end,
-                                         const ngraph::op::PadType& auto_pad,
+                                         const ov::op::PadType& auto_pad,
                                          const int64_t group,
                                          const int64_t deformable_group,
                                          const bool use_bilinear_interpolation_padding)
@@ -343,10 +343,10 @@ bool op::v8::DeformableConvolution::has_evaluate() const
     NGRAPH_OP_SCOPE(DeformableConvolution_v8_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::f16:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::f32: return true;
+    case ov::element::f16:
+    case ov::element::i16:
+    case ov::element::i32:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;

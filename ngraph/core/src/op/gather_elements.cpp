@@ -7,7 +7,7 @@
 #include "ngraph/shape.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 // ------------------------------ V6 ------------------------------
 

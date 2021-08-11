@@ -21,14 +21,14 @@
 #include "ngraph/slice_plan.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::BatchToSpace, "BatchToSpace", 1);
 
-ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& data,
-                                           const ngraph::Output<ngraph::Node>& block_shape,
-                                           const ngraph::Output<ngraph::Node>& crops_begin,
-                                           const ngraph::Output<ngraph::Node>& crops_end)
+ov::op::v1::BatchToSpace::BatchToSpace(const ov::Output<ov::Node>& data,
+                                       const ov::Output<ov::Node>& block_shape,
+                                       const ov::Output<ov::Node>& crops_begin,
+                                       const ov::Output<ov::Node>& crops_end)
     : Op({data, block_shape, crops_begin, crops_end})
 {
     constructor_validate_and_infer_types();
@@ -169,8 +169,8 @@ void op::v1::BatchToSpace::validate_and_infer_types()
     }
 }
 
-std::shared_ptr<ngraph::Node>
-    ngraph::op::v1::BatchToSpace::clone_with_new_inputs(const OutputVector& new_args) const
+std::shared_ptr<ov::Node>
+    ov::op::v1::BatchToSpace::clone_with_new_inputs(const OutputVector& new_args) const
 {
     NGRAPH_OP_SCOPE(v1_BatchToSpace_clone_with_new_inputs);
     check_new_args_count(this, new_args);
@@ -178,7 +178,7 @@ std::shared_ptr<ngraph::Node>
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-bool ngraph::op::v1::BatchToSpace::visit_attributes(ngraph::AttributeVisitor& visitor)
+bool ov::op::v1::BatchToSpace::visit_attributes(ov::AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_BatchToSpace_visit_attributes);
     return true;
@@ -334,8 +334,8 @@ namespace
     }
 } // namespace
 
-bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
-                                            const HostTensorVector& inputs) const
+bool ov::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
+                                        const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_BatchToSpace_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 4));
@@ -343,7 +343,7 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
     return batch_to_space_evaluate(outputs, inputs);
 }
 
-bool ngraph::op::v1::BatchToSpace::has_evaluate() const
+bool ov::op::v1::BatchToSpace::has_evaluate() const
 {
     NGRAPH_OP_SCOPE(v1_BatchToSpace_has_evaluate);
     return !get_input_partial_shape(0).is_dynamic() && get_input_shape(0).size() >= 2 &&

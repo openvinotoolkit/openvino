@@ -10,7 +10,7 @@
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -42,4 +42,4 @@ namespace ngraph
         } // namespace v0
         using v0::TensorIterator;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

@@ -6,7 +6,7 @@
 
 #include "ngraph/runtime/reference/convolution.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -335,7 +335,7 @@ namespace ngraph
                                         const bool bilinear_interpolation_pad = false)
             {
                 Shape m_shape = {o_shape[0], o_shape[1] / 2, o_shape[2], o_shape[3]};
-                std::vector<T> mask(ngraph::shape_size(m_shape), 1);
+                std::vector<T> mask(ov::shape_size(m_shape), 1);
                 deformable_convolution(in,
                                        offsets,
                                        filters,
@@ -356,4 +356,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

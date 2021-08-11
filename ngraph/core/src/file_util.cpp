@@ -42,7 +42,7 @@
 #endif
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 string file_util::get_file_name(const string& s)
 {

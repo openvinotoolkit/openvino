@@ -11,15 +11,15 @@
 #include "util/visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, unsqueeze_op)
 {
     using namespace opset1;
 
     auto param = make_shared<op::Parameter>(element::f32, Shape{4, 1, 4, 1, 8});
-    auto axes = make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{1, 2});
+    auto axes = make_shared<ov::op::Constant>(element::u64, Shape{2}, vector<int64_t>{1, 2});
     auto op = make_shared<op::v0::Unsqueeze>(param, axes);
 
     NodeBuilder builder(op);

@@ -19,14 +19,14 @@
 #include "ngraph/runtime/reference/pad.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::SpaceToBatch, "SpaceToBatch", 1);
 
-ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& data,
-                                           const ngraph::Output<ngraph::Node>& block_shape,
-                                           const ngraph::Output<ngraph::Node>& pads_begin,
-                                           const ngraph::Output<ngraph::Node>& pads_end)
+ov::op::v1::SpaceToBatch::SpaceToBatch(const ov::Output<ov::Node>& data,
+                                       const ov::Output<ov::Node>& block_shape,
+                                       const ov::Output<ov::Node>& pads_begin,
+                                       const ov::Output<ov::Node>& pads_end)
     : Op({data, block_shape, pads_begin, pads_end})
 {
     constructor_validate_and_infer_types();
@@ -118,7 +118,7 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
 }
 
 std::shared_ptr<Node>
-    ngraph::op::v1::SpaceToBatch::clone_with_new_inputs(const OutputVector& new_args) const
+    ov::op::v1::SpaceToBatch::clone_with_new_inputs(const OutputVector& new_args) const
 {
     NGRAPH_OP_SCOPE(v1_SpaceToBatch_clone_with_new_inputs);
     check_new_args_count(this, new_args);
@@ -126,14 +126,14 @@ std::shared_ptr<Node>
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& visitor)
+bool ov::op::v1::SpaceToBatch::visit_attributes(ov::AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_SpaceToBatch_visit_attributes);
     return true;
 }
 
-bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVector& outputs,
-                                                           const HostTensorVector& inputs) const
+bool ov::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVector& outputs,
+                                                       const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto& out = outputs[0];
@@ -177,15 +177,15 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
     }
 
     std::vector<char> padded_data(shape_size(padded_shape) * elem_size);
-    ngraph::runtime::reference::pad(data->get_data_ptr<char>(),
-                                    pad_value,
-                                    padded_data.data(),
-                                    elem_size,
-                                    data_shape,
-                                    padded_shape,
-                                    pads_begin_vec,
-                                    pads_end_vec,
-                                    ngraph::op::PadMode::CONSTANT);
+    ov::runtime::reference::pad(data->get_data_ptr<char>(),
+                                pad_value,
+                                padded_data.data(),
+                                elem_size,
+                                data_shape,
+                                padded_shape,
+                                pads_begin_vec,
+                                pads_end_vec,
+                                ov::op::PadMode::CONSTANT);
     data_shape = padded_shape;
 
     Shape dispersed_shape(block_values_size + 1);
@@ -260,14 +260,14 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
     return true;
 }
 
-bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
-                                            const HostTensorVector& inputs) const
+bool ov::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
+                                        const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_SpaceToBatch_evaluate);
     return evaluate_space_to_batch(outputs, inputs);
 }
 
-bool ngraph::op::v1::SpaceToBatch::has_evaluate() const
+bool ov::op::v1::SpaceToBatch::has_evaluate() const
 {
     NGRAPH_OP_SCOPE(v1_SpaceToBatch_has_evaluate);
     return !get_input_partial_shape(0).is_dynamic() &&

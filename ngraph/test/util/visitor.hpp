@@ -14,7 +14,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -129,10 +129,7 @@ namespace ngraph
                 }
             }
 
-            std::size_t get_value_map_size() const
-            {
-                return m_values.size();
-            }
+            std::size_t get_value_map_size() const { return m_values.size(); }
 
             template <typename T>
             T& get(const std::string& name)
@@ -158,8 +155,9 @@ namespace ngraph
             }
             void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override
             {
-                if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<
-                        std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter))
+                if (auto a = ::ov::as_type<
+                        ::ov::AttributeAdapter<std::shared_ptr<ov::runtime::AlignedBuffer>>>(
+                        &adapter))
                 {
                     auto& data = m_values.get<HostTensorPtr>(name);
                     data->read(a->get()->get_ptr(), a->get()->size());
@@ -262,8 +260,9 @@ namespace ngraph
 
             void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override
             {
-                if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<
-                        std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter))
+                if (auto a = ::ov::as_type<
+                        ::ov::AttributeAdapter<std::shared_ptr<ov::runtime::AlignedBuffer>>>(
+                        &adapter))
                 {
                     HostTensorPtr data =
                         std::make_shared<HostTensor>(element::u8, Shape{a->get()->size()});
@@ -407,5 +406,5 @@ namespace ngraph
             Node::type_info_t m_node_type_info;
             SerializeAttributeVisitor m_serializer;
         };
-    }
-}
+    } // namespace test
+} // namespace ov

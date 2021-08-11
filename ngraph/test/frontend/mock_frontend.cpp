@@ -13,8 +13,8 @@
 #define MOCK_API NGRAPH_HELPER_DLL_IMPORT
 #endif // mock1_ngraph_frontend_EXPORTS
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 class FrontEndMock : public FrontEnd
 {

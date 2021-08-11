@@ -21,7 +21,7 @@
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 shared_ptr<Node> builder::opset1::reshape(const Output<Node>& value, const Shape& shape)
@@ -43,7 +43,7 @@ shared_ptr<Node> builder::opset1::reshape(const Output<Node>& value, const Shape
         auto out_pattern = op::Constant::create(
             element::i64, Shape{shape.size()}, vector<int64_t>(shape.begin(), shape.end()));
 
-        return make_shared<ngraph::opset1::Reshape>(value, out_pattern, false)
+        return make_shared<ov::opset1::Reshape>(value, out_pattern, false)
             ->add_provenance_group_members_above({value});
     }
 }
@@ -54,7 +54,7 @@ shared_ptr<Node> builder::opset1::reorder_axes(const Output<Node>& value, vector
         op::Constant::create(element::i64,
                              Shape{axes_order.size()},
                              vector<int64_t>(axes_order.begin(), axes_order.end()));
-    return make_shared<ngraph::opset1::Transpose>(value, axes_order_const)
+    return make_shared<ov::opset1::Transpose>(value, axes_order_const)
         ->add_provenance_group_members_above({value});
 }
 
@@ -70,18 +70,18 @@ shared_ptr<Node> builder::opset1::transpose(const Output<Node>& value)
     }
 
     const auto input_rank =
-        std::make_shared<ngraph::opset1::ShapeOf>(std::make_shared<ngraph::opset1::ShapeOf>(value));
-    const auto neg_one = ngraph::opset1::Constant::create(element::i64, Shape{}, {-1});
-    const auto start_node = std::make_shared<ngraph::opset1::Add>(input_rank, neg_one);
+        std::make_shared<ov::opset1::ShapeOf>(std::make_shared<ov::opset1::ShapeOf>(value));
+    const auto neg_one = ov::opset1::Constant::create(element::i64, Shape{}, {-1});
+    const auto start_node = std::make_shared<ov::opset1::Add>(input_rank, neg_one);
     const auto reverse_axes_order =
-        std::make_shared<ngraph::opset1::Range>(reshape(start_node, Shape{}), // start
-                                                neg_one,                      // stop (exclusive)
-                                                neg_one);                     // step
-    return std::make_shared<ngraph::opset1::Transpose>(value, reverse_axes_order)
+        std::make_shared<ov::opset1::Range>(reshape(start_node, Shape{}), // start
+                                            neg_one,                      // stop (exclusive)
+                                            neg_one);                     // step
+    return std::make_shared<ov::opset1::Transpose>(value, reverse_axes_order)
         ->add_provenance_group_members_above({value});
 }
 
-namespace ngraph
+namespace ov
 {
     namespace builder
     {
@@ -101,8 +101,7 @@ namespace ngraph
                 std::shared_ptr<Node>
                     get_normalized_axis_node(const std::shared_ptr<Node> node_rank, int64_t axis)
                 {
-                    auto axis_node =
-                        ngraph::opset1::Constant::create(element::i64, Shape{1}, {axis});
+                    auto axis_node = ov::opset1::Constant::create(element::i64, Shape{1}, {axis});
                     // shortcut for alredy positive value
                     if (axis >= 0)
                     {
@@ -111,12 +110,12 @@ namespace ngraph
 
                     // TODO: What if axis value is beyond acceptable values? [-node_rank,
                     // node_rank-1]
-                    return make_shared<ngraph::opset1::Add>(node_rank, axis_node);
+                    return make_shared<ov::opset1::Add>(node_rank, axis_node);
                 }
             } // namespace
         }     // namespace opset1
     }         // namespace builder
-} // namespace ngraph
+} // namespace ov
 
 shared_ptr<Node> builder::opset1::flatten(const Output<Node>& value, int axis)
 {
@@ -126,34 +125,33 @@ shared_ptr<Node> builder::opset1::flatten(const Output<Node>& value, int axis)
     shared_ptr<Node> output_shape;
     if (axis == 0)
     {
-        output_shape = ngraph::opset1::Constant::create(element::i64, Shape{2}, {1, -1});
+        output_shape = ov::opset1::Constant::create(element::i64, Shape{2}, {1, -1});
     }
     else if (axis == 1)
     {
-        output_shape = ngraph::opset1::Constant::create(element::i64, Shape{2}, {0, -1});
+        output_shape = ov::opset1::Constant::create(element::i64, Shape{2}, {0, -1});
     }
     else
     {
-        const auto value_shape = make_shared<ngraph::opset1::ShapeOf>(value);
-        const auto value_rank = make_shared<ngraph::opset1::ShapeOf>(value_shape);
+        const auto value_shape = make_shared<ov::opset1::ShapeOf>(value);
+        const auto value_rank = make_shared<ov::opset1::ShapeOf>(value_shape);
         const auto axis_node = get_normalized_axis_node(value_rank, axis);
 
-        const auto first_part_dims = make_shared<ngraph::opset1::StridedSlice>(
+        const auto first_part_dims = make_shared<ov::opset1::StridedSlice>(
             value_shape,
-            ngraph::opset1::Constant::create(element::i64, {1}, {0}),
+            ov::opset1::Constant::create(element::i64, {1}, {0}),
             axis_node,
             vector<int64_t>{},
             vector<int64_t>{});
-        const auto first_part_dims_length = make_shared<ngraph::opset1::ReduceProd>(
-            first_part_dims, ngraph::opset1::Constant::create(element::i64, {}, {0}), true);
+        const auto first_part_dims_length = make_shared<ov::opset1::ReduceProd>(
+            first_part_dims, ov::opset1::Constant::create(element::i64, {}, {0}), true);
 
-        const auto remaining_part_length =
-            ngraph::opset1::Constant::create(element::i64, {1}, {-1});
+        const auto remaining_part_length = ov::opset1::Constant::create(element::i64, {1}, {-1});
 
-        output_shape = make_shared<ngraph::opset1::Concat>(
+        output_shape = make_shared<ov::opset1::Concat>(
             OutputVector{first_part_dims_length, remaining_part_length}, 0);
     }
-    return make_shared<ngraph::opset1::Reshape>(value, output_shape, true)
+    return make_shared<ov::opset1::Reshape>(value, output_shape, true)
         ->add_provenance_group_members_above({value});
 }
 
@@ -214,28 +212,27 @@ shared_ptr<Node> builder::opset1::collapse(const Output<Node>& value,
         return builder::opset1::reshape(value, output_shape);
     }
 
-    const auto shape = make_shared<ngraph::opset1::ShapeOf>(value);
-    const auto rank = make_shared<ngraph::opset1::ShapeOf>(shape);
+    const auto shape = make_shared<ov::opset1::ShapeOf>(value);
+    const auto rank = make_shared<ov::opset1::ShapeOf>(shape);
 
     // Split lengths used in VariadicSplit
-    const auto start_axis_node = ngraph::opset1::Constant::create(element::i64, {1}, {start_axis});
-    const auto end_axis_node = ngraph::opset1::Constant::create(element::i64, {1}, {end_axis + 1});
-    const auto collapsed_axis =
-        make_shared<ngraph::opset1::Subtract>(end_axis_node, start_axis_node);
-    const auto post_axis = make_shared<ngraph::opset1::Subtract>(rank, end_axis_node);
+    const auto start_axis_node = ov::opset1::Constant::create(element::i64, {1}, {start_axis});
+    const auto end_axis_node = ov::opset1::Constant::create(element::i64, {1}, {end_axis + 1});
+    const auto collapsed_axis = make_shared<ov::opset1::Subtract>(end_axis_node, start_axis_node);
+    const auto post_axis = make_shared<ov::opset1::Subtract>(rank, end_axis_node);
 
-    const auto split_lengths = make_shared<ngraph::opset1::Concat>(
+    const auto split_lengths = make_shared<ov::opset1::Concat>(
         OutputVector{start_axis_node, collapsed_axis, post_axis}, 0);
-    const auto split_axis = ngraph::opset1::Constant::create(element::i64, {}, {0});
+    const auto split_axis = ov::opset1::Constant::create(element::i64, {}, {0});
     const auto split_node =
-        make_shared<ngraph::opset1::VariadicSplit>(shape, split_axis, split_lengths);
+        make_shared<ov::opset1::VariadicSplit>(shape, split_axis, split_lengths);
 
-    const auto reduced_axis = ngraph::opset1::Constant::create(element::i64, {1}, {0});
+    const auto reduced_axis = ov::opset1::Constant::create(element::i64, {1}, {0});
     const auto collapsed_axis_size =
-        make_shared<ngraph::opset1::ReduceProd>(split_node->output(1), reduced_axis, true);
+        make_shared<ov::opset1::ReduceProd>(split_node->output(1), reduced_axis, true);
 
-    const auto collapsed_shape = make_shared<ngraph::opset1::Concat>(
+    const auto collapsed_shape = make_shared<ov::opset1::Concat>(
         OutputVector{split_node->output(0), collapsed_axis_size, split_node->output(2)}, 0);
 
-    return make_shared<ngraph::opset1::Reshape>(value, collapsed_shape, false);
+    return make_shared<ov::opset1::Reshape>(value, collapsed_shape, false);
 }

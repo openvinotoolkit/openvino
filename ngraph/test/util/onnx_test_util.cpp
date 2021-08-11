@@ -10,8 +10,8 @@
 #include "onnx_common/parser.hpp"
 #include "onnx_test_util.hpp"
 
-using namespace ngraph;
-using namespace ngraph::test;
+using namespace ov;
+using namespace ov::test;
 
 namespace
 {
@@ -248,7 +248,7 @@ namespace
         return compare_nodes(graph, ref_graph);
     }
 } // namespace
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -261,4 +261,4 @@ namespace ngraph
             return compare_onnx_graphs(model_proto.graph(), ref_model.graph());
         }
     } // namespace test
-} // namespace ngraph
+} // namespace ov

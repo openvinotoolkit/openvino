@@ -7,9 +7,9 @@
 
 #include "shared_utils.hpp"
 
-testing::AssertionResult ngraph::test::compare_with_tolerance(const std::vector<float>& expected,
-                                                              const std::vector<float>& results,
-                                                              const float tolerance)
+testing::AssertionResult ov::test::compare_with_tolerance(const std::vector<float>& expected,
+                                                          const std::vector<float>& results,
+                                                          const float tolerance)
 {
     auto comparison_result = testing::AssertionSuccess();
 

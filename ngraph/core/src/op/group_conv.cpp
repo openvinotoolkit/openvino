@@ -15,7 +15,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 //------------------------------------------------------------------------------
 //                        v1::GroupConvolution
@@ -45,7 +45,7 @@ op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_GroupConvolution_visit_attributes);
     visitor.on_attribute("strides", m_strides);
@@ -360,7 +360,7 @@ op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData(
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::GroupConvolutionBackpropData::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::GroupConvolutionBackpropData::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_GroupConvolutionBackpropData_visit_attributes);
     visitor.on_attribute("strides", m_strides);

@@ -18,7 +18,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace descriptor
     {
@@ -372,27 +372,26 @@ namespace ngraph
     // NodeMap input may contain default node mapping i.e. pre-cloned nodes
     // NodeMap output (by reference) fully maps input and cloned nodes
     NGRAPH_API
-    std::vector<std::shared_ptr<ngraph::Node>>
-        clone_nodes(const std::vector<std::shared_ptr<ngraph::Node>>& nodes, NodeMap& node_map);
+    std::vector<std::shared_ptr<ov::Node>>
+        clone_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes, NodeMap& node_map);
 
     // input nodes are cloned and returned
     // NodeMap input may contain default node mapping i.e. pre-cloned nodes
     // NodeMap output (by reference) fully maps input and cloned nodes
     NGRAPH_API
-    std::list<std::shared_ptr<ngraph::Node>>
-        clone_nodes(const std::vector<std::shared_ptr<ngraph::Node>>& nodes,
+    std::list<std::shared_ptr<ov::Node>>
+        clone_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
                     RawNodeOutputMap& node_map);
 
     // input function is cloned and returned
     // NodeMap input may contain default node mapping i.e. pre-cloned nodes
     // NodeMap output (by reference) fully maps input and cloned function ops
     NGRAPH_API
-    std::shared_ptr<ngraph::Function> clone_function(const ngraph::Function& func,
-                                                     NodeMap& node_map);
+    std::shared_ptr<ov::Function> clone_function(const ov::Function& func, NodeMap& node_map);
 
     // input function is cloned and returned
     NGRAPH_API
-    std::shared_ptr<ngraph::Function> clone_function(const ngraph::Function& func);
+    std::shared_ptr<ov::Function> clone_function(const ov::Function& func);
 
     NGRAPH_API
     std::pair<std::shared_ptr<op::Result>, std::shared_ptr<op::v0::Parameter>>
@@ -472,8 +471,8 @@ namespace ngraph
     /// going forward.
     /// It returns true if a cycle is found and the first cycle encountered.
     NGRAPH_API
-    bool check_for_cycles(const ngraph::Function* func,
-                          ngraph::NodeVector& cycle_nodes,
+    bool check_for_cycles(const ov::Function* func,
+                          ov::NodeVector& cycle_nodes,
                           bool& is_bkwd_cycle);
 
     NGRAPH_API
@@ -481,4 +480,4 @@ namespace ngraph
 
     NGRAPH_API
     bool replace_node_update_name(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement);
-} // namespace ngraph
+} // namespace ov

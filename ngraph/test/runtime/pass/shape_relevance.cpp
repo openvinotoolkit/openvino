@@ -7,7 +7,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 //
 // This pass refreshes the "is_relevant_to_shape" flag on each parameter. A parameter will be

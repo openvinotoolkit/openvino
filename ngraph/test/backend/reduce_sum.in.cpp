@@ -22,7 +22,7 @@
 static std::mt19937_64 random_generator;
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -813,7 +813,6 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_stable_acc)
         test::all_close_f(ref_results.at(0), bk_results.at(0), DEFAULT_FLOAT_TOLERANCE_BITS + 1));
 }
 #endif
-
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_stable_simple_float)
 {

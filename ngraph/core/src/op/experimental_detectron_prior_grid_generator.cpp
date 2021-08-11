@@ -10,7 +10,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator,
                        "ExperimentalDetectronPriorGridGenerator",

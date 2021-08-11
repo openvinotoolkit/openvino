@@ -5,9 +5,9 @@
 #include "ngraph/runtime/reference/interpolate.hpp"
 #include <numeric>
 
-using namespace ngraph::runtime::reference;
+using namespace ov::runtime::reference;
 
-using Coordinate = ngraph::Coordinate;
+using Coordinate = ov::Coordinate;
 
 float InterpolateEvalHelper::triangle_coeff(float dz)
 {

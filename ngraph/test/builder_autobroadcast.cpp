@@ -10,7 +10,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 shared_ptr<op::Parameter> getParamFromShape(const Shape& shape)
 {

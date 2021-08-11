@@ -16,7 +16,7 @@
 #include "op/gather.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -90,10 +90,10 @@ namespace ngraph
                 ///
                 /// \return Sub-graph represents adjusted indices or input indices
                 ///         if any transformation was needed.
-                Output<ngraph::Node> adjust_indices_if_needed(const Output<ngraph::Node>& indices,
-                                                              const std::vector<uint64_t>& axes,
-                                                              uint64_t slice_indices_length,
-                                                              int64_t fill_in_value)
+                Output<ov::Node> adjust_indices_if_needed(const Output<ov::Node>& indices,
+                                                          const std::vector<uint64_t>& axes,
+                                                          uint64_t slice_indices_length,
+                                                          int64_t fill_in_value)
                 {
                     const bool are_axes_sorted = std::is_sorted(axes.begin(), axes.end());
 
@@ -162,7 +162,7 @@ namespace ngraph
             {
                 OutputVector slice(const Node& node)
                 {
-                    using ngraph::op::is_null;
+                    using ov::op::is_null;
 
                     OutputVector inputs{node.get_ng_inputs()};
                     const auto data = inputs.at(0);
@@ -175,7 +175,7 @@ namespace ngraph
                     std::shared_ptr<default_opset::Constant> axes_const;
                     if (inputs.size() >= 4 && !is_null(inputs.at(3))) // axes input provided
                     {
-                        axes_const = ngraph::get_constant_from_source(inputs.at(3));
+                        axes_const = ov::get_constant_from_source(inputs.at(3));
                         CHECK_VALID_NODE(
                             node, axes_const != nullptr, "Axes input must be constant");
                     }
@@ -199,7 +199,7 @@ namespace ngraph
                         *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
                     const auto begin_end_mask = axes_to_mask(axes_vec, slice_indices_length);
 
-                    Output<ngraph::Node> steps;
+                    Output<ov::Node> steps;
                     if (inputs.size() == 5 && !is_null(inputs.at(4))) // steps input provided
                     {
                         steps = inputs.at(4);
@@ -225,17 +225,16 @@ namespace ngraph
             {
                 OutputVector slice(const Node& node)
                 {
-                    Output<ngraph::Node> data = node.get_ng_inputs().at(0);
+                    Output<ov::Node> data = node.get_ng_inputs().at(0);
                     const auto data_rank = data.get_partial_shape().rank();
 
                     const auto starts_atr =
                         node.get_attribute_value<std::vector<int64_t>>("starts");
                     const auto ends_atr = node.get_attribute_value<std::vector<int64_t>>("ends");
 
-                    std::shared_ptr<ngraph::Node> starts =
-                        std::make_shared<default_opset::Constant>(
-                            element::i64, Shape{starts_atr.size()}, starts_atr);
-                    std::shared_ptr<ngraph::Node> ends = std::make_shared<default_opset::Constant>(
+                    std::shared_ptr<ov::Node> starts = std::make_shared<default_opset::Constant>(
+                        element::i64, Shape{starts_atr.size()}, starts_atr);
+                    std::shared_ptr<ov::Node> ends = std::make_shared<default_opset::Constant>(
                         element::i64, Shape{ends_atr.size()}, ends_atr);
 
                     auto axes = node.get_attribute_value<std::vector<int64_t>>(
@@ -258,7 +257,7 @@ namespace ngraph
                         1;
                     const auto begin_end_mask = axes_to_mask(normalized_axes, slice_indices_length);
 
-                    std::shared_ptr<ngraph::Node> strides = default_opset::Constant::create(
+                    std::shared_ptr<ov::Node> strides = default_opset::Constant::create(
                         element::i64,
                         Shape{slice_indices_length},
                         std::vector<int64_t>(slice_indices_length, 1));
@@ -282,4 +281,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

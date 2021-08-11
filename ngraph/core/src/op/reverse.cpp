@@ -16,7 +16,7 @@
 #include "ngraph/runtime/reference/reverse.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::Reverse, "Reverse", 1);
 
@@ -38,7 +38,7 @@ op::v1::Reverse::Reverse(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::Reverse::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::Reverse::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Reverse_visit_attributes);
     visitor.on_attribute("mode", m_mode);
@@ -211,14 +211,14 @@ bool op::v1::Reverse::has_evaluate() const
     {
         switch (get_input_element_type(1))
         {
-        case ngraph::element::i8:
-        case ngraph::element::i16:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
-        case ngraph::element::u8:
-        case ngraph::element::u16:
-        case ngraph::element::u32:
-        case ngraph::element::u64: return true;
+        case ov::element::i8:
+        case ov::element::i16:
+        case ov::element::i32:
+        case ov::element::i64:
+        case ov::element::u8:
+        case ov::element::u16:
+        case ov::element::u32:
+        case ov::element::u64: return true;
         default: return false; ;
         }
     }
@@ -228,7 +228,7 @@ bool op::v1::Reverse::has_evaluate() const
     }
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     EnumNames<op::v1::Reverse::Mode>& EnumNames<op::v1::Reverse::Mode>::get()
@@ -245,4 +245,4 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov

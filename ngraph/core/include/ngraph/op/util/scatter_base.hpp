@@ -6,7 +6,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -48,4 +48,4 @@ namespace ngraph
             };
         } // namespace util
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

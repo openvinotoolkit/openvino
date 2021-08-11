@@ -9,7 +9,7 @@
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 static std::string s_manifest = "${MANIFEST}";
 

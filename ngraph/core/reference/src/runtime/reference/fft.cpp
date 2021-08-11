@@ -25,10 +25,10 @@
 #include <vector>
 #include "ngraph/shape.hpp"
 
-using namespace ngraph;
-using namespace ngraph::runtime::reference;
+using namespace ov;
+using namespace ov::runtime::reference;
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -597,7 +597,7 @@ namespace ngraph
             }
 
             void fft_postprocessing(const HostTensorVector& outputs,
-                                    const ngraph::element::Type output_type,
+                                    const ov::element::Type output_type,
                                     const std::vector<float>& fft_result)
             {
                 size_t fft_result_size = fft_result.size();
@@ -633,4 +633,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

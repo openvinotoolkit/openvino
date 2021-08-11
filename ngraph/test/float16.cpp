@@ -12,7 +12,7 @@
 #include "util/float_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(float16, conversions)
 {

@@ -11,7 +11,7 @@
 #include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph
+namespace ov
 {
     struct VariableInfo
     {
@@ -59,4 +59,4 @@ namespace ngraph
                                                     0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

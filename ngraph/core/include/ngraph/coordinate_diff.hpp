@@ -11,7 +11,7 @@
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// \brief A difference (signed) of tensor element coordinates.
     class CoordinateDiff : public std::vector<std::ptrdiff_t>
@@ -57,4 +57,4 @@ namespace ngraph
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const CoordinateDiff& coordinate_diff);
-} // namespace ngraph
+} // namespace ov

@@ -6,7 +6,7 @@
 #include <node_context.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -36,10 +36,10 @@ namespace ngraph
                                     "hard_swish: Only offset = 3.0 is currently supported");
                     }
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::HSwish>(data)}, {"Out"});
+                        {std::make_shared<ov::opset6::HSwish>(data)}, {"Out"});
                 }
 
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

@@ -11,7 +11,7 @@
 #include "onnx_import/core/node.hpp"
 #include "op/reverse_sequence.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -31,10 +31,10 @@ namespace ngraph
 
                     const auto batch_axis = node.get_attribute_value<int64_t>("batch_axis", 1);
                     const auto normalized_batch_axis =
-                        ngraph::normalize_axis(node.get_description(), batch_axis, data_rank);
+                        ov::normalize_axis(node.get_description(), batch_axis, data_rank);
                     const auto time_axis = node.get_attribute_value<int64_t>("time_axis", 0);
                     const auto normalized_time_axis =
-                        ngraph::normalize_axis(node.get_description(), time_axis, data_rank);
+                        ov::normalize_axis(node.get_description(), time_axis, data_rank);
 
                     NGRAPH_CHECK(normalized_batch_axis == 0 || normalized_batch_axis == 1,
                                  "Allowed values of the 'batch_axis' attribute for ReverseSequence "
@@ -58,4 +58,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

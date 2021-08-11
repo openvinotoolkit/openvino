@@ -7,7 +7,7 @@
 #include <ngraph/runtime/host_tensor.hpp>
 #include <utility>
 
-namespace ngraph
+namespace ov
 {
     /// VariableValue stores data and state (reset flag) for a Variable,
     /// and provides an interface for changing them.
@@ -52,4 +52,4 @@ namespace ngraph
         HostTensorPtr m_value;
     };
     using VariableValuePtr = std::shared_ptr<VariableValue>;
-} // namespace ngraph
+} // namespace ov

@@ -7,7 +7,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "paddlepaddle_frontend/utility.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -92,22 +92,22 @@ namespace ngraph
                                 std::make_shared<opset6::Concat>(layer_hidden_bias, 0);
                             auto bias = std::make_shared<opset6::Add>(weight_bias, hidden_bias);
                             m_input_map[LSTMInput::LSTM_INPUT_W] =
-                                ngraph::op::util::convert_lstm_node_format(
+                                ov::op::util::convert_lstm_node_format(
                                     input_weight,
-                                    ngraph::op::util::LSTMWeightsFormat::IFCO,
-                                    ngraph::op::util::LSTMWeightsFormat::FICO,
+                                    ov::op::util::LSTMWeightsFormat::IFCO,
+                                    ov::op::util::LSTMWeightsFormat::FICO,
                                     1);
                             m_input_map[LSTMInput::LSTM_INPUT_R] =
-                                ngraph::op::util::convert_lstm_node_format(
+                                ov::op::util::convert_lstm_node_format(
                                     hidden_weight,
-                                    ngraph::op::util::LSTMWeightsFormat::IFCO,
-                                    ngraph::op::util::LSTMWeightsFormat::FICO,
+                                    ov::op::util::LSTMWeightsFormat::IFCO,
+                                    ov::op::util::LSTMWeightsFormat::FICO,
                                     1);
                             m_input_map[LSTMInput::LSTM_INPUT_B] =
-                                ngraph::op::util::convert_lstm_node_format(
+                                ov::op::util::convert_lstm_node_format(
                                     bias,
-                                    ngraph::op::util::LSTMWeightsFormat::IFCO,
-                                    ngraph::op::util::LSTMWeightsFormat::FICO,
+                                    ov::op::util::LSTMWeightsFormat::IFCO,
+                                    ov::op::util::LSTMWeightsFormat::FICO,
                                     1);
 
                             // Get dimensions needed for default inputs creation
@@ -162,28 +162,24 @@ namespace ngraph
                                     {1, 0, 2});
                         }
 
-                        Output<ngraph::Node>& at(const LSTMInput& key)
-                        {
-                            return m_input_map.at(key);
-                        }
+                        Output<ov::Node>& at(const LSTMInput& key) { return m_input_map.at(key); }
 
-                        std::map<LSTMInput, Output<ngraph::Node>> m_input_map;
+                        std::map<LSTMInput, Output<ov::Node>> m_input_map;
                     };
 
                     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ATTRIBUTES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                     struct LSTMAttributes
                     {
                         explicit LSTMAttributes(const NodeContext& node)
-                            : m_direction(
-                                  node.get_attribute<bool>("is_bidirec")
-                                      ? ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL
-                                      : ngraph::op::RecurrentSequenceDirection::FORWARD)
+                            : m_direction(node.get_attribute<bool>("is_bidirec")
+                                              ? ov::op::RecurrentSequenceDirection::BIDIRECTIONAL
+                                              : ov::op::RecurrentSequenceDirection::FORWARD)
                             , m_hidden_size(node.get_attribute<int32_t>("hidden_size"))
                             , m_layers(node.get_attribute<int32_t>("num_layers"))
 
                                   {};
 
-                        ngraph::op::RecurrentSequenceDirection m_direction;
+                        ov::op::RecurrentSequenceDirection m_direction;
                         int32_t m_hidden_size;
                         int32_t m_layers;
                     };
@@ -234,4 +230,4 @@ namespace ngraph
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

@@ -4,6 +4,6 @@
 
 #include "arithmetic_ops.hpp"
 
-using Type = ::testing::Types<ngraph::op::v1::Power>;
+using Type = ::testing::Types<ov::op::v1::Power>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_power, ArithmeticOperator, Type);

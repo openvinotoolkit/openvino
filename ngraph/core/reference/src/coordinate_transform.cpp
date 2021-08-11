@@ -19,7 +19,7 @@
 #include "ngraph/strides.hpp"
 #include "ngraph/util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace

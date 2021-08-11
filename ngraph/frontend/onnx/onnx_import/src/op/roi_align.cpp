@@ -7,7 +7,7 @@
 #include "ngraph/opsets/opset3.hpp"
 #include "op/roi_align.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -35,14 +35,14 @@ namespace ngraph
                         node.get_attribute_value<float>("spatial_scale", 1.0f);
                     const auto mode = node.get_attribute_value<std::string>("mode", "avg");
 
-                    return {std::make_shared<ngraph::opset3::ROIAlign>(data,
-                                                                       rois,
-                                                                       num_rois,
-                                                                       pooled_h,
-                                                                       pooled_w,
-                                                                       sampling_ratio,
-                                                                       spatial_scale,
-                                                                       mode)};
+                    return {std::make_shared<ov::opset3::ROIAlign>(data,
+                                                                   rois,
+                                                                   num_rois,
+                                                                   pooled_h,
+                                                                   pooled_w,
+                                                                   sampling_ratio,
+                                                                   spatial_scale,
+                                                                   mode)};
                 }
             } // namespace set_1
 
@@ -50,4 +50,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

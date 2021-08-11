@@ -13,7 +13,7 @@
 #include "op/gru.hpp"
 #include "utils/recurrent.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -37,16 +37,16 @@ namespace ngraph
                                 const auto& ng_inputs = node.get_ng_inputs();
                                 const auto el_type = ng_inputs.at(0).get_element_type();
 
-                                if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
+                                if (ng_inputs.size() > 3 && !ov::op::is_null(ng_inputs.at(3)))
                                 {
                                     auto bias = ng_inputs.at(3);
                                     // gates_count * 2 since B is: [Wb, Rb]
                                     const int split_parts = 2 * 3;
                                     const auto split_bias =
                                         builder::opset1::split(bias, split_parts, 1);
-                                    const auto wr_z_bias = std::make_shared<ngraph::op::v1::Add>(
+                                    const auto wr_z_bias = std::make_shared<ov::op::v1::Add>(
                                         split_bias.at(0), split_bias.at(3));
-                                    const auto wr_r_bias = std::make_shared<ngraph::op::v1::Add>(
+                                    const auto wr_r_bias = std::make_shared<ov::op::v1::Add>(
                                         split_bias.at(1), split_bias.at(4));
                                     // The result has shape: [num_directions, 4 * hidden_size]
                                     // and data layout:
@@ -135,4 +135,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

@@ -17,7 +17,7 @@
 #include "op/quantize_linear.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -27,7 +27,7 @@ namespace ngraph
             {
                 namespace
                 {
-                    Output<ngraph::Node> get_zero_point(const OutputVector& inputs)
+                    Output<ov::Node> get_zero_point(const OutputVector& inputs)
                     {
                         if (inputs.size() > 2)
                         {
@@ -41,7 +41,7 @@ namespace ngraph
                     }
 
                     void validate_zero_point_type(const Node& onnx_node,
-                                                  const Output<ngraph::Node>& y_zero_point)
+                                                  const Output<ov::Node>& y_zero_point)
                     {
                         const auto& y_zero_point_et = y_zero_point.get_element_type();
                         CHECK_VALID_NODE(
@@ -52,8 +52,8 @@ namespace ngraph
                             "integer type.");
                     }
 
-                    Output<ngraph::Node> validate_scale(const Node& onnx_node,
-                                                        const Output<ngraph::Node>& y_scale)
+                    Output<ov::Node> validate_scale(const Node& onnx_node,
+                                                    const Output<ov::Node>& y_scale)
                     {
                         const auto& y_scale_et = y_scale.get_element_type();
                         CHECK_VALID_NODE(onnx_node,
@@ -66,8 +66,8 @@ namespace ngraph
                         return y_scale;
                     }
 
-                    Output<ngraph::Node> validate_data(const Node& onnx_node,
-                                                       const Output<ngraph::Node>& data)
+                    Output<ov::Node> validate_data(const Node& onnx_node,
+                                                   const Output<ov::Node>& data)
                     {
                         const auto& data_et = data.get_element_type();
                         CHECK_VALID_NODE(onnx_node,
@@ -81,12 +81,12 @@ namespace ngraph
                         return data;
                     }
 
-                    std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>
+                    std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>
                         get_output_bands(const element::Type& destination_type,
                                          const element::Type& data_type)
                     {
-                        std::shared_ptr<ngraph::Node> output_low;
-                        std::shared_ptr<ngraph::Node> output_high;
+                        std::shared_ptr<ov::Node> output_low;
+                        std::shared_ptr<ov::Node> output_high;
 
                         if (destination_type == element::i8)
                         {
@@ -106,15 +106,15 @@ namespace ngraph
                         return std::make_tuple(output_low, output_high);
                     }
 
-                    std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>
-                        get_input_bands(const Output<ngraph::Node>& y_scale,
-                                        const Output<ngraph::Node>& y_zero_point,
-                                        const std::shared_ptr<ngraph::Node>& output_low,
-                                        const std::shared_ptr<ngraph::Node>& output_high,
+                    std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>
+                        get_input_bands(const Output<ov::Node>& y_scale,
+                                        const Output<ov::Node>& y_zero_point,
+                                        const std::shared_ptr<ov::Node>& output_low,
+                                        const std::shared_ptr<ov::Node>& output_high,
                                         const element::Type& data_type)
                     {
-                        std::shared_ptr<ngraph::Node> input_low;
-                        std::shared_ptr<ngraph::Node> input_high;
+                        std::shared_ptr<ov::Node> input_low;
+                        std::shared_ptr<ov::Node> input_high;
                         const auto& zero_point =
                             std::make_shared<default_opset::Convert>(y_zero_point, data_type);
 
@@ -128,21 +128,21 @@ namespace ngraph
                         return std::make_tuple(input_low, input_high);
                     }
 
-                    std::shared_ptr<ngraph::Node>
-                        make_fake_quantize(const Output<ngraph::Node>& y_scale,
-                                           const Output<ngraph::Node>& y_zero_point,
-                                           const Output<ngraph::Node>& data)
+                    std::shared_ptr<ov::Node>
+                        make_fake_quantize(const Output<ov::Node>& y_scale,
+                                           const Output<ov::Node>& y_zero_point,
+                                           const Output<ov::Node>& data)
                     {
                         const element::Type& destination_type = y_zero_point.get_element_type();
                         const element::Type& data_type = data.get_element_type();
 
-                        std::shared_ptr<ngraph::Node> output_low;
-                        std::shared_ptr<ngraph::Node> output_high;
+                        std::shared_ptr<ov::Node> output_low;
+                        std::shared_ptr<ov::Node> output_high;
                         std::tie(output_low, output_high) =
                             detail::get_output_bands(destination_type, data_type);
 
-                        std::shared_ptr<ngraph::Node> input_low;
-                        std::shared_ptr<ngraph::Node> input_high;
+                        std::shared_ptr<ov::Node> input_low;
+                        std::shared_ptr<ov::Node> input_high;
                         std::tie(input_low, input_high) = detail::get_input_bands(
                             y_scale, y_zero_point, output_low, output_high, data_type);
 
@@ -239,4 +239,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

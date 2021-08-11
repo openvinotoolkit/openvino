@@ -6,7 +6,7 @@
 #include "ngraph/pattern/matcher.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo pattern::op::Any::type_info;
 

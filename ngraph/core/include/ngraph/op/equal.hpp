@@ -6,7 +6,7 @@
 
 #include "ngraph/op/util/binary_elementwise_comparison.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -58,4 +58,4 @@ namespace ngraph
             };
         } // namespace v1
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

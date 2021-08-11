@@ -6,50 +6,50 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-std::ostream& ngraph::operator<<(std::ostream& s, const Shape& shape)
+std::ostream& ov::operator<<(std::ostream& s, const Shape& shape)
 {
     s << "Shape{";
-    s << ngraph::join(shape);
+    s << ov::join(shape);
     s << "}";
     return s;
 }
 
-ngraph::Shape::Shape()
+ov::Shape::Shape()
     : std::vector<size_t>()
 {
 }
 
-ngraph::Shape::Shape(const std::initializer_list<size_t>& axis_lengths)
+ov::Shape::Shape(const std::initializer_list<size_t>& axis_lengths)
     : std::vector<size_t>(axis_lengths)
 {
 }
 
-ngraph::Shape::Shape(const std::vector<size_t>& axis_lengths)
+ov::Shape::Shape(const std::vector<size_t>& axis_lengths)
     : std::vector<size_t>(axis_lengths)
 {
 }
 
-ngraph::Shape::Shape(const Shape& axis_lengths)
+ov::Shape::Shape(const Shape& axis_lengths)
     : std::vector<size_t>(axis_lengths)
 {
 }
 
-ngraph::Shape::Shape(size_t n, size_t initial_value)
+ov::Shape::Shape(size_t n, size_t initial_value)
     : std::vector<size_t>(n, initial_value)
 {
 }
 
-ngraph::Shape::~Shape() {}
+ov::Shape::~Shape() {}
 
-ngraph::Shape& ngraph::Shape::operator=(const Shape& v)
+ov::Shape& ov::Shape::operator=(const Shape& v)
 {
     static_cast<std::vector<size_t>*>(this)->operator=(v);
     return *this;
 }
 
-ngraph::Shape& ngraph::Shape::operator=(Shape&& v) noexcept
+ov::Shape& ov::Shape::operator=(Shape&& v) noexcept
 {
     static_cast<std::vector<size_t>*>(this)->operator=(std::move(v));
     return *this;

@@ -11,8 +11,8 @@
 #include "plugin_loader.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 //----------- FrontEndManager ---------------------------
 class FrontEndManager::Impl
@@ -76,7 +76,7 @@ private:
                 }
             }
         };
-        std::string env_path = ngraph::getenv_string("OV_FRONTEND_PATH");
+        std::string env_path = ov::getenv_string("OV_FRONTEND_PATH");
         if (!env_path.empty())
         {
             auto start = 0u;
@@ -142,27 +142,27 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<std::shared_ptr<Variant>>&
 {
     FRONT_END_NOT_IMPLEMENTED(load_impl);
 }
-std::shared_ptr<ngraph::Function> FrontEnd::convert(InputModel::Ptr model) const
+std::shared_ptr<ov::Function> FrontEnd::convert(InputModel::Ptr model) const
 {
     FRONT_END_NOT_IMPLEMENTED(convert);
 }
 
-void FrontEnd::convert(std::shared_ptr<ngraph::Function>) const
+void FrontEnd::convert(std::shared_ptr<ov::Function>) const
 {
     FRONT_END_NOT_IMPLEMENTED(convert);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert_partially(InputModel::Ptr model) const
+std::shared_ptr<ov::Function> FrontEnd::convert_partially(InputModel::Ptr model) const
 {
     FRONT_END_NOT_IMPLEMENTED(convert_partially);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::decode(InputModel::Ptr model) const
+std::shared_ptr<ov::Function> FrontEnd::decode(InputModel::Ptr model) const
 {
     FRONT_END_NOT_IMPLEMENTED(decode);
 }
 
-void FrontEnd::normalize(std::shared_ptr<ngraph::Function> function) const
+void FrontEnd::normalize(std::shared_ptr<ov::Function> function) const
 {
     FRONT_END_NOT_IMPLEMENTED(normalize);
 }
@@ -275,17 +275,17 @@ void InputModel::extract_subgraph(const std::vector<Place::Ptr>& inputs,
 }
 
 // Setting tensor properties
-void InputModel::set_partial_shape(Place::Ptr place, const ngraph::PartialShape&)
+void InputModel::set_partial_shape(Place::Ptr place, const ov::PartialShape&)
 {
     FRONT_END_NOT_IMPLEMENTED(set_partial_shape);
 }
 
-ngraph::PartialShape InputModel::get_partial_shape(Place::Ptr place) const
+ov::PartialShape InputModel::get_partial_shape(Place::Ptr place) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_partial_shape);
 }
 
-void InputModel::set_element_type(Place::Ptr place, const ngraph::element::Type&)
+void InputModel::set_element_type(Place::Ptr place, const ov::element::Type&)
 {
     FRONT_END_NOT_IMPLEMENTED(set_element_type);
 }

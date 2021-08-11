@@ -7,7 +7,7 @@
 #include <cmath>
 #include <ngraph/opsets/opset5.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -21,4 +21,4 @@ namespace ngraph
                       const HostTensorVector& args);
         }
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

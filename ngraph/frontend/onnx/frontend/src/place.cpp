@@ -5,8 +5,8 @@
 #include "place.hpp"
 #include <frontend_manager/frontend_exceptions.hpp>
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 PlaceInputEdgeONNX::PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge,
                                        std::shared_ptr<onnx_editor::ONNXModelEditor> editor)

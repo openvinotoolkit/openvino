@@ -21,7 +21,7 @@
 #include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -46,7 +46,7 @@ namespace
         test_case.template add_expected_output<T>(static_shape, output);
         return test_case.run();
     }
-}
+} // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, clamp_integral)
 {

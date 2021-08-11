@@ -18,7 +18,7 @@
 #include "util/provenance_enabler.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using ::testing::Return;
 
 using ProvSet = std::unordered_set<std::string>;

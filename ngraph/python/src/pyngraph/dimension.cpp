@@ -9,17 +9,17 @@
 #include <sstream>
 #include <string>
 
-#include "ngraph/dimension.hpp" // ngraph::Dimension
+#include "ngraph/dimension.hpp" // ov::Dimension
 #include "pyngraph/dimension.hpp"
 
 namespace py = pybind11;
 
 void regclass_pyngraph_Dimension(py::module m)
 {
-    using value_type = ngraph::Dimension::value_type;
+    using value_type = ov::Dimension::value_type;
 
-    py::class_<ngraph::Dimension, std::shared_ptr<ngraph::Dimension>> dim(m, "Dimension");
-    dim.doc() = "ngraph.impl.Dimension wraps ngraph::Dimension";
+    py::class_<ov::Dimension, std::shared_ptr<ov::Dimension>> dim(m, "Dimension");
+    dim.doc() = "ngraph.impl.Dimension wraps ov::Dimension";
     dim.def(py::init<>());
     dim.def(py::init<value_type&>(),
             py::arg("dimension"),
@@ -46,10 +46,10 @@ void regclass_pyngraph_Dimension(py::module m)
                     The upper inclusive limit for the dimension.
             )");
 
-    dim.def_static("dynamic", &ngraph::Dimension::dynamic);
+    dim.def_static("dynamic", &ov::Dimension::dynamic);
 
     dim.def_property_readonly("is_dynamic",
-                              &ngraph::Dimension::is_dynamic,
+                              &ov::Dimension::is_dynamic,
                               R"(
                                 Check if Dimension is dynamic.
 
@@ -59,7 +59,7 @@ void regclass_pyngraph_Dimension(py::module m)
                                     True if dynamic, else False.
                               )");
     dim.def_property_readonly("is_static",
-                              &ngraph::Dimension::is_static,
+                              &ov::Dimension::is_static,
                               R"(
                                 Check if Dimension is static.
 
@@ -71,16 +71,16 @@ void regclass_pyngraph_Dimension(py::module m)
 
     dim.def(
         "__eq__",
-        [](const ngraph::Dimension& a, const ngraph::Dimension& b) { return a == b; },
+        [](const ov::Dimension& a, const ov::Dimension& b) { return a == b; },
         py::is_operator());
     dim.def(
         "__eq__",
-        [](const ngraph::Dimension& a, const int64_t& b) { return a == b; },
+        [](const ov::Dimension& a, const int64_t& b) { return a == b; },
         py::is_operator());
 
-    dim.def("__len__", &ngraph::Dimension::get_length);
+    dim.def("__len__", &ov::Dimension::get_length);
     dim.def("get_length",
-            &ngraph::Dimension::get_length,
+            &ov::Dimension::get_length,
             R"(
                 Return this dimension as integer.
                 This dimension must be static and non-negative.
@@ -91,7 +91,7 @@ void regclass_pyngraph_Dimension(py::module m)
                     Value of the dimension.
             )");
     dim.def("get_min_length",
-            &ngraph::Dimension::get_min_length,
+            &ov::Dimension::get_min_length,
             R"(
                 Return this dimension's min_dimension as integer.
                 This dimension must be dynamic and non-negative.
@@ -102,7 +102,7 @@ void regclass_pyngraph_Dimension(py::module m)
                     Value of the dimension.
             )");
     dim.def("get_max_length",
-            &ngraph::Dimension::get_max_length,
+            &ov::Dimension::get_max_length,
             R"(
                 Return this dimension's max_dimension as integer.
                 This dimension must be dynamic and non-negative.
@@ -114,7 +114,7 @@ void regclass_pyngraph_Dimension(py::module m)
             )");
 
     dim.def("same_scheme",
-            &ngraph::Dimension::same_scheme,
+            &ov::Dimension::same_scheme,
             py::arg("dim"),
             R"(
                 Return this dimension's max_dimension as integer.
@@ -132,7 +132,7 @@ void regclass_pyngraph_Dimension(py::module m)
                     or if they are both static and equal, otherwise False.
             )");
     dim.def("compatible",
-            &ngraph::Dimension::compatible,
+            &ov::Dimension::compatible,
             py::arg("d"),
             R"(
                 Check whether this dimension is capable of being merged 
@@ -149,7 +149,7 @@ void regclass_pyngraph_Dimension(py::module m)
                     True if this dimension is compatible with d, else False.
             )");
     dim.def("relaxes",
-            &ngraph::Dimension::relaxes,
+            &ov::Dimension::relaxes,
             py::arg("d"),
             R"(
                 Check whether this dimension is a relaxation of the argument.
@@ -171,7 +171,7 @@ void regclass_pyngraph_Dimension(py::module m)
                     True if this dimension relaxes d, else False.
             )");
     dim.def("refines",
-            &ngraph::Dimension::refines,
+            &ov::Dimension::refines,
             py::arg("d"),
             R"(
                 Check whether this dimension is a refinement of the argument.
@@ -193,13 +193,13 @@ void regclass_pyngraph_Dimension(py::module m)
                     True if this dimension refines d, else False.
             )");
 
-    dim.def("__str__", [](const ngraph::Dimension& self) -> std::string {
+    dim.def("__str__", [](const ov::Dimension& self) -> std::string {
         std::stringstream ss;
         ss << self;
         return ss.str();
     });
 
-    dim.def("__repr__", [](const ngraph::Dimension& self) -> std::string {
+    dim.def("__repr__", [](const ov::Dimension& self) -> std::string {
         return "<Dimension: " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
     });
 }

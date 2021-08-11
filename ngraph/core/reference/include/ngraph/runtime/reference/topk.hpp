@@ -11,7 +11,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/topk.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -80,8 +80,8 @@ namespace ngraph
                     out_shape, start_corner, end_corner, strides, axis_order);
                 // Create temp vector for sorting.
                 vector<tuple<T, U>> workspace(in_shape[axis]);
-                vector<size_t> in_strides = ngraph::row_major_strides(in_shape);
-                vector<size_t> out_strides = ngraph::row_major_strides(out_shape);
+                vector<size_t> in_strides = ov::row_major_strides(in_shape);
+                vector<size_t> out_strides = ov::row_major_strides(out_shape);
                 auto in_axis_stride = in_strides[axis];
                 auto out_axis_stride = out_strides[axis];
                 for (const Coordinate& coord : input_transform)
@@ -138,4 +138,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

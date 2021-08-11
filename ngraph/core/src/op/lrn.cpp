@@ -10,7 +10,7 @@
 #include "ngraph/op/multiply.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::LRN, "LRN", 0);
 
@@ -101,7 +101,7 @@ void op::LRN::validate_and_infer_types()
                           ").");
 }
 
-bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::LRN::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_LRN_visit_attributes);
     visitor.on_attribute("alpha", m_alpha);

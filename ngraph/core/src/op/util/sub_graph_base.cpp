@@ -7,7 +7,7 @@
 
 #include "ngraph/graph_util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::util::SubGraphOp, "SubGraphOp", 0);
 

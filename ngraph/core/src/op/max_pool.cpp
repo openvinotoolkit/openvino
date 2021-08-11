@@ -12,7 +12,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::MaxPool, "MaxPool", 1, op::util::MaxPoolBase);
 
@@ -28,7 +28,7 @@ op::v1::MaxPool::MaxPool(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_MaxPool_visit_attributes);
     visitor.on_attribute("strides", m_strides);
@@ -159,12 +159,12 @@ bool op::v1::MaxPool::has_evaluate() const
     NGRAPH_OP_SCOPE(v1_MaxPool_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;
@@ -194,7 +194,7 @@ op::v8::MaxPool::MaxPool(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v8::MaxPool::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v8::MaxPool::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v8_MaxPool_visit_attributes);
     visitor.on_attribute("strides", m_strides);
@@ -219,7 +219,7 @@ void op::v8::MaxPool::validate_and_infer_types()
     const auto input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static())
     {
-        m_axis = ngraph::normalize_axis(this, m_axis, input_shape.rank());
+        m_axis = ov::normalize_axis(this, m_axis, input_shape.rank());
     }
 
     const PartialShape output_shape = infer_output_shape(m_dilations);

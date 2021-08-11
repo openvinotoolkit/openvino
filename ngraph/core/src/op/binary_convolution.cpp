@@ -12,7 +12,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::BinaryConvolution, "BinaryConvolution", 1);
 
@@ -124,7 +124,7 @@ bool op::v1::BinaryConvolution::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     NGRAPH_API EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>&
@@ -144,7 +144,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov
 
 op::v1::BinaryConvolution::BinaryConvolutionMode
     op::v1::BinaryConvolution::mode_from_string(const std::string& mode) const

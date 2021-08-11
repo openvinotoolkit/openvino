@@ -18,7 +18,7 @@
 
 extern "C" NGRAPH_API const char* get_ngraph_version_string();
 
-namespace ngraph
+namespace ov
 {
     /// \brief Function to query parsed version information of the version of ngraph which
     /// contains this function. Version information strictly follows Semantic Versioning
@@ -32,24 +32,24 @@ namespace ngraph
     /// \note Throws a runtime_error if there is an error during parsing
     NGRAPH_API
     void get_version(size_t& major, size_t& minor, size_t& patch, std::string& extra);
-} // namespace ngraph
+} // namespace ov
 
-/// \namespace ngraph
+/// \namespace ov
 /// \brief The Intel nGraph C++ API.
 
-/// \namespace ngraph::descriptor
+/// \namespace ov::descriptor
 /// \brief Descriptors are compile-time representations of objects that will appear at run-time.
 
-/// \namespace ngraph::descriptor::layout
+/// \namespace ov::descriptor::layout
 /// \brief Layout descriptors describe how tensor views are implemented.
 
-/// \namespace ngraph::op
+/// \namespace ov::op
 /// \brief Ops used in graph-building.
 
-/// \namespace ngraph::runtime
+/// \namespace ov::runtime
 /// \brief The objects used for executing the graph.
 
-/// \namespace ngraph::builder
+/// \namespace ov::builder
 /// \brief Convenience functions that create addional graph nodes to implement commonly-used
 ///        recipes, for example auto-broadcast.
 

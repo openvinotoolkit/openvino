@@ -14,7 +14,7 @@
 #include "ngraph/type/element_type.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::LSTMCell, "LSTMCell", 0, op::util::RNNCellBase);
 NGRAPH_RTTI_DEFINITION(op::v4::LSTMCell, "LSTMCell", 4, op::util::RNNCellBase);
@@ -116,7 +116,7 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_LSTMCell_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
@@ -158,7 +158,7 @@ void op::v0::LSTMCell::validate_and_infer_types()
         }
     }
 
-    std::vector<ngraph::PartialShape> input_param{};
+    std::vector<ov::PartialShape> input_param{};
 
     auto merged_batch_size = Dimension::dynamic();
     auto merged_hidden_size = Dimension::dynamic();
@@ -369,7 +369,7 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
     }
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     EnumNames<op::LSTMWeightsFormat>& EnumNames<op::LSTMWeightsFormat>::get()
@@ -390,7 +390,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov
 
 op::v4::LSTMCell::LSTMCell()
 {
@@ -448,7 +448,7 @@ op::v4::LSTMCell::LSTMCell(const Output<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v4::LSTMCell::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v4::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v4_LSTMCell_visit_attributes);
     return op::util::RNNCellBase::visit_attributes(visitor);

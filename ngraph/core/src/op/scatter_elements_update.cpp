@@ -9,7 +9,7 @@
 #include "ngraph/runtime/reference/scatter_elements_update.hpp"
 #include "ngraph/validation_util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 constexpr NodeTypeInfo op::v3::ScatterElementsUpdate::type_info;
@@ -269,12 +269,12 @@ bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(
     {
         if (input_rank.is_static())
         {
-            normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
+            normalized_axis = ov::normalize_axis(this, axis, input_rank);
         }
         else
         {
-            normalized_axis = ngraph::normalize_axis(
-                this, axis, static_cast<int64_t>(inputs[0]->get_shape().size()));
+            normalized_axis =
+                ov::normalize_axis(this, axis, static_cast<int64_t>(inputs[0]->get_shape().size()));
         }
     }
 
@@ -295,25 +295,25 @@ bool op::v3::ScatterElementsUpdate::has_evaluate() const
 
     switch (get_output_element_type(0))
     {
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: break;
+    case ov::element::i16:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32: break;
     default: return false;
     }
     switch (get_input_element_type(1))
     {
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64: break;
+    case ov::element::i8:
+    case ov::element::i16:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u8:
+    case ov::element::u16:
+    case ov::element::u32:
+    case ov::element::u64: break;
     default: return false;
     }
     return true;

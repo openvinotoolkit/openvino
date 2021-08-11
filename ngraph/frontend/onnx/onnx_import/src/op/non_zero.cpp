@@ -7,7 +7,7 @@
 #include "default_opset.hpp"
 #include "op/non_zero.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -27,4 +27,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

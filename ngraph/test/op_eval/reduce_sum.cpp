@@ -4,14 +4,13 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/test_control.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
-
+#include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -58,7 +57,6 @@ TEST(op_eval, reduce_sum_vector_zero)
     handle->call_with_validate({result}, {a});
     EXPECT_TRUE(test::all_close_f((vector<float>{0}), read_vector<float>(result)));
 }
-
 
 TEST(op_eval, reduce_sum_matrix_cols_zero)
 {

@@ -13,7 +13,7 @@
 
 #include "util/ndarray.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace
 {

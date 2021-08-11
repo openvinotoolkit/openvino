@@ -12,7 +12,7 @@
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -26,8 +26,8 @@ namespace ngraph
                     // before normalization.
                     // If data shape is [N,C,H,W], the function returns
                     // [N * num_groups, C // num_groups, H, W]
-                    std::shared_ptr<ngraph::Node>
-                        create_group_norm_shape(const Output<ngraph::Node>& data, size_t num_groups)
+                    std::shared_ptr<ov::Node> create_group_norm_shape(const Output<ov::Node>& data,
+                                                                      size_t num_groups)
                     {
                         const auto& pshape = data.get_partial_shape();
                         NGRAPH_CHECK(pshape.rank().is_static());
@@ -41,7 +41,7 @@ namespace ngraph
                         // The 4D shape: [N * num_groups, C // num_groups, H, W] is created
                         // instead of 5D shape: [N, num_groups, C // num_groups, H, W].
                         // The reason is the lack of support for 5D MVN input by some plugins.
-                        ngraph::OutputVector new_shape{
+                        ov::OutputVector new_shape{
                             std::make_shared<default_opset::Multiply>(splits[0], num_groups_const),
                             std::make_shared<default_opset::Divide>(splits[1], num_groups_const)};
 
@@ -77,13 +77,9 @@ namespace ngraph
                     const auto reduction_axes =
                         common::get_monotonic_range_along_node_rank(data_reshaped, 1);
 
-                    auto mvn =
-                        std::make_shared<default_opset::MVN>(data_reshaped,
-                                                             reduction_axes,
-                                                             true,
-                                                             eps,
-                                                             ngraph::op::MVNEpsMode::INSIDE_SQRT);
-                    std::shared_ptr<ngraph::Node> result =
+                    auto mvn = std::make_shared<default_opset::MVN>(
+                        data_reshaped, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT);
+                    std::shared_ptr<ov::Node> result =
                         std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
 
                     const auto& scale_shape = scale.get_partial_shape();
@@ -125,4 +121,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

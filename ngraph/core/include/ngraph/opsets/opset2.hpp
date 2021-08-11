@@ -7,7 +7,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset1.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace opset2
     {
@@ -15,4 +15,4 @@ namespace ngraph
 #include "ngraph/opsets/opset2_tbl.hpp"
 #undef NGRAPH_OP
     } // namespace opset2
-} // namespace ngraph
+} // namespace ov

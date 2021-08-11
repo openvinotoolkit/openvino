@@ -16,7 +16,7 @@
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 using InterpolateMode = op::v4::Interpolate::InterpolateMode;
 using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;

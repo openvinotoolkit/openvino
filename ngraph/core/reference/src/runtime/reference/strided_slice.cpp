@@ -9,7 +9,7 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/reference/strided_slice.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 void runtime::reference::strided_slice(
     const char* arg, char* out, const Shape& arg_shape, const SlicePlan& sp, size_t elem_type)

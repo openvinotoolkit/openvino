@@ -8,7 +8,7 @@
 #include "ngraph/op/roll.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v7::Roll, "Roll", 7);
 

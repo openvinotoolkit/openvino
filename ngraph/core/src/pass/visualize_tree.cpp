@@ -18,7 +18,7 @@
 #include "ngraph/util.hpp"
 #include "ngraph/variant.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 /*
@@ -101,7 +101,7 @@ using namespace std;
  * dealt with, but have not had time to implement them yet. --amprocte
  */
 
-const int ngraph::pass::VisualizeTree::max_jump_distance = 20;
+const int ov::pass::VisualizeTree::max_jump_distance = 20;
 
 class HeightMap
 {
@@ -186,9 +186,9 @@ static std::string
     return ss.str();
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::VisualizeTree, "ngraph::pass::VisualizeTree", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::VisualizeTree, "ov::pass::VisualizeTree", 0);
 
-bool pass::VisualizeTree::run_on_function(std::shared_ptr<ngraph::Function> f)
+bool pass::VisualizeTree::run_on_function(std::shared_ptr<ov::Function> f)
 {
     unordered_map<Node*, HeightMap> height_maps;
 
@@ -252,7 +252,7 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
     {
         auto arg = input_value.get_node_shared_ptr();
         size_t jump_distance = height_maps[arg.get()].max_jump_to(height_maps[node.get()]);
-        if (is_type<ngraph::op::Constant>(arg) || is_type<ngraph::op::Parameter>(arg))
+        if (is_type<ov::op::Constant>(arg) || is_type<ov::op::Parameter>(arg))
         {
             auto clone_name = "CLONE_" + to_string(fake_node_ctr);
             auto color = string("color=\"") +
@@ -482,7 +482,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
     vector<string> attributes;
     attributes.push_back("shape=box");
 
-    if (ngraph::op::is_output(node))
+    if (ov::op::is_output(node))
     {
         attributes.push_back("color=crimson");
         attributes.push_back("penwidth=1.5");

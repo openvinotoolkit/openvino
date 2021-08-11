@@ -4,7 +4,7 @@
 
 #include "ngraph/op/sink.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::Sink, "Sink", 0);
 

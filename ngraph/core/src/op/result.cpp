@@ -12,7 +12,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::Result, "Result", 0);
 
@@ -23,7 +23,7 @@ op::Result::Result(const Output<Node>& arg, bool needs_default_layout)
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::Result::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Result_visit_attributes);
     return true;

@@ -7,7 +7,7 @@
 
 #include "ngraph/graph_util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -37,7 +37,7 @@ void op::util::FusedOp::validate_and_infer_types()
     NodeVector nodes;
     for (auto& val : input_values())
         nodes.emplace_back(val.get_node_shared_ptr());
-    auto subgraph = extract_subgraph(ngraph::as_node_vector(subgraph_outputs), nodes);
+    auto subgraph = extract_subgraph(ov::as_node_vector(subgraph_outputs), nodes);
 
     size_t i = 0;
     for (const auto& output : subgraph_outputs)

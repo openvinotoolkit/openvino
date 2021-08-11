@@ -5,7 +5,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -27,7 +27,7 @@ namespace ngraph
                     if (data_layout == "NCHW")
                     {
                         return node.default_single_output_mapping(
-                            {std::make_shared<ngraph::opset6::BatchNormInference>(
+                            {std::make_shared<ov::opset6::BatchNormInference>(
                                 data,
                                 gamma,
                                 beta,
@@ -38,22 +38,21 @@ namespace ngraph
                     }
                     else
                     {
-                        auto input_order = ngraph::opset6::Constant::create(
-                            ngraph::element::i64, {4}, {0, 3, 1, 2});
-                        auto data_nchw =
-                            std::make_shared<ngraph::opset6::Transpose>(data, input_order);
-                        auto node_batch_norm = std::make_shared<ngraph::opset6::BatchNormInference>(
+                        auto input_order =
+                            ov::opset6::Constant::create(ov::element::i64, {4}, {0, 3, 1, 2});
+                        auto data_nchw = std::make_shared<ov::opset6::Transpose>(data, input_order);
+                        auto node_batch_norm = std::make_shared<ov::opset6::BatchNormInference>(
                             data_nchw,
                             gamma,
                             beta,
                             mean,
                             variance,
                             node.get_attribute<float>("epsilon"));
-                        auto output_order = ngraph::opset6::Constant::create(
-                            ngraph::element::i64, {4}, {0, 2, 3, 1});
+                        auto output_order =
+                            ov::opset6::Constant::create(ov::element::i64, {4}, {0, 2, 3, 1});
                         return node.default_single_output_mapping(
-                            {std::make_shared<ngraph::opset6::Transpose>(node_batch_norm,
-                                                                         output_order)},
+                            {std::make_shared<ov::opset6::Transpose>(node_batch_norm,
+                                                                     output_order)},
                             {"Y"});
                     }
                 }
@@ -61,4 +60,4 @@ namespace ngraph
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

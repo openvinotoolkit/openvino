@@ -20,7 +20,7 @@
 #include "utils/common.hpp"
 #include "utils/provenance_tag.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -57,7 +57,7 @@ namespace ngraph
             void add_provenance_tag_to_initializer(const Tensor& tensor,
                                                    std::shared_ptr<default_opset::Constant> node)
             {
-                if (!ngraph::get_provenance_enabled())
+                if (!ov::get_provenance_enabled())
                 {
                     return;
                 }
@@ -68,10 +68,9 @@ namespace ngraph
                 node->add_provenance_tag(tag);
             }
 
-            void add_provenance_tag_to_input(const ValueInfo& input,
-                                             std::shared_ptr<ngraph::Node> node)
+            void add_provenance_tag_to_input(const ValueInfo& input, std::shared_ptr<ov::Node> node)
             {
-                if (!ngraph::get_provenance_enabled())
+                if (!ov::get_provenance_enabled())
                 {
                     return;
                 }
@@ -84,7 +83,7 @@ namespace ngraph
 
             void add_provenance_tags(const Node& onnx_node, const OutputVector& ng_node_vector)
             {
-                if (!ngraph::get_provenance_enabled())
+                if (!ov::get_provenance_enabled())
                 {
                     return;
                 }
@@ -92,11 +91,9 @@ namespace ngraph
                 const auto tag = detail::build_op_provenance_tag(onnx_node);
                 const auto ng_inputs = onnx_node.get_ng_inputs();
 
-                ngraph::traverse_nodes(
+                ov::traverse_nodes(
                     as_node_vector(ng_node_vector),
-                    [&tag](std::shared_ptr<ngraph::Node> ng_node) {
-                        ng_node->add_provenance_tag(tag);
-                    },
+                    [&tag](std::shared_ptr<ov::Node> ng_node) { ng_node->add_provenance_tag(tag); },
                     as_node_vector(ng_inputs));
             }
         } // namespace detail
@@ -129,7 +126,7 @@ namespace ngraph
                         // invalid external data makes initializers creation impossible
                         throw;
                     }
-                    catch (const ngraph::ngraph_error& exc)
+                    catch (const ov::ngraph_error& exc)
                     {
                         NGRAPH_WARN
                             << "\nCould not create an nGraph Constant for initializer '"
@@ -260,13 +257,13 @@ namespace ngraph
                     auto inputs = node.get_ng_inputs();
                     for (const auto& input : subgraph->get_inputs_from_parent())
                         inputs.push_back(input);
-                    framework_node = std::make_shared<ngraph::frontend::ONNXSubgraphFrameworkNode>(
+                    framework_node = std::make_shared<ov::frontend::ONNXSubgraphFrameworkNode>(
                         shared_from_this(), node, inputs);
                 }
                 else
                 {
-                    framework_node = std::make_shared<ngraph::frontend::ONNXFrameworkNode>(
-                        shared_from_this(), node);
+                    framework_node =
+                        std::make_shared<ov::frontend::ONNXFrameworkNode>(shared_from_this(), node);
                 }
                 OutputVector ng_nodes{framework_node->outputs()};
                 set_friendly_names(node, ng_nodes);
@@ -299,7 +296,7 @@ namespace ngraph
 
         const GraphCache& Graph::get_graph_cache() const { return *m_cache.get(); }
 
-        Output<ngraph::Node> Graph::get_ng_node_from_cache(const std::string& name) const
+        Output<ov::Node> Graph::get_ng_node_from_cache(const std::string& name) const
         {
             return m_cache->get_node(name);
         }
@@ -310,7 +307,7 @@ namespace ngraph
             for (const auto& output : m_model->get_graph().output())
             {
                 const auto& ng_output = get_ng_node_from_cache(output.name());
-                if (!ngraph::op::is_null(ng_output)) // ignore optional outputs
+                if (!ov::op::is_null(ng_output)) // ignore optional outputs
                 {
                     results.emplace_back(ng_output);
                 }
@@ -327,7 +324,7 @@ namespace ngraph
             {
                 ng_node_vector = ng_node_factory(onnx_node);
             }
-            catch (const ::ngraph::onnx_import::error::OnnxNodeValidationFailure&)
+            catch (const ::ov::onnx_import::error::OnnxNodeValidationFailure&)
             {
                 // Do nothing OnnxNodeValidationFailure exception already has ONNX node information.
                 throw;
@@ -372,7 +369,7 @@ namespace ngraph
                 ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
 
                 // null node does not have tensor
-                if (!ngraph::op::is_null(ng_node_vector[i]))
+                if (!ov::op::is_null(ng_node_vector[i]))
                 {
                     ng_node_vector[i].get_tensor().set_names({onnx_node.output(i)});
                 }
@@ -391,7 +388,7 @@ namespace ngraph
         {
         }
 
-        Output<ngraph::Node> Subgraph::get_ng_node_from_cache(const std::string& name) const
+        Output<ov::Node> Subgraph::get_ng_node_from_cache(const std::string& name) const
         {
             if (m_cache->contains(name))
             {
@@ -413,15 +410,14 @@ namespace ngraph
                     {
                         const auto& from_parent_node = m_parent_graph_cache->get_node(in_name);
                         // constants are skipped
-                        if (!ngraph::is_type<ngraph::op::Constant>(
-                                from_parent_node.get_node_shared_ptr()))
+                        if (!ov::is_type<ov::op::Constant>(from_parent_node.get_node_shared_ptr()))
                         {
                             for (const auto& out_name : node_proto.output())
                             {
                                 if (m_cache->contains(out_name))
                                 {
                                     auto out_node_to_replace_input = m_cache->get_node(out_name);
-                                    auto new_param = std::make_shared<ngraph::op::Parameter>(
+                                    auto new_param = std::make_shared<ov::op::Parameter>(
                                         from_parent_node.get_element_type(),
                                         from_parent_node.get_partial_shape());
                                     // replace input from parent scope with parameter
@@ -454,7 +450,7 @@ namespace ngraph
             find_inputs_from_parent();
         }
 
-        const std::vector<Output<ngraph::Node>> Subgraph::get_inputs_from_parent() const
+        const std::vector<Output<ov::Node>> Subgraph::get_inputs_from_parent() const
         {
             OutputVector result;
             for (const auto& name : m_inputs_from_parent)
@@ -476,4 +472,4 @@ namespace ngraph
         }
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

@@ -10,7 +10,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -158,4 +158,4 @@ namespace ngraph
             };
         } // namespace v3
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

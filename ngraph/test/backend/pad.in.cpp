@@ -14,7 +14,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -23,8 +23,8 @@ namespace
     template <typename ValueType>
     struct Params
     {
-        using Data = ::ngraph::test::NDArrayBase<ValueType>;
-        using Pads = ::ngraph::test::NDArrayBase<int64_t>;
+        using Data = ::ov::test::NDArrayBase<ValueType>;
+        using Pads = ::ov::test::NDArrayBase<int64_t>;
 
         Params(Data input_data,
                Pads pads_begin,

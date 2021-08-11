@@ -6,7 +6,7 @@
 #include "ngraph/pattern/matcher.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo pattern::op::WrapType::type_info;
 
@@ -42,7 +42,7 @@ NodeTypeInfo pattern::op::WrapType::get_wrapped_type() const
 {
     if (m_wrapped_types.size() > 1)
     {
-        throw ngraph::ngraph_error("get_wrapped_type() called on WrapType with more than one type");
+        throw ov::ngraph_error("get_wrapped_type() called on WrapType with more than one type");
     }
     return m_wrapped_types.at(0);
 }

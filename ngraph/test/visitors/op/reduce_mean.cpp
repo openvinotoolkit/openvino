@@ -4,5 +4,5 @@
 
 #include "reduce_ops.hpp"
 
-using Type = ::testing::Types<ngraph::op::v1::ReduceMean>;
+using Type = ::testing::Types<ov::op::v1::ReduceMean>;
 INSTANTIATE_TYPED_TEST_SUITE_P(attributes_reduce_mean, ReduceOpsAttrTest, Type);

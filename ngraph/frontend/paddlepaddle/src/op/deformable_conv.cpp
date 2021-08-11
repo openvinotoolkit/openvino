@@ -5,7 +5,7 @@
 #include <node_context.hpp>
 #include "conv2d_utils.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -29,21 +29,21 @@ namespace ngraph
                     const auto pads_begin = paddings.first;
                     const auto pads_end = paddings.second;
 
-                    const ngraph::op::PadType auto_pad{ngraph::op::PadType::EXPLICIT};
+                    const ov::op::PadType auto_pad{ov::op::PadType::EXPLICIT};
 
                     std::shared_ptr<Node> output_node;
                     if (node.has_ng_input("Mask"))
                     {
                         auto mask = node.get_ng_input("Mask");
-                        output_node = std::make_shared<ngraph::opset8::DeformableConvolution>(
+                        output_node = std::make_shared<ov::opset8::DeformableConvolution>(
                             input,
                             offset,
                             filter,
                             mask,
-                            ngraph::Strides(strides.begin(), strides.end()),
+                            ov::Strides(strides.begin(), strides.end()),
                             pads_begin,
                             pads_end,
-                            ngraph::Strides(dilations.begin(), dilations.end()),
+                            ov::Strides(dilations.begin(), dilations.end()),
                             auto_pad,
                             groups,
                             deformable_groups,
@@ -51,14 +51,14 @@ namespace ngraph
                     }
                     else
                     {
-                        output_node = std::make_shared<ngraph::opset8::DeformableConvolution>(
+                        output_node = std::make_shared<ov::opset8::DeformableConvolution>(
                             input,
                             offset,
                             filter,
-                            ngraph::Strides(strides.begin(), strides.end()),
+                            ov::Strides(strides.begin(), strides.end()),
                             pads_begin,
                             pads_end,
-                            ngraph::Strides(dilations.begin(), dilations.end()),
+                            ov::Strides(dilations.begin(), dilations.end()),
                             auto_pad,
                             groups,
                             deformable_groups,
@@ -71,4 +71,4 @@ namespace ngraph
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

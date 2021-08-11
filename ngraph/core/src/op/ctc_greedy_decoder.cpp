@@ -6,7 +6,7 @@
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::CTCGreedyDecoder, "CTCGreedyDecoder", 0);
 
@@ -48,8 +48,8 @@ void op::CTCGreedyDecoder::validate_and_infer_types()
     }
 
     // validate input shapes and compute output shape
-    ngraph::Dimension batch_size = Dimension::dynamic();
-    ngraph::Dimension time_size = Dimension::dynamic();
+    ov::Dimension batch_size = Dimension::dynamic();
+    ov::Dimension time_size = Dimension::dynamic();
     if (logits_pshape.rank().is_static())
     {
         if (logits_pshape[0].is_static())

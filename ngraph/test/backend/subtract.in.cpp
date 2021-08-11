@@ -30,7 +30,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -81,7 +81,7 @@ namespace
     template <typename Value>
     void subtract_broadcst()
     {
-        const auto element_type = ngraph::element::from<Value>();
+        const auto element_type = ov::element::from<Value>();
         const Shape shape_a{3, 2, 1};
         const Shape shape_b{1, 6};
         const Shape shape_o{3, 2, 6};

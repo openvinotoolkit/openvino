@@ -11,7 +11,7 @@
 #include "util/engine/engine_traits.hpp"
 #include "util/engine/test_case_engine.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -75,8 +75,7 @@ namespace ngraph
             }
 
             template <typename T>
-            void add_expected_output(const ngraph::Shape& expected_shape,
-                                     const std::vector<T>& values)
+            void add_expected_output(const ov::Shape& expected_shape, const std::vector<T>& values)
             {
                 const auto& function_output =
                     m_function->get_results()[m_allocated_expected_outputs];
@@ -156,4 +155,4 @@ namespace ngraph
             static constexpr bool value = true;
         };
     } // namespace test
-} // namespace ngraph
+} // namespace ov

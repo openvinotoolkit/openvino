@@ -10,7 +10,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 // Because v3::Broadcast is backward compatible to v1::Broadcast all v1::Broadcast tests should pass
 template <typename T>
@@ -209,7 +209,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_dynamic_values_of_target_shape)
 {
     const auto data = make_shared<op::Parameter>(element::f32, Shape{2});
     const auto target = make_shared<op::Parameter>(element::i32, PartialShape::dynamic(4));
-    const auto target_shape = std::make_shared<ngraph::opset6::ShapeOf>(target);
+    const auto target_shape = std::make_shared<ov::opset6::ShapeOf>(target);
     const auto axes_mapping = op::Constant::create(element::i64, Shape{1}, {1});
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping);

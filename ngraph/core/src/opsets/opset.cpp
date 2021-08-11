@@ -6,13 +6,13 @@
 #include "ngraph/log.hpp"
 #include "ngraph/ops.hpp"
 
-std::mutex& ngraph::OpSet::get_mutex()
+std::mutex& ov::OpSet::get_mutex()
 {
     static std::mutex opset_mutex;
     return opset_mutex;
 }
 
-ngraph::Node* ngraph::OpSet::create(const std::string& name) const
+ov::Node* ov::OpSet::create(const std::string& name) const
 {
     auto type_info_it = m_name_type_info_map.find(name);
     if (type_info_it == m_name_type_info_map.end())
@@ -24,7 +24,7 @@ ngraph::Node* ngraph::OpSet::create(const std::string& name) const
     return m_factory_registry.create(type_info_it->second);
 }
 
-ngraph::Node* ngraph::OpSet::create_insensitive(const std::string& name) const
+ov::Node* ov::OpSet::create_insensitive(const std::string& name) const
 {
     auto type_info_it = m_case_insensitive_type_info_map.find(to_upper_name(name));
     return type_info_it == m_case_insensitive_type_info_map.end()
@@ -32,7 +32,7 @@ ngraph::Node* ngraph::OpSet::create_insensitive(const std::string& name) const
                : m_factory_registry.create(type_info_it->second);
 }
 
-const ngraph::OpSet& ngraph::get_opset1()
+const ov::OpSet& ov::get_opset1()
 {
     static OpSet opset;
     static std::once_flag flag;
@@ -44,7 +44,7 @@ const ngraph::OpSet& ngraph::get_opset1()
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset2()
+const ov::OpSet& ov::get_opset2()
 {
     static OpSet opset;
     static std::once_flag flag;
@@ -56,7 +56,7 @@ const ngraph::OpSet& ngraph::get_opset2()
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset3()
+const ov::OpSet& ov::get_opset3()
 {
     static OpSet opset;
     static std::once_flag flag;
@@ -68,7 +68,7 @@ const ngraph::OpSet& ngraph::get_opset3()
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset4()
+const ov::OpSet& ov::get_opset4()
 {
     static OpSet opset;
     static std::once_flag flag;
@@ -80,7 +80,7 @@ const ngraph::OpSet& ngraph::get_opset4()
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset5()
+const ov::OpSet& ov::get_opset5()
 {
     static OpSet opset;
     static std::once_flag flag;
@@ -92,7 +92,7 @@ const ngraph::OpSet& ngraph::get_opset5()
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset6()
+const ov::OpSet& ov::get_opset6()
 {
     static OpSet opset;
     static std::once_flag flag;
@@ -104,7 +104,7 @@ const ngraph::OpSet& ngraph::get_opset6()
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset7()
+const ov::OpSet& ov::get_opset7()
 {
     static OpSet opset;
     static std::once_flag flag;
@@ -116,7 +116,7 @@ const ngraph::OpSet& ngraph::get_opset7()
     return opset;
 }
 
-const ngraph::OpSet& ngraph::get_opset8()
+const ov::OpSet& ov::get_opset8()
 {
     static OpSet opset;
     static std::once_flag flag;

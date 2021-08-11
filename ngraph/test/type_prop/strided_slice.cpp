@@ -9,7 +9,7 @@
 #include <memory>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, strided_slice_begin_incorrect_type)
 {
@@ -179,10 +179,10 @@ TEST(type_prop, strided_slice_default_stride_dynamic_shape_input)
 
 TEST(type_prop, strided_slice_reverse_out_of_bounds)
 {
-    auto data = std::make_shared<op::Parameter>(ngraph::element::f32, ngraph::Shape{3, 4, 5});
-    auto begin = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {100});
-    auto end = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-100});
-    auto stride = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-1});
+    auto data = std::make_shared<op::Parameter>(ov::element::f32, ov::Shape{3, 4, 5});
+    auto begin = op::Constant::create(ov::element::i64, ov::Shape{3}, {100});
+    auto end = op::Constant::create(ov::element::i64, ov::Shape{3}, {-100});
+    auto stride = op::Constant::create(ov::element::i64, ov::Shape{3}, {-1});
 
     std::vector<int64_t> begin_mask = {0, 0, 0, 0};
     std::vector<int64_t> end_mask = {0, 0, 0, 0};

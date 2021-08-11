@@ -11,7 +11,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "op/mod.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -21,8 +21,8 @@ namespace ngraph
             {
                 OutputVector mod(const Node& node)
                 {
-                    Output<ngraph::Node> dividend{node.get_ng_inputs().at(0)};
-                    Output<ngraph::Node> divisor{node.get_ng_inputs().at(1)};
+                    Output<ov::Node> dividend{node.get_ng_inputs().at(0)};
+                    Output<ov::Node> divisor{node.get_ng_inputs().at(1)};
 
                     std::int64_t fmod = node.get_attribute_value<std::int64_t>("fmod", 0);
                     OutputVector output;
@@ -52,4 +52,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

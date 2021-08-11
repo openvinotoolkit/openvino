@@ -26,7 +26,7 @@
 #include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -97,8 +97,7 @@ NGRAPH_TEST(${BACKEND_NAME}, floor_mod_broadcasted)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape_r, {1.0f, 0.0f, 1.0f, 2.0f,
-                                                   1.0f, 0.0f, 0.0f, 1.0f});
+    test_case.add_expected_output<float>(shape_r, {1.0f, 0.0f, 1.0f, 2.0f, 1.0f, 0.0f, 0.0f, 1.0f});
     test_case.run();
 }
 NGRAPH_TEST(${BACKEND_NAME}, floor_mod_scalars)

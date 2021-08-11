@@ -6,13 +6,13 @@
 
 #include <gtest/gtest.h>
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
         /// An interface that each test case engine needs to implement. This interface wraps
         /// a couple of generic methods which are required by the TestCase class to execute
-        /// a unit test for a given ngraph::Function.
+        /// a unit test for a given ov::Function.
         /// The interface operates on C++ types while internally it can use implementation-specific
         /// types, containers and structures.
         class TestCaseEngine
@@ -45,8 +45,8 @@ namespace ngraph
             /// Sets the expected data (along with its shape) for the next available output
             /// The data should be stored as internal state, not necessarily as vectors
             // template <typename T>
-            // void add_expected_output(const ngraph::Shape& expected_shape,
+            // void add_expected_output(const ov::Shape& expected_shape,
             //                          const std::vector<T>& values)
         };
-    }
-}
+    } // namespace test
+} // namespace ov

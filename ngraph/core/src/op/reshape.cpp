@@ -12,7 +12,7 @@
 #include "ngraph/runtime/reference/reshape.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 namespace reshapeop
 {
@@ -202,14 +202,14 @@ bool op::v1::Reshape::has_evaluate() const
     NGRAPH_OP_SCOPE(v1_Reshape_has_evaluate);
     switch (get_input_element_type(1))
     {
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64: return true;
+    case ov::element::i8:
+    case ov::element::i16:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u8:
+    case ov::element::u16:
+    case ov::element::u32:
+    case ov::element::u64: return true;
     default: break;
     }
     return false;

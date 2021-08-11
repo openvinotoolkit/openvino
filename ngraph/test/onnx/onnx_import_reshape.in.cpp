@@ -23,7 +23,7 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 static std::string s_manifest = "${MANIFEST}";
 
@@ -269,8 +269,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_blocksize)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_no_blocksize)
 {
     // This model fails to import since it lacks of required parameter `blocksize`.
-    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(
-                     SERIALIZED_ZOO, "onnx/depth_to_space_no_blocksize.onnx")),
+    EXPECT_THROW(onnx_import::import_onnx_model(
+                     file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_no_blocksize.onnx")),
                  std::runtime_error);
 }
 
@@ -282,7 +282,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_mode)
             file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_mode.onnx"));
         FAIL() << "The onnx_importer did not throw for unknown mode to DepthToSpace op";
     }
-    catch (const ngraph::ngraph_error& e)
+    catch (const ov::ngraph_error& e)
     {
         std::string msg{e.what()};
         EXPECT_NE(msg.find("only 'DCR' and 'CRD' modes are supported"), std::string::npos);
@@ -301,7 +301,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_bad_input_shape)
             file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_input_shape.onnx"));
         FAIL() << "The onnx_importer did not throw for invalid input shape to DepthToSpace op";
     }
-    catch (const ngraph::ngraph_error& e)
+    catch (const ov::ngraph_error& e)
     {
         std::string msg{e.what()};
         EXPECT_NE(msg.find("Input must be 4-dimensional"), std::string::npos);
@@ -335,11 +335,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_invalid_input_shape)
 {
     try
     {
-        onnx_import::import_onnx_model(file_util::path_join(
-            SERIALIZED_ZOO, "onnx/space_to_depth_invalid_input_shape.onnx"));
+        onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/space_to_depth_invalid_input_shape.onnx"));
         FAIL() << "Expected ngraph_error exception, but no exception was thrown";
     }
-    catch (const ngraph::ngraph_error& e)
+    catch (const ov::ngraph_error& e)
     {
         std::string msg{e.what()};
         EXPECT_NE(msg.find("Input must be 4-dimensional"), std::string::npos)
@@ -364,15 +364,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_bad_blocksize)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_no_blocksize)
 {
     // This model fails to import since it lacks of required `blocksize` attribute.
-    EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(
-                     SERIALIZED_ZOO, "onnx/space_to_depth_no_blocksize.onnx")),
+    EXPECT_THROW(onnx_import::import_onnx_model(
+                     file_util::path_join(SERIALIZED_ZOO, "onnx/space_to_depth_no_blocksize.onnx")),
                  std::runtime_error);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze)
 {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/squeeze.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/squeeze.onnx"));
 
     // {1, 4, 1, 1, 2}
     auto input = test::NDArray<float, 5>(
@@ -404,8 +404,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_squeeze_opset13_no_axes)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze)
 {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/unsqueeze.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/unsqueeze.onnx"));
 
     auto input = test::NDArray<float, 3>(
                      {{{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},
@@ -452,8 +452,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unsqueeze_negative_axes)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_concat)
 {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/concat.onnx"));
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/concat.onnx"));
 
     Inputs inputs;
 

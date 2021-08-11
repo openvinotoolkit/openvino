@@ -13,7 +13,7 @@
 #include "ngraph/runtime/reference/interpolate.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::Interpolate, "Interpolate", 0);
 
@@ -75,7 +75,7 @@ shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& 
     return make_shared<op::v0::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     EnumNames<op::v0::Interpolate::InterpolateMode>&
@@ -96,7 +96,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov
 
 // Interpolate v4
 
@@ -371,7 +371,7 @@ namespace
                                          const op::v4::Interpolate::InterpolateAttrs& attrs,
                                          std::vector<int64_t> axes)
     {
-        using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
+        using ShapeCalcMode = ov::op::v4::Interpolate::ShapeCalcMode;
 
         std::vector<float> scales;
         size_t num_of_axes = axes.size();
@@ -547,15 +547,15 @@ bool op::v4::Interpolate::has_evaluate() const
     NGRAPH_OP_SCOPE(v4_Interpolate_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::u8:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::u8:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     NGRAPH_API EnumNames<op::v4::Interpolate::InterpolateMode>&
@@ -640,4 +640,4 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov

@@ -10,12 +10,12 @@
 #include "ngraph/enum_names.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 const op::AutoBroadcastSpec op::AutoBroadcastSpec::NUMPY(AutoBroadcastType::NUMPY, 0);
 const op::AutoBroadcastSpec op::AutoBroadcastSpec::NONE{AutoBroadcastType::NONE, 0};
 
-namespace ngraph
+namespace ov
 {
     template <>
     NGRAPH_API EnumNames<op::PadMode>& EnumNames<op::PadMode>::get()
@@ -219,4 +219,4 @@ namespace ngraph
              {"bidirectional", op::RecurrentSequenceDirection::BIDIRECTIONAL}});
         return enum_names;
     }
-} // namespace ngraph
+} // namespace ov

@@ -8,7 +8,7 @@
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -20,10 +20,10 @@ namespace ngraph
                 {
                     OutputVector ng_inputs{node.get_ng_inputs()};
 
-                    Output<ngraph::Node> beta;
+                    Output<ov::Node> beta;
                     if (ng_inputs.size() > 1)
                     {
-                        beta = ngraph::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(1));
+                        beta = ov::onnx_import::reshape::interpret_as_scalar(ng_inputs.at(1));
                     }
                     else
                     {
@@ -38,4 +38,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

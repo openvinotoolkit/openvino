@@ -10,7 +10,7 @@
 #include "ngraph/validation_util.hpp"
 #include "op/concat.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -31,4 +31,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

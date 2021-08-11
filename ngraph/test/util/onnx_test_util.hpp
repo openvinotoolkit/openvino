@@ -6,7 +6,7 @@
 
 #include <string>
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -37,4 +37,4 @@ namespace ngraph
                                              const std::string& reference_model_path);
 
     } // namespace test
-} // namespace ngraph
+} // namespace ov

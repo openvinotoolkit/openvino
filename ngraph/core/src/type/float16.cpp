@@ -26,7 +26,7 @@
 #include "ngraph/type/float16.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static_assert(sizeof(float16) == 2, "class float16 must be exactly 2 bytes");
 

@@ -10,7 +10,7 @@
 #include "ngraph/runtime/reference/copy.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::Ceiling, "Ceiling", 0, util::UnaryElementwiseArithmetic);
 
@@ -81,17 +81,17 @@ bool op::Ceiling::has_evaluate() const
     NGRAPH_OP_SCOPE(v0_Ceiling_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::boolean:
-    case ngraph::element::i8:
-    case ngraph::element::i16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::boolean:
+    case ov::element::i8:
+    case ov::element::i16:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u8:
+    case ov::element::u16:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;

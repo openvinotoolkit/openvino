@@ -9,16 +9,16 @@
 #include "ngraph/validation_util.hpp"
 #include "op/log_softmax.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
         namespace detail
         {
-            std::shared_ptr<ngraph::Node> onnx_logsoftmax(const Output<ngraph::Node> data,
-                                                          const int64_t axis)
+            std::shared_ptr<ov::Node> onnx_logsoftmax(const Output<ov::Node> data,
+                                                      const int64_t axis)
             {
-                const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
+                const auto coerced_data = ov::builder::opset1::flatten(data, axis);
                 const auto result = std::make_shared<default_opset::LogSoftmax>(coerced_data, 1);
                 const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
                 return std::make_shared<default_opset::Reshape>(result, data_shape, false);
@@ -35,7 +35,7 @@ namespace ngraph
 
                 const auto axis = node.get_attribute_value<int64_t>("axis", DEFAULT_AXIS);
 
-                std::shared_ptr<ngraph::Node> result;
+                std::shared_ptr<ov::Node> result;
                 switch (data_rank.get_length())
                 {
                 case 0:
@@ -46,14 +46,14 @@ namespace ngraph
                 case 1:
                 {
                     // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
-                    ngraph::normalize_axis(node.get_description(), axis, data_rank);
+                    ov::normalize_axis(node.get_description(), axis, data_rank);
                     result = std::make_shared<default_opset::LogSoftmax>(data, 0);
                     break;
                 }
                 default:
                 {
                     const auto normalized_axis =
-                        ngraph::normalize_axis(node.get_description(), axis, data_rank);
+                        ov::normalize_axis(node.get_description(), axis, data_rank);
 
                     result = onnx_logsoftmax(data, normalized_axis);
                     break;
@@ -85,4 +85,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

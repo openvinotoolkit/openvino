@@ -6,7 +6,7 @@
 
 #include <onnx/onnx_pb.h>
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -40,4 +40,4 @@ namespace ngraph
             };
         } // namespace detail
     }     // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

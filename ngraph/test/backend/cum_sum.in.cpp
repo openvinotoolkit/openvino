@@ -23,7 +23,7 @@
 static std::mt19937_64 random_generator;
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 

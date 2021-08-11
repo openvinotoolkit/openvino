@@ -11,7 +11,7 @@
 #include "ngraph/file_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(file_util, path_join)
 {

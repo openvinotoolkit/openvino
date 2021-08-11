@@ -12,51 +12,51 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace ::testing;
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-class TestPass : public ngraph::pass::MatcherPass
+class TestPass : public ov::pass::MatcherPass
 {
 public:
     NGRAPH_RTTI_DECLARATION;
     TestPass()
         : MatcherPass()
     {
-        auto divide = std::make_shared<ngraph::pattern::op::Label>(
+        auto divide = std::make_shared<ov::pattern::op::Label>(
             element::f32, Shape{}, pattern::has_class<opset3::Divide>());
-        ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
             if (transformation_callback(m.get_match_root()))
             {
-                auto relu =
-                    std::make_shared<ngraph::opset3::Relu>(m.get_match_root()->input_value(0));
-                ngraph::replace_node(m.get_match_root(), relu);
+                auto relu = std::make_shared<ov::opset3::Relu>(m.get_match_root()->input_value(0));
+                ov::replace_node(m.get_match_root(), relu);
                 return true;
             }
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(divide, "TestMatcher");
+        auto m = std::make_shared<ov::pattern::Matcher>(divide, "TestMatcher");
         this->register_matcher(m, callback);
     }
 };
 
-class GatherNodesPass : public ngraph::pass::MatcherPass
+class GatherNodesPass : public ov::pass::MatcherPass
 {
 public:
     NGRAPH_RTTI_DECLARATION;
-    GatherNodesPass(NodeVector & order)
-            : MatcherPass()
+    GatherNodesPass(NodeVector& order)
+        : MatcherPass()
     {
-        ngraph::matcher_pass_callback callback = [&order](pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [&order](pattern::Matcher& m) {
             order.push_back(m.get_match_root());
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::any_input(), "GatherNodesPass");
+        auto m =
+            std::make_shared<ov::pattern::Matcher>(ov::pattern::any_input(), "GatherNodesPass");
         this->register_matcher(m, callback);
     }
 };
 
-class Anchor : public ngraph::pass::GraphRewrite
+class Anchor : public ov::pass::GraphRewrite
 {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -72,16 +72,13 @@ NGRAPH_RTTI_DEFINITION(GatherNodesPass, "GatherNodesPass", 0);
 
 std::shared_ptr<Function> get_function()
 {
-    auto data =
-        std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-    auto divide_constant =
-        ngraph::opset3::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
-    auto divide = std::make_shared<ngraph::opset3::Divide>(data, divide_constant);
-    return std::make_shared<ngraph::Function>(ngraph::NodeVector{divide},
-                                              ngraph::ParameterVector{data});
+    auto data = std::make_shared<ov::opset3::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
+    auto divide_constant = ov::opset3::Constant::create(ov::element::f32, ov::Shape{1}, {1.5});
+    auto divide = std::make_shared<ov::opset3::Divide>(data, divide_constant);
+    return std::make_shared<ov::Function>(ov::NodeVector{divide}, ov::ParameterVector{data});
 }
 
-ngraph::pass::param_callback get_callback()
+ov::pass::param_callback get_callback()
 {
     return [](const std::shared_ptr<const Node>& node) -> bool {
         if (std::dynamic_pointer_cast<const opset3::Divide>(node))
@@ -100,7 +97,7 @@ TEST(GraphRewriteOrderTest, MatcherPass)
     auto f = get_function();
 
     NodeVector order;
-    ngraph::pass::Manager m;
+    ov::pass::Manager m;
     auto pass = m.register_pass<pass::GraphRewrite>();
     pass->add_matcher<GatherNodesPass>(order);
     m.run_passes(f);
@@ -113,7 +110,7 @@ TEST(BackwardGraphRewriteOrderTest, MatcherPass)
     auto f = get_function();
 
     NodeVector order;
-    ngraph::pass::Manager m;
+    ov::pass::Manager m;
     auto pass = m.register_pass<pass::BackwardGraphRewrite>();
     pass->add_matcher<GatherNodesPass>(order);
     m.run_passes(f);
@@ -185,24 +182,21 @@ TEST(GraphRewriteTest, ManagerCallback2)
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
 
-class PrivateDivide : public ngraph::opset3::Divide
+class PrivateDivide : public ov::opset3::Divide
 {
 public:
     NGRAPH_RTTI_DECLARATION;
-    using ngraph::opset3::Divide::Divide;
+    using ov::opset3::Divide::Divide;
 };
 
-NGRAPH_RTTI_DEFINITION(PrivateDivide, "PrivateDivide", 0, ngraph::opset3::Divide);
+NGRAPH_RTTI_DEFINITION(PrivateDivide, "PrivateDivide", 0, ov::opset3::Divide);
 
 std::shared_ptr<Function> get_derived_function()
 {
-    auto data =
-        std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-    auto divide_constant =
-        ngraph::opset3::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
+    auto data = std::make_shared<ov::opset3::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
+    auto divide_constant = ov::opset3::Constant::create(ov::element::f32, ov::Shape{1}, {1.5});
     auto divide = std::make_shared<PrivateDivide>(data, divide_constant);
-    return std::make_shared<ngraph::Function>(ngraph::NodeVector{divide},
-                                              ngraph::ParameterVector{data});
+    return std::make_shared<ov::Function>(ov::NodeVector{divide}, ov::ParameterVector{data});
 }
 
 TEST(GraphRewriteTest, MatcherPassCallbackDerived)
@@ -216,53 +210,49 @@ TEST(GraphRewriteTest, MatcherPassCallbackDerived)
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
 
-class TypeBasedTestPass : public ngraph::pass::MatcherPass
+class TypeBasedTestPass : public ov::pass::MatcherPass
 {
 public:
     TypeBasedTestPass()
         : MatcherPass()
     {
-        auto divide = std::make_shared<ngraph::opset3::Divide>(
-            std::make_shared<ngraph::pattern::op::Label>(),
-            std::make_shared<ngraph::pattern::op::Label>());
+        auto divide = std::make_shared<ov::opset3::Divide>(
+            std::make_shared<ov::pattern::op::Label>(), std::make_shared<ov::pattern::op::Label>());
         //        element::f32, Shape{}, pattern::has_class<opset3::Divide>());
-        ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
             if (transformation_callback(m.get_match_root()))
             {
-                auto relu =
-                    std::make_shared<ngraph::opset3::Relu>(m.get_match_root()->input_value(0));
-                ngraph::replace_node(m.get_match_root(), relu);
+                auto relu = std::make_shared<ov::opset3::Relu>(m.get_match_root()->input_value(0));
+                ov::replace_node(m.get_match_root(), relu);
                 return true;
             }
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(divide, "TestMatcher");
+        auto m = std::make_shared<ov::pattern::Matcher>(divide, "TestMatcher");
         this->register_matcher(m, callback);
     }
 };
 
-class TypeBasedTestPassDerived : public ngraph::pass::MatcherPass
+class TypeBasedTestPassDerived : public ov::pass::MatcherPass
 {
 public:
     TypeBasedTestPassDerived()
         : MatcherPass()
     {
-        auto divide =
-            std::make_shared<PrivateDivide>(std::make_shared<ngraph::pattern::op::Label>(),
-                                            std::make_shared<ngraph::pattern::op::Label>());
-        ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto divide = std::make_shared<PrivateDivide>(std::make_shared<ov::pattern::op::Label>(),
+                                                      std::make_shared<ov::pattern::op::Label>());
+        ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
             if (transformation_callback(m.get_match_root()))
             {
-                auto tanh =
-                    std::make_shared<ngraph::opset3::Tanh>(m.get_match_root()->input_value(0));
-                ngraph::replace_node(m.get_match_root(), tanh);
+                auto tanh = std::make_shared<ov::opset3::Tanh>(m.get_match_root()->input_value(0));
+                ov::replace_node(m.get_match_root(), tanh);
                 return true;
             }
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(divide, "TestMatcher");
+        auto m = std::make_shared<ov::pattern::Matcher>(divide, "TestMatcher");
         this->register_matcher(m, callback);
     }
 };
@@ -346,7 +336,7 @@ TEST(PassConfigTest, Test1)
     {
         auto f = get_function();
 
-        auto pass_config = std::make_shared<ngraph::pass::PassConfig>();
+        auto pass_config = std::make_shared<ov::pass::PassConfig>();
         pass::Manager manager(pass_config);
 
         manager.register_pass<TestPass>();
@@ -434,15 +424,15 @@ TEST(PassConfigTest, Test1)
     }
 }
 
-class CheckConsumers : public ngraph::pass::MatcherPass
+class CheckConsumers : public ov::pass::MatcherPass
 {
 public:
     NGRAPH_RTTI_DECLARATION;
     CheckConsumers()
     {
-        ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
+        ov::matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
             auto node = m.get_match_root();
-            auto consumers = [](Node * node) {
+            auto consumers = [](Node* node) {
                 int64_t cnt{0};
                 for (auto output : node->outputs())
                 {
@@ -461,13 +451,13 @@ public:
              * 4. Some GraphRewrite facilities
              */
             auto cnt = consumers(node.get());
-            if(node.use_count() != cnt + 7)
+            if (node.use_count() != cnt + 7)
             {
-                throw ngraph::ngraph_error("Wrong number of consumers");
+                throw ov::ngraph_error("Wrong number of consumers");
             }
 
             NodeVector nodes;
-            for (const auto & inputs : node->input_values())
+            for (const auto& inputs : node->input_values())
             {
                 nodes.emplace_back(inputs.get_node_shared_ptr());
             }
@@ -476,17 +466,17 @@ public:
              * 1. Each consumer holds a pointer to Output<Node> which holds a shared_ptr to Node
              * 2. Local input_node variable increases use_counter
              */
-            for (const auto & input_node : nodes)
+            for (const auto& input_node : nodes)
             {
-                if(input_node.use_count() != consumers(input_node.get()) + 1)
+                if (input_node.use_count() != consumers(input_node.get()) + 1)
                 {
-                    throw ngraph::ngraph_error("Wrong number of consumers");
+                    throw ov::ngraph_error("Wrong number of consumers");
                 }
             }
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::any_input(), "CheckConsumers");
+        auto m = std::make_shared<ov::pattern::Matcher>(ov::pattern::any_input(), "CheckConsumers");
         this->register_matcher(m, callback);
     }
 };

@@ -8,7 +8,7 @@
 #include "onnx_import/core/node.hpp"
 #include "op/org.openvinotoolkit/detection_output.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -24,7 +24,7 @@ namespace ngraph
                     auto class_preds = inputs[1];
                     auto proposals = inputs[2];
 
-                    ngraph::op::DetectionOutputAttrs attrs;
+                    ov::op::DetectionOutputAttrs attrs;
                     attrs.num_classes = node.get_attribute_value<int64_t>("num_classes");
                     attrs.background_label_id =
                         node.get_attribute_value<int64_t>("background_label_id", 0);
@@ -89,4 +89,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

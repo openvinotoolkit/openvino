@@ -34,7 +34,7 @@ int main(int argc, char** argv)
             cpath = argv[i];
         }
     }
-    ngraph::runtime::Backend::set_backend_shared_library_search_directory(cpath);
+    ov::runtime::Backend::set_backend_shared_library_search_directory(cpath);
 
     int rc = RUN_ALL_TESTS();
 

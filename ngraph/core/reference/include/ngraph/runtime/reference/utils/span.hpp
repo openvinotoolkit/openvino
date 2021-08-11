@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -187,4 +187,4 @@ namespace ngraph
 
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

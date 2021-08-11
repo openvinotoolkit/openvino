@@ -8,8 +8,8 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::opset8;
+using namespace ov;
+using namespace ov::opset8;
 
 TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same)
 {
@@ -30,22 +30,23 @@ TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same)
     auto offsets = make_shared<Parameter>(et, offsets_pshape);
     auto filters = make_shared<Parameter>(et, filters_pshape);
     auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                      offsets,
-                                                                      filters,
-                                                                      strides,
-                                                                      pads_begin,
-                                                                      pads_end,
-                                                                      dilations,
-                                                                      auto_pad,
-                                                                      group,
-                                                                      deformable_group);
+                                                              offsets,
+                                                              filters,
+                                                              strides,
+                                                              pads_begin,
+                                                              pads_end,
+                                                              dilations,
+                                                              auto_pad,
+                                                              group,
+                                                              deformable_group);
 
     ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(PartialShape{1, 4, 5, 5}));
     ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
-TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same_lower_data_batch_nc_dims_dynamic)
+TEST(type_prop,
+     deformable_convolution_opset8_partial_auto_padding_same_lower_data_batch_nc_dims_dynamic)
 {
     const PartialShape data_batch_pshape{Dimension::dynamic(), Dimension::dynamic(), 5, 5};
     const PartialShape offsets_pshape{Dimension::dynamic(), 36, 5, 5};
@@ -64,15 +65,15 @@ TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same_lower_da
     auto offsets = make_shared<Parameter>(et, offsets_pshape);
     auto filters = make_shared<Parameter>(et, filters_pshape);
     auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                      offsets,
-                                                                      filters,
-                                                                      strides,
-                                                                      pads_begin,
-                                                                      pads_end,
-                                                                      dilations,
-                                                                      auto_pad,
-                                                                      group,
-                                                                      deformable_group);
+                                                              offsets,
+                                                              filters,
+                                                              strides,
+                                                              pads_begin,
+                                                              pads_end,
+                                                              dilations,
+                                                              auto_pad,
+                                                              group,
+                                                              deformable_group);
 
     ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(
         PartialShape{Dimension::dynamic(), 4, 5, 5}));
@@ -80,7 +81,8 @@ TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same_lower_da
     ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
-TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same_upper_data_batch_nc_dims_dynamic)
+TEST(type_prop,
+     deformable_convolution_opset8_partial_auto_padding_same_upper_data_batch_nc_dims_dynamic)
 {
     const PartialShape data_batch_pshape{Dimension::dynamic(), Dimension::dynamic(), 5, 5};
     const PartialShape offsets_pshape{1, 16, 5, 5};
@@ -99,15 +101,15 @@ TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same_upper_da
     auto offsets = make_shared<Parameter>(et, offsets_pshape);
     auto filters = make_shared<Parameter>(et, filters_pshape);
     auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                      offsets,
-                                                                      filters,
-                                                                      strides,
-                                                                      pads_begin,
-                                                                      pads_end,
-                                                                      dilations,
-                                                                      auto_pad,
-                                                                      group,
-                                                                      deformable_group);
+                                                              offsets,
+                                                              filters,
+                                                              strides,
+                                                              pads_begin,
+                                                              pads_end,
+                                                              dilations,
+                                                              auto_pad,
+                                                              group,
+                                                              deformable_group);
 
     ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(PartialShape{1, 4, 5, 5}));
     ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{0, 0}));
@@ -133,15 +135,15 @@ TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same_spatial_
     auto offsets = make_shared<Parameter>(et, offsets_pshape);
     auto filters = make_shared<Parameter>(et, filters_pshape);
     auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                      offsets,
-                                                                      filters,
-                                                                      strides,
-                                                                      pads_begin,
-                                                                      pads_end,
-                                                                      dilations,
-                                                                      auto_pad,
-                                                                      group,
-                                                                      deformable_group);
+                                                              offsets,
+                                                              filters,
+                                                              strides,
+                                                              pads_begin,
+                                                              pads_end,
+                                                              dilations,
+                                                              auto_pad,
+                                                              group,
+                                                              deformable_group);
 
     ASSERT_TRUE(
         deformable_conv->get_output_partial_shape(0).same_scheme({1, 4, Dimension::dynamic(), 5}));
@@ -164,15 +166,15 @@ TEST(type_prop, deformable_convolution_opset8_data_batch_dynamic)
     auto offsets = make_shared<Parameter>(et, offsets_pshape);
     auto filters = make_shared<Parameter>(et, filters_pshape);
     auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                      offsets,
-                                                                      filters,
-                                                                      Strides{},
-                                                                      CoordinateDiff{},
-                                                                      CoordinateDiff{},
-                                                                      Strides{},
-                                                                      auto_pad,
-                                                                      group,
-                                                                      deformable_group);
+                                                              offsets,
+                                                              filters,
+                                                              Strides{},
+                                                              CoordinateDiff{},
+                                                              CoordinateDiff{},
+                                                              Strides{},
+                                                              auto_pad,
+                                                              group,
+                                                              deformable_group);
 
     ASSERT_EQ(deformable_conv->get_auto_pad(), op::PadType::EXPLICIT);
     ASSERT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
@@ -198,15 +200,15 @@ TEST(type_prop, deformable_convolution_opset8_offsets_dynamic)
     auto offsets = make_shared<Parameter>(et, offsets_pshape);
     auto filters = make_shared<Parameter>(et, filters_pshape);
     auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                      offsets,
-                                                                      filters,
-                                                                      Strides{},
-                                                                      CoordinateDiff{},
-                                                                      CoordinateDiff{},
-                                                                      Strides{},
-                                                                      auto_pad,
-                                                                      group,
-                                                                      deformable_group);
+                                                              offsets,
+                                                              filters,
+                                                              Strides{},
+                                                              CoordinateDiff{},
+                                                              CoordinateDiff{},
+                                                              Strides{},
+                                                              auto_pad,
+                                                              group,
+                                                              deformable_group);
 
     ASSERT_EQ(deformable_conv->get_auto_pad(), op::PadType::SAME_LOWER);
     ASSERT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
@@ -231,15 +233,15 @@ TEST(type_prop, deformable_convolution_opset8_auto_pad_same_filters_dynamic)
     auto offsets = make_shared<Parameter>(et, offsets_pshape);
     auto filters = make_shared<Parameter>(et, filters_pshape);
     auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                      offsets,
-                                                                      filters,
-                                                                      Strides{},
-                                                                      CoordinateDiff{},
-                                                                      CoordinateDiff{},
-                                                                      Strides{},
-                                                                      auto_pad,
-                                                                      group,
-                                                                      deformable_group);
+                                                              offsets,
+                                                              filters,
+                                                              Strides{},
+                                                              CoordinateDiff{},
+                                                              CoordinateDiff{},
+                                                              Strides{},
+                                                              auto_pad,
+                                                              group,
+                                                              deformable_group);
 
     ASSERT_EQ(deformable_conv->get_auto_pad(), op::PadType::SAME_UPPER);
     ASSERT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
@@ -265,15 +267,15 @@ TEST(type_prop, deformable_convolution_opset8_deformable_data_batch_and_filters_
     auto offsets = make_shared<Parameter>(et, offsets_pshape);
     auto filters = make_shared<Parameter>(et, filters_pshape);
     auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                      offsets,
-                                                                      filters,
-                                                                      Strides{},
-                                                                      CoordinateDiff{},
-                                                                      CoordinateDiff{},
-                                                                      Strides{},
-                                                                      auto_pad,
-                                                                      group,
-                                                                      deformable_group);
+                                                              offsets,
+                                                              filters,
+                                                              Strides{},
+                                                              CoordinateDiff{},
+                                                              CoordinateDiff{},
+                                                              Strides{},
+                                                              auto_pad,
+                                                              group,
+                                                              deformable_group);
 
     ASSERT_EQ(deformable_conv->get_auto_pad(), op::PadType::EXPLICIT);
     ASSERT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
@@ -297,15 +299,15 @@ TEST(type_prop, deformable_convolution_opset8_deformable_all_inputs_dynamic)
     auto offsets = make_shared<Parameter>(et, dyn_pshape);
     auto filters = make_shared<Parameter>(et, dyn_pshape);
     auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                      offsets,
-                                                                      filters,
-                                                                      Strides{},
-                                                                      CoordinateDiff{},
-                                                                      CoordinateDiff{},
-                                                                      Strides{},
-                                                                      auto_pad,
-                                                                      group,
-                                                                      deformable_group);
+                                                              offsets,
+                                                              filters,
+                                                              Strides{},
+                                                              CoordinateDiff{},
+                                                              CoordinateDiff{},
+                                                              Strides{},
+                                                              auto_pad,
+                                                              group,
+                                                              deformable_group);
 
     ASSERT_EQ(deformable_conv->get_auto_pad(), op::PadType::EXPLICIT);
     ASSERT_EQ(deformable_conv->get_strides(), (Strides{}));
@@ -329,13 +331,8 @@ TEST(type_prop, deformable_convolution_opset8_invalid_et_inputs)
         auto data_batch = make_shared<Parameter>(element::f16, data_batch_pshape);
         auto offsets = make_shared<Parameter>(float_et, offsets_pshape);
         auto filters = make_shared<Parameter>(float_et, filters_pshape);
-        auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // data batch input must be of same element type as filters and deformable values
         FAIL() << "Invalid element type of inputs not detected";
     }
@@ -355,19 +352,15 @@ TEST(type_prop, deformable_convolution_opset8_invalid_et_inputs)
         auto data_batch = make_shared<Parameter>(float_et, data_batch_pshape);
         auto offsets = make_shared<Parameter>(float_et, offsets_pshape);
         auto filters = make_shared<Parameter>(element::f16, filters_pshape);
-        auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // filters input must be of same element type as data batch and deformable values
         FAIL() << "Invalid element type of inputs not detected";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Element types of inputs do not match. Got: "
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Element types of inputs do not match. Got: "
                              "data batch (f32), offsets (f32) and filters (f16)");
     }
     catch (...)
@@ -380,13 +373,8 @@ TEST(type_prop, deformable_convolution_opset8_invalid_et_inputs)
         auto data_batch = make_shared<Parameter>(float_et, data_batch_pshape);
         auto offsets = make_shared<Parameter>(element::f16, offsets_pshape);
         auto filters = make_shared<Parameter>(float_et, filters_pshape);
-        auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // deformable values input must be of same element type as data batch and filters
         FAIL() << "Invalid element type of inputs not detected";
     }
@@ -406,13 +394,8 @@ TEST(type_prop, deformable_convolution_opset8_invalid_et_inputs)
         auto data_batch = make_shared<Parameter>(boolean_et, data_batch_pshape);
         auto offsets = make_shared<Parameter>(boolean_et, offsets_pshape);
         auto filters = make_shared<Parameter>(boolean_et, filters_pshape);
-        auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // element types for inputs must be numeric
         FAIL() << "Invalid boolean element type of inputs not detected";
     }
@@ -441,19 +424,15 @@ TEST(type_prop, deformable_convolution_opset8_invalid_input_ranks)
         auto data_batch = make_shared<Parameter>(et, data_batch_pshape);
         auto offsets = make_shared<Parameter>(et, offsets_pshape);
         auto filters = make_shared<Parameter>(et, filters_pshape);
-        auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // data batch has invalid rank 5, should be 4
         FAIL() << "Incompatible data batch input rank not detected";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Ranks of inputs do not match. Got: data batch "
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Ranks of inputs do not match. Got: data batch "
                              "shape {1,4,5,5,5}, offsets shape {1,4,4,4}, filters "
                              "shape {4,4,3,3}");
     }
@@ -472,19 +451,15 @@ TEST(type_prop, deformable_convolution_opset8_invalid_input_ranks)
         auto data_batch = make_shared<Parameter>(et, data_batch_pshape);
         auto offsets = make_shared<Parameter>(et, offsets_pshape);
         auto filters = make_shared<Parameter>(et, filters_pshape);
-        auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // deformable values has invalid rank 5, should be 4
         FAIL() << "Incompatible offsets input rank not detected";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Ranks of inputs do not match. Got: data batch shape "
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Ranks of inputs do not match. Got: data batch shape "
                              "{1,4,5,5}, offsets shape {1,4,4,4,4}, filters shape "
                              "{4,4,3,3}");
     }
@@ -503,19 +478,15 @@ TEST(type_prop, deformable_convolution_opset8_invalid_input_ranks)
         auto data_batch = make_shared<Parameter>(et, data_batch_pshape);
         auto offsets = make_shared<Parameter>(et, offsets_pshape);
         auto filters = make_shared<Parameter>(et, filters_pshape);
-        auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // filters has invalid rank 5, should be 4
         FAIL() << "Incompatible filter input rank not detected";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Ranks of inputs do not match. Got: data batch shape "
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Ranks of inputs do not match. Got: data batch shape "
                              "{1,4,5,5}, offsets shape {1,4,4,4}, filters shape "
                              "{4,4,3,3,3}");
     }
@@ -534,13 +505,8 @@ TEST(type_prop, deformable_convolution_opset8_invalid_input_ranks)
         auto data_batch = make_shared<Parameter>(et, data_batch_pshape);
         auto offsets = make_shared<Parameter>(et, offsets_pshape);
         auto filters = make_shared<Parameter>(et, filters_pshape);
-        auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // inputs have rank 5, should be 4
         FAIL() << "Incompatible input ranks not detected";
     }
@@ -550,7 +516,8 @@ TEST(type_prop, deformable_convolution_opset8_invalid_input_ranks)
     }
     catch (...)
     {
-        FAIL() << "Rank validation check for 2 spatial dimension inputs failed for unexpected reason";
+        FAIL()
+            << "Rank validation check for 2 spatial dimension inputs failed for unexpected reason";
     }
 
     // 1D deformable convolution (not supported)
@@ -563,13 +530,8 @@ TEST(type_prop, deformable_convolution_opset8_invalid_input_ranks)
         auto data_batch = make_shared<Parameter>(et, data_batch_pshape);
         auto offsets = make_shared<Parameter>(et, offsets_pshape);
         auto filters = make_shared<Parameter>(et, filters_pshape);
-        auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // inputs have rank 3, should be 4
         FAIL() << "Incompatible input ranks not detected";
     }
@@ -579,7 +541,8 @@ TEST(type_prop, deformable_convolution_opset8_invalid_input_ranks)
     }
     catch (...)
     {
-        FAIL() << "Rank validation check for 2 spatial dimension inputs failed for unexpected reason";
+        FAIL()
+            << "Rank validation check for 2 spatial dimension inputs failed for unexpected reason";
     }
 }
 
@@ -605,15 +568,15 @@ TEST(type_prop, deformable_convolution_opset8_invalid_groups)
     try
     {
         auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          strides,
-                                                                          pads_begin,
-                                                                          pads_end,
-                                                                          dilations,
-                                                                          auto_pad,
-                                                                          group,
-                                                                          deformable_group);
+                                                                  offsets,
+                                                                  filters,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations,
+                                                                  auto_pad,
+                                                                  group,
+                                                                  deformable_group);
         // attribute group is invalid
         FAIL() << "Invalid attribute group value not detected";
     }
@@ -650,15 +613,15 @@ TEST(type_prop, deformable_convolution_opset8_invalid_deformable_groups)
     try
     {
         auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          strides,
-                                                                          pads_begin,
-                                                                          pads_end,
-                                                                          dilations,
-                                                                          auto_pad,
-                                                                          group,
-                                                                          deformable_group);
+                                                                  offsets,
+                                                                  filters,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations,
+                                                                  auto_pad,
+                                                                  group,
+                                                                  deformable_group);
         // attribute deformable group is invalid
         FAIL() << "Invalid attribute deformable group value not detected";
     }
@@ -695,15 +658,15 @@ TEST(type_prop, deformable_convolution_opset8_invalid_offsets_channels_dim)
         auto offsets = make_shared<Parameter>(et, offsets_pshape);
         auto filters = make_shared<Parameter>(et, filters_pshape);
         auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          strides,
-                                                                          pads_begin,
-                                                                          pads_end,
-                                                                          dilations,
-                                                                          auto_pad,
-                                                                          group,
-                                                                          deformable_group);
+                                                                  offsets,
+                                                                  filters,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations,
+                                                                  auto_pad,
+                                                                  group,
+                                                                  deformable_group);
         // Channels dim of deformable values is incorrect. Should be 36
         FAIL() << "Invalid channels dimension of offsets input not detected";
     }
@@ -742,15 +705,15 @@ TEST(type_prop, deformable_convolution_opset8_invalid_offsets_channels_dim)
         auto offsets = make_shared<Parameter>(et, offsets_pshape);
         auto filters = make_shared<Parameter>(et, filters_pshape);
         auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          strides,
-                                                                          pads_begin,
-                                                                          pads_end,
-                                                                          dilations,
-                                                                          auto_pad,
-                                                                          group,
-                                                                          deformable_group);
+                                                                  offsets,
+                                                                  filters,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations,
+                                                                  auto_pad,
+                                                                  group,
+                                                                  deformable_group);
         // Channels dim of deformable values is incorrect
         FAIL() << "Invalid channels dimension of offsets input not detected";
     }
@@ -790,15 +753,15 @@ TEST(type_prop, deformable_convolution_opset8_invalid_offsets_batch_dim)
     try
     {
         auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          strides,
-                                                                          pads_begin,
-                                                                          pads_end,
-                                                                          dilations,
-                                                                          auto_pad,
-                                                                          group,
-                                                                          deformable_group);
+                                                                  offsets,
+                                                                  filters,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations,
+                                                                  auto_pad,
+                                                                  group,
+                                                                  deformable_group);
         // data batch and deformable values inputs must have the same batch dimension
         FAIL() << "Invalid batch dimension of offsets input not detected";
     }
@@ -809,9 +772,8 @@ TEST(type_prop, deformable_convolution_opset8_invalid_offsets_batch_dim)
     }
     catch (...)
     {
-        FAIL()
-            << "Batch dimension of offsets input validation check failed for unexpected "
-               "reason.";
+        FAIL() << "Batch dimension of offsets input validation check failed for unexpected "
+                  "reason.";
     }
 }
 
@@ -837,15 +799,15 @@ TEST(type_prop, deformable_convolution_opset8_invalid_data_batch_channels_dim_wi
     try
     {
         auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          strides,
-                                                                          pads_begin,
-                                                                          pads_end,
-                                                                          dilations,
-                                                                          auto_pad,
-                                                                          group,
-                                                                          deformable_group);
+                                                                  offsets,
+                                                                  filters,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations,
+                                                                  auto_pad,
+                                                                  group,
+                                                                  deformable_group);
         // data batch channels is not evenly divisible by the attribute group value
         FAIL() << "Invalid channels dimension of data batch input not detected";
     }
@@ -884,15 +846,15 @@ TEST(type_prop, deformable_convolution_opset8_invalid_filters_channels_dim_with_
     try
     {
         auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          strides,
-                                                                          pads_begin,
-                                                                          pads_end,
-                                                                          dilations,
-                                                                          auto_pad,
-                                                                          group,
-                                                                          deformable_group);
+                                                                  offsets,
+                                                                  filters,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations,
+                                                                  auto_pad,
+                                                                  group,
+                                                                  deformable_group);
         // filters channels output is not evenly divisible by the attribute group value
         FAIL() << "Invalid channels output dimension of filters input not detected";
     }
@@ -932,15 +894,15 @@ TEST(type_prop, deformable_convolution_opset8_incompatible_data_batch_and_filter
     try
     {
         auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          strides,
-                                                                          pads_begin,
-                                                                          pads_end,
-                                                                          dilations,
-                                                                          auto_pad,
-                                                                          group,
-                                                                          deformable_group);
+                                                                  offsets,
+                                                                  filters,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations,
+                                                                  auto_pad,
+                                                                  group,
+                                                                  deformable_group);
         // data batch and filters should have same channels input dimension
         FAIL() << "Incompatible channels dimension of data batch and filters input not detected";
     }
@@ -980,21 +942,22 @@ TEST(type_prop, deformable_convolution_opset8_invalid_offsets_spatial_dims)
     try
     {
         auto deformable_conv = make_shared<DeformableConvolution>(data_batch,
-                                                                      offsets,
-                                                                      filters,
-                                                                      strides,
-                                                                      pads_begin,
-                                                                      pads_end,
-                                                                      dilations,
-                                                                      auto_pad,
-                                                                      group,
-                                                                      deformable_group);
+                                                                  offsets,
+                                                                  filters,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations,
+                                                                  auto_pad,
+                                                                  group,
+                                                                  deformable_group);
         // deformable values has incorrect spatial dimensions
         FAIL() << "Invalid spatial dimensions of offsets not detected";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Spatial dimensions of offsets and output must be equal");
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Spatial dimensions of offsets and output must be equal");
     }
     catch (...)
     {
@@ -1381,9 +1344,8 @@ TEST(type_prop, deformable_convolution_opset8_invalid_mask_batch_dim)
     }
     catch (...)
     {
-        FAIL()
-                        << "Batch dimension of mask input validation check failed for unexpected "
-                           "reason.";
+        FAIL() << "Batch dimension of mask input validation check failed for unexpected "
+                  "reason.";
     }
 }
 

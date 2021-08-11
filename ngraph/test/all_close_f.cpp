@@ -16,7 +16,7 @@
 #include "util/float_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 class all_close_f_param_test : public testing::TestWithParam<::std::tuple<float, int>>
 {

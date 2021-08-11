@@ -6,8 +6,8 @@
 #include "frontend_manager/frontend_manager.hpp"
 #include "frontend_manager/frontend_manager_defs.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 extern "C" MOCK_API FrontEndVersion GetAPIVersion()
 {

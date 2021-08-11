@@ -10,8 +10,8 @@
 #include "util/visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, shuffle_channels_op)
 {

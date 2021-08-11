@@ -8,7 +8,7 @@
 
 #include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -42,4 +42,4 @@ namespace ngraph
         } // namespace v3
         using v3::Asinh;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

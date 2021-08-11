@@ -8,7 +8,7 @@
 
 #include "ngraph/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -23,7 +23,7 @@ namespace ngraph
             /// \param[in]  input        Vector with RNNSequence-like op inputs in following order:
             ///                          X, initial_hidden_state, sequence_lengths, W, R and B.
             ///
-            void validate_seq_input_rank_dimension(const std::vector<ngraph::PartialShape>& input);
+            void validate_seq_input_rank_dimension(const std::vector<ov::PartialShape>& input);
         } // namespace util
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

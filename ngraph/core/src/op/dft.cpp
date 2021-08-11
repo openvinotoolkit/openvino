@@ -28,7 +28,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v7::DFT, "DFT", 7, util::FFTBase);
 

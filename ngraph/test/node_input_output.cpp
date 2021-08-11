@@ -13,7 +13,7 @@
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 TEST(node_input_output, input_create)

@@ -6,7 +6,7 @@
 #include "itt.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::util::UnaryElementwiseArithmetic, "UnaryElementwiseArithmetic", 0);
 

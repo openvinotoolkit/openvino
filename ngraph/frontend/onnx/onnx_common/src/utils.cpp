@@ -8,7 +8,7 @@
 #include "ngraph/except.hpp"
 #include "onnx_common/utils.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_common
     {
@@ -111,4 +111,4 @@ namespace ngraph
         }
 
     } // namespace onnx_common
-} // namespace ngraph
+} // namespace ov

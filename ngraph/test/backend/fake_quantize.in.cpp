@@ -26,7 +26,7 @@
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 static std::string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});

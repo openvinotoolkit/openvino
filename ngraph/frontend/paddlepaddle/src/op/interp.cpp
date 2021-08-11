@@ -5,7 +5,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -13,10 +13,10 @@ namespace ngraph
         {
             namespace op
             {
-                std::shared_ptr<ngraph::Node>
-                    calculate_output_shape_based_on_scales(const Output<ngraph::Node>& data,
+                std::shared_ptr<ov::Node>
+                    calculate_output_shape_based_on_scales(const Output<ov::Node>& data,
                                                            const std::vector<float>& scale,
-                                                           Output<ngraph::Node>& scales)
+                                                           Output<ov::Node>& scales)
                 {
                     FRONT_END_GENERAL_CHECK(scale.size() > 0);
                     if (scale.size() == 1)
@@ -37,32 +37,31 @@ namespace ngraph
                         std::make_shared<opset6::ShapeOf>(data), scales.get_element_type());
                     const auto multiply = std::make_shared<opset6::Multiply>(shape_of_data, scales);
                     const auto output_shape =
-                        std::make_shared<opset6::Convert>(multiply, ngraph::element::i64);
+                        std::make_shared<opset6::Convert>(multiply, ov::element::i64);
 
                     return output_shape;
                 }
 
-                std::shared_ptr<ngraph::Node>
-                    calculate_scales_based_on_sizes(const Output<ngraph::Node>& data,
-                                                    const Output<ngraph::Node>& sizes)
+                std::shared_ptr<ov::Node>
+                    calculate_scales_based_on_sizes(const Output<ov::Node>& data,
+                                                    const Output<ov::Node>& sizes)
                 {
                     const float epsilon = 1.0e-5;
                     const auto shape_of_data = std::make_shared<opset6::Convert>(
-                        std::make_shared<opset6::ShapeOf>(data), ngraph::element::f32);
+                        std::make_shared<opset6::ShapeOf>(data), ov::element::f32);
                     const auto converted_sizes =
-                        std::make_shared<opset6::Convert>(sizes, ngraph::element::f32);
+                        std::make_shared<opset6::Convert>(sizes, ov::element::f32);
                     const auto divide =
                         std::make_shared<opset6::Divide>(converted_sizes, shape_of_data);
                     const auto eps_node =
-                        std::make_shared<opset6::Constant>(ngraph::element::f32, Shape{}, epsilon);
+                        std::make_shared<opset6::Constant>(ov::element::f32, Shape{}, epsilon);
                     const auto scales = std::make_shared<opset6::Add>(divide, eps_node);
 
                     return scales;
                 }
 
-                std::shared_ptr<ngraph::Node>
-                    extract_out_sizes(const Output<ngraph::Node>& data,
-                                      const std::vector<int64_t>& out_sizes)
+                std::shared_ptr<ov::Node> extract_out_sizes(const Output<ov::Node>& data,
+                                                            const std::vector<int64_t>& out_sizes)
                 {
                     const auto shape_of_x = std::make_shared<opset6::ShapeOf>(data);
                     auto shape_begin = opset6::Constant::create(element::i64, {1}, {0});
@@ -80,15 +79,15 @@ namespace ngraph
                 // TODO support different data_layout #55170
 
                 NamedOutputs interpolate(const NodeContext& node,
-                                         const ngraph::opset6::Interpolate::InterpolateMode& mode)
+                                         const ov::opset6::Interpolate::InterpolateMode& mode)
                 {
                     auto x = node.get_ng_input("X");
-                    using InterpolateMode = ngraph::opset6::Interpolate::InterpolateMode;
+                    using InterpolateMode = ov::opset6::Interpolate::InterpolateMode;
                     using CoordinateTransformMode =
-                        ngraph::opset6::Interpolate::CoordinateTransformMode;
-                    using Nearest_mode = ngraph::opset6::Interpolate::NearestMode;
-                    using InterpolateAttrs = ngraph::opset6::Interpolate::InterpolateAttrs;
-                    using ShapeCalcMode = ngraph::opset6::Interpolate::ShapeCalcMode;
+                        ov::opset6::Interpolate::CoordinateTransformMode;
+                    using Nearest_mode = ov::opset6::Interpolate::NearestMode;
+                    using InterpolateAttrs = ov::opset6::Interpolate::InterpolateAttrs;
+                    using ShapeCalcMode = ov::opset6::Interpolate::ShapeCalcMode;
 
                     InterpolateAttrs attrs;
 
@@ -159,24 +158,24 @@ namespace ngraph
                     attrs.pads_end = {0, 0, 0, 0};
 
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Interpolate>(
+                        {std::make_shared<ov::opset6::Interpolate>(
                             x, target_spatial_shape, scales, attrs)},
                         {"Out"});
                 }
 
                 NamedOutputs bilinear_interp_v2(const NodeContext& node)
                 {
-                    auto mode = ngraph::opset6::Interpolate::InterpolateMode::linear_onnx;
+                    auto mode = ov::opset6::Interpolate::InterpolateMode::linear_onnx;
                     return interpolate(node, mode);
                 }
 
                 NamedOutputs nearest_interp_v2(const NodeContext& node)
                 {
-                    auto mode = ngraph::opset6::Interpolate::InterpolateMode::nearest;
+                    auto mode = ov::opset6::Interpolate::InterpolateMode::nearest;
                     return interpolate(node, mode);
                 }
 
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

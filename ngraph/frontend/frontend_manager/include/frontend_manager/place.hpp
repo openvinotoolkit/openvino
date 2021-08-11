@@ -9,7 +9,7 @@
 #include <vector>
 #include "frontend_manager_defs.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -315,4 +315,4 @@ namespace ngraph
             virtual bool is_equal_data(Ptr another) const;
         };
     } // namespace frontend
-} // namespace ngraph
+} // namespace ov

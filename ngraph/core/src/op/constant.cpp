@@ -14,7 +14,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 template <typename T>

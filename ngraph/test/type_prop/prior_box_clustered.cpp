@@ -4,12 +4,11 @@
 
 #include "gtest/gtest.h"
 
-#include "util/type_prop.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/prior_box_clustered.hpp"
+#include "util/type_prop.hpp"
 
-using namespace ngraph;
-
+using namespace ov;
 
 TEST(type_prop, prior_box_clustered)
 {
@@ -41,9 +40,8 @@ TEST(type_prop, prior_box_clustered_float_layer_shape)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("layer shape input must be an integral number"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("layer shape input must be an integral number"));
     }
     catch (...)
     {
@@ -68,9 +66,8 @@ TEST(type_prop, prior_box_clustered_float_image_shape)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("image shape input must be an integral number"));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("image shape input must be an integral number"));
     }
     catch (...)
     {
@@ -95,9 +92,7 @@ TEST(type_prop, prior_box_clustered_widths_heights_different)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Size of heights vector:"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Size of heights vector:"));
     }
     catch (...)
     {
@@ -122,9 +117,7 @@ TEST(type_prop, prior_box_clustered_not_rank_2)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Layer shape must have rank 2"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Layer shape must have rank 2"));
     }
     catch (...)
     {

@@ -10,11 +10,11 @@
 
 using namespace std;
 
-namespace ngraph
+namespace ov
 {
     mutex& get_registry_mutex()
     {
         static mutex registry_mutex;
         return registry_mutex;
     }
-} // namespace ngraph
+} // namespace ov

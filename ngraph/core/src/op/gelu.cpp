@@ -18,7 +18,7 @@
 #include "ngraph/runtime/reference/gelu.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -46,18 +46,18 @@ OutputVector op::Gelu::decompose_op() const
 {
     auto data = input_value(0);
 
-    shared_ptr<ngraph::Node> half =
+    shared_ptr<ov::Node> half =
         builder::make_constant(data.get_element_type(), data.get_shape(), 0.5);
 
-    shared_ptr<ngraph::Node> one =
+    shared_ptr<ov::Node> one =
         builder::make_constant(data.get_element_type(), data.get_shape(), 1.0);
 
-    shared_ptr<ngraph::Node> sqrt_two =
+    shared_ptr<ov::Node> sqrt_two =
         builder::make_constant(data.get_element_type(), data.get_shape(), std::sqrt(2.0));
 
-    shared_ptr<ngraph::Node> add = std::make_shared<op::v1::Add>(
-        one, make_shared<ngraph::op::Erf>(std::make_shared<op::v1::Divide>(data, sqrt_two)));
-    shared_ptr<ngraph::Node> multiply = std::make_shared<op::v1::Multiply>(half, data);
+    shared_ptr<ov::Node> add = std::make_shared<op::v1::Add>(
+        one, make_shared<ov::op::Erf>(std::make_shared<op::v1::Divide>(data, sqrt_two)));
+    shared_ptr<ov::Node> multiply = std::make_shared<op::v1::Multiply>(half, data);
 
     return {std::make_shared<op::v1::Multiply>(multiply, add)};
 }
@@ -88,7 +88,7 @@ void op::v0::Gelu::pre_validate_and_infer_types()
 
 // ------------------------------ V7 ------------------------------
 
-namespace ngraph
+namespace ov
 {
     template <>
     NGRAPH_API EnumNames<op::GeluApproximationMode>& EnumNames<op::GeluApproximationMode>::get()
@@ -105,7 +105,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov
 
 NGRAPH_RTTI_DEFINITION(op::v7::Gelu, "Gelu", 7);
 
@@ -196,8 +196,8 @@ bool op::v7::Gelu::has_evaluate() const
     NGRAPH_OP_SCOPE(v7_Gelu_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;

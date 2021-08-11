@@ -9,7 +9,7 @@
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace
 {

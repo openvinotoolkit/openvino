@@ -9,7 +9,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, pad_v1_arg_pad_value_type_mismatch)
 {

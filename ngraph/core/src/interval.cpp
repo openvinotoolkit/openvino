@@ -4,7 +4,7 @@
 
 #include "ngraph/interval.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace
 {
@@ -150,7 +150,7 @@ bool Interval::contains(const Interval& interval) const
 
 constexpr Interval::value_type Interval::s_max;
 
-namespace ngraph
+namespace ov
 {
     std::ostream& operator<<(std::ostream& str, const Interval& interval)
     {
@@ -166,4 +166,4 @@ namespace ngraph
         }
         return str << ")";
     }
-} // namespace ngraph
+} // namespace ov

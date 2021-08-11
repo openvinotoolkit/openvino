@@ -6,7 +6,7 @@
 
 #include "ngraph/pass/pass.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pass
     {
@@ -15,13 +15,13 @@ namespace ngraph
         /// computation graph.
         ///
         /// \details The verification and inference is done via invoking each node's specific
-        /// implementation of \link ngraph::Node::validate_and_infer_types() \endlink function.
+        /// implementation of \link ov::Node::validate_and_infer_types() \endlink function.
         ///
-        /// By default, the \ref ngraph::pass::Manager runs this pass after executing every
+        /// By default, the \ref ov::pass::Manager runs this pass after executing every
         /// optimization pass. This is to ensure that any update to the graph by an optimization
         /// pass does not break the shape and data type requirement on a computation node.
         /// This default validation run can be changed via calling the
-        /// \link ngraph::pass::Manager::set_per_pass_validation(bool) \endlink function.
+        /// \link ov::pass::Manager::set_per_pass_validation(bool) \endlink function.
         class NGRAPH_API Validate : public FunctionPass
         {
         public:
@@ -31,7 +31,7 @@ namespace ngraph
                 : FunctionPass()
             {
             }
-            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+            bool run_on_function(std::shared_ptr<ov::Function> f) override;
         };
     } // namespace pass
-} // namespace ngraph
+} // namespace ov

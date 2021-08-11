@@ -21,7 +21,7 @@
 #include <locale>
 #endif
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -41,10 +41,10 @@ namespace ngraph
             void overrideAllInputs(const std::vector<Place::Ptr>& inputs);
             void extractSubgraph(const std::vector<Place::Ptr>& inputs,
                                  const std::vector<Place::Ptr>& outputs);
-            void setDefaultShape(Place::Ptr place, const ngraph::Shape&);
-            void setPartialShape(Place::Ptr place, const ngraph::PartialShape&);
-            ngraph::PartialShape getPartialShape(Place::Ptr place) const;
-            void setElementType(Place::Ptr place, const ngraph::element::Type&);
+            void setDefaultShape(Place::Ptr place, const ov::Shape&);
+            void setPartialShape(Place::Ptr place, const ov::PartialShape&);
+            ov::PartialShape getPartialShape(Place::Ptr place) const;
+            void setElementType(Place::Ptr place, const ov::element::Type&);
             void setTensorValue(Place::Ptr place, const void* value);
 
             std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces() const;
@@ -466,26 +466,24 @@ namespace ngraph
         }
 
         void InputModelPDPD::InputModelPDPDImpl::setDefaultShape(Place::Ptr place,
-                                                                 const ngraph::Shape& shape)
+                                                                 const ov::Shape& shape)
         {
             FRONT_END_NOT_IMPLEMENTED("setDefaultShape");
         }
 
-        void
-            InputModelPDPD::InputModelPDPDImpl::setPartialShape(Place::Ptr place,
-                                                                const ngraph::PartialShape& p_shape)
+        void InputModelPDPD::InputModelPDPDImpl::setPartialShape(Place::Ptr place,
+                                                                 const ov::PartialShape& p_shape)
         {
             pdpd::castToTensorPlace(place)->set_partial_shape(p_shape);
         }
 
-        ngraph::PartialShape
-            InputModelPDPD::InputModelPDPDImpl::getPartialShape(Place::Ptr place) const
+        ov::PartialShape InputModelPDPD::InputModelPDPDImpl::getPartialShape(Place::Ptr place) const
         {
             return pdpd::castToTensorPlace(place)->get_partial_shape();
         }
 
         void InputModelPDPD::InputModelPDPDImpl::setElementType(Place::Ptr place,
-                                                                const ngraph::element::Type& type)
+                                                                const ov::element::Type& type)
         {
             pdpd::castToTensorPlace(place)->set_element_type(type);
         }
@@ -559,18 +557,17 @@ namespace ngraph
             _impl->extractSubgraph(inputs, outputs);
         }
 
-        void InputModelPDPD::set_partial_shape(Place::Ptr place,
-                                               const ngraph::PartialShape& p_shape)
+        void InputModelPDPD::set_partial_shape(Place::Ptr place, const ov::PartialShape& p_shape)
         {
             _impl->setPartialShape(place, p_shape);
         }
 
-        ngraph::PartialShape InputModelPDPD::get_partial_shape(Place::Ptr place) const
+        ov::PartialShape InputModelPDPD::get_partial_shape(Place::Ptr place) const
         {
             return _impl->getPartialShape(place);
         }
 
-        void InputModelPDPD::set_element_type(Place::Ptr place, const ngraph::element::Type& type)
+        void InputModelPDPD::set_element_type(Place::Ptr place, const ov::element::Type& type)
         {
             _impl->setElementType(place, type);
         }
@@ -581,4 +578,4 @@ namespace ngraph
         }
 
     } // namespace frontend
-} // namespace ngraph
+} // namespace ov

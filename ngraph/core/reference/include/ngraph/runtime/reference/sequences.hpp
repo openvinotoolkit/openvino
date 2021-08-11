@@ -13,7 +13,7 @@
 
 #include "reverse_sequence.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -56,7 +56,7 @@ namespace ngraph
                     return new_shape;
                 };
 
-                size_t x_shape_size = ngraph::shape_size(shapes[0]);
+                size_t x_shape_size = ov::shape_size(shapes[0]);
 
                 // split X
                 size_t num_splits = shapes[0].at(1);
@@ -98,7 +98,7 @@ namespace ngraph
                     temp_buffer.data(), shapes[0], sizeof(T), 1, num_splits, pointers.data());
 
                 Shape part_shape{batch, 1, hidden_size};
-                size_t part_shape_size = ngraph::shape_size(part_shape);
+                size_t part_shape_size = ov::shape_size(part_shape);
                 std::vector<std::vector<char>> h_list(
                     num_splits, std::vector<char>(part_shape_size * sizeof(T), 0));
                 std::vector<std::vector<char>> c_list(
@@ -106,13 +106,13 @@ namespace ngraph
 
                 // use outputs as a buffer for temporarily values
                 char* H_i = outputs[1];
-                std::memcpy(H_i, inputs[2], ngraph::shape_size(shapes[2]) * sizeof(T));
+                std::memcpy(H_i, inputs[2], ov::shape_size(shapes[2]) * sizeof(T));
 
                 char* C_i = nullptr; // LSTMCell only
                 if (type == CellType::LSTM)
                 {
                     C_i = outputs[2];
-                    std::memcpy(C_i, inputs[3], ngraph::shape_size(shapes[3]) * sizeof(T));
+                    std::memcpy(C_i, inputs[3], ov::shape_size(shapes[3]) * sizeof(T));
                 }
 
                 for (size_t time_step = 0; time_step < num_splits; ++time_step)
@@ -316,15 +316,15 @@ namespace ngraph
                     // Split bidirectional case to forward + reverse passes.
                     // split inputs
                     std::vector<std::vector<char>> H_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(H_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(H_shape) / 2));
                     std::vector<std::vector<char>> C_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(C_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(C_shape) / 2));
                     std::vector<std::vector<char>> W_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(W_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(W_shape) / 2));
                     std::vector<std::vector<char>> R_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(R_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(R_shape) / 2));
                     std::vector<std::vector<char>> B_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(B_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(B_shape) / 2));
                     char* h_pointers[2] = {H_split[0].data(), H_split[1].data()};
                     char* c_pointers[2] = {C_split[0].data(), C_split[1].data()};
                     char* w_pointers[2] = {W_split[0].data(), W_split[1].data()};
@@ -462,13 +462,13 @@ namespace ngraph
                     // Split bidirectional case to forward + reverse passes.
                     // split inputs
                     std::vector<std::vector<char>> H_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(H_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(H_shape) / 2));
                     std::vector<std::vector<char>> W_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(W_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(W_shape) / 2));
                     std::vector<std::vector<char>> R_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(R_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(R_shape) / 2));
                     std::vector<std::vector<char>> B_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(B_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(B_shape) / 2));
                     char* h_pointers[2] = {H_split[0].data(), H_split[1].data()};
                     char* w_pointers[2] = {W_split[0].data(), W_split[1].data()};
                     char* r_pointers[2] = {R_split[0].data(), R_split[1].data()};
@@ -587,13 +587,13 @@ namespace ngraph
                     // Split bidirectional case to forward + reverse passes.
                     // split inputs
                     std::vector<std::vector<char>> H_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(H_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(H_shape) / 2));
                     std::vector<std::vector<char>> W_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(W_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(W_shape) / 2));
                     std::vector<std::vector<char>> R_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(R_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(R_shape) / 2));
                     std::vector<std::vector<char>> B_split(
-                        2, std::vector<char>(sizeof(T) * ngraph::shape_size(B_shape) / 2));
+                        2, std::vector<char>(sizeof(T) * ov::shape_size(B_shape) / 2));
                     char* h_pointers[2] = {H_split[0].data(), H_split[1].data()};
                     char* w_pointers[2] = {W_split[0].data(), W_split[1].data()};
                     char* r_pointers[2] = {R_split[0].data(), R_split[1].data()};
@@ -669,4 +669,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

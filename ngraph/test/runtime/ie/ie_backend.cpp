@@ -14,7 +14,7 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 runtime::ie::IE_Backend::IE_Backend(const string& configuration_string)
 {

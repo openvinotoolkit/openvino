@@ -17,7 +17,7 @@ namespace ONNX_NAMESPACE
     class GraphProto;
 } // namespace ONNX_NAMESPACE
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_editor
     {
@@ -131,4 +131,4 @@ namespace ngraph
             std::multimap<std::string, int> m_output_consumers_index;
         };
     } // namespace onnx_editor
-} // namespace ngraph
+} // namespace ov

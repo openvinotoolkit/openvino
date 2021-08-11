@@ -13,7 +13,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -74,12 +74,12 @@ NGRAPH_TEST(${BACKEND_NAME}, transpose_axes_constant)
     auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
     auto axes_const = op::Constant::create(element::i64, axes_shape, {2, 3, 0, 1});
     auto transpose = make_shared<op::Transpose>(data_param, axes_const);
-    auto function = make_shared<ngraph::Function>(NodeVector{transpose}, ParameterVector{data_param});
+    auto function = make_shared<ov::Function>(NodeVector{transpose}, ParameterVector{data_param});
 
     std::vector<float> data(shape_size(data_shape));
     std::iota(data.begin(), data.end(), 1);
-    std::vector<float> expected_result{ 1, 13,  2, 14,  3, 15,  4, 16,  5, 17,  6, 18,  7, 19,  8, 20,  9,
-       21, 10, 22, 11, 23, 12, 24};
+    std::vector<float> expected_result{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                                       7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24};
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>(data_shape, data);
@@ -96,12 +96,12 @@ NGRAPH_TEST(${BACKEND_NAME}, transpose_axes_empty_constant)
     auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
     auto axes_const = op::Constant::create(element::i64, axes_shape, std::vector<int>{});
     auto transpose = make_shared<op::Transpose>(data_param, axes_const);
-    auto function = make_shared<ngraph::Function>(NodeVector{transpose}, ParameterVector{data_param});
+    auto function = make_shared<ov::Function>(NodeVector{transpose}, ParameterVector{data_param});
 
     std::vector<float> data(shape_size(data_shape));
     std::iota(data.begin(), data.end(), 1);
-    std::vector<float> expected_result{ 1, 13,  5, 17,  9, 21,  2, 14,  6, 18, 10, 22,  3, 15,  7, 19, 11,
-       23,  4, 16,  8, 20, 12, 24};
+    std::vector<float> expected_result{1, 13, 5, 17, 9,  21, 2, 14, 6, 18, 10, 22,
+                                       3, 15, 7, 19, 11, 23, 4, 16, 8, 20, 12, 24};
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>(data_shape, data);
     test_case.add_expected_output<float>(output_shape, expected_result);
@@ -118,14 +118,15 @@ NGRAPH_TEST(${BACKEND_NAME}, transpose_axes_parameter_static_shapes)
     auto axes_param = make_shared<op::Parameter>(element::i32, axes_shape);
 
     auto transpose = make_shared<op::Transpose>(data_param, axes_param);
-    auto function = make_shared<ngraph::Function>(NodeVector{transpose}, ParameterVector{data_param, axes_param});
+    auto function =
+        make_shared<ov::Function>(NodeVector{transpose}, ParameterVector{data_param, axes_param});
 
     std::vector<float> data(shape_size(data_shape));
     std::iota(data.begin(), data.end(), 1);
 
     std::vector<int> axes{2, 3, 0, 1};
-    std::vector<float> expected_result{ 1, 13,  2, 14,  3, 15,  4, 16,  5, 17,  6, 18,  7, 19,  8, 20,  9,
-       21, 10, 22, 11, 23, 12, 24};
+    std::vector<float> expected_result{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                                       7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     test_case.add_input<float>(data_shape, data);
@@ -144,14 +145,15 @@ NGRAPH_TEST(${BACKEND_NAME}, transpose_axes_parameter_dynamic_shapes)
     auto axes_param = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
 
     auto transpose = make_shared<op::Transpose>(data_param, axes_param);
-    auto function = make_shared<ngraph::Function>(NodeVector{transpose}, ParameterVector{data_param, axes_param});
+    auto function =
+        make_shared<ov::Function>(NodeVector{transpose}, ParameterVector{data_param, axes_param});
 
     std::vector<float> data(shape_size(data_shape));
     std::iota(data.begin(), data.end(), 1);
 
     std::vector<int> axes{2, 3, 0, 1};
-    std::vector<float> expected_result{ 1, 13,  2, 14,  3, 15,  4, 16,  5, 17,  6, 18,  7, 19,  8, 20,  9,
-       21, 10, 22, 11, 23, 12, 24};
+    std::vector<float> expected_result{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                                       7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     test_case.add_input<float>(data_shape, data);
@@ -169,12 +171,12 @@ NGRAPH_TEST(${BACKEND_NAME}, transpose_int_data_axes_constant)
     auto data_param = make_shared<op::Parameter>(element::i32, data_shape);
     auto axes_const = op::Constant::create(element::i64, axes_shape, {2, 3, 0, 1});
     auto transpose = make_shared<op::Transpose>(data_param, axes_const);
-    auto function = make_shared<ngraph::Function>(NodeVector{transpose}, ParameterVector{data_param});
+    auto function = make_shared<ov::Function>(NodeVector{transpose}, ParameterVector{data_param});
 
     std::vector<int32_t> data(shape_size(data_shape));
     std::iota(data.begin(), data.end(), 1);
-    std::vector<int32_t> expected_result{ 1, 13,  2, 14,  3, 15,  4, 16,  5, 17,  6, 18,  7, 19,  8, 20,  9,
-       21, 10, 22, 11, 23, 12, 24};
+    std::vector<int32_t> expected_result{1, 13, 2, 14, 3, 15, 4,  16, 5,  17, 6,  18,
+                                         7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24};
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<int32_t>(data_shape, data);

@@ -15,7 +15,7 @@
 
 #include "ngraph/op/util/recurrent_sequence.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -339,7 +339,7 @@ shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
 void op::v0::LSTMSequence::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_LSTMSequence_validate_and_infer_types);
-    std::vector<ngraph::PartialShape> input_param{};
+    std::vector<ov::PartialShape> input_param{};
 
     auto lstm_seq_gates_count = 4;
     auto lstm_seq_peepholes_count = 3;
@@ -369,7 +369,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     const auto& b_pshape = get_input_partial_shape(6);
     const auto& p_pshape = get_input_partial_shape(7);
 
-    ngraph::op::util::validate_seq_input_rank_dimension(input_param);
+    ov::op::util::validate_seq_input_rank_dimension(input_param);
 
     // Validate rank and dimension for initial_cell_state input
     NODE_VALIDATION_CHECK(this,
@@ -497,7 +497,7 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     set_output_type(2, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
 }
 
-bool ngraph::op::v5::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v5::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v5_LSTMSequence_visit_attributes);
     visitor.on_attribute("direction", m_direction);
@@ -543,7 +543,7 @@ void op::v5::LSTMSequence::validate_and_infer_types()
             return;
         }
     }
-    std::vector<ngraph::PartialShape> input_param{};
+    std::vector<ov::PartialShape> input_param{};
 
     auto lstm_seq_gates_count = 4;
     auto merged_batch_size = Dimension::dynamic();
@@ -570,7 +570,7 @@ void op::v5::LSTMSequence::validate_and_infer_types()
     const auto& r_pshape = get_input_partial_shape(5);
     const auto& b_pshape = get_input_partial_shape(6);
 
-    ngraph::op::util::validate_seq_input_rank_dimension(input_param);
+    ov::op::util::validate_seq_input_rank_dimension(input_param);
 
     // Validate rank and dimension for initial_cell_state input
     NODE_VALIDATION_CHECK(this,

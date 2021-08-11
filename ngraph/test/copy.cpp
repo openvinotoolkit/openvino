@@ -13,7 +13,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 template <typename OP>
 bool check_unary()
@@ -395,21 +395,20 @@ TEST(copy, loop)
     auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
     auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
     auto body_condition =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+        std::make_shared<ov::opset5::Constant>(ov::element::boolean, ov::Shape{}, true);
 
-    auto trip_count =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
+    auto trip_count = std::make_shared<ov::opset5::Constant>(ov::element::i64, ov::Shape{}, 10);
     auto exec_condition =
-        std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+        std::make_shared<ov::opset5::Constant>(ov::element::boolean, ov::Shape{}, true);
     // Body
-    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
-    auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
-    auto body = make_shared<ngraph::Function>(OutputVector{Zo, body_condition},
-                                              ParameterVector{Xi, current_iteration, Yi, M_body});
+    auto sum = make_shared<ov::opset5::Add>(Xi, Yi);
+    auto Zo = make_shared<ov::opset5::Multiply>(sum, M_body);
+    auto body = make_shared<ov::Function>(OutputVector{Zo, body_condition},
+                                          ParameterVector{Xi, current_iteration, Yi, M_body});
 
     auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
+    loop->set_special_body_ports(ov::opset5::Loop::SpecialBodyPorts{1, 1});
 
     loop->set_invariant_input(Xi, X);
     loop->set_invariant_input(Yi, Y);

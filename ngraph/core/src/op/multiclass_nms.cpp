@@ -14,7 +14,7 @@
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v8::MulticlassNms, "MulticlassNms", 8, op::util::NmsBase);
 
@@ -58,7 +58,7 @@ void op::v8::MulticlassNms::validate()
                           m_attrs.nms_eta);
 }
 
-bool ngraph::op::v8::MulticlassNms::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v8::MulticlassNms::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v8_MulticlassNms_visit_attributes);
 

@@ -13,7 +13,7 @@
 #include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -99,4 +99,4 @@ namespace ngraph
             "AttributeAdapter<op::v5::Loop::SpecialBodyPorts>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

@@ -9,8 +9,8 @@
 #include "paddle_utils.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 TEST(FrontEndConvertModelTest, test_unsupported_op)
 {
@@ -24,7 +24,7 @@ TEST(FrontEndConvertModelTest, test_unsupported_op)
         std::string("relu_unsupported/relu_unsupported.pdmodel"));
     ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     ASSERT_THROW(function = frontEnd->convert(inputModel), OpConversionFailure);
     ASSERT_EQ(function, nullptr);
     ASSERT_NO_THROW(function = frontEnd->decode(inputModel));

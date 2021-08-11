@@ -39,7 +39,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 using Attrs = op::v6::ExperimentalDetectronPriorGridGenerator::Attributes;
 using GridGenerator = op::v6::ExperimentalDetectronPriorGridGenerator;

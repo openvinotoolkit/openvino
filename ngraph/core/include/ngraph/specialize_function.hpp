@@ -6,7 +6,7 @@
 
 #include "ngraph/function.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// \brief Creates a "specialized" clone of a function. The partial shapes and element types of
     ///        the function's parameters may be narrowed to more specific shapes and element types,
@@ -98,4 +98,4 @@ namespace ngraph
                             const std::vector<element::Type>& parameter_element_types,
                             const std::vector<PartialShape>& parameter_shapes,
                             const std::vector<void*>& parameter_values);
-} // namespace ngraph
+} // namespace ov

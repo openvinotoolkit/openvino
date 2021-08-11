@@ -6,7 +6,7 @@
 
 #include "ngraph/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -16,4 +16,4 @@ namespace ngraph
                 Node* node, const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
         }
     } // namespace op
-} // namespace ngraph
+} // namespace ov

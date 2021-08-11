@@ -5,8 +5,7 @@
 #include "logical_ops.hpp"
 #include "util/type_prop.hpp"
 
-using Type =
-    ::testing::Types<LogicalOperatorType<ngraph::op::v1::LogicalOr, ngraph::element::boolean>>;
+using Type = ::testing::Types<LogicalOperatorType<ov::op::v1::LogicalOr, ov::element::boolean>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(Type_prop_test,
                                LogicalOperatorTypeProp,

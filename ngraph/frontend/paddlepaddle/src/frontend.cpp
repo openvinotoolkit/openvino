@@ -24,11 +24,11 @@
 #include "pdpd_fw_node.hpp"
 #include "pdpd_utils.hpp"
 
-using namespace ngraph::opset7;
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::opset7;
+using namespace ov;
+using namespace ov::frontend;
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -92,7 +92,7 @@ namespace ngraph
                     }
                 }
 
-                auto node = std::make_shared<ngraph::frontend::PDPDFrameworkNode>(
+                auto node = std::make_shared<ov::frontend::PDPDFrameworkNode>(
                     DecoderPDPDProto(op_place), inputs_vector, inputs_names);
 
                 return node->return_named_outputs();
@@ -239,7 +239,7 @@ namespace ngraph
                 result_nodes.push_back(result);
             }
 
-            return std::make_shared<ngraph::Function>(result_nodes, parameter_nodes);
+            return std::make_shared<ov::Function>(result_nodes, parameter_nodes);
         }
 
         bool FrontEndPDPD::supported_impl(
@@ -339,7 +339,7 @@ namespace ngraph
             PDPD_THROW("Model can be loaded either from 1 or 2 files/streams");
         }
 
-        std::shared_ptr<ngraph::Function> FrontEndPDPD::convert(InputModel::Ptr model) const
+        std::shared_ptr<ov::Function> FrontEndPDPD::convert(InputModel::Ptr model) const
         {
             auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
             std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
@@ -352,7 +352,7 @@ namespace ngraph
             return f;
         }
 
-        void FrontEndPDPD::convert(std::shared_ptr<ngraph::Function> partiallyConverted) const
+        void FrontEndPDPD::convert(std::shared_ptr<ov::Function> partiallyConverted) const
         {
             for (const auto& node : partiallyConverted->get_ordered_ops())
             {
@@ -369,8 +369,7 @@ namespace ngraph
             }
         }
 
-        std::shared_ptr<ngraph::Function>
-            FrontEndPDPD::convert_partially(InputModel::Ptr model) const
+        std::shared_ptr<ov::Function> FrontEndPDPD::convert_partially(InputModel::Ptr model) const
         {
             auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
             std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
@@ -392,7 +391,7 @@ namespace ngraph
             return f;
         }
 
-        std::shared_ptr<ngraph::Function> FrontEndPDPD::decode(InputModel::Ptr model) const
+        std::shared_ptr<ov::Function> FrontEndPDPD::decode(InputModel::Ptr model) const
         {
             auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
             std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
@@ -402,7 +401,7 @@ namespace ngraph
 
         std::string FrontEndPDPD::get_name() const { return "paddle"; }
     } // namespace frontend
-} // namespace ngraph
+} // namespace ov
 
 extern "C" PDPD_API FrontEndVersion GetAPIVersion()
 {

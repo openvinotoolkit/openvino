@@ -12,7 +12,7 @@
 #include "ngraph/op/multiply.hpp"
 #include "op/gemm.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -23,9 +23,9 @@ namespace ngraph
                 OutputVector gemm(const Node& node)
                 {
                     OutputVector inputs{node.get_ng_inputs()};
-                    Output<ngraph::Node> input_a = inputs.at(0);
-                    Output<ngraph::Node> input_b = inputs.at(1);
-                    Output<ngraph::Node> input_c;
+                    Output<ov::Node> input_a = inputs.at(0);
+                    Output<ov::Node> input_b = inputs.at(1);
+                    Output<ov::Node> input_c;
 
                     if (inputs.size() == 3)
                     {
@@ -34,7 +34,7 @@ namespace ngraph
                     else
                     {
                         input_c = default_opset::Constant::create(
-                            input_b.get_element_type(), ngraph::Shape{}, {0});
+                            input_b.get_element_type(), ov::Shape{}, {0});
                     }
 
                     const auto alpha = node.get_attribute_value<float>("alpha", 1);
@@ -50,18 +50,18 @@ namespace ngraph
 
                     if (trans_a)
                     {
-                        input_a = ngraph::builder::opset1::transpose(input_a);
+                        input_a = ov::builder::opset1::transpose(input_a);
                     }
 
                     if (trans_b)
                     {
-                        input_b = ngraph::builder::opset1::transpose(input_b);
+                        input_b = ov::builder::opset1::transpose(input_b);
                     }
 
-                    input_a = ngraph::builder::opset1::flatten(input_a, 1);
-                    input_b = ngraph::builder::opset1::flatten(input_b, 1);
+                    input_a = ov::builder::opset1::flatten(input_a, 1);
+                    input_b = ov::builder::opset1::flatten(input_b, 1);
 
-                    std::shared_ptr<ngraph::Node> matmul_node =
+                    std::shared_ptr<ov::Node> matmul_node =
                         std::make_shared<default_opset::MatMul>(input_a, input_b);
 
                     if (alpha != 1)
@@ -84,9 +84,9 @@ namespace ngraph
                 OutputVector gemm(const Node& node)
                 {
                     OutputVector inputs{node.get_ng_inputs()};
-                    Output<ngraph::Node> input_a = inputs.at(0);
-                    Output<ngraph::Node> input_b = inputs.at(1);
-                    Output<ngraph::Node> input_c;
+                    Output<ov::Node> input_a = inputs.at(0);
+                    Output<ov::Node> input_b = inputs.at(1);
+                    Output<ov::Node> input_c;
 
                     if (inputs.size() == 3)
                     {
@@ -95,7 +95,7 @@ namespace ngraph
                     else
                     {
                         input_c = default_opset::Constant::create(
-                            input_b.get_element_type(), ngraph::Shape{}, {0});
+                            input_b.get_element_type(), ov::Shape{}, {0});
                     }
 
                     const auto alpha = node.get_attribute_value<float>("alpha", 1);
@@ -109,7 +109,7 @@ namespace ngraph
                     const bool trans_a = node.get_attribute_value<int64_t>("transA", 0);
                     const bool trans_b = node.get_attribute_value<int64_t>("transB", 0);
 
-                    std::shared_ptr<ngraph::Node> matmul_node =
+                    std::shared_ptr<ov::Node> matmul_node =
                         std::make_shared<default_opset::MatMul>(input_a, input_b, trans_a, trans_b);
 
                     if (alpha != 1)
@@ -131,4 +131,4 @@ namespace ngraph
 
     } // namespace  onnx_import
 
-} // namespace  ngraph
+} // namespace ov

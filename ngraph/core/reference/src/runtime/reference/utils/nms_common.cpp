@@ -8,7 +8,7 @@
 
 #include "ngraph/runtime/reference/utils/nms_common.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -19,7 +19,7 @@ namespace ngraph
                 void nms_common_postprocessing(void* prois,
                                                void* pscores,
                                                void* pselected_num,
-                                               const ngraph::element::Type& output_type,
+                                               const ov::element::Type& output_type,
                                                const std::vector<float>& selected_outputs,
                                                const std::vector<int64_t>& selected_indices,
                                                const std::vector<int64_t>& valid_outputs)
@@ -32,7 +32,7 @@ namespace ngraph
 
                     if (pscores)
                     {
-                        if (output_type == ngraph::element::i64)
+                        if (output_type == ov::element::i64)
                         {
                             int64_t* indices_ptr = static_cast<int64_t*>(pscores);
                             memcpy(
@@ -50,7 +50,7 @@ namespace ngraph
 
                     if (pselected_num)
                     {
-                        if (output_type == ngraph::element::i64)
+                        if (output_type == ov::element::i64)
                         {
                             int64_t* valid_outputs_ptr = static_cast<int64_t*>(pselected_num);
                             std::copy(
@@ -69,4 +69,4 @@ namespace ngraph
             } // namespace nms_common
         }     // namespace reference
     }         // namespace runtime
-} // namespace ngraph
+} // namespace ov

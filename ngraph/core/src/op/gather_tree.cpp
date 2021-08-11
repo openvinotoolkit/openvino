@@ -7,7 +7,7 @@
 #include "ngraph/shape.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::GatherTree, "GatherTree", 1);
 
@@ -28,7 +28,7 @@ shared_ptr<Node> op::v1::GatherTree::clone_with_new_inputs(const OutputVector& n
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-bool ngraph::op::v1::GatherTree::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::GatherTree::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_GatherTree_visit_attributes);
     return true;

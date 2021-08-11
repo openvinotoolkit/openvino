@@ -5,8 +5,8 @@
 #include "partial_shape.hpp"
 #include "paddle_utils.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 using PDPDPartialShapeTest = FrontEndPartialShapeTest;
 

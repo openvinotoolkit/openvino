@@ -15,13 +15,13 @@ namespace py = pybind11;
 
 void regclass_pyngraph_FrontEnd(py::module m)
 {
-    py::class_<ngraph::frontend::FrontEnd, std::shared_ptr<ngraph::frontend::FrontEnd>> fem(
+    py::class_<ov::frontend::FrontEnd, std::shared_ptr<ov::frontend::FrontEnd>> fem(
         m, "FrontEnd", py::dynamic_attr());
-    fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
+    fem.doc() = "ngraph.impl.FrontEnd wraps ov::frontend::FrontEnd";
 
     fem.def(
         "load",
-        [](ngraph::frontend::FrontEnd& self, const std::string& s) { return self.load(s); },
+        [](ov::frontend::FrontEnd& self, const std::string& s) { return self.load(s); },
         py::arg("path"),
         R"(
                 Loads an input model by specified model file path.
@@ -38,8 +38,8 @@ void regclass_pyngraph_FrontEnd(py::module m)
              )");
 
     fem.def("convert",
-            static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(
-                ngraph::frontend::InputModel::Ptr) const>(&ngraph::frontend::FrontEnd::convert),
+            static_cast<std::shared_ptr<ov::Function> (ov::frontend::FrontEnd::*)(
+                ov::frontend::InputModel::Ptr) const>(&ov::frontend::FrontEnd::convert),
             py::arg("model"),
             R"(
                 Completely convert and normalize entire function, throws if it is not possible.
@@ -55,12 +55,11 @@ void regclass_pyngraph_FrontEnd(py::module m)
                     Fully converted nGraph function.
              )");
 
-    fem.def(
-        "convert",
-        static_cast<void (ngraph::frontend::FrontEnd::*)(std::shared_ptr<ngraph::Function>) const>(
-            &ngraph::frontend::FrontEnd::convert),
-        py::arg("function"),
-        R"(
+    fem.def("convert",
+            static_cast<void (ov::frontend::FrontEnd::*)(std::shared_ptr<ov::Function>) const>(
+                &ov::frontend::FrontEnd::convert),
+            py::arg("function"),
+            R"(
                 Completely convert the remaining, not converted part of a function.
 
                 Parameters
@@ -75,7 +74,7 @@ void regclass_pyngraph_FrontEnd(py::module m)
              )");
 
     fem.def("convert_partially",
-            &ngraph::frontend::FrontEnd::convert_partially,
+            &ov::frontend::FrontEnd::convert_partially,
             py::arg("model"),
             R"(
                 Convert only those parts of the model that can be converted leaving others as-is.
@@ -94,7 +93,7 @@ void regclass_pyngraph_FrontEnd(py::module m)
              )");
 
     fem.def("decode",
-            &ngraph::frontend::FrontEnd::decode,
+            &ov::frontend::FrontEnd::decode,
             py::arg("model"),
             R"(
                 Convert operations with one-to-one mapping with decoding nodes.
@@ -113,7 +112,7 @@ void regclass_pyngraph_FrontEnd(py::module m)
              )");
 
     fem.def("normalize",
-            &ngraph::frontend::FrontEnd::normalize,
+            &ov::frontend::FrontEnd::normalize,
             py::arg("function"),
             R"(
                 Runs normalization passes on function that was loaded with partial conversion.
@@ -125,7 +124,7 @@ void regclass_pyngraph_FrontEnd(py::module m)
              )");
 
     fem.def("get_name",
-            &ngraph::frontend::FrontEnd::get_name,
+            &ov::frontend::FrontEnd::get_name,
             R"(
                 Gets name of this FrontEnd. Can be used by clients
                 if frontend is selected automatically by FrontEndManager::load_by_model.

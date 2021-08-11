@@ -5,7 +5,7 @@
 #include "ngraph/op/bucketize.hpp"
 #include "itt.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 NGRAPH_RTTI_DEFINITION(op::v3::Bucketize, "Bucketize", 3);

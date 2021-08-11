@@ -7,7 +7,7 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, shuffle_channels_default_4D)
 {
@@ -33,7 +33,8 @@ TEST(type_prop, shuffle_channels_basic_4D)
 
 TEST(type_prop, shuffle_channels_dynamic_4D)
 {
-    const auto data_input_shape = PartialShape{Dimension::dynamic(), Dimension(3, 9), 4, Dimension(4, 15)};
+    const auto data_input_shape =
+        PartialShape{Dimension::dynamic(), Dimension(3, 9), 4, Dimension(4, 15)};
     const auto data = make_shared<op::Parameter>(element::f32, data_input_shape);
     const auto axis = 1;
     const auto group = 3;

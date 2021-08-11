@@ -7,7 +7,7 @@
 #include "default_opset.hpp"
 #include "op/cum_sum.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -21,7 +21,7 @@ namespace ngraph
                     auto data = inputs.at(0);
                     bool exclusive = node.get_attribute_value<std::int64_t>("exclusive", 0);
                     bool reverse = node.get_attribute_value<std::int64_t>("reverse", 0);
-                    Output<ngraph::Node> axis;
+                    Output<ov::Node> axis;
 
                     if (inputs.size() > 1)
                     {
@@ -42,4 +42,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

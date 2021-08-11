@@ -15,7 +15,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::Split, "Split", 1);
 
@@ -26,7 +26,7 @@ op::v1::Split::Split(const Output<Node>& data, const Output<Node>& axis, const s
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::Split::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::Split::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Split_visit_attributes);
     visitor.on_attribute("num_splits", m_num_splits);
@@ -59,7 +59,7 @@ void op::v1::Split::validate_and_infer_types()
     if (axis_input && data_rank.is_static())
     {
         auto axis = axis_input->cast_vector<int64_t>()[0];
-        axis = ngraph::normalize_axis(this, axis, data_rank);
+        axis = ov::normalize_axis(this, axis, data_rank);
 
         if (data_ps[axis].is_static())
         {
@@ -132,12 +132,12 @@ namespace split
             outputs[i]->set_shape(output_shape);
             outputs_data[i] = outputs[i]->get_data_ptr<char>();
         }
-        ngraph::runtime::reference::split(data_tensor->get_data_ptr<char>(),
-                                          data_tensor->get_shape(),
-                                          data_tensor->get_element_type().size(),
-                                          axis,
-                                          num_splits,
-                                          outputs_data.data());
+        ov::runtime::reference::split(data_tensor->get_data_ptr<char>(),
+                                      data_tensor->get_shape(),
+                                      data_tensor->get_element_type().size(),
+                                      axis,
+                                      num_splits,
+                                      outputs_data.data());
         return true;
     }
 
@@ -152,7 +152,7 @@ namespace split
 
         int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
 
-        axis = ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
+        axis = ov::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
         evaluate(data_tensor, outputs, axis, num_splits);
         return true;
     }

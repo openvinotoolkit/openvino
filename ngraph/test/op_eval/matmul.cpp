@@ -12,7 +12,7 @@
 #include "util/all_close_f.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(op_eval, matmul_dynamic_1D_arg)
 {

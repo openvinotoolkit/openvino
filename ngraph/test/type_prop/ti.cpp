@@ -9,7 +9,7 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, tensor_iterator_lstm)
 {
@@ -40,8 +40,8 @@ TEST(type_prop, tensor_iterator_lstm)
                                                    H);
     auto H_o = builder::opset1::reshape(LSTM_cell->output(0), Shape{N, 1, H});
     auto C_o = builder::opset1::reshape(LSTM_cell->output(1), Shape{N, 1, H});
-    auto body = make_shared<ngraph::Function>(OutputVector{H_o, C_o},
-                                              ParameterVector{X, H_t, C_t, W_body, R_body});
+    auto body = make_shared<ov::Function>(OutputVector{H_o, C_o},
+                                          ParameterVector{X, H_t, C_t, W_body, R_body});
 
     auto tensor_iterator = make_shared<op::TensorIterator>();
     tensor_iterator->set_body(body);
@@ -77,7 +77,7 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2)
 
     // Body
     auto Zo = std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(Xi, Yi), M_body);
-    auto body = make_shared<ngraph::Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
+    auto body = make_shared<ov::Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
 
     auto tensor_iterator = make_shared<op::TensorIterator>();
     tensor_iterator->set_body(body);
@@ -120,7 +120,7 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic)
 
     // Body
     auto Zo = std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(Xi, Yi), M_body);
-    auto body = make_shared<ngraph::Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
+    auto body = make_shared<ov::Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
 
     auto tensor_iterator = make_shared<op::TensorIterator>();
     tensor_iterator->set_body(body);
@@ -138,18 +138,17 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic)
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0)
         {
-            auto input_desc =
-                as_type_ptr<ngraph::op::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = as_type_ptr<ov::op::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
         else if (std::strcmp(type_info.name, "SliceInputDescription") == 0)
         {
-            auto input_desc = as_type_ptr<ngraph::op::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = as_type_ptr<ov::op::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
         else if (std::strcmp(type_info.name, "MergedInputDescription") == 0)
         {
-            auto input_desc = as_type_ptr<ngraph::op::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = as_type_ptr<ov::op::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -166,13 +165,12 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic)
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0)
         {
-            auto output_desc =
-                as_type_ptr<ngraph::op::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ov::op::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
         else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0)
         {
-            auto output_desc = as_type_ptr<ngraph::op::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ov::op::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }

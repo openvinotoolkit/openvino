@@ -19,15 +19,15 @@ namespace FrontEndTestUtils
 
     std::string get_current_executable_path();
 
-    inline std::tuple<ngraph::frontend::FrontEnd::Ptr, ngraph::frontend::InputModel::Ptr>
-        load_from_file(ngraph::frontend::FrontEndManager& fem,
+    inline std::tuple<ov::frontend::FrontEnd::Ptr, ov::frontend::InputModel::Ptr>
+        load_from_file(ov::frontend::FrontEndManager& fem,
                        const std::string& frontend_name,
                        const std::string& model_file)
     {
         auto frontend = fem.load_by_framework(frontend_name);
         auto inputModel = frontend->load(model_file);
-        return std::tuple<ngraph::frontend::FrontEnd::Ptr, ngraph::frontend::InputModel::Ptr>{
-            frontend, inputModel};
+        return std::tuple<ov::frontend::FrontEnd::Ptr, ov::frontend::InputModel::Ptr>{frontend,
+                                                                                      inputModel};
     }
 
     inline std::string fileToTestName(const std::string& fileName)
@@ -61,8 +61,8 @@ namespace FrontEndTestUtils
 
     inline void setupTestEnv()
     {
-        std::string fePath = ngraph::file_util::get_directory(
-            ngraph::runtime::Backend::get_backend_shared_library_search_directory());
+        std::string fePath = ov::file_util::get_directory(
+            ov::runtime::Backend::get_backend_shared_library_search_directory());
         set_test_env("OV_FRONTEND_PATH", fePath.c_str());
     }
 

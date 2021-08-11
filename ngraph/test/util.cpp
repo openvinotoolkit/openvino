@@ -22,7 +22,7 @@
 #include "util/ndarray.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(util, split)
 {
@@ -143,16 +143,16 @@ TEST(util, all_close)
     copy_data(a, test::NDArray<float, 2>({{1, 2, 3}, {3, 4, 5}}).get_vector());
     copy_data(b, test::NDArray<float, 2>({{1, 2, 3}, {3, 4, 5}}).get_vector());
 
-    EXPECT_TRUE(ngraph::test::all_close<float>(a, b));
+    EXPECT_TRUE(ov::test::all_close<float>(a, b));
 
     auto c = backend->create_tensor(element::f32, Shape{2, 3});
     copy_data(c, test::NDArray<float, 2>({{1.1f, 2, 3}, {3, 4, 5}}).get_vector());
 
-    EXPECT_FALSE(ngraph::test::all_close<float>(c, a, 0, .05f));
-    EXPECT_TRUE(ngraph::test::all_close<float>(c, a, 0, .11f));
+    EXPECT_FALSE(ov::test::all_close<float>(c, a, 0, .05f));
+    EXPECT_TRUE(ov::test::all_close<float>(c, a, 0, .11f));
 
-    EXPECT_FALSE(ngraph::test::all_close<float>(c, a, .05f, 0));
-    EXPECT_TRUE(ngraph::test::all_close<float>(c, a, .11f, 0));
+    EXPECT_FALSE(ov::test::all_close<float>(c, a, .05f, 0));
+    EXPECT_TRUE(ov::test::all_close<float>(c, a, .11f, 0));
 }
 
 class CloneTest : public ::testing::Test
@@ -167,7 +167,7 @@ public:
     std::shared_ptr<Node> AplusBtimesC = make_shared<op::v1::Multiply>(AplusB, C);
 
     NodeMap node_map;
-    std::vector<std::shared_ptr<ngraph::Node>> nodes;
+    std::vector<std::shared_ptr<ov::Node>> nodes;
     std::shared_ptr<Function> func =
         make_shared<Function>(AplusBtimesC, ParameterVector{A, B, C}, "f");
 
@@ -180,8 +180,8 @@ public:
         nodes.push_back(C);
     }
 
-    bool CompareNodeVector(const std::vector<std::shared_ptr<ngraph::Node>>& orig,
-                           const std::vector<std::shared_ptr<ngraph::Node>>& clone,
+    bool CompareNodeVector(const std::vector<std::shared_ptr<ov::Node>>& orig,
+                           const std::vector<std::shared_ptr<ov::Node>>& clone,
                            const NodeMap& nm)
     {
         if (orig.size() != clone.size())
@@ -255,15 +255,19 @@ TEST(graph_util, clone_multiple_results)
 TEST(graph_util, clone_function_variables)
 {
     auto c_fp16 = make_shared<opset8::Constant>(element::f16, Shape{3}, std::vector<float>{0});
-    auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "var_1"});
+    auto variable =
+        make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "var_1"});
     auto read_value = make_shared<opset8::ReadValue>(c_fp16, variable);
     auto assign = make_shared<opset8::Assign>(read_value, variable);
-    auto f = make_shared<Function>(OutputVector{assign}, ParameterVector{}, VariableVector{variable});
+    auto f =
+        make_shared<Function>(OutputVector{assign}, ParameterVector{}, VariableVector{variable});
     auto copy = clone_function(*f);
     auto c_fp32 = make_shared<opset8::Constant>(element::f32, Shape{3}, std::vector<float>{0});
-    for (const auto& op : copy->get_ops()) {
-        if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(op)) {
-            ngraph::replace_node(constant, c_fp32);
+    for (const auto& op : copy->get_ops())
+    {
+        if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(op))
+        {
+            ov::replace_node(constant, c_fp32);
         }
     }
     copy->validate_nodes_and_infer_types();
@@ -273,32 +277,29 @@ TEST(graph_util, clone_function_variables)
 TEST(graph_util, clone_rt_info)
 {
     const std::string testAffinity = "CPU";
-    std::shared_ptr<ngraph::Function> original_f;
+    std::shared_ptr<ov::Function> original_f;
     {
-        ngraph::PartialShape shape({1, 84});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::opset6::Parameter>(type, shape);
-        auto matMulWeights =
-            ngraph::opset6::Constant::create(ngraph::element::Type_t::f32, {10, 84}, {1});
-        auto shapeOf = std::make_shared<ngraph::opset6::ShapeOf>(matMulWeights);
-        auto gConst1 = ngraph::opset6::Constant::create(ngraph::element::Type_t::i32, {1}, {1});
-        auto gConst2 = ngraph::opset6::Constant::create(ngraph::element::Type_t::i64, {}, {0});
-        auto gather = std::make_shared<ngraph::opset6::Gather>(shapeOf, gConst1, gConst2);
-        auto concatConst = ngraph::opset6::Constant::create(ngraph::element::Type_t::i64, {1}, {1});
-        auto concat =
-            std::make_shared<ngraph::opset6::Concat>(ngraph::NodeVector{concatConst, gather}, 0);
-        auto relu = std::make_shared<ngraph::opset6::Relu>(param);
-        auto reshape = std::make_shared<ngraph::opset6::Reshape>(relu, concat, false);
-        auto matMul = std::make_shared<ngraph::opset6::MatMul>(reshape, matMulWeights, false, true);
-        auto matMulBias =
-            ngraph::opset6::Constant::create(ngraph::element::Type_t::f32, {1, 10}, {1});
-        auto addBias = std::make_shared<ngraph::opset6::Add>(matMul, matMulBias);
-        auto result = std::make_shared<ngraph::opset6::Result>(addBias);
+        ov::PartialShape shape({1, 84});
+        ov::element::Type type(ov::element::Type_t::f32);
+        auto param = std::make_shared<ov::opset6::Parameter>(type, shape);
+        auto matMulWeights = ov::opset6::Constant::create(ov::element::Type_t::f32, {10, 84}, {1});
+        auto shapeOf = std::make_shared<ov::opset6::ShapeOf>(matMulWeights);
+        auto gConst1 = ov::opset6::Constant::create(ov::element::Type_t::i32, {1}, {1});
+        auto gConst2 = ov::opset6::Constant::create(ov::element::Type_t::i64, {}, {0});
+        auto gather = std::make_shared<ov::opset6::Gather>(shapeOf, gConst1, gConst2);
+        auto concatConst = ov::opset6::Constant::create(ov::element::Type_t::i64, {1}, {1});
+        auto concat = std::make_shared<ov::opset6::Concat>(ov::NodeVector{concatConst, gather}, 0);
+        auto relu = std::make_shared<ov::opset6::Relu>(param);
+        auto reshape = std::make_shared<ov::opset6::Reshape>(relu, concat, false);
+        auto matMul = std::make_shared<ov::opset6::MatMul>(reshape, matMulWeights, false, true);
+        auto matMulBias = ov::opset6::Constant::create(ov::element::Type_t::f32, {1, 10}, {1});
+        auto addBias = std::make_shared<ov::opset6::Add>(matMul, matMulBias);
+        auto result = std::make_shared<ov::opset6::Result>(addBias);
 
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
+        ov::ParameterVector params = {param};
+        ov::ResultVector results = {result};
 
-        original_f = std::make_shared<ngraph::Function>(results, params);
+        original_f = std::make_shared<ov::Function>(results, params);
     }
 
     std::unordered_map<std::string, std::string> affinity;
@@ -307,26 +308,25 @@ TEST(graph_util, clone_rt_info)
     {
         auto& nodeInfo = node->get_rt_info();
 
-        nodeInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(testAffinity);
+        nodeInfo["affinity"] = std::make_shared<ov::VariantWrapper<std::string>>(testAffinity);
         affinity[node->get_friendly_name()] = testAffinity;
 
         for (auto&& output : node->outputs())
         {
             auto& outputInfo = output.get_rt_info();
             outputInfo["affinity"] =
-                std::make_shared<ngraph::VariantWrapper<std::string>>(testAffinity);
+                std::make_shared<ov::VariantWrapper<std::string>>(testAffinity);
         }
     }
 
-    auto clonedFunction = ngraph::clone_function(*original_f);
+    auto clonedFunction = ov::clone_function(*original_f);
 
     for (auto&& node : clonedFunction->get_ordered_ops())
     {
         auto& nodeInfo = node->get_rt_info();
         auto itInfo = nodeInfo.find("affinity");
         ASSERT_TRUE(itInfo != nodeInfo.end());
-        auto value =
-            ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(itInfo->second)->get();
+        auto value = ov::as_type_ptr<ov::VariantWrapper<std::string>>(itInfo->second)->get();
         ASSERT_TRUE(affinity.find(node->get_friendly_name()) != affinity.end());
         ASSERT_TRUE(affinity[node->get_friendly_name()] == value);
 
@@ -367,42 +367,41 @@ TEST(util, parse_string)
 
 TEST(graph_util, get_subgraph_outputs_trivial_tests)
 {
-    auto outputs = ngraph::get_subgraph_outputs(NodeVector{}, NodeVector{});
+    auto outputs = ov::get_subgraph_outputs(NodeVector{}, NodeVector{});
     ASSERT_EQ(outputs.size(), 0);
 
     Shape shape{};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto absn = make_shared<op::Abs>(A);
     auto neg_absn = make_shared<op::Negative>(absn);
-    outputs = ngraph::get_subgraph_outputs(NodeVector{A}, NodeVector{});
+    outputs = ov::get_subgraph_outputs(NodeVector{A}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{A}));
 
-    outputs = ngraph::get_subgraph_outputs(NodeVector{A}, NodeVector{A});
+    outputs = ov::get_subgraph_outputs(NodeVector{A}, NodeVector{A});
     ASSERT_EQ(outputs, (NodeVector{}));
 
-    outputs = ngraph::get_subgraph_outputs(NodeVector{A, absn}, NodeVector{});
+    outputs = ov::get_subgraph_outputs(NodeVector{A, absn}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{absn}));
 
     auto B = make_shared<op::Parameter>(element::f32, shape);
     auto abs_b = make_shared<op::Abs>(B);
     auto neg_b = make_shared<op::Negative>(B);
     auto abs_b_neg = make_shared<op::Negative>(abs_b);
-    outputs = ngraph::get_subgraph_outputs(NodeVector{B, abs_b}, NodeVector{});
+    outputs = ov::get_subgraph_outputs(NodeVector{B, abs_b}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{B, abs_b}));
 
-    outputs = ngraph::get_subgraph_outputs(NodeVector{B, abs_b}, NodeVector{B});
+    outputs = ov::get_subgraph_outputs(NodeVector{B, abs_b}, NodeVector{B});
     ASSERT_EQ(outputs, (NodeVector{abs_b}));
 
-    outputs = ngraph::get_subgraph_outputs(NodeVector{B, abs_b, abs_b_neg}, NodeVector{});
+    outputs = ov::get_subgraph_outputs(NodeVector{B, abs_b, abs_b_neg}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{B}));
 
     auto add_b = make_shared<op::v1::Add>(neg_b, abs_b_neg);
-    outputs =
-        ngraph::get_subgraph_outputs(NodeVector{B, abs_b, neg_b, abs_b_neg, add_b}, NodeVector{});
+    outputs = ov::get_subgraph_outputs(NodeVector{B, abs_b, neg_b, abs_b_neg, add_b}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{}));
 
     // now add_b uses abs_b_neg
-    outputs = ngraph::get_subgraph_outputs(NodeVector{B, abs_b, abs_b_neg}, NodeVector{});
+    outputs = ov::get_subgraph_outputs(NodeVector{B, abs_b, abs_b_neg}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{B, abs_b_neg}));
 }
 
@@ -415,7 +414,7 @@ TEST(graph_util, test_subgraph_topological_sort)
     auto add = make_shared<op::v1::Add>(A, B);
     auto mul = make_shared<op::v1::Multiply>(C, add);
     auto result = make_shared<op::Result>(mul);
-    auto sorted = ngraph::subgraph_topological_sort(NodeVector{mul, add, A});
+    auto sorted = ov::subgraph_topological_sort(NodeVector{mul, add, A});
     std::vector<std::shared_ptr<Node>> expected{A, add, mul};
     ASSERT_EQ(expected, sorted);
 }
@@ -433,7 +432,7 @@ TEST(graph_util, test_subgraph_topological_sort_control_dependencies)
     add->add_control_dependency(E);
     auto mul = make_shared<op::v1::Multiply>(C, add);
     auto result = make_shared<op::Result>(mul);
-    auto sorted = ngraph::subgraph_topological_sort(NodeVector{mul, add, A, D});
+    auto sorted = ov::subgraph_topological_sort(NodeVector{mul, add, A, D});
     std::vector<std::shared_ptr<Node>> expected{A, D, add, mul};
     ASSERT_EQ(expected, sorted);
 }
@@ -825,7 +824,7 @@ void host_tensor_2_vector_test(const vector<hosttensor_t>& input,
 
 TEST(util_host_tensor_2_vector, tensor_nullptr)
 {
-    ASSERT_THROW(host_tensor_2_vector<int64_t>(nullptr), ngraph::CheckFailure);
+    ASSERT_THROW(host_tensor_2_vector<int64_t>(nullptr), ov::CheckFailure);
 }
 
 TEST(util_host_tensor_2_vector, ht_boolean_2_vec_bool)

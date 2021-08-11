@@ -12,7 +12,7 @@ namespace py = pybind11;
 
 void regclass_pyngraph_op_util_BinaryElementwiseLogical(py::module m)
 {
-    py::class_<ngraph::op::util::BinaryElementwiseLogical,
-               std::shared_ptr<ngraph::op::util::BinaryElementwiseLogical>>
+    py::class_<ov::op::util::BinaryElementwiseLogical,
+               std::shared_ptr<ov::op::util::BinaryElementwiseLogical>>
         binaryElementwiseLogical(m, "BinaryElementwiseLogical");
 }

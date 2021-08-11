@@ -15,7 +15,7 @@
 #include "op/dequantize_linear.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -23,9 +23,9 @@ namespace ngraph
         {
             namespace
             {
-                Output<ngraph::Node> get_zero_point(const OutputVector& inputs)
+                Output<ov::Node> get_zero_point(const OutputVector& inputs)
                 {
-                    if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2]))
+                    if (inputs.size() == 3 && !ov::op::is_null(inputs[2]))
                     {
                         auto zero_point = inputs[2];
 
@@ -74,8 +74,8 @@ namespace ngraph
             {
                 namespace
                 {
-                    void validate_scale(const Output<ngraph::Node> scale,
-                                        const Output<ngraph::Node> x,
+                    void validate_scale(const Output<ov::Node> scale,
+                                        const Output<ov::Node> x,
                                         const int64_t axis)
                     {
                         const auto& scale_shape = scale.get_partial_shape();
@@ -99,8 +99,8 @@ namespace ngraph
                         }
                     }
 
-                    void validate_zero_point(const Output<ngraph::Node> zero_point,
-                                             const Output<ngraph::Node> x,
+                    void validate_zero_point(const Output<ov::Node> zero_point,
+                                             const Output<ov::Node> x,
                                              const int64_t axis)
                     {
                         const auto& zero_point_shape = zero_point.get_partial_shape();
@@ -124,9 +124,9 @@ namespace ngraph
                         }
                     }
 
-                    std::shared_ptr<ngraph::Node> reshape_input(const Output<ngraph::Node> input,
-                                                                const int64_t axis,
-                                                                const PartialShape& x_shape)
+                    std::shared_ptr<ov::Node> reshape_input(const Output<ov::Node> input,
+                                                            const int64_t axis,
+                                                            const PartialShape& x_shape)
                     {
                         auto input_rank = input.get_partial_shape().rank();
 
@@ -183,7 +183,7 @@ namespace ngraph
                                  "Rank of the input data tensor has to be known (static).");
 
                     int64_t axis{node.get_attribute_value<int64_t>("axis", 1)};
-                    axis = ngraph::normalize_axis(node.get_description(), axis, x_shape.rank());
+                    axis = ov::normalize_axis(node.get_description(), axis, x_shape.rank());
 
                     validate_scale(scale, x, axis);
                     validate_zero_point(zero_point, x, axis);
@@ -201,4 +201,4 @@ namespace ngraph
             } // namespace set_13
         }     // namespace op
     }         // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

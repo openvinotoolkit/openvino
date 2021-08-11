@@ -11,7 +11,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// \brief A useful class that allows to iterate over the tensor coordinates.
     ///        For example, for tensor with dimensions {2, 3} this iterator
@@ -177,4 +177,4 @@ namespace ngraph
         Shape m_target_shape;
         size_t m_n_axes;
     };
-} // namespace ngraph
+} // namespace ov

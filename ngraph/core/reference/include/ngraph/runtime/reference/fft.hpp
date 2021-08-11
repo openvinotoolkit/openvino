@@ -30,7 +30,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -51,7 +51,7 @@ namespace ngraph
                      FFTKind fft_kind);
 
             void fft_postprocessing(const HostTensorVector& outputs,
-                                    const ngraph::element::Type output_type,
+                                    const ov::element::Type output_type,
                                     const std::vector<float>& fft_result);
 
             std::vector<int64_t> canonicalize_axes(const int64_t* axes_data,
@@ -59,4 +59,4 @@ namespace ngraph
                                                    int64_t complex_data_rank);
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

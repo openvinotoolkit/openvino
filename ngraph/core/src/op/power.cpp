@@ -11,7 +11,7 @@
 #include "ngraph/runtime/reference/power.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 namespace power
 {
@@ -82,13 +82,13 @@ bool op::v1::Power::has_evaluate() const
     NGRAPH_OP_SCOPE(v1_Power_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::bf16:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::bf16:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;

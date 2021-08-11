@@ -12,7 +12,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/variant.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -57,11 +57,11 @@ namespace ngraph
             /// possible
             /// \param model Input model
             /// \return fully converted nGraph function
-            virtual std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const;
+            virtual std::shared_ptr<ov::Function> convert(InputModel::Ptr model) const;
 
             /// \brief Completely convert the remaining, not converted part of a function.
             /// \param partiallyConverted partially converted nGraph function
-            virtual void convert(std::shared_ptr<ngraph::Function> partially_converted) const;
+            virtual void convert(std::shared_ptr<ov::Function> partially_converted) const;
 
             /// \brief Convert only those parts of the model that can be converted leaving others
             /// as-is. Converted parts are not normalized by additional transformations; normalize
@@ -69,19 +69,18 @@ namespace ngraph
             /// conversion process.
             /// \param model Input model
             /// \return partially converted nGraph function
-            virtual std::shared_ptr<ngraph::Function>
-                convert_partially(InputModel::Ptr model) const;
+            virtual std::shared_ptr<ov::Function> convert_partially(InputModel::Ptr model) const;
 
             /// \brief Convert operations with one-to-one mapping with decoding nodes.
             /// Each decoding node is an nGraph node representing a single FW operation node with
             /// all attributes represented in FW-independent way.
             /// \param model Input model
             /// \return nGraph function after decoding
-            virtual std::shared_ptr<ngraph::Function> decode(InputModel::Ptr model) const;
+            virtual std::shared_ptr<ov::Function> decode(InputModel::Ptr model) const;
 
             /// \brief Runs normalization passes on function that was loaded with partial conversion
             /// \param function partially converted nGraph function
-            virtual void normalize(std::shared_ptr<ngraph::Function> function) const;
+            virtual void normalize(std::shared_ptr<ov::Function> function) const;
 
             /// \brief Gets name of this FrontEnd. Can be used by clients
             /// if frontend is selected automatically by FrontEndManager::load_by_model
@@ -104,4 +103,4 @@ namespace ngraph
 
     } // namespace frontend
 
-} // namespace ngraph
+} // namespace ov

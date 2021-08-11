@@ -6,7 +6,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -33,24 +33,23 @@ namespace ngraph
                     else
                     {
                         auto scale_val = node.get_attribute<float>("scale");
-                        scale = ngraph::opset6::Constant::create(dtype, Shape{1}, {scale_val});
+                        scale = ov::opset6::Constant::create(dtype, Shape{1}, {scale_val});
                     }
 
                     auto bias_val = node.get_attribute<float>("bias");
-                    bias = ngraph::opset6::Constant::create(dtype, Shape{1}, {bias_val});
+                    bias = ov::opset6::Constant::create(dtype, Shape{1}, {bias_val});
                     auto bias_after_scale = node.get_attribute<bool>("bias_after_scale");
 
                     std::shared_ptr<Node> result_node;
                     if (!bias_after_scale)
                     {
-                        auto node_add = std::make_shared<ngraph::opset6::Add>(data, bias);
-                        result_node = std::make_shared<ngraph::opset6::Multiply>(node_add, scale);
+                        auto node_add = std::make_shared<ov::opset6::Add>(data, bias);
+                        result_node = std::make_shared<ov::opset6::Multiply>(node_add, scale);
                     }
                     else
                     {
-                        auto node_multiply =
-                            std::make_shared<ngraph::opset6::Multiply>(data, scale);
-                        result_node = std::make_shared<ngraph::opset6::Add>(node_multiply, bias);
+                        auto node_multiply = std::make_shared<ov::opset6::Multiply>(data, scale);
+                        result_node = std::make_shared<ov::opset6::Add>(node_multiply, bias);
                     }
 
                     return node.default_single_output_mapping({result_node}, {"Out"});
@@ -59,4 +58,4 @@ namespace ngraph
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

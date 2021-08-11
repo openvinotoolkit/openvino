@@ -19,7 +19,7 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 // ---------------------------- v1 ----------------------------
 TEST(type_prop, convolution_backprop_data_partial_auto_padding_upper)

@@ -7,7 +7,7 @@
 #include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::PSROIPooling, "PSROIPooling", 0);
 
@@ -30,7 +30,7 @@ op::PSROIPooling::PSROIPooling(const Output<Node>& input,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_PSROIPooling_visit_attributes);
     visitor.on_attribute("output_dim", m_output_dim);

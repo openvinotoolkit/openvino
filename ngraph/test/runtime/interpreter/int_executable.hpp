@@ -22,7 +22,7 @@
 #include "ngraph/runtime/reference/tensor_iterator.hpp"
 #include "ngraph/runtime/tensor.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -32,9 +32,9 @@ namespace ngraph
             class INTExecutable;
         } // namespace interpreter
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov
 
-class INTERPRETER_BACKEND_API ngraph::runtime::interpreter::INTExecutable : public Executable
+class INTERPRETER_BACKEND_API ov::runtime::interpreter::INTExecutable : public Executable
 {
     friend class INTBackend;
 
@@ -60,8 +60,8 @@ public:
         create_output_tensor(size_t output_index, size_t pipeline_depth) override;
 
 protected:
-    std::shared_ptr<ngraph::op::Parameter> get_parameter(size_t index) const;
-    std::shared_ptr<ngraph::op::Result> get_result(size_t index) const;
+    std::shared_ptr<ov::op::Parameter> get_parameter(size_t index) const;
+    std::shared_ptr<ov::op::Result> get_result(size_t index) const;
     bool evaluate_node(const std::shared_ptr<Node>& node,
                        const HostTensorVector& outputs,
                        const HostTensorVector& inputs) const;
@@ -87,7 +87,7 @@ protected:
         std::vector<float> scores_data;
         size_t out_shape_size;
         bool sort_result_descending;
-        ngraph::element::Type output_type;
+        ov::element::Type output_type;
     };
 
     InfoForNMS5 get_info_for_nms5_eval(const op::v5::NonMaxSuppression* nms5,

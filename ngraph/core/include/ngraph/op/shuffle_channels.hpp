@@ -9,7 +9,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -58,4 +58,4 @@ namespace ngraph
         } // namespace v0
         using v0::ShuffleChannels;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

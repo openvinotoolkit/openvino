@@ -12,7 +12,7 @@
 #include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -31,7 +31,8 @@ NGRAPH_TEST(${BACKEND_NAME}, prior_box_clustered)
 
     auto LS = op::Constant::create(element::i64, layer_shape_shape, layer_shape);
     auto IS = op::Constant::create(element::i64, image_shape_shape, image_shape);
-    auto f = make_shared<Function>(make_shared<op::PriorBoxClustered>(LS, IS, attrs), ParameterVector{});
+    auto f =
+        make_shared<Function>(make_shared<op::PriorBoxClustered>(LS, IS, attrs), ParameterVector{});
     const auto exp_shape = Shape{2, 16};
     vector<float> out{0,    0,        0.15f, 0.15f,    0.34999f, 0,        0.64999f, 0.15f,
                       0,    0.34999f, 0.15f, 0.64999f, 0.34999f, 0.34999f, 0.64999f, 0.64999f,
@@ -58,7 +59,8 @@ NGRAPH_TEST(${BACKEND_NAME}, prior_box_clustered_non_default_variances)
 
     auto LS = op::Constant::create(element::i64, layer_shape_shape, layer_shape);
     auto IS = op::Constant::create(element::i64, image_shape_shape, image_shape);
-    auto f = make_shared<Function>(make_shared<op::PriorBoxClustered>(LS, IS, attrs), ParameterVector{});
+    auto f =
+        make_shared<Function>(make_shared<op::PriorBoxClustered>(LS, IS, attrs), ParameterVector{});
     const auto exp_shape = Shape{2, 16};
     vector<float> out{0,    0,        0.15f, 0.15f,    0.34999f, 0,        0.64999f, 0.15f,
                       0,    0.34999f, 0.15f, 0.64999f, 0.34999f, 0.34999f, 0.64999f, 0.64999f,

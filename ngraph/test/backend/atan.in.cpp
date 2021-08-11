@@ -26,7 +26,7 @@
 #include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -62,7 +62,6 @@ NGRAPH_TEST(${BACKEND_NAME}, atan_int)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<int32_t>({-2, -1, 0, 1, 2});
-    test_case.add_expected_output<int32_t>(shape,
-                                         {-1, -1, 0, 1, 1});
+    test_case.add_expected_output<int32_t>(shape, {-1, -1, 0, 1, 1});
     test_case.run();
 }

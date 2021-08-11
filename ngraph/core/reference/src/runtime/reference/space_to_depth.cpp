@@ -7,7 +7,7 @@
 #include "ngraph/check.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -100,4 +100,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

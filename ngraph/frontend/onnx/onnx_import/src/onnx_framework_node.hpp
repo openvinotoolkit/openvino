@@ -29,7 +29,7 @@ namespace ONNX_NAMESPACE
     class ModelProto;
 } // namespace ONNX_NAMESPACE
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -114,4 +114,4 @@ namespace ngraph
         };
 
     } // namespace frontend
-} // namespace ngraph
+} // namespace ov

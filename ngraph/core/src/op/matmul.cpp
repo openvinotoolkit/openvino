@@ -12,7 +12,7 @@
 #include "ngraph/runtime/reference/matmul.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::MatMul, "MatMul", 0);
 
@@ -27,7 +27,7 @@ op::MatMul::MatMul(const Output<Node>& A,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_MatMul_visit_attributes);
     visitor.on_attribute("transpose_a", m_transpose_a);
@@ -260,18 +260,18 @@ bool op::MatMul::has_evaluate() const
     NGRAPH_OP_SCOPE(v0_MatMul_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;
 }
 
-void ngraph::op::v0::MatMul::validate_and_infer_types()
+void ov::op::v0::MatMul::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_MatMul_validate_and_infer_types);
     element::Type result_et;

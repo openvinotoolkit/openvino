@@ -13,13 +13,13 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency2, "LowLatency2", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::LowLatency2, "LowLatency2", 0);
 
 NGRAPH_SUPPRESS_DEPRECATED_START
-NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::LowLatency, "LowLatency", 0);
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 namespace
 {
@@ -29,12 +29,12 @@ namespace
     }
 
 } // namespace
-ngraph::pass::LowLatency::LowLatency()
+ov::pass::LowLatency::LowLatency()
 {
-    auto tensor_iterator = ngraph::pattern::wrap_type<opset6::TensorIterator, opset6::Loop>();
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
+    auto tensor_iterator = ov::pattern::wrap_type<opset6::TensorIterator, opset6::Loop>();
+    ov::matcher_pass_callback callback = [](ov::pattern::Matcher& m) {
         const auto& sub_graph_op =
-            std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(m.get_match_root());
+            std::dynamic_pointer_cast<ov::op::util::SubGraphOp>(m.get_match_root());
         if (!sub_graph_op)
         {
             return false;
@@ -47,8 +47,7 @@ ngraph::pass::LowLatency::LowLatency()
             const auto& num_iter = loop->get_num_iterations();
             if (trip_count && num_iter > 0 && trip_count->get_output_target_inputs(0).size() == 1)
             {
-                auto single_iter =
-                    std::make_shared<opset6::Constant>(ngraph::element::i64, Shape{}, 1);
+                auto single_iter = std::make_shared<opset6::Constant>(ov::element::i64, Shape{}, 1);
                 replace_node(trip_count, single_iter);
             }
             else
@@ -59,17 +58,16 @@ ngraph::pass::LowLatency::LowLatency()
         }
         // Mark the TI layer to be unrolled. Enable unconditional ti unrolling for all plugins.
         auto& rt_info = sub_graph_op->get_rt_info();
-        rt_info["UNROLL_TI"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(1);
+        rt_info["UNROLL_TI"] = std::make_shared<ov::VariantWrapper<int64_t>>(1);
 
         int64_t variable_id = 0;
-        std::vector<std::shared_ptr<ngraph::op::Sink>> assigns;
+        std::vector<std::shared_ptr<ov::op::Sink>> assigns;
         const auto& func = sub_graph_op->get_function();
         for (const auto& in : sub_graph_op->get_input_descriptions())
         {
             // Process all back edges
             if (const auto& merged_in =
-                    std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp::MergedInputDescription>(
-                        in))
+                    std::dynamic_pointer_cast<ov::op::util::SubGraphOp::MergedInputDescription>(in))
             {
                 // Insert ReadValue nodes: Parameter -> (new ReadValue) -> consumers
                 const auto& inputs_to = func->get_parameters()
@@ -105,7 +103,7 @@ ngraph::pass::LowLatency::LowLatency()
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "LowLatency");
+    auto m = std::make_shared<ov::pattern::Matcher>(tensor_iterator, "LowLatency");
     register_matcher(m, callback);
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
@@ -144,7 +142,7 @@ void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
 
             // IECompatibility: insert identity (Unsqueeze + Squeeze) to store the TensorIterator
             // output names
-            auto axis_1 = Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+            auto axis_1 = Constant::create(ov::element::i64, ov::Shape{1}, {1});
             auto identity_1 = std::make_shared<Unsqueeze>(connect_to, axis_1);
             auto identity_2 = std::make_shared<Squeeze>(identity_1, axis_1);
             identity_2->set_friendly_name(out_name);
@@ -155,8 +153,8 @@ void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
         }
     }
     outer_f->add_sinks(sub_graph_op->get_function()->get_sinks());
-    ngraph::copy_runtime_info(sub_graph_op, sub_graph_op->get_function()->get_ops());
-    ngraph::copy_runtime_info(sub_graph_op, new_ops);
+    ov::copy_runtime_info(sub_graph_op, sub_graph_op->get_function()->get_ops());
+    ov::copy_runtime_info(sub_graph_op, new_ops);
 }
 
 Output<Node> create_init_subgraph(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
@@ -235,7 +233,7 @@ bool pass::LowLatency2::run_on_function(shared_ptr<Function> f)
                     auto read_value = make_shared<ReadValue>(read_value_in, variable);
                     input.replace_source_output(read_value->output(0));
                     read_value->set_friendly_name(var_name);
-                    ngraph::copy_runtime_info(sub_graph_op, read_value);
+                    ov::copy_runtime_info(sub_graph_op, read_value);
 
                     /* insert Assign
                     // Subgraph operation -> [new op: Assign]
@@ -262,7 +260,7 @@ bool pass::LowLatency2::run_on_function(shared_ptr<Function> f)
                         {
                             auto assign = make_shared<Assign>(
                                 sub_graph_op->output(out->m_output_index), variable);
-                            ngraph::copy_runtime_info(sub_graph_op, assign);
+                            ov::copy_runtime_info(sub_graph_op, assign);
                             // control dependency so that ReadValue is processed before Assign
                             assign->add_control_dependency(read_value);
                             assigns.emplace_back(assign);

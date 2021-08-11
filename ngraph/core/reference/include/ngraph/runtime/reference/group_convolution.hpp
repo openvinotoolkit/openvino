@@ -17,7 +17,7 @@ namespace
     constexpr size_t out_channel_axis = 1;
 } // namespace
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -144,4 +144,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

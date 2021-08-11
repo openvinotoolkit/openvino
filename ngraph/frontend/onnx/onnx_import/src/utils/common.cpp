@@ -8,13 +8,13 @@
 #include "ngraph/graph_util.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
         namespace common
         {
-            const ngraph::element::Type& get_ngraph_element_type(int64_t onnx_type)
+            const ov::element::Type& get_ngraph_element_type(int64_t onnx_type)
             {
                 switch (onnx_type)
                 {
@@ -43,8 +43,8 @@ namespace ngraph
 #endif
             }
 
-            std::shared_ptr<ngraph::Node> get_monotonic_range_along_node_rank(
-                const Output<ngraph::Node>& value, int64_t start_value, int64_t step)
+            std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(
+                const Output<ov::Node>& value, int64_t start_value, int64_t step)
             {
                 if (value.get_partial_shape().rank().is_static())
                 {
@@ -63,7 +63,7 @@ namespace ngraph
             }
 
             void validate_scalar_input(const char* input_name,
-                                       const std::shared_ptr<ngraph::Node> input,
+                                       const std::shared_ptr<ov::Node> input,
                                        const std::set<element::Type> allowed_types)
             {
                 const auto validated_input_shape = input->get_output_partial_shape(0);
@@ -89,8 +89,8 @@ namespace ngraph
             template <typename T>
             OutputVector handle_opset6_binary_op(const Node& node)
             {
-                const Output<ngraph::Node> lhs_node = node.get_ng_inputs().at(0);
-                Output<ngraph::Node> rhs_node = node.get_ng_inputs().at(1);
+                const Output<ov::Node> lhs_node = node.get_ng_inputs().at(0);
+                Output<ov::Node> rhs_node = node.get_ng_inputs().at(1);
                 const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
                 if (broadcast)
                 {
@@ -135,4 +135,4 @@ namespace ngraph
 
         } // namespace  common
     }     // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

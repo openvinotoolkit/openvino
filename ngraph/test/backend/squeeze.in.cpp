@@ -9,7 +9,7 @@
 #include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -18,7 +18,7 @@ NGRAPH_TEST(${BACKEND_NAME}, squeeze)
 {
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
     const auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});
+        make_shared<ov::op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});
     const auto squeeze = make_shared<op::Squeeze>(data_node, axes_node);
 
     const auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
@@ -33,8 +33,7 @@ NGRAPH_TEST(${BACKEND_NAME}, squeeze)
 NGRAPH_TEST(${BACKEND_NAME}, squeeze_default_axes)
 {
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 1, 2});
-    const auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
+    const auto axes_node = make_shared<ov::op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
     const auto squeeze = make_shared<op::Squeeze>(data_node, axes_node);
 
     const auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});

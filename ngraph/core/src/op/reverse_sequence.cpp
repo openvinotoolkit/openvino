@@ -12,7 +12,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::ReverseSequence, "ReverseSequence", 0);
 
@@ -29,7 +29,7 @@ op::ReverseSequence::ReverseSequence(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::ReverseSequence::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::ReverseSequence::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_ReverseSequence_visit_attributes);
     visitor.on_attribute("batch_axis", m_batch_axis);
@@ -43,8 +43,8 @@ void op::ReverseSequence::validate_and_infer_types()
     auto input_shape = get_input_partial_shape(0);
     auto input_rank = input_shape.rank();
 
-    m_normalized_batch_axis = ngraph::normalize_axis(this, m_batch_axis, input_rank);
-    m_normalized_seq_axis = ngraph::normalize_axis(this, m_seq_axis, input_rank);
+    m_normalized_batch_axis = ov::normalize_axis(this, m_batch_axis, input_rank);
+    m_normalized_seq_axis = ov::normalize_axis(this, m_seq_axis, input_rank);
 
     auto indices_shape = get_input_partial_shape(1);
     auto indices_rank = indices_shape.rank();

@@ -28,7 +28,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -64,8 +64,8 @@ NGRAPH_TEST(${BACKEND_NAME}, power_broadcasted)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape_r, {1, 2, 3, 4, 5, 1, 4, 9, 16, 25,
-                                                   6, 7, 8, 9, 10, 36, 49, 64, 81, 100});
+    test_case.add_expected_output<float>(
+        shape_r, {1, 2, 3, 4, 5, 1, 4, 9, 16, 25, 6, 7, 8, 9, 10, 36, 49, 64, 81, 100});
     test_case.run();
 }
 

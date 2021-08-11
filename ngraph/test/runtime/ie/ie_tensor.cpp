@@ -11,7 +11,7 @@
 #include "ngraph/except.hpp"
 #include "ngraph/util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 runtime::ie::IETensor::IETensor(const element::Type& element_type, const PartialShape& shape)

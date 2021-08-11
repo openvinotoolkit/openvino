@@ -7,12 +7,12 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, space_to_depth_output_shape_block_first_4D)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2, 64, 64});
-    const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+    const auto mode = ov::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 8);
 
     ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
@@ -22,7 +22,7 @@ TEST(type_prop, space_to_depth_output_shape_block_first_4D)
 TEST(type_prop, space_to_depth_output_shape_block_first_4D_2)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
-    const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+    const auto mode = ov::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
 
     ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
@@ -32,7 +32,7 @@ TEST(type_prop, space_to_depth_output_shape_block_first_4D_2)
 TEST(type_prop, space_to_depth_output_shape_depth_first_4D)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 12, 1080, 1616});
-    const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
+    const auto mode = ov::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
 
     ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
@@ -42,7 +42,7 @@ TEST(type_prop, space_to_depth_output_shape_depth_first_4D)
 TEST(type_prop, space_to_depth_output_shape_depth_first_5D)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 12, 4, 1080, 1616});
-    const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
+    const auto mode = ov::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
 
     ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
@@ -52,7 +52,7 @@ TEST(type_prop, space_to_depth_output_shape_depth_first_5D)
 TEST(type_prop, space_to_depth_dynamic_shape_static_rank)
 {
     auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
-    const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+    const auto mode = ov::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 8);
 
     ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
@@ -62,7 +62,7 @@ TEST(type_prop, space_to_depth_dynamic_shape_static_rank)
 TEST(type_prop, space_to_depth_dynamic_shape_dynamic_rank)
 {
     auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+    const auto mode = ov::op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 8);
 
     ASSERT_EQ(space_to_depth->get_element_type(), element::f32);

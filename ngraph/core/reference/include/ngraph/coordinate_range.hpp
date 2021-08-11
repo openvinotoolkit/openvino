@@ -11,7 +11,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace coordinates
     {
@@ -214,4 +214,4 @@ namespace ngraph
         using impl::reverse;
         using impl::slice;
     } // namespace coordinates
-} // namespace ngraph
+} // namespace ov

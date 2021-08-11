@@ -8,7 +8,7 @@
 
 // Copied from gtest
 
-namespace ngraph
+namespace ov
 {
     std::string prepend_disabled(const std::string& backend_name,
                                  const std::string& test_name,
@@ -16,7 +16,7 @@ namespace ngraph
 
     std::string combine_test_backend_and_case(const std::string& backend_name,
                                               const std::string& test_casename);
-} // namespace ngraph
+} // namespace ov
 
 #define NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)                     \
     backend_name##_##test_case_name##_##test_name##_Test
@@ -39,8 +39,8 @@ namespace ngraph
     ::testing::TestInfo* const NGRAPH_GTEST_TEST_CLASS_NAME_(                                      \
         backend_name, test_case_name, test_name)::test_info_ =                                     \
         ::testing::internal::MakeAndRegisterTestInfo(                                              \
-            ::ngraph::combine_test_backend_and_case(#backend_name, #test_case_name).c_str(),       \
-            ::ngraph::prepend_disabled(#backend_name, #test_name, s_manifest).c_str(),             \
+            ::ov::combine_test_backend_and_case(#backend_name, #test_case_name).c_str(),           \
+            ::ov::prepend_disabled(#backend_name, #test_name, s_manifest).c_str(),                 \
             nullptr,                                                                               \
             nullptr,                                                                               \
             ::testing::internal::CodeLocation(__FILE__, __LINE__),                                 \
@@ -109,7 +109,7 @@ namespace ngraph
                     ::testing::internal::CodeLocation(__FILE__, __LINE__))                         \
                 ->AddTestPattern(                                                                  \
                     #backend_name "/" #test_case_name,                                             \
-                    ::ngraph::prepend_disabled(                                                    \
+                    ::ov::prepend_disabled(                                                        \
                         #backend_name "/" #test_case_name, #test_name, s_manifest)                 \
                         .c_str(),                                                                  \
                     new ::testing::internal::TestMetaFactory<NGRAPH_GTEST_TEST_CLASS_NAME_(        \

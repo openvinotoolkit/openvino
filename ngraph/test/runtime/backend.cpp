@@ -23,7 +23,7 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 std::mutex runtime::Backend::m_mtx;
 std::string runtime::Backend::s_backend_shared_library_search_directory;
@@ -43,7 +43,7 @@ static string find_my_pathname()
     return path;
 #elif defined(__linux) || defined(__APPLE__)
     Dl_info dl_info;
-    dladdr(reinterpret_cast<void*>(ngraph::to_lower), &dl_info);
+    dladdr(reinterpret_cast<void*>(ov::to_lower), &dl_info);
     return dl_info.dli_fname;
 #else
 #error "Unsupported OS"
@@ -81,8 +81,8 @@ vector<string> runtime::Backend::get_registered_devices()
     return BackendManager::get_registered_backends();
 }
 
-std::shared_ptr<ngraph::runtime::Tensor>
-    runtime::Backend::create_dynamic_tensor(const ngraph::element::Type& /* element_type */,
+std::shared_ptr<ov::runtime::Tensor>
+    runtime::Backend::create_dynamic_tensor(const ov::element::Type& /* element_type */,
                                             const PartialShape& /* shape */)
 {
     throw std::invalid_argument("This backend does not support dynamic tensors");

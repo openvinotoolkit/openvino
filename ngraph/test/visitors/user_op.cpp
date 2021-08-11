@@ -14,9 +14,9 @@
 #include "util/visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
+using ov::test::ValueMap;
 
 enum class TuringModel
 {
@@ -24,7 +24,7 @@ enum class TuringModel
     XL1200
 };
 
-namespace ngraph
+namespace ov
 {
     template <>
     EnumNames<TuringModel>& EnumNames<TuringModel>::get()
@@ -87,7 +87,7 @@ namespace ngraph
     };
 
     constexpr DiscreteTypeInfo AttributeAdapter<Position>::type_info;
-}
+} // namespace ov
 
 // Given a Turing machine program and data, return scalar 1 if the program would
 // complete, 1 if it would not.

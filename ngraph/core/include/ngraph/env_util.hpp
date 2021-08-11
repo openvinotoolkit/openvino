@@ -9,7 +9,7 @@
 
 #include <ngraph/ngraph_visibility.hpp>
 
-namespace ngraph
+namespace ov
 {
     /// \brief Get the names environment variable as a string.
     /// \param env_var The string name of the environment variable to get.
@@ -36,4 +36,4 @@ namespace ngraph
     /// \return Returns the boolean value of the environment variable.
     NGRAPH_API
     bool getenv_bool(const char* env_var, bool default_value = false);
-} // namespace ngraph
+} // namespace ov

@@ -8,7 +8,7 @@
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pass
     {
@@ -47,5 +47,5 @@ namespace ngraph
         private:
             void construct_range();
         };
-    }
-}
+    } // namespace pass
+} // namespace ov

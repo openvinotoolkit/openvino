@@ -10,7 +10,7 @@
 
 #include "ngraph/except.hpp"
 
-namespace ngraph
+namespace ov
 {
     static inline std::ostream& write_all_to_stream(std::ostream& str) { return str; }
     template <typename T, typename... TS>
@@ -42,7 +42,7 @@ namespace ngraph
                                      const std::string& context_info,
                                      const std::string& explanation);
     };
-} // namespace ngraph
+} // namespace ov
 
 //
 // Helper macro for defining custom check macros, which throw custom exception classes and provide
@@ -96,7 +96,7 @@ namespace ngraph
 // Then, we define the macro NODE_VALIDATION_CHECK as follows:
 //
 // #define NODE_VALIDATION_CHECK(node, cond, ...) <backslash>
-//     NGRAPH_CHECK_HELPER(::ngraph::NodeValidationFailure, (node), (cond), ##__VA_ARGS__)
+//     NGRAPH_CHECK_HELPER(::ov::NodeValidationFailure, (node), (cond), ##__VA_ARGS__)
 //
 // The macro NODE_VALIDATION_CHECK can now be called on any condition, with a Node* pointer
 // supplied to generate an informative error message via node_validation_failure_loc_string().
@@ -115,9 +115,8 @@ namespace ngraph
         if (!(check))                                                                              \
         {                                                                                          \
             ::std::stringstream ss___;                                                             \
-            ::ngraph::write_all_to_stream(ss___, __VA_ARGS__);                                     \
-            throw exc_class(                                                                       \
-                (::ngraph::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ss___.str());         \
+            ::ov::write_all_to_stream(ss___, __VA_ARGS__);                                         \
+            throw exc_class((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ss___.str()); \
         }                                                                                          \
     } while (0)
 
@@ -126,7 +125,7 @@ namespace ngraph
     {                                                                                              \
         if (!(check))                                                                              \
         {                                                                                          \
-            throw exc_class((::ngraph::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), "");      \
+            throw exc_class((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), "");          \
         }                                                                                          \
     } while (0)
 
@@ -135,13 +134,13 @@ namespace ngraph
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
-/// \throws ::ngraph::CheckFailure if `cond` is false.
-#define NGRAPH_CHECK(...) NGRAPH_CHECK_HELPER(::ngraph::CheckFailure, "", __VA_ARGS__)
+/// \throws ::ov::CheckFailure if `cond` is false.
+#define NGRAPH_CHECK(...) NGRAPH_CHECK_HELPER(::ov::CheckFailure, "", __VA_ARGS__)
 
 /// \brief Macro to signal a code path that is unreachable in a successful execution. It's
 /// implemented with NGRAPH_CHECK macro.
 /// \param ... Additional error message that should describe why that execution path is unreachable.
-/// \throws ::ngraph::CheckFailure if the macro is executed.
+/// \throws ::ov::CheckFailure if the macro is executed.
 #define NGRAPH_UNREACHABLE(...) NGRAPH_CHECK(false, "Unreachable: ", __VA_ARGS__)
 #define NGRAPH_CHECK_HELPER(exc_class, ctx, ...)                                                   \
     CALL_OVERLOAD(NGRAPH_CHECK_HELPER, exc_class, ctx, __VA_ARGS__)

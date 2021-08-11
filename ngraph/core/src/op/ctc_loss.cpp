@@ -6,7 +6,7 @@
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::v4::CTCLoss::type_info;
 

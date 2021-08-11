@@ -8,7 +8,7 @@
 #include "ngraph/shape.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::Gather, "Gather", 1, op::util::GatherBase);
 
@@ -20,14 +20,14 @@ op::v1::Gather::Gather(const Output<Node>& params,
     constructor_validate_and_infer_types();
 }
 
-int64_t ngraph::op::v1::Gather::get_axis() const
+int64_t ov::op::v1::Gather::get_axis() const
 {
     if (!get_constant_from_source(input_value(2)))
         return AXIS_NOT_SET_VALUE;
     return GatherBase::get_axis();
 }
 
-bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Gather_visit_attributes);
     return true;
@@ -73,7 +73,7 @@ int64_t op::v7::Gather::get_batch_dims() const
         return m_batch_dims;
 }
 
-bool ngraph::op::v7::Gather::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v7::Gather::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v7_Gather_visit_attributes);
     visitor.on_attribute("batch_dims", m_batch_dims);
@@ -120,7 +120,7 @@ int64_t op::v8::Gather::get_batch_dims() const
         return m_batch_dims;
 }
 
-bool ngraph::op::v8::Gather::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v8::Gather::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v8_Gather_visit_attributes);
     visitor.on_attribute("batch_dims", m_batch_dims);

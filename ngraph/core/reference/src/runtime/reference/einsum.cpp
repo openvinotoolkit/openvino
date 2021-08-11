@@ -15,7 +15,7 @@
 #include "ngraph/runtime/reference/utils/span.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -119,7 +119,7 @@ namespace ngraph
                         return input_subscript;
                     }
 
-                    auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
+                    auto labels = ov::opset7::Einsum::extract_labels(input_subscript);
                     std::string required_subscript = "";
                     for (auto index : labels_inds)
                     {
@@ -134,7 +134,7 @@ namespace ngraph
                                           const std::string& input_subscript)
                 {
                     constexpr char ellipsis[] = "...";
-                    auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
+                    auto labels = ov::opset7::Einsum::extract_labels(input_subscript);
                     size_t input_rank_length = labels.size();
                     NGRAPH_CHECK(
                         input_rank.is_static() ||
@@ -361,7 +361,7 @@ namespace ngraph
                     const AxisVector order = get_default_order(input->get_shape());
                     const auto element_type = input->get_element_type();
 
-                    ngraph::runtime::reference::reshape(
+                    ov::runtime::reference::reshape(
                         reinterpret_cast<const char*>(input->get_data_ptr<T>()),
                         reinterpret_cast<char*>(output->get_data_ptr<T>()),
                         input_shape,
@@ -392,10 +392,9 @@ namespace ngraph
                     const auto input_shape = input_ptr->get_shape();
 
                     // compute output shape and axes to reduce
-                    ngraph::Shape output_shape;
-                    ngraph::AxisSet reduced_axes;
-                    auto labels =
-                        ngraph::opset7::Einsum::extract_labels(input_subscripts[input_ind]);
+                    ov::Shape output_shape;
+                    ov::AxisSet reduced_axes;
+                    auto labels = ov::opset7::Einsum::extract_labels(input_subscripts[input_ind]);
                     auto label_dim_map = compute_label_dim_map(
                         input_ptr->get_partial_shape().rank(), input_subscript);
                     std::string new_input_subscript = "";
@@ -433,10 +432,10 @@ namespace ngraph
                     HostTensorPtr output_ptr = std::shared_ptr<HostTensor>(
                         new HostTensor(input_ptr->get_element_type(), output_shape));
 
-                    ngraph::runtime::reference::sum<T>(input_ptr->get_data_ptr<T>(),
-                                                       output_ptr->get_data_ptr<T>(),
-                                                       input_shape,
-                                                       reduced_axes);
+                    ov::runtime::reference::sum<T>(input_ptr->get_data_ptr<T>(),
+                                                   output_ptr->get_data_ptr<T>(),
+                                                   input_shape,
+                                                   reduced_axes);
 
                     // update a vector of inputs and input subscripts
                     inputs[input_ind] = output_ptr;
@@ -473,9 +472,8 @@ namespace ngraph
                     // and the required one
                     auto label_dim_map = compute_label_dim_map(
                         input_ptr->get_partial_shape().rank(), input_subscript);
-                    auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
-                    auto required_labels =
-                        ngraph::opset7::Einsum::extract_labels(required_subscript);
+                    auto labels = ov::opset7::Einsum::extract_labels(input_subscript);
+                    auto required_labels = ov::opset7::Einsum::extract_labels(required_subscript);
                     NGRAPH_CHECK(labels.size() == required_labels.size());
                     for (const auto& required_label : required_labels)
                     {
@@ -505,7 +503,7 @@ namespace ngraph
                     HostTensorPtr output_ptr =
                         std::shared_ptr<HostTensor>(new HostTensor(element_type, output_shape));
 
-                    ngraph::runtime::reference::transpose(
+                    ov::runtime::reference::transpose(
                         reinterpret_cast<const char*>(input_ptr->get_data_ptr<T>()),
                         reinterpret_cast<char*>(output_ptr->get_data_ptr<T>()),
                         input_shape,
@@ -564,7 +562,7 @@ namespace ngraph
                               broadcast_axes.end(),
                               new_shape.size() - old_shape.size());
 
-                    ngraph::runtime::reference::broadcast(
+                    ov::runtime::reference::broadcast(
                         reinterpret_cast<const char*>(input->get_data_ptr<T>()),
                         reinterpret_cast<char*>(output->get_data_ptr<T>()),
                         input->get_shape(),
@@ -654,16 +652,15 @@ namespace ngraph
                         PartialShape output_shape = multi_identity->get_partial_shape();
                         PartialShape::broadcast_merge_into(output_shape,
                                                            identity->get_partial_shape(),
-                                                           ngraph::op::AutoBroadcastSpec::NUMPY);
+                                                           ov::op::AutoBroadcastSpec::NUMPY);
                         HostTensorPtr mul_output = std::shared_ptr<HostTensor>(
                             new HostTensor(identity->get_element_type(), output_shape.get_shape()));
-                        ngraph::runtime::reference::multiply<T>(
-                            multi_identity->get_data_ptr<T>(),
-                            identity->get_data_ptr<T>(),
-                            mul_output->get_data_ptr<T>(),
-                            multi_identity->get_shape(),
-                            identity->get_shape(),
-                            ngraph::op::AutoBroadcastSpec::NUMPY);
+                        ov::runtime::reference::multiply<T>(multi_identity->get_data_ptr<T>(),
+                                                            identity->get_data_ptr<T>(),
+                                                            mul_output->get_data_ptr<T>(),
+                                                            multi_identity->get_shape(),
+                                                            identity->get_shape(),
+                                                            ov::op::AutoBroadcastSpec::NUMPY);
                         multi_identity = mul_output;
                     }
                     return multi_identity;
@@ -689,7 +686,7 @@ namespace ngraph
 
                     std::string resultant_subscript = "";
                     constexpr char ellipsis[] = "...";
-                    auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
+                    auto labels = ov::opset7::Einsum::extract_labels(input_subscript);
                     auto label_dim_map = compute_label_dim_map(
                         input_ptr->get_partial_shape().rank(), input_subscript);
                     std::vector<std::string> repeated_labels;
@@ -730,19 +727,19 @@ namespace ngraph
                         build_multi_identity<T>(input_ptr, repeated_labels, label_dim_map);
 
                     HostTensorPtr mul_output = input_ptr;
-                    ngraph::runtime::reference::multiply<T>(input_ptr->get_data_ptr<T>(),
-                                                            multi_identity->get_data_ptr<T>(),
-                                                            mul_output->get_data_ptr<T>(),
-                                                            input_ptr->get_shape(),
-                                                            multi_identity->get_shape(),
-                                                            ngraph::op::AutoBroadcastSpec::NUMPY);
+                    ov::runtime::reference::multiply<T>(input_ptr->get_data_ptr<T>(),
+                                                        multi_identity->get_data_ptr<T>(),
+                                                        mul_output->get_data_ptr<T>(),
+                                                        input_ptr->get_shape(),
+                                                        multi_identity->get_shape(),
+                                                        ov::op::AutoBroadcastSpec::NUMPY);
 
                     HostTensorPtr result = std::shared_ptr<HostTensor>(
                         new HostTensor(input_ptr->get_element_type(), result_shape));
-                    ngraph::runtime::reference::sum<T>(mul_output->get_data_ptr<T>(),
-                                                       result->get_data_ptr<T>(),
-                                                       mul_output->get_shape(),
-                                                       reduced_axes);
+                    ov::runtime::reference::sum<T>(mul_output->get_data_ptr<T>(),
+                                                   result->get_data_ptr<T>(),
+                                                   mul_output->get_shape(),
+                                                   reduced_axes);
                     inputs[input_ind] = result;
                     input_subscripts[input_ind] = resultant_subscript;
                 }
@@ -814,7 +811,7 @@ namespace ngraph
                         std::shared_ptr<HostTensor>(new HostTensor(element_type, new_shape));
                     const AxisVector order = get_default_order(input_shape);
 
-                    ngraph::runtime::reference::reshape(
+                    ov::runtime::reference::reshape(
                         reinterpret_cast<const char*>(input->get_data_ptr<T>()),
                         reinterpret_cast<char*>(output->get_data_ptr<T>()),
                         input_shape,
@@ -872,9 +869,9 @@ namespace ngraph
                     // corresponding label are met in neither the output subscript nor the input
                     // subscripts for other Einsum inputs excluding two given inputs
                     auto& input_subscript1 = input_subscripts[input_ind1];
-                    auto labels1 = ngraph::opset7::Einsum::extract_labels(input_subscript1);
+                    auto labels1 = ov::opset7::Einsum::extract_labels(input_subscript1);
                     auto& input_subscript2 = input_subscripts[input_ind2];
-                    auto labels2 = ngraph::opset7::Einsum::extract_labels(input_subscript2);
+                    auto labels2 = ov::opset7::Einsum::extract_labels(input_subscript2);
                     std::string common_part = "";
                     std::string separate_part1 = "";
                     std::string separate_part2 = "";
@@ -939,10 +936,8 @@ namespace ngraph
                         transpose_input<T>(
                             inputs, input_subscripts, convenient_subscript, input_ind2);
 
-                        auto separate_labels1 =
-                            ngraph::opset7::Einsum::extract_labels(separate_part1);
-                        auto separate_labels2 =
-                            ngraph::opset7::Einsum::extract_labels(separate_part2);
+                        auto separate_labels1 = ov::opset7::Einsum::extract_labels(separate_part1);
+                        auto separate_labels2 = ov::opset7::Einsum::extract_labels(separate_part2);
                         auto label_to_dim_map1 = compute_label_dim_map(
                             input1->get_partial_shape().rank(), input_subscript1);
                         auto label_to_dim_map2 = compute_label_dim_map(
@@ -987,16 +982,15 @@ namespace ngraph
                         PartialShape output_shape = unsqueeze_output1->get_partial_shape();
                         PartialShape::broadcast_merge_into(output_shape,
                                                            unsqueeze_output2->get_partial_shape(),
-                                                           ngraph::op::AutoBroadcastSpec::NUMPY);
+                                                           ov::op::AutoBroadcastSpec::NUMPY);
                         HostTensorPtr mul_output = std::shared_ptr<HostTensor>(new HostTensor(
                             unsqueeze_output1->get_element_type(), output_shape.get_shape()));
-                        ngraph::runtime::reference::multiply<T>(
-                            unsqueeze_output1->get_data_ptr<T>(),
-                            unsqueeze_output2->get_data_ptr<T>(),
-                            mul_output->get_data_ptr<T>(),
-                            unsqueeze_output1->get_shape(),
-                            unsqueeze_output2->get_shape(),
-                            ngraph::op::AutoBroadcastSpec::NUMPY);
+                        ov::runtime::reference::multiply<T>(unsqueeze_output1->get_data_ptr<T>(),
+                                                            unsqueeze_output2->get_data_ptr<T>(),
+                                                            mul_output->get_data_ptr<T>(),
+                                                            unsqueeze_output1->get_shape(),
+                                                            unsqueeze_output2->get_shape(),
+                                                            ov::op::AutoBroadcastSpec::NUMPY);
 
                         // update input operand and input subscript for Einsum operation
                         update_operands(inputs,
@@ -1080,9 +1074,9 @@ namespace ngraph
 
                     // broadcast both inputs to have common sub-shape broadcasted that is needed
                     // in case of ellipsis among the common labels
-                    // ngraph::runtime::reference::broadcast()
+                    // ov::runtime::reference::broadcast()
                     PartialShape::broadcast_merge_into(
-                        common_sub_shape1, common_sub_shape2, ngraph::op::AutoBroadcastSpec::NUMPY);
+                        common_sub_shape1, common_sub_shape2, ov::op::AutoBroadcastSpec::NUMPY);
                     Shape common_sub_shape = common_sub_shape1.get_shape();
                     broadcast_input<T>(inputs,
                                        input_ind1,
@@ -1118,14 +1112,14 @@ namespace ngraph
 
                     bool transpose_a = (is_separate_first1 ? false : true);
                     bool transpose_b = (is_separate_first2 ? true : false);
-                    ngraph::runtime::reference::matmul(matmul_operand1->get_data_ptr<T>(),
-                                                       matmul_operand2->get_data_ptr<T>(),
-                                                       matmul_output->get_data_ptr<T>(),
-                                                       matmul_operand1->get_shape(),
-                                                       matmul_operand2->get_shape(),
-                                                       matmul_output_shape,
-                                                       transpose_a,
-                                                       transpose_b);
+                    ov::runtime::reference::matmul(matmul_operand1->get_data_ptr<T>(),
+                                                   matmul_operand2->get_data_ptr<T>(),
+                                                   matmul_output->get_data_ptr<T>(),
+                                                   matmul_operand1->get_shape(),
+                                                   matmul_operand2->get_shape(),
+                                                   matmul_output_shape,
+                                                   transpose_a,
+                                                   transpose_b);
 
                     // step 4. reshape back by unrolling dimensions corresponding to separate labels
                     // if needed now dimensions corresponding to reduced labels are reduced by the
@@ -1147,7 +1141,7 @@ namespace ngraph
                     HostTensorPtr contract_output = std::shared_ptr<HostTensor>(
                         new HostTensor(matmul_output->get_element_type(), back_shape));
                     const AxisVector order = get_default_order(matmul_output->get_shape());
-                    ngraph::runtime::reference::reshape(
+                    ov::runtime::reference::reshape(
                         reinterpret_cast<const char*>(matmul_output->get_data_ptr<T>()),
                         reinterpret_cast<char*>(contract_output->get_data_ptr<T>()),
                         matmul_output->get_shape(),
@@ -1170,7 +1164,7 @@ namespace ngraph
                 {
                     std::vector<std::string> input_subscripts;
                     std::string output_subscript;
-                    ngraph::opset7::Einsum::parse_equation(
+                    ov::opset7::Einsum::parse_equation(
                         equation, input_subscripts, output_subscript);
 
                     // compute einsum path that is used to contract a pair of operands
@@ -1238,4 +1232,4 @@ namespace ngraph
 
     } // namespace runtime
 
-} // namespace ngraph
+} // namespace ov

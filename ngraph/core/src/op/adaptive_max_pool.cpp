@@ -9,13 +9,13 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v8::AdaptiveMaxPool, "AdaptiveMaxPool", 8);
 
 op::v8::AdaptiveMaxPool::AdaptiveMaxPool(const Output<Node>& data,
                                          const Output<Node>& output_shape,
-                                         const ngraph::element::Type& index_element_type)
+                                         const ov::element::Type& index_element_type)
     : Op({data, output_shape})
     , m_index_element_type{index_element_type}
 {

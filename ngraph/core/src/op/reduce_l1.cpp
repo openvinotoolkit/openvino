@@ -12,7 +12,7 @@
 #include "ngraph/shape_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v4::ReduceL1, "ReduceL1", 4, util::ArithmeticReductionKeepDims);
 
@@ -26,7 +26,7 @@ op::v4::ReduceL1::ReduceL1(const Output<Node>& arg,
 
 shared_ptr<Node> op::v4::ReduceL1::get_default_value() const
 {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
+    return ov::make_constant_from_string("0", get_element_type(), get_shape());
 }
 
 shared_ptr<Node> op::v4::ReduceL1::clone_with_new_inputs(const OutputVector& new_args) const
@@ -87,11 +87,11 @@ bool op::v4::ReduceL1::has_evaluate() const
     NGRAPH_OP_SCOPE(v4_ReduceL1_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::bf16:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;

@@ -15,7 +15,7 @@
 #include "op/lp_pool.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -25,7 +25,7 @@ namespace ngraph
             {
                 OutputVector global_lp_pool(const Node& node)
                 {
-                    const Output<ngraph::Node> data{node.get_ng_inputs().at(0)};
+                    const Output<ov::Node> data{node.get_ng_inputs().at(0)};
                     const std::size_t channel_axis{1};
 
                     const auto data_shape = data.get_partial_shape();
@@ -47,7 +47,7 @@ namespace ngraph
                         "Only positive (including zero) values are supported for 'p' attribute.");
 
                     OutputVector slices =
-                        ngraph::builder::opset1::split(data, channels_count, channel_axis);
+                        ov::builder::opset1::split(data, channels_count, channel_axis);
 
                     for (auto& slice : slices)
                     {
@@ -55,7 +55,7 @@ namespace ngraph
                         const auto reduction_axes =
                             common::get_monotonic_range_along_node_rank(data, 2);
 
-                        slice = ngraph::builder::opset1::lp_norm(
+                        slice = ov::builder::opset1::lp_norm(
                             slice, reduction_axes, static_cast<std::size_t>(p_norm));
 
                         // output shape is all ones except N channel
@@ -78,4 +78,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

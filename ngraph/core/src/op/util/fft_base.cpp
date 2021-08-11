@@ -8,7 +8,7 @@
 #include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::util::FFTBase, "FFTBase", 0);
 

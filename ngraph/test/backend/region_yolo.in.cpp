@@ -13,7 +13,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -88,20 +88,18 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v3_mxnet_2)
     Shape output_shape{batch, (classes + coords + 1) * mask.size(), height, width};
 
     const auto A = make_shared<op::Parameter>(element::f32, input_shape);
-    const auto R = make_shared<op::v0::RegionYolo>(A, coords, classes, num, false, mask, axis, end_axis);
+    const auto R =
+        make_shared<op::v0::RegionYolo>(A, coords, classes, num, false, mask, axis, end_axis);
     const auto f = make_shared<Function>(R, ParameterVector{A});
 
     EXPECT_EQ(R->get_output_shape(0), output_shape);
 
     auto test_case = test::TestCase<TestEngine>(f);
-    std::vector<float> input {
-        0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f,
-        0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f,
-        0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f,
-        0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f
-    };
+    std::vector<float> input{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.1f, 0.2f, 0.3f,
+                             0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f,
+                             0.7f, 0.8f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
 
-    std::vector<float> output {
+    std::vector<float> output{
         0.52497f, 0.54983f, 0.57444f, 0.59868f, 0.62245f, 0.64565f, 0.66818f, 0.68997f,
         0.1f,     0.2f,     0.3f,     0.4f,     0.5f,     0.6f,     0.7f,     0.8f,
         0.52497f, 0.54983f, 0.57444f, 0.59868f, 0.62245f, 0.64565f, 0.66818f, 0.68997f,

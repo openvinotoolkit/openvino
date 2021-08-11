@@ -8,14 +8,14 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
-using namespace ngraph;
+using namespace ov;
 NGRAPH_SUPPRESS_DEPRECATED_START;
 
 std::shared_ptr<Function>
-    ngraph::specialize_function(std::shared_ptr<Function> f,
-                                const std::vector<element::Type>& parameter_element_types,
-                                const std::vector<PartialShape>& parameter_shapes,
-                                const std::vector<void*>& parameter_values)
+    ov::specialize_function(std::shared_ptr<Function> f,
+                            const std::vector<element::Type>& parameter_element_types,
+                            const std::vector<PartialShape>& parameter_shapes,
+                            const std::vector<void*>& parameter_values)
 
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "specialize_function");

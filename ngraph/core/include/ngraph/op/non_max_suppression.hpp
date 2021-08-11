@@ -6,7 +6,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -120,7 +120,7 @@ namespace ngraph
                                   const Output<Node>& score_threshold,
                                   const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                                   const bool sort_result_descending = true,
-                                  const ngraph::element::Type& output_type = ngraph::element::i64);
+                                  const ov::element::Type& output_type = ov::element::i64);
 
                 /// \brief Constructs a NonMaxSuppression operation with default values for the last
                 ///        3 inputs
@@ -135,7 +135,7 @@ namespace ngraph
                                   const Output<Node>& scores,
                                   const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                                   const bool sort_result_descending = true,
-                                  const ngraph::element::Type& output_type = ngraph::element::i64);
+                                  const ov::element::Type& output_type = ov::element::i64);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
@@ -164,7 +164,7 @@ namespace ngraph
             protected:
                 BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
                 bool m_sort_result_descending = true;
-                ngraph::element::Type m_output_type = ngraph::element::i64;
+                ov::element::Type m_output_type = ov::element::i64;
                 void validate();
                 int64_t max_boxes_output_from_input() const;
             };
@@ -200,7 +200,7 @@ namespace ngraph
                                   const Output<Node>& score_threshold,
                                   const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                                   const bool sort_result_descending = true,
-                                  const ngraph::element::Type& output_type = ngraph::element::i64);
+                                  const ov::element::Type& output_type = ov::element::i64);
 
                 /// \brief Constructs a NonMaxSuppression operation with default values for the last
                 ///        3 inputs
@@ -215,7 +215,7 @@ namespace ngraph
                                   const Output<Node>& scores,
                                   const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                                   const bool sort_result_descending = true,
-                                  const ngraph::element::Type& output_type = ngraph::element::i64);
+                                  const ov::element::Type& output_type = ov::element::i64);
 
                 void validate_and_infer_types() override;
 
@@ -253,7 +253,7 @@ namespace ngraph
                                   const Output<Node>& scores,
                                   const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                                   const bool sort_result_descending = true,
-                                  const ngraph::element::Type& output_type = ngraph::element::i64);
+                                  const ov::element::Type& output_type = ov::element::i64);
 
                 /// \brief Constructs a NonMaxSuppression operation with default values in the last.
                 ///        3 inputs.
@@ -271,7 +271,7 @@ namespace ngraph
                                   const Output<Node>& max_output_boxes_per_class,
                                   const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                                   const bool sort_result_descending = true,
-                                  const ngraph::element::Type& output_type = ngraph::element::i64);
+                                  const ov::element::Type& output_type = ov::element::i64);
 
                 /// \brief Constructs a NonMaxSuppression operation with default values in the last.
                 ///        2 inputs.
@@ -291,7 +291,7 @@ namespace ngraph
                                   const Output<Node>& iou_threshold,
                                   const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                                   const bool sort_result_descending = true,
-                                  const ngraph::element::Type& output_type = ngraph::element::i64);
+                                  const ov::element::Type& output_type = ov::element::i64);
 
                 /// \brief Constructs a NonMaxSuppression operation with default value in the last.
                 ///        input.
@@ -313,7 +313,7 @@ namespace ngraph
                                   const Output<Node>& score_threshold,
                                   const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                                   const bool sort_result_descending = true,
-                                  const ngraph::element::Type& output_type = ngraph::element::i64);
+                                  const ov::element::Type& output_type = ov::element::i64);
 
                 /// \brief Constructs a NonMaxSuppression operation.
                 ///
@@ -336,7 +336,7 @@ namespace ngraph
                                   const Output<Node>& soft_nms_sigma,
                                   const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
                                   const bool sort_result_descending = true,
-                                  const ngraph::element::Type& output_type = ngraph::element::i64);
+                                  const ov::element::Type& output_type = ov::element::i64);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
@@ -371,7 +371,7 @@ namespace ngraph
             protected:
                 BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
                 bool m_sort_result_descending = true;
-                ngraph::element::Type m_output_type = ngraph::element::i64;
+                ov::element::Type m_output_type = ov::element::i64;
                 void validate();
             };
         } // namespace v5
@@ -433,4 +433,4 @@ namespace ngraph
             "AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>", 1};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

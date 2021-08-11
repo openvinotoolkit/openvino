@@ -7,7 +7,7 @@
 #include <ngraph/op/parameter.hpp>
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -212,7 +212,7 @@ namespace ngraph
                 /// \brief     Gets internal sub-graph by index in MultiSubGraphOp
                 ///
                 /// \param     index sub-graph's index in op
-                /// \return pointer to ngraph::Function with sub-graph
+                /// \return pointer to ov::Function with sub-graph
                 virtual const std::shared_ptr<Function>& get_function(int index) const
                 {
                     return m_bodies[index];
@@ -220,7 +220,7 @@ namespace ngraph
                 /// \brief     Adds sub-graph to MultiSubGraphOp
                 ///
                 /// \param index   index of new sub-graph
-                /// \param func    func new sub_graph as ngraph::Function
+                /// \param func    func new sub_graph as ov::Function
                 virtual void set_function(int index, const std::shared_ptr<Function>& func)
                 {
                     m_bodies[index] = func;
@@ -330,16 +330,16 @@ namespace ngraph
 
     template <>
     class NGRAPH_API AttributeAdapter<
-        std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>
+        std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>
         : public DirectValueAccessor<
-              std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>
+              std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>
     {
     public:
         AttributeAdapter(
-            std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>&
-                value)
-            : DirectValueAccessor<std::vector<
-                  std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>(value)
+            std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>& value)
+            : DirectValueAccessor<
+                  std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>(
+                  value)
         {
         }
 
@@ -348,19 +348,19 @@ namespace ngraph
 
     template <>
     class NGRAPH_API AttributeAdapter<
-        std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>
+        std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>
         : public DirectValueAccessor<
-              std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>
+              std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>
     {
     public:
         AttributeAdapter(
-            std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>&
-                value)
-            : DirectValueAccessor<std::vector<
-                  std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>(value)
+            std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>& value)
+            : DirectValueAccessor<
+                  std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>(
+                  value)
         {
         }
 
         NGRAPH_RTTI_DECLARATION;
     };
-} // namespace ngraph
+} // namespace ov

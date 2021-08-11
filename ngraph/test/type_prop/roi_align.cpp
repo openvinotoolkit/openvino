@@ -6,7 +6,7 @@
 #include "ngraph/ngraph.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop_layers, roi_align_basic_shape_inference)
 {
@@ -43,7 +43,7 @@ TEST(type_prop_layers, roi_align_incompatible_num_rois)
     const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{2});
     // the first dimension of rois and batch_indices should be equal
     ASSERT_THROW(make_shared<op::v3::ROIAlign>(data, rois, batch_indices, 3, 4, 1, 1.0f, "avg"),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 TEST(type_prop_layers, roi_align_incompatible_input_rank)
@@ -53,7 +53,7 @@ TEST(type_prop_layers, roi_align_incompatible_input_rank)
     const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{1});
     // data rank needs to be 4
     ASSERT_THROW(make_shared<op::v3::ROIAlign>(data, rois, batch_indices, 3, 4, 1, 1.0f, "avg"),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 TEST(type_prop_layers, roi_align_incompatible_rois_second_dim)
@@ -63,5 +63,5 @@ TEST(type_prop_layers, roi_align_incompatible_rois_second_dim)
     const auto batch_indices = make_shared<op::Parameter>(element::i32, Shape{1});
     // the second dim of rois needs to be 4
     ASSERT_THROW(make_shared<op::v3::ROIAlign>(data, rois, batch_indices, 3, 4, 1, 1.0f, "avg"),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }

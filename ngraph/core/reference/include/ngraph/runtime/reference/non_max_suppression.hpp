@@ -18,7 +18,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -40,11 +40,11 @@ namespace ngraph
                                      const bool sort_result_descending);
 
             void nms5_postprocessing(const HostTensorVector& outputs,
-                                     const ngraph::element::Type output_type,
+                                     const ov::element::Type output_type,
                                      const std::vector<int64_t>& selected_indices,
                                      const std::vector<float>& selected_scores,
                                      int64_t valid_outputs,
-                                     const ngraph::element::Type selected_scores_type);
+                                     const ov::element::Type selected_scores_type);
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

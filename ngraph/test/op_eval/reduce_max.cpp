@@ -4,14 +4,13 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/test_control.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
-
+#include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -37,7 +36,8 @@ TEST(op_eval, reduce_max_matrix_rows_zero)
 
     EXPECT_EQ((vector<float>{-std::numeric_limits<float>::infinity(),
                              -std::numeric_limits<float>::infinity(),
-                             -std::numeric_limits<float>::infinity()}), read_vector<float>(result));
+                             -std::numeric_limits<float>::infinity()}),
+              read_vector<float>(result));
 }
 
 TEST(op_eval, reduce_max_matrix_rows_zero_int32)

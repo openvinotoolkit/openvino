@@ -15,7 +15,7 @@
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -25,15 +25,15 @@ namespace ngraph
             {
                 namespace
                 {
-                    std::shared_ptr<ngraph::op::Op>
-                        make_ng_convolution(const Output<ngraph::Node>& data,
-                                            const Output<ngraph::Node>& filters,
-                                            const ngraph::Strides& strides,
-                                            const ngraph::Strides& dilations,
-                                            const ngraph::CoordinateDiff& padding_below,
-                                            const ngraph::CoordinateDiff& padding_above,
+                    std::shared_ptr<ov::op::Op>
+                        make_ng_convolution(const Output<ov::Node>& data,
+                                            const Output<ov::Node>& filters,
+                                            const ov::Strides& strides,
+                                            const ov::Strides& dilations,
+                                            const ov::CoordinateDiff& padding_below,
+                                            const ov::CoordinateDiff& padding_above,
                                             int64_t groups,
-                                            const ngraph::op::PadType& auto_pad)
+                                            const ov::op::PadType& auto_pad)
                     {
                         if (groups > 1)
                         {
@@ -61,8 +61,8 @@ namespace ngraph
                         }
                     }
 
-                    std::shared_ptr<ngraph::Node> add_bias(const Output<ngraph::Node>& ng_conv,
-                                                           const Output<ngraph::Node>& bias)
+                    std::shared_ptr<ov::Node> add_bias(const Output<ov::Node>& ng_conv,
+                                                       const Output<ov::Node>& bias)
                     {
                         const auto conv_shape = std::make_shared<default_opset::ShapeOf>(ng_conv);
                         const auto conv_rank = std::make_shared<default_opset::ShapeOf>(conv_shape);
@@ -88,7 +88,7 @@ namespace ngraph
                     const auto strides = convpool::get_strides(node);
                     const auto dilations = convpool::get_dilations(node);
                     const auto paddings = convpool::get_pads(node);
-                    const ngraph::op::PadType auto_pad_type = convpool::get_auto_pad(node);
+                    const ov::op::PadType auto_pad_type = convpool::get_auto_pad(node);
                     const auto& padding_below = paddings.first;
                     const auto& padding_above = paddings.second;
 
@@ -124,4 +124,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

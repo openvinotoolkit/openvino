@@ -10,7 +10,7 @@
 
 #include "ngraph/check.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// Uses a pairings defined by EnumTypes::get() to convert between strings
     /// and enum values.
@@ -81,4 +81,4 @@ namespace ngraph
     {
         return EnumNames<Value>::as_string(value);
     }
-} // namespace ngraph
+} // namespace ov

@@ -20,7 +20,7 @@
 #include <algorithm>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::StridedSlice, "StridedSlice", 1);
 

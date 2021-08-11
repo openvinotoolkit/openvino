@@ -11,7 +11,7 @@
 #include "ngraph/output_vector.hpp"
 #include "ngraph/type.hpp"
 
-namespace ngraph
+namespace ov
 {
     class Node;
     using VariantTypeInfo = DiscreteTypeInfo;
@@ -22,8 +22,8 @@ namespace ngraph
         virtual ~Variant();
         virtual const VariantTypeInfo& get_type_info() const = 0;
 
-        virtual std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node);
-        virtual std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes);
+        virtual std::shared_ptr<ov::Variant> init(const std::shared_ptr<ov::Node>& node);
+        virtual std::shared_ptr<ov::Variant> merge(const ov::NodeVector& nodes);
         virtual bool is_copyable() const;
         virtual std::string to_string() { return ""; }
     };
@@ -102,4 +102,4 @@ namespace ngraph
 #endif
 
     using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
-} // namespace ngraph
+} // namespace ov

@@ -8,7 +8,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -18,7 +18,7 @@ namespace ngraph
             /// f(x) = min(max(x + 3, 0), 6) / 6 or
             /// f(x) = min(ReLU(x + 3), 6) / 6
             ///
-            class NGRAPH_API HSigmoid : public ngraph::op::util::UnaryElementwiseArithmetic
+            class NGRAPH_API HSigmoid : public ov::op::util::UnaryElementwiseArithmetic
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -39,4 +39,4 @@ namespace ngraph
             };
         } // namespace v5
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

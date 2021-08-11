@@ -8,7 +8,7 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v5::LogSoftmax, "LogSoftmax", 5);
 

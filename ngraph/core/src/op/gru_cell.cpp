@@ -11,7 +11,7 @@
 #include "ngraph/type/element_type.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::v3::GRUCell::type_info;
 

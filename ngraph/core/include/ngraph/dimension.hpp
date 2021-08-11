@@ -12,7 +12,7 @@
 #include "ngraph/interval.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// \brief Class representing a dimension, which may be dynamic (undetermined until runtime),
     ///        in a shape or shape-like object.
@@ -163,4 +163,4 @@ namespace ngraph
     /// Inserts the string `?` if `dimension` is dynamic; else inserts `dimension.get_length()`.
     NGRAPH_API
     std::ostream& operator<<(std::ostream& str, const Dimension& dimension);
-} // namespace ngraph
+} // namespace ov

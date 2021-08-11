@@ -14,7 +14,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(op_eval, swish_with_beta1)
 {

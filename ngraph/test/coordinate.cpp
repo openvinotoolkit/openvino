@@ -14,7 +14,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 TEST(coordinate, shape0d)

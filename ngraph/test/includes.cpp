@@ -14,7 +14,7 @@
 // #include "ngraph/util.hpp"
 
 // using namespace std;
-// using namespace ngraph;
+// using namespace ov;
 
 // TEST(DISABLED_include, complete)
 // {

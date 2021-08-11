@@ -9,7 +9,7 @@
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// \brief Extracts the tensor data and returns a set of normalized axes created out of it.
     ///
@@ -19,6 +19,6 @@ namespace ngraph
     ///
     /// \return Normalized (positive only) axes as an AxisSet object.
     AxisSet get_normalized_axes_from_tensor(const HostTensorPtr tensor,
-                                            const ngraph::Rank& rank,
+                                            const ov::Rank& rank,
                                             const std::string& node_description);
-} // namespace ngraph
+} // namespace ov

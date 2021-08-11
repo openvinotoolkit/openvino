@@ -7,7 +7,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/logical_reduction.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -41,4 +41,4 @@ namespace ngraph
             };
         } // namespace util
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

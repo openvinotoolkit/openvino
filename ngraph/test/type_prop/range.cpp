@@ -7,7 +7,7 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 struct RangeParams
 {
@@ -568,7 +568,7 @@ TEST(type_prop, range_v4_invalid_inputs_elem_type)
         auto range = make_shared<op::v4::Range>(start, stop, step, element::i32);
         FAIL() << "Exception expected";
     }
-    catch (ngraph::NodeValidationFailure& error)
+    catch (ov::NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("'start' input scalar should be a numeric type"));
@@ -587,7 +587,7 @@ TEST(type_prop, range_v4_invalid_inputs_elem_type)
         auto range = make_shared<op::v4::Range>(start, stop, step, element::i32);
         FAIL() << "Exception expected";
     }
-    catch (ngraph::NodeValidationFailure& error)
+    catch (ov::NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("'stop' input scalar should be a numeric type"));
@@ -606,7 +606,7 @@ TEST(type_prop, range_v4_invalid_inputs_elem_type)
         auto range = make_shared<op::v4::Range>(start, stop, step, element::i32);
         FAIL() << "Exception expected";
     }
-    catch (const ngraph::NodeValidationFailure& error)
+    catch (const ov::NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("'step' input scalar should be a numeric type"));
@@ -626,7 +626,7 @@ TEST(type_prop, range_v4_invalid_output_elem_type)
         auto step = make_shared<op::Parameter>(element::f16, Shape{});
         auto range = make_shared<op::v4::Range>(start, stop, step, element::boolean);
     }
-    catch (const ngraph::NodeValidationFailure& error)
+    catch (const ov::NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("output tensor type should be a numeric type"));
@@ -648,7 +648,7 @@ TEST(type_prop, range_v4_invalid_inputs_non_scalar)
         auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
         FAIL() << "Exception expected";
     }
-    catch (const ngraph::NodeValidationFailure& error)
+    catch (const ov::NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'start' input is not a scalar"));
     }
@@ -666,7 +666,7 @@ TEST(type_prop, range_v4_invalid_inputs_non_scalar)
         auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
         FAIL() << "Exception expected";
     }
-    catch (const ngraph::NodeValidationFailure& error)
+    catch (const ov::NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'stop' input is not a scalar"));
     }
@@ -684,7 +684,7 @@ TEST(type_prop, range_v4_invalid_inputs_non_scalar)
         auto range = make_shared<op::v4::Range>(start, stop, step, element::f32);
         FAIL() << "Exception expected";
     }
-    catch (const ngraph::NodeValidationFailure& error)
+    catch (const ov::NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("'step' input is not a scalar"));
     }

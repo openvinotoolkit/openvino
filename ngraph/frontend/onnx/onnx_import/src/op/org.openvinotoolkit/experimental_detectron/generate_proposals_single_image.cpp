@@ -6,7 +6,7 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -17,7 +17,7 @@ namespace ngraph
                 OutputVector experimental_detectron_generate_proposals(const Node& node)
                 {
                     using GenerateProposalsSingleImage =
-                        ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
+                        ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
 
                     const auto inputs = node.get_ng_inputs();
                     NGRAPH_CHECK(inputs.size() == 4,
@@ -50,4 +50,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

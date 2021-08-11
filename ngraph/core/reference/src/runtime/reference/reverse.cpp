@@ -10,9 +10,9 @@
 #include "ngraph/coordinate_range.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -61,4 +61,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

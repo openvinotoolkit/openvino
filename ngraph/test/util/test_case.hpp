@@ -13,7 +13,7 @@
 #include "test_tools.hpp"
 #include "util/engine/engine_factory.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -80,14 +80,14 @@ namespace ngraph
                                      const std::string& basepath,
                                      const std::string& filename)
             {
-                const auto filepath = ngraph::file_util::path_join(basepath, filename);
+                const auto filepath = ov::file_util::path_join(basepath, filename);
                 add_input_from_file<T>(shape, filepath);
             }
 
             template <typename T>
             void add_input_from_file(const std::string& basepath, const std::string& filename)
             {
-                const auto filepath = ngraph::file_util::path_join(basepath, filename);
+                const auto filepath = ov::file_util::path_join(basepath, filename);
                 add_input_from_file<T>(filepath);
             }
 
@@ -140,16 +140,16 @@ namespace ngraph
             }
 
             template <typename T>
-            void add_expected_output_from_file(const ngraph::Shape& expected_shape,
+            void add_expected_output_from_file(const ov::Shape& expected_shape,
                                                const std::string& basepath,
                                                const std::string& filename)
             {
-                const auto filepath = ngraph::file_util::path_join(basepath, filename);
+                const auto filepath = ov::file_util::path_join(basepath, filename);
                 add_expected_output_from_file<T>(expected_shape, filepath);
             }
 
             template <typename T>
-            void add_expected_output_from_file(const ngraph::Shape& expected_shape,
+            void add_expected_output_from_file(const ov::Shape& expected_shape,
                                                const std::string& filepath)
             {
                 const auto values = read_binary_file<T>(filepath);
@@ -196,5 +196,5 @@ namespace ngraph
             size_t m_input_index = 0;
             size_t m_output_index = 0;
         };
-    }
-}
+    } // namespace test
+} // namespace ov

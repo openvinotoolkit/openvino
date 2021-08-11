@@ -9,25 +9,25 @@
 #include "interpreter_engine.hpp"
 #include "shared_utils.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace
 {
     template <typename T>
     typename std::enable_if<std::is_floating_point<T>::value, testing::AssertionResult>::type
-        compare_values(const std::shared_ptr<ngraph::op::Constant>& expected_results,
-                       const std::shared_ptr<ngraph::runtime::Tensor>& results,
+        compare_values(const std::shared_ptr<ov::op::Constant>& expected_results,
+                       const std::shared_ptr<ov::runtime::Tensor>& results,
                        const size_t tolerance_bits)
     {
         const auto expected = expected_results->get_vector<T>();
         const auto result = read_vector<T>(results);
 
-        return ngraph::test::all_close_f(expected, result, tolerance_bits);
+        return ov::test::all_close_f(expected, result, tolerance_bits);
     }
 
     testing::AssertionResult
-        compare_with_fp_tolerance(const std::shared_ptr<ngraph::op::Constant>& expected_results,
-                                  const std::shared_ptr<ngraph::runtime::Tensor>& results,
+        compare_with_fp_tolerance(const std::shared_ptr<ov::op::Constant>& expected_results,
+                                  const std::shared_ptr<ov::runtime::Tensor>& results,
                                   const float tolerance)
     {
         auto comparison_result = testing::AssertionSuccess();
@@ -35,26 +35,26 @@ namespace
         const auto expected = expected_results->get_vector<float>();
         const auto result = read_vector<float>(results);
 
-        return ngraph::test::compare_with_tolerance(expected, result, tolerance);
+        return ov::test::compare_with_tolerance(expected, result, tolerance);
     }
 
     template <typename T>
     typename std::enable_if<std::is_integral<T>::value, testing::AssertionResult>::type
-        compare_values(const std::shared_ptr<ngraph::op::Constant>& expected_results,
-                       const std::shared_ptr<ngraph::runtime::Tensor>& results,
+        compare_values(const std::shared_ptr<ov::op::Constant>& expected_results,
+                       const std::shared_ptr<ov::runtime::Tensor>& results,
                        const size_t)
     {
         const auto expected = expected_results->get_vector<T>();
         const auto result = read_vector<T>(results);
 
-        return ngraph::test::all_close(expected, result);
+        return ov::test::all_close(expected, result);
     }
 
     // used for float16 and bfloat 16 comparisons
     template <typename T>
     typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
-        compare_values(const std::shared_ptr<ngraph::op::Constant>& expected_results,
-                       const std::shared_ptr<ngraph::runtime::Tensor>& results,
+        compare_values(const std::shared_ptr<ov::op::Constant>& expected_results,
+                       const std::shared_ptr<ov::runtime::Tensor>& results,
                        const size_t tolerance_bits)
     {
         const auto expected = expected_results->get_vector<T>();
@@ -73,14 +73,14 @@ namespace
             result_double[i] = static_cast<double>(result[i]);
         }
 
-        return ngraph::test::all_close_f(expected_double, result_double, tolerance_bits);
+        return ov::test::all_close_f(expected_double, result_double, tolerance_bits);
     }
 }; // namespace
 
 test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> function)
     : m_function{function}
 {
-    m_backend = ngraph::runtime::Backend::create(NG_BACKEND_NAME, false); // static INT backend
+    m_backend = ov::runtime::Backend::create(NG_BACKEND_NAME, false); // static INT backend
     m_executable = m_backend->compile(m_function);
     for (size_t i = 0; i < m_function->get_output_size(); ++i)
     {
@@ -93,7 +93,7 @@ test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> fun
                                              INTERPRETER_Engine::DynamicBackendTag)
     : m_function{function}
 {
-    m_backend = ngraph::runtime::Backend::create(NG_BACKEND_NAME, true); // dynamic INT backend
+    m_backend = ov::runtime::Backend::create(NG_BACKEND_NAME, true); // dynamic INT backend
     m_executable = m_backend->compile(m_function);
     for (size_t i = 0; i < m_function->get_output_size(); ++i)
     {
@@ -185,11 +185,11 @@ testing::AssertionResult test::INTERPRETER_Engine::compare_results(const size_t 
         switch (element_type)
         {
         case element::Type_t::f16:
-            comparison_result = compare_values<ngraph::float16>(
+            comparison_result = compare_values<ov::float16>(
                 expected_result_constant, result_tensor, tolerance_bits);
             break;
         case element::Type_t::bf16:
-            comparison_result = compare_values<ngraph::bfloat16>(
+            comparison_result = compare_values<ov::bfloat16>(
                 expected_result_constant, result_tensor, tolerance_bits);
             break;
         case element::Type_t::f32:

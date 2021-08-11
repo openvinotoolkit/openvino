@@ -10,7 +10,7 @@
 
 #include "ngraph/coordinate_index.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace coordinates
     {
@@ -219,4 +219,4 @@ namespace ngraph
         } // namespace impl
 
     } // namespace coordinates
-} // namespace ngraph
+} // namespace ov

@@ -14,7 +14,7 @@
 #include "ngraph/shape.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -33,7 +33,7 @@ op::HardSigmoid::HardSigmoid(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::HardSigmoid::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::HardSigmoid::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_HardSigmoid_visit_attributes);
     return true;
@@ -79,10 +79,10 @@ OutputVector op::HardSigmoid::decompose_op() const
     const auto data = input_value(0);
 
     const auto one_node =
-        ngraph::op::Constant::create<float>(data.get_element_type(), data.get_shape(), {1.0f});
+        ov::op::Constant::create<float>(data.get_element_type(), data.get_shape(), {1.0f});
 
     const auto zero_node =
-        ngraph::op::Constant::create<float>(data.get_element_type(), data.get_shape(), {0.0f});
+        ov::op::Constant::create<float>(data.get_element_type(), data.get_shape(), {0.0f});
 
     const auto alpha_node = input_value(1).get_node_shared_ptr();
     const auto beta_node = input_value(2).get_node_shared_ptr();

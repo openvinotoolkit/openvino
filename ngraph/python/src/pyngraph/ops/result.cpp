@@ -14,7 +14,6 @@ namespace py = pybind11;
 
 void regclass_pyngraph_op_Result(py::module m)
 {
-    py::class_<ngraph::op::Result, std::shared_ptr<ngraph::op::Result>, ngraph::Node> result(
-        m, "Result");
-    result.doc() = "ngraph.impl.op.Result wraps ngraph::op::Result";
+    py::class_<ov::op::Result, std::shared_ptr<ov::op::Result>, ov::Node> result(m, "Result");
+    result.doc() = "ngraph.impl.op.Result wraps ov::op::Result";
 }

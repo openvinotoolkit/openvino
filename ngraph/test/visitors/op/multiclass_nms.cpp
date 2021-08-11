@@ -15,9 +15,9 @@
 #include "util/visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
+using ov::test::ValueMap;
 
 TEST(attributes, multiclass_nms_v8_op_custom_attributes)
 {
@@ -28,7 +28,7 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
     opset8::MulticlassNms::Attributes attrs;
     attrs.sort_result_type = opset8::MulticlassNms::SortResultType::SCORE;
     attrs.sort_result_across_batch = true;
-    attrs.output_type = ngraph::element::i32;
+    attrs.output_type = ov::element::i32;
     attrs.nms_top_k = 100;
     attrs.keep_top_k = 10;
     attrs.iou_threshold = 0.1f;
@@ -75,7 +75,8 @@ TEST(attributes, multiclass_nms_v8_op_default_attributes)
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, opset8::MulticlassNms::Attributes());
+    auto nms =
+        make_shared<opset8::MulticlassNms>(boxes, scores, opset8::MulticlassNms::Attributes());
     NodeBuilder builder(nms);
     auto g_nms = as_type_ptr<opset8::MulticlassNms>(builder.create());
     const auto expected_attr_count = 10;

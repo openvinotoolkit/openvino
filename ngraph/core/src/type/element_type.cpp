@@ -11,7 +11,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 constexpr DiscreteTypeInfo AttributeAdapter<element::Type>::type_info;
 namespace
@@ -149,7 +149,7 @@ const std::string& element::Type::get_type_name() const
     return get_type_info(m_type).m_type_name;
 }
 
-namespace ngraph
+namespace ov
 {
     namespace element
     {
@@ -164,7 +164,7 @@ namespace ngraph
             return Type_t::boolean;
         }
         template <>
-        Type from<ngraph::float16>()
+        Type from<ov::float16>()
         {
             return Type_t::f16;
         }
@@ -219,12 +219,12 @@ namespace ngraph
             return Type_t::u64;
         }
         template <>
-        Type from<ngraph::bfloat16>()
+        Type from<ov::bfloat16>()
         {
             return Type_t::bf16;
         }
     } // namespace element
-} // namespace ngraph
+} // namespace ov
 
 std::ostream& element::operator<<(std::ostream& out, const element::Type& obj)
 {
@@ -289,7 +289,7 @@ size_t element::Type::bitwidth() const
     return get_type_info(m_type).m_bitwidth;
 }
 
-size_t ngraph::compiler_byte_size(element::Type_t et)
+size_t ov::compiler_byte_size(element::Type_t et)
 {
     switch (et)
     {
@@ -320,7 +320,7 @@ size_t ngraph::compiler_byte_size(element::Type_t et)
                        std::to_string(static_cast<int>(et)));
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     NGRAPH_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get()
@@ -347,7 +347,7 @@ namespace ngraph
                                         {"u64", element::Type_t::u64}});
         return enum_names;
     }
-} // namespace ngraph
+} // namespace ov
 
 constexpr DiscreteTypeInfo AttributeAdapter<element::Type_t>::type_info;
 

@@ -9,7 +9,7 @@
 #include "ngraph/check.hpp"
 #include "ngraph/partial_shape.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 PartialShape::PartialShape()
     : PartialShape(std::initializer_list<Dimension>{})
@@ -46,7 +46,7 @@ PartialShape::PartialShape(std::vector<Dimension> dimensions)
 {
 }
 
-bool ngraph::PartialShape::is_static() const
+bool ov::PartialShape::is_static() const
 {
     ShapeType shape_type = m_shape_type;
 
@@ -66,7 +66,7 @@ bool ngraph::PartialShape::is_static() const
     return shape_type == ShapeType::SHAPE_IS_STATIC;
 }
 
-bool ngraph::PartialShape::operator==(const PartialShape& partial_shape) const
+bool ov::PartialShape::operator==(const PartialShape& partial_shape) const
 {
     if (rank() != partial_shape.rank())
     {
@@ -86,12 +86,12 @@ bool ngraph::PartialShape::operator==(const PartialShape& partial_shape) const
     return true;
 }
 
-bool ngraph::PartialShape::operator!=(const PartialShape& partial_shape) const
+bool ov::PartialShape::operator!=(const PartialShape& partial_shape) const
 {
     return !(*this == partial_shape);
 }
 
-Shape ngraph::PartialShape::get_max_shape() const
+Shape ov::PartialShape::get_max_shape() const
 {
     if (rank().is_dynamic())
     {
@@ -108,7 +108,7 @@ Shape ngraph::PartialShape::get_max_shape() const
     }
 }
 
-Shape ngraph::PartialShape::get_min_shape() const
+Shape ov::PartialShape::get_min_shape() const
 {
     if (rank().is_dynamic())
     {
@@ -125,7 +125,7 @@ Shape ngraph::PartialShape::get_min_shape() const
     }
 }
 
-Shape ngraph::PartialShape::get_shape() const
+Shape ov::PartialShape::get_shape() const
 {
     NGRAPH_CHECK(rank().is_static(), "get_shape() must be called on a static shape");
     Shape shape;
@@ -139,7 +139,7 @@ Shape ngraph::PartialShape::get_shape() const
     return shape;
 }
 
-PartialShape ngraph::operator+(const PartialShape& s1, const PartialShape& s2)
+PartialShape ov::operator+(const PartialShape& s1, const PartialShape& s2)
 {
     if (s1.rank().is_dynamic() || s2.rank().is_dynamic())
     {
@@ -160,7 +160,7 @@ PartialShape ngraph::operator+(const PartialShape& s1, const PartialShape& s2)
     return result;
 }
 
-std::ostream& ngraph::operator<<(std::ostream& str, const PartialShape& shape)
+std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape)
 {
     if (shape.m_rank_is_static)
     {
@@ -471,7 +471,7 @@ Dimension& PartialShape::operator[](size_t i)
     return m_dimensions[i];
 }
 
-const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::PartialShape>::get()
+const std::vector<int64_t>& ov::AttributeAdapter<ov::PartialShape>::get()
 {
     if (!m_buffer_valid)
     {
@@ -493,7 +493,7 @@ const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::PartialShape>::get(
     return m_buffer;
 }
 
-void ngraph::AttributeAdapter<ngraph::PartialShape>::set(const std::vector<int64_t>& value)
+void ov::AttributeAdapter<ov::PartialShape>::set(const std::vector<int64_t>& value)
 {
     m_ref = PartialShape();
     if (value.size() == 1 && value[0] == -2)

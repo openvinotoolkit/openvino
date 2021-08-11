@@ -10,7 +10,7 @@
 #include "ngraph/type/element_type.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

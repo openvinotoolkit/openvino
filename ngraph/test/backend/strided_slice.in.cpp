@@ -13,7 +13,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -32,10 +32,9 @@ void check_strided_slice_success(const element::Type& input_element_type,
                                  const std::vector<T>& expected_values)
 {
     auto arg = std::make_shared<op::Parameter>(input_element_type, input_shape);
-    auto begin_op = make_shared<ngraph::op::Parameter>(element::i64, Shape{begin_values.size()});
-    auto end_op = make_shared<ngraph::op::Parameter>(element::i64, Shape{end_values.size()});
-    auto strides_op =
-        make_shared<ngraph::op::Parameter>(element::i64, Shape{strides_values.size()});
+    auto begin_op = make_shared<ov::op::Parameter>(element::i64, Shape{begin_values.size()});
+    auto end_op = make_shared<ov::op::Parameter>(element::i64, Shape{end_values.size()});
+    auto strides_op = make_shared<ov::op::Parameter>(element::i64, Shape{strides_values.size()});
 
     std::vector<T> input_values(shape_size(input_shape));
     std::iota(input_values.begin(), input_values.end(), static_cast<T>(0));
@@ -91,8 +90,8 @@ void check_strided_slice_stride_optional_success(const element::Type& input_elem
                                                  const std::vector<T>& expected_values)
 {
     auto arg = std::make_shared<op::Parameter>(input_element_type, input_shape);
-    auto begin_op = make_shared<ngraph::op::Parameter>(element::i64, Shape{begin_values.size()});
-    auto end_op = make_shared<ngraph::op::Parameter>(element::i64, Shape{end_values.size()});
+    auto begin_op = make_shared<ov::op::Parameter>(element::i64, Shape{begin_values.size()});
+    auto end_op = make_shared<ov::op::Parameter>(element::i64, Shape{end_values.size()});
 
     std::vector<T> input_values(shape_size(input_shape));
     std::iota(input_values.begin(), input_values.end(), static_cast<T>(0));

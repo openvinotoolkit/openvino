@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -15,4 +15,4 @@ namespace ngraph
                                                         const std::vector<float>& results,
                                                         const float tolerance);
     }
-} // namespace ngraph
+} // namespace ov

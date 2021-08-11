@@ -11,7 +11,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 // This function traverses the vector of ops and verifies that each op's dependencies (its inputs)
 // is located earlier in the vector. That is enough to be valid
@@ -72,14 +72,14 @@ shared_ptr<Function> make_test_graph()
 }
 
 template <>
-void copy_data<bool>(std::shared_ptr<ngraph::runtime::Tensor> tv, const std::vector<bool>& data)
+void copy_data<bool>(std::shared_ptr<ov::runtime::Tensor> tv, const std::vector<bool>& data)
 {
     std::vector<char> data_char(data.begin(), data.end());
     copy_data(tv, data_char);
 }
 
 template <>
-void init_int_tv<char>(ngraph::runtime::Tensor* tv,
+void init_int_tv<char>(ov::runtime::Tensor* tv,
                        std::default_random_engine& engine,
                        char min,
                        char max)
@@ -95,7 +95,7 @@ void init_int_tv<char>(ngraph::runtime::Tensor* tv,
 }
 
 template <>
-void init_int_tv<int8_t>(ngraph::runtime::Tensor* tv,
+void init_int_tv<int8_t>(ov::runtime::Tensor* tv,
                          std::default_random_engine& engine,
                          int8_t min,
                          int8_t max)
@@ -111,7 +111,7 @@ void init_int_tv<int8_t>(ngraph::runtime::Tensor* tv,
 }
 
 template <>
-void init_int_tv<uint8_t>(ngraph::runtime::Tensor* tv,
+void init_int_tv<uint8_t>(ov::runtime::Tensor* tv,
                           std::default_random_engine& engine,
                           uint8_t min,
                           uint8_t max)
@@ -126,7 +126,7 @@ void init_int_tv<uint8_t>(ngraph::runtime::Tensor* tv,
     tv->write(vec.data(), vec.size() * sizeof(uint8_t));
 }
 
-void random_init(ngraph::runtime::Tensor* tv, std::default_random_engine& engine)
+void random_init(ov::runtime::Tensor* tv, std::default_random_engine& engine)
 {
     element::Type et = tv->get_element_type();
     if (et == element::boolean)
@@ -240,10 +240,10 @@ string get_results_str(const std::vector<char>& ref_data,
     return ::testing::AssertionSuccess();
 }
 
-constexpr NodeTypeInfo ngraph::TestOpMultiOut::type_info;
+constexpr NodeTypeInfo ov::TestOpMultiOut::type_info;
 
-bool ngraph::TestOpMultiOut::evaluate(const HostTensorVector& outputs,
-                                      const HostTensorVector& inputs) const
+bool ov::TestOpMultiOut::evaluate(const HostTensorVector& outputs,
+                                  const HostTensorVector& inputs) const
 {
     inputs[0]->read(outputs[0]->get_data_ptr(), inputs[0]->get_size_in_bytes());
     inputs[1]->read(outputs[1]->get_data_ptr(), inputs[1]->get_size_in_bytes());

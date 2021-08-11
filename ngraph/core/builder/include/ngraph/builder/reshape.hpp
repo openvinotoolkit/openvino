@@ -11,7 +11,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace builder
     {
@@ -84,4 +84,4 @@ namespace ngraph
                                            const std::size_t end_axis);
         } // namespace opset1
     }     // namespace  builder
-} // namespace  ngraph
+} // namespace ov

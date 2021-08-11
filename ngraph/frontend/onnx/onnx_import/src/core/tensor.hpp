@@ -16,7 +16,7 @@
 #include "utils/common.hpp"
 #include "utils/tensor_external_data.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -160,8 +160,7 @@ namespace ngraph
                 template <typename T>
                 inline std::vector<T> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    throw ngraph::onnx_import::error::tensor::unsupported_data_type{
-                        tensor.data_type()};
+                    throw ov::onnx_import::error::tensor::unsupported_data_type{tensor.data_type()};
                 }
 
                 template <>
@@ -230,8 +229,7 @@ namespace ngraph
                 }
 
                 template <>
-                inline std::vector<ngraph::float16>
-                    get_data(const ONNX_NAMESPACE::TensorProto& tensor)
+                inline std::vector<ov::float16> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
                     if (detail::has_tensor_external_data(tensor))
                     {
@@ -239,8 +237,8 @@ namespace ngraph
                     }
                     if (tensor.has_raw_data())
                     {
-                        return detail::__get_raw_data<ngraph::float16>(tensor.raw_data(),
-                                                                       tensor.data_type());
+                        return detail::__get_raw_data<ov::float16>(tensor.raw_data(),
+                                                                   tensor.data_type());
                     }
                     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_FLOAT16)
                     {
@@ -248,24 +246,23 @@ namespace ngraph
                         using std::end;
 
                         const auto& int32_data = tensor.int32_data();
-                        std::vector<ngraph::float16> float16_data;
+                        std::vector<ov::float16> float16_data;
                         float16_data.reserve(int32_data.size());
                         std::transform(begin(int32_data),
                                        end(int32_data),
                                        std::back_inserter(float16_data),
                                        [](int32_t elem) {
-                                           return ngraph::float16::from_bits(
+                                           return ov::float16::from_bits(
                                                static_cast<uint16_t>(elem));
                                        });
 
-                        return detail::__get_data<ngraph::float16>(float16_data);
+                        return detail::__get_data<ov::float16>(float16_data);
                     }
                     throw error::tensor::invalid_data_type{tensor.data_type()};
                 }
 
                 template <>
-                inline std::vector<ngraph::bfloat16>
-                    get_data(const ONNX_NAMESPACE::TensorProto& tensor)
+                inline std::vector<ov::bfloat16> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
                     if (detail::has_tensor_external_data(tensor))
                     {
@@ -273,12 +270,12 @@ namespace ngraph
                     }
                     if (tensor.has_raw_data())
                     {
-                        return detail::__get_raw_data<ngraph::bfloat16>(tensor.raw_data(),
-                                                                        tensor.data_type());
+                        return detail::__get_raw_data<ov::bfloat16>(tensor.raw_data(),
+                                                                    tensor.data_type());
                     }
                     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16)
                     {
-                        return detail::__get_data<ngraph::bfloat16>(tensor.int32_data());
+                        return detail::__get_data<ov::bfloat16>(tensor.int32_data());
                     }
                     throw error::tensor::invalid_data_type{tensor.data_type()};
                 }
@@ -571,7 +568,7 @@ namespace ngraph
             }
 
             operator TensorProto_DataType() const { return m_tensor_proto->data_type(); }
-            std::shared_ptr<ngraph::op::Constant> get_ng_constant() const
+            std::shared_ptr<ov::op::Constant> get_ng_constant() const
             {
                 switch (m_tensor_proto->data_type())
                 {
@@ -580,7 +577,7 @@ namespace ngraph
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT:
                     return make_ng_constant<float>(element::f32);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT16:
-                    return make_ng_constant<ngraph::float16>(element::f16);
+                    return make_ng_constant<ov::float16>(element::f16);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_DOUBLE:
                     return make_ng_constant<double>(element::f64);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_INT8:
@@ -600,17 +597,16 @@ namespace ngraph
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64:
                     return make_ng_constant<uint64_t>(element::u64);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BFLOAT16:
-                    return make_ng_constant<ngraph::bfloat16>(element::bf16);
+                    return make_ng_constant<ov::bfloat16>(element::bf16);
                 default: throw error::tensor::unsupported_data_type{m_tensor_proto->data_type()};
                 }
             }
 
         private:
             template <typename T>
-            std::shared_ptr<ngraph::op::Constant> make_ng_constant(const element::Type& type) const
+            std::shared_ptr<ov::op::Constant> make_ng_constant(const element::Type& type) const
             {
-                auto constant =
-                    std::make_shared<ngraph::op::Constant>(type, m_shape, get_data<T>());
+                auto constant = std::make_shared<ov::op::Constant>(type, m_shape, get_data<T>());
                 if (m_tensor_proto->has_name())
                 {
                     constant->set_friendly_name(get_name());
@@ -627,4 +623,4 @@ namespace ngraph
             return (outs << "<Tensor: " << tensor.get_name() << ">");
         }
     } // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

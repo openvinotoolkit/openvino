@@ -11,7 +11,7 @@
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// \brief Strides for a tensor.
     class Strides : public std::vector<size_t>
@@ -54,4 +54,4 @@ namespace ngraph
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const Strides& strides);
-} // namespace ngraph
+} // namespace ov

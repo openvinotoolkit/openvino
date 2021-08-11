@@ -17,7 +17,7 @@
 #include "ngraph/runtime/reference/topk.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 namespace topk
 {
@@ -241,7 +241,7 @@ op::v1::TopK::TopK(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::TopK::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::TopK::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_TopK_visit_attributes);
     visitor.on_attribute("axis", m_axis);
@@ -281,7 +281,7 @@ void op::v1::TopK::validate_and_infer_types()
 
     if (output_shape.rank().is_static())
     {
-        m_normalized_axis = ngraph::normalize_axis(this, m_axis, output_shape.rank());
+        m_normalized_axis = ov::normalize_axis(this, m_axis, output_shape.rank());
 
         PartialShape k_as_shape;
         if (evaluate_as_partial_shape(input_value(1), k_as_shape))
@@ -322,7 +322,7 @@ Shape op::v1::TopK::compute_output_shape(const std::string& node_description,
 {
     PartialShape output_shape{input_partial_shape};
 
-    auto normalized_axis = ngraph::normalize_axis(node_description, m_axis, output_shape.rank());
+    auto normalized_axis = ov::normalize_axis(node_description, m_axis, output_shape.rank());
     if (k != 0)
     {
         output_shape[normalized_axis] = k;
@@ -340,7 +340,7 @@ void op::v1::TopK::set_axis(const int64_t axis)
     const auto input_rank = get_input_partial_shape(0).rank();
     if (input_rank.is_static())
     {
-        m_normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
+        m_normalized_axis = ov::normalize_axis(this, axis, input_rank);
     }
     else
     {
@@ -353,7 +353,7 @@ void op::v1::TopK::set_axis(const Rank input_rank, const int64_t axis)
 {
     if (input_rank.is_static())
     {
-        m_normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
+        m_normalized_axis = ov::normalize_axis(this, axis, input_rank);
     }
     else
     {
@@ -454,7 +454,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
     NGRAPH_OP_SCOPE(v1_TopK_evaluate);
     Shape arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode ( max/min), sort_type
-    size_t axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
+    size_t axis = ov::normalize_axis(this, m_axis, arg_shape.size());
     bool compute_max = get_mode() == TopKMode::MAX ? true : false;
     SortType sort_type = get_sort_type();
 
@@ -498,12 +498,12 @@ bool op::v1::TopK::has_evaluate() const
 
     switch (get_input_element_type(0))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: break;
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32: break;
     default: return false;
     }
 
@@ -511,9 +511,9 @@ bool op::v1::TopK::has_evaluate() const
     {
         switch (get_input_element_type(1))
         {
-        case ngraph::element::i8:
-        case ngraph::element::i32:
-        case ngraph::element::i64: break;
+        case ov::element::i8:
+        case ov::element::i32:
+        case ov::element::i64: break;
         default: return false;
         }
     }
@@ -521,14 +521,14 @@ bool op::v1::TopK::has_evaluate() const
     {
         switch (get_input_element_type(1))
         {
-        case ngraph::element::i8:
-        case ngraph::element::i16:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
-        case ngraph::element::u8:
-        case ngraph::element::u16:
-        case ngraph::element::u32:
-        case ngraph::element::u64: break;
+        case ov::element::i8:
+        case ov::element::i16:
+        case ov::element::i32:
+        case ov::element::i64:
+        case ov::element::u8:
+        case ov::element::u16:
+        case ov::element::u32:
+        case ov::element::u64: break;
         default: return false;
         }
     }
@@ -561,7 +561,7 @@ op::v3::TopK::TopK(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v3::TopK::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v3::TopK::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v3_TopK_visit_attributes);
     visitor.on_attribute("axis", m_axis);
@@ -626,12 +626,12 @@ bool op::v3::TopK::has_evaluate() const
 
     switch (get_input_element_type(0))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: break;
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32: break;
     default: return false;
     }
 
@@ -639,9 +639,9 @@ bool op::v3::TopK::has_evaluate() const
     {
         switch (get_input_element_type(1))
         {
-        case ngraph::element::i8:
-        case ngraph::element::i32:
-        case ngraph::element::i64: break;
+        case ov::element::i8:
+        case ov::element::i32:
+        case ov::element::i64: break;
         default: return false;
         }
     }
@@ -649,14 +649,14 @@ bool op::v3::TopK::has_evaluate() const
     {
         switch (get_input_element_type(1))
         {
-        case ngraph::element::i8:
-        case ngraph::element::i16:
-        case ngraph::element::i32:
-        case ngraph::element::i64:
-        case ngraph::element::u8:
-        case ngraph::element::u16:
-        case ngraph::element::u32:
-        case ngraph::element::u64: break;
+        case ov::element::i8:
+        case ov::element::i16:
+        case ov::element::i32:
+        case ov::element::i64:
+        case ov::element::u8:
+        case ov::element::u16:
+        case ov::element::u32:
+        case ov::element::u64: break;
         default: return false;
         }
     }

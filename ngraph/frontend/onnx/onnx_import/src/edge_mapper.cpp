@@ -9,8 +9,8 @@
 #include "ngraph/except.hpp"
 #include "onnx_editor/edge_mapper.hpp"
 
-using namespace ngraph;
-using namespace ngraph::onnx_editor;
+using namespace ov;
+using namespace ov::onnx_editor;
 
 onnx_editor::EdgeMapper::EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto)
     : m_node_inputs(graph_proto.node().size())

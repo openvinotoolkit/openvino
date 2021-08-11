@@ -64,7 +64,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 #define ASSERT_FLOAT_VECTORS_EQ(expected, result)                                                  \
     ASSERT_EQ(expected.size(), result.size()) << "Array sizes differ.";                            \
@@ -1243,10 +1243,11 @@ TEST(eval, evaluate_dynamic_gather_v7)
     auto gather = make_shared<op::v7::Gather>(arg1, arg2, arg3, batch_dims);
     auto fun = make_shared<Function>(OutputVector{gather}, ParameterVector{arg1, arg2, arg3});
     auto result_tensor = make_shared<HostTensor>();
-    ASSERT_TRUE(fun->evaluate({result_tensor},
-                              {make_host_tensor<element::Type_t::f32>({2, 3}, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f}),
-                               make_host_tensor<element::Type_t::i32>({2, 2}, {1, 0, 1, 0}),
-                               make_host_tensor<element::Type_t::i32>({1}, {axis})}));
+    ASSERT_TRUE(fun->evaluate(
+        {result_tensor},
+        {make_host_tensor<element::Type_t::f32>({2, 3}, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f}),
+         make_host_tensor<element::Type_t::i32>({2, 2}, {1, 0, 1, 0}),
+         make_host_tensor<element::Type_t::i32>({1}, {axis})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::f32);
     EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{2, 2}));
     auto cval = read_vector<float>(result_tensor);
@@ -1266,7 +1267,7 @@ TEST(eval, evaluate_dynamic_gather_v7_axis_scalar)
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result_tensor},
                               {make_host_tensor<element::Type_t::f32>(
-                                      {3, 3}, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f}),
+                                   {3, 3}, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f}),
                                make_host_tensor<element::Type_t::i32>({1, 2}, {0, 2}),
                                make_host_tensor<element::Type_t::i64>({}, {axis})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::f32);
@@ -1292,7 +1293,6 @@ TEST(eval, evaluate_dynamic_concat)
     vector<float> out{1.0f, 8.0f, 10.0f};
     ASSERT_EQ(cval, out);
 }
-
 
 TEST(eval, max_pool_v1_dynamic)
 {

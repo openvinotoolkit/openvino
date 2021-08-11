@@ -14,7 +14,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -36,11 +36,11 @@ namespace ngraph
             void experimental_detectron_proposals_single_image_postprocessing(
                 void* prois,
                 void* pscores,
-                const ngraph::element::Type output_type,
+                const ov::element::Type output_type,
                 const std::vector<float>& output_rois,
                 const std::vector<float>& output_scores,
                 const Shape& output_rois_shape,
                 const Shape& output_scores_shape);
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

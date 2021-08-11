@@ -9,7 +9,7 @@
 #include "ngraph/op/util/index_reduction.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 op::util::IndexReduction::IndexReduction() {}
 

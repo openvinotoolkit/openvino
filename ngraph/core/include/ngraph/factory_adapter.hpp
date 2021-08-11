@@ -8,7 +8,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/factory.hpp"
 
-namespace ngraph
+namespace ov
 {
     template <typename BASE_TYPE>
     class FactoryAttributeAdapter : public VisitorAdapter
@@ -51,4 +51,4 @@ namespace ngraph
     protected:
         std::shared_ptr<BASE_TYPE>& m_ref;
     };
-} // namespace ngraph
+} // namespace ov

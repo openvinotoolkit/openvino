@@ -37,7 +37,7 @@
 #include "ngraph/type.hpp"
 #include "ngraph/variant.hpp"
 
-namespace ngraph
+namespace ov
 {
     template <typename NodeType>
     class Input;
@@ -59,7 +59,7 @@ namespace ngraph
     using HostTensorVector = std::vector<HostTensorPtr>;
 
     /// EvaluationContext stores and manages a context (additional parameters, values and
-    /// environment) for evaluating ngraph::function.
+    /// environment) for evaluating ov::function.
     using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
 
     namespace op
@@ -99,7 +99,7 @@ namespace ngraph
     ResultVector as_result_vector(const OutputVector& values);
 
     /// Alias useful for cloning
-    using NodeMap = std::unordered_map<ngraph::Node*, std::shared_ptr<ngraph::Node>>;
+    using NodeMap = std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>>;
 
     /// \brief Used in evaluator switch statement so that the case type and evaluate call
     /// are guaranteed to have the types match.
@@ -474,11 +474,11 @@ namespace ngraph
         /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
         Output<const Node> output(size_t output_index) const;
 
-        void set_op_annotations(std::shared_ptr<ngraph::op::util::OpAnnotations> op_annotations)
+        void set_op_annotations(std::shared_ptr<ov::op::util::OpAnnotations> op_annotations)
         {
             m_op_annotations = op_annotations;
         }
-        std::shared_ptr<ngraph::op::util::OpAnnotations> get_op_annotations() const
+        std::shared_ptr<ov::op::util::OpAnnotations> get_op_annotations() const
         {
             return m_op_annotations;
         }
@@ -504,7 +504,7 @@ namespace ngraph
         std::set<std::shared_ptr<Node>> m_provenance_group;
         std::deque<descriptor::Input> m_inputs;
         std::deque<descriptor::Output> m_outputs;
-        std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
+        std::shared_ptr<ov::op::util::OpAnnotations> m_op_annotations;
         std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
     };
 
@@ -518,7 +518,7 @@ namespace ngraph
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
 /// Should be used in the scope of class that requires type identification besides one provided by
 /// C++ RTTI.
-/// Recommended to be used for all classes that are inherited from class ngraph::Node to enable
+/// Recommended to be used for all classes that are inherited from class ov::Node to enable
 /// pattern
 /// matching for them. Accepts necessary type identification details like type of the operation,
 /// version and optional parent class.
@@ -553,29 +553,26 @@ namespace ngraph
 /// To complete type identification for a class, use NGRAPH_RTTI_DEFINITION.
 ///
 #define NGRAPH_RTTI_DECLARATION                                                                    \
-    static const ::ngraph::Node::type_info_t type_info;                                            \
-    const ::ngraph::Node::type_info_t& get_type_info() const override;                             \
-    static const ::ngraph::Node::type_info_t& get_type_info_static()
+    static const ::ov::Node::type_info_t type_info;                                                \
+    const ::ov::Node::type_info_t& get_type_info() const override;                                 \
+    static const ::ov::Node::type_info_t& get_type_info_static()
 
 #define _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)                                                      \
-    const ::ngraph::Node::type_info_t& CLASS::get_type_info() const                                \
-    {                                                                                              \
-        return get_type_info_static();                                                             \
-    }                                                                                              \
-    const ::ngraph::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static()
+    const ::ov::Node::type_info_t& CLASS::get_type_info() const { return get_type_info_static(); } \
+    const ::ov::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static()
 #define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)        \
-    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static()                               \
+    const ::ov::Node::type_info_t& CLASS::get_type_info_static()                                   \
     {                                                                                              \
-        static const ::ngraph::Node::type_info_t type_info_static{                                 \
+        static const ::ov::Node::type_info_t type_info_static{                                     \
             TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};                     \
         return type_info_static;                                                                   \
     }                                                                                              \
     _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
 
 #define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)                        \
-    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static()                               \
+    const ::ov::Node::type_info_t& CLASS::get_type_info_static()                                   \
     {                                                                                              \
-        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX};      \
+        static const ::ov::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX};          \
         return type_info_static;                                                                   \
     }                                                                                              \
     _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
@@ -694,11 +691,11 @@ namespace ngraph
         {
         }
     };
-} // namespace ngraph
+} // namespace ov
 #define NODE_VALIDATION_CHECK(node, ...)                                                           \
-    NGRAPH_CHECK_HELPER(::ngraph::NodeValidationFailure, (node), __VA_ARGS__)
+    NGRAPH_CHECK_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
 
-namespace ngraph
+namespace ov
 {
     template <typename T>
     void check_new_args_count(const Node* node, T new_args)
@@ -713,4 +710,4 @@ namespace ngraph
                               new_args.size());
     }
 
-} // namespace ngraph
+} // namespace ov

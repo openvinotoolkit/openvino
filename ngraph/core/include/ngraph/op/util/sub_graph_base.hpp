@@ -7,7 +7,7 @@
 #include <ngraph/op/parameter.hpp>
 #include "ngraph/op/util/multi_subgraph_base.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -159,4 +159,4 @@ namespace ngraph
         } // namespace util
     }     // namespace op
 
-} // namespace ngraph
+} // namespace ov

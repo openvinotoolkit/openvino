@@ -7,7 +7,7 @@
 
 #include "ngraph/graph_util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::util::MultiSubGraphOp, "MultiSubGraphOp", 0);
 NGRAPH_RTTI_DEFINITION(op::util::MultiSubGraphOp::SliceInputDescription,
@@ -193,18 +193,18 @@ Output<Node> op::util::MultiSubGraphOp::set_body_outputs(const ResultVector& bod
     return Output<Node>(shared_from_this(), output_index);
 }
 
-namespace ngraph
+namespace ov
 {
     NGRAPH_RTTI_DEFINITION(
         AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>,
-        "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::"
+        "AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::"
         "MultiSubGraphOp::InputDescription>>>",
         0);
 
     NGRAPH_RTTI_DEFINITION(
         AttributeAdapter<
             std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>,
-        "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::"
+        "AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::"
         "MultiSubGraphOp::OutputDescription>>>",
         0);
-} // namespace ngraph
+} // namespace ov

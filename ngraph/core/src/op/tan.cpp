@@ -13,7 +13,7 @@
 #include "ngraph/runtime/reference/tan.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::Tan, "Tan", 0, util::UnaryElementwiseArithmetic);
 
@@ -23,7 +23,7 @@ op::Tan::Tan(const Output<Node>& arg)
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Tan::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::Tan::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Tan_visit_attributes);
     return true;
@@ -77,13 +77,13 @@ bool op::Tan::has_evaluate() const
     NGRAPH_OP_SCOPE(v0_Tan_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::boolean:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::boolean:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;

@@ -7,7 +7,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -18,7 +18,7 @@ namespace ngraph
             /// All input values that are outside of the <min;max> range are set to 'min' or 'max'
             /// depending on which side of the <min;max> range they are. The values that fall into
             /// this range remain unchanged.
-            class NGRAPH_API Clamp : public ngraph::op::Op
+            class NGRAPH_API Clamp : public ov::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -51,4 +51,4 @@ namespace ngraph
         } // namespace v0
         using v0::Clamp;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

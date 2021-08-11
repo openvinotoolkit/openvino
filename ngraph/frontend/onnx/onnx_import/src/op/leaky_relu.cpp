@@ -8,7 +8,7 @@
 #include "exceptions.hpp"
 #include "op/leaky_relu.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -21,7 +21,7 @@ namespace ngraph
                     auto data = node.get_ng_inputs().at(0);
                     double alpha = node.get_attribute_value<double>("alpha", 0.01);
 
-                    std::shared_ptr<ngraph::Node> alpha_node =
+                    std::shared_ptr<ov::Node> alpha_node =
                         default_opset::Constant::create(data.get_element_type(), Shape{1}, {alpha});
                     return {std::make_shared<default_opset::PRelu>(data, alpha_node)};
                 }
@@ -32,4 +32,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

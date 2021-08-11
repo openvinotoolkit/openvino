@@ -7,7 +7,7 @@
 #include "ngraph/coordinate_index.hpp"
 #include "ngraph/coordinate_transform.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -135,4 +135,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

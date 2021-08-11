@@ -6,9 +6,9 @@
 #include "ngraph/log.hpp"
 #include "ngraph/type.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-namespace ngraph
+namespace ov
 {
     template <>
     EnumNames<reduction::Type>& EnumNames<reduction::Type>::get()
@@ -22,7 +22,7 @@ namespace ngraph
     }
 
     constexpr DiscreteTypeInfo AttributeAdapter<reduction::Type>::type_info;
-} // namespace ngraph
+} // namespace ov
 
 std::ostream& reduction::operator<<(std::ostream& out, const reduction::Type& obj)
 {

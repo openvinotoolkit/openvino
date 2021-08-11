@@ -47,7 +47,7 @@ static_assert((DEFAULT_DOUBLE_TOLERANCE_BITS >= 0) &&
                   (DEFAULT_DOUBLE_TOLERANCE_BITS < DOUBLE_MANTISSA_BITS),
               "DEFAULT_DOUBLE_TOLERANCE_BITS must be in range [0, 53)");
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -229,5 +229,5 @@ namespace ngraph
                         const std::vector<std::shared_ptr<runtime::Tensor>>& bs,
                         int tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS,
                         float min_signal = 0.0f);
-    }
-}
+    } // namespace test
+} // namespace ov

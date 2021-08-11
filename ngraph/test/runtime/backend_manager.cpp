@@ -19,7 +19,7 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 #ifdef _WIN32
 #define CLOSE_LIBRARY(a) FreeLibrary(a)

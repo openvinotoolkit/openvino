@@ -14,8 +14,8 @@
 #include "onnx_editor/editor.hpp"
 #include "onnx_import/utils/onnx_internal.hpp"
 
-using namespace ngraph;
-using namespace ngraph::onnx_editor;
+using namespace ov;
+using namespace ov::onnx_editor;
 
 namespace
 {
@@ -158,7 +158,7 @@ namespace
 
     void modify_initializer(TensorProto& initializer,
                             const std::string& name,
-                            const std::shared_ptr<ngraph::op::Constant> values,
+                            const std::shared_ptr<ov::op::Constant> values,
                             ValueInfoProto* input)
     {
         const auto elem_type = values->get_element_type();
@@ -291,7 +291,7 @@ void onnx_editor::ONNXModelEditor::set_input_types(
 }
 
 void onnx_editor::ONNXModelEditor::set_input_shapes(
-    const std::map<std::string, ngraph::PartialShape>& input_shapes)
+    const std::map<std::string, ov::PartialShape>& input_shapes)
 {
     auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
@@ -455,7 +455,7 @@ std::shared_ptr<Function> onnx_editor::ONNXModelEditor::get_function() const
 }
 
 void onnx_editor::ONNXModelEditor::set_input_values(
-    const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values)
+    const std::map<std::string, std::shared_ptr<ov::op::Constant>>& input_values)
 {
     auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 

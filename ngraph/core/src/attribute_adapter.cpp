@@ -15,9 +15,9 @@
 #include "ngraph/type/element_type.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-namespace ngraph
+namespace ov
 {
     constexpr DiscreteTypeInfo AttributeAdapter<float>::type_info;
     constexpr DiscreteTypeInfo AttributeAdapter<double>::type_info;
@@ -47,4 +47,4 @@ namespace ngraph
     constexpr DiscreteTypeInfo AttributeAdapter<vector<float>>::type_info;
     constexpr DiscreteTypeInfo AttributeAdapter<vector<double>>::type_info;
     constexpr DiscreteTypeInfo AttributeAdapter<vector<string>>::type_info;
-} // namespace ngraph
+} // namespace ov

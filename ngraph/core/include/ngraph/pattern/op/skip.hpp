@@ -7,7 +7,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/pattern/op/pattern.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pattern
     {
@@ -53,4 +53,4 @@ namespace ngraph
             };
         } // namespace op
     }     // namespace pattern
-} // namespace ngraph
+} // namespace ov

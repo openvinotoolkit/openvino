@@ -18,31 +18,31 @@
 
 namespace
 {
-    ngraph::op::PadMode get_pad_mode(std::string mode)
+    ov::op::PadMode get_pad_mode(std::string mode)
     {
-        ngraph::op::PadMode pad_mode;
+        ov::op::PadMode pad_mode;
 
         if (mode == "constant")
         {
-            pad_mode = ngraph::op::PadMode::CONSTANT;
+            pad_mode = ov::op::PadMode::CONSTANT;
         }
         else if (mode == "reflect")
         {
-            pad_mode = ngraph::op::PadMode::REFLECT;
+            pad_mode = ov::op::PadMode::REFLECT;
         }
         else if (mode == "edge")
         {
-            pad_mode = ngraph::op::PadMode::EDGE;
+            pad_mode = ov::op::PadMode::EDGE;
         }
         else
         {
-            throw ngraph::ngraph_error("Unsupported padding mode: [" + mode + "]");
+            throw ov::ngraph_error("Unsupported padding mode: [" + mode + "]");
         }
 
         return pad_mode;
     }
 } // namespace
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -62,20 +62,20 @@ namespace ngraph
                     double value = node.get_attribute_value<double>("value", 0);
                     const std::string mode =
                         node.get_attribute_value<std::string>("mode", "constant");
-                    ngraph::op::PadMode pad_mode = get_pad_mode(mode);
+                    ov::op::PadMode pad_mode = get_pad_mode(mode);
 
                     const auto paddings = convpool::get_pads(node, data_rank_value);
-                    ngraph::CoordinateDiff padding_below = paddings.first;
-                    ngraph::CoordinateDiff padding_above = paddings.second;
+                    ov::CoordinateDiff padding_below = paddings.first;
+                    ov::CoordinateDiff padding_above = paddings.second;
 
                     return {std::make_shared<default_opset::Pad>(
                         data,
                         std::make_shared<default_opset::Constant>(
-                            element::i64, ngraph::Shape{padding_below.size()}, padding_below),
+                            element::i64, ov::Shape{padding_below.size()}, padding_below),
                         std::make_shared<default_opset::Constant>(
-                            element::i64, ngraph::Shape{padding_above.size()}, padding_above),
+                            element::i64, ov::Shape{padding_above.size()}, padding_above),
                         std::make_shared<default_opset::Constant>(
-                            data.get_element_type(), ngraph::Shape{}, std::vector<double>{value}),
+                            data.get_element_type(), ov::Shape{}, std::vector<double>{value}),
                         pad_mode)};
                 }
 
@@ -86,9 +86,9 @@ namespace ngraph
                 {
                     auto data = node.get_ng_inputs().at(0);
                     auto pads = node.get_ng_inputs().at(1);
-                    Output<ngraph::Node> values;
-                    Output<ngraph::Node> padding_begin;
-                    Output<ngraph::Node> padding_end;
+                    Output<ov::Node> values;
+                    Output<ov::Node> padding_begin;
+                    Output<ov::Node> padding_end;
 
                     if (node.get_ng_inputs().size() == 3)
                     {
@@ -97,13 +97,13 @@ namespace ngraph
                     else
                     {
                         values = default_opset::Constant::create(
-                            data.get_element_type(), ngraph::Shape{}, {0});
+                            data.get_element_type(), ov::Shape{}, {0});
                     }
 
-                    if (ngraph::op::is_constant(pads.get_node()))
+                    if (ov::op::is_constant(pads.get_node()))
                     {
                         std::vector<std::int64_t> pads_vector =
-                            ngraph::as_type_ptr<default_opset::Constant>(pads.get_node_shared_ptr())
+                            ov::as_type_ptr<default_opset::Constant>(pads.get_node_shared_ptr())
                                 ->get_vector<std::int64_t>();
 
                         std::size_t const half_size = pads_vector.size() / 2;
@@ -113,9 +113,9 @@ namespace ngraph
                             pads_vector.begin() + half_size, pads_vector.end());
 
                         padding_begin = default_opset::Constant::create(
-                            element::i64, ngraph::Shape{half_size}, padding_begin_values);
+                            element::i64, ov::Shape{half_size}, padding_begin_values);
                         padding_end = default_opset::Constant::create(
-                            element::i64, ngraph::Shape{half_size}, padding_end_values);
+                            element::i64, ov::Shape{half_size}, padding_end_values);
                     }
                     else
                     {
@@ -127,7 +127,7 @@ namespace ngraph
 
                     const std::string mode =
                         node.get_attribute_value<std::string>("mode", "constant");
-                    ngraph::op::PadMode pad_mode = get_pad_mode(mode);
+                    ov::op::PadMode pad_mode = get_pad_mode(mode);
 
                     return {std::make_shared<default_opset::Pad>(
                         data, padding_begin, padding_end, values, pad_mode)};
@@ -139,4 +139,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

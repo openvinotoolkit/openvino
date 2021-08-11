@@ -20,7 +20,7 @@ void regmodule_pyngraph_util(py::module m)
     py::module mod = m.def_submodule("util", "ngraph.impl.util");
     mod.def("numpy_to_c", &numpy_to_c);
     mod.def("get_constant_from_source",
-            &ngraph::get_constant_from_source,
+            &ov::get_constant_from_source,
             py::arg("output"),
             R"(
                     Runs an estimation of source tensor.

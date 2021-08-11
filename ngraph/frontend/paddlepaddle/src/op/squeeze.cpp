@@ -5,7 +5,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -25,17 +25,17 @@ namespace ngraph
                     std::shared_ptr<Node> out;
                     if (!axes.empty())
                     {
-                        auto axesNode = ngraph::opset6::Constant::create(
-                            ngraph::element::i32, {axes.size()}, axes);
-                        out = std::make_shared<ngraph::opset6::Squeeze>(data, axesNode);
+                        auto axesNode =
+                            ov::opset6::Constant::create(ov::element::i32, {axes.size()}, axes);
+                        out = std::make_shared<ov::opset6::Squeeze>(data, axesNode);
                     }
                     else
                     {
-                        out = std::make_shared<ngraph::opset6::Squeeze>(data);
+                        out = std::make_shared<ov::opset6::Squeeze>(data);
                     }
                     return node.default_single_output_mapping(out, {"Out"});
                 }
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

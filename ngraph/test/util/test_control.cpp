@@ -11,7 +11,7 @@
 #include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static unordered_set<string>& get_blacklist(const string& backend)
 {
@@ -19,9 +19,9 @@ static unordered_set<string>& get_blacklist(const string& backend)
     return s_blacklists[backend];
 }
 
-string ngraph::prepend_disabled(const string& backend_name,
-                                const string& test_name,
-                                const string& manifest)
+string ov::prepend_disabled(const string& backend_name,
+                            const string& test_name,
+                            const string& manifest)
 {
     string rc = test_name;
     unordered_set<string>& blacklist = get_blacklist(backend_name);
@@ -49,8 +49,7 @@ string ngraph::prepend_disabled(const string& backend_name,
     return rc;
 }
 
-string ngraph::combine_test_backend_and_case(const string& backend_name,
-                                             const string& test_casename)
+string ov::combine_test_backend_and_case(const string& backend_name, const string& test_casename)
 {
     if (backend_name == test_casename)
     {

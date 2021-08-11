@@ -35,7 +35,7 @@
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 static std::shared_ptr<Node> construct_constant_node(int n)
@@ -75,7 +75,7 @@ static std::shared_ptr<pattern::op::Label> construct_mean_graph()
     return mean_label;
 }
 
-class TestGraphRewrite : public ngraph::pass::GraphRewrite
+class TestGraphRewrite : public ov::pass::GraphRewrite
 {
 public:
     void construct_multiply_by_one()
@@ -117,7 +117,7 @@ public:
                 return false;
             }
 
-            ngraph::replace_node(m.get_match_root(), pattern_map[pattern]);
+            ov::replace_node(m.get_match_root(), pattern_map[pattern]);
             return true;
         };
 
@@ -166,7 +166,7 @@ public:
                 return false;
             }
 
-            ngraph::replace_node(m.get_match_root(), pattern_map[pattern]);
+            ov::replace_node(m.get_match_root(), pattern_map[pattern]);
             return true;
         };
 
@@ -207,14 +207,14 @@ TEST(pattern, graph_rewrite)
         auto graph_a = make_shared<op::v1::Add>(a, iconst0);
         auto graph_b = make_shared<op::v1::Add>(b, iconst0);
 
-        auto f = std::make_shared<Function>(ngraph::NodeVector{a, b, graph_a, c, graph_b},
+        auto f = std::make_shared<Function>(ov::NodeVector{a, b, graph_a, c, graph_b},
                                             ParameterVector{a, b, c});
         pass_manager.run_passes(f);
 
         ASSERT_TRUE(graph_a->get_output_target_inputs(0).empty());
         ASSERT_TRUE(graph_b->get_output_target_inputs(0).empty());
 
-        auto expected = ngraph::NodeVector{a, b, a, c, b};
+        auto expected = ov::NodeVector{a, b, a, c, b};
         ASSERT_TRUE(count_ops_of_type<op::v1::Add>(f) == 0);
     }
 
@@ -540,7 +540,7 @@ TEST(pattern, variance)
 
 TEST(pattern, previous_matches)
 {
-    using ngraph::pattern::Matcher;
+    using ov::pattern::Matcher;
     Shape shape{};
     Matcher::PatternMap previous_matches;
     auto a = make_shared<op::Parameter>(element::i32, shape);
@@ -563,7 +563,7 @@ TEST(pattern, previous_matches)
 
 TEST(pattern, test_sort)
 {
-    using ngraph::pattern::Matcher;
+    using ov::pattern::Matcher;
     Shape shape{};
 
     auto a = make_shared<op::Parameter>(element::i32, shape);
@@ -590,9 +590,9 @@ TEST(pattern, test_sort)
 
 TEST(pattern, recurrent_pattern)
 {
-    using ngraph::pattern::RecurrentMatcher;
+    using ov::pattern::RecurrentMatcher;
     Shape shape{};
-    ngraph::pattern::Matcher::PatternMap previous_matches;
+    ov::pattern::Matcher::PatternMap previous_matches;
     auto a = make_shared<op::Parameter>(element::i32, shape);
     auto b = make_shared<op::Parameter>(element::i32, shape);
     auto rpattern = std::make_shared<pattern::op::Label>(b);
@@ -653,7 +653,7 @@ TEST(pattern, recurrent_pattern)
     ASSERT_EQ(iconst_matches.at(2), iconst0);
 }
 
-class TestRecurrentGraphRewrite : public ngraph::pass::RecurrentGraphRewrite
+class TestRecurrentGraphRewrite : public ov::pass::RecurrentGraphRewrite
 {
 public:
     void construct_recurrent_add()
@@ -672,9 +672,9 @@ public:
             auto iconst_matches = rm.get_bound_nodes_for_pattern(iconst_label);
 
             auto is_iconst_zero = [](std::shared_ptr<Node> n) {
-                bool result = ngraph::is_zero(n);
+                bool result = ov::is_zero(n);
                 NGRAPH_DEBUG << n->get_name() << " is " << (result ? " a zero " : " not a zero");
-                return ngraph::is_zero(n);
+                return ov::is_zero(n);
             };
 
             bool are_all_iconst_zeros =
@@ -691,7 +691,7 @@ public:
             auto arg = rm.get_bound_nodes_for_pattern(rpattern).at(number_of_adds - 1);
             NGRAPH_DEBUG << "Replacing " << rm.get_match_root()->get_name() << " with "
                          << arg->get_name();
-            ngraph::replace_node(rm.get_match_root(), arg);
+            ov::replace_node(rm.get_match_root(), arg);
             return true;
         };
 
@@ -730,7 +730,7 @@ TEST(pattern, recurrent_graph_rewrite)
 
         auto graph = make_shared<op::v1::Multiply>(abs_add_a3, abs_add_b2);
 
-        auto f = std::make_shared<Function>(ngraph::NodeVector{graph}, ParameterVector{a, b});
+        auto f = std::make_shared<Function>(ov::NodeVector{graph}, ParameterVector{a, b});
         pass_manager.run_passes(f);
 
         auto left_abs = graph->input_value(0).get_node_shared_ptr();
@@ -748,10 +748,10 @@ TEST(pattern, label_on_skip)
     Shape shape{2, 2};
     auto a = make_shared<op::Parameter>(element::i32, shape);
     auto b = make_shared<op::Parameter>(element::i32, Shape{});
-    auto iconst = ngraph::make_zero(element::i32, Shape{});
+    auto iconst = ov::make_zero(element::i32, Shape{});
     auto label = std::make_shared<pattern::op::Label>(iconst);
     auto const_label =
-        std::make_shared<pattern::op::Label>(iconst, ngraph::is_zero, NodeVector{iconst});
+        std::make_shared<pattern::op::Label>(iconst, ov::is_zero, NodeVector{iconst});
 
     auto bcst_pred = [](std::shared_ptr<Node> n) {
         return as_type_ptr<op::v1::Broadcast>(n) != nullptr;

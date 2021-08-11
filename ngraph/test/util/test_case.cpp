@@ -6,7 +6,7 @@
 
 #include "test_case.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace test
     {
@@ -17,5 +17,5 @@ namespace ngraph
             auto network = c.ReadNetwork(xml_path, bin_path);
             return network.getFunction();
         }
-    }
-}
+    } // namespace test
+} // namespace ov

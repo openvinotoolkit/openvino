@@ -5,7 +5,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include "conv2d_utils.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -21,4 +21,4 @@ namespace ngraph
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

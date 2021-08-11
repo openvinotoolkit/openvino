@@ -15,9 +15,9 @@
 #include "util/visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
+using ov::test::ValueMap;
 
 TEST(attributes, matrix_nms_v8_op_custom_attributes)
 {
@@ -27,7 +27,7 @@ TEST(attributes, matrix_nms_v8_op_custom_attributes)
 
     opset8::MatrixNms::Attributes attrs;
     attrs.sort_result_type = opset8::MatrixNms::SortResultType::SCORE;
-    attrs.output_type = ngraph::element::i32;
+    attrs.output_type = ov::element::i32;
     attrs.nms_top_k = 100;
     attrs.keep_top_k = 10;
     attrs.sort_result_across_batch = true;

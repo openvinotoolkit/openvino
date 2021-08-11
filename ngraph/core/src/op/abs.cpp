@@ -12,7 +12,7 @@
 #include "ngraph/runtime/reference/abs.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::Abs::type_info;
 
@@ -71,14 +71,14 @@ bool op::Abs::has_evaluate() const
     NGRAPH_OP_SCOPE(v0_Abs_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
-    case ngraph::element::bf16:
-    case ngraph::element::boolean: return true;
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32:
+    case ov::element::bf16:
+    case ov::element::boolean: return true;
     default: break;
     }
     return false;

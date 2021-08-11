@@ -14,7 +14,7 @@
 #include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/slice_plan.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -27,4 +27,4 @@ namespace ngraph
                                size_t elem_type);
         }
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

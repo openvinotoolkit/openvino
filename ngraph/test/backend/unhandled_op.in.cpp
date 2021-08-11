@@ -9,13 +9,13 @@
 #include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
 namespace
 {
-    class UnhandledOp : public ngraph::op::Op
+    class UnhandledOp : public ov::op::Op
     {
     public:
         UnhandledOp(const Output<Node>& arg)
@@ -39,7 +39,7 @@ namespace
     };
 
     constexpr NodeTypeInfo UnhandledOp::type_info;
-}
+} // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, unhandled_op)
 {

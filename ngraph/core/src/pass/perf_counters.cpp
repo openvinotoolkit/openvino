@@ -3,12 +3,11 @@
 //
 #include "perf_counters.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pass
     {
-        openvino::itt::handle_t
-            PerfCounters::operator[](::ngraph::Node::type_info_t const& type_inf)
+        openvino::itt::handle_t PerfCounters::operator[](::ov::Node::type_info_t const& type_inf)
         {
             std::lock_guard<std::mutex> guard(m_mutex);
             auto it = m_counters.find(&type_inf);
@@ -17,4 +16,4 @@ namespace ngraph
             return m_counters[&type_inf] = openvino::itt::handle(type_inf.name);
         }
     } // namespace pass
-} // namespace ngraph
+} // namespace ov

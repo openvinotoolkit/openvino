@@ -7,7 +7,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -33,10 +33,9 @@ namespace ngraph
                 /// \param    index_element_type    Specifies the output tensor type for indices
                 /// output
                 ///
-                AdaptiveMaxPool(
-                    const Output<Node>& data,
-                    const Output<Node>& output_shape,
-                    const ngraph::element::Type& index_element_type = ngraph::element::i64);
+                AdaptiveMaxPool(const Output<Node>& data,
+                                const Output<Node>& output_shape,
+                                const ov::element::Type& index_element_type = ov::element::i64);
 
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
@@ -47,8 +46,8 @@ namespace ngraph
                 element::Type get_index_element_type() const { return m_index_element_type; }
 
             protected:
-                ngraph::element::Type m_index_element_type = ngraph::element::i64;
+                ov::element::Type m_index_element_type = ov::element::i64;
             };
         } // namespace v8
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

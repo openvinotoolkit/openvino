@@ -14,7 +14,7 @@
 #include "ngraph/pass/pass_config.hpp"
 #include "ngraph/util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pass
     {
@@ -95,7 +95,7 @@ namespace ngraph
         public:
             NGRAPH_RTTI_DECLARATION;
             virtual ~FunctionPass();
-            virtual bool run_on_function(std::shared_ptr<ngraph::Function>) = 0;
+            virtual bool run_on_function(std::shared_ptr<ov::Function>) = 0;
         };
 
         class NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.") NGRAPH_API NodePass
@@ -104,7 +104,7 @@ namespace ngraph
         public:
             NGRAPH_RTTI_DECLARATION;
             virtual ~NodePass();
-            virtual bool run_on_node(std::shared_ptr<ngraph::Node>) = 0;
+            virtual bool run_on_node(std::shared_ptr<ov::Node>) = 0;
         };
 
         class Manager;
@@ -121,4 +121,4 @@ namespace ngraph
         };
         typedef EnumMask<FusionType> FusionTypeMask;
     } // namespace pass
-} // namespace ngraph
+} // namespace ov

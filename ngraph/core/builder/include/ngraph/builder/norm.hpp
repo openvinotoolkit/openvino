@@ -10,7 +10,7 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace builder
     {
@@ -92,4 +92,4 @@ namespace ngraph
                                           bool keep_dims = false);
         } // namespace opset1
     }     // namespace builder
-} // namespace ngraph
+} // namespace ov

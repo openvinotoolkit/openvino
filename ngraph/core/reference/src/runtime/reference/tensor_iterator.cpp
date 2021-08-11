@@ -7,7 +7,7 @@
 #include "ngraph/runtime/reference/function.hpp"
 #include "ngraph/runtime/reference/split.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -176,4 +176,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

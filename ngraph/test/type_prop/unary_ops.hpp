@@ -6,7 +6,7 @@
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 template <class T>
 class UnaryOperator : public testing::Test
@@ -52,13 +52,13 @@ TYPED_TEST_P(UnaryOperator, input_type_inference_U16)
 TYPED_TEST_P(UnaryOperator, incompatible_input_type_Shape1)
 {
     const auto param = std::make_shared<op::Parameter>(element::boolean, Shape{100, 2, 50});
-    ASSERT_THROW(std::make_shared<TypeParam>(param), ngraph::NodeValidationFailure);
+    ASSERT_THROW(std::make_shared<TypeParam>(param), ov::NodeValidationFailure);
 }
 
 TYPED_TEST_P(UnaryOperator, incompatible_input_type_Shape2)
 {
     const auto param = std::make_shared<op::Parameter>(element::boolean, Shape{40, 17, 50});
-    ASSERT_THROW(std::make_shared<TypeParam>(param), ngraph::NodeValidationFailure);
+    ASSERT_THROW(std::make_shared<TypeParam>(param), ov::NodeValidationFailure);
 }
 
 TYPED_TEST_P(UnaryOperator, dynamic_rank_input_shape_2D)

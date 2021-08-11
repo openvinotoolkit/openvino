@@ -148,7 +148,7 @@
 #include "op/org.openvinotoolkit/prior_box.hpp"
 #include "op/org.openvinotoolkit/swish.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -509,4 +509,4 @@ namespace ngraph
 #undef REGISTER_OPERATOR_WITH_DOMAIN
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

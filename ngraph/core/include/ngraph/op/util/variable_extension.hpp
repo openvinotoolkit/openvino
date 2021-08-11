@@ -7,7 +7,7 @@
 #include <ngraph/runtime/host_tensor.hpp>
 #include <utility>
 
-namespace ngraph
+namespace ov
 {
     class NGRAPH_API VariableExtension
     {
@@ -15,12 +15,12 @@ namespace ngraph
         VariableExtension() = default;
 
         /// \brief Returns variable connected to this node.
-        virtual std::shared_ptr<ngraph::Variable> get_variable() const { return m_variable; }
+        virtual std::shared_ptr<ov::Variable> get_variable() const { return m_variable; }
 
         /// \brief Sets a new variable to be connected to this node.
         ///
         /// \param variable New variable to be connected to this node.
-        virtual void set_variable(const std::shared_ptr<ngraph::Variable>& variable)
+        virtual void set_variable(const std::shared_ptr<ov::Variable>& variable)
         {
             m_variable = variable;
         }
@@ -37,6 +37,6 @@ namespace ngraph
         virtual std::string get_variable_id() const = 0;
 
     protected:
-        std::shared_ptr<ngraph::Variable> m_variable;
+        std::shared_ptr<ov::Variable> m_variable;
     };
-} // namespace ngraph
+} // namespace ov

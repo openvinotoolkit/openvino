@@ -9,7 +9,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/deformable_convolution_base.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -180,4 +180,4 @@ namespace ngraph
             };
         } // namespace v8
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

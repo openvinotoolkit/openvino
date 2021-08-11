@@ -10,7 +10,7 @@
 
 #include "ngraph/ngraph_visibility.hpp"
 
-namespace ngraph
+namespace ov
 {
     NGRAPH_API std::mutex& get_registry_mutex();
 
@@ -82,4 +82,4 @@ namespace ngraph
     protected:
         FactoryMap m_factory_map;
     };
-} // namespace ngraph
+} // namespace ov

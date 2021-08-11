@@ -10,7 +10,7 @@
 
 #include <ngraph/ngraph_visibility.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace file_util
     {
@@ -71,4 +71,4 @@ namespace ngraph
         /// \return A sanitiazed path
         NGRAPH_API std::string sanitize_path(const std::string& path);
     } // namespace file_util
-} // namespace ngraph
+} // namespace ov

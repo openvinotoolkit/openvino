@@ -11,7 +11,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/not.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 NGRAPH_RTTI_DEFINITION(op::v1::LogicalNot, "LogicalNot", 1);
@@ -22,7 +22,7 @@ op::v1::LogicalNot::LogicalNot(const Output<Node>& arg)
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::LogicalNot::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::LogicalNot::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_LogicalNot_visit_attributes);
     return true;
@@ -89,13 +89,13 @@ bool op::v1::LogicalNot::has_evaluate() const
     NGRAPH_OP_SCOPE(v1_LogicalNot_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::boolean:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::boolean:
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::u32:
+    case ov::element::u64:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;

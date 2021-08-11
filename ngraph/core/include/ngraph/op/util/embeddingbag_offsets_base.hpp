@@ -7,7 +7,7 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/util/index_reduction.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -67,4 +67,4 @@ namespace ngraph
             };
         } // namespace util
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

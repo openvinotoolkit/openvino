@@ -8,8 +8,8 @@
 #include "../mock_py_ngraph_frontend/mock_py_frontend.hpp"
 
 namespace py = pybind11;
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 static void register_mock_frontend_stat(py::module m)
 {

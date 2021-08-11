@@ -15,7 +15,7 @@
 #include "ngraph/node_output.hpp"
 #include "ngraph/variant.hpp"
 
-namespace ngraph
+namespace ov
 {
     // The forward declaration of Node is needed here because Node has a deque of
     // Outputs, and Output is an incomplete type at this point. STL containers of
@@ -45,7 +45,7 @@ namespace ngraph
 
             std::shared_ptr<Node> get_node() const;
             size_t get_index() const { return m_index; }
-            ngraph::Output<Node> get_output() const;
+            ov::Output<Node> get_output() const;
             std::shared_ptr<Tensor> get_tensor_ptr() const { return m_tensor; }
             void set_tensor_ptr(const std::shared_ptr<Tensor>& tensor) { m_tensor = tensor; }
             void add_input(Input* input);
@@ -76,4 +76,4 @@ namespace ngraph
             std::vector<Input*> m_inputs;
         };
     } // namespace descriptor
-} // namespace ngraph
+} // namespace ov

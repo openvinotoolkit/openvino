@@ -12,7 +12,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// \brief Execute handlers on a subgraph to compute values
     ///
@@ -200,4 +200,4 @@ namespace ngraph
         op_handler m_default_handler;
         value_map& m_value_map;
     };
-} // namespace ngraph
+} // namespace ov

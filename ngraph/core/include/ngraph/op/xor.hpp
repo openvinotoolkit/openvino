@@ -8,7 +8,7 @@
 
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -81,4 +81,4 @@ namespace ngraph
         // default opset version
         using v0::Xor;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

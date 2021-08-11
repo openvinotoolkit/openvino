@@ -25,7 +25,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "op/lstm.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -65,19 +65,19 @@ namespace ngraph
                         // Weight tensor for the gates.
                         // Shape: [num_directions, 4*hidden_size, input_size]
                         m_input_map[LSTMInput::LSTM_INPUT_W] =
-                            ngraph::op::util::convert_lstm_node_format(
+                            ov::op::util::convert_lstm_node_format(
                                 ng_inputs.at(1),
-                                ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                ngraph::op::util::LSTMWeightsFormat::FICO,
+                                ov::op::util::LSTMWeightsFormat::IOFC,
+                                ov::op::util::LSTMWeightsFormat::FICO,
                                 1);
 
                         // The recurrence weight tensor.
                         // Shape: [num_directions, 4*hidden_size, hidden_size]
                         m_input_map[LSTMInput::LSTM_INPUT_R] =
-                            ngraph::op::util::convert_lstm_node_format(
+                            ov::op::util::convert_lstm_node_format(
                                 ng_inputs.at(2),
-                                ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                ngraph::op::util::LSTMWeightsFormat::FICO,
+                                ov::op::util::LSTMWeightsFormat::IOFC,
+                                ov::op::util::LSTMWeightsFormat::FICO,
                                 1);
 
                         // Get dimensions needed for default inputs creation
@@ -109,7 +109,7 @@ namespace ngraph
                         // `B` - The bias tensor for input gate.
                         // ONNX Shape: [num_directions, 8*hidden_size]
                         // OpenVino Shape: [num_directions, 4*hidden_size]
-                        if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
+                        if (ng_inputs.size() > 3 && !ov::op::is_null(ng_inputs.at(3)))
                         {
                             auto bias = ng_inputs.at(3);
                             auto split_bias = builder::opset1::split(bias, 2, 1);
@@ -117,10 +117,10 @@ namespace ngraph
                                 std::make_shared<default_opset::Add>(split_bias.at(0),
                                                                      split_bias.at(1));
                             m_input_map[LSTMInput::LSTM_INPUT_B] =
-                                ngraph::op::util::convert_lstm_node_format(
+                                ov::op::util::convert_lstm_node_format(
                                     m_input_map[LSTMInput::LSTM_INPUT_B],
-                                    ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                    ngraph::op::util::LSTMWeightsFormat::FICO,
+                                    ov::op::util::LSTMWeightsFormat::IOFC,
+                                    ov::op::util::LSTMWeightsFormat::FICO,
                                     1);
                         }
                         else
@@ -142,7 +142,7 @@ namespace ngraph
                         }
                         // `sequence_lens`- The lengths of the sequences in a batch.
                         // Shape: [batch_size]
-                        if (ng_inputs.size() > 4 && !ngraph::op::is_null(ng_inputs.at(4)))
+                        if (ng_inputs.size() > 4 && !ov::op::is_null(ng_inputs.at(4)))
                         {
                             m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = ng_inputs.at(4);
                         }
@@ -155,7 +155,7 @@ namespace ngraph
                         // `initial_h` - The initial value of the hidden.
                         // ONNX Shape: [num_directions, batch_size, hidden_size]
                         // OpenVino Shape: [batch_size, num_directions, hidden_size]
-                        if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5)))
+                        if (ng_inputs.size() > 5 && !ov::op::is_null(ng_inputs.at(5)))
                         {
                             m_input_map[LSTMInput::LSTM_INPUT_INIT_H] =
                                 builder::opset1::reorder_axes(ng_inputs.at(5), {1, 0, 2});
@@ -177,7 +177,7 @@ namespace ngraph
                         // `initial_c` - The initial value of the cell.
                         // ONNX Shape: [num_directions, batch_size, hidden_size]
                         // OpenVino Shape: [batch_size, num_directions, hidden_size]
-                        if (ng_inputs.size() > 6 && !ngraph::op::is_null(ng_inputs.at(6)))
+                        if (ng_inputs.size() > 6 && !ov::op::is_null(ng_inputs.at(6)))
                         {
                             m_input_map[LSTMInput::LSTM_INPUT_INIT_C] =
                                 builder::opset1::reorder_axes(ng_inputs.at(6), {1, 0, 2});
@@ -198,7 +198,7 @@ namespace ngraph
                         }
                         // `P` - The weight tensor for peepholes.
                         // Peepholes input is not supported by OpenVino
-                        if (ng_inputs.size() > 7 && !ngraph::op::is_null(ng_inputs.at(7)))
+                        if (ng_inputs.size() > 7 && !ov::op::is_null(ng_inputs.at(7)))
                         {
                             NGRAPH_WARN
                                 << (node)
@@ -206,8 +206,8 @@ namespace ngraph
                         }
                     }
 
-                    Output<ngraph::Node>& at(const LSTMInput& key) { return m_input_map.at(key); }
-                    std::map<LSTMInput, Output<ngraph::Node>> m_input_map;
+                    Output<ov::Node>& at(const LSTMInput& key) { return m_input_map.at(key); }
+                    std::map<LSTMInput, Output<ov::Node>> m_input_map;
                 };
 
                 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ATTRIBUTES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -228,11 +228,10 @@ namespace ngraph
                               node.get_attribute_value<std::int64_t>("input_forget", 0))}
                     {
                         m_clip_threshold = std::abs(m_clip_threshold);
-                        std::string direction = ngraph::to_lower(
+                        std::string direction = ov::to_lower(
                             node.get_attribute_value<std::string>("direction", "forward"));
 
-                        m_direction =
-                            ngraph::as_enum<ngraph::op::RecurrentSequenceDirection>(direction);
+                        m_direction = ov::as_enum<ov::op::RecurrentSequenceDirection>(direction);
 
                         if (m_input_forget != 0)
                         {
@@ -242,7 +241,7 @@ namespace ngraph
                         }
                     }
 
-                    ngraph::op::RecurrentSequenceDirection m_direction;
+                    ov::op::RecurrentSequenceDirection m_direction;
                     std::int64_t m_hidden_size;
                     float m_clip_threshold;
                     std::vector<std::string> m_activations;
@@ -289,4 +288,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

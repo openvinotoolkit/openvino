@@ -14,7 +14,7 @@
 #include "ngraph/runtime/reference/depth_to_space.hpp"
 #include "ngraph/shape.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::DepthToSpace, "DepthToSpace", 0);
 
@@ -134,7 +134,7 @@ bool op::DepthToSpace::has_evaluate() const
     return !get_input_partial_shape(0).is_dynamic();
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     NGRAPH_API EnumNames<op::DepthToSpace::DepthToSpaceMode>&
@@ -153,4 +153,4 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov

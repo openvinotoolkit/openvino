@@ -13,7 +13,7 @@
 #include <openvino/cc/selective_build.h>
 #include <openvino/itt.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace itt
     {
@@ -21,10 +21,10 @@ namespace ngraph
         {
             OV_ITT_DOMAIN(nGraph);
             OV_ITT_DOMAIN(nGraphPass_LT);
-            OV_ITT_DOMAIN(ngraph_op, "nGraph::Op");
+            OV_ITT_DOMAIN(ngraph_op, "ov::Op");
         } // namespace domains
     }     // namespace itt
-} // namespace ngraph
+} // namespace ov
 OV_CC_DOMAINS(ngraph_op);
 OV_ITT_DOMAIN(SIMPLE_ngraph_pass);
 
@@ -37,12 +37,12 @@ OV_ITT_DOMAIN(SIMPLE_ngraph_pass);
 #elif defined(SELECTIVE_BUILD)
 #define NGRAPH_OP_SCOPE(region)                                                                    \
     if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ngraph_op, _, region)) == 0)                             \
-    throw ngraph::ngraph_error(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ngraph_op, _, region))) +     \
-                               " is disabled!")
+    throw ov::ngraph_error(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ngraph_op, _, region))) +         \
+                           " is disabled!")
 #define NGRAPH_PASS_CALLBACK(matcher)
 #else
 #define NGRAPH_OP_SCOPE(region)                                                                    \
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::ngraph_op, OV_PP_TOSTRING(region))
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ngraph_op, OV_PP_TOSTRING(region))
 #define NGRAPH_PASS_CALLBACK(matcher)
 #endif
 

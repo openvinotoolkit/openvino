@@ -8,7 +8,7 @@
 #include "ngraph/op/util/variable.hpp"
 #include "ngraph/op/util/variable_extension.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -101,4 +101,4 @@ namespace ngraph
             };
         } // namespace v6
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

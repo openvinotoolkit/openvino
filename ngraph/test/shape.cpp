@@ -9,7 +9,7 @@
 #include "ngraph/ngraph.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(shape, test_shape_size)
 {

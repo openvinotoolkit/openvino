@@ -15,9 +15,9 @@
 #include "ngraph/log.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-void ngraph::default_logger_handler_func(const string& s)
+void ov::default_logger_handler_func(const string& s)
 {
     cout << s + "\n";
 }

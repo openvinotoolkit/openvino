@@ -10,7 +10,7 @@
 #include "ngraph/ops.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::AssignBase, "AssignBase", 0);
 NGRAPH_RTTI_DEFINITION(op::v3::Assign, "Assign", 3, op::Sink);
@@ -132,8 +132,8 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
     // automatically allocate memory if not provided by user
     if (variable_values.find(m_variable) == variable_values.end())
     {
-        auto host_tensor = std::make_shared<ngraph::HostTensor>(m_variable->get_info().data_type,
-                                                                m_variable->get_info().data_shape);
+        auto host_tensor = std::make_shared<ov::HostTensor>(m_variable->get_info().data_type,
+                                                            m_variable->get_info().data_shape);
         variable_context->get().set_variable_value(m_variable,
                                                    make_shared<VariableValue>(host_tensor));
     }

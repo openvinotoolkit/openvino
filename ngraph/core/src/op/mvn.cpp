@@ -16,7 +16,7 @@
 #include "ngraph/op/subtract.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 // ------------------------------ V0 ------------------------------
 
@@ -126,7 +126,7 @@ bool op::MVN::visit_attributes(AttributeVisitor& visitor)
 
 // ------------------------------ V6 ------------------------------
 
-namespace ngraph
+namespace ov
 {
     template <>
     NGRAPH_API EnumNames<op::MVNEpsMode>& EnumNames<op::MVNEpsMode>::get()
@@ -144,7 +144,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov
 
 NGRAPH_RTTI_DEFINITION(op::v6::MVN, "MVN", 6);
 

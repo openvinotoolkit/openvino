@@ -14,7 +14,7 @@
 #include "ngraph/pass/manager.hpp"
 #include "util/test_tools.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 TEST(pass_manager, add)
@@ -39,6 +39,6 @@ namespace
             : FunctionPass()
         {
         }
-        bool run_on_function(std::shared_ptr<ngraph::Function> /* f */) override { return false; }
+        bool run_on_function(std::shared_ptr<ov::Function> /* f */) override { return false; }
     };
-}
+} // namespace

@@ -7,7 +7,7 @@
 #include "ngraph/runtime/reference/convolution_backprop_data.hpp"
 #include "ngraph/util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -219,7 +219,7 @@ namespace ngraph
                                                  const CoordinateDiff& pads_begin,
                                                  const CoordinateDiff& pads_end)
             {
-                const ngraph::CoordinateDiff output_padding(in_shape.size() - 2, 0);
+                const ov::CoordinateDiff output_padding(in_shape.size() - 2, 0);
 
                 group_convolution_backprop_data(in,
                                                 f,
@@ -237,4 +237,4 @@ namespace ngraph
 
     } // namespace runtime
 
-} // namespace ngraph
+} // namespace ov

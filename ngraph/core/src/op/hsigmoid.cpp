@@ -12,7 +12,7 @@
 #include "ngraph/runtime/reference/hsigmoid.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v5::HSigmoid, "HSigmoid", 5);
 
@@ -75,9 +75,9 @@ bool op::v5::HSigmoid::has_evaluate() const
     NGRAPH_OP_SCOPE(v5_HSigmoid_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::bf16:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;

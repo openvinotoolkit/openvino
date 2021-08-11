@@ -32,7 +32,7 @@ TEST(conditional_compilation, disabled_op_scope)
     EXPECT_EQ(n, 42);
 
     // Simple scope is disabled
-    ASSERT_THROW(NGRAPH_OP_SCOPE(Scope1), ngraph::ngraph_error);
+    ASSERT_THROW(NGRAPH_OP_SCOPE(Scope1), ov::ngraph_error);
 #undef CCTests_Scope0
 }
 

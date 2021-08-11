@@ -6,7 +6,7 @@
 
 #include "ngraph/op/util/arithmetic_reductions_keep_dims.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -45,4 +45,4 @@ namespace ngraph
             };
         } // namespace v4
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

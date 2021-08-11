@@ -20,7 +20,7 @@ namespace paddle
     }     // namespace framework
 } // namespace paddle
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -214,4 +214,4 @@ namespace ngraph
         };
 
     } // namespace frontend
-} // namespace ngraph
+} // namespace ov

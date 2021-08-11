@@ -7,7 +7,7 @@
 #include "ngraph/coordinate.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     std::size_t coordinate_index(const Coordinate& c, const Shape& s)
     {
@@ -30,4 +30,4 @@ namespace ngraph
 
         return index;
     }
-} // namespace ngraph
+} // namespace ov

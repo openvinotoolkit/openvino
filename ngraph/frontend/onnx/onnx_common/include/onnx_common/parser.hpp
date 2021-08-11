@@ -11,7 +11,7 @@ namespace ONNX_NAMESPACE
     class ModelProto;
 }
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_common
     {
@@ -30,4 +30,4 @@ namespace ngraph
         ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream);
     } // namespace onnx_common
 
-} // namespace ngraph
+} // namespace ov

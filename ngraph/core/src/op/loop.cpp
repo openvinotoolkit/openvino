@@ -12,7 +12,7 @@
 #include "ngraph/runtime/reference/loop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v5::Loop, "Loop", 5);
 
@@ -118,7 +118,7 @@ void op::v5::Loop::validate_and_infer_types()
             m_num_iterations = 1; // condition_always_false, do_while mode
         }
     }
-    else if (const auto& cond_param = std::dynamic_pointer_cast<const ngraph::opset5::Parameter>(
+    else if (const auto& cond_param = std::dynamic_pointer_cast<const ov::opset5::Parameter>(
                  body_execution_condition.get_node_shared_ptr()))
     {
         // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
@@ -204,7 +204,7 @@ void op::v5::Loop::validate_and_infer_types()
             else
             {
                 auto out_shape = input_partial_shape;
-                const auto axis = ngraph::normalize_axis(
+                const auto axis = ov::normalize_axis(
                     this, slice_input_description->m_axis, input_partial_shape.rank());
                 out_shape[axis] = slice_input_description->m_part_size;
                 body_parameter->set_partial_shape(out_shape);
@@ -259,8 +259,8 @@ void op::v5::Loop::validate_and_infer_types()
             }
             else if (out_shape.rank().is_static())
             {
-                const auto axis = ngraph::normalize_axis(
-                    this, concat_output_description->m_axis, out_shape.rank());
+                const auto axis =
+                    ov::normalize_axis(this, concat_output_description->m_axis, out_shape.rank());
                 const auto rank = out_shape.rank().get_length();
                 if (rank == 0)
                 {
@@ -350,8 +350,8 @@ bool op::v5::Loop::has_evaluate() const
     NGRAPH_OP_SCOPE(v5_Loop_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64: return true;
+    case ov::element::i32:
+    case ov::element::i64: return true;
     default: break;
     }
     return false;
@@ -384,7 +384,7 @@ op::v5::Loop::Loop(const op::v5::Loop& other)
     other.clone_to(*this, other.input_values());
 }
 
-namespace ngraph
+namespace ov
 {
     constexpr DiscreteTypeInfo AttributeAdapter<op::v5::Loop::SpecialBodyPorts>::type_info;
 }

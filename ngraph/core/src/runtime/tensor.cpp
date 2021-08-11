@@ -7,7 +7,7 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/type/element_type.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 const Shape& runtime::Tensor::get_shape() const

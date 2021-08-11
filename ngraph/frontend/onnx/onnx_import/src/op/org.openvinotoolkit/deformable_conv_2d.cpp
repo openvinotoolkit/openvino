@@ -20,7 +20,7 @@
 #include "ngraph/op/deformable_convolution.hpp"
 #include "utils/convpool.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -48,4 +48,4 @@ namespace ngraph
                                                                            deformable_groups)};
         }
     } // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

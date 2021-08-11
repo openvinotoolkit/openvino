@@ -9,7 +9,7 @@
 #include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -17,12 +17,12 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 namespace
 {
     template <typename T>
-    std::shared_ptr<ngraph::Function> StaticVariadicSplit(ngraph::element::Type_t inputs_type,
-                                                          Shape data_shape,
-                                                          Shape axis_shape,
-                                                          Shape split_lenghts_shape,
-                                                          std::vector<T> axis_value,
-                                                          std::vector<T> split_lenghts_value)
+    std::shared_ptr<ov::Function> StaticVariadicSplit(ov::element::Type_t inputs_type,
+                                                      Shape data_shape,
+                                                      Shape axis_shape,
+                                                      Shape split_lenghts_shape,
+                                                      std::vector<T> axis_value,
+                                                      std::vector<T> split_lenghts_value)
     {
         const auto data = make_shared<op::Parameter>(inputs_type, data_shape);
         const auto axis = op::Constant::create(inputs_type, axis_shape, axis_value);
@@ -32,10 +32,10 @@ namespace
         return make_shared<Function>(variadic_split, ParameterVector{data});
     }
 
-    std::shared_ptr<ngraph::Function> DynamicVariadicSplit(ngraph::element::Type_t inputs_type,
-                                                           Shape data_shape,
-                                                           Shape axis_shape,
-                                                           Shape split_lenghts_shape)
+    std::shared_ptr<ov::Function> DynamicVariadicSplit(ov::element::Type_t inputs_type,
+                                                       Shape data_shape,
+                                                       Shape axis_shape,
+                                                       Shape split_lenghts_shape)
     {
         const auto data = make_shared<op::Parameter>(inputs_type, data_shape);
         const auto axis = make_shared<op::Parameter>(inputs_type, axis_shape);

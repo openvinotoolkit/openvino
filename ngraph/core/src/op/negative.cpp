@@ -9,7 +9,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::Negative, "Negative", 0, util::UnaryElementwiseArithmetic);
 
@@ -19,7 +19,7 @@ op::Negative::Negative(const Output<Node>& arg)
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Negative::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::Negative::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Negative_visit_attributes);
     return true;
@@ -74,16 +74,16 @@ bool op::Negative::has_evaluate() const
     NGRAPH_OP_SCOPE(v0_Negative_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::i32:
+    case ov::element::i64:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;
 }
 
-shared_ptr<Node> ngraph::operator-(const Output<Node>& arg0)
+shared_ptr<Node> ov::operator-(const Output<Node>& arg0)
 {
     return make_shared<op::Negative>(arg0);
 }

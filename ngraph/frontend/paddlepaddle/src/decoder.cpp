@@ -15,23 +15,23 @@
 
 #include "decoder.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
         using namespace paddle::framework;
 
-        std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP{
-            {proto::VarType_Type::VarType_Type_BOOL, ngraph::element::boolean},
-            {proto::VarType_Type::VarType_Type_INT16, ngraph::element::i16},
-            {proto::VarType_Type::VarType_Type_INT32, ngraph::element::i32},
-            {proto::VarType_Type::VarType_Type_INT64, ngraph::element::i64},
-            {proto::VarType_Type::VarType_Type_FP16, ngraph::element::f16},
-            {proto::VarType_Type::VarType_Type_FP32, ngraph::element::f32},
-            {proto::VarType_Type::VarType_Type_FP64, ngraph::element::f64},
-            {proto::VarType_Type::VarType_Type_UINT8, ngraph::element::u8},
-            {proto::VarType_Type::VarType_Type_INT8, ngraph::element::i8},
-            {proto::VarType_Type::VarType_Type_BF16, ngraph::element::bf16}};
+        std::map<paddle::framework::proto::VarType_Type, ov::element::Type> TYPE_MAP{
+            {proto::VarType_Type::VarType_Type_BOOL, ov::element::boolean},
+            {proto::VarType_Type::VarType_Type_INT16, ov::element::i16},
+            {proto::VarType_Type::VarType_Type_INT32, ov::element::i32},
+            {proto::VarType_Type::VarType_Type_INT64, ov::element::i64},
+            {proto::VarType_Type::VarType_Type_FP16, ov::element::f16},
+            {proto::VarType_Type::VarType_Type_FP32, ov::element::f32},
+            {proto::VarType_Type::VarType_Type_FP64, ov::element::f64},
+            {proto::VarType_Type::VarType_Type_UINT8, ov::element::u8},
+            {proto::VarType_Type::VarType_Type_INT8, ov::element::i8},
+            {proto::VarType_Type::VarType_Type_BF16, ov::element::bf16}};
 
         std::shared_ptr<Variant>
             DecoderPDPDProto::get_attribute(const std::string& name,
@@ -75,10 +75,10 @@ namespace ngraph
                     std::vector<float>(attrs[0].floats().begin(), attrs[0].floats().end());
                 return std::make_shared<VariantWrapper<std::vector<float>>>(floats);
             }
-            else if (type_info == VariantWrapper<ngraph::element::Type>::type_info)
+            else if (type_info == VariantWrapper<ov::element::Type>::type_info)
             {
                 auto data_type = (paddle::framework::proto::VarType_Type)attrs[0].i();
-                return std::make_shared<VariantWrapper<ngraph::element::Type>>(TYPE_MAP[data_type]);
+                return std::make_shared<VariantWrapper<ov::element::Type>>(TYPE_MAP[data_type]);
             }
             else if (type_info == VariantWrapper<bool>::type_info)
             {
@@ -109,10 +109,10 @@ namespace ngraph
             return res;
         }
 
-        std::map<std::string, std::vector<ngraph::element::Type>>
+        std::map<std::string, std::vector<ov::element::Type>>
             DecoderPDPDProto::get_output_type_map() const
         {
-            std::map<std::string, std::vector<ngraph::element::Type>> output_types;
+            std::map<std::string, std::vector<ov::element::Type>> output_types;
             for (const auto& out_port_pair : op_place->get_output_ports())
             {
                 for (const auto& p_place : out_port_pair.second)
@@ -124,10 +124,9 @@ namespace ngraph
             return output_types;
         }
 
-        ngraph::element::Type
-            DecoderPDPDProto::get_out_port_type(const std::string& port_name) const
+        ov::element::Type DecoderPDPDProto::get_out_port_type(const std::string& port_name) const
         {
-            std::vector<ngraph::element::Type> output_types;
+            std::vector<ov::element::Type> output_types;
             for (const auto& out_port : op_place->get_output_ports().at(port_name))
             {
                 output_types.push_back(out_port->get_target_tensor_pdpd()->get_element_type());
@@ -196,4 +195,4 @@ namespace ngraph
         }
 
     } // namespace frontend
-} // namespace ngraph
+} // namespace ov

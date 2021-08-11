@@ -9,7 +9,7 @@
 
 #include "onnx_import/utils/onnx_importer_visibility.hpp"
 
-namespace ngraph
+namespace ov
 {
     enum class EdgeType
     {
@@ -151,4 +151,4 @@ namespace ngraph
             const std::string m_output_name = "";
         };
     } // namespace onnx_editor
-} // namespace ngraph
+} // namespace ov

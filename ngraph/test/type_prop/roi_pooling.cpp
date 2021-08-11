@@ -6,7 +6,7 @@
 #include "ngraph/ngraph.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, roi_pooling_basic_shape_inference)
 {
@@ -56,7 +56,7 @@ TEST(type_prop, roi_pooling_incompatible_input_rank)
     const auto rois = make_shared<op::Parameter>(element::f32, Shape{3, 5});
     // feat_maps must be of rank 4
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "max"),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 TEST(type_prop, roi_pooling_incompatible_pooling_shape)
@@ -66,7 +66,7 @@ TEST(type_prop, roi_pooling_incompatible_pooling_shape)
     const auto rois = make_shared<op::Parameter>(element::f32, Shape{3, 5});
     // pool_shape must be of rank 2 {pooled_h, pooled_w}
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, pool_shape, 0.625f, "max"),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 TEST(type_prop, roi_pooling_incompatible_rois_second_dim)
@@ -75,7 +75,7 @@ TEST(type_prop, roi_pooling_incompatible_rois_second_dim)
     const auto rois = make_shared<op::Parameter>(element::f32, Shape{3, 4});
     // the second dim of rois must be 5. [batch_id, x_1, y_1, x_2, y_2]
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "max"),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 TEST(type_prop, roi_pooling_incompatible_feature_maps_element_type)
@@ -84,7 +84,7 @@ TEST(type_prop, roi_pooling_incompatible_feature_maps_element_type)
     const auto rois = make_shared<op::Parameter>(element::f32, Shape{3, 5});
     // feat_maps element type must be floating point type
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "max"),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 TEST(type_prop, roi_pooling_incompatible_rois_element_type)
@@ -93,7 +93,7 @@ TEST(type_prop, roi_pooling_incompatible_rois_element_type)
     const auto rois = make_shared<op::Parameter>(element::f16, Shape{3, 5});
     // rois element type must be equal to feat_maps element type (floating point type)
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "bilinear"),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 TEST(type_prop, roi_pooling_invalid_pooling_method)
@@ -102,7 +102,7 @@ TEST(type_prop, roi_pooling_invalid_pooling_method)
     const auto rois = make_shared<op::Parameter>(element::f16, Shape{3, 5});
     // ROIPooling method is invalid: not max nor bilinear
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, 0.625f, "invalid"),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 TEST(type_prop, roi_pooling_invalid_spatial_scale)
@@ -111,7 +111,7 @@ TEST(type_prop, roi_pooling_invalid_spatial_scale)
     const auto rois = make_shared<op::Parameter>(element::f16, Shape{3, 5});
     // ROIPooling spatial scale attribute must be a positive floating point number
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{2, 2}, -0.625f, "max"),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 TEST(type_prop, roi_pooling_invalid_pooled_size)
@@ -120,5 +120,5 @@ TEST(type_prop, roi_pooling_invalid_pooled_size)
     const auto rois = make_shared<op::Parameter>(element::f16, Shape{3, 5});
     // ROIPooling pooled_h and pooled_w must be non-negative integers
     ASSERT_THROW(make_shared<op::v0::ROIPooling>(feat_maps, rois, Shape{1, 0}, 0.625f, "max"),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }

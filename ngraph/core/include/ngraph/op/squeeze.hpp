@@ -10,13 +10,13 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
         namespace v0
         {
-            class NGRAPH_API Squeeze : public ngraph::op::Op
+            class NGRAPH_API Squeeze : public ov::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -46,4 +46,4 @@ namespace ngraph
         } // namespace v0
         using v0::Squeeze;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

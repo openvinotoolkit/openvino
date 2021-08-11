@@ -22,7 +22,7 @@
 #include "ngraph/type/element_type_traits.hpp"
 #include "runtime/backend.hpp"
 
-namespace ngraph
+namespace ov
 {
     class Node;
     class Function;
@@ -53,13 +53,13 @@ namespace ngraph
         bool evaluate(const HostTensorVector& outputs,
                       const HostTensorVector& inputs) const override;
     };
-}
+} // namespace ov
 
-bool validate_list(const std::vector<std::shared_ptr<ngraph::Node>>& nodes);
-std::shared_ptr<ngraph::Function> make_test_graph();
+bool validate_list(const std::vector<std::shared_ptr<ov::Node>>& nodes);
+std::shared_ptr<ov::Function> make_test_graph();
 
 template <typename T>
-void copy_data(std::shared_ptr<ngraph::runtime::Tensor> tv, const std::vector<T>& data)
+void copy_data(std::shared_ptr<ov::runtime::Tensor> tv, const std::vector<T>& data)
 {
     size_t data_size = data.size() * sizeof(T);
     if (data_size > 0)
@@ -68,33 +68,33 @@ void copy_data(std::shared_ptr<ngraph::runtime::Tensor> tv, const std::vector<T>
     }
 }
 
-template <ngraph::element::Type_t ET>
-ngraph::HostTensorPtr
-    make_host_tensor(const ngraph::Shape& shape,
-                     const std::vector<typename ngraph::element_type_traits<ET>::value_type>& data)
+template <ov::element::Type_t ET>
+ov::HostTensorPtr
+    make_host_tensor(const ov::Shape& shape,
+                     const std::vector<typename ov::element_type_traits<ET>::value_type>& data)
 {
     NGRAPH_CHECK(shape_size(shape) == data.size(), "Incorrect number of initialization elements");
-    auto host_tensor = std::make_shared<ngraph::HostTensor>(ET, shape);
+    auto host_tensor = std::make_shared<ov::HostTensor>(ET, shape);
     copy_data(host_tensor, data);
     return host_tensor;
 }
 
 template <>
-void copy_data<bool>(std::shared_ptr<ngraph::runtime::Tensor> tv, const std::vector<bool>& data);
+void copy_data<bool>(std::shared_ptr<ov::runtime::Tensor> tv, const std::vector<bool>& data);
 
 template <typename T>
-void write_vector(std::shared_ptr<ngraph::runtime::Tensor> tv, const std::vector<T>& values)
+void write_vector(std::shared_ptr<ov::runtime::Tensor> tv, const std::vector<T>& values)
 {
     tv->write(values.data(), values.size() * sizeof(T));
 }
 
 template <typename T>
-std::vector<std::shared_ptr<T>> get_ops_of_type(std::shared_ptr<ngraph::Function> f)
+std::vector<std::shared_ptr<T>> get_ops_of_type(std::shared_ptr<ov::Function> f)
 {
     std::vector<std::shared_ptr<T>> ops;
     for (auto op : f->get_ops())
     {
-        if (auto cop = ngraph::as_type_ptr<T>(op))
+        if (auto cop = ov::as_type_ptr<T>(op))
         {
             ops.push_back(cop);
         }
@@ -104,12 +104,12 @@ std::vector<std::shared_ptr<T>> get_ops_of_type(std::shared_ptr<ngraph::Function
 }
 
 template <typename T>
-size_t count_ops_of_type(std::shared_ptr<ngraph::Function> f)
+size_t count_ops_of_type(std::shared_ptr<ov::Function> f)
 {
     size_t count = 0;
     for (auto op : f->get_ops())
     {
-        if (ngraph::is_type<T>(op))
+        if (ov::is_type<T>(op))
         {
             count++;
         }
@@ -119,7 +119,7 @@ size_t count_ops_of_type(std::shared_ptr<ngraph::Function> f)
 }
 
 template <typename T>
-void init_int_tv(ngraph::runtime::Tensor* tv, std::default_random_engine& engine, T min, T max)
+void init_int_tv(ov::runtime::Tensor* tv, std::default_random_engine& engine, T min, T max)
 {
     size_t size = tv->get_element_count();
     std::uniform_int_distribution<T> dist(min, max);
@@ -132,7 +132,7 @@ void init_int_tv(ngraph::runtime::Tensor* tv, std::default_random_engine& engine
 }
 
 template <typename T>
-void init_real_tv(ngraph::runtime::Tensor* tv, std::default_random_engine& engine, T min, T max)
+void init_real_tv(ov::runtime::Tensor* tv, std::default_random_engine& engine, T min, T max)
 {
     size_t size = tv->get_element_count();
     std::uniform_real_distribution<T> dist(min, max);
@@ -144,26 +144,25 @@ void init_real_tv(ngraph::runtime::Tensor* tv, std::default_random_engine& engin
     tv->write(vec.data(), vec.size() * sizeof(T));
 }
 
-void random_init(ngraph::runtime::Tensor* tv, std::default_random_engine& engine);
+void random_init(ov::runtime::Tensor* tv, std::default_random_engine& engine);
 
 template <typename T1, typename T2>
-std::vector<std::shared_ptr<ngraph::runtime::Tensor>>
-    prepare_and_run(const std::shared_ptr<ngraph::Function>& function,
+std::vector<std::shared_ptr<ov::runtime::Tensor>>
+    prepare_and_run(const std::shared_ptr<ov::Function>& function,
                     std::vector<std::vector<T1>> t1args,
                     std::vector<std::vector<T2>> t2args,
                     const std::string& backend_id)
 {
-    auto backend = ngraph::runtime::Backend::create(backend_id);
+    auto backend = ov::runtime::Backend::create(backend_id);
 
     auto parms = function->get_parameters();
 
     if (parms.size() != t1args.size() + t2args.size())
     {
-        throw ngraph::ngraph_error("number of parameters and arguments don't match");
+        throw ov::ngraph_error("number of parameters and arguments don't match");
     }
 
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> arg_tensors(t1args.size() +
-                                                                      t2args.size());
+    std::vector<std::shared_ptr<ov::runtime::Tensor>> arg_tensors(t1args.size() + t2args.size());
 
     size_t total_arg_count = 0;
     for (size_t i = 0; i < t1args.size(); i++)
@@ -186,7 +185,7 @@ std::vector<std::shared_ptr<ngraph::runtime::Tensor>>
     }
 
     auto results = function->get_results();
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> result_tensors(results.size());
+    std::vector<std::shared_ptr<ov::runtime::Tensor>> result_tensors(results.size());
 
     for (size_t i = 0; i < results.size(); i++)
     {
@@ -201,8 +200,8 @@ std::vector<std::shared_ptr<ngraph::runtime::Tensor>>
 }
 
 template <typename T>
-std::vector<std::shared_ptr<ngraph::runtime::Tensor>>
-    prepare_and_run(const std::shared_ptr<ngraph::Function>& function,
+std::vector<std::shared_ptr<ov::runtime::Tensor>>
+    prepare_and_run(const std::shared_ptr<ov::Function>& function,
                     std::vector<std::vector<T>> args,
                     const std::string& backend_id)
 {
@@ -211,12 +210,12 @@ std::vector<std::shared_ptr<ngraph::runtime::Tensor>>
 }
 
 template <typename TIN1, typename TIN2, typename TOUT>
-std::vector<std::vector<TOUT>> execute(const std::shared_ptr<ngraph::Function>& function,
+std::vector<std::vector<TOUT>> execute(const std::shared_ptr<ov::Function>& function,
                                        std::vector<std::vector<TIN1>> t1args,
                                        std::vector<std::vector<TIN2>> t2args,
                                        const std::string& backend_id)
 {
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> result_tensors =
+    std::vector<std::shared_ptr<ov::runtime::Tensor>> result_tensors =
         prepare_and_run(function, t1args, t2args, backend_id);
 
     std::vector<std::vector<TOUT>> result_vectors;
@@ -228,7 +227,7 @@ std::vector<std::vector<TOUT>> execute(const std::shared_ptr<ngraph::Function>& 
 }
 
 template <typename TIN, typename TOUT = TIN>
-std::vector<std::vector<TOUT>> execute(const std::shared_ptr<ngraph::Function>& function,
+std::vector<std::vector<TOUT>> execute(const std::shared_ptr<ov::Function>& function,
                                        std::vector<std::vector<TIN>> args,
                                        const std::string& backend_id)
 {
@@ -293,13 +292,13 @@ std::vector<T> read_binary_file(const std::string& path)
     return file_content;
 }
 
-testing::AssertionResult test_ordered_ops(std::shared_ptr<ngraph::Function> f,
-                                          const ngraph::NodeVector& required_ops);
+testing::AssertionResult test_ordered_ops(std::shared_ptr<ov::Function> f,
+                                          const ov::NodeVector& required_ops);
 
-template <ngraph::element::Type_t ET>
-ngraph::HostTensorPtr make_host_tensor(const ngraph::Shape& shape)
+template <ov::element::Type_t ET>
+ov::HostTensorPtr make_host_tensor(const ov::Shape& shape)
 {
-    auto host_tensor = std::make_shared<ngraph::HostTensor>(ET, shape);
+    auto host_tensor = std::make_shared<ov::HostTensor>(ET, shape);
     static std::default_random_engine engine(2112);
     random_init(host_tensor.get(), engine);
     return host_tensor;

@@ -12,10 +12,10 @@
 #include "ngraph/runtime/reference/utils/nms_common.hpp"
 #include "ngraph/shape.hpp"
 
-using namespace ngraph;
-using namespace ngraph::runtime::reference;
+using namespace ov;
+using namespace ov::runtime::reference;
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -347,4 +347,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

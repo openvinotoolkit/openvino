@@ -11,7 +11,7 @@
 #include "ngraph/type/element_type.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::RNNCell, "RNNCell", 0, util::RNNCellBase);
 

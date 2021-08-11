@@ -13,7 +13,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/variant.hpp"
 
-namespace ngraph
+namespace ov
 {
     class Node;
 
@@ -125,4 +125,4 @@ namespace ngraph
 
     NGRAPH_API std::ostream& operator<<(std::ostream& out, const Input<Node>& input);
     NGRAPH_API std::ostream& operator<<(std::ostream& out, const Input<const Node>& input);
-} // namespace ngraph
+} // namespace ov

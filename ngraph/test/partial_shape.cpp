@@ -8,7 +8,7 @@
 #include "ngraph/validation_util.hpp"
 #include "util/test_tools.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 TEST(partial_shape, ps_construction_empty)
 {

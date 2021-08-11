@@ -14,7 +14,7 @@
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v8::MatrixNms, "MatrixNms", 8, op::util::NmsBase);
 
@@ -52,7 +52,7 @@ void op::v8::MatrixNms::validate()
                           m_attrs.background_class);
 }
 
-bool ngraph::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v8_MatrixNms_visit_attributes);
 
@@ -71,7 +71,7 @@ bool ngraph::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     NGRAPH_API EnumNames<op::v8::MatrixNms::DecayFunction>&
@@ -90,4 +90,4 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov

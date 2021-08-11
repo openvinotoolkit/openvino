@@ -8,7 +8,7 @@
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 using Attrs = op::v6::ExperimentalDetectronDetectionOutput::Attributes;
 using ExperimentalDetection = op::v6::ExperimentalDetectronDetectionOutput;
@@ -42,7 +42,6 @@ TEST(type_prop, detectron_detection_output)
     EXPECT_EQ(detection->get_output_shape(1), (Shape{rois_num}));
     EXPECT_EQ(detection->get_output_shape(2), (Shape{rois_num}));
 
-
     rois = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
     deltas = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
     scores = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
@@ -57,9 +56,6 @@ TEST(type_prop, detectron_detection_output)
     EXPECT_EQ(detection->get_output_shape(0), (Shape{rois_num, 4}));
     EXPECT_EQ(detection->get_output_shape(1), (Shape{rois_num}));
     EXPECT_EQ(detection->get_output_shape(2), (Shape{rois_num}));
-
-
-
 }
 
 TEST(type_prop, detectron_detection_output_dynamic_input_shapes)

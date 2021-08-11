@@ -7,7 +7,7 @@
 #include "ngraph/runtime/reference/function.hpp"
 #include "ngraph/runtime/reference/split.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -79,12 +79,12 @@ namespace ngraph
 
                 // Get TripCount
                 int64_t trip_count = 0;
-                if (args[0]->get_element_type() == ngraph::element::i32)
+                if (args[0]->get_element_type() == ov::element::i32)
                 {
                     auto* trip_count_p = args[0]->get_data_ptr<int32_t>();
                     trip_count = trip_count_p[0];
                 }
-                else if (args[0]->get_element_type() == ngraph::element::i64)
+                else if (args[0]->get_element_type() == ov::element::i64)
                 {
                     auto* trip_count_p = args[0]->get_data_ptr<int64_t>();
                     trip_count = trip_count_p[0];
@@ -266,4 +266,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

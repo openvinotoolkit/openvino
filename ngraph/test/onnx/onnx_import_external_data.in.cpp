@@ -13,9 +13,9 @@
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
 
-using namespace ngraph;
-using namespace ngraph::onnx_import;
-using namespace ngraph::test;
+using namespace ov;
+using namespace ov::onnx_import;
+using namespace ov::test;
 
 static std::string s_manifest = "${MANIFEST}";
 
@@ -78,8 +78,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_in_different_paths)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_external_two_tensors_data_in_the_same_file)
 {
     auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO,
-        "onnx/external_data/external_data_two_tensors_data_in_the_same_file.onnx"));
+        SERIALIZED_ZOO, "onnx/external_data/external_data_two_tensors_data_in_the_same_file.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     // first input: {3, 2, 1}, second: {1, 2, 3} read from external file
@@ -115,8 +114,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_up_dir_path)
     try
     {
         auto function = onnx_import::import_onnx_model(file_util::path_join(
-            SERIALIZED_ZOO,
-            "onnx/external_data/inner_scope/external_data_file_in_up_dir.onnx"));
+            SERIALIZED_ZOO, "onnx/external_data/inner_scope/external_data_file_in_up_dir.onnx"));
         FAIL() << "Incorrect path to external data not detected";
     }
     catch (const ngraph_error& error)

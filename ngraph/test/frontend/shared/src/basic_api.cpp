@@ -5,8 +5,8 @@
 #include "basic_api.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 std::string FrontEndBasicTest::getTestCaseName(const testing::TestParamInfo<BasicTestParam>& obj)
 {
@@ -38,7 +38,7 @@ TEST_P(FrontEndBasicTest, testLoadFromFile)
 {
     ASSERT_NO_THROW(doLoadFromFile());
     ASSERT_EQ(m_frontEnd->get_name(), m_feName);
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(function, nullptr);
 }

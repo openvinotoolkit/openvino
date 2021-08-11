@@ -12,7 +12,7 @@
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/strides.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// \brief Shape for a tensor.
     class Shape : public std::vector<size_t>
@@ -106,4 +106,4 @@ namespace ngraph
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const Shape& shape);
-} // namespace ngraph
+} // namespace ov

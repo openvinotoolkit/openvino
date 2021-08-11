@@ -12,12 +12,12 @@ namespace py = pybind11;
 
 void regclass_pyngraph_Input(py::module m)
 {
-    py::class_<ngraph::Input<ngraph::Node>, std::shared_ptr<ngraph::Input<ngraph::Node>>> input(
+    py::class_<ov::Input<ov::Node>, std::shared_ptr<ov::Input<ov::Node>>> input(
         m, "Input", py::dynamic_attr());
-    input.doc() = "ngraph.impl.Input wraps ngraph::Input<Node>";
+    input.doc() = "ngraph.impl.Input wraps ov::Input<Node>";
 
     input.def("get_node",
-              &ngraph::Input<ngraph::Node>::get_node,
+              &ov::Input<ov::Node>::get_node,
               R"(
                 Get node referenced by this input handle.
 
@@ -27,7 +27,7 @@ void regclass_pyngraph_Input(py::module m)
                     Node object referenced by this input handle.
               )");
     input.def("get_index",
-              &ngraph::Input<ngraph::Node>::get_index,
+              &ov::Input<ov::Node>::get_index,
               R"(
                 The index of the input referred to by this input handle.
 
@@ -37,7 +37,7 @@ void regclass_pyngraph_Input(py::module m)
                     Index value as integer.
               )");
     input.def("get_element_type",
-              &ngraph::Input<ngraph::Node>::get_element_type,
+              &ov::Input<ov::Node>::get_element_type,
               R"(
                 The element type of the input referred to by this input handle.
 
@@ -47,7 +47,7 @@ void regclass_pyngraph_Input(py::module m)
                     Type of the input.
               )");
     input.def("get_shape",
-              &ngraph::Input<ngraph::Node>::get_shape,
+              &ov::Input<ov::Node>::get_shape,
               R"(
                 The shape of the input referred to by this input handle.
 
@@ -57,7 +57,7 @@ void regclass_pyngraph_Input(py::module m)
                     Shape of the input.
               )");
     input.def("get_partial_shape",
-              &ngraph::Input<ngraph::Node>::get_partial_shape,
+              &ov::Input<ov::Node>::get_partial_shape,
               R"(
                 The partial shape of the input referred to by this input handle.
 
@@ -67,7 +67,7 @@ void regclass_pyngraph_Input(py::module m)
                     PartialShape of the input.
               )");
     input.def("get_source_output",
-              &ngraph::Input<ngraph::Node>::get_source_output,
+              &ov::Input<ov::Node>::get_source_output,
               R"(
                 A handle to the output that is connected to this input.
 

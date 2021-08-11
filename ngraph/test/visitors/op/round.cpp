@@ -14,9 +14,9 @@
 #include "util/visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
+using ov::test::ValueMap;
 
 void static test_mode(opset5::Round::RoundMode mode)
 {
@@ -38,5 +38,4 @@ TEST(attributes, round_op_enum_mode_half_away_from_zero)
 {
     test_mode(opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
 }
-
 

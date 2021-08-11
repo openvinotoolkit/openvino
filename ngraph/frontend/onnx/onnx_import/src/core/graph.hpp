@@ -14,7 +14,7 @@
 #include "onnx_import/core/model.hpp"
 #include "onnx_import/core/operator_set.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -35,7 +35,7 @@ namespace ngraph
             const std::string& get_name() const { return m_model->get_graph().name(); }
             const GraphCache& get_graph_cache() const;
             const ParameterVector& get_ng_parameters() const { return m_parameters; }
-            virtual Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const;
+            virtual Output<ov::Node> get_ng_node_from_cache(const std::string& name) const;
             OutputVector make_ng_nodes(const Node& onnx_node) const;
             const OpsetImports& get_opset_imports() const;
             virtual ~Graph() = default;
@@ -75,7 +75,7 @@ namespace ngraph
 
             /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
             /// \return     Vector of edge nodes from parent scope.
-            const std::vector<Output<ngraph::Node>> get_inputs_from_parent() const;
+            const std::vector<Output<ov::Node>> get_inputs_from_parent() const;
 
             std::shared_ptr<Function> convert() override;
 
@@ -87,7 +87,7 @@ namespace ngraph
             Subgraph& operator=(const Subgraph&) = delete;
             Subgraph& operator=(Subgraph&&) = default;
 
-            Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const override;
+            Output<ov::Node> get_ng_node_from_cache(const std::string& name) const override;
             void infer_inputs_from_parent();
 
         private:
@@ -96,7 +96,7 @@ namespace ngraph
 
             const GraphCache* m_parent_graph_cache;
             std::vector<std::string> m_inputs_from_parent;
-            std::unordered_map<std::shared_ptr<ngraph::op::Parameter>, std::string>
+            std::unordered_map<std::shared_ptr<ov::op::Parameter>, std::string>
                 m_parameter_to_parent_node_map;
         };
 
@@ -107,4 +107,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

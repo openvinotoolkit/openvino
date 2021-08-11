@@ -10,7 +10,7 @@
 #include "ngraph/validation_util.hpp"
 #include "op/unsqueeze.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -42,4 +42,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

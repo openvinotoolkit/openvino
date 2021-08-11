@@ -10,7 +10,7 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -49,4 +49,4 @@ namespace ngraph
         } // namespace v3
         using v3::ScatterElementsUpdate;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

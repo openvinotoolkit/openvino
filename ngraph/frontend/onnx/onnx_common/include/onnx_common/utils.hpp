@@ -9,7 +9,7 @@ namespace ONNX_NAMESPACE
     enum TensorProto_DataType : int;
 }
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_common
     {
@@ -46,4 +46,4 @@ namespace ngraph
         PartialShape to_ng_shape(const ONNX_NAMESPACE::TensorShapeProto& onnx_shape);
 
     } // namespace onnx_common
-} // namespace ngraph
+} // namespace ov

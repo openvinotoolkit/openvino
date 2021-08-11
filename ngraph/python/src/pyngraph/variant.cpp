@@ -4,15 +4,15 @@
 
 #include <pybind11/pybind11.h>
 
-#include "ngraph/variant.hpp" // ngraph::Variant
+#include "ngraph/variant.hpp" // ov::Variant
 #include "pyngraph/variant.hpp"
 
 namespace py = pybind11;
 
 void regclass_pyngraph_Variant(py::module m)
 {
-    py::class_<ngraph::Variant, std::shared_ptr<ngraph::Variant>> variant_base(m, "Variant");
-    variant_base.doc() = "ngraph.impl.Variant wraps ngraph::Variant";
+    py::class_<ov::Variant, std::shared_ptr<ov::Variant>> variant_base(m, "Variant");
+    variant_base.doc() = "ngraph.impl.Variant wraps ov::Variant";
 }
 
 template void regclass_pyngraph_VariantWrapper<std::string>(py::module m, std::string typestring);

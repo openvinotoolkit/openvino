@@ -9,7 +9,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -23,4 +23,4 @@ namespace ngraph
                       const std::vector<int64_t>& repeats);
         }
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

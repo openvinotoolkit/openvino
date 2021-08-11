@@ -8,7 +8,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -20,7 +20,7 @@ namespace ngraph
             ///     'HALF_AWAY_FROM_ZERO': - round in such a way that the result heads away from
             /// zero.
 
-            class NGRAPH_API Round : public ngraph::op::Op
+            class NGRAPH_API Round : public ov::op::Op
             {
             public:
                 enum class RoundMode
@@ -73,4 +73,4 @@ namespace ngraph
                                                     5};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

@@ -9,7 +9,7 @@
 #include "ngraph/opsets/opset3.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::v3::EmbeddingSegmentsSum::type_info;
 

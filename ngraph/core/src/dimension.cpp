@@ -9,9 +9,9 @@
 
 #include "ngraph/dimension.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-std::ostream& ngraph::operator<<(std::ostream& str, const Dimension& dimension)
+std::ostream& ov::operator<<(std::ostream& str, const Dimension& dimension)
 {
     if (dimension.is_static())
     {

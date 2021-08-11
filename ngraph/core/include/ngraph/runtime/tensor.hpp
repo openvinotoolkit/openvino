@@ -12,14 +12,14 @@
 #include "ngraph/strides.hpp"
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
         class NGRAPH_API Tensor
         {
         protected:
-            Tensor(const std::shared_ptr<ngraph::descriptor::Tensor>& descriptor)
+            Tensor(const std::shared_ptr<ov::descriptor::Tensor>& descriptor)
                 : m_descriptor(descriptor)
                 , m_stale(true)
             {
@@ -31,11 +31,11 @@ namespace ngraph
 
             /// \brief Get tensor shape
             /// \return const reference to a Shape
-            virtual const ngraph::Shape& get_shape() const;
+            virtual const ov::Shape& get_shape() const;
 
             /// \brief Get tensor partial shape
             /// \return const reference to a PartialShape
-            const ngraph::PartialShape& get_partial_shape() const;
+            const ov::PartialShape& get_partial_shape() const;
 
             /// \brief Get tensor element type
             /// \return element::Type
@@ -65,8 +65,8 @@ namespace ngraph
             virtual void read(void* p, size_t n) const = 0;
 
         protected:
-            std::shared_ptr<ngraph::descriptor::Tensor> m_descriptor;
+            std::shared_ptr<ov::descriptor::Tensor> m_descriptor;
             bool m_stale;
         };
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

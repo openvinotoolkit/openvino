@@ -11,17 +11,17 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
         namespace ie
         {
-            class IE_BACKEND_API IETensor : public ngraph::runtime::Tensor
+            class IE_BACKEND_API IETensor : public ov::runtime::Tensor
             {
             public:
-                IETensor(const ngraph::element::Type& element_type, const Shape& shape);
-                IETensor(const ngraph::element::Type& element_type, const PartialShape& shape);
+                IETensor(const ov::element::Type& element_type, const Shape& shape);
+                IETensor(const ov::element::Type& element_type, const PartialShape& shape);
 
                 ///
                 /// \brief      Write bytes directly into the tensor
@@ -50,4 +50,4 @@ namespace ngraph
             };
         } // namespace ie
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

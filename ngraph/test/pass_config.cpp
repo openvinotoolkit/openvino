@@ -11,9 +11,9 @@
 
 using namespace ::testing;
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-class RenameReLU : public ngraph::pass::MatcherPass
+class RenameReLU : public ov::pass::MatcherPass
 {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -21,20 +21,20 @@ public:
         : MatcherPass()
     {
         auto relu = pattern::wrap_type<opset3::Relu>();
-        ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
             auto relu = m.get_match_root();
             relu->set_friendly_name("renamed");
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(relu, "RenameReLU");
+        auto m = std::make_shared<ov::pattern::Matcher>(relu, "RenameReLU");
         this->register_matcher(m, callback);
     }
 };
 
 NGRAPH_RTTI_DEFINITION(RenameReLU, "RenameReLU", 0);
 
-class RenameSigmoid : public ngraph::pass::MatcherPass
+class RenameSigmoid : public ov::pass::MatcherPass
 {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -42,20 +42,20 @@ public:
         : MatcherPass()
     {
         auto sigmoid = pattern::wrap_type<opset3::Sigmoid>();
-        ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
             auto sigmoid = m.get_match_root();
             sigmoid->set_friendly_name("renamed");
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(sigmoid, "RenameSigmoid");
+        auto m = std::make_shared<ov::pattern::Matcher>(sigmoid, "RenameSigmoid");
         this->register_matcher(m, callback);
     }
 };
 
 NGRAPH_RTTI_DEFINITION(RenameSigmoid, "RenameSigmoid", 0);
 
-class TestFunctionPass : public ngraph::pass::FunctionPass
+class TestFunctionPass : public ov::pass::FunctionPass
 {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -74,7 +74,7 @@ public:
 
 NGRAPH_RTTI_DEFINITION(TestFunctionPass, "TestFunctionPass", 0);
 
-class TestGraphRewritePass : public ngraph::pass::GraphRewrite
+class TestGraphRewritePass : public ov::pass::GraphRewrite
 {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -90,14 +90,12 @@ NGRAPH_RTTI_DEFINITION(TestGraphRewritePass, "TestGraphRewritePass", 0);
 std::tuple<std::shared_ptr<Function>, std::shared_ptr<Node>, std::shared_ptr<Node>>
     get_test_function()
 {
-    auto data =
-        std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-    auto relu = std::make_shared<ngraph::opset3::Relu>(data);
+    auto data = std::make_shared<ov::opset3::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
+    auto relu = std::make_shared<ov::opset3::Relu>(data);
     relu->set_friendly_name("relu");
-    auto sigmoid = std::make_shared<ngraph::opset3::Sigmoid>(relu);
+    auto sigmoid = std::make_shared<ov::opset3::Sigmoid>(relu);
     sigmoid->set_friendly_name("sigmoid");
-    auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{sigmoid},
-                                                ngraph::ParameterVector{data});
+    auto f = std::make_shared<ov::Function>(ov::NodeVector{sigmoid}, ov::ParameterVector{data});
     return std::tuple<std::shared_ptr<Function>, std::shared_ptr<Node>, std::shared_ptr<Node>>(
         f, relu, sigmoid);
 }
@@ -285,7 +283,7 @@ TEST(PassConfig, EnableDisablePasses9)
     ASSERT_EQ(sigmoid->get_friendly_name(), "renamed");
 }
 
-class TestNestedMatcher : public ngraph::pass::MatcherPass
+class TestNestedMatcher : public ov::pass::MatcherPass
 {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -293,7 +291,7 @@ public:
         : MatcherPass()
     {
         auto any_op = pattern::any_input();
-        ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
             auto root = m.get_match_root();
             auto pass_config = this->get_pass_config();
             if (std::dynamic_pointer_cast<opset3::Relu>(root) &&
@@ -313,7 +311,7 @@ public:
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(any_op, "TestNestedMatcher");
+        auto m = std::make_shared<ov::pattern::Matcher>(any_op, "TestNestedMatcher");
         this->register_matcher(m, callback);
     }
 };

@@ -9,7 +9,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -239,4 +239,4 @@ namespace ngraph
 
         } // namespace v1
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

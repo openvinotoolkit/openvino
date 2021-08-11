@@ -12,7 +12,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -347,7 +347,6 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_min_keep_matrix_rows_int32)
     handle->call_with_validate({result}, {a});
     EXPECT_EQ((vector<int32_t>{1, 3, 5}), read_vector<int32_t>(result));
 }
-
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_min_keep_3d_to_matrix_most_sig)
 {

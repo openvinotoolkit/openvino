@@ -13,7 +13,7 @@
 
 #include <memory>
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop_layers, ctc_greedy_decoder)
 {

@@ -9,7 +9,7 @@
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -18,7 +18,7 @@ namespace ngraph
             /// \brief      Parameterized, bounded sigmoid-like, piecewise linear
             ///             function. min(max(alpha*x + beta, 0), 1)
             ///
-            class NGRAPH_API HardSigmoid : public ngraph::op::util::FusedOp
+            class NGRAPH_API HardSigmoid : public ov::op::util::FusedOp
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -44,6 +44,6 @@ namespace ngraph
         } // namespace v0
         using v0::HardSigmoid;
     } // namespace op
-} // namespace ngraph
+} // namespace ov
 
 NGRAPH_SUPPRESS_DEPRECATED_END

@@ -12,7 +12,7 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 extern "C" INTERPRETER_BACKEND_API void ngraph_register_interpreter_backend()
 {

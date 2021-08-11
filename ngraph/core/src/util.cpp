@@ -23,9 +23,9 @@
 #include <iostream>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
-void ngraph::dump(ostream& out, const void* _data, size_t _size)
+void ov::dump(ostream& out, const void* _data, size_t _size)
 {
     auto flags = out.flags();
     const uint8_t* data = reinterpret_cast<const uint8_t*>(_data);
@@ -72,21 +72,21 @@ void ngraph::dump(ostream& out, const void* _data, size_t _size)
     out.flags(flags);
 }
 
-std::string ngraph::to_lower(const std::string& s)
+std::string ov::to_lower(const std::string& s)
 {
     std::string rc = s;
     std::transform(rc.begin(), rc.end(), rc.begin(), ::tolower);
     return rc;
 }
 
-std::string ngraph::to_upper(const std::string& s)
+std::string ov::to_upper(const std::string& s)
 {
     std::string rc = s;
     std::transform(rc.begin(), rc.end(), rc.begin(), ::toupper);
     return rc;
 }
 
-string ngraph::trim(const string& s)
+string ov::trim(const string& s)
 {
     string rc = s;
     // trim trailing spaces
@@ -105,7 +105,7 @@ string ngraph::trim(const string& s)
     return rc;
 }
 
-vector<string> ngraph::split(const string& src, char delimiter, bool do_trim)
+vector<string> ov::split(const string& src, char delimiter, bool do_trim)
 {
     size_t pos;
     string token;
@@ -133,7 +133,7 @@ vector<string> ngraph::split(const string& src, char delimiter, bool do_trim)
     return rc;
 }
 
-size_t ngraph::hash_combine(const std::vector<size_t>& list)
+size_t ov::hash_combine(const std::vector<size_t>& list)
 {
     size_t seed = 0;
     for (size_t v : list)
@@ -143,7 +143,7 @@ size_t ngraph::hash_combine(const std::vector<size_t>& list)
     return seed;
 }
 
-void* ngraph::ngraph_malloc(size_t size)
+void* ov::ngraph_malloc(size_t size)
 {
     auto ptr = malloc(size);
     if (size != 0 && !ptr)
@@ -154,7 +154,7 @@ void* ngraph::ngraph_malloc(size_t size)
     return ptr;
 }
 
-void ngraph::ngraph_free(void* ptr)
+void ov::ngraph_free(void* ptr)
 {
     if (ptr)
     {
@@ -162,7 +162,7 @@ void ngraph::ngraph_free(void* ptr)
     }
 }
 
-size_t ngraph::round_up(size_t size, size_t alignment)
+size_t ov::round_up(size_t size, size_t alignment)
 {
     if (alignment == 0)
     {
@@ -235,7 +235,7 @@ size_t stopwatch::get_total_nanoseconds() const
     return m_total_time.count();
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     float parse_string<float>(const std::string& s)
@@ -292,9 +292,9 @@ namespace ngraph
 
         return result;
     }
-} // namespace ngraph
+} // namespace ov
 
-std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv)
+std::ostream& operator<<(std::ostream& os, const ov::NodeVector& nv)
 {
     std::vector<std::string> names;
     for (auto n : nv)
@@ -305,7 +305,7 @@ std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv)
     return os;
 }
 
-bool ngraph::is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank rank)
+bool ov::is_valid_permutation(ov::AxisVector permutation, ov::Rank rank)
 {
     std::vector<bool> axis_occurs(permutation.size(), false);
 
@@ -339,7 +339,7 @@ bool ngraph::is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank r
 }
 
 template <typename T>
-T ngraph::apply_permutation(T input, AxisVector order)
+T ov::apply_permutation(T input, AxisVector order)
 {
     NGRAPH_CHECK(is_valid_permutation(order, input.size()),
                  "Permutation ",
@@ -357,17 +357,15 @@ T ngraph::apply_permutation(T input, AxisVector order)
     return output;
 }
 
-template AxisVector ngraph::apply_permutation<AxisVector>(AxisVector input, AxisVector order);
-template Shape ngraph::apply_permutation<Shape>(Shape input, AxisVector order);
-template ngraph::Coordinate ngraph::apply_permutation<ngraph::Coordinate>(ngraph::Coordinate input,
-                                                                          ngraph::AxisVector order);
-template ngraph::CoordinateDiff
-    ngraph::apply_permutation<ngraph::CoordinateDiff>(ngraph::CoordinateDiff input,
-                                                      ngraph::AxisVector order);
-template ngraph::Strides ngraph::apply_permutation<ngraph::Strides>(ngraph::Strides input,
-                                                                    ngraph::AxisVector order);
+template AxisVector ov::apply_permutation<AxisVector>(AxisVector input, AxisVector order);
+template Shape ov::apply_permutation<Shape>(Shape input, AxisVector order);
+template ov::Coordinate ov::apply_permutation<ov::Coordinate>(ov::Coordinate input,
+                                                              ov::AxisVector order);
+template ov::CoordinateDiff ov::apply_permutation<ov::CoordinateDiff>(ov::CoordinateDiff input,
+                                                                      ov::AxisVector order);
+template ov::Strides ov::apply_permutation<ov::Strides>(ov::Strides input, ov::AxisVector order);
 
-namespace ngraph
+namespace ov
 {
     template <>
     PartialShape apply_permutation(PartialShape input, AxisVector order)
@@ -394,26 +392,26 @@ namespace ngraph
 
         return output;
     }
-} // namespace ngraph
+} // namespace ov
 
-AxisVector ngraph::get_default_order(const Shape& shape)
+AxisVector ov::get_default_order(const Shape& shape)
 {
     return get_default_order(shape.size());
 }
 
-AxisVector ngraph::get_default_order(const PartialShape& shape)
+AxisVector ov::get_default_order(const PartialShape& shape)
 {
     return get_default_order(shape.rank());
 }
 
-AxisVector ngraph::get_default_order(size_t rank)
+AxisVector ov::get_default_order(size_t rank)
 {
     AxisVector default_order(rank);
     std::iota(begin(default_order), end(default_order), 0);
     return default_order;
 }
 
-AxisVector ngraph::get_default_order(const Rank& rank)
+AxisVector ov::get_default_order(const Rank& rank)
 {
     NGRAPH_CHECK(rank.is_static(), "Can not calculate default order for dynamic rank");
 
@@ -422,7 +420,7 @@ AxisVector ngraph::get_default_order(const Rank& rank)
     return default_order;
 }
 
-void ngraph::parse_version_string(
+void ov::parse_version_string(
     std::string version, size_t& major, size_t& minor, size_t& patch, string& extra)
 {
     // Since regex is broken in gcc 4.8 I will just manually parse the version string

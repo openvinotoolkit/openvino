@@ -10,7 +10,7 @@
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/variant.hpp"
 
-namespace ngraph
+namespace ov
 {
     class Node;
 
@@ -21,7 +21,7 @@ namespace ngraph
         // Describes a tensor that is an input to an op, directly or indirectly via a tuple
         class NGRAPH_API Input
         {
-            friend class ngraph::Node;
+            friend class ov::Node;
 
         public:
             /// \param node The node that owns this input
@@ -110,4 +110,4 @@ namespace ngraph
             bool m_is_relevant_to_value;
         };
     } // namespace descriptor
-} // namespace ngraph
+} // namespace ov

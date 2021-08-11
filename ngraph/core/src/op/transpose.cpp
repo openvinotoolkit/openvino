@@ -9,7 +9,7 @@
 #include "ngraph/runtime/reference/transpose.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::Transpose, "Transpose", 1);
 
@@ -19,7 +19,7 @@ op::v1::Transpose::Transpose(const Output<Node>& arg, const Output<Node>& input_
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::Transpose::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::Transpose::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Transpose_visit_attributes);
     return true;
@@ -61,7 +61,7 @@ void op::v1::Transpose::validate_and_infer_types()
                               " is not valid for input shape ",
                               arg_shape);
         set_output_type(
-            0, get_input_element_type(0), ngraph::apply_permutation(arg_shape, permutation));
+            0, get_input_element_type(0), ov::apply_permutation(arg_shape, permutation));
     }
     else
     {

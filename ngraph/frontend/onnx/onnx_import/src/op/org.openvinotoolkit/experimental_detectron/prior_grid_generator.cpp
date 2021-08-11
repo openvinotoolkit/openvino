@@ -6,7 +6,7 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -16,8 +16,7 @@ namespace ngraph
             {
                 OutputVector experimental_detectron_prior_grid_generator(const Node& node)
                 {
-                    using PriorGridGenerator =
-                        ngraph::op::v6::ExperimentalDetectronPriorGridGenerator;
+                    using PriorGridGenerator = ov::op::v6::ExperimentalDetectronPriorGridGenerator;
 
                     auto inputs = node.get_ng_inputs();
                     auto priors = inputs[0];
@@ -41,4 +40,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

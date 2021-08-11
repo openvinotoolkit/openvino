@@ -22,7 +22,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -31,7 +31,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 static void normalize_l2_results_test(std::vector<float>& data,
                                       Shape& data_shape,
                                       std::vector<int32_t>& axes,
-                                      ngraph::op::EpsMode eps_mode,
+                                      ov::op::EpsMode eps_mode,
                                       float eps,
                                       std::vector<float>& expected_output)
 {
@@ -55,7 +55,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_1D_axes_empty_add)
     Shape data_shape{4};
     std::vector<int32_t> axes{};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{0, 1, 0, 1};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -67,7 +67,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_1D_axes_empty_max)
     Shape data_shape{4};
     std::vector<int32_t> axes{};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{0, 1, 0, 1};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -79,7 +79,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_1D_axes_0_add)
     Shape data_shape{4};
     std::vector<int32_t> axes{0};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{0.18257418, 0.36514837, 0.5477226, 0.73029673};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -91,7 +91,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_1D_axes_0_max)
     Shape data_shape{4};
     std::vector<int32_t> axes{0};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{0.18257418, 0.36514837, 0.5477226, 0.73029673};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -104,7 +104,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_2D_axes_empty_add)
     Shape data_shape{2, 2};
     std::vector<int32_t> axes{};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{0, 1, 0, 1};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -116,7 +116,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_2D_axes_empty_max)
     Shape data_shape{2, 2};
     std::vector<int32_t> axes{};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{0, 1, 0, 1};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -128,7 +128,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_2D_axes_0_add)
     Shape data_shape{2, 2};
     std::vector<int32_t> axes{0};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{0.31622776, 0.4472136, 0.94868326, 0.8944272};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -140,7 +140,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_2D_axes_0_max)
     Shape data_shape{2, 2};
     std::vector<int32_t> axes{0};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{0.31622777, 0.4472136, 0.9486833, 0.89442719};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -152,7 +152,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_2D_axes_1_add)
     Shape data_shape{2, 2};
     std::vector<int32_t> axes{1};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{0.4472136, 0.8944272, 0.6, 0.8};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -164,7 +164,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_2D_axes_1_max)
     Shape data_shape{2, 2};
     std::vector<int32_t> axes{1};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{0.4472136, 0.89442719, 0.6, 0.8};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -176,7 +176,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_2D_axes_01_add)
     Shape data_shape{2, 2};
     std::vector<int32_t> axes{0, 1};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{0.18257418, 0.36514837, 0.5477226, 0.73029673};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -188,7 +188,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_2D_axes_01_max)
     Shape data_shape{2, 2};
     std::vector<int32_t> axes{0, 1};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{0.18257419, 0.36514837, 0.54772256, 0.73029674};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -202,7 +202,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_3D_axes_1_add)
     Shape data_shape{1, 2, 2};
     std::vector<int32_t> axes{1};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{0.31622776, 0.4472136, 0.94868326, 0.8944272};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -214,7 +214,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_3D_axes_1_max)
     Shape data_shape{1, 2, 2};
     std::vector<int32_t> axes{1};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{0.31622776, 0.4472136, 0.94868326, 0.8944272};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -226,7 +226,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_3D_axes_2_add)
     Shape data_shape{1, 2, 2};
     std::vector<int32_t> axes{2};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{0.4472136, 0.8944272, 0.6, 0.8};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -238,7 +238,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_3D_axes_2_max)
     Shape data_shape{1, 2, 2};
     std::vector<int32_t> axes{2};
     float eps = 1e-7;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{0.4472136, 0.8944272, 0.6, 0.8};
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -253,7 +253,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_empty_max)
     iota(begin(data), end(data), 1);
     std::vector<int32_t> axes{};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output(shape_size(data_shape), 1);
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -266,7 +266,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_empty_add)
     iota(begin(data), end(data), 1);
     std::vector<int32_t> axes{};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output(shape_size(data_shape), 1);
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -279,7 +279,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_0_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{0};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.03996804, 0.07669649, 0.11043153, 0.14142135, 0.1699069,  0.19611612,
         0.22026087, 0.2425356,  0.26311737, 0.2821663,  0.2998266,  0.31622776, 0.331486,
@@ -299,7 +299,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_0_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{0};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0,        0.0399648, 0.0766909, 0.110424, 0.141413, 0.169897, 0.196106, 0.22025,
         0.242524, 0.263106,  0.282155,  0.299815, 0.316217, 0.331475, 0.345695, 0.358969,
@@ -318,7 +318,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_1_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{1};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.07669649, 0.14142135, 0.19611612, 0.2425356,  0.2821663,  0.31622776,
         0.34570533, 0.37139067, 0.3939193,  0.41380292, 0.43145543, 0.99999994, 0.9970544,
@@ -338,7 +338,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_1_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{1};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0.,         0.07667395, 0.14138602, 0.19607423, 0.24249104, 0.28212142, 0.31618387,
         0.3456632,  0.37135068, 0.3938816,  0.41376755, 0.43142232, 0.9996529,  0.9967614,
@@ -358,7 +358,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_2_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{2};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.09667365, 0.16903085, 0.22423053, 0.4472136,  0.48336822, 0.50709254,
         0.52320457, 0.8944272,  0.8700628,  0.8451542,  0.8221786,  0.42426404, 0.4335743,
@@ -378,7 +378,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_2_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{2};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0,        0.0966285, 0.168971, 0.224168, 0.446934, 0.483143, 0.506912, 0.523058,
         0.893869, 0.869657,  0.844853, 0.821949, 0.424238, 0.43355,  0.441814, 0.449194,
@@ -397,7 +397,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_3_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{3};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.26726124, 0.5345225,  0.8017837,  0.3563483,  0.44543537, 0.5345225,
         0.62360954, 0.41816667, 0.4704375,  0.52270836, 0.5749792,  0.44292808, 0.47983873,
@@ -417,7 +417,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_3_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{3};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0,        0.266312, 0.532624, 0.798935, 0.356207, 0.445259, 0.534311, 0.623362,
         0.41811,  0.470373, 0.522637, 0.574901, 0.442898, 0.479806, 0.516714, 0.553622,
@@ -436,7 +436,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_23_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{2, 3};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.04445542, 0.08891085, 0.13336627, 0.1778217,  0.22227712, 0.26673254,
         0.31118798, 0.3556434,  0.4000988,  0.44455424, 0.48900968, 0.19420628, 0.21039014,
@@ -456,7 +456,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_23_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{2, 3};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0.,         0.04445103, 0.08890206, 0.1333531,  0.17780413, 0.22225516, 0.2667062,
         0.31115723, 0.35560825, 0.40005928, 0.4445103,  0.48896134, 0.19420375, 0.2103874,
@@ -476,7 +476,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_123_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{1, 2, 3};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.01520748, 0.03041495, 0.04562243, 0.06082991, 0.07603738, 0.09124486,
         0.10645234, 0.12165982, 0.13686728, 0.15207477, 0.16728225, 0.18248972, 0.19769719,
@@ -496,7 +496,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_123_big_eps_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{1, 2, 3};
     float eps = 100;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.01520748, 0.03041495, 0.04562243, 0.06082991, 0.07603738, 0.09124486,
         0.10645234, 0.12165982, 0.13686728, 0.15207477, 0.16728225, 0.18248972, 0.19769719,
@@ -516,7 +516,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_123_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{1, 2, 3};
     float eps = 1e-9;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0,        0.0152075, 0.030415, 0.0456224, 0.0608299, 0.0760374, 0.0912449, 0.106452,
         0.12166,  0.136867,  0.152075, 0.167282,  0.18249,   0.197697,  0.212905,  0.228112,
@@ -535,7 +535,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_123_big_eps_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{1, 2, 3};
     float eps = 0.5;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0,        0.0152066, 0.0304132, 0.0456198, 0.0608264, 0.076033, 0.0912396, 0.106446,
         0.121653, 0.136859,  0.152066,  0.167273,  0.182479,  0.197686, 0.212892,  0.228099,
@@ -554,7 +554,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_unsorted_312_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{3, 1, 2};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.01520748, 0.03041495, 0.04562243, 0.06082991, 0.07603738, 0.09124486,
         0.10645234, 0.12165982, 0.13686728, 0.15207477, 0.16728225, 0.18248972, 0.19769719,
@@ -574,7 +574,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_unsorted_312_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{3, 1, 2};
     float eps = 1e-9;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0,        0.0152075, 0.030415, 0.0456224, 0.0608299, 0.0760374, 0.0912449, 0.106452,
         0.12166,  0.136867,  0.152075, 0.167282,  0.18249,   0.197697,  0.212905,  0.228112,
@@ -593,7 +593,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_0123_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{0, 1, 2, 3};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.00529108, 0.01058216, 0.01587324, 0.02116432, 0.02645539, 0.03174648,
         0.03703756, 0.04232863, 0.04761971, 0.05291079, 0.05820187, 0.06349295, 0.06878403,
@@ -613,7 +613,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_4D_axes_0123_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{0, 1, 2, 3};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0.,         0.00529108, 0.01058216, 0.01587324, 0.02116432, 0.02645539, 0.03174648,
         0.03703756, 0.04232863, 0.04761971, 0.05291079, 0.05820187, 0.06349295, 0.06878403,
@@ -633,7 +633,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_empty_max)
     iota(begin(data), end(data), 1);
     std::vector<int32_t> axes{};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output(shape_size(data_shape), 1);
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -646,7 +646,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_empty_add)
     iota(begin(data), end(data), 1);
     std::vector<int32_t> axes{};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output(shape_size(data_shape), 1);
 
     normalize_l2_results_test(data, data_shape, axes, eps_mode, eps, expected_output);
@@ -659,7 +659,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_1_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{1};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.03996804, 0.07669649, 0.11043153, 0.14142135, 0.1699069,  0.19611612,
         0.22026087, 0.2425356,  0.26311737, 0.2821663,  0.2998266,  0.31622776, 0.331486,
@@ -679,7 +679,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_1_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{1};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0,        0.0399648, 0.0766909, 0.110424, 0.141413, 0.169897, 0.196106, 0.22025,
         0.242524, 0.263106,  0.282155,  0.299815, 0.316217, 0.331475, 0.345695, 0.358969,
@@ -698,7 +698,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_2_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{2};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.07669649, 0.14142135, 0.19611612, 0.2425356,  0.2821663,  0.31622776,
         0.34570533, 0.37139067, 0.3939193,  0.41380292, 0.43145543, 0.99999994, 0.9970544,
@@ -718,7 +718,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_2_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{2};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0.,         0.07667395, 0.14138602, 0.19607423, 0.24249104, 0.28212142, 0.31618387,
         0.3456632,  0.37135068, 0.3938816,  0.41376755, 0.43142232, 0.9996529,  0.9967614,
@@ -738,7 +738,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_3_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{3};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.09667365, 0.16903085, 0.22423053, 0.4472136,  0.48336822, 0.50709254,
         0.52320457, 0.8944272,  0.8700628,  0.8451542,  0.8221786,  0.42426404, 0.4335743,
@@ -758,7 +758,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_3_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{3};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0,        0.0966285, 0.168971, 0.224168, 0.446934, 0.483143, 0.506912, 0.523058,
         0.893869, 0.869657,  0.844853, 0.821949, 0.424238, 0.43355,  0.441814, 0.449194,
@@ -777,7 +777,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_4_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{4};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.26726124, 0.5345225,  0.8017837,  0.3563483,  0.44543537, 0.5345225,
         0.62360954, 0.41816667, 0.4704375,  0.52270836, 0.5749792,  0.44292808, 0.47983873,
@@ -797,7 +797,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_4_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{4};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0,        0.266312, 0.532624, 0.798935, 0.356207, 0.445259, 0.534311, 0.623362,
         0.41811,  0.470373, 0.522637, 0.574901, 0.442898, 0.479806, 0.516714, 0.553622,
@@ -816,7 +816,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_34_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{3, 4};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.04445542, 0.08891085, 0.13336627, 0.1778217,  0.22227712, 0.26673254,
         0.31118798, 0.3556434,  0.4000988,  0.44455424, 0.48900968, 0.19420628, 0.21039014,
@@ -836,7 +836,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_34_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{3, 4};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0.,         0.04445103, 0.08890206, 0.1333531,  0.17780413, 0.22225516, 0.2667062,
         0.31115723, 0.35560825, 0.40005928, 0.4445103,  0.48896134, 0.19420375, 0.2103874,
@@ -856,7 +856,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_234_max)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{2, 3, 4};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::MAX;
+    auto eps_mode = ov::op::EpsMode::MAX;
     std::vector<float> expected_output{
         0.,         0.01520748, 0.03041495, 0.04562243, 0.06082991, 0.07603738, 0.09124486,
         0.10645234, 0.12165982, 0.13686728, 0.15207477, 0.16728225, 0.18248972, 0.19769719,
@@ -876,7 +876,7 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_l2_5D_axes_234_add)
     iota(begin(data), end(data), 0);
     std::vector<int32_t> axes{2, 3, 4};
     float eps = 0.1;
-    auto eps_mode = ngraph::op::EpsMode::ADD;
+    auto eps_mode = ov::op::EpsMode::ADD;
     std::vector<float> expected_output{
         0.,         0.0152073,  0.0304146,  0.0456219,  0.0608292,  0.07603651, 0.0912438,
         0.10645111, 0.12165841, 0.1368657,  0.15207301, 0.16728032, 0.1824876,  0.19769491,

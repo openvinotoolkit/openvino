@@ -15,7 +15,7 @@
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -179,7 +179,7 @@ NGRAPH_TEST(${BACKEND_NAME}, constant_equality_bool)
 
 namespace
 {
-    std::vector<uint8_t> read_raw_data(std::shared_ptr<ngraph::runtime::Tensor> tv)
+    std::vector<uint8_t> read_raw_data(std::shared_ptr<ov::runtime::Tensor> tv)
     {
         const size_t mem_size = tv->get_size_in_bytes();
         std::vector<uint8_t> rc(mem_size);
@@ -209,7 +209,7 @@ namespace
         handle->call_with_validate({result}, {});
         EXPECT_EQ(data, read_raw_data(result));
     }
-}
+} // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, constant_equality_u4_2x2x3)
 {

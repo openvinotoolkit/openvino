@@ -7,7 +7,7 @@
 #include "ngraph/op/normalize_l2.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -25,11 +25,11 @@ namespace ngraph
                     int64_t across_spatial = node.get_attribute_value<int64_t>("across_spatial", 0);
                     int64_t channel_shared = node.get_attribute_value<int64_t>("channel_shared", 0);
 
-                    std::shared_ptr<ngraph::Node> weights;
+                    std::shared_ptr<ov::Node> weights;
                     if (channel_shared)
                     {
                         NGRAPH_CHECK(
-                            ngraph::op::is_constant(inputs[1].get_node()),
+                            ov::op::is_constant(inputs[1].get_node()),
                             "Weights input must be a constant if channel_shared is set to 1");
                         const auto& shape = inputs[1].get_partial_shape();
                         NGRAPH_CHECK(
@@ -59,7 +59,7 @@ namespace ngraph
                             std::make_shared<default_opset::Reshape>(inputs[1], new_shape, true);
                     }
 
-                    std::shared_ptr<ngraph::Node> axes;
+                    std::shared_ptr<ov::Node> axes;
                     if (!across_spatial)
                     {
                         axes = std::make_shared<default_opset::Constant>(
@@ -72,7 +72,7 @@ namespace ngraph
 
                     return {std::make_shared<default_opset::Multiply>(
                         std::make_shared<default_opset::NormalizeL2>(
-                            data, axes, eps, ngraph::op::EpsMode::ADD),
+                            data, axes, eps, ov::op::EpsMode::ADD),
                         weights)};
                 }
 
@@ -81,4 +81,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

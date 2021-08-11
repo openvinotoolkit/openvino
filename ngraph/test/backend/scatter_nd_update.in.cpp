@@ -36,8 +36,8 @@ namespace
     template <typename ValueType>
     struct Array
     {
-        using StorageType = ngraph::test::NDArrayBase<ValueType>;
-        static ngraph::element::Type element_type() { return ngraph::element::from<ValueType>(); }
+        using StorageType = ov::test::NDArrayBase<ValueType>;
+        static ov::element::Type element_type() { return ov::element::from<ValueType>(); }
         StorageType data;
     };
     struct Params
@@ -50,7 +50,7 @@ namespace
 
     void execute_test(const Params& p)
     {
-        using namespace ngraph;
+        using namespace ov;
         using namespace opset7;
 
         auto inputs = std::make_shared<Parameter>(p.input.element_type(), p.input.data.get_shape());
@@ -81,11 +81,11 @@ namespace
                                       read_vector<float>(result),
                                       MIN_FLOAT_TOLERANCE_BITS));
     }
-}
+} // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_1x1)
 {
-    using namespace ngraph::test;
+    using namespace ov::test;
     execute_test(Params{NDArray<float, 1>{1},
                         NDArray<int32_t, 2>{{0}},
                         NDArray<float, 1>{20},
@@ -94,7 +94,7 @@ NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_1x1)
 
 NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_2x2_by_1)
 {
-    using namespace ngraph::test;
+    using namespace ov::test;
     execute_test(Params{NDArray<float, 2>{
                             {1, 2},
                             {3, 4},
@@ -109,7 +109,7 @@ NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_2x2_by_1)
 
 NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_2x2_by_2)
 {
-    using namespace ngraph::test;
+    using namespace ov::test;
     execute_test(Params{NDArray<float, 2>{
                             {1, 2},
                             {3, 4},
@@ -127,7 +127,7 @@ NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_2x2_by_2)
 
 NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_3x3_by_1)
 {
-    using namespace ngraph::test;
+    using namespace ov::test;
     execute_test(Params{NDArray<float, 3>{
                             {
                                 {11, 12, 13},
@@ -179,7 +179,7 @@ NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_3x3_by_1)
 
 NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_3x3_by_2v2)
 {
-    using namespace ngraph::test;
+    using namespace ov::test;
     execute_test(Params{NDArray<float, 3>{
                             {
                                 {11, 12, 13},
@@ -232,7 +232,7 @@ NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_3x3_by_2v2)
 
 NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_3x3_by_2)
 {
-    using namespace ngraph::test;
+    using namespace ov::test;
     execute_test(Params{NDArray<float, 3>{
                             {
                                 {11, 12, 13},
@@ -276,7 +276,7 @@ NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_3x3_by_2)
 
 NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_3x3_by_3)
 {
-    using namespace ngraph::test;
+    using namespace ov::test;
     execute_test(Params{NDArray<float, 3>{
                             {
                                 {11, 12, 13},
@@ -317,7 +317,7 @@ NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_3x3_by_3)
 
 NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_1d_from_examples)
 {
-    using namespace ngraph::test;
+    using namespace ov::test;
     execute_test(Params{NDArray<float, 1>{1, 2, 3, 4, 5, 6, 7, 8},
                         NDArray<int32_t, 2>{{4}, {3}, {1}, {7}},
                         NDArray<float, 1>{9, 10, 11, 12},
@@ -326,7 +326,7 @@ NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_1d_from_examples)
 
 NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_4x4_shape_from_examples)
 {
-    using namespace ngraph::test;
+    using namespace ov::test;
     execute_test(Params{NDArray<float, 3>{{
                                               {1, 2, 3, 4},
                                               {5, 6, 7, 8},
@@ -396,7 +396,7 @@ NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_4x4_shape_from_examples)
 
 NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_4x4_v2)
 {
-    using namespace ngraph::test;
+    using namespace ov::test;
     execute_test(Params{NDArray<float, 3>{
                             {
                                 {1, 2, 3, 4},

@@ -10,7 +10,7 @@
 #include "exceptions.hpp"
 #include "op/batch_norm.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -25,8 +25,8 @@ namespace ngraph
                     auto x = inputs.at(0);
                     auto scale = inputs.at(1);
                     auto bias = inputs.at(2);
-                    Output<ngraph::Node> mean;
-                    Output<ngraph::Node> var;
+                    Output<ov::Node> mean;
+                    Output<ov::Node> var;
 
                     double epsilon{node.get_attribute_value<double>("epsilon", 1e-5)};
 
@@ -87,4 +87,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

@@ -8,11 +8,11 @@
 
 #include "ngraph_ops/type_relaxed.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
         TypeRelaxedBase::~TypeRelaxedBase() {}
 
     } // namespace op
-} // namespace ngraph
+} // namespace ov

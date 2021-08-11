@@ -7,7 +7,7 @@
 
 #include "ngraph/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace builder
     {
@@ -79,4 +79,4 @@ namespace ngraph
             OutputVector split(const Output<Node>& value, size_t num_splits, int64_t axis = 0);
         } // namespace opset1
     }     // namespace builder
-} // namespace ngraph
+} // namespace ov

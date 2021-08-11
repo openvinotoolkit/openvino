@@ -11,7 +11,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -22,7 +22,7 @@ namespace ngraph
     } // namespace op
     namespace runtime
     {
-        class NGRAPH_API HostTensor : public ngraph::runtime::Tensor
+        class NGRAPH_API HostTensor : public ov::runtime::Tensor
         {
         public:
             HostTensor(const element::Type& element_type, const Shape& shape, void* memory_pointer);
@@ -115,4 +115,4 @@ namespace ngraph
             size_t m_buffer_size;
         };
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

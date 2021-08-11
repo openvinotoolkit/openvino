@@ -7,13 +7,12 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, unsqueeze)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{4, 1, 4, 1, 8});
-    auto axes_node =
-        make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{1, 2});
+    auto axes_node = make_shared<ov::op::Constant>(element::u64, Shape{2}, vector<int64_t>{1, 2});
     auto unsqueeze = make_shared<op::v0::Unsqueeze>(param, axes_node);
 
     ASSERT_EQ(unsqueeze->get_element_type(), element::f32);
@@ -23,8 +22,7 @@ TEST(type_prop, unsqueeze)
 TEST(type_prop, unsqueeze_dynamic)
 {
     auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(5));
-    auto axes_node =
-        make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{1, 2});
+    auto axes_node = make_shared<ov::op::Constant>(element::u64, Shape{2}, vector<int64_t>{1, 2});
     auto unsqueeze = make_shared<op::v0::Unsqueeze>(param, axes_node);
 
     ASSERT_EQ(unsqueeze->get_element_type(), element::f32);
@@ -42,7 +40,7 @@ TEST(type_prop, unsqueeze_incorrect_axes_shape)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{4, 1, 4, 1, 8});
     auto axes_node =
-        make_shared<ngraph::op::Constant>(element::u64, Shape{1, 1, 1}, vector<int64_t>{1});
+        make_shared<ov::op::Constant>(element::u64, Shape{1, 1, 1}, vector<int64_t>{1});
 
     try
     {
@@ -63,7 +61,7 @@ TEST(type_prop, unsqueeze_incorrect_axes_shape)
 TEST(type_prop, unsqueeze_empty_axes)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{4, 1, 4, 1, 8});
-    auto axes_node = make_shared<ngraph::op::Constant>(element::u64, Shape{0}, vector<int64_t>{});
+    auto axes_node = make_shared<ov::op::Constant>(element::u64, Shape{0}, vector<int64_t>{});
     try
     {
         auto unsqueeze = make_shared<op::v0::Unsqueeze>(param, axes_node);
@@ -82,7 +80,7 @@ TEST(type_prop, unsqueeze_empty_axes)
 TEST(type_prop, unsqueeze_dynamic_axes)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{4, 1, 4, 1, 8});
-    auto axes_node = make_shared<ngraph::op::Parameter>(element::u64, PartialShape::dynamic());
+    auto axes_node = make_shared<ov::op::Parameter>(element::u64, PartialShape::dynamic());
 
     auto unsqueeze = make_shared<op::v0::Unsqueeze>(param, axes_node);
     ASSERT_EQ(unsqueeze->get_element_type(), element::f32);

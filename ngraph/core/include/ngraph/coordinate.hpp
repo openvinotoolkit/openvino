@@ -11,7 +11,7 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// \brief Coordinates for a tensor element
     class Coordinate : public std::vector<size_t>
@@ -57,4 +57,4 @@ namespace ngraph
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const Coordinate& coordinate);
-} // namespace ngraph
+} // namespace ov

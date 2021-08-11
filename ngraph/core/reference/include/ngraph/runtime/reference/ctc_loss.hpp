@@ -7,7 +7,7 @@
 #include <math.h>
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -210,4 +210,4 @@ namespace ngraph
             }     // CTCLoss
         }         // namespace reference
     }             // namespace runtime
-} // namespace ngraph
+} // namespace ov

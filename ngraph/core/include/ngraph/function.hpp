@@ -20,7 +20,7 @@
 #include "ngraph/op/sink.hpp"
 #include "ngraph/op/util/variable.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// A user-defined function.
     class NGRAPH_API Function
@@ -281,4 +281,4 @@ namespace ngraph
                                                     0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

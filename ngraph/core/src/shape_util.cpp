@@ -6,10 +6,10 @@
 
 #include "ngraph/shape_util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 template <>
-PartialShape ngraph::project(const PartialShape& shape, const AxisSet& axes)
+PartialShape ov::project(const PartialShape& shape, const AxisSet& axes)
 {
     if (shape.rank().is_dynamic())
     {
@@ -32,7 +32,7 @@ PartialShape ngraph::project(const PartialShape& shape, const AxisSet& axes)
 }
 
 template <>
-PartialShape ngraph::reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool keep_dims)
+PartialShape ov::reduce(const PartialShape& shape, const AxisSet& deleted_axes, bool keep_dims)
 {
     if (shape.rank().is_dynamic())
     {
@@ -60,9 +60,8 @@ PartialShape ngraph::reduce(const PartialShape& shape, const AxisSet& deleted_ax
 }
 
 template <>
-PartialShape
-    ngraph::inject_pairs(const PartialShape& shape,
-                         std::vector<std::pair<size_t, Dimension>> new_axis_pos_value_pairs)
+PartialShape ov::inject_pairs(const PartialShape& shape,
+                              std::vector<std::pair<size_t, Dimension>> new_axis_pos_value_pairs)
 {
     if (shape.rank().is_dynamic())
     {

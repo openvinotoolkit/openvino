@@ -12,7 +12,7 @@
 #include "ngraph/op/util/op_types.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v0::NormalizeL2, "NormalizeL2", 0);
 

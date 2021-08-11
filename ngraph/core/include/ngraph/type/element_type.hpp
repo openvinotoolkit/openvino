@@ -21,7 +21,7 @@
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace element
     {
@@ -166,12 +166,12 @@ namespace ngraph
         template <>
         NGRAPH_API Type from<uint64_t>();
         template <>
-        NGRAPH_API Type from<ngraph::bfloat16>();
+        NGRAPH_API Type from<ov::bfloat16>();
         template <>
-        NGRAPH_API Type from<ngraph::float16>();
+        NGRAPH_API Type from<ov::float16>();
 
         NGRAPH_API
-        std::ostream& operator<<(std::ostream& out, const ngraph::element::Type& obj);
+        std::ostream& operator<<(std::ostream& out, const ov::element::Type& obj);
     } // namespace element
 
     template <>
@@ -210,4 +210,4 @@ namespace ngraph
 
     /// \brief Return the number of bytes in the compile-time representation of the element type.
     size_t compiler_byte_size(element::Type_t et);
-} // namespace ngraph
+} // namespace ov

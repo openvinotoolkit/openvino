@@ -5,7 +5,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -40,35 +40,34 @@ namespace ngraph
                     }
                     else
                     {
-                        throw ngraph::ngraph_error("Unsupported paddings attribute!");
+                        throw ov::ngraph_error("Unsupported paddings attribute!");
                     }
 
                     auto pads_begin = std::vector<int32_t>(5, 0);
                     auto pads_end = std::vector<int32_t>(5, 0);
 
-                    Output<ngraph::Node> values;
-                    Output<ngraph::Node> padding_begin;
-                    Output<ngraph::Node> padding_end;
+                    Output<ov::Node> values;
+                    Output<ov::Node> padding_begin;
+                    Output<ov::Node> padding_end;
 
-                    ngraph::op::PadMode pad_mode;
+                    ov::op::PadMode pad_mode;
                     // TODO Support Circular mode in #55704
                     if (mode == "constant")
                     {
-                        pad_mode = ngraph::op::PadMode::CONSTANT;
-                        values = ngraph::opset6::Constant::create(
-                            element::f32, ngraph::Shape{}, {value});
+                        pad_mode = ov::op::PadMode::CONSTANT;
+                        values = ov::opset6::Constant::create(element::f32, ov::Shape{}, {value});
                     }
                     else if (mode == "reflect")
                     {
-                        pad_mode = ngraph::op::PadMode::REFLECT;
+                        pad_mode = ov::op::PadMode::REFLECT;
                     }
                     else if (mode == "replicate")
                     {
-                        pad_mode = ngraph::op::PadMode::EDGE;
+                        pad_mode = ov::op::PadMode::EDGE;
                     }
                     else
                     {
-                        throw ngraph::ngraph_error("Unsupported 3d paddings mode: [" + mode + "]");
+                        throw ov::ngraph_error("Unsupported 3d paddings mode: [" + mode + "]");
                     }
 
                     if (data_format == "NCDHW")
@@ -91,27 +90,27 @@ namespace ngraph
                     }
                     else
                     {
-                        throw ngraph::ngraph_error("Unsupported 3d paddings data_format: [" +
-                                                   data_format + "]");
+                        throw ov::ngraph_error("Unsupported 3d paddings data_format: [" +
+                                               data_format + "]");
                     }
 
-                    padding_begin = ngraph::opset6::Constant::create(
-                        element::i32, ngraph::Shape{pads_begin.size()}, pads_begin);
-                    padding_end = ngraph::opset6::Constant::create(
-                        element::i32, ngraph::Shape{pads_end.size()}, pads_end);
+                    padding_begin = ov::opset6::Constant::create(
+                        element::i32, ov::Shape{pads_begin.size()}, pads_begin);
+                    padding_end = ov::opset6::Constant::create(
+                        element::i32, ov::Shape{pads_end.size()}, pads_end);
 
                     if (mode == "constant")
                         return node.default_single_output_mapping(
-                            {std::make_shared<ngraph::opset6::Pad>(
+                            {std::make_shared<ov::opset6::Pad>(
                                 data, padding_begin, padding_end, values, pad_mode)},
                             {"Out"});
                     else
                         return node.default_single_output_mapping(
-                            {std::make_shared<ngraph::opset6::Pad>(
+                            {std::make_shared<ov::opset6::Pad>(
                                 data, padding_begin, padding_end, pad_mode)},
                             {"Out"});
                 }
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

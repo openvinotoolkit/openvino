@@ -17,7 +17,7 @@ namespace py = pybind11;
 
 namespace
 {
-    class ManagerWrapper : public ngraph::pass::Manager
+    class ManagerWrapper : public ov::pass::Manager
     {
     public:
         ManagerWrapper() {}
@@ -25,11 +25,11 @@ namespace
         void register_pass(std::string pass_name)
         {
             if (pass_name == "ConstantFolding")
-                push_pass<ngraph::pass::ConstantFolding>();
+                push_pass<ov::pass::ConstantFolding>();
 
             if (m_per_pass_validation)
             {
-                push_pass<ngraph::pass::Validate>();
+                push_pass<ov::pass::Validate>();
             }
             return;
         }
@@ -39,7 +39,7 @@ namespace
 void regclass_pyngraph_passes_Manager(py::module m)
 {
     py::class_<ManagerWrapper> manager(m, "Manager");
-    manager.doc() = "ngraph.impl.passes.Manager wraps ngraph::pass::Manager using ManagerWrapper";
+    manager.doc() = "ngraph.impl.passes.Manager wraps ov::pass::Manager using ManagerWrapper";
 
     manager.def(py::init<>());
 

@@ -5,7 +5,7 @@
 #include "op/einsum.hpp"
 #include "default_opset.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -27,4 +27,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

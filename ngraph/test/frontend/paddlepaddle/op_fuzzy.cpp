@@ -11,10 +11,10 @@
 #include "util/engine/test_engines.hpp"
 #include "util/test_control.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace InferenceEngine;
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 using TestEngine = test::IE_CPU_Engine;
 
 using PDPDFuzzyOpTest = FrontEndFuzzyOpTest;

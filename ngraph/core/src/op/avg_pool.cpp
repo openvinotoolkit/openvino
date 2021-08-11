@@ -9,7 +9,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 // *** AvgPool OP SET 1 ***
 NGRAPH_RTTI_DEFINITION(op::v1::AvgPool, "AvgPool", 1);

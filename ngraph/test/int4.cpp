@@ -7,7 +7,7 @@
 #include "util/all_close_f.hpp"
 #include "util/test_tools.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 TEST(int4, convert_i4_to_string)

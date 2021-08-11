@@ -9,7 +9,7 @@
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::Elu, "Elu", 0);
 
@@ -20,7 +20,7 @@ op::Elu::Elu(const Output<Node>& data, const double alpha)
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::Elu::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::Elu::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Elu_visit_attributes);
     visitor.on_attribute("alpha", m_alpha);

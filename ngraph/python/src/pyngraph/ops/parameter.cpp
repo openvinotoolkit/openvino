@@ -8,17 +8,17 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/parameter.hpp"
-#include "ngraph/partial_shape.hpp" // ngraph::PartialShape
+#include "ngraph/partial_shape.hpp" // ov::PartialShape
 #include "pyngraph/ops/parameter.hpp"
 
 namespace py = pybind11;
 
 void regclass_pyngraph_op_Parameter(py::module m)
 {
-    py::class_<ngraph::op::Parameter, std::shared_ptr<ngraph::op::Parameter>, ngraph::Node>
-        parameter(m, "Parameter");
-    parameter.doc() = "ngraph.impl.op.Parameter wraps ngraph::op::Parameter";
-    parameter.def("__repr__", [](const ngraph::Node& self) {
+    py::class_<ov::op::Parameter, std::shared_ptr<ov::op::Parameter>, ov::Node> parameter(
+        m, "Parameter");
+    parameter.doc() = "ngraph.impl.op.Parameter wraps ov::op::Parameter";
+    parameter.def("__repr__", [](const ov::Node& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
         std::string shape =
             py::cast(self.get_output_partial_shape(0)).attr("__str__")().cast<std::string>();
@@ -27,15 +27,15 @@ void regclass_pyngraph_op_Parameter(py::module m)
                ")>";
     });
 
-    parameter.def(py::init<const ngraph::element::Type&, const ngraph::Shape&>());
-    parameter.def(py::init<const ngraph::element::Type&, const ngraph::PartialShape&>());
-    //    parameter.def_property_readonly("description", &ngraph::op::Parameter::description);
+    parameter.def(py::init<const ov::element::Type&, const ov::Shape&>());
+    parameter.def(py::init<const ov::element::Type&, const ov::PartialShape&>());
+    //    parameter.def_property_readonly("description", &ov::op::Parameter::description);
 
     parameter.def("get_partial_shape",
-                  (const ngraph::PartialShape& (ngraph::op::Parameter::*)() const) &
-                      ngraph::op::Parameter::get_partial_shape);
+                  (const ov::PartialShape& (ov::op::Parameter::*)() const) &
+                      ov::op::Parameter::get_partial_shape);
     parameter.def("get_partial_shape",
-                  (ngraph::PartialShape & (ngraph::op::Parameter::*)()) &
-                      ngraph::op::Parameter::get_partial_shape);
-    parameter.def("set_partial_shape", &ngraph::op::Parameter::set_partial_shape);
+                  (ov::PartialShape & (ov::op::Parameter::*)()) &
+                      ov::op::Parameter::get_partial_shape);
+    parameter.def("set_partial_shape", &ov::op::Parameter::set_partial_shape);
 }

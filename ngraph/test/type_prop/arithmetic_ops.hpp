@@ -17,7 +17,7 @@
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 template <class T>
 class ArithmeticOperator : public testing::Test
@@ -133,7 +133,7 @@ TYPED_TEST_P(ArithmeticOperator, incompatible_element_types)
     auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 3, 3});
     auto B = std::make_shared<op::Parameter>(element::i32, Shape{2, 2, 3, 3});
 
-    ASSERT_THROW(std::make_shared<TypeParam>(A, B), ngraph::NodeValidationFailure);
+    ASSERT_THROW(std::make_shared<TypeParam>(A, B), ov::NodeValidationFailure);
 }
 
 TYPED_TEST_P(ArithmeticOperator, incompatible_boolean_type)
@@ -141,7 +141,7 @@ TYPED_TEST_P(ArithmeticOperator, incompatible_boolean_type)
     auto A = std::make_shared<op::Parameter>(element::boolean, Shape{2, 2, 3, 3});
     auto B = std::make_shared<op::Parameter>(element::boolean, Shape{2, 2, 3, 3});
 
-    ASSERT_THROW(std::make_shared<TypeParam>(A, B), ngraph::NodeValidationFailure);
+    ASSERT_THROW(std::make_shared<TypeParam>(A, B), ov::NodeValidationFailure);
 }
 
 TYPED_TEST_P(ArithmeticOperator, shape_inference_1D_x_1D_incompatible)
@@ -149,7 +149,7 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_1D_x_1D_incompatible)
     auto A = std::make_shared<op::Parameter>(element::f32, Shape{3});
     auto B = std::make_shared<op::Parameter>(element::f32, Shape{4});
 
-    ASSERT_THROW(std::make_shared<TypeParam>(A, B), ngraph::NodeValidationFailure);
+    ASSERT_THROW(std::make_shared<TypeParam>(A, B), ov::NodeValidationFailure);
 }
 
 TYPED_TEST_P(ArithmeticOperator, shape_inference_3D_x_3D_incompatible)
@@ -157,7 +157,7 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_3D_x_3D_incompatible)
     auto A = std::make_shared<op::Parameter>(element::f32, Shape{3, 5, 6});
     auto B = std::make_shared<op::Parameter>(element::f32, Shape{4, 10, 12});
 
-    ASSERT_THROW(std::make_shared<TypeParam>(A, B), ngraph::NodeValidationFailure);
+    ASSERT_THROW(std::make_shared<TypeParam>(A, B), ov::NodeValidationFailure);
 }
 
 TYPED_TEST_P(ArithmeticOperator, shape_inference_5D_x_5D_incompatible)
@@ -165,7 +165,7 @@ TYPED_TEST_P(ArithmeticOperator, shape_inference_5D_x_5D_incompatible)
     auto A = std::make_shared<op::Parameter>(element::f32, Shape{389, 112, 12});
     auto B = std::make_shared<op::Parameter>(element::f32, Shape{389, 112, 19});
 
-    ASSERT_THROW(std::make_shared<TypeParam>(A, B), ngraph::NodeValidationFailure);
+    ASSERT_THROW(std::make_shared<TypeParam>(A, B), ov::NodeValidationFailure);
 }
 
 TYPED_TEST_P(ArithmeticOperator, dynamic_shape_3D)

@@ -7,7 +7,7 @@
 #include "exceptions.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -17,8 +17,8 @@ namespace ngraph
             {
                 OutputVector bitshift(const Node& node)
                 {
-                    const Output<ngraph::Node> input_x = node.get_ng_inputs().at(0);
-                    const Output<ngraph::Node> input_y = node.get_ng_inputs().at(1);
+                    const Output<ov::Node> input_x = node.get_ng_inputs().at(0);
+                    const Output<ov::Node> input_y = node.get_ng_inputs().at(1);
 
                     std::string direction = node.get_attribute_value<std::string>("direction", "");
 
@@ -52,4 +52,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

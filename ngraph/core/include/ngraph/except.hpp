@@ -9,7 +9,7 @@
 
 #include <ngraph/ngraph_visibility.hpp>
 
-namespace ngraph
+namespace ov
 {
     /// Base error for ngraph runtime errors.
     class NGRAPH_API ngraph_error : public std::runtime_error
@@ -39,4 +39,4 @@ namespace ngraph
         {
         }
     };
-} // namespace ngraph
+} // namespace ov

@@ -16,7 +16,7 @@
 #include "backend_manager.hpp"
 #include "ngraph/runtime/tensor.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -24,11 +24,11 @@ namespace ngraph
         {
             class INTBackend;
             class INTExecutable;
-        }
-    }
-}
+        } // namespace interpreter
+    }     // namespace runtime
+} // namespace ov
 
-class INTERPRETER_BACKEND_API ngraph::runtime::interpreter::INTBackend : public Backend
+class INTERPRETER_BACKEND_API ov::runtime::interpreter::INTBackend : public Backend
 {
 public:
     INTBackend();

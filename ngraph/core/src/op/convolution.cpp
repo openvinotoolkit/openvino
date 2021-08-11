@@ -11,7 +11,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 // *** Convolution OP SET 1 ***
 NGRAPH_RTTI_DEFINITION(op::v1::Convolution, "Convolution", 1);
@@ -104,7 +104,7 @@ shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& 
 
 shared_ptr<Node> op::v1::Convolution::get_default_value() const
 {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
+    return ov::make_constant_from_string("0", get_element_type(), get_shape());
 }
 
 // *** ConvolutionBackpropData OP SET 1 ***

@@ -8,7 +8,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -32,4 +32,4 @@ namespace ngraph
         };
     } // namespace op
     using SinkVector = std::vector<std::shared_ptr<op::Sink>>;
-} // namespace ngraph
+} // namespace ov

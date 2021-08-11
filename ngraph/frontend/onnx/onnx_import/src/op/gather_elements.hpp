@@ -7,7 +7,7 @@
 #include "default_opset.hpp"
 #include "ngraph/output_vector.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -27,4 +27,4 @@ namespace ngraph
             } // namespace set_1
         }     // namespace op
     }         // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

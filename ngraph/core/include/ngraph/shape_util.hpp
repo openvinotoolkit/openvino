@@ -6,7 +6,7 @@
 
 #include "ngraph/partial_shape.hpp"
 
-namespace ngraph
+namespace ov
 {
     template <typename AXIS_VALUES>
     AXIS_VALUES project(const AXIS_VALUES& axis_values, const AxisSet& axes)
@@ -108,4 +108,4 @@ namespace ngraph
                             std::vector<std::pair<size_t, AXIS_VALUE>>{
                                 std::pair<size_t, AXIS_VALUE>(new_axis_pos, new_axis_val)});
     }
-} // namespace ngraph
+} // namespace ov

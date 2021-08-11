@@ -8,7 +8,7 @@
 
 #include "ngraph/runtime/reference/slice.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -22,4 +22,4 @@ namespace ngraph
                        char** out_data);
         }
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

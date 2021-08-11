@@ -6,7 +6,7 @@
 
 #include "ngraph/pass/pass.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pass
     {
@@ -19,14 +19,14 @@ namespace ngraph
         {
         public:
             NGRAPH_RTTI_DECLARATION;
-            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+            bool run_on_function(std::shared_ptr<ov::Function> f) override;
 
         private:
             void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
                                                     const Output<Node>& replacement);
             /// \brief Folds pre-calculated output tensor values to constants in case lower and
             /// upper estimations are equal. Traverses graph backwards starting from the results.
-            bool pre_calculated_values_folding(const std::shared_ptr<ngraph::Function>& f);
+            bool pre_calculated_values_folding(const std::shared_ptr<ov::Function>& f);
         };
     } // namespace pass
-} // namespace ngraph
+} // namespace ov

@@ -8,7 +8,7 @@
 
 #include "utils/provenance_tag.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -47,4 +47,4 @@ namespace ngraph
 
         } // namespace detail
     }     // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

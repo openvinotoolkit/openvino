@@ -8,7 +8,7 @@
 #include "ngraph/pattern/op/true.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo pattern::op::Label::type_info;
 

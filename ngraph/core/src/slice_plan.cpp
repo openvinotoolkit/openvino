@@ -7,17 +7,17 @@
 #include "ngraph/check.hpp"
 #include "ngraph/slice_plan.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-SlicePlan ngraph::make_slice_plan(const Shape& input_shape,
-                                  const std::vector<int64_t>& begins,
-                                  const std::vector<int64_t>& ends,
-                                  const std::vector<int64_t>& strides,
-                                  const AxisSet& lower_bounds_mask,
-                                  const AxisSet& upper_bounds_mask,
-                                  const AxisSet& new_axis_mask,
-                                  const AxisSet& shrink_axis_mask,
-                                  const AxisSet& ellipsis_mask)
+SlicePlan ov::make_slice_plan(const Shape& input_shape,
+                              const std::vector<int64_t>& begins,
+                              const std::vector<int64_t>& ends,
+                              const std::vector<int64_t>& strides,
+                              const AxisSet& lower_bounds_mask,
+                              const AxisSet& upper_bounds_mask,
+                              const AxisSet& new_axis_mask,
+                              const AxisSet& shrink_axis_mask,
+                              const AxisSet& ellipsis_mask)
 {
     NGRAPH_CHECK(begins.size() == ends.size());
     NGRAPH_CHECK(ends.size() == strides.size());
@@ -224,7 +224,7 @@ SlicePlan ngraph::make_slice_plan(const Shape& input_shape,
     return p;
 }
 
-bool SlicePlan::operator==(const ngraph::SlicePlan& other) const
+bool SlicePlan::operator==(const ov::SlicePlan& other) const
 {
     bool equal = true;
     equal &= begins == other.begins;
@@ -237,7 +237,7 @@ bool SlicePlan::operator==(const ngraph::SlicePlan& other) const
     return equal;
 }
 
-bool SlicePlan::operator!=(const ngraph::SlicePlan& other) const
+bool SlicePlan::operator!=(const ov::SlicePlan& other) const
 {
     return !(*this == other);
 }

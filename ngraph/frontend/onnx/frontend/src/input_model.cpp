@@ -6,8 +6,8 @@
 #include <frontend_manager/frontend_exceptions.hpp>
 #include "place.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 InputModelONNX::InputModelONNX(const std::string& path)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)}
@@ -54,21 +54,21 @@ Place::Ptr
     return std::make_shared<PlaceInputEdgeONNX>(edge, m_editor);
 }
 
-void InputModelONNX::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape)
+void InputModelONNX::set_partial_shape(Place::Ptr place, const ov::PartialShape& shape)
 {
-    std::map<std::string, ngraph::PartialShape> m;
+    std::map<std::string, ov::PartialShape> m;
     m[place->get_names()[0]] = shape;
     m_editor->set_input_shapes(m);
 }
 
-ngraph::PartialShape InputModelONNX::get_partial_shape(Place::Ptr place) const
+ov::PartialShape InputModelONNX::get_partial_shape(Place::Ptr place) const
 {
     return m_editor->get_tensor_shape(place->get_names().at(0));
 }
 
-void InputModelONNX::set_element_type(Place::Ptr place, const ngraph::element::Type& type)
+void InputModelONNX::set_element_type(Place::Ptr place, const ov::element::Type& type)
 {
-    std::map<std::string, ngraph::element::Type_t> m;
+    std::map<std::string, ov::element::Type_t> m;
     m[place->get_names()[0]] = type;
     m_editor->set_input_types(m);
 }

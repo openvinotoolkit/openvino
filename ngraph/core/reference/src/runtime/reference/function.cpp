@@ -11,7 +11,7 @@
 #include "ngraph/runtime/reference/concat.hpp"
 #include "ngraph/runtime/tensor.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -19,7 +19,7 @@ namespace ngraph
         {
             static bool call(const HostTensorVector& func_outputs,
                              const HostTensorVector& func_inputs,
-                             const std::shared_ptr<ngraph::Function>& function)
+                             const std::shared_ptr<ov::Function>& function)
             {
                 // map function params -> HostTensor
                 std::unordered_map<descriptor::Tensor*, std::shared_ptr<HostTensor>> tensor_map;
@@ -85,7 +85,7 @@ namespace ngraph
                 return true;
             }
 
-            void function(const std::shared_ptr<ngraph::Function>& function,
+            void function(const std::shared_ptr<ov::Function>& function,
                           const HostTensorVector& inputs,
                           HostTensorVector& outputs)
             {
@@ -132,4 +132,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

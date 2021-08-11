@@ -20,14 +20,14 @@
         }                                                                                          \
     }
 
-namespace ngraph
+namespace ov
 {
     NGRAPH_VARIANT_DECLARATION(int32_t, "Variant::int32");
     NGRAPH_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
     NGRAPH_VARIANT_DECLARATION(float, "Variant::float");
     NGRAPH_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
     NGRAPH_VARIANT_DECLARATION(bool, "Variant::bool");
-    NGRAPH_VARIANT_DECLARATION(ngraph::element::Type, "Variant::element_type");
+    NGRAPH_VARIANT_DECLARATION(ov::element::Type, "Variant::element_type");
     NGRAPH_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
 
     namespace frontend
@@ -65,8 +65,7 @@ namespace ngraph
                 /// \param port_name Port name for the node
                 ///
                 /// \return Type of specified output port
-                virtual ngraph::element::Type
-                    get_out_port_type(const std::string& port_name) const = 0;
+                virtual ov::element::Type get_out_port_type(const std::string& port_name) const = 0;
 
                 virtual std::string get_op_type() const = 0;
             };
@@ -160,7 +159,7 @@ namespace ngraph
                     return decoder.get_output_names();
                 }
 
-                ngraph::element::Type get_out_port_type(const std::string& port_name) const
+                ov::element::Type get_out_port_type(const std::string& port_name) const
                 {
                     return decoder.get_out_port_type(port_name);
                 }
@@ -193,4 +192,4 @@ namespace ngraph
 
         } // namespace pdpd
     }     // namespace frontend
-} // namespace ngraph
+} // namespace ov

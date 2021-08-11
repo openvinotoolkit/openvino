@@ -10,7 +10,7 @@
 #include "core/tensor.hpp"
 #include "ngraph/except.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -77,7 +77,7 @@ namespace ngraph
                 template <typename T>
                 inline T get_value(const ONNX_NAMESPACE::AttributeProto& attribute)
                 {
-                    throw ngraph::onnx_import::error::attribute::UnsupportedType{attribute.type()};
+                    throw ov::onnx_import::error::attribute::UnsupportedType{attribute.type()};
                 }
 
                 template <>
@@ -364,4 +364,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

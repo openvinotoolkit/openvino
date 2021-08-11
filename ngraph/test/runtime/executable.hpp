@@ -13,15 +13,15 @@
 #include "ngraph/type/element_type.hpp"
 #include "performance_counter.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
         class Executable;
     }
-}
+} // namespace ov
 
-class BACKEND_API ngraph::runtime::Executable
+class BACKEND_API ov::runtime::Executable
 {
 public:
     Executable();
@@ -51,12 +51,12 @@ public:
                   const std::vector<std::shared_ptr<runtime::Tensor>>& inputs);
 
     /// \brief Query the input Parameters
-    /// \returns an ngraph::op::ParameterVector of all input parameters
-    const ngraph::ParameterVector& get_parameters() const;
+    /// \returns an ov::op::ParameterVector of all input parameters
+    const ov::ParameterVector& get_parameters() const;
 
     /// \brief Query the output Results
-    /// \returns an ngraph::ResultVector of all input parameters
-    const ngraph::ResultVector& get_results() const;
+    /// \returns an ov::ResultVector of all input parameters
+    const ov::ResultVector& get_results() const;
 
     /// \brief Get the preferred pipeline_depth for this executable
     /// \returns  preferred pipeline_depth
@@ -146,6 +146,6 @@ protected:
     /// \param func The function with Results fully resolved.
     void set_parameters_and_results(const Function& func);
 
-    ngraph::ParameterVector m_parameters;
-    ngraph::ResultVector m_results;
+    ov::ParameterVector m_parameters;
+    ov::ResultVector m_results;
 };

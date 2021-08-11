@@ -17,14 +17,14 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::util::RNNCellBase, "RNNCellBase", 0);
 
-std::shared_ptr<Node> ngraph::op::util::convert_lstm_node_format(const Output<Node>& node,
-                                                                 LSTMWeightsFormat from_format,
-                                                                 LSTMWeightsFormat to_format,
-                                                                 int64_t axis)
+std::shared_ptr<Node> ov::op::util::convert_lstm_node_format(const Output<Node>& node,
+                                                             LSTMWeightsFormat from_format,
+                                                             LSTMWeightsFormat to_format,
+                                                             int64_t axis)
 {
     static const std::map<op::util::LSTMWeightsFormat, std::vector<size_t>> gate_order_map{
         {op::util::LSTMWeightsFormat::FICO, {0, 1, 2, 3}},
@@ -77,7 +77,7 @@ op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
 {
 }
 
-bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(util_RNNCellBase_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
@@ -88,8 +88,8 @@ bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(
-    const std::vector<ngraph::PartialShape>& input)
+void ov::op::util::RNNCellBase::validate_input_rank_dimension(
+    const std::vector<ov::PartialShape>& input)
 {
     enum
     {
@@ -103,7 +103,7 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(
     // Verify static ranks for all inputs
     for (size_t i = 0; i < input.size(); i++)
     {
-        NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
+        NODE_VALIDATION_CHECK(dynamic_cast<ov::Node*>(this),
                               (input[i].rank().is_static()),
                               "RNNCellBase supports only static rank for input tensors. Input ",
                               i);
@@ -115,14 +115,14 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(
         if (i == B)
         {
             // verify only B input dimension which is 1D
-            NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
+            NODE_VALIDATION_CHECK(dynamic_cast<ov::Node*>(this),
                                   (input[i].rank().get_length() == 1),
                                   "RNNCellBase B input tensor dimension is not correct.");
         }
         else
         {
             // Verify all other input dimensions which are 2D tensor types
-            NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
+            NODE_VALIDATION_CHECK(dynamic_cast<ov::Node*>(this),
                                   (input[i].rank().get_length() == 2),
                                   "RNNCellBase input tensor dimension is not correct for ",
                                   i,
@@ -136,7 +136,7 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(
     const auto& x_pshape = input.at(X);
     const auto& w_pshape = input.at(W);
 
-    NODE_VALIDATION_CHECK(dynamic_cast<ngraph::Node*>(this),
+    NODE_VALIDATION_CHECK(dynamic_cast<ov::Node*>(this),
                           (x_pshape[1].compatible(w_pshape[1])),
                           "RNNCellBase mismatched input_size dimension.");
 }

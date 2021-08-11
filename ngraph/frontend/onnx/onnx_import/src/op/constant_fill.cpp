@@ -11,7 +11,7 @@
 #include "ngraph/op/constant.hpp"
 #include "onnx_common/utils.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -21,7 +21,7 @@ namespace ngraph
             {
                 OutputVector constant_fill(const Node& node)
                 {
-                    Output<ngraph::Node> target_shape;
+                    Output<ov::Node> target_shape;
                     const auto fill_value = node.get_attribute_value<float>("value", 0.f);
                     const auto dtype = node.get_attribute_value<int64_t>(
                         "dtype", static_cast<int64_t>(ONNX_NAMESPACE::TensorProto_DataType_FLOAT));
@@ -63,4 +63,4 @@ namespace ngraph
         }     // namespace op
     }         // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

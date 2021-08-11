@@ -6,7 +6,7 @@
 
 #include "ngraph/runtime/reference/normalize_l2.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -19,4 +19,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

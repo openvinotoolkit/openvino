@@ -16,7 +16,7 @@
 #include "ngraph/strides.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -58,9 +58,9 @@ namespace ngraph
                 Strides m_dilations;
                 Shape m_padding_below;
                 Shape m_padding_above;
-                ngraph::op::PadType m_auto_pad;
-                ngraph::op::RoundingType m_rounding_type;
+                ov::op::PadType m_auto_pad;
+                ov::op::RoundingType m_rounding_type;
             };
         } // namespace pooling
     }     // namespace onnx_import
-} // namespace ngraph
+} // namespace ov

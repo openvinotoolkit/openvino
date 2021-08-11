@@ -12,7 +12,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -21,7 +21,7 @@ NGRAPH_TEST(${BACKEND_NAME}, node_name)
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = std::make_shared<ngraph::op::v1::Add>(A, B);
+    auto C = std::make_shared<ov::op::v1::Add>(A, B);
     C->set_friendly_name("a node name");
     auto f = make_shared<Function>(C, ParameterVector{A, B});
 

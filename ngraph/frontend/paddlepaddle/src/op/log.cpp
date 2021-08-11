@@ -6,7 +6,7 @@
 #include <node_context.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -18,9 +18,9 @@ namespace ngraph
                 {
                     auto x = node.get_ng_input("X");
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Log>(x)}, {"Out"});
+                        {std::make_shared<ov::opset6::Log>(x)}, {"Out"});
                 }
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
-} // namespace ngraph
+} // namespace ov

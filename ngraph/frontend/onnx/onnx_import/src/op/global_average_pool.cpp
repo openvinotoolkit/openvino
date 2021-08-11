@@ -9,7 +9,7 @@
 #include "ngraph/node.hpp"
 #include "op/global_average_pool.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -54,4 +54,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

@@ -10,7 +10,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v1::VariadicSplit, "VariadicSplit", 1);
 
@@ -22,13 +22,13 @@ op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::VariadicSplit::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v1::VariadicSplit::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_VariadicSplit_visit_attributes);
     return true;
 }
 
-void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
+void ov::op::v1::VariadicSplit::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v1_VariadicSplit_validate_and_infer_types);
     set_input_is_relevant_to_value(0);
@@ -59,7 +59,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
         {
             const auto axis_val = axis_input_constant->cast_vector<int64_t>()[0];
             // Adjust split axis in case of negatives
-            const int64_t axis = ngraph::normalize_axis(this, axis_val, data_shape.rank());
+            const int64_t axis = ov::normalize_axis(this, axis_val, data_shape.rank());
 
             auto split_lengths = split_lengths_constant->cast_vector<int64_t>();
             // Adjust split lengths in case of negatives
@@ -164,7 +164,7 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
 
     int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
 
-    axis = ngraph::normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
+    axis = ov::normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
 
     NGRAPH_CHECK(split_lengths_tensor->get_element_type().is_integral_number(),
                  "axis element type is not integral data type");

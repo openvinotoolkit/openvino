@@ -24,7 +24,7 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 static std::string s_manifest = "${MANIFEST}";
 
@@ -800,8 +800,8 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_defaults_fwd)
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_activations_const)
 {
     // activations: relu, sigmoid
-    auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/gru_fwd_activations_relu_sigmoid_const.onnx"));
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_activations_relu_sigmoid_const.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>(in_X);

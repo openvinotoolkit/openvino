@@ -6,7 +6,7 @@
 
 #include "ngraph/check.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 TEST(check, check_true_string_info)

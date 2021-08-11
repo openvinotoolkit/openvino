@@ -7,7 +7,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/pattern/op/pattern.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pattern
     {
@@ -139,4 +139,4 @@ namespace ngraph
         NGRAPH_API
         std::shared_ptr<Node> any_input(const pattern::op::ValuePredicate& pred);
     } // namespace pattern
-} // namespace ngraph
+} // namespace ov

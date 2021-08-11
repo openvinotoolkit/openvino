@@ -15,7 +15,7 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(op_eval, non_zero_0D)
 {

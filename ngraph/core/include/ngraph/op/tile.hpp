@@ -7,7 +7,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -43,4 +43,4 @@ namespace ngraph
             };
         } // namespace v0
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

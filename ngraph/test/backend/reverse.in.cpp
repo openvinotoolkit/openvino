@@ -13,7 +13,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 
@@ -402,7 +402,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_rank_index_mode)
     EXPECT_THROW(make_shared<Function>(
                      make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
                      ParameterVector{Data, Rev_Axes}),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_elems_mask_mode)
@@ -411,7 +411,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_incorrect_rev_axes_elems_mask_mode)
     const auto Rev_Axes = make_shared<op::Parameter>(element::boolean, Shape{2}); // correct: 3
 
     EXPECT_THROW(make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::MASK),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_axes_out_of_bounds)
@@ -420,7 +420,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_axes_out_of_bounds)
     const auto Rev_Axes = op::Constant::create(element::i64, Shape{2}, {1, 10});
 
     EXPECT_THROW(make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_too_many_axes)
@@ -429,5 +429,5 @@ NGRAPH_TEST(${BACKEND_NAME}, reverse_v1_too_many_axes)
     const auto Rev_Axes = op::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
 
     EXPECT_THROW(make_shared<op::v1::Reverse>(Data, Rev_Axes, op::v1::Reverse::Mode::INDEX),
-                 ngraph::NodeValidationFailure);
+                 ov::NodeValidationFailure);
 }

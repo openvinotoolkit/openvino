@@ -4,7 +4,7 @@
 
 #include "ngraph/variant.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 // Define variant for std::string
 constexpr VariantTypeInfo VariantWrapper<std::string>::type_info;
@@ -12,12 +12,12 @@ constexpr VariantTypeInfo VariantWrapper<int64_t>::type_info;
 
 Variant::~Variant() {}
 
-std::shared_ptr<ngraph::Variant> Variant::init(const std::shared_ptr<ngraph::Node>& node)
+std::shared_ptr<ov::Variant> Variant::init(const std::shared_ptr<ov::Node>& node)
 {
     return nullptr;
 }
 
-std::shared_ptr<ngraph::Variant> Variant::merge(const ngraph::NodeVector& nodes)
+std::shared_ptr<ov::Variant> Variant::merge(const ov::NodeVector& nodes)
 {
     return nullptr;
 }
@@ -27,5 +27,5 @@ bool Variant::is_copyable() const
     return true;
 }
 
-template class ngraph::VariantImpl<std::string>;
-template class ngraph::VariantImpl<int64_t>;
+template class ov::VariantImpl<std::string>;
+template class ov::VariantImpl<int64_t>;

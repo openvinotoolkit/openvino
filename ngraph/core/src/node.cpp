@@ -18,7 +18,7 @@
 #include "ngraph/pattern/matcher.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 atomic<size_t> Node::m_next_instance_id(0);
 
@@ -417,7 +417,7 @@ void Node::merge_provenance_tags_from(const std::shared_ptr<const Node>& source)
 
 void Node::transfer_provenance_tags(const shared_ptr<Node>& replacement)
 {
-    auto common_args = ngraph::find_common_args(shared_from_this(), replacement);
+    auto common_args = ov::find_common_args(shared_from_this(), replacement);
 
     std::set<string> removed_subgraph_tags;
 
@@ -548,11 +548,11 @@ const op::AutoBroadcastSpec& Node::get_autob() const
     return s_spec;
 }
 
-namespace ngraph
+namespace ov
 {
     ostream& operator<<(ostream& out, const Node& node) { return node.write_description(out, 1); }
     ostream& operator<<(ostream& out, const Node* node) { return node->write_description(out, 1); }
-} // namespace ngraph
+} // namespace ov
 
 std::ostream& Node::write_description(std::ostream& out, uint32_t depth) const
 {
@@ -730,7 +730,7 @@ NodeVector Node::get_users(bool check_is_used) const
     return result;
 }
 
-std::string ngraph::node_validation_failure_loc_string(const Node* node)
+std::string ov::node_validation_failure_loc_string(const Node* node)
 {
     std::stringstream ss;
     ss << "While validating node '" << *node << "' with friendly_name '"
@@ -738,24 +738,24 @@ std::string ngraph::node_validation_failure_loc_string(const Node* node)
     return ss.str();
 }
 
-const std::shared_ptr<Node>& ngraph::check_single_output_arg(const std::shared_ptr<Node>& node,
-                                                             size_t i)
+const std::shared_ptr<Node>& ov::check_single_output_arg(const std::shared_ptr<Node>& node,
+                                                         size_t i)
 {
     NGRAPH_CHECK(
         node->get_output_size() == 1, "Argument ", i, node, " must produce exactly one value.");
     return node;
 }
 
-const NodeVector& ngraph::check_single_output_args(const NodeVector& args)
+const NodeVector& ov::check_single_output_args(const NodeVector& args)
 {
     for (size_t i = 0; i < args.size(); ++i)
     {
-        ngraph::check_single_output_arg(args.at(i), i);
+        ov::check_single_output_arg(args.at(i), i);
     }
     return args;
 }
 
-OutputVector ngraph::as_output_vector(const NodeVector& args)
+OutputVector ov::as_output_vector(const NodeVector& args)
 {
     OutputVector output_vector;
     for (auto arg : args)
@@ -765,7 +765,7 @@ OutputVector ngraph::as_output_vector(const NodeVector& args)
     return output_vector;
 }
 
-NodeVector ngraph::as_node_vector(const OutputVector& values)
+NodeVector ov::as_node_vector(const OutputVector& values)
 {
     NodeVector node_vector;
     for (auto& value : values)
@@ -775,7 +775,7 @@ NodeVector ngraph::as_node_vector(const OutputVector& values)
     return node_vector;
 }
 
-ResultVector ngraph::as_result_vector(const OutputVector& values)
+ResultVector ov::as_result_vector(const OutputVector& values)
 {
     ResultVector result;
     for (auto value : values)

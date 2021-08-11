@@ -8,7 +8,7 @@
 #include <itt.hpp>
 #include <ngraph/node.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace pass
     {
@@ -20,10 +20,10 @@ namespace ngraph
         public:
             PerfCounters() = default;
 
-            openvino::itt::handle_t operator[](::ngraph::Node::type_info_t const& type_inf);
+            openvino::itt::handle_t operator[](::ov::Node::type_info_t const& type_inf);
 
         private:
-            using key = ::ngraph::Node::type_info_t const*;
+            using key = ::ov::Node::type_info_t const*;
             using value = openvino::itt::handle_t;
             using counters_map = std::unordered_map<key, value>;
 
@@ -31,4 +31,4 @@ namespace ngraph
             counters_map m_counters;
         };
     } // namespace pass
-} // namespace ngraph
+} // namespace ov

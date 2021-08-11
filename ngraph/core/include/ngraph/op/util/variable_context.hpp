@@ -12,7 +12,7 @@
 #include "ngraph/op/util/variable.hpp"
 #include "ngraph/op/util/variable_value.hpp"
 
-namespace ngraph
+namespace ov
 {
     using VariableValuePtr = std::shared_ptr<VariableValue>;
     using VariableMap = std::unordered_map<VariablePtr, VariableValuePtr>;
@@ -100,4 +100,4 @@ namespace ngraph
         using Variant::merge;
     };
 
-} // namespace ngraph
+} // namespace ov

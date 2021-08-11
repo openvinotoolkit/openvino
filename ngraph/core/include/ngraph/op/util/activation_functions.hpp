@@ -27,7 +27,7 @@
 
 #define UNUSED_PARAMETER NG_ATTRIBUTE_UNUSED = 0
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -104,7 +104,7 @@ namespace ngraph
 
     } // namespace op
 
-} // namespace ngraph
+} // namespace ov
 
 #ifdef _WIN32
 #pragma warning(pop)

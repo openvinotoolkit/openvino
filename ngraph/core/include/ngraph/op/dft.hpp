@@ -23,7 +23,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fft_base.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -58,4 +58,4 @@ namespace ngraph
             };
         } // namespace v7
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

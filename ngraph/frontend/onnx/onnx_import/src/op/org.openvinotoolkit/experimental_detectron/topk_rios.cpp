@@ -6,7 +6,7 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -16,7 +16,7 @@ namespace ngraph
             {
                 OutputVector experimental_detectron_topk_rois(const Node& node)
                 {
-                    using TopKROIs = ngraph::op::v6::ExperimentalDetectronTopKROIs;
+                    using TopKROIs = ov::op::v6::ExperimentalDetectronTopKROIs;
 
                     auto inputs = node.get_ng_inputs();
                     auto input_rois = inputs[0];
@@ -33,4 +33,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

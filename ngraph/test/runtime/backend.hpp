@@ -15,19 +15,19 @@
 #include "ngraph/util.hpp"
 #include "performance_counter.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
         class Tensor;
         class Backend;
-    }
-}
+    } // namespace runtime
+} // namespace ov
 
 /// \brief Interface to a generic backend.
 ///
 /// Backends are responsible for function execution and value allocation.
-class BACKEND_API ngraph::runtime::Backend
+class BACKEND_API ov::runtime::Backend
 {
 public:
     virtual ~Backend();
@@ -53,14 +53,14 @@ public:
     /// passed as an output to a function the tensor will have a type and shape after executing
     /// a call.
     /// \returns shared_ptr to a new backend-specific tensor
-    virtual std::shared_ptr<ngraph::runtime::Tensor> create_tensor() = 0;
+    virtual std::shared_ptr<ov::runtime::Tensor> create_tensor() = 0;
 
     /// \brief Create a tensor specific to this backend
     /// \param element_type The type of the tensor element
     /// \param shape The shape of the tensor
     /// \returns shared_ptr to a new backend-specific tensor
-    virtual std::shared_ptr<ngraph::runtime::Tensor>
-        create_tensor(const ngraph::element::Type& element_type, const Shape& shape) = 0;
+    virtual std::shared_ptr<ov::runtime::Tensor>
+        create_tensor(const ov::element::Type& element_type, const Shape& shape) = 0;
 
     /// \brief Create a tensor specific to this backend
     /// \param element_type The type of the tensor element
@@ -69,14 +69,14 @@ public:
     ///     must be sufficient to contain the tensor. The lifetime of the buffer is the
     ///     responsibility of the caller.
     /// \returns shared_ptr to a new backend-specific tensor
-    virtual std::shared_ptr<ngraph::runtime::Tensor> create_tensor(
-        const ngraph::element::Type& element_type, const Shape& shape, void* memory_pointer) = 0;
+    virtual std::shared_ptr<ov::runtime::Tensor> create_tensor(
+        const ov::element::Type& element_type, const Shape& shape, void* memory_pointer) = 0;
 
     /// \brief Create a tensor of C type T specific to this backend
     /// \param shape The shape of the tensor
     /// \returns shared_ptr to a new backend specific tensor
     template <typename T>
-    std::shared_ptr<ngraph::runtime::Tensor> create_tensor(const Shape& shape)
+    std::shared_ptr<ov::runtime::Tensor> create_tensor(const Shape& shape)
     {
         return create_tensor(element::from<T>(), shape);
     }
@@ -87,8 +87,8 @@ public:
     /// \param shape The shape of the tensor
     /// \returns shared_ptr to a new backend-specific tensor
     /// \throws std::invalid_argument if the backend does not support dynamic tensors
-    virtual std::shared_ptr<ngraph::runtime::Tensor>
-        create_dynamic_tensor(const ngraph::element::Type& element_type, const PartialShape& shape);
+    virtual std::shared_ptr<ov::runtime::Tensor>
+        create_dynamic_tensor(const ov::element::Type& element_type, const PartialShape& shape);
 
     /// \returns `true` if this backend supports dynamic tensors, else `false`.
     virtual bool supports_dynamic_tensors() { return false; }

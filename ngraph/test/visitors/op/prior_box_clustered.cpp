@@ -5,13 +5,13 @@
 #include "gtest/gtest.h"
 
 #include "ngraph/ngraph.hpp"
-#include "util/visitor.hpp"
 #include "ngraph/opsets/opset1.hpp"
+#include "util/visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
+using ov::test::ValueMap;
 
 TEST(attributes, prior_box_clustered_op)
 {

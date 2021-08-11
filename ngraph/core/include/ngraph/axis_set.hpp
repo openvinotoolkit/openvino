@@ -12,7 +12,7 @@
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// \brief A set of axes.
     class AxisSet : public std::set<size_t>
@@ -58,4 +58,4 @@ namespace ngraph
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const AxisSet& axis_set);
-} // namespace ngraph
+} // namespace ov

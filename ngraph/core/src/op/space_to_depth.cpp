@@ -15,7 +15,7 @@
 
 #include "ngraph/runtime/reference/space_to_depth.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::SpaceToDepth, "SpaceToDepth", 0);
 
@@ -34,7 +34,7 @@ op::SpaceToDepth::SpaceToDepth(const Output<Node>& data, const std::string& mode
 {
 }
 
-bool ngraph::op::v0::SpaceToDepth::visit_attributes(AttributeVisitor& visitor)
+bool ov::op::v0::SpaceToDepth::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_SpaceToDepth_visit_attributes);
     visitor.on_attribute("block_size", m_blocksize);
@@ -52,7 +52,7 @@ std::shared_ptr<Node> op::SpaceToDepth::clone_with_new_inputs(const OutputVector
     return std::make_shared<SpaceToDepth>(new_args.at(0), m_mode, m_blocksize);
 }
 
-void ngraph::op::v0::SpaceToDepth::validate_and_infer_types()
+void ov::op::v0::SpaceToDepth::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_SpaceToDepth_validate_and_infer_types);
     PartialShape data_pshape = get_input_partial_shape(0);
@@ -122,20 +122,20 @@ bool evaluate_space_to_depth(const HostTensorVector& outputs,
                                        elem_size);
     return true;
 }
-bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
-                                            const HostTensorVector& inputs) const
+bool ov::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
+                                        const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_SpaceToDepth_evaluate);
     return evaluate_space_to_depth(outputs, inputs, m_blocksize, m_mode);
 }
 
-bool ngraph::op::v0::SpaceToDepth::has_evaluate() const
+bool ov::op::v0::SpaceToDepth::has_evaluate() const
 {
     NGRAPH_OP_SCOPE(v0_SpaceToDepth_has_evaluate);
     return !get_input_partial_shape(0).is_dynamic();
 }
 
-namespace ngraph
+namespace ov
 {
     template <>
     NGRAPH_API EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>&
@@ -154,4 +154,4 @@ namespace ngraph
     {
         return s << as_string(type);
     }
-} // namespace ngraph
+} // namespace ov

@@ -8,7 +8,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::util::ArithmeticReduction, "ArithmeticReduction", 0);
 
@@ -33,7 +33,7 @@ const AxisSet op::util::ArithmeticReduction::get_reduction_axes() const
         const auto const_data = const_op->cast_vector<int64_t>();
         const auto input_data_rank = get_input_partial_shape(0).rank();
         const auto normalized_axes =
-            ngraph::normalize_axes(get_friendly_name(), const_data, input_data_rank);
+            ov::normalize_axes(get_friendly_name(), const_data, input_data_rank);
         axes = AxisSet{normalized_axes};
     }
     return axes;

@@ -7,7 +7,7 @@
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, deformable_convolution_partial_auto_padding_same)
 {
@@ -327,13 +327,8 @@ TEST(type_prop, deformable_convolution_invalid_et_inputs)
         auto data_batch = make_shared<op::Parameter>(element::f16, data_batch_pshape);
         auto offsets = make_shared<op::Parameter>(float_et, offsets_pshape);
         auto filters = make_shared<op::Parameter>(float_et, filters_pshape);
-        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // data batch input must be of same element type as filters and deformable values
         FAIL() << "Invalid element type of inputs not detected";
     }
@@ -353,19 +348,15 @@ TEST(type_prop, deformable_convolution_invalid_et_inputs)
         auto data_batch = make_shared<op::Parameter>(float_et, data_batch_pshape);
         auto offsets = make_shared<op::Parameter>(float_et, offsets_pshape);
         auto filters = make_shared<op::Parameter>(element::f16, filters_pshape);
-        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // filters input must be of same element type as data batch and deformable values
         FAIL() << "Invalid element type of inputs not detected";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Element types of inputs do not match. Got: "
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Element types of inputs do not match. Got: "
                              "data batch (f32), offsets (f32) and filters (f16)");
     }
     catch (...)
@@ -378,13 +369,8 @@ TEST(type_prop, deformable_convolution_invalid_et_inputs)
         auto data_batch = make_shared<op::Parameter>(float_et, data_batch_pshape);
         auto offsets = make_shared<op::Parameter>(element::f16, offsets_pshape);
         auto filters = make_shared<op::Parameter>(float_et, filters_pshape);
-        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // deformable values input must be of same element type as data batch and filters
         FAIL() << "Invalid element type of inputs not detected";
     }
@@ -404,13 +390,8 @@ TEST(type_prop, deformable_convolution_invalid_et_inputs)
         auto data_batch = make_shared<op::Parameter>(boolean_et, data_batch_pshape);
         auto offsets = make_shared<op::Parameter>(boolean_et, offsets_pshape);
         auto filters = make_shared<op::Parameter>(boolean_et, filters_pshape);
-        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // element types for inputs must be numeric
         FAIL() << "Invalid boolean element type of inputs not detected";
     }
@@ -439,19 +420,15 @@ TEST(type_prop, deformable_convolution_invalid_input_ranks)
         auto data_batch = make_shared<op::Parameter>(et, data_batch_pshape);
         auto offsets = make_shared<op::Parameter>(et, offsets_pshape);
         auto filters = make_shared<op::Parameter>(et, filters_pshape);
-        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // data batch has invalid rank 5, should be 4
         FAIL() << "Incompatible data batch input rank not detected";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Ranks of inputs do not match. Got: data batch "
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Ranks of inputs do not match. Got: data batch "
                              "shape {1,4,5,5,5}, offsets shape {1,4,4,4}, filters "
                              "shape {4,4,3,3}");
     }
@@ -470,19 +447,15 @@ TEST(type_prop, deformable_convolution_invalid_input_ranks)
         auto data_batch = make_shared<op::Parameter>(et, data_batch_pshape);
         auto offsets = make_shared<op::Parameter>(et, offsets_pshape);
         auto filters = make_shared<op::Parameter>(et, filters_pshape);
-        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // deformable values has invalid rank 5, should be 4
         FAIL() << "Incompatible offsets input rank not detected";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Ranks of inputs do not match. Got: data batch shape "
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Ranks of inputs do not match. Got: data batch shape "
                              "{1,4,5,5}, offsets shape {1,4,4,4,4}, filters shape "
                              "{4,4,3,3}");
     }
@@ -501,19 +474,15 @@ TEST(type_prop, deformable_convolution_invalid_input_ranks)
         auto data_batch = make_shared<op::Parameter>(et, data_batch_pshape);
         auto offsets = make_shared<op::Parameter>(et, offsets_pshape);
         auto filters = make_shared<op::Parameter>(et, filters_pshape);
-        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // filters has invalid rank 5, should be 4
         FAIL() << "Incompatible filter input rank not detected";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Ranks of inputs do not match. Got: data batch shape "
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Ranks of inputs do not match. Got: data batch shape "
                              "{1,4,5,5}, offsets shape {1,4,4,4}, filters shape "
                              "{4,4,3,3,3}");
     }
@@ -532,13 +501,8 @@ TEST(type_prop, deformable_convolution_invalid_input_ranks)
         auto data_batch = make_shared<op::Parameter>(et, data_batch_pshape);
         auto offsets = make_shared<op::Parameter>(et, offsets_pshape);
         auto filters = make_shared<op::Parameter>(et, filters_pshape);
-        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // inputs have rank 5, should be 4
         FAIL() << "Incompatible input ranks not detected";
     }
@@ -548,7 +512,8 @@ TEST(type_prop, deformable_convolution_invalid_input_ranks)
     }
     catch (...)
     {
-        FAIL() << "Rank validation check for 2 spatial dimension inputs failed for unexpected reason";
+        FAIL()
+            << "Rank validation check for 2 spatial dimension inputs failed for unexpected reason";
     }
 
     // 1D deformable convolution (not supported)
@@ -561,13 +526,8 @@ TEST(type_prop, deformable_convolution_invalid_input_ranks)
         auto data_batch = make_shared<op::Parameter>(et, data_batch_pshape);
         auto offsets = make_shared<op::Parameter>(et, offsets_pshape);
         auto filters = make_shared<op::Parameter>(et, filters_pshape);
-        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
-                                                                          offsets,
-                                                                          filters,
-                                                                          Strides{},
-                                                                          CoordinateDiff{},
-                                                                          CoordinateDiff{},
-                                                                          Strides{});
+        auto deformable_conv = make_shared<op::v1::DeformableConvolution>(
+            data_batch, offsets, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // inputs have rank 3, should be 4
         FAIL() << "Incompatible input ranks not detected";
     }
@@ -577,7 +537,8 @@ TEST(type_prop, deformable_convolution_invalid_input_ranks)
     }
     catch (...)
     {
-        FAIL() << "Rank validation check for 2 spatial dimension inputs failed for unexpected reason";
+        FAIL()
+            << "Rank validation check for 2 spatial dimension inputs failed for unexpected reason";
     }
 }
 
@@ -807,9 +768,8 @@ TEST(type_prop, deformable_convolution_invalid_offsets_batch_dim)
     }
     catch (...)
     {
-        FAIL()
-            << "Batch dimension of offsets input validation check failed for unexpected "
-               "reason.";
+        FAIL() << "Batch dimension of offsets input validation check failed for unexpected "
+                  "reason.";
     }
 }
 
@@ -978,21 +938,22 @@ TEST(type_prop, deformable_convolution_invalid_offsets_spatial_dims)
     try
     {
         auto deformable_conv = make_shared<op::v1::DeformableConvolution>(data_batch,
-                                                                      offsets,
-                                                                      filters,
-                                                                      strides,
-                                                                      pads_begin,
-                                                                      pads_end,
-                                                                      dilations,
-                                                                      auto_pad,
-                                                                      group,
-                                                                      deformable_group);
-        // deformable values has incorrect spatial dimensions                                                                      
+                                                                          offsets,
+                                                                          filters,
+                                                                          strides,
+                                                                          pads_begin,
+                                                                          pads_end,
+                                                                          dilations,
+                                                                          auto_pad,
+                                                                          group,
+                                                                          deformable_group);
+        // deformable values has incorrect spatial dimensions
         FAIL() << "Invalid spatial dimensions of offsets not detected";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Spatial dimensions of offsets and output must be equal");
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Spatial dimensions of offsets and output must be equal");
     }
     catch (...)
     {

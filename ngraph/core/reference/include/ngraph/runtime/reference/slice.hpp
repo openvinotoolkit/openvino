@@ -7,7 +7,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -23,4 +23,4 @@ namespace ngraph
                        size_t elem_size);
         }
     } // namespace runtime
-} // namespace ngraph
+} // namespace ov

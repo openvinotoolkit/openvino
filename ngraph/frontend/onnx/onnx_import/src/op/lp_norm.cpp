@@ -16,7 +16,7 @@
 #include "ngraph/validation_util.hpp"
 #include "op/lp_norm.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -26,7 +26,7 @@ namespace ngraph
             {
                 OutputVector lp_norm(const Node& node)
                 {
-                    const Output<ngraph::Node> data{node.get_ng_inputs().at(0)};
+                    const Output<ov::Node> data{node.get_ng_inputs().at(0)};
                     const auto data_shape = data.get_partial_shape();
                     const auto data_rank = data_shape.rank();
 
@@ -34,7 +34,7 @@ namespace ngraph
 
                     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
                     const size_t normalize_axis =
-                        ngraph::normalize_axis(node.get_description(), axis, data_rank);
+                        ov::normalize_axis(node.get_description(), axis, data_rank);
 
                     CHECK_VALID_NODE(node,
                                      p_norm == 1 || p_norm == 2,
@@ -44,7 +44,7 @@ namespace ngraph
 
                     const auto normalize_axis_const =
                         default_opset::Constant::create(element::i64, {}, {normalize_axis});
-                    std::shared_ptr<ngraph::Node> norm = ngraph::builder::opset1::lp_norm(
+                    std::shared_ptr<ov::Node> norm = ov::builder::opset1::lp_norm(
                         data, normalize_axis_const, static_cast<std::size_t>(p_norm), 0.0f, true);
 
                     return {std::make_shared<default_opset::Divide>(data, norm)};
@@ -56,4 +56,4 @@ namespace ngraph
 
     } // namespace onnx_import
 
-} // namespace ngraph
+} // namespace ov

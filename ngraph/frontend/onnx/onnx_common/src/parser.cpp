@@ -9,7 +9,7 @@
 #include "ngraph/except.hpp"
 #include "onnx_common/parser.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_common
     {
@@ -62,4 +62,4 @@ namespace ngraph
             return model_proto;
         }
     } // namespace onnx_common
-} // namespace ngraph
+} // namespace ov

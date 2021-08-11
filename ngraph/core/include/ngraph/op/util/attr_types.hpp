@@ -11,7 +11,7 @@
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/type.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -445,4 +445,4 @@ namespace ngraph
             "AttributeAdapter<op::RecurrentSequenceDirection>", 1};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-} // namespace ngraph
+} // namespace ov

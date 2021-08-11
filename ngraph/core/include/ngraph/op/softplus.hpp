@@ -7,7 +7,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -16,7 +16,7 @@ namespace ngraph
             /// \brief A Self Regularized Non-Monotonic Neural Activation Function
             /// f(x) =  ln(exp(x) + 1.)
             ///
-            class NGRAPH_API SoftPlus : public ngraph::op::Op
+            class NGRAPH_API SoftPlus : public ov::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -38,4 +38,4 @@ namespace ngraph
             };
         } // namespace v4
     }     // namespace op
-} // namespace ngraph
+} // namespace ov

@@ -7,7 +7,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/pattern/op/pattern.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace pattern
     {
@@ -72,4 +72,4 @@ namespace ngraph
             return wrap_type<Args...>({}, pred);
         }
     } // namespace pattern
-} // namespace ngraph
+} // namespace ov

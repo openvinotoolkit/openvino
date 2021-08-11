@@ -10,7 +10,7 @@
 #include "ngraph/runtime/reference/matmul.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -30,4 +30,4 @@ namespace ngraph
             } // namespace details
         }     // namespace reference
     }         // namespace runtime
-} // namespace ngraph
+} // namespace ov

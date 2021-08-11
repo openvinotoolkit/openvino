@@ -13,7 +13,7 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -213,15 +213,14 @@ void runtime::interpreter::INTExecutable::perform_nan_check(
     }
 }
 
-shared_ptr<ngraph::op::Parameter>
-    runtime::interpreter::INTExecutable::get_parameter(size_t index) const
+shared_ptr<ov::op::Parameter> runtime::interpreter::INTExecutable::get_parameter(size_t index) const
 {
     const ParameterVector& parameters = get_parameters();
     NGRAPH_CHECK(index < parameters.size(), "create_tensor for input out of bounds");
     return parameters[index];
 }
 
-shared_ptr<ngraph::op::Result> runtime::interpreter::INTExecutable::get_result(size_t index) const
+shared_ptr<ov::op::Result> runtime::interpreter::INTExecutable::get_result(size_t index) const
 {
     const ResultVector& results = get_results();
     NGRAPH_CHECK(index < results.size(), "create_tensor for input out of bounds");

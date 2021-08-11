@@ -7,7 +7,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace op
     {
@@ -25,7 +25,7 @@ namespace ngraph
                 ///
                 /// \param arg          Node that produces the input tensor.
                 /// \param destination_type  Element type for the output tensor.
-                Convert(const Output<Node>& arg, const ngraph::element::Type& destination_type);
+                Convert(const Output<Node>& arg, const ov::element::Type& destination_type);
 
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
@@ -49,9 +49,9 @@ namespace ngraph
                 bool evaluate_upper(const HostTensorVector& outputs) const override;
 
             protected:
-                ngraph::element::Type m_destination_type;
+                ov::element::Type m_destination_type;
             };
         } // namespace v0
         using v0::Convert;
     } // namespace op
-} // namespace ngraph
+} // namespace ov

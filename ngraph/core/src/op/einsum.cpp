@@ -12,7 +12,7 @@
 #include "ngraph/op/einsum.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v7::Einsum, "Einsum", 7);
 

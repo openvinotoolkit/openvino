@@ -10,7 +10,7 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 runtime::Executable::Executable() {}
 
@@ -84,12 +84,12 @@ void runtime::Executable::validate(const vector<std::shared_ptr<runtime::Tensor>
     }
 }
 
-const ngraph::ParameterVector& runtime::Executable::get_parameters() const
+const ov::ParameterVector& runtime::Executable::get_parameters() const
 {
     return m_parameters;
 }
 
-const ngraph::ResultVector& runtime::Executable::get_results() const
+const ov::ResultVector& runtime::Executable::get_results() const
 {
     return m_results;
 }

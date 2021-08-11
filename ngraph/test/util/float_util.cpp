@@ -4,7 +4,7 @@
 
 #include "util/float_util.hpp"
 
-std::string ngraph::test::bfloat16_to_bits(bfloat16 f)
+std::string ov::test::bfloat16_to_bits(bfloat16 f)
 {
     std::stringstream ss;
     ss << std::bitset<16>(f.to_bits());
@@ -27,7 +27,7 @@ std::string ngraph::test::bfloat16_to_bits(bfloat16 f)
     return formatted;
 }
 
-std::string ngraph::test::float16_to_bits(float16 f)
+std::string ov::test::float16_to_bits(float16 f)
 {
     std::stringstream ss;
     ss << std::bitset<16>(f.to_bits());
@@ -50,7 +50,7 @@ std::string ngraph::test::float16_to_bits(float16 f)
     return formatted;
 }
 
-std::string ngraph::test::float_to_bits(float f)
+std::string ov::test::float_to_bits(float f)
 {
     FloatUnion fu{f};
     std::stringstream ss;
@@ -74,7 +74,7 @@ std::string ngraph::test::float_to_bits(float f)
     return formatted;
 }
 
-std::string ngraph::test::double_to_bits(double d)
+std::string ov::test::double_to_bits(double d)
 {
     DoubleUnion du{d};
     std::stringstream ss;
@@ -97,7 +97,7 @@ std::string ngraph::test::double_to_bits(double d)
     return formatted;
 }
 
-ngraph::bfloat16 ngraph::test::bits_to_bfloat16(const std::string& s)
+ov::bfloat16 ov::test::bits_to_bfloat16(const std::string& s)
 {
     std::string unformatted = s;
     unformatted.erase(remove_if(unformatted.begin(), unformatted.end(), ::isspace),
@@ -111,7 +111,7 @@ ngraph::bfloat16 ngraph::test::bits_to_bfloat16(const std::string& s)
     return bfloat16::from_bits(static_cast<uint16_t>(bs.to_ulong()));
 }
 
-ngraph::float16 ngraph::test::bits_to_float16(const std::string& s)
+ov::float16 ov::test::bits_to_float16(const std::string& s)
 {
     std::string unformatted = s;
     unformatted.erase(remove_if(unformatted.begin(), unformatted.end(), ::isspace),
@@ -125,7 +125,7 @@ ngraph::float16 ngraph::test::bits_to_float16(const std::string& s)
     return float16::from_bits(static_cast<uint16_t>(bs.to_ulong()));
 }
 
-float ngraph::test::bits_to_float(const std::string& s)
+float ov::test::bits_to_float(const std::string& s)
 {
     std::string unformatted = s;
     unformatted.erase(remove_if(unformatted.begin(), unformatted.end(), ::isspace),
@@ -141,7 +141,7 @@ float ngraph::test::bits_to_float(const std::string& s)
     return fu.f;
 }
 
-double ngraph::test::bits_to_double(const std::string& s)
+double ov::test::bits_to_double(const std::string& s)
 {
     std::string unformatted = s;
     unformatted.erase(remove_if(unformatted.begin(), unformatted.end(), ::isspace),

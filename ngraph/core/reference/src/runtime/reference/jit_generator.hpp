@@ -11,7 +11,7 @@
 #include <functional>
 #include <xbyak/xbyak.h>
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -71,6 +71,6 @@ namespace ngraph
                           const Xbyak::Reg64& src,
                           const Xbyak::Reg64& size);
             };
-        }
-    }
-}
+        } // namespace jit
+    }     // namespace runtime
+} // namespace ov

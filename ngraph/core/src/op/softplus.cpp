@@ -10,7 +10,7 @@
 #include "ngraph/runtime/reference/softplus.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v4::SoftPlus, "SoftPlus", 4);
 
@@ -87,9 +87,9 @@ bool op::v4::SoftPlus::has_evaluate() const
     NGRAPH_OP_SCOPE(v4_SoftPlus_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ov::element::bf16:
+    case ov::element::f16:
+    case ov::element::f32: return true;
     default: break;
     }
     return false;

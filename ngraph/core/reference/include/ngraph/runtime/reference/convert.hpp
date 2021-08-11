@@ -9,7 +9,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/float16.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -146,7 +146,7 @@ namespace ngraph
             template <>
             void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count);
 
-            // overload to handle ngraph::boolean (it is stored as char)
+            // overload to handle ov::boolean (it is stored as char)
             template <typename TI, typename TO>
             typename std::enable_if<std::is_same<TO, char>::value>::type
                 convert(const TI* arg, TO* out, size_t count)
@@ -160,4 +160,4 @@ namespace ngraph
 
     } // namespace runtime
 
-} // namespace ngraph
+} // namespace ov

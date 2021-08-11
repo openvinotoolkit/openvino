@@ -10,7 +10,7 @@
 #include "frontend_manager_defs.hpp"
 #include "ngraph/variant.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace frontend
     {
@@ -124,4 +124,4 @@ namespace ngraph
     };
 #endif
 
-} // namespace ngraph
+} // namespace ov

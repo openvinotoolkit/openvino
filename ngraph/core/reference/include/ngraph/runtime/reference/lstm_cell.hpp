@@ -15,7 +15,7 @@
 #include <ngraph/runtime/reference/subtract.hpp>
 #include <ngraph/runtime/reference/tanh.hpp>
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -203,4 +203,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

@@ -10,8 +10,8 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
-using namespace ngraph::test;
+using namespace ov;
+using namespace ov::test;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});

@@ -9,7 +9,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronGenerateProposalsSingleImage,
                        "ExperimentalDetectronGenerateProposalsSingleImage",

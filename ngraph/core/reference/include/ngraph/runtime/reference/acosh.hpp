@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace ngraph
+namespace ov
 {
     namespace runtime
     {
@@ -34,4 +34,4 @@ namespace ngraph
             }
         } // namespace reference
     }     // namespace runtime
-} // namespace ngraph
+} // namespace ov

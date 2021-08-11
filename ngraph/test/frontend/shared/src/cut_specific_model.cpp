@@ -6,8 +6,8 @@
 #include "ngraph/opsets/opset7.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 static std::string joinStrings(const std::vector<std::string>& strings)
 {
@@ -44,7 +44,7 @@ void FrontEndCutModelTest::doLoadFromFile()
         FrontEndTestUtils::load_from_file(m_fem, m_param.m_frontEndName, m_param.m_modelName);
 }
 
-std::vector<ngraph::frontend::Place::Ptr> FrontEndCutModelTest::constructNewInputs() const
+std::vector<ov::frontend::Place::Ptr> FrontEndCutModelTest::constructNewInputs() const
 {
     std::vector<Place::Ptr> newInputs;
     for (const auto& name : m_param.m_newInputs)
@@ -54,7 +54,7 @@ std::vector<ngraph::frontend::Place::Ptr> FrontEndCutModelTest::constructNewInpu
     return newInputs;
 }
 
-std::vector<ngraph::frontend::Place::Ptr> FrontEndCutModelTest::constructNewOutputs() const
+std::vector<ov::frontend::Place::Ptr> FrontEndCutModelTest::constructNewOutputs() const
 {
     std::vector<Place::Ptr> newOutputs;
     for (const auto& name : m_param.m_newOutputs)
@@ -119,7 +119,7 @@ TEST_P(FrontEndCutModelTest, testOverrideOutputs)
 TEST_P(FrontEndCutModelTest, testOldInputs)
 {
     ASSERT_NO_THROW(doLoadFromFile());
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     auto ops = function->get_ordered_ops();
 
@@ -128,7 +128,7 @@ TEST_P(FrontEndCutModelTest, testOldInputs)
     {
         EXPECT_TRUE(std::find_if(ops.begin(),
                                  ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                 [&](const std::shared_ptr<ov::Node>& node) {
                                      return node->get_friendly_name().find(name) !=
                                             std::string::npos;
                                  }) != ops.end())
@@ -139,7 +139,7 @@ TEST_P(FrontEndCutModelTest, testOldInputs)
 TEST_P(FrontEndCutModelTest, testOldOutputs)
 {
     ASSERT_NO_THROW(doLoadFromFile());
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     auto ops = function->get_ordered_ops();
     // Ensure that it contains expected old outputs
@@ -147,7 +147,7 @@ TEST_P(FrontEndCutModelTest, testOldOutputs)
     {
         EXPECT_TRUE(std::find_if(ops.begin(),
                                  ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                 [&](const std::shared_ptr<ov::Node>& node) {
                                      return node->get_friendly_name().find(name) !=
                                             std::string::npos;
                                  }) != ops.end())
@@ -162,7 +162,7 @@ TEST_P(FrontEndCutModelTest, testNewInputs_func)
     ASSERT_NO_THROW(newPlaces = constructNewInputs());
     ASSERT_NO_THROW(m_inputModel->override_all_inputs(newPlaces));
 
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     auto ops = function->get_ordered_ops();
 
@@ -171,7 +171,7 @@ TEST_P(FrontEndCutModelTest, testNewInputs_func)
     {
         EXPECT_TRUE(std::find_if(ops.begin(),
                                  ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                 [&](const std::shared_ptr<ov::Node>& node) {
                                      return node->get_friendly_name().find(name) !=
                                             std::string::npos;
                                  }) == ops.end())
@@ -183,7 +183,7 @@ TEST_P(FrontEndCutModelTest, testNewInputs_func)
     {
         EXPECT_TRUE(std::find_if(ops.begin(),
                                  ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                 [&](const std::shared_ptr<ov::Node>& node) {
                                      return node->get_friendly_name().find(name) !=
                                             std::string::npos;
                                  }) != ops.end())
@@ -198,7 +198,7 @@ TEST_P(FrontEndCutModelTest, testNewOutputs_func)
     ASSERT_NO_THROW(newPlaces = constructNewOutputs());
     ASSERT_NO_THROW(m_inputModel->override_all_outputs(newPlaces));
 
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     auto ops = function->get_ordered_ops();
 
@@ -207,7 +207,7 @@ TEST_P(FrontEndCutModelTest, testNewOutputs_func)
     {
         EXPECT_TRUE(std::find_if(ops.begin(),
                                  ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                 [&](const std::shared_ptr<ov::Node>& node) {
                                      return node->get_friendly_name().find(name) !=
                                             std::string::npos;
                                  }) == ops.end())
@@ -219,7 +219,7 @@ TEST_P(FrontEndCutModelTest, testNewOutputs_func)
     {
         EXPECT_TRUE(std::find_if(ops.begin(),
                                  ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                 [&](const std::shared_ptr<ov::Node>& node) {
                                      return node->get_friendly_name().find(name) !=
                                             std::string::npos;
                                  }) != ops.end())
@@ -235,7 +235,7 @@ TEST_P(FrontEndCutModelTest, testExtractSubgraph)
     ASSERT_NO_THROW(newOutputs = constructNewOutputs());
     ASSERT_NO_THROW(m_inputModel->extract_subgraph(newInputs, newOutputs));
 
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     auto ops = function->get_ordered_ops();
 
@@ -244,7 +244,7 @@ TEST_P(FrontEndCutModelTest, testExtractSubgraph)
     {
         EXPECT_TRUE(std::find_if(ops.begin(),
                                  ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                 [&](const std::shared_ptr<ov::Node>& node) {
                                      return node->get_friendly_name().find(name) !=
                                             std::string::npos;
                                  }) == ops.end())
@@ -256,7 +256,7 @@ TEST_P(FrontEndCutModelTest, testExtractSubgraph)
     {
         EXPECT_TRUE(std::find_if(ops.begin(),
                                  ops.end(),
-                                 [&](const std::shared_ptr<ngraph::Node>& node) {
+                                 [&](const std::shared_ptr<ov::Node>& node) {
                                      return node->get_friendly_name().find(name) !=
                                             std::string::npos;
                                  }) != ops.end())
@@ -271,13 +271,13 @@ TEST_P(FrontEndCutModelTest, testSetTensorValue)
     ASSERT_NO_THROW(place = m_inputModel->get_place_by_tensor_name(m_param.m_tensorValueName));
     ASSERT_NO_THROW(m_inputModel->set_tensor_value(place, &m_param.m_tensorValue[0]));
 
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     auto ops = function->get_ordered_ops();
 
     auto const_name = m_param.m_tensorValueName;
     auto const_node_it =
-        std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ngraph::Node>& node) {
+        std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
             return node->get_friendly_name().find(const_name) != std::string::npos;
         });
     ASSERT_TRUE(const_node_it != ops.end()) << "Name shall exist:" << const_name;

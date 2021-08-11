@@ -6,7 +6,7 @@
 #include "ngraph/ngraph.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, softmax_default_axis)
 {
@@ -21,5 +21,5 @@ TEST(type_prop, softmax_out_of_bound_axis)
     const Shape arg_shape{2, 3};
     auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
     // axis cannot be a negative number
-    ASSERT_THROW(make_shared<op::v1::Softmax>(arg, -1), ngraph::NodeValidationFailure);
+    ASSERT_THROW(make_shared<op::v1::Softmax>(arg, -1), ov::NodeValidationFailure);
 }

@@ -5,8 +5,7 @@
 #include "binary_ops.hpp"
 #include "ngraph/opsets/opset1.hpp"
 
-using Type =
-    ::testing::Types<BinaryOperatorType<ngraph::opset1::LogicalXor, ngraph::element::boolean>>;
+using Type = ::testing::Types<BinaryOperatorType<ov::opset1::LogicalXor, ov::element::boolean>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast,
                                BinaryOperatorVisitor,

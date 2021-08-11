@@ -26,7 +26,7 @@
 #include "util/test_control.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -44,7 +44,6 @@ NGRAPH_TEST(${BACKEND_NAME}, exp)
     test_case.run();
 }
 
-
 NGRAPH_TEST(${BACKEND_NAME}, exp_negative)
 {
     Shape shape{5};
@@ -53,8 +52,7 @@ NGRAPH_TEST(${BACKEND_NAME}, exp_negative)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({-4, -3, -2, -1, -5});
-    test_case.add_expected_output<float>(
-        shape, {expf(-4), expf(-3), expf(-2), expf(-1), expf(-5)});
+    test_case.add_expected_output<float>(shape, {expf(-4), expf(-3), expf(-2), expf(-1), expf(-5)});
     test_case.run();
 }
 
@@ -75,7 +73,8 @@ NGRAPH_TEST(${BACKEND_NAME}, exp_scalar)
 NGRAPH_TEST(${BACKEND_NAME}, exp_in_place)
 {
     Shape shape{2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);;
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    ;
     auto T = make_shared<op::Exp>(A);
     auto T2 = make_shared<op::Exp>(T);
 

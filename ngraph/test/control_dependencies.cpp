@@ -24,10 +24,10 @@
 #include "util/random.hpp"
 #include "util/test_tools.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
-class ControlDependencyOp : public ngraph::op::Op
+class ControlDependencyOp : public ov::op::Op
 {
 public:
     static constexpr NodeTypeInfo type_info{"ControlDependencyOp", 0};
@@ -113,7 +113,7 @@ TEST(control_dependencies, clone_function_cdop)
 
     auto f = make_shared<Function>(cdop, ParameterVector{A});
     test_ordered_ops(f, NodeVector{absn});
-    auto clone = ngraph::clone_function(*f.get());
+    auto clone = ov::clone_function(*f.get());
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone = clone->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_TRUE(matcher->match(cdop_clone));
@@ -134,7 +134,7 @@ TEST(control_dependencies, clone_function_cdop_abs)
     auto absn_cdop = make_shared<op::Abs>(cdop);
 
     auto f = make_shared<Function>(absn_cdop, ParameterVector{A, B});
-    auto clone = ngraph::clone_function(*f.get());
+    auto clone = ov::clone_function(*f.get());
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone = clone->get_results()
                           .at(0)

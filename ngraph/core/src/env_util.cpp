@@ -10,13 +10,13 @@
 
 using namespace std;
 
-std::string ngraph::getenv_string(const char* env_var)
+std::string ov::getenv_string(const char* env_var)
 {
     const char* env_p = ::getenv(env_var);
     return env_p != nullptr ? string(env_p) : "";
 }
 
-int32_t ngraph::getenv_int(const char* env_var, int32_t default_value)
+int32_t ov::getenv_int(const char* env_var, int32_t default_value)
 {
     const char* env_p = ::getenv(env_var);
     int32_t env = default_value;
@@ -53,7 +53,7 @@ int32_t ngraph::getenv_int(const char* env_var, int32_t default_value)
     return env;
 }
 
-bool ngraph::getenv_bool(const char* env_var, bool default_value)
+bool ov::getenv_bool(const char* env_var, bool default_value)
 {
     string value = to_lower(getenv_string(env_var));
     set<string> off = {"0", "false", "off"};

@@ -8,7 +8,7 @@
 #include "ngraph/pass/manager.hpp"
 #include "shared_utils.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -43,7 +43,7 @@ namespace
     {
         const auto test_results = extract_test_results<T>(computed, expected);
 
-        return ngraph::test::all_close_f(test_results.first, test_results.second, tolerance_bits);
+        return ov::test::all_close_f(test_results.first, test_results.second, tolerance_bits);
     }
 
     /// Compares two blobs containing integer elements.
@@ -55,7 +55,7 @@ namespace
     {
         const auto test_results = extract_test_results<T>(computed, expected);
 
-        return ngraph::test::all_close<T>(test_results.first, test_results.second);
+        return ov::test::all_close<T>(test_results.first, test_results.second);
     }
 
     template <typename T>
@@ -78,7 +78,7 @@ namespace
             result_double[i] = static_cast<double>(test_results.second[i]);
         }
 
-        return ngraph::test::all_close_f(expected_double, result_double, tolerance_bits);
+        return ov::test::all_close_f(expected_double, result_double, tolerance_bits);
     }
 
     /// Compares two blobs elementwise
@@ -329,6 +329,6 @@ namespace InferenceEngine
         free();
     }
 
-    template class TBlob<ngraph::bfloat16>;
-    template class TBlob<ngraph::float16>;
+    template class TBlob<ov::bfloat16>;
+    template class TBlob<ov::float16>;
 } // namespace InferenceEngine

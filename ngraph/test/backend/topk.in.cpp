@@ -24,7 +24,7 @@
 #include "util/test_tools.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
@@ -1140,8 +1140,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_large_input_max)
 
     auto interp_f_0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto interp_f_1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
-    auto gpu_f_0 = ngraph::clone_function(*interp_f_0);
-    auto gpu_f_1 = ngraph::clone_function(*interp_f_1);
+    auto gpu_f_0 = ov::clone_function(*interp_f_0);
+    auto gpu_f_1 = ov::clone_function(*interp_f_1);
 
     vector<vector<float>> args;
     for (shared_ptr<op::Parameter> param : interp_f_0->get_parameters())
@@ -1180,8 +1180,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_3d_large_input_min)
 
     auto interp_f_0 = make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
     auto interp_f_1 = make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
-    auto gpu_f_0 = ngraph::clone_function(*interp_f_0);
-    auto gpu_f_1 = ngraph::clone_function(*interp_f_1);
+    auto gpu_f_0 = ov::clone_function(*interp_f_0);
+    auto gpu_f_1 = ov::clone_function(*interp_f_1);
 
     vector<vector<float>> args;
     for (shared_ptr<op::Parameter> param : interp_f_0->get_parameters())
@@ -1235,8 +1235,8 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_v1_invalid_strings)
 {
     const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
     const auto k = op::Constant::create(element::i64, Shape{}, {1});
-    EXPECT_THROW(op::v1::TopK(data, k, 0, "max", "invalid_mode"), ngraph::CheckFailure);
-    EXPECT_THROW(op::v1::TopK(data, k, 0, "invalid_sort", "index"), ngraph::CheckFailure);
+    EXPECT_THROW(op::v1::TopK(data, k, 0, "max", "invalid_mode"), ov::CheckFailure);
+    EXPECT_THROW(op::v1::TopK(data, k, 0, "invalid_sort", "index"), ov::CheckFailure);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, topk_v1_invalid_k)
@@ -1245,16 +1245,15 @@ NGRAPH_TEST(${BACKEND_NAME}, topk_v1_invalid_k)
 
     // K must be a scalar
     const auto k_non_scalar = op::Constant::create(element::i64, Shape{2}, {1, 2});
-    EXPECT_THROW(op::v1::TopK(data, k_non_scalar, 0, "max", "index"),
-                 ngraph::NodeValidationFailure);
+    EXPECT_THROW(op::v1::TopK(data, k_non_scalar, 0, "max", "index"), ov::NodeValidationFailure);
 
     // K can only be i8, i32 or i64
     const auto k_float = op::Constant::create(element::f32, Shape{}, {1.0f});
-    EXPECT_THROW(op::v1::TopK(data, k_float, 0, "max", "index"), ngraph::NodeValidationFailure);
+    EXPECT_THROW(op::v1::TopK(data, k_float, 0, "max", "index"), ov::NodeValidationFailure);
 
     // the value of K must be positive
     const auto k_negative = op::Constant::create(element::i8, Shape{}, {-1});
-    EXPECT_THROW(op::v1::TopK(data, k_negative, 0, "max", "index"), ngraph::NodeValidationFailure);
+    EXPECT_THROW(op::v1::TopK(data, k_negative, 0, "max", "index"), ov::NodeValidationFailure);
 }
 
 template <typename T>

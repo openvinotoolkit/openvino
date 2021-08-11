@@ -16,7 +16,7 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "utils/reshape.hpp"
 
-namespace ngraph
+namespace ov
 {
     namespace onnx_import
     {
@@ -38,8 +38,7 @@ namespace ngraph
                     ///
                     /// \return true if termination condition is true and it cannot be changed
                     ///         during Loop iterations, false otherwise.
-                    bool is_termination_condition_always_true(
-                        const Output<ngraph::Node>& body_out_cond)
+                    bool is_termination_condition_always_true(const Output<ov::Node>& body_out_cond)
                     {
                         // If body termination condition input matches Indentity op pattern the has
                         // value of loop_cond - true
@@ -50,7 +49,7 @@ namespace ngraph
                             const auto second_input = body_out_cond.get_node_shared_ptr()
                                                           ->input_value(1)
                                                           .get_node_shared_ptr();
-                            if (ngraph::op::is_constant(second_input) &&
+                            if (ov::op::is_constant(second_input) &&
                                 second_input->get_element_type() == element::boolean &&
                                 as_type_ptr<default_opset::Constant>(second_input)
                                         ->cast_vector<bool>()
@@ -91,31 +90,31 @@ namespace ngraph
                     }
 
                     // optional inputs
-                    Output<ngraph::Node> trip_count;
+                    Output<ov::Node> trip_count;
                     // trip count skipped or has value max(int64_t) means infinitive loop
-                    if (ngraph::op::is_null(ng_inputs.at(0)) ||
-                        (ngraph::op::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
+                    if (ov::op::is_null(ng_inputs.at(0)) ||
+                        (ov::op::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
                          as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())
                                  ->cast_vector<int64_t>()[0] ==
                              std::numeric_limits<int64_t>::max()))
                     {
                         // -1 means infinite Loop
-                        trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {-1});
+                        trip_count = ov::op::Constant::create(ov::element::i64, {1}, {-1});
                     }
                     else
                     {
                         trip_count = ng_inputs.at(0);
                     }
 
-                    Output<ngraph::Node>
+                    Output<ov::Node>
                         termination_cond; // true means that first interation should be run
-                    if (ngraph::op::is_null(
+                    if (ov::op::is_null(
                             ng_inputs.at(1).get_node_shared_ptr())) // termination condition skipped
                     {
                         termination_cond =
-                            ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+                            ov::op::Constant::create(ov::element::boolean, {1}, {true});
                     }
-                    else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
+                    else if (ov::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
                              as_type_ptr<default_opset::Constant>(
                                  ng_inputs.at(1).get_node_shared_ptr())
                                      ->cast_vector<bool>()[0] == false)
@@ -141,7 +140,7 @@ namespace ngraph
 
                     const int64_t concat_axis = 0;
                     const auto concat_axis_const =
-                        ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
+                        ov::op::Constant::create(ov::element::i64, {1}, {concat_axis});
                     // add dimension along which scan outputs will be concatenated
                     for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size();
                          ++i)
@@ -155,7 +154,7 @@ namespace ngraph
                     if (is_termination_condition_always_true(body_loop_out_cond))
                     {
                         body_outputs[0] =
-                            ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+                            ov::op::Constant::create(ov::element::boolean, {1}, {true});
                     }
 
                     CHECK_VALID_NODE(node,
@@ -178,7 +177,7 @@ namespace ngraph
                     ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
                     body_params.emplace(body_params.begin(),
                                         body_inputs[0]); // current iteration body input
-                    const auto body = std::make_shared<ngraph::Function>(body_outputs, body_params);
+                    const auto body = std::make_shared<ov::Function>(body_outputs, body_params);
                     auto loop = std::make_shared<default_opset::Loop>(trip_count, termination_cond);
                     default_opset::Loop::SpecialBodyPorts spec_ports{0, 0};
                     loop->set_special_body_ports(spec_ports);
@@ -240,4 +239,4 @@ namespace ngraph
             } // namespace set_1
         }     // namespace op
     }         // namespace onnx_import
-} // namespace ngraph
+} // namespace ov
