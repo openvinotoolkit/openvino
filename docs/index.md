@@ -47,7 +47,6 @@ The other core component of OpenVINO™ is the [Inference Engine](IE_DG/Deep_Lea
 
 You can use OpenVINO™ Tuning Utilities with the Inference Engine to trial and test inference on your model. The Benchmark utility uses an input model to run iterative tests for throughput or latency measures, and the [Cross Check Utility](../inference-engine/tools/cross_check_tool/README.md) compares performance of differently configured inferences. 
 
-
 For a full browser-based studio integrating these other key tuning utilities, try the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction).
 ![](img/OV-diagram-step3.png)
 
