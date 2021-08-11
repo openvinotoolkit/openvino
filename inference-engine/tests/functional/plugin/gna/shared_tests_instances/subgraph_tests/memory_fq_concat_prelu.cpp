@@ -57,7 +57,7 @@ std::vector<
 
 } // namespace
 
-INSTANTIATE_TEST_SUITE_P(smoke_memory_fq_concat_prelu, MemoryFqConcatPrelu,
+INSTANTIATE_TEST_CASE_P(smoke_memory_fq_concat_prelu, MemoryFqConcatPrelu,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputs),
                                 ::testing::ValuesIn(netPrecisions),
