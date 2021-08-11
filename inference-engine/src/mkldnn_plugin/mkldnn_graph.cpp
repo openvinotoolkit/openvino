@@ -281,6 +281,8 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
     for (auto &input : inputNodesMap) {
         const auto precToSet = normalizeToSupportedPrecision(inputsInfo.at(input.first)->getPrecision());
+        if (precToSet.is_float() && !input.second->getOriginalOutputPrecisionAtPort(0).is_float())
+            continue;
         input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
         const auto childEdges = input.second->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
@@ -292,10 +294,14 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
     for (auto &output : outputNodesMap) {
         const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
+        if (!precToSet.is_float() && output.second->getOriginalInputPrecisionAtPort(0).is_float())
+            continue;
         output.second->setOriginalInputPrecisionAtPort(0, precToSet);
         const auto parentEdges = output.second->getParentEdgesAtPort(0);
         for (size_t i = 0; i < parentEdges.size(); i++) {
             const auto parent = parentEdges[i]->getParent();
+            if (parent->getType() == Convert)
+                continue;
             parent->setOriginalOutputPrecisionAtPort(parentEdges[i]->getInputNum(), precToSet);
         }
     }
@@ -710,15 +716,24 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
     auto input = inputNodesMap.find(name);
     if (input != inputNodesMap.end()) {
         const void *ext_data_ptr = in->cbuffer();
-        void *inter_data_ptr = input->second->getChildEdgeAt(0)->getMemory().GetData();
+        const auto &mem = input->second->getChildEdgeAt(0)->getMemory();
+        void *inter_data_ptr = mem.GetData();
 
         if (ext_data_ptr != inter_data_ptr) {
             auto ext_tdesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(in->getTensorDesc());
 
-            auto ext_mem = MKLDNNMemory(eng);
-            ext_mem.Create(ext_tdesc, ext_data_ptr, false);
+            auto ext_mem = std::make_shared<MKLDNNMemory>(eng);
+            ext_mem->Create(ext_tdesc, ext_data_ptr, false);
 
-            input->second->getChildEdgeAt(0)->getMemory().SetData(ext_mem, 0, false);
+            // WA: reorder node perform saturation when convert float -> int
+            // but conversion should be perform according to Convert op, which truncates the fractional part
+            std::pair<bool, MKLDNNMemoryPtr> result{false, ext_mem};
+            if (ext_tdesc.getPrecision().is_float() && !mem.GetDesc().getPrecision().is_float()) {
+                result = convertMemoryByPrecision(*ext_mem, mem);
+            }
+
+            if (!result.first)
+                input->second->getChildEdgeAt(0)->getMemory().SetData(*result.second, 0, false);
         }
 
         // todo: make sure 'name' exists in this map...
@@ -743,7 +758,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
     for (auto &outputMap : outputNodesMap) {
         auto name = outputMap.first;
         auto node = outputMap.second;
-        const MKLDNNMemory& intr_blob = node->getParentEdgeAt(0)->getMemory();
+        const MKLDNNMemoryPtr& intr_blob = node->getParentEdgeAt(0)->getMemoryPtr();
 
         const auto ext_blob = out.find(name);
         if (ext_blob == out.end()) {
@@ -802,7 +817,15 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             auto outBloMem = MKLDNNMemory(eng);
             outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
 
-            outBloMem.SetData(intr_blob, 0, false);
+            // WA: reorder node perform saturation when convert float -> int
+            // but conversion should be perform according to Convert op, which truncates the fractional part
+            std::pair<bool, MKLDNNMemoryPtr> result{false, intr_blob};
+            if (intr_blob->GetDesc().getPrecision().is_float() && !outBloMem.GetDesc().getPrecision().is_float()) {
+                result = convertMemoryByPrecision(*intr_blob, outBloMem);
+            }
+
+            if (!result.first)
+                outBloMem.SetData(*result.second, 0, false);
         } else {
             cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
         }

@@ -90,4 +90,22 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
     return precision;
 }
 
+inline std::pair<bool, MKLDNNMemoryPtr> convertMemoryByPrecision(const MKLDNNMemory &input, const MKLDNNMemory &output) {
+    const auto outPrc = MKLDNNExtensionUtils::DataTypeToIEPrecision(output.GetDataType());
+    auto newDesc = input.GetDesc().clone();
+    newDesc->setPrecision(outPrc);
+
+    auto convertedMem = std::make_shared<MKLDNNMemory>(input.getEngine());
+    convertedMem->Create(*newDesc, nullptr, false);
+
+    cpu_convert(input.GetPtr(), convertedMem->GetPtr(), MKLDNNExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
+                outPrc, input.GetElementsCount());
+
+    if (newDesc->isCompatible(output.GetDesc())) {
+        cpu_memcpy(output.GetPtr(), convertedMem->GetPtr(), output.GetSize());
+        return {true, nullptr};
+    }
+    return {false, convertedMem};
+}
+
 }  // namespace MKLDNNPlugin

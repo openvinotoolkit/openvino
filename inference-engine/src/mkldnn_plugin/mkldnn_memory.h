@@ -114,6 +114,10 @@ public:
         return useExternalStorage;
     }
 
+    mkldnn::engine getEngine() const {
+        return eng;
+    }
+
 private:
     void Create(const mkldnn::memory::dims& dims, mkldnn::memory::data_type data_type, mkldnn::memory::format_tag format,
                 const void* data = nullptr);
