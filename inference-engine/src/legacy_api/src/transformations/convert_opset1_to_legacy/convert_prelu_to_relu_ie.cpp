@@ -13,35 +13,35 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPReLUToReLUIE, "ConvertPReLUToReLUIE", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertPReLUToReLUIE, "ConvertPReLUToReLUIE", 0);
 
-ngraph::pass::ConvertPReLUToReLUIE::ConvertPReLUToReLUIE() {
+ov::pass::ConvertPReLUToReLUIE::ConvertPReLUToReLUIE() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
-    auto prelu = std::make_shared<ngraph::opset1::PRelu>(input_0, input_1);
+    auto prelu = std::make_shared<ov::opset1::PRelu>(input_0, input_1);
 
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto prelu = std::dynamic_pointer_cast<ngraph::opset1::PRelu> (m.get_match_root());
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto prelu = std::dynamic_pointer_cast<ov::opset1::PRelu> (m.get_match_root());
         if (!prelu) {
             return false;
         }
         auto node = prelu->input(1).get_source_output().get_node_shared_ptr();
-        if (auto const_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node)) {
+        if (auto const_node = std::dynamic_pointer_cast<ov::opset1::Constant>(node)) {
             float value(0);
-            if (!ngraph::op::util::get_single_value(const_node, value)) {
+            if (!ov::op::util::get_single_value(const_node, value)) {
                 return false;
             }
 
-            auto relu_ie = std::make_shared<ngraph::op::ReLUIE>(prelu->input(0).get_source_output(), value, prelu->output(0).get_element_type());
+            auto relu_ie = std::make_shared<ov::op::ReLUIE>(prelu->input(0).get_source_output(), value, prelu->output(0).get_element_type());
             relu_ie->set_friendly_name(prelu->get_friendly_name());
-            ngraph::copy_runtime_info(prelu, relu_ie);
-            ngraph::replace_node(prelu, relu_ie);
+            ov::copy_runtime_info(prelu, relu_ie);
+            ov::replace_node(prelu, relu_ie);
             return true;
         }
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(prelu, "ConvertPReLUToReLUIE");
+    auto m = std::make_shared<ov::pattern::Matcher>(prelu, "ConvertPReLUToReLUIE");
     this->register_matcher(m, callback);
 }

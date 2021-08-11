@@ -12,17 +12,17 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::FullyConnectedBiasFusion, "FullyConnectedBiasFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::FullyConnectedBiasFusion, "FullyConnectedBiasFusion", 0);
 
-ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
-    auto m_fc = ngraph::pattern::wrap_type<op::FullyConnected>([](Output<Node> output) {
+ov::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
+    auto m_fc = ov::pattern::wrap_type<op::FullyConnected>([](Output<Node> output) {
         return pattern::consumers_count(1)(output) &&
                pattern::has_static_shape()(output);
     });
     auto m_bias = pattern::any_input();
-    auto m_add = ngraph::pattern::wrap_type<opset1::Add>({m_fc, m_bias});
+    auto m_add = ov::pattern::wrap_type<opset1::Add>({m_fc, m_bias});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         auto & pattern_to_output = m.get_pattern_value_map();
 
         auto add = pattern_to_output[m_add].get_node_shared_ptr();
@@ -65,11 +65,11 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         new_ops.push_back(new_fc);
 
         new_fc->set_friendly_name(add->get_friendly_name());
-        ngraph::copy_runtime_info({fc, add}, new_ops);
-        ngraph::replace_node(add, new_fc);
+        ov::copy_runtime_info({fc, add}, new_ops);
+        ov::replace_node(add, new_fc);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_add, "FullyConnectedBiasFusion");
+    auto m = std::make_shared<ov::pattern::Matcher>(m_add, "FullyConnectedBiasFusion");
     this->register_matcher(m, callback);
 }

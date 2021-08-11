@@ -10,7 +10,7 @@
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::Interp::type_info;
 

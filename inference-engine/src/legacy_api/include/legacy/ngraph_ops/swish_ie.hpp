@@ -10,7 +10,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 class INFERENCE_ENGINE_API_CLASS(SwishIE) : public Op {
 public:
@@ -29,4 +29,4 @@ protected:
     float m_alpha;
 };
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

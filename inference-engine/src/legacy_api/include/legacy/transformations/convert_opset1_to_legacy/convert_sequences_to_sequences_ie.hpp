@@ -12,7 +12,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertLSTMSequenceMatcher);
@@ -20,7 +20,7 @@ class INFERENCE_ENGINE_API_CLASS(ConvertGRUSequenceMatcher);
 class INFERENCE_ENGINE_API_CLASS(ConvertRNNSequenceMatcher);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -29,7 +29,7 @@ class INFERENCE_ENGINE_API_CLASS(ConvertRNNSequenceMatcher);
  * We squeeze num_direction dimension for all corresponding inputs and unsqueeze them after the SequenceIE op.
  */
 
-class ngraph::pass::ConvertLSTMSequenceMatcher : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertLSTMSequenceMatcher : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertLSTMSequenceMatcher();
@@ -42,7 +42,7 @@ public:
  * We squeeze num_direction dimension for all corresponding inputs and unsqueeze them after the SequenceIE op.
  */
 
-class ngraph::pass::ConvertGRUSequenceMatcher : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertGRUSequenceMatcher : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertGRUSequenceMatcher();
@@ -55,7 +55,7 @@ public:
  * We squeeze num_direction dimension for all corresponding inputs and unsqueeze them after the SequenceIE op.
  */
 
-class ngraph::pass::ConvertRNNSequenceMatcher : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertRNNSequenceMatcher : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertRNNSequenceMatcher();

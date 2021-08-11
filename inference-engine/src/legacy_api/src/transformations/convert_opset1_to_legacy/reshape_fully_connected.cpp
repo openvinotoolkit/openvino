@@ -14,16 +14,16 @@
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeFullyConnected, "ReshapeFullyConnected", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ReshapeFullyConnected, "ReshapeFullyConnected", 0);
 
-ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
+ov::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
     auto fc = pattern::wrap_type<op::FullyConnected>({pattern::any_input(pattern::has_static_shape()),
                                                       pattern::any_input(),
                                                       pattern::any_input()},
                                                       pattern::has_static_shape());
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto fc = std::dynamic_pointer_cast<ngraph::op::FullyConnected> (m.get_match_root());
+    ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        auto fc = std::dynamic_pointer_cast<ov::op::FullyConnected> (m.get_match_root());
         if (!fc || transformation_callback(fc)) {
             return false;
         }
@@ -62,17 +62,17 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
             new_ops.push_back(reshape_output);
             reshape_output->set_friendly_name(fc->get_friendly_name());
             fc_new->set_friendly_name(fc->get_friendly_name() + "/FC");
-            ngraph::copy_runtime_info(fc, new_ops);
-            ngraph::replace_node(fc, reshape_output);
+            ov::copy_runtime_info(fc, new_ops);
+            ov::replace_node(fc, reshape_output);
         } else {
             fc_new->set_friendly_name(fc->get_friendly_name());
-            ngraph::copy_runtime_info(fc, new_ops);
-            ngraph::replace_node(fc, fc_new);
+            ov::copy_runtime_info(fc, new_ops);
+            ov::replace_node(fc, fc_new);
         }
 
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fc, "ReshapeFullyConnected");
+    auto m = std::make_shared<ov::pattern::Matcher>(fc, "ReshapeFullyConnected");
     this->register_matcher(m, callback);
 }

@@ -14,15 +14,15 @@
 #include <ngraph/op/gather_tree.hpp>
 #include <legacy/ngraph_ops/gather_tree_ie.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertGatherTreeToGatherTreeIEMatcher);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertGatherTreeToGatherTreeIEMatcher: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertGatherTreeToGatherTreeIEMatcher();

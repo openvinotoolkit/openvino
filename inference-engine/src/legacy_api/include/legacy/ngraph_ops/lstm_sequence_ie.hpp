@@ -13,9 +13,9 @@
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
-class INFERENCE_ENGINE_API_CLASS(LSTMSequenceIE) : public ngraph::op::util::RNNCellBase {
+class INFERENCE_ENGINE_API_CLASS(LSTMSequenceIE) : public ov::op::util::RNNCellBase {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -28,7 +28,7 @@ public:
                    const Output <Node> &WR,
                    const Output <Node> &B,
                    size_t hidden_size,
-                   ngraph::op::RecurrentSequenceDirection lstm_direction,
+                   ov::op::RecurrentSequenceDirection lstm_direction,
                    const std::vector<std::string> &activations,
                    const std::vector<float> &activations_alpha,
                    const std::vector<float> &activations_beta,
@@ -39,13 +39,13 @@ public:
 
     void validate_and_infer_types() override;
 
-    ngraph::op::RecurrentSequenceDirection get_direction() { return m_direction; }
+    ov::op::RecurrentSequenceDirection get_direction() { return m_direction; }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
-    ngraph::op::RecurrentSequenceDirection m_direction;
+    ov::op::RecurrentSequenceDirection m_direction;
     int64_t m_seq_axis;
 };
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

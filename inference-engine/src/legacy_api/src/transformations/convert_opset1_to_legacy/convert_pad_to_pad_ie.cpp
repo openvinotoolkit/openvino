@@ -11,24 +11,24 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPadToLegacyMatcher, "ConvertPadToLegacyMatcher", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertPadToLegacyMatcher, "ConvertPadToLegacyMatcher", 0);
 
-ngraph::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
-    auto m_pad = ngraph::pattern::wrap_type<ngraph::opset1::Pad>(pattern::has_static_shape());
+ov::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
+    auto m_pad = ov::pattern::wrap_type<ov::opset1::Pad>(pattern::has_static_shape());
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto pad = std::dynamic_pointer_cast<ngraph::opset1::Pad> (m.get_match_root());
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto pad = std::dynamic_pointer_cast<ov::opset1::Pad> (m.get_match_root());
         if (!pad) {
             return false;
         }
 
-        auto pad_ie = std::make_shared<ngraph::op::PadIE>(pad);
+        auto pad_ie = std::make_shared<ov::op::PadIE>(pad);
         pad_ie->set_friendly_name(pad->get_friendly_name());
-        ngraph::copy_runtime_info(pad, pad_ie);
-        ngraph::replace_node(pad, pad_ie);
+        ov::copy_runtime_info(pad, pad_ie);
+        ov::replace_node(pad, pad_ie);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_pad, "ConvertPadToLegacy");
+    auto m = std::make_shared<ov::pattern::Matcher>(m_pad, "ConvertPadToLegacy");
     this->register_matcher(m, callback);
 }

@@ -16,15 +16,15 @@
 #include "ngraph/op/lrn.hpp"
 #include "ngraph/op/constant.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertPadToLegacyMatcher);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertPadToLegacyMatcher: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertPadToLegacyMatcher: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertPadToLegacyMatcher();

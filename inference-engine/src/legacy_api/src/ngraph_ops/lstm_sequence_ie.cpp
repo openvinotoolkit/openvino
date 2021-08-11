@@ -10,7 +10,7 @@
 #include <vector>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::LSTMSequenceIE, "LSTMSequenceIE", 5);
 
@@ -21,7 +21,7 @@ op::LSTMSequenceIE::LSTMSequenceIE(const Output<Node> &X,
                                    const Output<Node> &WR,
                                    const Output<Node> &B,
                                    std::size_t hidden_size,
-                                   ngraph::op::RecurrentSequenceDirection direction,
+                                   ov::op::RecurrentSequenceDirection direction,
                                    const std::vector<std::string> &activations,
                                    const std::vector<float> &activations_alpha,
                                    const std::vector<float> &activations_beta,
@@ -50,7 +50,7 @@ void op::LSTMSequenceIE::validate_and_infer_types() {
     auto wr_pshape = get_input_partial_shape(4);
     auto b_pshape = get_input_partial_shape(5);
 
-    std::vector<ngraph::PartialShape> pshapes = {x_pshape, h_state_pshape, c_state_pshape,
+    std::vector<ov::PartialShape> pshapes = {x_pshape, h_state_pshape, c_state_pshape,
                                                  seq_lengths_pshape, wr_pshape, b_pshape};
     std::vector<std::string> in_names = {"X", "H", "C", "seq_lengths", "WR", "B"};
     // num_direction dimension should be squeezed, we don't support bidirectional case
@@ -79,7 +79,7 @@ void op::LSTMSequenceIE::validate_and_infer_types() {
     set_output_type(2, arg_type, output_shape_1);
 }
 
-bool ngraph::op::LSTMSequenceIE::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::LSTMSequenceIE::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("direction", m_direction);
     visitor.on_attribute("axis", m_seq_axis);
     return op::util::RNNCellBase::visit_attributes(visitor);

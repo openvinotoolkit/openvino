@@ -54,95 +54,95 @@
 #include <memory>
 #include <vector>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet1ToLegacy, "ConvertOpSet1ToLegacy", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertOpSet1ToLegacy, "ConvertOpSet1ToLegacy", 0);
 
-bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    ngraph::pass::Manager manager(get_pass_config());
+bool ov::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ov::Function> f) {
+    ov::pass::Manager manager(get_pass_config());
 
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ov::pass::ConstantFolding>();
 
     // Some passes before ConvertOpSet1ToLegacy can produce some of this
     // operations. So for convenience we decompose this operations here and
     // in CommonOptimizations.
-    auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
-    decomp->add_matcher<ngraph::pass::ConvertMod>();
-    decomp->add_matcher<ngraph::pass::ConvertMinimum>();
-    decomp->add_matcher<ngraph::pass::ConvertSubtract>();
-    decomp->add_matcher<ngraph::pass::ConvertDivide>();
-    decomp->add_matcher<ngraph::pass::ConvertNegative>();
-    decomp->set_name("ngraph::pass::LegacyDecompositions");
+    auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
+    decomp->add_matcher<ov::pass::ConvertMod>();
+    decomp->add_matcher<ov::pass::ConvertMinimum>();
+    decomp->add_matcher<ov::pass::ConvertSubtract>();
+    decomp->add_matcher<ov::pass::ConvertDivide>();
+    decomp->add_matcher<ov::pass::ConvertNegative>();
+    decomp->set_name("ov::pass::LegacyDecompositions");
 
-    auto convert_matmul = manager.register_pass<ngraph::pass::GraphRewrite>();
-    convert_matmul->add_matcher<ngraph::pass::ConvertMatMulToFC>();
-    convert_matmul->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
-    convert_matmul->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
-    convert_matmul->set_name("ngraph::pass::ConvertMatMul");
+    auto convert_matmul = manager.register_pass<ov::pass::GraphRewrite>();
+    convert_matmul->add_matcher<ov::pass::ConvertMatMulToFC>();
+    convert_matmul->add_matcher<ov::pass::PullTransposeThroughFQUp>();
+    convert_matmul->add_matcher<ov::pass::ConvertMatMulToGemm>();
+    convert_matmul->set_name("ov::pass::ConvertMatMul");
 
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-
-    // Convolution/Deconvolution/FullyConnected fusions
-    manager.register_pass<ngraph::pass::ConvertConvolutions>();
+    manager.register_pass<ov::pass::ConstantFolding>();
 
     // Convolution/Deconvolution/FullyConnected fusions
-    auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
-    fusion->add_matcher<ngraph::pass::ConvAddFusion>();
-    fusion->add_matcher<ngraph::pass::DeconvAddFusion>();
-    fusion->add_matcher<ngraph::pass::FullyConnectedBiasFusion>();
-    fusion->set_name("ngraph::pass::BiasFusions");
+    manager.register_pass<ov::pass::ConvertConvolutions>();
+
+    // Convolution/Deconvolution/FullyConnected fusions
+    auto fusion = manager.register_pass<ov::pass::GraphRewrite>();
+    fusion->add_matcher<ov::pass::ConvAddFusion>();
+    fusion->add_matcher<ov::pass::DeconvAddFusion>();
+    fusion->add_matcher<ov::pass::FullyConnectedBiasFusion>();
+    fusion->set_name("ov::pass::BiasFusions");
 
     // CF is required after fusions
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ov::pass::ConstantFolding>();
 
     // List of passes that convert opset1 operations to legacy
     // plus transformations that are required by InferenceEngine
     // All this transformations can be executed simultaneously
-    auto anchor = manager.register_pass<ngraph::pass::GraphRewrite>();
-    anchor->add_matcher<ngraph::pass::ReshapeFullyConnected>();
-    anchor->add_matcher<ngraph::pass::Reshape1DConvolution>();
-    anchor->add_matcher<ngraph::pass::Reshape1DAvgPool>();
-    anchor->add_matcher<ngraph::pass::Reshape1DMaxPool>();
-    anchor->add_matcher<ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE>();
-    anchor->add_matcher<ngraph::pass::ConvertHardSigmoidToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertProposalToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertProposal4ToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
-    anchor->add_matcher<ngraph::pass::ConvertTileToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertLRNToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertPadToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertLSTMCellMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertRNNCellMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertGRUCellMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertStridedSliceToCropMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertPowerToPowerIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertSqrtToPowerIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertPReLUToReLUIE>();
-    anchor->add_matcher<ngraph::pass::ConvertGatherToGatherIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertSeluToSeluIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertSwishToSwishIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(f);
-    anchor->add_matcher<ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertTopKToTopKIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertNMS1ToNMS5>();
-    anchor->add_matcher<ngraph::pass::ConvertNMS3ToNMS5>();
-    anchor->add_matcher<ngraph::pass::ConvertNMS4ToNMS5>();
-    anchor->add_matcher<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertGRUSequenceMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertRNNSequenceMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertLSTMSequenceMatcher>();
-    anchor->set_name("ngraph::pass::LegacyConversions");
+    auto anchor = manager.register_pass<ov::pass::GraphRewrite>();
+    anchor->add_matcher<ov::pass::ReshapeFullyConnected>();
+    anchor->add_matcher<ov::pass::Reshape1DConvolution>();
+    anchor->add_matcher<ov::pass::Reshape1DAvgPool>();
+    anchor->add_matcher<ov::pass::Reshape1DMaxPool>();
+    anchor->add_matcher<ov::pass::ConvertNormalizeL2WithMulToNormalizeIE>();
+    anchor->add_matcher<ov::pass::ConvertHardSigmoidToLegacyMatcher>();
+    anchor->add_matcher<ov::pass::ConvertProposalToLegacyMatcher>();
+    anchor->add_matcher<ov::pass::ConvertProposal4ToLegacyMatcher>();
+    anchor->add_matcher<ov::pass::ConvertBroadcastToTiles>();
+    anchor->add_matcher<ov::pass::ConvertTileToLegacyMatcher>();
+    anchor->add_matcher<ov::pass::ConvertLRNToLegacyMatcher>();
+    anchor->add_matcher<ov::pass::ConvertPadToLegacyMatcher>();
+    anchor->add_matcher<ov::pass::ConvertLSTMCellMatcher>();
+    anchor->add_matcher<ov::pass::ConvertRNNCellMatcher>();
+    anchor->add_matcher<ov::pass::ConvertGRUCellMatcher>();
+    anchor->add_matcher<ov::pass::ConvertInterpolateToInterpOrResampleMatcher>();
+    anchor->add_matcher<ov::pass::ConvertStridedSliceToCropMatcher>();
+    anchor->add_matcher<ov::pass::ConvertPowerToPowerIEMatcher>();
+    anchor->add_matcher<ov::pass::ConvertSqrtToPowerIEMatcher>();
+    anchor->add_matcher<ov::pass::ConvertPReLUToReLUIE>();
+    anchor->add_matcher<ov::pass::ConvertGatherToGatherIEMatcher>();
+    anchor->add_matcher<ov::pass::ConvertSeluToSeluIEMatcher>();
+    anchor->add_matcher<ov::pass::ConvertSwishToSwishIEMatcher>();
+    anchor->add_matcher<ov::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(f);
+    anchor->add_matcher<ov::pass::ConvertGatherTreeToGatherTreeIEMatcher>();
+    anchor->add_matcher<ov::pass::ConvertTopKToTopKIEMatcher>();
+    anchor->add_matcher<ov::pass::ConvertNMS1ToNMS5>();
+    anchor->add_matcher<ov::pass::ConvertNMS3ToNMS5>();
+    anchor->add_matcher<ov::pass::ConvertNMS4ToNMS5>();
+    anchor->add_matcher<ov::pass::ConvertNMS5ToLegacyMatcher>();
+    anchor->add_matcher<ov::pass::ConvertGRUSequenceMatcher>();
+    anchor->add_matcher<ov::pass::ConvertRNNSequenceMatcher>();
+    anchor->add_matcher<ov::pass::ConvertLSTMSequenceMatcher>();
+    anchor->set_name("ov::pass::LegacyConversions");
 
     // List of final conversion transformations that must to be executed
     // after previous group of transformations
 
-    if (!ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(f)) {
-        manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+    if (!ov::op::util::has_op_with_type<ov::op::FakeQuantize>(f)) {
+        manager.register_pass<ov::pass::ReshapeFullyConnectedFusion>();
     }
-    manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
-    manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
-    manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
+    manager.register_pass<ov::pass::ConvertNormalizeL2ToLegacyMatcher>();
+    manager.register_pass<ov::pass::ConvertMulAddToScaleShiftOrPower>();
+    manager.register_pass<ov::pass::ConvertMulOrAddFinally>();
 
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ov::pass::ConstantFolding>();
 
     manager.run_passes(f);
 

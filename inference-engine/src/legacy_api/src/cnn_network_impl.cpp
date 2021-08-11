@@ -95,16 +95,16 @@ CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & cnnnetwork) {
     auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&icnnnetwork);
     IE_ASSERT(ngraphImplPtr != nullptr);
     IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
-    auto graph = ngraph::clone_function(*ngraphImplPtr->getFunction());
+    auto graph = ov::clone_function(*ngraphImplPtr->getFunction());
 
-    ::ngraph::pass::Manager manager;
-    manager.register_pass<::ngraph::pass::InitNodeInfo>();
+    ::ov::pass::Manager manager;
+    manager.register_pass<::ov::pass::InitNodeInfo>();
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-    manager.register_pass<::ngraph::pass::ConvertPriorBox>();
-    manager.register_pass<::ngraph::pass::CommonOptimizations>();
-    manager.register_pass<::ngraph::pass::ConvertOpSet3ToOpSet2>();
-    manager.register_pass<::ngraph::pass::ConvertOpSet2ToOpSet1>();
-    manager.register_pass<::ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.register_pass<::ov::pass::ConvertPriorBox>();
+    manager.register_pass<::ov::pass::CommonOptimizations>();
+    manager.register_pass<::ov::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<::ov::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<::ov::pass::ConvertOpSet1ToLegacy>();
     manager.run_passes(graph);
 
     InferenceEngine::details::convertFunctionToICNNNetwork(graph, cnnnetwork, this, false);

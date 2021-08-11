@@ -11,15 +11,15 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertMulAddToScaleShiftOrPower);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertMulAddToScaleShiftOrPower: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertMulAddToScaleShiftOrPower: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertMulAddToScaleShiftOrPower();
@@ -40,4 +40,4 @@ enum class CONVERSION_RESULT {
  */
 
 INFERENCE_ENGINE_API_CPP(CONVERSION_RESULT)
-check_constant(const std::shared_ptr<ngraph::op::Constant> & constant, const ngraph::PartialShape & shape);
+check_constant(const std::shared_ptr<ov::op::Constant> & constant, const ov::PartialShape & shape);

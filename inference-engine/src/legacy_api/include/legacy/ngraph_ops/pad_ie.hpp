@@ -13,7 +13,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/pad.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(PadIE) : public Op {
@@ -41,4 +41,4 @@ private:
     float m_pad_value = 0;
 };
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

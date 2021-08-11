@@ -10,12 +10,12 @@
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::NormalizeIE::type_info;
 
 op::NormalizeIE::NormalizeIE(const Output<Node>& data, const Output<Node>& weights, float eps, bool across_spatial,
-                             bool channel_shared, const ngraph::element::Type output_type)
+                             bool channel_shared, const ov::element::Type output_type)
     : Op({data, weights}), m_eps(eps), m_across_spatial(across_spatial), m_channel_shared(channel_shared), m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }

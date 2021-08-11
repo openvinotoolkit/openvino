@@ -9,18 +9,18 @@
 #include <ngraph/opsets/opset1.hpp>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::TopKIE::type_info;
 
 
-op::TopKIE::TopKIE(const ngraph::Output<ngraph::Node> &data, const ngraph::Output<ngraph::Node> &k, const int64_t axis, const ngraph::op::TopKMode mode,
-                   const ngraph::op::TopKSortType sort, const element::Type& index_element_type)
+op::TopKIE::TopKIE(const ov::Output<ov::Node> &data, const ov::Output<ov::Node> &k, const int64_t axis, const ov::op::TopKMode mode,
+                   const ov::op::TopKSortType sort, const element::Type& index_element_type)
     : Op({data, k}), m_axis(axis), m_mode(mode), m_sort_type(sort), m_index_element_type(index_element_type) {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::TopKIE::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+std::shared_ptr<Node> op::TopKIE::clone_with_new_inputs(const ov::OutputVector &new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<TopKIE>(new_args.at(0), new_args.at(1), m_axis, m_mode, m_sort_type, m_index_element_type);
 }

@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset4.hpp>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::NonMaxSuppressionIE::type_info;
 
@@ -21,14 +21,14 @@ op::NonMaxSuppressionIE::NonMaxSuppressionIE(const Output<Node> &boxes,
                                              const Output<Node> &score_threshold,
                                              int center_point_box,
                                              bool sort_result_descending,
-                                             const ngraph::element::Type& output_type)
+                                             const ov::element::Type& output_type)
         : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
           m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
 
-std::shared_ptr<Node> op::NonMaxSuppressionIE::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+std::shared_ptr<Node> op::NonMaxSuppressionIE::clone_with_new_inputs(const ov::OutputVector &new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<NonMaxSuppressionIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
                                             new_args.at(4), m_center_point_box, m_sort_result_descending, m_output_type);
@@ -70,14 +70,14 @@ op::NonMaxSuppressionIE2::NonMaxSuppressionIE2(const Output<Node> &boxes,
                                                const Output<Node> &score_threshold,
                                                int center_point_box,
                                                bool sort_result_descending,
-                                               const ngraph::element::Type& output_type)
+                                               const ov::element::Type& output_type)
         : op::NonMaxSuppressionIE(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, center_point_box, sort_result_descending,
                                   output_type) {
     constructor_validate_and_infer_types();
 }
 
 
-std::shared_ptr<Node> op::NonMaxSuppressionIE2::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+std::shared_ptr<Node> op::NonMaxSuppressionIE2::clone_with_new_inputs(const ov::OutputVector &new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<NonMaxSuppressionIE2>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
                                              new_args.at(4), m_center_point_box, m_sort_result_descending, m_output_type);
@@ -111,7 +111,7 @@ op::NonMaxSuppressionIE3::NonMaxSuppressionIE3(const Output<Node>& boxes,
                                                const Output<Node>& score_threshold,
                                                int center_point_box,
                                                bool sort_result_descending,
-                                               const ngraph::element::Type& output_type)
+                                               const ov::element::Type& output_type)
         : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
           m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type) {
     constructor_validate_and_infer_types();
@@ -125,13 +125,13 @@ op::NonMaxSuppressionIE3::NonMaxSuppressionIE3(const Output<Node>& boxes,
                                                const Output<Node>& soft_nms_sigma,
                                                int center_point_box,
                                                bool sort_result_descending,
-                                               const ngraph::element::Type& output_type)
+                                               const ov::element::Type& output_type)
         : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma}),
           m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::NonMaxSuppressionIE3::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+std::shared_ptr<Node> op::NonMaxSuppressionIE3::clone_with_new_inputs(const ov::OutputVector &new_args) const {
     if (new_args.size() == 6) {
         return make_shared<NonMaxSuppressionIE3>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
                                              new_args.at(4), new_args.at(5), m_center_point_box, m_sort_result_descending,
@@ -141,7 +141,7 @@ std::shared_ptr<Node> op::NonMaxSuppressionIE3::clone_with_new_inputs(const ngra
                                              new_args.at(4), m_center_point_box, m_sort_result_descending,
                                              m_output_type);
     }
-    throw ngraph::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
+    throw ov::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
 }
 
 bool op::NonMaxSuppressionIE3::visit_attributes(AttributeVisitor& visitor) {

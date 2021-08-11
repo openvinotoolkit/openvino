@@ -10,7 +10,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(TileIE) : public Op {
@@ -30,4 +30,4 @@ public:
 };
 
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

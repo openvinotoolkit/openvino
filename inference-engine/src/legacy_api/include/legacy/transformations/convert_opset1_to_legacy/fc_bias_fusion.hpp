@@ -22,15 +22,15 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/rt_info.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(FullyConnectedBiasFusion);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::FullyConnectedBiasFusion : public ngraph::pass::MatcherPass {
+class ov::pass::FullyConnectedBiasFusion : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     FullyConnectedBiasFusion();

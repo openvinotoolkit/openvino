@@ -31,11 +31,11 @@ public:
     explicit CNNNetworkImpl(const CNNNetwork & ngraphImpl);
     ~CNNNetworkImpl();
 
-    std::shared_ptr<::ngraph::Function> getFunction() noexcept override {
+    std::shared_ptr<::ov::Function> getFunction() noexcept override {
         return nullptr;
     }
 
-    std::shared_ptr<const ::ngraph::Function> getFunction() const noexcept override {
+    std::shared_ptr<const ::ov::Function> getFunction() const noexcept override {
         return nullptr;
     }
 

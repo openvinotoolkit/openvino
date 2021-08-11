@@ -9,7 +9,7 @@
 #include <vector>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::RNNCellIE::type_info;
 

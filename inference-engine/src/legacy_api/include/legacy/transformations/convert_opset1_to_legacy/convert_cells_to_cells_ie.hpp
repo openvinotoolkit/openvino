@@ -12,7 +12,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertLSTMCellMatcher);
@@ -20,21 +20,21 @@ class INFERENCE_ENGINE_API_CLASS(ConvertGRUCellMatcher);
 class INFERENCE_ENGINE_API_CLASS(ConvertRNNCellMatcher);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertLSTMCellMatcher : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertLSTMCellMatcher : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertLSTMCellMatcher();
 };
 
-class ngraph::pass::ConvertGRUCellMatcher : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertGRUCellMatcher : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertGRUCellMatcher();
 };
 
-class ngraph::pass::ConvertRNNCellMatcher : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertRNNCellMatcher : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertRNNCellMatcher();

@@ -14,7 +14,7 @@
 #include "ngraph_ops/convolution_ie.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 template <class T>
 std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<T> node, NodeVector & new_ops);
@@ -143,35 +143,35 @@ matcher_pass_callback get_callback() {
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name());
         new_ops.push_back(last.get_node_shared_ptr());
 
-        ngraph::copy_runtime_info(node, new_ops);
+        ov::copy_runtime_info(node, new_ops);
         node->output(0).replace(last);
         return true;
     };
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DOps, "Reshape1DOps", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::Reshape1DOps, "Reshape1DOps", 0);
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DConvolution, "Reshape1DConvolution", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::Reshape1DConvolution, "Reshape1DConvolution", 0);
 
-ngraph::pass::Reshape1DConvolution::Reshape1DConvolution() {
-    auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::has_static_shape());
-    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "Reshape1DConvolution");
+ov::pass::Reshape1DConvolution::Reshape1DConvolution() {
+    auto conv = ov::pattern::wrap_type<op::ConvolutionIE>(pattern::has_static_shape());
+    auto m = std::make_shared<ov::pattern::Matcher>(conv, "Reshape1DConvolution");
     this->register_matcher(m, get_callback());
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DAvgPool, "Reshape1DAvgPool", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::Reshape1DAvgPool, "Reshape1DAvgPool", 0);
 
-ngraph::pass::Reshape1DAvgPool::Reshape1DAvgPool() {
-    auto pool = ngraph::pattern::wrap_type<opset1::AvgPool>(pattern::has_static_shape());
-    auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DAvgPool");
+ov::pass::Reshape1DAvgPool::Reshape1DAvgPool() {
+    auto pool = ov::pattern::wrap_type<opset1::AvgPool>(pattern::has_static_shape());
+    auto m = std::make_shared<ov::pattern::Matcher>(pool, "Reshape1DAvgPool");
     this->register_matcher(m, get_callback());
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DMaxPool, "Reshape1DMaxPool", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::Reshape1DMaxPool, "Reshape1DMaxPool", 0);
 
-ngraph::pass::Reshape1DMaxPool::Reshape1DMaxPool() {
-    auto pool = ngraph::pattern::wrap_type<opset1::MaxPool>(pattern::has_static_shape());
-    auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DMaxPool");
+ov::pass::Reshape1DMaxPool::Reshape1DMaxPool() {
+    auto pool = ov::pattern::wrap_type<opset1::MaxPool>(pattern::has_static_shape());
+    auto m = std::make_shared<ov::pattern::Matcher>(pool, "Reshape1DMaxPool");
     this->register_matcher(m, get_callback());
 }
 

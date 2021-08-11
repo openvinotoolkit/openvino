@@ -12,15 +12,15 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertPowerToPowerIEMatcher);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertPowerToPowerIEMatcher: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertPowerToPowerIEMatcher: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertPowerToPowerIEMatcher();

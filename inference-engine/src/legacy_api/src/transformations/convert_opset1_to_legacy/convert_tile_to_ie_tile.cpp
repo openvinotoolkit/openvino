@@ -13,19 +13,19 @@
 #include <legacy/ngraph_ops/tile_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTileToLegacyMatcher, "ConvertTileToLegacyMatcher", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertTileToLegacyMatcher, "ConvertTileToLegacyMatcher", 0);
 
-ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
-    auto tile = pattern::wrap_type<ngraph::opset1::Tile>({pattern::any_input(pattern::has_static_rank()),
+ov::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
+    auto tile = pattern::wrap_type<ov::opset1::Tile>({pattern::any_input(pattern::has_static_rank()),
                                                           pattern::wrap_type<opset1::Constant>()});
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto tile = std::dynamic_pointer_cast<ngraph::opset1::Tile> (m.get_match_root());
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto tile = std::dynamic_pointer_cast<ov::opset1::Tile> (m.get_match_root());
         if (!tile) {
             return false;
         }
 
-        auto tiles_node = std::dynamic_pointer_cast<ngraph::opset1::Constant> (tile->input_value(1).get_node_shared_ptr());
+        auto tiles_node = std::dynamic_pointer_cast<ov::opset1::Constant> (tile->input_value(1).get_node_shared_ptr());
         if (!tiles_node) return false;
 
         auto tiles = tiles_node->cast_vector<int64_t>();
@@ -72,7 +72,7 @@ ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
         while (tiles_it != tiles.rend()) {
             int64_t tile_dim = *tiles_it;
             if (tile_dim != 1) {
-                auto ie_tile = std::make_shared<ngraph::op::TileIE>(last_node, cur_dim_id, tile_dim);
+                auto ie_tile = std::make_shared<ov::op::TileIE>(last_node, cur_dim_id, tile_dim);
                 ie_tile->set_friendly_name(friendly_name);
                 friendly_name += "_" + std::to_string(cur_dim_id);
                 new_ops.push_back(ie_tile);
@@ -84,11 +84,11 @@ ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
         }
 
         last_node.get_node_shared_ptr()->set_friendly_name(tile->get_friendly_name());
-        ngraph::copy_runtime_info(tile, new_ops);
-        ngraph::replace_node(tile, {last_node});
+        ov::copy_runtime_info(tile, new_ops);
+        ov::replace_node(tile, {last_node});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tile, "ConvertTileToIETiles");
+    auto m = std::make_shared<ov::pattern::Matcher>(tile, "ConvertTileToIETiles");
     this->register_matcher(m, callback);
 }

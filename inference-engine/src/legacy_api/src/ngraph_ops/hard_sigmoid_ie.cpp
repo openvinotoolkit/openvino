@@ -12,11 +12,11 @@
 #include "ngraph/op/multiply.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::HardSigmoid_IE::type_info;
 
-op::HardSigmoid_IE::HardSigmoid_IE(const ngraph::Output<ngraph::Node> &arg,
+op::HardSigmoid_IE::HardSigmoid_IE(const ov::Output<ov::Node> &arg,
                    float alpha,
                    float beta)
         : Op({arg})

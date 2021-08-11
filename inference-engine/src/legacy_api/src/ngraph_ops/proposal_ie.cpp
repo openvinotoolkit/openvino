@@ -9,7 +9,7 @@
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::ProposalIE::type_info;
 

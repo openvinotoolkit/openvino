@@ -11,7 +11,7 @@
 #include <ngraph/op/op.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(PriorBoxClusteredIE) : public Op {
@@ -26,7 +26,7 @@ public:
     /// \param attrs          PriorBoxClustered attributes
     PriorBoxClusteredIE(const Output<Node>& input,
                const Output<Node>& image,
-               const ngraph::op::PriorBoxClusteredAttrs& attrs);
+               const ov::op::PriorBoxClusteredAttrs& attrs);
 
     void validate_and_infer_types() override;
 
@@ -39,5 +39,5 @@ private:
 };
 
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov
 

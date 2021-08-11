@@ -10,7 +10,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(ScaleShiftIE) : public Op {
@@ -33,4 +33,4 @@ private:
 };
 
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

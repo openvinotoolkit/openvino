@@ -16,19 +16,19 @@
 
 #include <legacy/ngraph_ops/interp.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher, "ConvertInterpolateToInterpOrResampleMatcher", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertInterpolateToInterpOrResampleMatcher, "ConvertInterpolateToInterpOrResampleMatcher", 0);
 
-ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToInterpOrResampleMatcher() {
+ov::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToInterpOrResampleMatcher() {
     auto interpolate = pattern::wrap_type<opset1::Interpolate>({pattern::any_input(pattern::has_static_shape()),
                                                                 pattern::wrap_type<opset1::Constant>()});
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto interpolate = std::dynamic_pointer_cast<ngraph::opset1::Interpolate> (m.get_match_root());
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto interpolate = std::dynamic_pointer_cast<ov::opset1::Interpolate> (m.get_match_root());
         if (!interpolate)
             return false;
 
         auto data_node = interpolate->input_value(0);
-        auto out_shape_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(interpolate->input_value(1).get_node_shared_ptr());
+        auto out_shape_node = std::dynamic_pointer_cast<ov::opset1::Constant>(interpolate->input_value(1).get_node_shared_ptr());
         auto interpolate_attrs = interpolate->get_attrs();
         auto input_shape = data_node.get_shape();
 
@@ -73,7 +73,7 @@ ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToI
         }
 
         if (num_of_spatial_vars == 2 && interpolate_axes.size() == 2 && std::set<std::string>{"nearest", "cubic", "area"}.count(interpolate_mode) == 0) {
-            auto attrs = ngraph::op::InterpolateIEAttrs();
+            auto attrs = ov::op::InterpolateIEAttrs();
             attrs.pad_beg = static_cast<int>(interpolate_attrs.pads_begin[0]);
             attrs.pad_end = static_cast<int>(interpolate_attrs.pads_end[0]);
             attrs.height = static_cast<int>(out_spatial_shape[0]);
@@ -82,13 +82,13 @@ ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToI
             attrs.mode = interpolate_mode;
             attrs.antialias = interpolate_attrs.antialias;
 
-            auto interp = std::make_shared<ngraph::op::Interp>(data_node, attrs);
+            auto interp = std::make_shared<ov::op::Interp>(data_node, attrs);
             interp->set_friendly_name(interpolate->get_friendly_name());
 
-            ngraph::copy_runtime_info(interpolate, interp);
-            ngraph::replace_node(interpolate, interp);
+            ov::copy_runtime_info(interpolate, interp);
+            ov::replace_node(interpolate, interp);
         } else if (interpolate_attrs.pads_begin[0] == 0 && interpolate_attrs.pads_end[0] == 0 && !interpolate_attrs.align_corners) {
-            auto attrs = ngraph::op::ResampleIEAttrs();
+            auto attrs = ov::op::ResampleIEAttrs();
             attrs.mode = interpolate_mode;
             attrs.antialias = interpolate_attrs.antialias;
 
@@ -140,26 +140,26 @@ ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToI
 
             if (has_same_factor && factor != 0) {
                 attrs.factor = factor;
-                resample = std::make_shared<ngraph::op::ResampleV2>(data_node, attrs);
+                resample = std::make_shared<ov::op::ResampleV2>(data_node, attrs);
             } else {
                 // first concatenates [N,C] shapes from the input tensor with the Interpolate second input value to
                 // create the desired output shape for the Resample
                 auto output_shape = out_spatial_shape;
                 output_shape.insert(output_shape.begin(), input_shape[0]);
                 output_shape.insert(output_shape.begin() + 1, input_shape[1]);
-                auto constant = std::make_shared<ngraph::opset1::Constant>(out_shape_node->get_element_type(), Shape{output_shape.size()}, output_shape);
-                resample = std::make_shared<ngraph::op::ResampleV2>(data_node, constant, attrs);
+                auto constant = std::make_shared<ov::opset1::Constant>(out_shape_node->get_element_type(), Shape{output_shape.size()}, output_shape);
+                resample = std::make_shared<ov::op::ResampleV2>(data_node, constant, attrs);
             }
 
             resample->set_friendly_name(interpolate->get_friendly_name());
-            ngraph::copy_runtime_info(interpolate, resample);
-            ngraph::replace_node(interpolate, resample);
+            ov::copy_runtime_info(interpolate, resample);
+            ov::replace_node(interpolate, resample);
         } else {
             return false;
         }
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(interpolate, "ConvertInterpolateToInterpOrResample");
+    auto m = std::make_shared<ov::pattern::Matcher>(interpolate, "ConvertInterpolateToInterpOrResample");
     this->register_matcher(m, callback);
 }

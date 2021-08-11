@@ -11,11 +11,11 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::TileIE::type_info;
 
-op::TileIE::TileIE(const Output<ngraph::Node>& data1, const int64_t axis, const int64_t tiles)
+op::TileIE::TileIE(const Output<ov::Node>& data1, const int64_t axis, const int64_t tiles)
     : Op({data1}), axis(axis), tiles(tiles) {
     constructor_validate_and_infer_types();
 }

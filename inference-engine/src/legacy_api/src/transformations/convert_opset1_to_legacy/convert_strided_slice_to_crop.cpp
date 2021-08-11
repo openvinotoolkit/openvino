@@ -12,27 +12,27 @@
 #include <legacy/ngraph_ops/crop_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertStridedSliceToCropMatcher, "ConvertStridedSliceToCropMatcher", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertStridedSliceToCropMatcher, "ConvertStridedSliceToCropMatcher", 0);
 
-ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher() {
+ov::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher() {
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto m_begin = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
     auto m_end = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
     auto m_stride = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
     std::vector<int64_t> begin_mask = {0, 0, 0, 0};
     std::vector<int64_t> end_mask = {0, 0, 0, 0};
-    auto m_slice = std::make_shared<ngraph::opset1::StridedSlice>(data, m_begin, m_end, m_stride, begin_mask, end_mask);
+    auto m_slice = std::make_shared<ov::opset1::StridedSlice>(data, m_begin, m_end, m_stride, begin_mask, end_mask);
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto slice = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice> (m.get_match_root());
+    ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        auto slice = std::dynamic_pointer_cast<ov::opset1::StridedSlice> (m.get_match_root());
         if (!slice || transformation_callback(slice)) {
             return false;
         }
 
         auto data_output = slice->input_value(0);
-        auto begin_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(1).get_node_shared_ptr());
-        auto end_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(2).get_node_shared_ptr());
-        auto stride_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(3).get_node_shared_ptr());
+        auto begin_node = std::dynamic_pointer_cast<ov::opset1::Constant>(slice->input_value(1).get_node_shared_ptr());
+        auto end_node = std::dynamic_pointer_cast<ov::opset1::Constant>(slice->input_value(2).get_node_shared_ptr());
+        auto stride_node = std::dynamic_pointer_cast<ov::opset1::Constant>(slice->input_value(3).get_node_shared_ptr());
 
         auto partial_input_shape = slice->get_input_partial_shape(0);
 
@@ -195,9 +195,9 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
 
         // Reshape in case of new axis
         if (!new_axis_mask.empty()) {
-            auto new_shape = std::make_shared<ngraph::opset1::Constant>(element::i64,
-                                                                    ngraph::Shape{reshape_pattern.size()}, reshape_pattern);
-            auto data_node = std::make_shared<ngraph::opset1::Reshape>(data_output, new_shape, true);
+            auto new_shape = std::make_shared<ov::opset1::Constant>(element::i64,
+                                                                    ov::Shape{reshape_pattern.size()}, reshape_pattern);
+            auto data_node = std::make_shared<ov::opset1::Reshape>(data_output, new_shape, true);
             data_node->set_friendly_name(slice->get_friendly_name() + "/Reshape_before");
             new_ops.push_back(data_node);
             data_output = data_node->output(0);
@@ -210,7 +210,7 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
         }
 
         // Crop
-        std::shared_ptr<ngraph::Node> data_node = std::make_shared<ngraph::op::CropIE> (data_output, axes, dim, offset);
+        std::shared_ptr<ov::Node> data_node = std::make_shared<ov::op::CropIE> (data_output, axes, dim, offset);
         data_node->set_friendly_name(slice->get_friendly_name());
         new_ops.push_back(data_node);
 
@@ -218,19 +218,19 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
 
         // Reshape in case of deleting of axis
         if (!shrink_axis_mask.empty()) {
-            auto new_shape = std::make_shared<ngraph::opset1::Constant>(element::i64, ngraph::Shape{output_shape.size()},
+            auto new_shape = std::make_shared<ov::opset1::Constant>(element::i64, ov::Shape{output_shape.size()},
                                                                     output_shape);
-            data_node = std::make_shared<ngraph::opset1::Reshape>(data_node->output(0), new_shape, true);
+            data_node = std::make_shared<ov::opset1::Reshape>(data_node->output(0), new_shape, true);
             crop_data_node->set_friendly_name(slice->get_friendly_name() + "/Crop");
             data_node->set_friendly_name(slice->get_friendly_name());
             new_ops.push_back(data_node);
         }
 
-        ngraph::copy_runtime_info(slice, new_ops);
-        ngraph::replace_node(slice, data_node);
+        ov::copy_runtime_info(slice, new_ops);
+        ov::replace_node(slice, data_node);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_slice, "ConvertStridedSliceToCrop");
+    auto m = std::make_shared<ov::pattern::Matcher>(m_slice, "ConvertStridedSliceToCrop");
     this->register_matcher(m, callback);
 }

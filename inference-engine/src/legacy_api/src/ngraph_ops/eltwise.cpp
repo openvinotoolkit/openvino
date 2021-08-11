@@ -11,7 +11,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::Eltwise::type_info;
 
@@ -81,7 +81,7 @@ bool op::Eltwise::visit_attributes(AttributeVisitor &visitor) {
   return true;
 }
 
-namespace ngraph {
+namespace ov {
 template <> EnumNames<ELTWISE_TYPE> &EnumNames<ELTWISE_TYPE>::get() {
   static auto enum_names =
       EnumNames<ELTWISE_TYPE>("ELTWISE_TYPE", {{"sum", ELTWISE_TYPE::Sum},
@@ -98,4 +98,4 @@ constexpr DiscreteTypeInfo AttributeAdapter<ELTWISE_TYPE>::type_info;
 std::ostream &operator<<(std::ostream &s, const ELTWISE_TYPE &type) {
   return s << as_string(type);
 }
-} // namespace ngraph
+} // namespace ov

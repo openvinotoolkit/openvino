@@ -8,7 +8,7 @@
 #include <string>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::GatherTreeIE::type_info;
 
@@ -64,6 +64,6 @@ void op::GatherTreeIE::validate_and_infer_types() {
     set_output_type(0, step_ids_et, step_ids_rank);
 }
 
-bool ngraph::op::GatherTreeIE::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::GatherTreeIE::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }

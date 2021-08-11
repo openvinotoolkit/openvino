@@ -12,7 +12,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(RNNCellIE) : public Op {
@@ -52,4 +52,4 @@ protected:
 };
 
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

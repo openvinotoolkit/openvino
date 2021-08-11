@@ -11,7 +11,7 @@
 #include <ngraph/op/proposal.hpp>
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(ProposalIE) : public Op {
@@ -41,4 +41,4 @@ private:
     ProposalAttrs m_attrs;
 };
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

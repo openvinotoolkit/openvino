@@ -12,7 +12,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 struct InterpolateIEAttrs {
@@ -77,4 +77,4 @@ private:
 };
 
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

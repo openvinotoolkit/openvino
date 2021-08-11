@@ -11,7 +11,7 @@
 #include "ngraph/op/op.hpp"
 
 enum class ELTWISE_TYPE {Sum, Prod, Max, Sub, Min, Div};
-namespace ngraph {
+namespace ov {
 namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(Eltwise) : public Op {
@@ -52,4 +52,4 @@ public:
                                               1};
   const DiscreteTypeInfo &get_type_info() const override { return type_info; }
 };
-} // namespace ngraph
+} // namespace ov

@@ -13,15 +13,15 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeFullyConnectedFusion, "ReshapeFullyConnectedFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ReshapeFullyConnectedFusion, "ReshapeFullyConnectedFusion", 0);
 
-ngraph::pass::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
+ov::pass::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
     auto m_reshape = pattern::wrap_type<opset1::Reshape>(pattern::has_static_shape());
     auto m_fc = pattern::wrap_type<op::FullyConnected>({m_reshape,
                                                         pattern::any_input(),
                                                         pattern::any_input()});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         auto & pattern_to_output = m.get_pattern_value_map();
         auto fc = pattern_to_output[m_fc].get_node_shared_ptr();
         auto reshape = pattern_to_output[m_reshape].get_node_shared_ptr();
@@ -46,11 +46,11 @@ ngraph::pass::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
                                                             fc->output(0).get_element_type());
 
         new_fc->set_friendly_name(fc->get_friendly_name());
-        ngraph::copy_runtime_info({reshape, fc}, new_fc);
-        ngraph::replace_node(fc, new_fc);
+        ov::copy_runtime_info({reshape, fc}, new_fc);
+        ov::replace_node(fc, new_fc);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_fc, "ReshapeFullyConnectedFusion");
+    auto m = std::make_shared<ov::pattern::Matcher>(m_fc, "ReshapeFullyConnectedFusion");
     register_matcher(m, callback);
 }

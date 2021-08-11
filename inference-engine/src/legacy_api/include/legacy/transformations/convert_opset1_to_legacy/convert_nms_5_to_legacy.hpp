@@ -11,13 +11,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertNMS5ToLegacyMatcher);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /*
  * Description:
@@ -25,7 +25,7 @@ class INFERENCE_ENGINE_API_CLASS(ConvertNMS5ToLegacyMatcher);
  */
 
 
-class ngraph::pass::ConvertNMS5ToLegacyMatcher: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertNMS5ToLegacyMatcher: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertNMS5ToLegacyMatcher(bool force_i32_output_type = true);

@@ -15,7 +15,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertMatMulToFCorGemm);
@@ -23,25 +23,25 @@ class INFERENCE_ENGINE_API_CLASS(ConvertMatMulToFC);
 class INFERENCE_ENGINE_API_CLASS(ConvertMatMulToGemm);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertMatMulToFC: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertMatMulToFC: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertMatMulToFC();
 };
 
-class ngraph::pass::ConvertMatMulToGemm: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertMatMulToGemm: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertMatMulToGemm();
 };
 
-class ngraph::pass::ConvertMatMulToFCorGemm: public ngraph::pass::GraphRewrite {
+class ov::pass::ConvertMatMulToFCorGemm: public ov::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertMatMulToFCorGemm() {
-        add_matcher<ngraph::pass::ConvertMatMulToFC>();
-        add_matcher<ngraph::pass::ConvertMatMulToGemm>();
+        add_matcher<ov::pass::ConvertMatMulToFC>();
+        add_matcher<ov::pass::ConvertMatMulToGemm>();
     }
 };

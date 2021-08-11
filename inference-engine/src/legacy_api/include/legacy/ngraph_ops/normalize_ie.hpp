@@ -11,7 +11,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(NormalizeIE) : public Op {
@@ -26,7 +26,7 @@ public:
                 float eps,
                 bool across_spatial,
                 bool channel_shared,
-                const ngraph::element::Type output_type);
+                const ov::element::Type output_type);
 
     float get_eps() const { return m_eps; }
     bool get_channel_shared() const  { return m_channel_shared;}
@@ -40,8 +40,8 @@ protected:
     float m_eps;
     bool m_across_spatial;
     bool m_channel_shared;
-    ngraph::element::Type m_output_type;
+    ov::element::Type m_output_type;
 };
 
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

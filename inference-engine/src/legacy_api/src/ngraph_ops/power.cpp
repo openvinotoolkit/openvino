@@ -10,11 +10,11 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::PowerIE::type_info;
 
-op::PowerIE::PowerIE(const Output<ngraph::Node>& data_batch, const float power, const float scale, const float shift, const element::Type output_type)
+op::PowerIE::PowerIE(const Output<ov::Node>& data_batch, const float power, const float scale, const float shift, const element::Type output_type)
     : Op({data_batch}), scale(scale), power(power), shift(shift), m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }

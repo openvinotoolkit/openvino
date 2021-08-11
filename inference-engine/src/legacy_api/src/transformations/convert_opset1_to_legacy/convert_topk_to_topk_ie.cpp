@@ -14,12 +14,12 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTopKToTopKIEMatcher, "ConvertTopKToTopKIEMatcher", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertTopKToTopKIEMatcher, "ConvertTopKToTopKIEMatcher", 0);
 
-ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
-    auto topk = ngraph::pattern::wrap_type<opset1::TopK>();
+ov::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
+    auto topk = ov::pattern::wrap_type<opset1::TopK>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+    ov::matcher_pass_callback callback = [](pattern::Matcher &m) {
         auto topk = std::dynamic_pointer_cast<opset1::TopK>(m.get_match_root());
         if (!topk || topk->input(1).get_partial_shape().rank().is_dynamic()) {
             return false;
@@ -41,7 +41,7 @@ ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
             new_ops.push_back(unsqueezed_k.get_node_shared_ptr());
         }
 
-        auto topk_ie = std::make_shared<ngraph::op::TopKIE>(topk->input_value(0), unsqueezed_k, topk->get_axis(), topk->get_mode(),
+        auto topk_ie = std::make_shared<ov::op::TopKIE>(topk->input_value(0), unsqueezed_k, topk->get_axis(), topk->get_mode(),
                                                             topk->get_sort_type(), topk->get_index_element_type());
         new_ops.push_back(topk_ie);
 
@@ -70,12 +70,12 @@ ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
             index_output.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".1");
         }
 
-        ngraph::copy_runtime_info(topk, new_ops);
+        ov::copy_runtime_info(topk, new_ops);
         topk->output(0).replace(element_output);
         topk->output(1).replace(index_output);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(topk, "ConvertTopKToTopKIE");
+    auto m = std::make_shared<ov::pattern::Matcher>(topk, "ConvertTopKToTopKIE");
     this->register_matcher(m, callback);
 }

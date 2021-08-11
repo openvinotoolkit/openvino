@@ -10,7 +10,7 @@
 #include <vector>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::GRUSequenceIE, "GRUSequenceIE", 4);
 
@@ -48,7 +48,7 @@ void op::GRUSequenceIE::validate_and_infer_types() {
     auto seq_lengths_pshape = get_input_partial_shape(2);
     auto wr_pshape = get_input_partial_shape(3);
     auto b_pshape = get_input_partial_shape(4);
-    std::vector<ngraph::PartialShape> pshapes = {x_pshape, h_state_pshape, seq_lengths_pshape, wr_pshape, b_pshape};
+    std::vector<ov::PartialShape> pshapes = {x_pshape, h_state_pshape, seq_lengths_pshape, wr_pshape, b_pshape};
 
     std::vector<std::string> in_names = {"X", "H", "seq_lengths", "WR", "B"};
     // num_direction dimension should be squeezed, we don't support bidirectional case

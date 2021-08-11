@@ -12,7 +12,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 /// \brief Operator performing Matrix Multiplication.
@@ -49,4 +49,4 @@ private:
 };
 
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

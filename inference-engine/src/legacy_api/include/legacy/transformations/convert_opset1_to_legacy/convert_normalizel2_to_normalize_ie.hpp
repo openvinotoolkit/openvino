@@ -12,22 +12,22 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertNormalizeL2WithMulToNormalizeIE);
 class INFERENCE_ENGINE_API_CLASS(ConvertNormalizeL2ToLegacyMatcher);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertNormalizeL2WithMulToNormalizeIE: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertNormalizeL2WithMulToNormalizeIE();
 };
 
-class ngraph::pass::ConvertNormalizeL2ToLegacyMatcher: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertNormalizeL2ToLegacyMatcher: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertNormalizeL2ToLegacyMatcher();

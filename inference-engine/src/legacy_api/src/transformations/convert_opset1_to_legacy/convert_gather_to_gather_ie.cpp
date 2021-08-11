@@ -11,18 +11,18 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGatherToGatherIEMatcher, "ConvertGatherToGatherIEMatcher", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertGatherToGatherIEMatcher, "ConvertGatherToGatherIEMatcher", 0);
 
-ngraph::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
-    auto gather = ngraph::pattern::wrap_type<opset1::Gather>();
+ov::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
+    auto gather = ov::pattern::wrap_type<opset1::Gather>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
-        auto gather = std::dynamic_pointer_cast<ngraph::opset1::Gather>(m.get_match_root());
+    ov::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        auto gather = std::dynamic_pointer_cast<ov::opset1::Gather>(m.get_match_root());
         if (!gather) {
             return false;
         }
 
-        auto axes_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(gather->input_value(2).get_node_shared_ptr());
+        auto axes_constant = std::dynamic_pointer_cast<ov::opset1::Constant>(gather->input_value(2).get_node_shared_ptr());
         if (!axes_constant) {
             return false;
         }
@@ -42,29 +42,29 @@ ngraph::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
         bool squeeze_gather_output = false;
         if (indices_rank.get_length() == 0) {
             squeeze_gather_output = true;
-            indices = std::make_shared<ngraph::opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
+            indices = std::make_shared<ov::opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(indices.get_node_shared_ptr());
         }
 
-        auto gather_ie = std::make_shared<ngraph::op::GatherIE>(gather->input_value(0), indices, axis);
+        auto gather_ie = std::make_shared<ov::op::GatherIE>(gather->input_value(0), indices, axis);
         new_ops.push_back(gather_ie);
 
         if (squeeze_gather_output) {
-            auto sq = std::make_shared<ngraph::opset1::Squeeze>(gather_ie,
+            auto sq = std::make_shared<ov::opset1::Squeeze>(gather_ie,
                                                                 opset1::Constant::create(element::i64, Shape{1}, {axis}));
             sq->set_friendly_name(gather->get_friendly_name());
             new_ops.push_back(sq);
 
-            ngraph::copy_runtime_info(gather, new_ops);
-            ngraph::replace_node(gather, sq);
+            ov::copy_runtime_info(gather, new_ops);
+            ov::replace_node(gather, sq);
         } else {
             gather_ie->set_friendly_name(gather->get_friendly_name());
-            ngraph::copy_runtime_info(gather, new_ops);
-            ngraph::replace_node(gather, gather_ie);
+            ov::copy_runtime_info(gather, new_ops);
+            ov::replace_node(gather, gather_ie);
         }
         return true;
     };
 
-    auto m1 = std::make_shared<ngraph::pattern::Matcher>(gather, "ConvertGatherToGatherIE");
+    auto m1 = std::make_shared<ov::pattern::Matcher>(gather, "ConvertGatherToGatherIE");
     this->register_matcher(m1, callback);
 }

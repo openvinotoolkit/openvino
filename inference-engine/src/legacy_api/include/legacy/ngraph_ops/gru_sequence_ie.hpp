@@ -15,9 +15,9 @@
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
-class INFERENCE_ENGINE_API_CLASS(GRUSequenceIE) : public ngraph::op::util::RNNCellBase {
+class INFERENCE_ENGINE_API_CLASS(GRUSequenceIE) : public ov::op::util::RNNCellBase {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -60,4 +60,4 @@ protected:
 };
 
     }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

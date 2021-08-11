@@ -12,13 +12,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertNMSToNMSIEMatcher);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /*
  * Description:
@@ -28,7 +28,7 @@ class INFERENCE_ENGINE_API_CLASS(ConvertNMSToNMSIEMatcher);
  *     we insert Unsqueeze operations.
  */
 
-class ngraph::pass::ConvertNMSToNMSIEMatcher : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertNMSToNMSIEMatcher : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertNMSToNMSIEMatcher();

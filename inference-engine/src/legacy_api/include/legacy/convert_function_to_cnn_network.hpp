@@ -19,11 +19,11 @@ namespace InferenceEngine {
 namespace details {
 
 INFERENCE_ENGINE_API_CPP(std::shared_ptr<CNNNetworkImpl>)
-convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
+convertFunctionToICNNNetwork(const std::shared_ptr<const ::ov::Function>& graph,
                              const CNNNetwork &network, bool keep_constant_inputs = false);
 
 INFERENCE_ENGINE_API_CPP(void)
-convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
+convertFunctionToICNNNetwork(const std::shared_ptr<const ::ov::Function>& graph,
                              const CNNNetwork &ngraphNetwork,
                              CNNNetworkImpl* cnnNetworkImpl,
                              bool keep_constant_inputs = false);
@@ -31,7 +31,7 @@ convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& gr
 // TODO: move ConstAllocatorWrapper class, shareWeights add addBlob into CNNLayerCreator when NodeConverter class is removed
 class ConstAllocatorWrapper : public IAllocator {
 public:
-    explicit ConstAllocatorWrapper(std::shared_ptr<ngraph::op::Constant> constOp): _constOp(std::move(constOp)) {}
+    explicit ConstAllocatorWrapper(std::shared_ptr<ov::op::Constant> constOp): _constOp(std::move(constOp)) {}
 
     void* lock(void* handle, LockOp) noexcept override {
         return handle;
@@ -48,7 +48,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ngraph::op::Constant> _constOp;
+    std::shared_ptr<ov::op::Constant> _constOp;
 };
 
 enum BlobType {
@@ -56,11 +56,11 @@ enum BlobType {
     biases
 };
 
-inline Blob::Ptr shareWeights(const std::shared_ptr<ngraph::op::Constant>& constLayer) {
+inline Blob::Ptr shareWeights(const std::shared_ptr<ov::op::Constant>& constLayer) {
     if (!constLayer) IE_THROW() << "Cannot share weights! Constant operation is empty!";
     auto dataPrecision = convertPrecision(constLayer->get_element_type());
 
-    size_t shapeSize = ngraph::shape_size(constLayer->get_shape());
+    size_t shapeSize = ov::shape_size(constLayer->get_shape());
     constexpr size_t byte_size{8};
     if (dataPrecision == Precision::BIN) {
         shapeSize = (shapeSize + (byte_size - 1)) / byte_size;
@@ -75,8 +75,8 @@ inline Blob::Ptr shareWeights(const std::shared_ptr<ngraph::op::Constant>& const
 }
 
 template <class T>
-bool addBlob(const std::shared_ptr<ngraph::Node>& weightsNode, std::shared_ptr<T>& res, BlobType type) {
-    auto constWeights = ngraph::as_type_ptr<ngraph::op::Constant>(weightsNode);
+bool addBlob(const std::shared_ptr<ov::Node>& weightsNode, std::shared_ptr<T>& res, BlobType type) {
+    auto constWeights = ov::as_type_ptr<ov::op::Constant>(weightsNode);
     if (constWeights) {
         Blob::Ptr dataBlob = shareWeights(constWeights);
         if (type == weights) {

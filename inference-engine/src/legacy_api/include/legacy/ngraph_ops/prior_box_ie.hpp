@@ -11,7 +11,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/prior_box.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(PriorBoxIE) : public Op {
@@ -26,7 +26,7 @@ public:
     /// \param attrs          PriorBox attributes
     PriorBoxIE(const Output<Node>& input,
                const Output<Node>& image,
-               const ngraph::op::PriorBoxAttrs& attrs);
+               const ov::op::PriorBoxAttrs& attrs);
 
     void validate_and_infer_types() override;
 
@@ -39,4 +39,4 @@ private:
 };
 
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

@@ -22,15 +22,15 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <transformations/utils/utils.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ReshapeFullyConnectedFusion);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ReshapeFullyConnectedFusion : public ngraph::pass::MatcherPass {
+class ov::pass::ReshapeFullyConnectedFusion : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ReshapeFullyConnectedFusion();

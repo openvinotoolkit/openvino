@@ -9,7 +9,7 @@
 #include <vector>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::LSTMCellIE::type_info;
 
@@ -37,7 +37,7 @@ void op::LSTMCellIE::validate_and_infer_types() {
     set_output_type(1, arg_type, output_shape);
 }
 
-bool ngraph::op::LSTMCellIE::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::LSTMCellIE::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);

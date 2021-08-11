@@ -8,7 +8,7 @@
 #include <numeric>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::FullyConnected::type_info;
 

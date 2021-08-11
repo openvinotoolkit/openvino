@@ -10,7 +10,7 @@
 #include <vector>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::RNNSequenceIE, "RNNSequenceIE", 4);
 
@@ -47,7 +47,7 @@ void op::RNNSequenceIE::validate_and_infer_types() {
     auto wr_pshape = get_input_partial_shape(3);
     auto b_pshape = get_input_partial_shape(4);
 
-    std::vector<ngraph::PartialShape> pshapes = {x_pshape, h_state_pshape, seq_lengths_pshape, wr_pshape, b_pshape};
+    std::vector<ov::PartialShape> pshapes = {x_pshape, h_state_pshape, seq_lengths_pshape, wr_pshape, b_pshape};
     std::vector<std::string> in_names = {"X", "H", "seq_lengths", "WR", "B"};
     // num_direction dimension should be squeezed, we don't support bidirectional case
     std::vector<size_t> ranks = {3, 2, 1, 2, 1};
@@ -80,7 +80,7 @@ bool op::RNNSequenceIE::visit_attributes(AttributeVisitor& visitor) {
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-shared_ptr<Node> op::RNNSequenceIE::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+shared_ptr<Node> op::RNNSequenceIE::clone_with_new_inputs(const ov::OutputVector &new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<op::RNNSequenceIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
              new_args.at(4), m_hidden_size, m_direction, m_activations, m_activations_alpha, m_activations_beta, m_clip, m_seq_axis);

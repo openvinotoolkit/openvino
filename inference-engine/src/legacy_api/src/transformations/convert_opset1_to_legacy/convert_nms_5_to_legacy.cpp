@@ -15,13 +15,13 @@
 
 #include "legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS5ToLegacyMatcher, "ConvertNMS5ToLegacyMatcher", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertNMS5ToLegacyMatcher, "ConvertNMS5ToLegacyMatcher", 0);
 
-ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_i32_output_type) {
-    auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
+ov::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_i32_output_type) {
+    auto nms = ov::pattern::wrap_type<ov::opset5::NonMaxSuppression>();
 
-    ngraph::matcher_pass_callback callback = [force_i32_output_type](pattern::Matcher &m) {
-        auto nms_5 = std::dynamic_pointer_cast<ngraph::opset5::NonMaxSuppression>(m.get_match_root());
+    ov::matcher_pass_callback callback = [force_i32_output_type](pattern::Matcher &m) {
+        auto nms_5 = std::dynamic_pointer_cast<ov::opset5::NonMaxSuppression>(m.get_match_root());
         if (!nms_5) {
             return false;
         }
@@ -29,9 +29,9 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
         const auto new_args = nms_5->input_values();
         const std::size_t num_of_inputs = new_args.size();
 
-        const auto& arg2 = num_of_inputs > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i32, Shape{}, {0});
-        const auto& arg3 = num_of_inputs > 3 ? new_args.at(3) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
-        const auto& arg4 = num_of_inputs > 4 ? new_args.at(4) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg2 = num_of_inputs > 2 ? new_args.at(2) : ov::opset5::Constant::create(element::i32, Shape{}, {0});
+        const auto& arg3 = num_of_inputs > 3 ? new_args.at(3) : ov::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg4 = num_of_inputs > 4 ? new_args.at(4) : ov::opset5::Constant::create(element::f32, Shape{}, {.0f});
 
         // vector of new nGraph operations
         NodeVector new_ops;
@@ -43,10 +43,10 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
         Output<Node> new_score_threshold;
         Output<Node> new_soft_nms_sigma;
 
-        Output<Node> new_shape_for_max_per_class = opset1::Constant::create(ngraph::element::i64, Shape{1}, {1});
-        Output<Node> new_shape_for_iou_threshold = opset1::Constant::create(ngraph::element::i64, Shape{1}, {1});
-        Output<Node> new_shape_for_score_threshold = opset1::Constant::create(ngraph::element::i64, Shape{1}, {1});
-        Output<Node> new_shape_for_soft_nms_sigma = opset1::Constant::create(ngraph::element::i64, Shape{1}, {1});
+        Output<Node> new_shape_for_max_per_class = opset1::Constant::create(ov::element::i64, Shape{1}, {1});
+        Output<Node> new_shape_for_iou_threshold = opset1::Constant::create(ov::element::i64, Shape{1}, {1});
+        Output<Node> new_shape_for_score_threshold = opset1::Constant::create(ov::element::i64, Shape{1}, {1});
+        Output<Node> new_shape_for_soft_nms_sigma = opset1::Constant::create(ov::element::i64, Shape{1}, {1});
 
         new_max_per_class = std::make_shared<opset1::Reshape>(arg2, new_shape_for_max_per_class, true);
         new_ops.emplace_back(new_max_per_class.get_node_shared_ptr());
@@ -59,10 +59,10 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
 
         int center_point_box = 0;
         switch (nms_5->get_box_encoding()) {
-            case ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER:
+            case ::ov::opset5::NonMaxSuppression::BoxEncodingType::CENTER:
                 center_point_box = 1;
                 break;
-            case ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER:
+            case ::ov::opset5::NonMaxSuppression::BoxEncodingType::CORNER:
                 center_point_box = 0;
                 break;
             default:
@@ -115,11 +115,11 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
         }
 
         nms_legacy->set_friendly_name(nms_5->get_friendly_name());
-        ngraph::copy_runtime_info(nms_5, new_ops);
-        ngraph::replace_node(nms_5, {output_0, nms_legacy->output(1), output_2});
+        ov::copy_runtime_info(nms_5, new_ops);
+        ov::replace_node(nms_5, {output_0, nms_legacy->output(1), output_2});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS5ToNMSLegacy");
+    auto m = std::make_shared<ov::pattern::Matcher>(nms, "ConvertNMS5ToNMSLegacy");
     this->register_matcher(m, callback);
 }

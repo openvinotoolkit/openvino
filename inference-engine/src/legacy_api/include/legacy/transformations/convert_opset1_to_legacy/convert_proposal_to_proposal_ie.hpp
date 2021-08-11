@@ -11,22 +11,22 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertProposalToLegacyMatcher);
 class INFERENCE_ENGINE_API_CLASS(ConvertProposal4ToLegacyMatcher);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertProposal4ToLegacyMatcher: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertProposal4ToLegacyMatcher: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertProposal4ToLegacyMatcher();
 };
 
-class ngraph::pass::ConvertProposalToLegacyMatcher: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertProposalToLegacyMatcher: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertProposalToLegacyMatcher();

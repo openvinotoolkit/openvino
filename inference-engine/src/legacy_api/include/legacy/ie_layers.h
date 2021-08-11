@@ -31,7 +31,7 @@
     INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
 #endif
 
-namespace ngraph {
+namespace ov {
 
 class Node;
 
@@ -96,7 +96,7 @@ struct INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(LayerParams) {
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(CNNLayer) {
 protected:
-    std::shared_ptr<ngraph::Node> node;
+    std::shared_ptr<ov::Node> node;
 public:
     /**
      * @brief A shared pointer to CNNLayer

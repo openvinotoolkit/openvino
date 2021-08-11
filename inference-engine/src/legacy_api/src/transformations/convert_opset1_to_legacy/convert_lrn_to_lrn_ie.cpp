@@ -14,20 +14,20 @@
 
 #include <legacy/ngraph_ops/lrn_ie.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLRNToLegacyMatcher, "ConvertLRNToLegacyMatcher", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertLRNToLegacyMatcher, "ConvertLRNToLegacyMatcher", 0);
 
-ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
+ov::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
     auto lrn = pattern::wrap_type<opset1::LRN>({pattern::any_input(),
                                                 pattern::wrap_type<opset1::Constant>()},
                                                 pattern::has_static_rank());
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto lrn = std::dynamic_pointer_cast<ngraph::opset1::LRN> (m.get_match_root());
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto lrn = std::dynamic_pointer_cast<ov::opset1::LRN> (m.get_match_root());
         if (!lrn) {
             return false;
         }
 
-        auto axis_const = std::dynamic_pointer_cast<ngraph::opset1::Constant> (lrn->input(1).get_source_output().get_node_shared_ptr());
+        auto axis_const = std::dynamic_pointer_cast<ov::opset1::Constant> (lrn->input(1).get_source_output().get_node_shared_ptr());
         if (!axis_const) {
             return false;
         }
@@ -52,7 +52,7 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
             region = "same";
         }
 
-        auto lrn_ie = std::make_shared<ngraph::op::LRN_IE> (lrn->input(0).get_source_output(),
+        auto lrn_ie = std::make_shared<ov::op::LRN_IE> (lrn->input(0).get_source_output(),
                                                             lrn->get_alpha(),
                                                             lrn->get_beta(),
                                                             lrn->get_bias(),
@@ -60,11 +60,11 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
                                                             region);
 
         lrn_ie->set_friendly_name(lrn->get_friendly_name());
-        ngraph::copy_runtime_info(lrn, lrn_ie);
-        ngraph::replace_node(lrn, lrn_ie);
+        ov::copy_runtime_info(lrn, lrn_ie);
+        ov::replace_node(lrn, lrn_ie);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(lrn, "ConvertLRNToLegacy");
+    auto m = std::make_shared<ov::pattern::Matcher>(lrn, "ConvertLRNToLegacy");
     this->register_matcher(m, callback);
 }

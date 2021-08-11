@@ -19,10 +19,6 @@
 #include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
 
-namespace ngraph {
-class Function;
-}  // namespace ngraph
-
 namespace InferenceEngine {
 class IExtension;
 class Blob;
@@ -30,6 +26,9 @@ class RemoteContext;
 }  // namespace InferenceEngine
 
 namespace ov {
+
+class Function;
+
 namespace runtime {
 
 /**

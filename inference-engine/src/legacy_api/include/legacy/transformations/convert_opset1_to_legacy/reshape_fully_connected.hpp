@@ -12,13 +12,13 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ReshapeFullyConnected);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /*
  * Description:
@@ -35,15 +35,15 @@ class INFERENCE_ENGINE_API_CLASS(ReshapeFullyConnected);
  * Callback example:
  *
  *     // This callback disables ReshapeFullyConnected for FC with 3D input shapes
- *     auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
- *         if (auto fc_op = std::dynamic_pointer_cast<const ngraph::op::FullyConnected>(node)) {
+ *     auto callback = [](const std::shared_ptr<const ov::Node> & node) -> bool {
+ *         if (auto fc_op = std::dynamic_pointer_cast<const ov::op::FullyConnected>(node)) {
  *             return fc_op->input_value(0).get_shape().size() == 3;
  *         }
  *     };
  *
  */
 
-class ngraph::pass::ReshapeFullyConnected: public ngraph::pass::MatcherPass {
+class ov::pass::ReshapeFullyConnected: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ReshapeFullyConnected();

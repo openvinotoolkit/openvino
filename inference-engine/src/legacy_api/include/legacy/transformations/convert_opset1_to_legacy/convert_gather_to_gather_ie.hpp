@@ -19,13 +19,13 @@
 #include "ngraph/op/unsqueeze.hpp"
 
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertGatherToGatherIEMatcher);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /*
  * Description:
@@ -34,7 +34,7 @@ class INFERENCE_ENGINE_API_CLASS(ConvertGatherToGatherIEMatcher);
  *     we unsqueeze indices input and squeeze GatherIE output.
  */
 
-class ngraph::pass::ConvertGatherToGatherIEMatcher : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertGatherToGatherIEMatcher : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertGatherToGatherIEMatcher();

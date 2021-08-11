@@ -11,7 +11,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE) : public Op {
@@ -26,7 +26,7 @@ public:
                         const Output<Node>& score_threshold,
                         int center_point_box,
                         bool sort_result_descending,
-                        const ngraph::element::Type& output_type = ngraph::element::i64);
+                        const ov::element::Type& output_type = ov::element::i64);
 
     void validate_and_infer_types() override;
 
@@ -51,7 +51,7 @@ public:
                         const Output<Node>& score_threshold,
                         int center_point_box,
                         bool sort_result_descending,
-                        const ngraph::element::Type& output_type = ngraph::element::i64);
+                        const ov::element::Type& output_type = ov::element::i64);
 
     void validate_and_infer_types() override;
 
@@ -69,7 +69,7 @@ public:
                          const Output<Node>& score_threshold,
                          int center_point_box,
                          bool sort_result_descending,
-                         const ngraph::element::Type& output_type = ngraph::element::i64);
+                         const ov::element::Type& output_type = ov::element::i64);
 
     NonMaxSuppressionIE3(const Output<Node>& boxes,
                          const Output<Node>& scores,
@@ -79,7 +79,7 @@ public:
                          const Output<Node>& soft_nms_sigma,
                          int center_point_box,
                          bool sort_result_descending,
-                         const ngraph::element::Type& output_type = ngraph::element::i64);
+                         const ov::element::Type& output_type = ov::element::i64);
 
     void validate_and_infer_types() override;
 
@@ -96,4 +96,4 @@ private:
 };
 
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

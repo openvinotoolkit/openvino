@@ -11,7 +11,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(Reshape1DOps);
@@ -20,32 +20,32 @@ class INFERENCE_ENGINE_API_CLASS(Reshape1DAvgPool);
 class INFERENCE_ENGINE_API_CLASS(Reshape1DMaxPool);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::Reshape1DConvolution: public ngraph::pass::MatcherPass {
+class ov::pass::Reshape1DConvolution: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     Reshape1DConvolution();
 };
 
-class ngraph::pass::Reshape1DAvgPool: public ngraph::pass::MatcherPass {
+class ov::pass::Reshape1DAvgPool: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     Reshape1DAvgPool();
 };
 
-class ngraph::pass::Reshape1DMaxPool: public ngraph::pass::MatcherPass {
+class ov::pass::Reshape1DMaxPool: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     Reshape1DMaxPool();
 };
 
-class ngraph::pass::Reshape1DOps: public ngraph::pass::GraphRewrite {
+class ov::pass::Reshape1DOps: public ov::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     Reshape1DOps() {
-        add_matcher<ngraph::pass::Reshape1DConvolution>();
-        add_matcher<ngraph::pass::Reshape1DAvgPool>();
-        add_matcher<ngraph::pass::Reshape1DMaxPool>();
+        add_matcher<ov::pass::Reshape1DConvolution>();
+        add_matcher<ov::pass::Reshape1DAvgPool>();
+        add_matcher<ov::pass::Reshape1DMaxPool>();
     }
 };

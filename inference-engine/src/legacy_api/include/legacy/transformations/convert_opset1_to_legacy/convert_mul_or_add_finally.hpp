@@ -11,15 +11,15 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertMulOrAddFinally);
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertMulOrAddFinally: public ngraph::pass::GraphRewrite {
+class ov::pass::ConvertMulOrAddFinally: public ov::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertMulOrAddFinally();

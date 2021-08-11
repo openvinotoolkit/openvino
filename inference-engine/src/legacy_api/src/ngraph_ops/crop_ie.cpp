@@ -12,7 +12,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::CropIE::type_info;
 
@@ -36,7 +36,7 @@ void op::CropIE::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, axes.size() == offset.size(), "axes and offset needs to have same number of values");
 
-    ngraph::Shape output_shape(input_shape);
+    ov::Shape output_shape(input_shape);
     for (size_t i = 0; i < axes.size(); ++i) {
         NODE_VALIDATION_CHECK(this, axes[i] >= 0 && axes[i] < static_cast<int64_t>(output_shape.size()),
                               "axes should be positive and less than number of input dims");
