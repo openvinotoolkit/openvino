@@ -27,7 +27,7 @@
 # define INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
 #else
 # define INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(...)                                                                           \
-    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1") \
+    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1") \
     INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
 #endif
 
@@ -35,12 +35,12 @@ namespace ov {
 
 class Node;
 
-}  // namespace ngraph
+}  // namespace ov
 
 namespace InferenceEngine {
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This is an internal common Layer parameter parsing arguments
  */
 struct INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(LayerParams) {
@@ -91,7 +91,7 @@ struct INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(LayerParams) {
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This is a base abstraction Layer - all DNN Layers inherit from this class
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(CNNLayer) {
@@ -160,7 +160,7 @@ public:
      * @brief Returns the original nGraph op
      * @return A smart pointer to nGraph op
      */
-    std::shared_ptr<ngraph::Node> getNode() {
+    std::shared_ptr<ov::Node> getNode() {
         return node;
     }
 
@@ -432,7 +432,7 @@ INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data * 
 _IE_SUPPRESS_DEPRECATED_START_MSVC
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a layer with Weights and/or Biases (e.g. Convolution/Fully Connected, etc.)
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(WeightableLayer): public CNNLayer {
@@ -475,7 +475,7 @@ public:
     unsigned int& prop_name##_y = prop_name.at(Y_AXIS)
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard 3D Convolution Layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ConvolutionLayer): public WeightableLayer {
@@ -555,7 +555,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard deconvolution layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(DeconvolutionLayer): public ConvolutionLayer {
@@ -567,7 +567,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard deformable convolution layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(DeformableConvolutionLayer): public ConvolutionLayer {
@@ -584,7 +584,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard pooling layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(PoolingLayer): public CNNLayer {
@@ -666,7 +666,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard binary convolution layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(BinaryConvolutionLayer): public WeightableLayer {
@@ -771,7 +771,7 @@ public:
 #undef DEFINE_PROP
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a fully connected layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(FullyConnectedLayer): public WeightableLayer {
@@ -790,7 +790,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents concatenation layer
  *
  * Takes as input several data elements and merges them to one using the supplied axis
@@ -814,7 +814,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a layer that evenly splits the input into the supplied outputs
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(SplitLayer): public CNNLayer {
@@ -833,7 +833,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Linear Response Normalization (LRN) Layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(NormLayer): public CNNLayer {
@@ -868,7 +868,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents standard softmax Layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(SoftMaxLayer): public CNNLayer {
@@ -886,7 +886,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents standard GRN Layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(GRNLayer): public CNNLayer {
@@ -906,7 +906,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents standard MVN Layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(MVNLayer): public CNNLayer {
@@ -931,7 +931,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Rectified Linear activation layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ReLULayer): public CNNLayer {
@@ -950,7 +950,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Clamp activation layer
  *
  * Clamps all tensor elements into the range [min_value, max_value]
@@ -975,7 +975,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a ReLU6 activation layer
  *
  * Clamps all tensor elements into the range [0, 6.0]
@@ -996,7 +996,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents an element wise operation layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(EltwiseLayer): public CNNLayer {
@@ -1048,7 +1048,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard crop layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(CropLayer): public CNNLayer {
@@ -1075,7 +1075,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard reshape layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ReshapeLayer): public CNNLayer {
@@ -1102,7 +1102,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Tile Layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(TileLayer): public CNNLayer {
@@ -1125,7 +1125,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Layer which performs Scale and Shift
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ScaleShiftLayer): public WeightableLayer {
@@ -1145,7 +1145,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents TensorIterator layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(TensorIterator): public CNNLayer {
@@ -1183,7 +1183,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief Base class for recurrent cell layers
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(RNNCellBase): public WeightableLayer {
@@ -1242,7 +1242,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief LSTM Cell layer
  *
  * G - number of gates (=4)
@@ -1288,7 +1288,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief GRU Cell layer
  *
  * G - number of gates (=3)
@@ -1330,7 +1330,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief RNN Cell layer
  *
  * G - number of gates (=1)
@@ -1367,7 +1367,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief Sequence of recurrent cells
  *
  * N  - batch size
@@ -1423,7 +1423,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Layer which performs Scale and Shift
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(PReLULayer): public WeightableLayer {
@@ -1446,7 +1446,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Power Layer
  *
  * Formula is: output = (offset + scale * input) ^ power
@@ -1475,7 +1475,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a Batch Normalization Layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(BatchNormalizationLayer): public WeightableLayer {
@@ -1494,7 +1494,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a general matrix multiplication operation layer
  *
  * Formula is: dst := alpha*src1*src2 + beta*src3
@@ -1526,7 +1526,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Pad layer
  *
  * Adds paddings to input tensor
@@ -1564,7 +1564,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Gather layer
  *
  * Gather slices from Dictionary according to Indexes
@@ -1584,7 +1584,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Strided Slice layer
  *
  * Strided Slice picks from input tensor according parameters
@@ -1625,7 +1625,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Shuffle Channels layer
  * Shuffle Channels picks from input tensor according parameters
  */
@@ -1650,7 +1650,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Depth To Space layer
  * Depth To Space picks from input tensor according parameters
  */
@@ -1670,7 +1670,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Space To Depth layer
  * Space To Depth picks from input tensor according parameters
  */
@@ -1690,7 +1690,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Space To Batch layer
  *
  * Space To Batch picks from input tensor according parameters
@@ -1720,7 +1720,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Batch To Space layer
  *
  * Batch To Space picks from input tensor according parameters
@@ -1753,7 +1753,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents SparseFillEmptyRows layer
  *
  * SparseFillEmptyRows fills empty rows in a sparse tensor
@@ -1769,7 +1769,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents SparseSegmentMean(SqrtN, Sum) layers
  * SparseSegmentMean(SqrtN, Sum) layer reduces data along sparse segments of a tensor.
  */
@@ -1784,7 +1784,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents ExperimentalSparseWeightedReduce layer
  * ExperimentalSparseWeightedReduce layer reduces data along sparse segments of a tensor.
  */
@@ -1799,7 +1799,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents SparseToDense layer
  * SparseToDense layer converts a sparse tensor to a dense tensor.
  */
@@ -1814,7 +1814,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents Bucketize layer
  * Bucketize layer bucketizes the input based on the boundaries.
  */
@@ -1834,7 +1834,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Reverse Sequence layer
  *
  * Reverse Sequence modifies input tensor according parameters
@@ -1860,7 +1860,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a OneHot layer
  * Converts input into OneHot representation.
  */
@@ -1895,7 +1895,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard RangeLayer layer
  *
  * RangeLayer modifies input tensor dimensions according parameters
@@ -1911,7 +1911,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Fill layer
  *
  * RFill modifies input tensor according parameters
@@ -1927,7 +1927,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a SelectLayer layer
  *
  * SelectLayer layer takes elements from the second (“then”) or the third (“else”) input based on condition mask
@@ -1945,7 +1945,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Broadcast layer
  *
  * Broadcast modifies input tensor dimensions according parameters
@@ -1961,7 +1961,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a quantization operation layer
  *
  * Element-wise linear quantization of floating point input values into a descrete set of floating point values
@@ -1982,7 +1982,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Math layers
  *
  * Math modifies input tensor dimensions according parameters
@@ -1998,7 +1998,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Reduce layers
  *
  * Reduce modifies input tensor according parameters
@@ -2019,7 +2019,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard TopK layer
  *
  * TopK picks top K values from input tensor according parameters
@@ -2048,7 +2048,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents Unique layer.
  *
  * The Unique operation searches for unique elements in 1-D input
@@ -2077,7 +2077,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard NonMaxSuppression layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(NonMaxSuppressionLayer): public CNNLayer {
@@ -2104,7 +2104,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard ScatterUpdate layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ScatterUpdateLayer): public CNNLayer {
@@ -2118,7 +2118,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard ScatterElementsUpdate layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ScatterElementsUpdateLayer): public CNNLayer {
@@ -2132,7 +2132,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @deprecated Migrate to IR v10 and work with ov::Function directly. The method will be removed in 2021.1
  * @brief This class represents an onnx ExperimentalDetectronPriorGridGenerator Layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ExperimentalDetectronPriorGridGeneratorLayer): public CNNLayer {
