@@ -129,7 +129,7 @@ class If(Op):
         outputs_mapping = {}
         outputs_number = len(if_node.out_ports())
 
-        if outputs_number == 0 and len(if_node.out_ports(True)) != 0:
+        if outputs_number == 0 and len(if_node.out_ports(control_=True)) != 0:
             # Some models have if with control flow outputs.
             # These shape inference for such ifs
             # TODO: need to rethink and redo support for control flow edges in if operation

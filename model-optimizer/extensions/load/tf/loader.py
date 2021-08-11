@@ -138,12 +138,8 @@ def graph_or_sub_graph_has_nhwc_ops(graph: Graph):
             NHWC_conv_detected = True
             break
 
-        # for the Loop node we need to check that the body does not contain marker ops as well
-        if node.op == 'Loop':
-            NHWC_conv_detected |= graph_or_sub_graph_has_nhwc_ops(node.body)
+        if node.has('sub_graphs'):
+            for sub_graph_name in node['sub_graphs']:
+                NHWC_conv_detected |= graph_or_sub_graph_has_nhwc_ops(node.soft_get(sub_graph_name))
 
-        if node.op == 'If':
-            NHWC_conv_detected |= graph_or_sub_graph_has_nhwc_ops(node.then_graph)
-            NHWC_conv_detected |= graph_or_sub_graph_has_nhwc_ops(node.else_graph)
-            
     return NHWC_conv_detected
