@@ -17,11 +17,11 @@
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::SubtractTransformation, "SubtractTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::SubtractTransformation, "SubtractTransformation", 0);
 
 SubtractTransformation::SubtractTransformation(const Params& params) : LayerTransformation(params) {
     auto convert = pattern::wrap_type<opset1::Convert>();
@@ -29,7 +29,7 @@ SubtractTransformation::SubtractTransformation(const Params& params) : LayerTran
     auto subParent = std::make_shared<pattern::op::Or>(OutputVector{ convert, multiply });
     auto subtract = pattern::wrap_type<opset1::Subtract>({ subParent, pattern::wrap_type<opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -37,26 +37,26 @@ SubtractTransformation::SubtractTransformation(const Params& params) : LayerTran
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(subtract, "SubtractTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(subtract, "SubtractTransformation");
     this->register_matcher(m, callback);
 }
 
-bool SubtractTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool SubtractTransformation::transform(TransformationContext& context, ov::pattern::Matcher &m) {
     std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(m.get_match_root());
     if (!canBeTransformed(context, subtract)) {
         return false;
     }
 
-    const ngraph::element::Type originalPrecision = subtract->get_output_element_type(0);
+    const ov::element::Type originalPrecision = subtract->get_output_element_type(0);
 
-    const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(subtract);
+    const FakeQuantizeDequantization dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(subtract);
     if (dequantization.multiply != nullptr) {
         // before: Y = X * SC - SH, after:  Y = (X - SH') * SC
         //    X * SC - SH = X * SC - SH' * SC
         //    SH' = SH / SC
         std::shared_ptr<opset1::Subtract> newSubtract = as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
             dequantization.multiply->get_input_node_shared_ptr(0),
-            ngraph::pass::low_precision::fold<ngraph::opset1::Divide>(
+            ov::pass::low_precision::fold<ov::opset1::Divide>(
                 subtract->get_input_node_shared_ptr(1),
                 dequantization.multiply->get_input_node_shared_ptr(1))
         }));
@@ -73,7 +73,7 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
     if (dequantization.subtract != nullptr) {
         std::shared_ptr<opset1::Subtract> newSubtract = as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
             dequantization.subtract->get_input_node_shared_ptr(0),
-            ngraph::pass::low_precision::fold<ngraph::opset1::Add>(
+            ov::pass::low_precision::fold<ov::opset1::Add>(
                 subtract->get_input_node_shared_ptr(1),
                 dequantization.subtract->get_input_node_shared_ptr(1))
         }));
@@ -96,4 +96,4 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

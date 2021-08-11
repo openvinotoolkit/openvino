@@ -14,7 +14,7 @@
 #include "low_precision/rt_info/attribute_parameters.hpp"
 #include "low_precision/lpt_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 class IntervalsAlignmentAttribute;
 
 class LP_TRANSFORMATIONS_API IntervalsAlignmentSharedValue : public SharedValue<IntervalsAlignmentAttribute> {
@@ -63,7 +63,7 @@ public:
 
 using IntervalsAlignmentAttributePtr = std::shared_ptr<IntervalsAlignmentAttribute>;
 
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<IntervalsAlignmentAttributePtr>;
+extern template class LP_TRANSFORMATIONS_API ov::VariantImpl<IntervalsAlignmentAttributePtr>;
 
 template<>
 class LP_TRANSFORMATIONS_API VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>> :
@@ -80,9 +80,9 @@ public:
     std::shared_ptr<IntervalsAlignmentAttribute> get() const { return this->m_value; }
 
     static std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> create(
-        const std::shared_ptr<ngraph::Node>& node,
+        const std::shared_ptr<ov::Node>& node,
         const AttributeParameters& params);
     void merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>>>& attributes);
     std::string to_string() override;
 };
-} // namespace ngraph
+} // namespace ov

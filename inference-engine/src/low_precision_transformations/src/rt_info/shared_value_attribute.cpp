@@ -13,4 +13,4 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph;
+using namespace ov;

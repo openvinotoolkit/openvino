@@ -11,9 +11,9 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ConvertSubtractConstant, "ConvertSubtractConstant", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::ConvertSubtractConstant, "ConvertSubtractConstant", 0);
 
 // Original (FP16 as example, I8 in constantPrecisions):
 //
@@ -35,15 +35,15 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ConvertSubtractConstant, "Co
 //         \ FP16   / FP16
 //          Multiply
 //
-ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(const std::vector<ngraph::element::Type>& constantPrecisions) {
-    auto weightsConstantWrapper = ngraph::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
-    auto weightsConvertWrapper = ngraph::pattern::wrap_type<opset1::Convert>({ weightsConstantWrapper }, pattern::consumers_count(1));
-    auto subtractConstantWrapper = ngraph::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
-    auto subtractWrapper = ngraph::pattern::wrap_type<opset1::Subtract>({ weightsConvertWrapper, subtractConstantWrapper }, pattern::consumers_count(1));
-    auto multiplyConstantWrapper = ngraph::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
-    auto multiplyWrapper = ngraph::pattern::wrap_type<opset1::Multiply>({ subtractWrapper, multiplyConstantWrapper }, pattern::consumers_count(1));
+ov::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(const std::vector<ov::element::Type>& constantPrecisions) {
+    auto weightsConstantWrapper = ov::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
+    auto weightsConvertWrapper = ov::pattern::wrap_type<opset1::Convert>({ weightsConstantWrapper }, pattern::consumers_count(1));
+    auto subtractConstantWrapper = ov::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
+    auto subtractWrapper = ov::pattern::wrap_type<opset1::Subtract>({ weightsConvertWrapper, subtractConstantWrapper }, pattern::consumers_count(1));
+    auto multiplyConstantWrapper = ov::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
+    auto multiplyWrapper = ov::pattern::wrap_type<opset1::Multiply>({ subtractWrapper, multiplyConstantWrapper }, pattern::consumers_count(1));
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
+    ov::matcher_pass_callback callback = [=](ov::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         const auto weightsConvert = opsMap.at(weightsConvertWrapper).get_node_shared_ptr();
         const auto quantizePrecision = weightsConvert->get_input_element_type(0);
@@ -51,7 +51,7 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
 
         // validation by Convert operation input precisions
         if (!constantPrecisions.empty()) {
-            const ngraph::element::Type inputPrecision = quantizePrecision;
+            const ov::element::Type inputPrecision = quantizePrecision;
             if (std::find(constantPrecisions.begin(), constantPrecisions.end(), inputPrecision) == constantPrecisions.end()) {
                 return false;
             }
@@ -93,6 +93,6 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(multiplyWrapper, "ConvertSubtractConstant");
+    auto m = std::make_shared<ov::pattern::Matcher>(multiplyWrapper, "ConvertSubtractConstant");
     this->register_matcher(m, callback);
 }

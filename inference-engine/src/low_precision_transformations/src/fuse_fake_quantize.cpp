@@ -9,16 +9,16 @@
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FuseFakeQuantizeTransformation, "FuseFakeQuantizeTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::FuseFakeQuantizeTransformation, "FuseFakeQuantizeTransformation", 0);
 
 FuseFakeQuantizeTransformation::FuseFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::FakeQuantize>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -26,12 +26,12 @@ FuseFakeQuantizeTransformation::FuseFakeQuantizeTransformation(const Params& par
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FuseFakeQuantizeTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "FuseFakeQuantizeTransformation");
     this->register_matcher(m, callback);
 }
 
-bool FuseFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::FakeQuantize> fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(m.get_match_root());
+bool FuseFakeQuantizeTransformation::transform(TransformationContext& context, ov::pattern::Matcher &m) {
+    std::shared_ptr<opset1::FakeQuantize> fakeQuantize = as_type_ptr<ov::opset1::FakeQuantize>(m.get_match_root());
     do {
         fakeQuantize = handle(context, fakeQuantize);
     } while (fakeQuantize != nullptr);
@@ -45,7 +45,7 @@ std::shared_ptr<Node> updateShape(std::shared_ptr<Node> op, const Shape& targetS
     if ((shape.size() < targetShape.size()) && (shape.size() > 1ul)) {
         op = fold<opset1::Unsqueeze>(
             op,
-            std::make_shared<opset1::Constant>(ngraph::element::i32, Shape{ 1 }, std::vector<size_t>({ 0ul })));
+            std::make_shared<opset1::Constant>(ov::element::i32, Shape{ 1 }, std::vector<size_t>({ 0ul })));
     }
     return op;
 }
@@ -173,4 +173,4 @@ bool FuseFakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> 
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

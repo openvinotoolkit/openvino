@@ -12,16 +12,16 @@
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::TransposeTransformation, "TransposeTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::TransposeTransformation, "TransposeTransformation", 0);
 
 TransposeTransformation::TransposeTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::Transpose>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -29,7 +29,7 @@ TransposeTransformation::TransposeTransformation(const Params& params) : LayerTr
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "TransposeTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "TransposeTransformation");
     this->register_matcher(m, callback);
 }
 
@@ -86,7 +86,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
     }
 }
 
-bool TransposeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool TransposeTransformation::transform(TransformationContext& context, ov::pattern::Matcher &m) {
     std::shared_ptr<Node> transpose = m.get_match_root();
     if (!canBeTransformed(context, transpose)) {
         return false;
@@ -120,7 +120,7 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
             }
         }
         if (dequantization.multiply != nullptr) {
-            const auto mulConst = as_type_ptr<ngraph::op::v0::Constant>(dequantization.multiplyConstant);
+            const auto mulConst = as_type_ptr<ov::op::v0::Constant>(dequantization.multiplyConstant);
             if (!NetworkHelper::isScalarLike(mulConst)) {
                 return false;
             }
@@ -162,4 +162,4 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

@@ -12,7 +12,7 @@
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
-namespace ngraph {
+namespace ov {
 class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
 };
 
@@ -33,7 +33,7 @@ public:
 
     AvgPoolPrecisionPreservedAttributePtr get() { return this->m_value; }
 
-    void merge(std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AvgPoolPrecisionPreservedAttribute>>>>& attributes);
+    void merge(std::vector<std::shared_ptr<ov::VariantWrapper<std::shared_ptr<AvgPoolPrecisionPreservedAttribute>>>>& attributes);
     std::string to_string() override;
 };
-} // namespace ngraph
+} // namespace ov

@@ -12,7 +12,7 @@
 #include "common/operation_per_tensor_quantization_restriction.hpp"
 #include "low_precision/lpt_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -20,9 +20,9 @@ class LP_TRANSFORMATIONS_API MarkupPerTensorQuantization;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::low_precision::MarkupPerTensorQuantization : public ngraph::pass::FunctionPass {
+class ov::pass::low_precision::MarkupPerTensorQuantization : public ov::pass::FunctionPass {
 public:
     class PerTensorQuantization {
     public:
@@ -37,7 +37,7 @@ public:
 
     NGRAPH_RTTI_DECLARATION;
     explicit MarkupPerTensorQuantization(const std::vector<OperationPerTensorQuantizationRestriction>& restrictions = {});
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
 
 private:
     std::unordered_map<std::string, PerTensorQuantization> restrictionsByOperation;

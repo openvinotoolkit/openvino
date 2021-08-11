@@ -11,16 +11,16 @@
 
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FakeQuantizeTransformation, "FakeQuantizeTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::FakeQuantizeTransformation, "FakeQuantizeTransformation", 0);
 
 FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::FakeQuantize>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -29,11 +29,11 @@ FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : L
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FakeQuantizeTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "FakeQuantizeTransformation");
     this->register_matcher(m, callback);
 }
 
-bool FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool FakeQuantizeTransformation::transform(TransformationContext& context, ov::pattern::Matcher &m) {
     std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
     if (!QuantizationDetails::outputLayoutIsSupported(layer)) {
         return false;
@@ -60,7 +60,7 @@ static std::shared_ptr<Node> updateShape(std::shared_ptr<Node> constantOp, const
     if ((shape.size() < static_cast<size_t>(targetShape.rank().get_length())) && (shape.size() > 1ul)) {
         constantOp = fold<opset1::Unsqueeze>(
             constantOp,
-            std::make_shared<opset1::Constant>(ngraph::element::i32, Shape{ 1 }, std::vector<size_t>({ 0ul })));
+            std::make_shared<opset1::Constant>(ov::element::i32, Shape{ 1 }, std::vector<size_t>({ 0ul })));
     }
     return constantOp;
 }
@@ -200,7 +200,7 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     matcherPass->register_new_node(newFakeQuantize);
 
     replace_node(fakeQuantize, newFakeQuantize);
-    ngraph::copy_runtime_info({ fakeQuantize, eltwise }, newFakeQuantize);
+    ov::copy_runtime_info({ fakeQuantize, eltwise }, newFakeQuantize);
     newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
     NetworkHelper::cleanRunTimeInfo(newFakeQuantize);
     return newFakeQuantize;
@@ -211,4 +211,4 @@ bool FakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> laye
 }
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

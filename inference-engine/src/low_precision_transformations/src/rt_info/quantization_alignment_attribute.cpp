@@ -12,23 +12,23 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass::low_precision;
 
 QuantizationAlignmentAttribute::QuantizationAlignmentAttribute(const bool hasToBeAligned) {
     sharedValue = std::make_shared<QuantizationAlignmentSharedValue>(hasToBeAligned);
 }
 
-template class ngraph::VariantImpl<QuantizationAlignmentAttributePtr>;
+template class ov::VariantImpl<QuantizationAlignmentAttributePtr>;
 
 constexpr VariantTypeInfo VariantWrapper<QuantizationAlignmentAttributePtr>::type_info;
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAlignmentAttributePtr>::init(const std::shared_ptr<ngraph::Node>& node) {
+std::shared_ptr<ov::Variant> VariantWrapper<QuantizationAlignmentAttributePtr>::init(const std::shared_ptr<ov::Node>& node) {
     return nullptr;
 }
 
 std::shared_ptr<VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>>> VariantWrapper<QuantizationAlignmentAttributePtr>::create(
-    const std::shared_ptr<ngraph::Node>& node,
+    const std::shared_ptr<ov::Node>& node,
     const AttributeParameters& params) {
     if (getAttribute<std::shared_ptr<QuantizationAlignmentAttribute>>(node) != nullptr) {
         return nullptr;
@@ -65,9 +65,9 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>>>
 
     if (leastOneOperationIsFakeQuantize && !leastOneOperationIsNotFakeQuantize) {
         auto& rt = node->get_rt_info();
-        const auto attribute = std::make_shared<ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>>(
+        const auto attribute = std::make_shared<ov::VariantWrapper<QuantizationAlignmentAttributePtr>>(
             make_shared_attribute<QuantizationAlignmentAttribute>());
-        rt[ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name] = attribute;
+        rt[ov::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name] = attribute;
         return attribute;
     }
 

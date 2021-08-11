@@ -18,5 +18,5 @@
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass::low_precision;

@@ -16,7 +16,7 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/lpt_itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -25,13 +25,13 @@ class PropagateThroughPrecisionPreserved;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 template <typename AttributeType>
-class ngraph::pass::low_precision::PropagateThroughPrecisionPreserved : public ngraph::pass::MatcherPass {
+class ov::pass::low_precision::PropagateThroughPrecisionPreserved : public ov::pass::MatcherPass {
 public:
     PropagateThroughPrecisionPreserved() {
-        ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
+        ov::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {
                 return false;
@@ -40,7 +40,7 @@ public:
             {
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "PropagateThroughPrecisionPreserved");
 
-                if (!ngraph::pass::low_precision::NetworkHelper::isPrecisionPreserved(node)) {
+                if (!ov::pass::low_precision::NetworkHelper::isPrecisionPreserved(node)) {
                     return false;
                 }
 
@@ -51,7 +51,7 @@ public:
 
                 auto resultAttribute = parentRestrictions[0];
 
-                std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>>> toMerge = parentRestrictions;
+                std::vector<std::shared_ptr<ov::VariantWrapper<std::shared_ptr<AttributeType>>>> toMerge = parentRestrictions;
                 // TODO: LPT: handle pointer on itself in VariantWrapper<IntervalsAlignmentAttributePtr>::merge and remove erase, task #59498
                 toMerge.erase(toMerge.begin());
                 resultAttribute->merge(toMerge);
@@ -69,20 +69,20 @@ public:
                 }
 
                 auto &rt = node->get_rt_info();
-                rt[ngraph::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name] = resultAttribute;
+                rt[ov::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name] = resultAttribute;
             }
             return true;
         };
 
-        auto matcher = std::make_shared<ngraph::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
+        auto matcher = std::make_shared<ov::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
         this->register_matcher(matcher, callback);
     }
 
 private:
-    std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> getSourceOutputAttribute(const Input<Node>& input) {
+    std::shared_ptr<ov::VariantWrapper<std::shared_ptr<AttributeType>>> getSourceOutputAttribute(const Input<Node>& input) {
         auto input2 = input;
         auto output = input2.get_source_output();
-        std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> attribute = getAttributeFromOutput<std::shared_ptr<AttributeType>>(output);
+        std::shared_ptr<ov::VariantWrapper<std::shared_ptr<AttributeType>>> attribute = getAttributeFromOutput<std::shared_ptr<AttributeType>>(output);
         if (attribute == nullptr) {
             attribute = getAttribute<std::shared_ptr<AttributeType>>(output.get_node_shared_ptr());
         }
@@ -90,10 +90,10 @@ private:
     }
 
     // TODO: possible duplicate: PropagateToInput::getSourceOutputAttribute
-    std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>>> getParentInputRestrictions(
-        const std::shared_ptr<ngraph::Node> node) {
-        std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>>> parentAttributes;
-        auto getInput = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) -> Input<Node> {
+    std::vector<std::shared_ptr<ov::VariantWrapper<std::shared_ptr<AttributeType>>>> getParentInputRestrictions(
+        const std::shared_ptr<ov::Node> node) {
+        std::vector<std::shared_ptr<ov::VariantWrapper<std::shared_ptr<AttributeType>>>> parentAttributes;
+        auto getInput = [](const std::shared_ptr<ov::Node>& node, const size_t index) -> Input<Node> {
             const auto dequantization = NetworkHelper::getDequantization(node, index);
             if (!dequantization.empty() &&
                 is_type<opset1::Convert>(dequantization.data.get_node()) &&

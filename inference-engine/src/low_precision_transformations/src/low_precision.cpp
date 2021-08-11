@@ -76,9 +76,9 @@
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/subtract_multiply_to_multiply_add.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::LowPrecision, "LowPrecision", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::LowPrecision, "LowPrecision", 0);
 
-ngraph::pass::low_precision::LowPrecision::LowPrecision(
+ov::pass::low_precision::LowPrecision::LowPrecision(
     const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
     const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions,
     const LayerTransformation::Params params) :
@@ -87,11 +87,11 @@ ngraph::pass::low_precision::LowPrecision::LowPrecision(
     params(params) {
 }
 
-using namespace ngraph::pass::low_precision;
+using namespace ov::pass::low_precision;
 
 template <typename BaseOp>
-void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
-    using namespace ngraph;
+void make_matcher_type_relaxed(ov::pass::GraphRewrite* transformation) {
+    using namespace ov;
 
     auto is_op_type = [](std::shared_ptr<Node> n) {
         return !!as_type_ptr<BaseOp>(n);
@@ -99,9 +99,9 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
 
     auto p_node = std::make_shared<pattern::op::Label>(element::f32, Shape{}, is_op_type);
 
-    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [](ov::pattern::Matcher& m) {
         auto l_node = std::dynamic_pointer_cast<BaseOp>(m.get_match_root());
-        if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(l_node)) {
+        if (std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(l_node)) {
             return false;
         }
         if (!l_node) {
@@ -120,22 +120,22 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
             outputPrecisions.push_back(output.get_element_type());
         }
 
-        auto replacement = std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(*l_node, inputPrecisions, outputPrecisions);
+        auto replacement = std::make_shared<ov::op::TypeRelaxed<BaseOp>>(*l_node, inputPrecisions, outputPrecisions);
 
         copy_runtime_info(l_node, replacement);
         replace_node(l_node, replacement);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(p_node, "TypeRelaxedReplacer");
+    auto m = std::make_shared<ov::pattern::Matcher>(p_node, "TypeRelaxedReplacer");
     NGRAPH_SUPPRESS_DEPRECATED_START
-    transformation->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    transformation->add_matcher(m, callback, ov::pass::PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::TypeRelaxedReplacer, "TypeRelaxedReplacer", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::TypeRelaxedReplacer, "TypeRelaxedReplacer", 0);
 
-ngraph::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
+ov::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::Add>(this);
     make_matcher_type_relaxed<opset1::AvgPool>(this);
     make_matcher_type_relaxed<opset1::Clamp>(this);
@@ -156,7 +156,7 @@ ngraph::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset4::Interpolate>(this);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupOptimizations, "MarkupOptimizations", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::MarkupOptimizations, "MarkupOptimizations", 0);
 
 MarkupOptimizations::MarkupOptimizations(
     const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
@@ -164,8 +164,8 @@ MarkupOptimizations::MarkupOptimizations(
     precisionRestrictions(precisionRestrictions),
     quantizationRestrictions(quantizationRestrictions) {}
 
-bool ngraph::pass::low_precision::MarkupOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    ngraph::pass::Manager markup(get_pass_config());
+bool ov::pass::low_precision::MarkupOptimizations::run_on_function(std::shared_ptr<ov::Function> f) {
+    ov::pass::Manager markup(get_pass_config());
     markup.set_per_pass_validation(false);
     markup.register_pass<low_precision::MarkupCanBeQuantized>();
     if (!precisionRestrictions.empty()) {
@@ -174,11 +174,11 @@ bool ngraph::pass::low_precision::MarkupOptimizations::run_on_function(std::shar
     if (!quantizationRestrictions.empty()) {
         markup.register_pass<low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
     }
-    if (ngraph::op::util::has_op_with_type<ngraph::opset1::AvgPool>(f)) {
+    if (ov::op::util::has_op_with_type<ov::opset1::AvgPool>(f)) {
         markup.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>();
     }
     markup.register_pass<low_precision::PropagatePrecisions>();
-    if (ngraph::op::util::has_op_with_type<ngraph::opset1::Concat>(f)) {
+    if (ov::op::util::has_op_with_type<ov::opset1::Concat>(f)) {
         markup.register_pass<low_precision::AlignQuantizationIntervals>();
         markup.register_pass<low_precision::AlignQuantizationParameters>();
     }
@@ -186,74 +186,74 @@ bool ngraph::pass::low_precision::MarkupOptimizations::run_on_function(std::shar
     return false;
 }
 
-bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<ov::Function> f) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecision");
 
     auto passConfig = get_pass_config();
-    ngraph::pass::Manager manager(passConfig);
+    ov::pass::Manager manager(passConfig);
 
-    auto prerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
-    const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
+    auto prerequisites = manager.register_pass<ov::pass::GraphRewrite>();
+    const std::vector<ov::element::Type> supportedTypes = {ov::element::i8, ov::element::u8};
     prerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
-    prerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+    prerequisites->add_matcher<ov::pass::LinOpSequenceFusion>();
 
     manager.register_pass<TypeRelaxedReplacer>();
 
-    manager.register_pass<ngraph::pass::low_precision::MarkupOptimizations>(precisionRestrictions, quantizationRestrictions);
+    manager.register_pass<ov::pass::low_precision::MarkupOptimizations>(precisionRestrictions, quantizationRestrictions);
 
-    std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
-    common->add_matcher<ngraph::pass::low_precision::AddTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::AvgPoolTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ClampTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ConvolutionTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::DepthToSpaceTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::FakeQuantizeTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::InterpolateTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::GroupConvolutionTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::MatMulTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::MaxPoolTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::MultiplyTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::MVNTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::NormalizeL2Transformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::PReluTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ReduceMaxTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ReduceMeanTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ReduceMinTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ReduceSumTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ReluTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ReshapeTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::SqueezeTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::ShuffleChannelsTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::SplitTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::StridedSliceTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::TransposeTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::UnsqueezeTransformation>(params);
-    common->add_matcher<ngraph::pass::low_precision::VariadicSplitTransformation>(params);
+    std::shared_ptr<ov::pass::GraphRewrite> common = manager.register_pass<ov::pass::GraphRewrite>();
+    common->add_matcher<ov::pass::low_precision::AddTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::AvgPoolTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::ClampTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::ConcatTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::ConvolutionTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::ConvolutionBackpropDataTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::DepthToSpaceTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::FakeQuantizeDecompositionTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::FakeQuantizeTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::InterpolateTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::GroupConvolutionTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::MatMulTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::MaxPoolTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::MultiplyTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::MVNTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::NormalizeL2Transformation>(params);
+    common->add_matcher<ov::pass::low_precision::PReluTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::ReduceMaxTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::ReduceMeanTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::ReduceMinTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::ReduceSumTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::ReluTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::ReshapeTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::SqueezeTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::ShuffleChannelsTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::SplitTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::StridedSliceTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::TransposeTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::UnsqueezeTransformation>(params);
+    common->add_matcher<ov::pass::low_precision::VariadicSplitTransformation>(params);
 
-    std::shared_ptr<ngraph::pass::GraphRewrite> cleanup = manager.register_pass<ngraph::pass::GraphRewrite>();
-    cleanup->add_matcher<ngraph::pass::low_precision::FoldConvertTransformation>(params);
-    cleanup->add_matcher<ngraph::pass::low_precision::FuseConvertTransformation>(params);
-    cleanup->add_matcher<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>(params);
-    cleanup->add_matcher<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>(params);
+    std::shared_ptr<ov::pass::GraphRewrite> cleanup = manager.register_pass<ov::pass::GraphRewrite>();
+    cleanup->add_matcher<ov::pass::low_precision::FoldConvertTransformation>(params);
+    cleanup->add_matcher<ov::pass::low_precision::FuseConvertTransformation>(params);
+    cleanup->add_matcher<ov::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>(params);
+    cleanup->add_matcher<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>(params);
     // WA: precision restrictions for groupConv must be propagated to MultiplyToGroupConvolution transformation
-    cleanup->add_matcher<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>(
+    cleanup->add_matcher<ov::pass::low_precision::MultiplyToGroupConvolutionTransformation>(
         params,
         OperationPrecisionRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions));
-    manager.register_pass<ngraph::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation>(params);
-    manager.register_pass<ngraph::pass::low_precision::FoldFakeQuantizeTransformation>(params);
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ov::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation>(params);
+    manager.register_pass<ov::pass::low_precision::FoldFakeQuantizeTransformation>(params);
+    manager.register_pass<ov::pass::ConstantFolding>();
 
     manager.run_passes(f);
     return false;
 }
 
-bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::shared_ptr<const ngraph::Function>& function) {
-    std::set<std::shared_ptr<ngraph::Node>> handledNodes;
-    std::deque<std::shared_ptr<ngraph::Node>> nodes;
+bool ov::pass::low_precision::LowPrecision::isFunctionQuantized(const std::shared_ptr<const ov::Function>& function) {
+    std::set<std::shared_ptr<ov::Node>> handledNodes;
+    std::deque<std::shared_ptr<ov::Node>> nodes;
     for (auto result : function->get_results()) {
         nodes.push_front(result);
     }
@@ -268,7 +268,7 @@ bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::s
                 continue;
             }
 
-            const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
+            const std::shared_ptr<ov::opset1::FakeQuantize> fakeQuantize = as_type_ptr<ov::opset1::FakeQuantize>(parent);
             if ((fakeQuantize != nullptr) &&
                 QuantizationDetails::outputLayoutIsSupported(fakeQuantize) &&
                 QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {

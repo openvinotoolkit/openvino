@@ -15,7 +15,7 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -24,13 +24,13 @@ class PropagateToInput;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 template <typename AttributeType>
-class ngraph::pass::low_precision::PropagateToInput : public ngraph::pass::MatcherPass {
+class ov::pass::low_precision::PropagateToInput : public ov::pass::MatcherPass {
 public:
     PropagateToInput() {
-        ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
+        ov::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {
                 return false;
@@ -56,19 +56,19 @@ public:
                     }
 
                     auto& rt = input.get_rt_info();
-                    rt[ngraph::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name] = parentAttribute;
+                    rt[ov::VariantWrapper<std::shared_ptr<AttributeType>>::type_info.name] = parentAttribute;
                 }
             }
             return true;
         };
 
-        auto matcher = std::make_shared<ngraph::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
+        auto matcher = std::make_shared<ov::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
         this->register_matcher(matcher, callback);
     }
 
 private:
     // TODO: possible duplicate: PropagateThroughPrecisionPreserved::getParentInputRestrictions
-    std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> getSourceOutputAttribute(const Input<Node>& input) {
+    std::shared_ptr<ov::VariantWrapper<std::shared_ptr<AttributeType>>> getSourceOutputAttribute(const Input<Node>& input) {
         auto getInput = [](const Input<Node>& input) {
             const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), input.get_index());
             if (!dequantization.empty() &&
@@ -83,16 +83,16 @@ private:
 
         auto input2 = getInput(input);
         auto output = input2.get_source_output();
-        std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> attribute = getAttributeFromOutput<std::shared_ptr<AttributeType>>(output);
+        std::shared_ptr<ov::VariantWrapper<std::shared_ptr<AttributeType>>> attribute = getAttributeFromOutput<std::shared_ptr<AttributeType>>(output);
         if (attribute == nullptr) {
             attribute = getAttribute<std::shared_ptr<AttributeType>>(output.get_node_shared_ptr());
         }
         return attribute;
     }
 
-    std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>>> getParentInputRestrictions(
-        const std::shared_ptr<ngraph::Node> node) {
-        std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>>> parentAttributes;
+    std::vector<std::shared_ptr<ov::VariantWrapper<std::shared_ptr<AttributeType>>>> getParentInputRestrictions(
+        const std::shared_ptr<ov::Node> node) {
+        std::vector<std::shared_ptr<ov::VariantWrapper<std::shared_ptr<AttributeType>>>> parentAttributes;
         for (size_t index = 0ul; index < node->get_input_size(); index++) {
             const Input<Node>& input = node->input(index);
             const auto attribute = getSourceOutputAttribute(input);

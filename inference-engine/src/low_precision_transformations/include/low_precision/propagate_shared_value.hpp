@@ -16,7 +16,7 @@
 #include "low_precision/network_helper.hpp"
 #include "lpt_itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -25,15 +25,15 @@ class LP_TRANSFORMATIONS_API PropagateSharedValue;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 template <class AttributeType>
-class ngraph::pass::low_precision::PropagateSharedValue : public ngraph::pass::FunctionPass {
+class ov::pass::low_precision::PropagateSharedValue : public ov::pass::FunctionPass {
 public:
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
+    bool run_on_function(std::shared_ptr<ov::Function> f) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "PropagateSharedValue");
 
-        std::vector<std::shared_ptr<ngraph::Node>> nodes(f->get_ordered_ops());
+        std::vector<std::shared_ptr<ov::Node>> nodes(f->get_ordered_ops());
         for (auto it = nodes.begin(); it != nodes.end(); it++) {
             const std::shared_ptr<Node> node = *it;
             if (is_type<opset1::FakeQuantize>(node)) {
@@ -42,8 +42,8 @@ public:
 
                 auto attribute = make_shared_attribute<AttributeType>(std::set<element::Type>{element::u8, element::i8});
 
-                auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
-                outputRtInfo[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = attributeWrapper;
+                auto attributeWrapper = std::make_shared<ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
+                outputRtInfo[ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = attributeWrapper;
                 continue;
             }
 
@@ -52,16 +52,16 @@ public:
                     auto parentNode = input.get_source_output().get_node_shared_ptr();
 
                     auto getAttributes = [](const Input<Node>& nodeInput) {
-                        const std::string name = ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
+                        const std::string name = ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
 
                         auto node = nodeInput.get_source_output().get_node_shared_ptr();
-                        std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> attributes;
+                        std::vector<std::shared_ptr<ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> attributes;
                         if (is_type<opset1::FakeQuantize>(node)) {
                             // output
                             auto& rt = nodeInput.get_source_output().get_rt_info();
                             auto it = rt.find(name);
                             if (it != rt.end()) {
-                                const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
+                                const auto& attribute = std::dynamic_pointer_cast<ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
                                 attributes.push_back(attribute);
                             }
                         }
@@ -71,13 +71,13 @@ public:
 
                     auto& nodeRt = input.get_rt_info();
 
-                    const std::string name = ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
+                    const std::string name = ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
                     const auto it = nodeRt.find(name);
                     if (it == nodeRt.end()) {
                         continue;
                     }
 
-                    const auto& attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
+                    const auto& attribute = std::dynamic_pointer_cast<ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(it->second);
                     std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> attributes{ attribute };
 
                     auto parentAttributes = getAttributes(input);
@@ -100,9 +100,9 @@ public:
     }
 
 private:
-    std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> getParentInputRestrictions(
-        const std::shared_ptr<ngraph::Node> node) {
-        std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> parentAttributes;
+    std::vector<std::shared_ptr<ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> getParentInputRestrictions(
+        const std::shared_ptr<ov::Node> node) {
+        std::vector<std::shared_ptr<ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> parentAttributes;
         for (size_t index = 0ul; index < node->get_input_size(); index++) {
             const Input<Node>& input = node->input(index);
             auto inputNode = input.get_source_output().get_node()->shared_from_this();
@@ -116,16 +116,16 @@ private:
 
             if (NetworkHelper::isPrecisionPreserved(inputNode)) {
                 auto& inputRtInfo = inputNode->get_rt_info();
-                auto inputAttributeIt = inputRtInfo.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
+                auto inputAttributeIt = inputRtInfo.find(ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
                 if (inputAttributeIt != inputRtInfo.end()) {
-                    const auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(inputAttributeIt->second);
+                    const auto attribute = std::dynamic_pointer_cast<ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(inputAttributeIt->second);
                     parentAttributes.push_back(attribute);
                 }
             } else if (is_type<opset1::FakeQuantize>(inputNode)) {
                 const auto& outputPortRtInfo = inputNode->outputs()[0].get_rt_info();
-                auto attributeIt = outputPortRtInfo.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
+                auto attributeIt = outputPortRtInfo.find(ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
                 if (attributeIt != outputPortRtInfo.end()) {
-                    const auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attributeIt->second);
+                    const auto attribute = std::dynamic_pointer_cast<ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attributeIt->second);
                     parentAttributes.push_back(attribute);
                 }
             }
@@ -133,7 +133,7 @@ private:
         return parentAttributes;
     }
 
-    void handle(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::Node>& node) {
+    void handle(std::shared_ptr<ov::Function> f, const std::shared_ptr<ov::Node>& node) {
         const bool precisionPreserved = NetworkHelper::isPrecisionPreserved(node);
         if (precisionPreserved) {
             const auto parentRestrictions = getParentInputRestrictions(node);
@@ -145,7 +145,7 @@ private:
             // merge parent inputs to one current output
             auto resultAttribute = parentRestrictions[0];
 
-            std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> toMerge = parentRestrictions;
+            std::vector<std::shared_ptr<ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> toMerge = parentRestrictions;
             toMerge.erase(toMerge.begin());
             resultAttribute->merge(toMerge);
 
@@ -157,7 +157,7 @@ private:
             }
 
             auto& rt = node->get_rt_info();
-            rt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = resultAttribute;
+            rt[ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = resultAttribute;
         }
     }
 };

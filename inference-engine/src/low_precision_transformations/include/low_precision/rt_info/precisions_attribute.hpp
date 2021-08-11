@@ -18,24 +18,24 @@
 #include "low_precision/rt_info/attribute_parameters.hpp"
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 
-namespace ngraph {
+namespace ov {
 
 class PrecisionsAttribute;
 
 class LP_TRANSFORMATIONS_API PrecisionsSharedValue : public SharedValue<PrecisionsAttribute> {
 public:
-    std::vector<ngraph::element::Type> precisions;
+    std::vector<ov::element::Type> precisions;
 };
 
 using PrecisionsAttributePtr = std::shared_ptr<PrecisionsAttribute>;
 
 class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedValueAttribute<PrecisionsSharedValue> {
 public:
-    static const std::vector<ngraph::element::Type> defaultPrecisions;
-    PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions = defaultPrecisions);
+    static const std::vector<ov::element::Type> defaultPrecisions;
+    PrecisionsAttribute(const std::vector<ov::element::Type>& precisions = defaultPrecisions);
 };
 
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<std::shared_ptr<PrecisionsAttribute>>;
+extern template class LP_TRANSFORMATIONS_API ov::VariantImpl<std::shared_ptr<PrecisionsAttribute>>;
 
 template<>
 class LP_TRANSFORMATIONS_API VariantWrapper<std::shared_ptr<PrecisionsAttribute>> : public VariantImpl<std::shared_ptr<PrecisionsAttribute>> {
@@ -48,17 +48,17 @@ public:
 
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 
-    std::shared_ptr<Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
+    std::shared_ptr<Variant> init(const std::shared_ptr<ov::Node>& node) override;
 
     std::shared_ptr<PrecisionsAttribute> get() { return this->m_value; }
 
     // create attribute instance for node
     static std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>> create(
-        const std::shared_ptr<ngraph::Node>& node,
+        const std::shared_ptr<ov::Node>& node,
         const AttributeParameters& params);
     // merge attribute instances which can be got from different sources: node, input port or output port
     void merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>>& attributes);
     // vizualize shared attributes details in VizualizeTree pass
     std::string to_string() override;
 };
-} // namespace ngraph
+} // namespace ov

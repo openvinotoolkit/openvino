@@ -16,16 +16,16 @@
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReshapeTransformation, "ReshapeTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::ReshapeTransformation, "ReshapeTransformation", 0);
 
 ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::Reshape>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -33,7 +33,7 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ReshapeTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "ReshapeTransformation");
     this->register_matcher(m, callback);
 }
 
@@ -115,7 +115,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
     }
 }
 
-bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool ReshapeTransformation::transform(TransformationContext& context, ov::pattern::Matcher &m) {
     std::shared_ptr<opset1::Reshape> reshape = as_type_ptr<opset1::Reshape>(m.get_match_root());
     if (NetworkHelper::isConstantPath(reshape)) {
         return false;
@@ -216,10 +216,10 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
 }
 
 bool ReshapeTransformation::canBeTransformed(
-    const ngraph::Shape& subtractShape,
-    const ngraph::Shape& multiplyShape,
-    const ngraph::PartialShape& inputShape,
-    const ngraph::PartialShape& outputShape) {
+    const ov::Shape& subtractShape,
+    const ov::Shape& multiplyShape,
+    const ov::PartialShape& inputShape,
+    const ov::PartialShape& outputShape) {
     const size_t inputRank = inputShape.rank().get_length();
     const size_t outputRank = outputShape.rank().get_length();
 
@@ -243,4 +243,4 @@ bool ReshapeTransformation::canBeTransformed(
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

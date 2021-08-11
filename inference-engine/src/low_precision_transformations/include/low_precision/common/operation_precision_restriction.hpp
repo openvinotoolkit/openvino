@@ -15,21 +15,21 @@
 #include <low_precision/lpt_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
 class OperationPrecisionRestriction {
 public:
-    using PrecisionsByPort = std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>>;
+    using PrecisionsByPort = std::vector<std::pair<size_t, std::vector<ov::element::Type>>>;
 
-    ngraph::Node::type_info_t operationType;
+    ov::Node::type_info_t operationType;
     bool specifyVersion;
-    std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>> precisionsByPort;
+    std::vector<std::pair<size_t, std::vector<ov::element::Type>>> precisionsByPort;
 
     OperationPrecisionRestriction() = default;
     OperationPrecisionRestriction(
-        const ngraph::Node::type_info_t operationType,
+        const ov::Node::type_info_t operationType,
         const bool specifyVersion,
         const PrecisionsByPort& precisionsByPort) :
         operationType(operationType),
@@ -56,4 +56,4 @@ public:
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

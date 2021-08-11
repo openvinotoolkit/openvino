@@ -9,7 +9,7 @@
 #include <ngraph/ngraph.hpp>
 #include "low_precision/quantization_details.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -33,4 +33,4 @@ public:
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

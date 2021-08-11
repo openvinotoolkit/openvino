@@ -11,9 +11,9 @@
 
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::pass::low_precision;
 
 bool EltwiseBaseTransformation::isBroadcasted(const PartialShape& shape) noexcept {
     const auto rank = shape.rank();
@@ -41,8 +41,8 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    if ((as_type_ptr<ngraph::opset1::Constant>(operation->get_input_node_shared_ptr(0)) ||
-        as_type_ptr<ngraph::opset1::Constant>(operation->get_input_node_shared_ptr(1))) &&
+    if ((as_type_ptr<ov::opset1::Constant>(operation->get_input_node_shared_ptr(0)) ||
+        as_type_ptr<ov::opset1::Constant>(operation->get_input_node_shared_ptr(1))) &&
         !FakeQuantizeDequantization::checkElementwise(operation)) {
         NetworkHelper::cleanRunTimeInfo(operation);
     }

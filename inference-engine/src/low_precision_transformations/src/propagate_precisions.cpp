@@ -12,15 +12,15 @@
 #include "low_precision/propagate_through_precision_preserved.hpp"
 #include "low_precision/propagate_to_input.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PropagatePrecisions, "PropagatePrecisions", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::PropagatePrecisions, "PropagatePrecisions", 0);
 
-bool ngraph::pass::low_precision::PropagatePrecisions::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    ngraph::pass::Manager manager;
+bool ov::pass::low_precision::PropagatePrecisions::run_on_function(std::shared_ptr<ov::Function> f) {
+    ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    std::shared_ptr<ngraph::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
+    std::shared_ptr<ov::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ov::pass::GraphRewrite>();
     precisionsPropagation->add_matcher<low_precision::CreateAttribute<PrecisionsAttributePtr, opset1::FakeQuantize>>(AttributeSource::OutputPort);
     precisionsPropagation->add_matcher<low_precision::PropagateThroughPrecisionPreserved<PrecisionsAttribute>>();
     precisionsPropagation->add_matcher<low_precision::PropagateToInput<PrecisionsAttribute>>();

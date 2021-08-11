@@ -9,7 +9,7 @@
 #include "low_precision/layer_transformation.hpp"
 #include "common/operation_precision_restriction.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -20,7 +20,7 @@ public:
         const Params& params = Params(),
         const OperationPrecisionRestriction::PrecisionsByPort& restrictions = {});
     ~MultiplyToGroupConvolutionTransformation() override {}
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool isQuantized(const std::shared_ptr<const Node>& layer) const noexcept override;
@@ -36,4 +36,4 @@ private:
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

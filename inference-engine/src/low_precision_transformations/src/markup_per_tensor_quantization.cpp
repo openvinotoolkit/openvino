@@ -10,11 +10,11 @@
 #include <ngraph/node.hpp>
 #include "low_precision/rt_info/per_tensor_quantization_attribute.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupPerTensorQuantization, "MarkupPerTensorQuantization", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::MarkupPerTensorQuantization, "MarkupPerTensorQuantization", 0);
 
-ngraph::pass::low_precision::MarkupPerTensorQuantization::MarkupPerTensorQuantization(
+ov::pass::low_precision::MarkupPerTensorQuantization::MarkupPerTensorQuantization(
     const std::vector<OperationPerTensorQuantizationRestriction>& restrictions) {
     for (const OperationPerTensorQuantizationRestriction& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
@@ -28,13 +28,13 @@ ngraph::pass::low_precision::MarkupPerTensorQuantization::MarkupPerTensorQuantiz
     }
 }
 
-bool ngraph::pass::low_precision::MarkupPerTensorQuantization::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::pass::low_precision::MarkupPerTensorQuantization::run_on_function(std::shared_ptr<ov::Function> f) {
     auto setRestriction = [](const std::shared_ptr<Node>& node, const std::vector<size_t>& restrictedPorts) {
         auto createAttribute = [](Input<Node>& input){
             auto &rt = input.get_rt_info();
             rt.emplace(
-                    ngraph::VariantWrapper<PerTensorQuantizationAttribute>::type_info.name,
-                    std::make_shared<::ngraph::VariantWrapper<PerTensorQuantizationAttribute>>(PerTensorQuantizationAttribute()));
+                    ov::VariantWrapper<PerTensorQuantizationAttribute>::type_info.name,
+                    std::make_shared<::ov::VariantWrapper<PerTensorQuantizationAttribute>>(PerTensorQuantizationAttribute()));
         };
 
         if (restrictedPorts.empty()) {

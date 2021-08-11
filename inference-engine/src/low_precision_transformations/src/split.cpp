@@ -10,16 +10,16 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::SplitTransformation, "SplitTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::SplitTransformation, "SplitTransformation", 0);
 
 SplitTransformation::SplitTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::Split>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -27,11 +27,11 @@ SplitTransformation::SplitTransformation(const Params& params) : LayerTransforma
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "SplitTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "SplitTransformation");
     this->register_matcher(m, callback);
 }
 
-bool SplitTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool SplitTransformation::transform(TransformationContext& context, ov::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -44,7 +44,7 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
 
     const auto newSplit = split->clone_with_new_inputs(inputs);
     newSplit->set_friendly_name(split->get_friendly_name());
-    ngraph::copy_runtime_info(split, newSplit);
+    ov::copy_runtime_info(split, newSplit);
 
     const int64_t axis = as_type_ptr<opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
     const size_t normalizedAxis = normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
@@ -117,8 +117,8 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
 
 void SplitTransformation::updateOutputs(
     TransformationContext& context,
-    std::vector<std::shared_ptr<ngraph::Node>> lastNodes,
-    std::shared_ptr<ngraph::Node> originalNode) const {
+    std::vector<std::shared_ptr<ov::Node>> lastNodes,
+    std::shared_ptr<ov::Node> originalNode) const {
     //TODO: LPT: during refactoring update is not tested
     if (lastNodes.size() == 1ul) {
         updateOutput(context, lastNodes[0], originalNode);
@@ -128,7 +128,7 @@ void SplitTransformation::updateOutputs(
             const auto lastNode = lastNodes[i];
             for (auto output : lastNodes[i]->outputs()) {
                 for (auto input : output.get_target_inputs()) {
-                    if (is_type<ngraph::opset1::Result>(input.get_node())) {
+                    if (is_type<ov::opset1::Result>(input.get_node())) {
                         originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
                         lastNode->set_friendly_name(originalName + "." + std::to_string(i));
                         break;
@@ -162,4 +162,4 @@ bool SplitTransformation::canBeTransformed(const TransformationContext& context,
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

@@ -12,7 +12,7 @@
 #include <low_precision/lpt_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -20,13 +20,13 @@ class OperationPerTensorQuantizationRestriction {
 public:
     using RestrictedPorts = std::vector<size_t>;
 
-    ngraph::Node::type_info_t operationType;
+    ov::Node::type_info_t operationType;
     bool specifyVersion;
     std::vector<size_t> restrictedPorts;
 
     OperationPerTensorQuantizationRestriction() = default;
     OperationPerTensorQuantizationRestriction(
-        const ngraph::Node::type_info_t operationType,
+        const ov::Node::type_info_t operationType,
         const bool specifyVersion,
         const RestrictedPorts& restrictedPorts) :
         operationType(operationType),
@@ -53,4 +53,4 @@ public:
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

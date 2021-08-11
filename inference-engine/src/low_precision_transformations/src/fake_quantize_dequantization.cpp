@@ -10,7 +10,7 @@
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -20,10 +20,10 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     const Output<Node>& data,
     const std::shared_ptr<opset1::Convert>& convert,
     const std::shared_ptr<opset1::Subtract>& subtract,
-    const std::shared_ptr<ngraph::opset1::Convert>& subtractConvert,
-    const std::shared_ptr<ngraph::opset1::Constant>& subtractConstant,
+    const std::shared_ptr<ov::opset1::Convert>& subtractConvert,
+    const std::shared_ptr<ov::opset1::Constant>& subtractConstant,
     const std::shared_ptr<opset1::Multiply>& multiply,
-    const std::shared_ptr<ngraph::opset1::Constant>& multiplyConstant) :
+    const std::shared_ptr<ov::opset1::Constant>& multiplyConstant) :
     data(data),
     convert(convert),
     subtract(subtract),
@@ -74,9 +74,9 @@ bool FakeQuantizeDequantization::isLowPrecision() const {
     return (data.get_element_type() == element::i8) || (data.get_element_type() == element::u8);
 }
 
-bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>& elementwise) noexcept {
-    std::shared_ptr<ngraph::opset1::Convert> convert;
-    std::shared_ptr<ngraph::opset1::Constant> constant;
+bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ov::Node>& elementwise) noexcept {
+    std::shared_ptr<ov::opset1::Convert> convert;
+    std::shared_ptr<ov::opset1::Constant> constant;
     const int branchIndex = FakeQuantizeDequantization::fillDequantizationParams(elementwise, convert, constant);
     if (branchIndex == -1) {
         return true;
@@ -99,16 +99,16 @@ bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>&
     return true;
 }
 
-bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::Node>& dequantizationElementwise) {
-    std::shared_ptr<ngraph::opset1::Convert> convert;
-    std::shared_ptr<ngraph::opset1::Constant> constant;
+bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ov::Node>& dequantizationElementwise) {
+    std::shared_ptr<ov::opset1::Convert> convert;
+    std::shared_ptr<ov::opset1::Constant> constant;
     FakeQuantizeDequantization::fillDequantizationParams(dequantizationElementwise, convert, constant);
 
     if (constant == nullptr) {
         return false;
     }
 
-    const ngraph::Shape constShape = constant->get_output_shape(0);
+    const ov::Shape constShape = constant->get_output_shape(0);
     if ((constShape.size() > 5ul)) {
         return false;
     }
@@ -155,14 +155,14 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
 }
 
 int FakeQuantizeDequantization::fillDequantizationParams(
-    const std::shared_ptr<ngraph::Node>& elementwise,
-    std::shared_ptr<ngraph::opset1::Convert>& convert,
-    std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept {
+    const std::shared_ptr<ov::Node>& elementwise,
+    std::shared_ptr<ov::opset1::Convert>& convert,
+    std::shared_ptr<ov::opset1::Constant>& constant) noexcept {
     auto fill = [](
-        const std::shared_ptr<ngraph::Node>& elementwise,
+        const std::shared_ptr<ov::Node>& elementwise,
         const size_t branchIndex,
-        std::shared_ptr<ngraph::opset1::Convert>& convert,
-        std::shared_ptr<ngraph::opset1::Constant>& constant) {
+        std::shared_ptr<ov::opset1::Convert>& convert,
+        std::shared_ptr<ov::opset1::Constant>& constant) {
         convert = as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(branchIndex));
         if (convert != nullptr) {
             constant = as_type_ptr<opset1::Constant>(convert->get_input_node_shared_ptr(0));
@@ -185,8 +185,8 @@ int FakeQuantizeDequantization::fillDequantizationParams(
 }
 
 int FakeQuantizeDequantization::fillDequantizationParams(
-    const std::shared_ptr<ngraph::Node>& elementwise,
-    std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept {
+    const std::shared_ptr<ov::Node>& elementwise,
+    std::shared_ptr<ov::opset1::Constant>& constant) noexcept {
     constant = as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1ul));
     if (constant != nullptr) {
         return 1;
@@ -202,4 +202,4 @@ int FakeQuantizeDequantization::fillDequantizationParams(
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

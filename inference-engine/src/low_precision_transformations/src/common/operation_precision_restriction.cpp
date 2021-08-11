@@ -15,5 +15,5 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 
-using namespace ngraph;
+using namespace ov;
 

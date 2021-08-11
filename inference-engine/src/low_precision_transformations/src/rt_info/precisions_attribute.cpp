@@ -13,27 +13,27 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 // order defines default precision
-const std::vector<ngraph::element::Type> PrecisionsAttribute::defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 };
+const std::vector<ov::element::Type> PrecisionsAttribute::defaultPrecisions = { ov::element::u8, ov::element::i8 };
 
-PrecisionsAttribute::PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions) {
+PrecisionsAttribute::PrecisionsAttribute(const std::vector<ov::element::Type>& precisions) {
     sharedValue->precisions = precisions;
 }
 
-template class ngraph::VariantImpl<std::shared_ptr<PrecisionsAttribute>>;
+template class ov::VariantImpl<std::shared_ptr<PrecisionsAttribute>>;
 
 constexpr VariantTypeInfo VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info;
 
 std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>> VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::create(
-    const std::shared_ptr<ngraph::Node>& node,
+    const std::shared_ptr<ov::Node>& node,
     const AttributeParameters& params) {
-    auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>();
-    auto wrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
+    auto attribute = ov::pass::low_precision::make_shared_attribute<PrecisionsAttribute>();
+    auto wrapper = std::make_shared<ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
 
     auto& rt = is_type<opset1::FakeQuantize>(node) ? node->output(0).get_rt_info() : node->get_rt_info();
-    rt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = wrapper;
+    rt[ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = wrapper;
     return wrapper;
 }
 
@@ -56,7 +56,7 @@ void VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::merge(
     }
 }
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::init(const std::shared_ptr<ngraph::Node>& node) {
+std::shared_ptr<ov::Variant> VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::init(const std::shared_ptr<ov::Node>& node) {
     return nullptr;
 }
 

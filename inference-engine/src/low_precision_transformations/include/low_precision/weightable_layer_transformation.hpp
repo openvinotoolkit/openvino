@@ -9,7 +9,7 @@
 #include "transformation_context.hpp"
 #include "layer_transformation.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -21,8 +21,8 @@ public:
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
     static bool checkPrecisionOnActivation(
-        const std::shared_ptr<const ngraph::Node>& node,
-        const std::vector<ngraph::element::Type>& supportedPrecisionsOnActivations) {
+        const std::shared_ptr<const ov::Node>& node,
+        const std::vector<ov::element::Type>& supportedPrecisionsOnActivations) {
         return true;
     }
 
@@ -41,4 +41,4 @@ public:
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

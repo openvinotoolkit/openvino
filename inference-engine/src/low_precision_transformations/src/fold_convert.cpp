@@ -9,17 +9,17 @@
 
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FoldConvertTransformation, "FoldConvertTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::FoldConvertTransformation, "FoldConvertTransformation", 0);
 
 FoldConvertTransformation::FoldConvertTransformation(const Params& params) : LayerTransformation(params) {
     auto subtract = pattern::wrap_type<opset1::Subtract>();
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(subtract, "FoldConvertTransformation");
+    auto matcher = std::make_shared<ov::pattern::Matcher>(subtract, "FoldConvertTransformation");
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -30,7 +30,7 @@ FoldConvertTransformation::FoldConvertTransformation(const Params& params) : Lay
     this->register_matcher(matcher, callback);
 }
 
-bool FoldConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool FoldConvertTransformation::transform(TransformationContext& context, ov::pattern::Matcher &m) {
     const auto subtract = m.get_match_root();
     if (!canBeTransformed(context, subtract)) {
         return false;
@@ -42,7 +42,7 @@ bool FoldConvertTransformation::transform(TransformationContext& context, ngraph
             return;
         }
 
-        const auto resultConstant = ngraph::pass::low_precision::foldConvert(convert->get_input_node_shared_ptr(0), convert->output(0).get_element_type());
+        const auto resultConstant = ov::pass::low_precision::foldConvert(convert->get_input_node_shared_ptr(0), convert->output(0).get_element_type());
         assert(is_type<opset1::Constant>(resultConstant));
 
         replace_node(convert, resultConstant);
@@ -69,4 +69,4 @@ bool FoldConvertTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

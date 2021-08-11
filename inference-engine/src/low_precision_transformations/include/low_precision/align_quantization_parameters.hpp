@@ -9,7 +9,7 @@
 #include <ngraph/pass/pass.hpp>
 #include "low_precision/lpt_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -17,10 +17,10 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::low_precision::AlignQuantizationParameters : public ngraph::pass::FunctionPass {
+class ov::pass::low_precision::AlignQuantizationParameters : public ov::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
 };

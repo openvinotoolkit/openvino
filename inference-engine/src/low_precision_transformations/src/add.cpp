@@ -17,7 +17,7 @@
 #include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -57,8 +57,8 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
     const auto subtract = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
-        ngraph::op::TemporaryReplaceOutputType(add->input_value(dataBranchIndex), element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(constOutput, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(add->input_value(dataBranchIndex), element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(constOutput, element::f32).get(),
         add->get_autob());
 
     NetworkHelper::copyInfo(add, subtract);
@@ -83,8 +83,8 @@ std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& 
     const auto newSubtract = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
-        ngraph::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(0)->input_value(0), element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(newSubConst, element::f32).get());
+        ov::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(0)->input_value(0), element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(newSubConst, element::f32).get());
     NetworkHelper::copyInfo(add, newSubtract);
 
     replace_node(add, newSubtract);
@@ -92,9 +92,9 @@ std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& 
 }
 
 AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransformation(params) {
-    auto matcher = ngraph::pattern::wrap_type<opset1::Add>();
+    auto matcher = ov::pattern::wrap_type<opset1::Add>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -102,11 +102,11 @@ AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransfor
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "AddTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "AddTransformation");
     this->register_matcher(m, callback);
 }
 
-bool AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool AddTransformation::transform(TransformationContext& context, ov::pattern::Matcher &m) {
     std::shared_ptr<opset1::Add> op = as_type_ptr<opset1::Add>(m.get_match_root());
     if ((op == nullptr) || (!canBeTransformed(context, op))) {
         return false;
@@ -135,7 +135,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         }
 
         newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
-        ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
+        ov::copy_runtime_info({ add, newMultiply }, newMultiply);
         if (is_type<opset1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
             newAddOrSubtract = newMultiply->get_input_node_shared_ptr(0);
 
@@ -215,16 +215,16 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
 
         newAddOrSubtract = std::make_shared<op::TypeRelaxed<opset1::Add>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
+            ov::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
         newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ add->get_output_element_type(0) },
-            ngraph::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());
+            ov::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());
 
         replace_node(add, newMultiply);
         NetworkHelper::copyInfo(add, newAddOrSubtract);
-        ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
+        ov::copy_runtime_info({ add, newMultiply }, newMultiply);
     }
 
     updateOutput(context, newMultiply, newAddOrSubtract);
@@ -253,4 +253,4 @@ bool AddTransformation::canBeTransformed(const TransformationContext& context, s
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

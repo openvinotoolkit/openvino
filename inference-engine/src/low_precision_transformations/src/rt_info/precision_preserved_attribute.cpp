@@ -7,13 +7,13 @@
 #include <memory>
 #include <string>
 
-using namespace ngraph;
+using namespace ov;
 
 PrecisionPreservedAttribute::PrecisionPreservedAttribute(const bool value) {
     sharedValue->value = value;
 }
 
-template class ngraph::VariantImpl<PrecisionPreservedAttributePtr>;
+template class ov::VariantImpl<PrecisionPreservedAttributePtr>;
 
 constexpr VariantTypeInfo VariantWrapper<PrecisionPreservedAttributePtr>::type_info;
 

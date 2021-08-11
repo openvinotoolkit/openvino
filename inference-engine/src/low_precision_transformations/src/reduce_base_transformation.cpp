@@ -7,13 +7,13 @@
 #include <ngraph/ngraph.hpp>
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
 ReduceBaseTransformation::ReduceBaseTransformation(const Params& params) : LayerTransformation(params) {}
 
-bool ReduceBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -40,7 +40,7 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     }
 
-    const auto axesConstant = as_type_ptr<ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(1));
+    const auto axesConstant = as_type_ptr<ov::opset1::Constant>(reduce->get_input_node_shared_ptr(1));
     if (axesConstant == nullptr) {
         return false;
     }
@@ -52,7 +52,7 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     }
 
-    const std::vector<size_t> axes = ngraph::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
+    const std::vector<size_t> axes = ov::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
         const auto normalizedConst = NetworkHelper::normalizeDequantizationShape(eltwise);
@@ -100,4 +100,4 @@ bool ReduceBaseTransformation::getUpdatePrecision(const std::shared_ptr<Node>& r
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

@@ -4,7 +4,7 @@
 
 #include "low_precision/transformation_context.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -15,4 +15,4 @@ TransformationContext::TransformationContext(std::shared_ptr<Function> function)
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

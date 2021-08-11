@@ -17,7 +17,7 @@
 #include "shared_value_attribute.hpp"
 #include "attribute_parameters.hpp"
 
-namespace ngraph {
+namespace ov {
 class QuantizationAlignmentAttribute;
 
 class LP_TRANSFORMATIONS_API QuantizationAlignmentSharedValue : public SharedValue<QuantizationAlignmentAttribute> {
@@ -33,7 +33,7 @@ public:
 
 using QuantizationAlignmentAttributePtr = std::shared_ptr<QuantizationAlignmentAttribute>;
 
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<QuantizationAlignmentAttributePtr>;
+extern template class LP_TRANSFORMATIONS_API ov::VariantImpl<QuantizationAlignmentAttributePtr>;
 
 template<>
 class LP_TRANSFORMATIONS_API VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>> :
@@ -47,14 +47,14 @@ public:
 
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 
-    std::shared_ptr<Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
+    std::shared_ptr<Variant> init(const std::shared_ptr<ov::Node>& node) override;
 
     std::shared_ptr<QuantizationAlignmentAttribute> get() { return this->m_value; }
 
     static std::shared_ptr<VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>>> create(
-        const std::shared_ptr<ngraph::Node>& node,
+        const std::shared_ptr<ov::Node>& node,
         const AttributeParameters& params);
     void merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>>>>& attributes);
     std::string to_string() override;
 };
-} // namespace ngraph
+} // namespace ov

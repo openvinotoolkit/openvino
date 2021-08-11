@@ -8,7 +8,7 @@
 #include <ngraph/ngraph.hpp>
 #include "layer_transformation.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -29,4 +29,4 @@ protected:
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

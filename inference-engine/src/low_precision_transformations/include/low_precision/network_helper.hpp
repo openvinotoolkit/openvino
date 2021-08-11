@@ -27,7 +27,7 @@
 #include "common/ie_lpt_exception.hpp"
 #include "layer_transformation.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -104,7 +104,7 @@ public:
         const std::vector<size_t>& reshapeValues);
 
     // Optimizes the series of multiplies after a given output port
-    static std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
+    static std::shared_ptr<ov::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
 
     static std::shared_ptr<opset1::Constant> round(std::shared_ptr<Node> node, element::Type target_type);
 
@@ -130,11 +130,11 @@ public:
     static FakeQuantizeDequantization makeDequantization(
         const float dequantizationMul,
         const float dequantizationSub,
-        const ngraph::element::Type originalPrecision,
-        const ngraph::PartialShape dataNodeOutputShape,
+        const ov::element::Type originalPrecision,
+        const ov::PartialShape dataNodeOutputShape,
         element::Type precision,
         const element::Type deqPrecision = element::f32,
-        std::shared_ptr<ngraph::Node> input = nullptr);
+        std::shared_ptr<ov::Node> input = nullptr);
 
     static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
@@ -145,9 +145,9 @@ public:
         const bool updatePrecision,
         const element::Type deqPrecision = element::f32);
 
-    static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node);
+    static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ov::Node>& node);
 
-    static bool areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ngraph::Node>& node);
+    static bool areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ov::Node>& node);
 
     static bool isQuantizeSupported(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
 
@@ -175,16 +175,16 @@ public:
     };
 
     static InsertDequantizationResult moveDequantizationAfter(
-        const std::shared_ptr<ngraph::Node>& operation,
+        const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,
         const bool moveSubtract);
 
     static bool checkConstantValuePrecision(const element::Type expectedPrecision, const std::shared_ptr<Node>& constant);
 
-    static size_t getChildInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
+    static size_t getChildInputIndex(const std::shared_ptr<ov::Node>& parent, const std::shared_ptr<ov::Node>& child);
 
-    static size_t getParentOutputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
+    static size_t getParentOutputIndex(const std::shared_ptr<ov::Node>& parent, const std::shared_ptr<ov::Node>& child);
 
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization, const element::Type precision);
 
@@ -198,7 +198,7 @@ public:
 
     static FakeQuantizeDequantization foldDequantization(const std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace = false);
 
-    static std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node);
+    static std::shared_ptr<ov::Node> separateInStandaloneBranch(std::shared_ptr<ov::Node> node);
 
     static std::shared_ptr<opset1::FakeQuantize> fuseConvert(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
 
@@ -210,14 +210,14 @@ public:
 
     static bool isDQByDynamicDimension(const std::shared_ptr<Node>& layer, size_t inputIdx = 0);
 
-    static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
+    static bool isPrecisionPreserved(const std::shared_ptr<ov::Node>& node);
 
     static void replaceAttributeInNodes(
-        std::shared_ptr<ngraph::Function> f,
+        std::shared_ptr<ov::Function> f,
         const std::string& name,
-        const std::shared_ptr<ngraph::Variant> newAttribute,
-        const std::shared_ptr<ngraph::Variant> oldAttribute,
-        const std::shared_ptr<ngraph::Node>& initialNode) {
+        const std::shared_ptr<ov::Variant> newAttribute,
+        const std::shared_ptr<ov::Variant> oldAttribute,
+        const std::shared_ptr<ov::Node>& initialNode) {
         std::set<std::shared_ptr<Node>> visited;
         std::deque<std::shared_ptr<Node>> nodes;
         nodes.emplace_back(initialNode);
@@ -257,7 +257,7 @@ public:
 
             if (!is_type<opset1::FakeQuantize>(node)) {
                 for (size_t index = 0ul; index < node->get_input_size(); ++index) {
-                    auto getInput = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
+                    auto getInput = [](const std::shared_ptr<ov::Node>& node, const size_t index) {
                         const auto dequantization = NetworkHelper::getDequantization(node, index);
                         if (!dequantization.empty() &&
                             (is_type<opset1::Convert>(dequantization.data.get_node())) &&
@@ -335,9 +335,9 @@ private:
 template <typename OperationType>
 std::shared_ptr<Node> NetworkHelper::setOutDataPrecisionForTypeRelaxed(std::shared_ptr<OperationType> layer, const element::Type& precision) {
     // check if it already exteded operation node
-    if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
+    if (auto relaxed_layer = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(layer)) {
         relaxed_layer->set_overridden_output_type(precision);
-        std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
+        std::dynamic_pointer_cast<ov::Node>(layer)->validate_and_infer_types();
         return layer;
     } else {
         THROW_IE_LPT_EXCEPTION(*layer) << "TypeRelaxed type is expected";
@@ -347,15 +347,15 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecisionForTypeRelaxed(std::shar
 template <typename OperationType>
 std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<OperationType> layer, const element::Type& precision) {
     // check if it already exteded operation node
-    if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
+    if (auto relaxed_layer = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(layer)) {
         relaxed_layer->set_overridden_output_type(precision);
-        std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
+        std::dynamic_pointer_cast<ov::Node>(layer)->validate_and_infer_types();
         return layer;
     } else {
         // Make such replacements in advance for all supported polymorphic layer types
         // extend a node with new semantics: overriden output data_type
         // OperationType should be a real type of an object, otherwise it will lead to undefined behavior
-        auto replacement = std::make_shared<ngraph::op::TypeRelaxed<OperationType>>(*layer, precision);
+        auto replacement = std::make_shared<ov::op::TypeRelaxed<OperationType>>(*layer, precision);
         copy_runtime_info(layer, replacement);
         replace_node(layer, replacement);
         return replacement;
@@ -363,13 +363,13 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
 }
 
 template <typename T>
-std::shared_ptr<Node> make_op_pattern(const ngraph::NodeVector& args) {
-    return std::make_shared<ngraph::pattern::op::Any>(element::undefined, PartialShape{}, [](std::shared_ptr<Node> n) {return !!as_type_ptr<T>(n); }, args);
+std::shared_ptr<Node> make_op_pattern(const ov::NodeVector& args) {
+    return std::make_shared<ov::pattern::op::Any>(element::undefined, PartialShape{}, [](std::shared_ptr<Node> n) {return !!as_type_ptr<T>(n); }, args);
 }
 
 template <typename T>
 std::shared_ptr<Node> make_op_label() {
-    return std::make_shared<ngraph::pattern::op::Label>(
+    return std::make_shared<ov::pattern::op::Label>(
             element::undefined,
             PartialShape{},
             [](std::shared_ptr<Node> n) {return !!as_type_ptr<T>(n); });
@@ -412,40 +412,40 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
 }
 
 template <typename T>
-std::shared_ptr<ngraph::VariantWrapper<T>> getAttribute(const std::shared_ptr<Node>& inputNode) {
+std::shared_ptr<ov::VariantWrapper<T>> getAttribute(const std::shared_ptr<Node>& inputNode) {
     auto& rt = inputNode->get_rt_info();
-    auto it = rt.find(ngraph::VariantWrapper<T>::type_info.name);
+    auto it = rt.find(ov::VariantWrapper<T>::type_info.name);
     if (it == rt.end()) {
         return nullptr;
     }
 
-    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
+    auto attribute = std::dynamic_pointer_cast<ov::VariantWrapper<T>>(it->second);
     assert(attribute != nullptr);
     return attribute;
 }
 
 template <typename T>
-std::shared_ptr<ngraph::VariantWrapper<T>> getAttribute(const Input<Node>& input) {
+std::shared_ptr<ov::VariantWrapper<T>> getAttribute(const Input<Node>& input) {
     auto& rt = input.get_rt_info();
-    auto it = rt.find(ngraph::VariantWrapper<T>::type_info.name);
+    auto it = rt.find(ov::VariantWrapper<T>::type_info.name);
     if (it == rt.end()) {
         return nullptr;
     }
 
-    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
+    auto attribute = std::dynamic_pointer_cast<ov::VariantWrapper<T>>(it->second);
     assert(attribute != nullptr);
     return attribute;
 }
 
 template <typename T>
-std::shared_ptr<ngraph::VariantWrapper<T>> getAttributeFromOutput(const Output<Node>& output) {
+std::shared_ptr<ov::VariantWrapper<T>> getAttributeFromOutput(const Output<Node>& output) {
     auto& rt = output.get_rt_info();
-    auto it = rt.find(ngraph::VariantWrapper<T>::type_info.name);
+    auto it = rt.find(ov::VariantWrapper<T>::type_info.name);
     if (it == rt.end()) {
         return nullptr;
     }
 
-    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
+    auto attribute = std::dynamic_pointer_cast<ov::VariantWrapper<T>>(it->second);
     assert(attribute != nullptr);
     return attribute;
 }
@@ -461,4 +461,4 @@ std::shared_ptr<T> make_shared_attribute(Args&& ... args) {
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

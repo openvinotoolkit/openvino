@@ -11,8 +11,8 @@
 #include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass::low_precision;
 
 IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(
     const IntervalsAlignmentSharedValue::Interval combinedInterval,
@@ -28,12 +28,12 @@ IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(
     sharedValue = std::make_shared<IntervalsAlignmentSharedValue>(combinedInterval, minInterval, minLevels);
 }
 
-template class ngraph::VariantImpl<IntervalsAlignmentAttributePtr>;
+template class ov::VariantImpl<IntervalsAlignmentAttributePtr>;
 
 constexpr VariantTypeInfo VariantWrapper<IntervalsAlignmentAttributePtr>::type_info;
 
 std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> VariantWrapper<IntervalsAlignmentAttributePtr>::create(
-    const std::shared_ptr<ngraph::Node>& node,
+    const std::shared_ptr<ov::Node>& node,
     const AttributeParameters& params) {
     if (!is_type<opset1::FakeQuantize>(node)) {
         return nullptr;
@@ -108,11 +108,11 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
 
         auto& rtInfo = node->get_rt_info();
         const IntervalsAlignmentSharedValue::Interval interval{ lowInterval, highInterval };
-        const auto attribute = std::make_shared<::ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>>(
-            ngraph::pass::low_precision::make_shared_attribute<IntervalsAlignmentAttribute>(
+        const auto attribute = std::make_shared<::ov::VariantWrapper<IntervalsAlignmentAttributePtr>>(
+            ov::pass::low_precision::make_shared_attribute<IntervalsAlignmentAttribute>(
                 interval,
                 fakeQuantize->get_levels()));
-        rtInfo[ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name] = attribute;
+        rtInfo[ov::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name] = attribute;
 
         const std::vector<float> outputLowValues = as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3))->cast_vector<float>();
         const std::vector<float> outputHighValues = as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4))->cast_vector<float>();

@@ -18,16 +18,16 @@
 #include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MultiplyTransformation, "MultiplyTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::MultiplyTransformation, "MultiplyTransformation", 0);
 
 MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBaseTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::Multiply>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -35,11 +35,11 @@ MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBa
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MultiplyTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "MultiplyTransformation");
     this->register_matcher(m, callback);
 }
 
-bool MultiplyTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool MultiplyTransformation::transform(TransformationContext& context, ov::pattern::Matcher &m) {
     auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
         return false;
@@ -84,10 +84,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->get_input_source_output(multiplyBranch.second == 0 ? 1 : 0);
 
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
-            std::vector<ngraph::element::Type>{ element::f32, element::f32 },
-            std::vector<ngraph::element::Type>{ multiply->get_output_element_type(0) },
-            ngraph::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(
+            std::vector<ov::element::Type>{ element::f32, element::f32 },
+            std::vector<ov::element::Type>{ multiply->get_output_element_type(0) },
+            ov::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(
                 fold<opset1::Multiply>(
                     foldConvert(multiplyParentConst, element::f32),
                     foldConvert(constParent, element::f32)),
@@ -145,8 +145,8 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},
                 std::vector<element::Type>{ multiply->get_output_element_type(0) },
-                ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
+                ov::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
         NetworkHelper::copyInfo(multiply, newMultiply);
     }
 
@@ -180,4 +180,4 @@ bool MultiplyTransformation::canBeTransformed(const TransformationContext& conte
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

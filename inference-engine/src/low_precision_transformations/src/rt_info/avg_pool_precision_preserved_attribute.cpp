@@ -8,14 +8,14 @@
 #include <vector>
 #include <ngraph/variant.hpp>
 
-using namespace ngraph;
+using namespace ov;
 
-template class ngraph::VariantImpl<AvgPoolPrecisionPreservedAttributePtr>;
+template class ov::VariantImpl<AvgPoolPrecisionPreservedAttributePtr>;
 
 constexpr VariantTypeInfo VariantWrapper<AvgPoolPrecisionPreservedAttributePtr>::type_info;
 
 void VariantWrapper<AvgPoolPrecisionPreservedAttributePtr>::merge(
-    std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AvgPoolPrecisionPreservedAttribute>>>>& attributes) {
+    std::vector<std::shared_ptr<ov::VariantWrapper<std::shared_ptr<AvgPoolPrecisionPreservedAttribute>>>>& attributes) {
 }
 
 std::string VariantWrapper<AvgPoolPrecisionPreservedAttributePtr>::to_string() {

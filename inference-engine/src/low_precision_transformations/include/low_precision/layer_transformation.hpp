@@ -35,7 +35,7 @@
 // #define LPT_PRINT_DEQUANTIZATION_INFO
 // #define LPT_DISPLAY_PRECISION
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -157,7 +157,7 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
 }
 
 // Base class for all LP transformations, holds some common data structures
-class LP_TRANSFORMATIONS_API LayerTransformation : public ngraph::pass::MatcherPass {
+class LP_TRANSFORMATIONS_API LayerTransformation : public ov::pass::MatcherPass {
 public:
     class Params {
     public:
@@ -195,7 +195,7 @@ public:
 
     LayerTransformation(const Params& params);
     virtual ~LayerTransformation() = default;
-    virtual bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) = 0;
+    virtual bool transform(TransformationContext& context, ov::pattern::Matcher &m) = 0;
 
     void setContext(TransformationContext* context) noexcept;
 
@@ -248,31 +248,31 @@ protected:
     TransformationContext* context;
 
 protected:
-    std::shared_ptr<ngraph::Node> moveDequantizationAfter(
+    std::shared_ptr<ov::Node> moveDequantizationAfter(
         TransformationContext &context,
-        const std::shared_ptr<ngraph::Node>& operation,
+        const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,
         const bool moveSubtract = true) const;
 
     void updateOutput(
         TransformationContext &context,
-        std::shared_ptr<ngraph::Node> lastNode,
-        std::shared_ptr<ngraph::Node> originalNode) const;
+        std::shared_ptr<ov::Node> lastNode,
+        std::shared_ptr<ov::Node> originalNode) const;
 
     void updateOutput(
         TransformationContext& context,
-        std::shared_ptr<ngraph::Node> lastNode,
+        std::shared_ptr<ov::Node> lastNode,
         std::string originalName) const;
 
-    void addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot);
+    void addPattern(ov::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot);
 
     //TODO: replace with canBeTransformed when quantization by special dimension is supported for all transformations
     bool canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const;
 
     template <typename Operation>
-    void addSingleNodePattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context) const {
-        using namespace ngraph;
+    void addSingleNodePattern(ov::pass::GraphRewrite& pass, TransformationContext& context) const {
+        using namespace ov;
 
         auto is_op_type = [](std::shared_ptr<Node> n) {
             return !!as_type_ptr<Operation>(n);
@@ -287,4 +287,4 @@ typedef std::shared_ptr<LayerTransformation> LayerTransformationPtr;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

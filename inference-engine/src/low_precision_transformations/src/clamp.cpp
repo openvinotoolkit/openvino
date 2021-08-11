@@ -10,16 +10,16 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ClampTransformation, "ClampTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::ClampTransformation, "ClampTransformation", 0);
 
 ClampTransformation::ClampTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::Clamp>({ pattern::wrap_type<opset1::Multiply>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -27,23 +27,23 @@ ClampTransformation::ClampTransformation(const Params& params) : LayerTransforma
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ClampTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "ClampTransformation");
     this->register_matcher(m, callback);
 }
 
-bool ClampTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
-    auto subWithTheSameValues = [](std::shared_ptr<ngraph::opset1::Subtract> sub) {
+bool ClampTransformation::transform(TransformationContext& context, ov::pattern::Matcher& m) {
+    auto subWithTheSameValues = [](std::shared_ptr<ov::opset1::Subtract> sub) {
         if (sub == nullptr) {
             return false;
         }
 
-        auto constant = as_type_ptr<ngraph::opset1::Constant>(sub->get_input_node_shared_ptr(1));
+        auto constant = as_type_ptr<ov::opset1::Constant>(sub->get_input_node_shared_ptr(1));
         if (constant == nullptr) {
             const auto convert = sub->get_input_node_shared_ptr(1);
-            if (!is_type<ngraph::opset1::Convert>(convert)) {
+            if (!is_type<ov::opset1::Convert>(convert)) {
                 return false;
             }
-            constant = as_type_ptr<ngraph::opset1::Constant>(convert->get_input_node_shared_ptr(0));
+            constant = as_type_ptr<ov::opset1::Constant>(convert->get_input_node_shared_ptr(0));
         }
 
         if (constant == nullptr) {
@@ -68,7 +68,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
 
     const auto newClamp = as_type_ptr<opset1::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));
 
-    std::shared_ptr<ngraph::opset1::Clamp> replacement;
+    std::shared_ptr<ov::opset1::Clamp> replacement;
     {
         double min = newClamp->get_min();
         double max = newClamp->get_max();
@@ -88,14 +88,14 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
             max += shift;
         }
 
-        replacement = std::make_shared<ngraph::opset1::Clamp>(newClamp->get_input_source_output(0), min, max);
+        replacement = std::make_shared<ov::opset1::Clamp>(newClamp->get_input_source_output(0), min, max);
     }
     replace_node(newClamp, replacement);
 
     element::Type outputClampType = dequantization.multiply ?
         dequantization.multiply->get_output_element_type(0) :
         dequantization.subtract->get_output_element_type(0);
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(replacement, outputClampType);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecision(replacement, outputClampType);
     return true;
 }
 
@@ -118,4 +118,4 @@ bool ClampTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

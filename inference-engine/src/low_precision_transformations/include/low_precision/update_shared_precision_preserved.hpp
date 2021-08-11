@@ -14,7 +14,7 @@
 #include "low_precision/lpt_itt.hpp"
 #include "low_precision/lpt_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -23,26 +23,26 @@ class UpdateSharedPrecisionPreserved;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 template <typename AttributeType, typename ExpectedAttributeType = AttributeType>
-class ngraph::pass::low_precision::UpdateSharedPrecisionPreserved : public ngraph::pass::MatcherPass {
+class ov::pass::low_precision::UpdateSharedPrecisionPreserved : public ov::pass::MatcherPass {
 public:
     UpdateSharedPrecisionPreserved() {
-        ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
+        ov::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
 
             const bool needToCheckExpectedAttributeType = !std::is_same<ExpectedAttributeType, AttributeType>::value;
             if (!needToCheckExpectedAttributeType) {
                 // expected attribute is ignored, set attributes for node inputs except Result & FakeQuantize operations
-                if (is_type<ngraph::opset1::Result>(node) ||
-                    is_type<ngraph::opset1::FakeQuantize>(node) ||
+                if (is_type<ov::opset1::Result>(node) ||
+                    is_type<ov::opset1::FakeQuantize>(node) ||
                     transformation_callback(node)) {
                     return false;
                 }
             }
 
-            if (ngraph::pass::low_precision::NetworkHelper::isPrecisionPreserved(node) || is_type<opset1::FakeQuantize>(node)) {
+            if (ov::pass::low_precision::NetworkHelper::isPrecisionPreserved(node) || is_type<opset1::FakeQuantize>(node)) {
                 return false;
             }
 
@@ -79,7 +79,7 @@ public:
             return true;
         };
 
-        auto matcher = std::make_shared<ngraph::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
+        auto matcher = std::make_shared<ov::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
         this->register_matcher(matcher, callback);
     }
 
@@ -95,12 +95,12 @@ private:
         return input;
     }
 
-    std::shared_ptr<ngraph::VariantWrapper<AttributeType>> getSourceAttribute(const Input<Node>& input) {
+    std::shared_ptr<ov::VariantWrapper<AttributeType>> getSourceAttribute(const Input<Node>& input) {
         const auto dequantizationInput = getDequantizationInput(input);
         const auto output = dequantizationInput.get_source_output();
-        auto attribute = ngraph::pass::low_precision::getAttribute<AttributeType>(output.get_node()->shared_from_this());
+        auto attribute = ov::pass::low_precision::getAttribute<AttributeType>(output.get_node()->shared_from_this());
         if (attribute == nullptr) {
-            attribute = ngraph::pass::low_precision::getAttribute<AttributeType>(output.get_node_shared_ptr());
+            attribute = ov::pass::low_precision::getAttribute<AttributeType>(output.get_node_shared_ptr());
         }
         return attribute;
     }

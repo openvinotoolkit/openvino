@@ -13,16 +13,16 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation, "SubtractMultiplyToMultiplyAddTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation, "SubtractMultiplyToMultiplyAddTransformation", 0);
 
 SubtractMultiplyToMultiplyAddTransformation::SubtractMultiplyToMultiplyAddTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::Multiply>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -30,16 +30,16 @@ SubtractMultiplyToMultiplyAddTransformation::SubtractMultiplyToMultiplyAddTransf
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "SubtractMultiplyToMultiplyAddTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "SubtractMultiplyToMultiplyAddTransformation");
     this->register_matcher(m, callback);
 }
 
 FakeQuantizeDequantization get(const std::shared_ptr<Node> node) {
     Output<Node> dataNode = node;
 
-    const std::shared_ptr<ngraph::opset1::Multiply> multiply = is_type<opset1::Constant>(
+    const std::shared_ptr<ov::opset1::Multiply> multiply = is_type<opset1::Constant>(
         dataNode.get_node_shared_ptr()->get_input_node_shared_ptr(1)) ?
-        as_type_ptr<ngraph::opset1::Multiply>(dataNode.get_node_shared_ptr()) :
+        as_type_ptr<ov::opset1::Multiply>(dataNode.get_node_shared_ptr()) :
         nullptr;
     std::shared_ptr<opset1::Constant> multiplyConstant;
     if (multiply != nullptr) {
@@ -66,7 +66,7 @@ FakeQuantizeDequantization get(const std::shared_ptr<Node> node) {
     return FakeQuantizeDequantization(dataNode, convert, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
 }
 
-bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContext& context, ov::pattern::Matcher &m) {
     auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
         return false;
@@ -99,8 +99,8 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         lastNew = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
             std::vector<element::Type>{element::f32, element::f32},
             std::vector<element::Type>{deqPrecision},
-            ngraph::op::TemporaryReplaceOutputType(lastNew, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(multiplyConstant, element::f32).get());
+            ov::op::TemporaryReplaceOutputType(lastNew, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(multiplyConstant, element::f32).get());
 
         if (dequantization.multiply != nullptr) {
             auto lastNewPtr = lastNew.get_node_shared_ptr();
@@ -129,8 +129,8 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
         lastNew = std::make_shared<op::TypeRelaxed<DequantizationAdd>>(
             std::vector<element::Type>{element::f32, element::f32},
             std::vector<element::Type>{precisionAfterDequantization},
-            ngraph::op::TemporaryReplaceOutputType(lastNew, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(subtractConstant, element::f32).get());
+            ov::op::TemporaryReplaceOutputType(lastNew, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(subtractConstant, element::f32).get());
 
         auto lastNewPtr = lastNew.get_node_shared_ptr();
         NetworkHelper::copyInfo(dequantization.subtract, lastNewPtr);
@@ -172,4 +172,4 @@ bool SubtractMultiplyToMultiplyAddTransformation::isPrecisionPreserved(std::shar
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

@@ -11,11 +11,11 @@
 
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::pass::low_precision;
 
-bool TransparentBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool TransparentBaseTransformation::transform(TransformationContext& context, ov::pattern::Matcher &m) {
     auto operation = m.get_match_root();
     const std::shared_ptr<Node> dequantization = operation->input_value(0).get_node_shared_ptr();
     // const std::shared_ptr<Node> dequantizationParent = dequantization->input_value(0).get_node_shared_ptr();

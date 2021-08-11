@@ -13,11 +13,11 @@
 #include "low_precision/layer_transformation.hpp"
 #include "attribute_parameters.hpp"
 
-namespace ngraph {
+namespace ov {
 class LP_TRANSFORMATIONS_API PerTensorQuantizationAttribute {
 };
 
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<PerTensorQuantizationAttribute>;
+extern template class LP_TRANSFORMATIONS_API ov::VariantImpl<PerTensorQuantizationAttribute>;
 
 template<>
 class LP_TRANSFORMATIONS_API VariantWrapper<PerTensorQuantizationAttribute> : public VariantImpl<PerTensorQuantizationAttribute> {
@@ -30,4 +30,4 @@ public:
         return type_info;
     }
 };
-} // namespace ngraph
+} // namespace ov

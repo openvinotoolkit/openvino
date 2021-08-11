@@ -13,20 +13,20 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupCanBeQuantized, "MarkupCanBeQuantized", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::MarkupCanBeQuantized, "MarkupCanBeQuantized", 0);
 
-bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    auto setEmptyPrecisions = [](const std::shared_ptr<ngraph::Node>& node) {
+bool ov::pass::low_precision::MarkupCanBeQuantized::run_on_function(std::shared_ptr<ov::Function> f) {
+    auto setEmptyPrecisions = [](const std::shared_ptr<ov::Node>& node) {
         for (auto& input : node->inputs()) {
             auto& rt = input.get_rt_info();
 
-            auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>(std::vector<element::Type>());
-            auto attributeWrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
+            auto attribute = ov::pass::low_precision::make_shared_attribute<PrecisionsAttribute>(std::vector<element::Type>());
+            auto attributeWrapper = std::make_shared<ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
 
             rt.emplace(
-                    ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name,
+                    ov::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name,
                     attributeWrapper);
         }
     };
@@ -36,19 +36,19 @@ bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_function(std::sha
             continue;
         }
 
-        if (const auto convolution = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node)) {
+        if (const auto convolution = std::dynamic_pointer_cast<ov::opset1::Convolution>(node)) {
             if (!ConvolutionTransformation::isQuantizedStatic(convolution)) {
                 setEmptyPrecisions(convolution);
             }
             continue;
         }
-        if (const auto convolutionBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
+        if (const auto convolutionBackpropData = std::dynamic_pointer_cast<ov::opset1::ConvolutionBackpropData>(node)) {
             if (!ConvolutionBackpropDataTransformation::isQuantizedStatic(convolutionBackpropData)) {
                 setEmptyPrecisions(convolutionBackpropData);
             }
             continue;
         }
-        if (const auto groupConvolution = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node)) {
+        if (const auto groupConvolution = std::dynamic_pointer_cast<ov::opset1::GroupConvolution>(node)) {
             if (!GroupConvolutionTransformation::isQuantizedStatic(groupConvolution)) {
                 setEmptyPrecisions(groupConvolution);
             }

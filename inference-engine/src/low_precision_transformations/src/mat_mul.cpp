@@ -15,11 +15,11 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MatMulTransformation, "MatMulTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::MatMulTransformation, "MatMulTransformation", 0);
 
 MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransformation(params) {
     auto mul1 = pattern::wrap_type<opset1::Multiply>();
@@ -27,7 +27,7 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
     auto fq2 = pattern::wrap_type<opset1::FakeQuantize>();
     auto matcher = pattern::wrap_type<opset1::MatMul>({ mul1, std::make_shared<pattern::op::Or>(OutputVector{ mul2, fq2 })});
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -35,11 +35,11 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MatMulTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "MatMulTransformation");
     this->register_matcher(m, callback);
 }
 
-bool MatMulTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
+bool MatMulTransformation::transform(TransformationContext &context, ov::pattern::Matcher &m) {
     std::shared_ptr<opset1::MatMul> matMul = as_type_ptr<opset1::MatMul>(m.get_match_root());
     if ((matMul == nullptr) || !canBeTransformed(context, matMul)) {
         return false;
@@ -78,10 +78,10 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         dequantization2 = NetworkHelper::getDequantization(matMul, 1);
     }
 
-    const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<ngraph::op::TypeRelaxed<opset1::MatMul>>(
+    const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<ov::op::TypeRelaxed<opset1::MatMul>>(
         std::vector<element::Type>({ deqPrecision, deqPrecision }), std::vector<element::Type>({ deqPrecision }),
-        ngraph::op::TemporaryReplaceOutputType(dequantization1.data, deqPrecision).get(),
-        ngraph::op::TemporaryReplaceOutputType(dequantization2.data, deqPrecision).get(),
+        ov::op::TemporaryReplaceOutputType(dequantization1.data, deqPrecision).get(),
+        ov::op::TemporaryReplaceOutputType(dequantization2.data, deqPrecision).get(),
         matMul->get_transpose_a(),
         matMul->get_transpose_b());
     NetworkHelper::copyInfo(matMul, newMatMul);
@@ -102,7 +102,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         // broadcasted sub const to form [1, ..., 1, Y]
         const auto broadcastedConst = fold<opset1::Broadcast>(
             dequantization1.subtractConstant,
-            opset1::Constant::create(ngraph::element::i32, { broadcastShape.size() }, broadcastShape));
+            opset1::Constant::create(ov::element::i32, { broadcastShape.size() }, broadcastShape));
 
         // multiply by weights: [1, ..., 1, Y] x [Y, Z] => [1, ..., 1, Z]
         const auto newSubConst = NetworkHelper::toScalarIfPossible(fold<opset1::MatMul>(
@@ -153,15 +153,15 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         }
     }
 
-    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<ngraph::opset1::Multiply>(
+    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<ov::opset1::Multiply>(
             mulConst1,
             foldConvert(mulConst2, element::f32)));
 
     const auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
         std::vector<element::Type>{ deqPrecision, deqPrecision },
         std::vector<element::Type>{ dequantization1.multiply->get_output_element_type(0) },
-        ngraph::op::TemporaryReplaceOutputType(parent, deqPrecision).get(),
-        ngraph::op::TemporaryReplaceOutputType(newMulConst, deqPrecision).get());
+        ov::op::TemporaryReplaceOutputType(parent, deqPrecision).get(),
+        ov::op::TemporaryReplaceOutputType(newMulConst, deqPrecision).get());
 
     newMultiply->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationMultiply");
 

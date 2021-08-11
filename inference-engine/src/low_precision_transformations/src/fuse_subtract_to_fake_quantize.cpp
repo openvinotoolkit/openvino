@@ -9,16 +9,16 @@
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation, "FuseSubtractToFakeQuantizeTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::FuseSubtractToFakeQuantizeTransformation, "FuseSubtractToFakeQuantizeTransformation", 0);
 
 FuseSubtractToFakeQuantizeTransformation::FuseSubtractToFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::Subtract>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -26,11 +26,11 @@ FuseSubtractToFakeQuantizeTransformation::FuseSubtractToFakeQuantizeTransformati
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FuseSubtractToFakeQuantizeTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "FuseSubtractToFakeQuantizeTransformation");
     this->register_matcher(m, callback);
 }
 
-bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& context, ov::pattern::Matcher &m) {
     const auto subtract = m.get_match_root();
     if (!canBeTransformed(context, subtract)) {
         return false;
@@ -128,4 +128,4 @@ bool FuseSubtractToFakeQuantizeTransformation::isPrecisionPreserved(std::shared_
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

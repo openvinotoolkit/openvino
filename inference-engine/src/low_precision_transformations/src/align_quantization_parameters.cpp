@@ -10,15 +10,15 @@
 #include "low_precision/rt_info/per_tensor_quantization_attribute.hpp"
 #include "low_precision/update_shared_precision_preserved.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::AlignQuantizationParameters, "AlignQuantizationParameters", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::AlignQuantizationParameters, "AlignQuantizationParameters", 0);
 
-bool ngraph::pass::low_precision::AlignQuantizationParameters::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    ngraph::pass::Manager manager;
+bool ov::pass::low_precision::AlignQuantizationParameters::run_on_function(std::shared_ptr<ov::Function> f) {
+    ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    std::shared_ptr<ngraph::pass::GraphRewrite> propagation = manager.register_pass<ngraph::pass::GraphRewrite>();
+    std::shared_ptr<ov::pass::GraphRewrite> propagation = manager.register_pass<ov::pass::GraphRewrite>();
     propagation->add_matcher<low_precision::CreateAttribute<QuantizationAlignmentAttributePtr>>();
     propagation->add_matcher<low_precision::PropagateThroughPrecisionPreserved<QuantizationAlignmentAttribute>>();
     propagation->add_matcher<low_precision::UpdateSharedPrecisionPreserved<QuantizationAlignmentAttributePtr, PerTensorQuantizationAttribute>>();

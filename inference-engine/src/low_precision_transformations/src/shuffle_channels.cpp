@@ -12,16 +12,16 @@
 
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ShuffleChannelsTransformation, "ShuffleChannelsTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::ShuffleChannelsTransformation, "ShuffleChannelsTransformation", 0);
 
 ShuffleChannelsTransformation::ShuffleChannelsTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::ShuffleChannels>({ pattern::wrap_type<opset1::Multiply>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -29,11 +29,11 @@ ShuffleChannelsTransformation::ShuffleChannelsTransformation(const Params& param
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ShuffleChannelsTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "ShuffleChannelsTransformation");
     this->register_matcher(m, callback);
 }
 
-bool ShuffleChannelsTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -48,7 +48,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
         if (shape_size(constShape) == 1ul) {
             return NetworkHelper::toScalar(normalizedConst);
         } else {
-            const size_t normalizedAxis = ngraph::normalize_axis(
+            const size_t normalizedAxis = ov::normalize_axis(
                 shuffleChannels->get_friendly_name(),
                 shuffleChannels->get_axis(),
                 shuffleChannels->get_input_partial_shape(0).rank());
@@ -57,7 +57,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
                 return normalizedConst;
             } else {
                 const auto group = shuffleChannels->get_group();
-                const auto shuffledConst = fold<ngraph::opset1::ShuffleChannels>(normalizedConst, normalizedAxis, group);
+                const auto shuffledConst = fold<ov::opset1::ShuffleChannels>(normalizedConst, normalizedAxis, group);
                 return as_type_ptr<opset1::Constant>(shuffledConst);
             }
         }
@@ -101,4 +101,4 @@ bool ShuffleChannelsTransformation::isPrecisionPreserved(std::shared_ptr<Node> l
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

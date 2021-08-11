@@ -17,7 +17,7 @@
 #include <vector>
 #include <queue>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -62,7 +62,7 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
     const auto dequantization = NetworkHelper::getDequantization(layer);
     if (!dequantization.empty()) {
         auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape) {
-            if (ngraph::shape_size(constShape) == 1ul) {
+            if (ov::shape_size(constShape) == 1ul) {
                 return true;
             }
 
@@ -277,7 +277,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
 }
 
 bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const Node>& layer) {
-    const auto nonConstNode = const_cast<ngraph::Node*>(layer.get())->shared_from_this();
+    const auto nonConstNode = const_cast<ov::Node*>(layer.get())->shared_from_this();
     const auto dequantization = NetworkHelper::getDequantization(nonConstNode);
     return dequantization.subtract != nullptr;
 }
@@ -319,25 +319,25 @@ DataPrecision LayerTransformation::getDataPrecision(
         precisionDetailsAtOutputIntervals.hasZeroPoint);
 }
 
-std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
+std::shared_ptr<ov::Node> LayerTransformation::moveDequantizationAfter(
     TransformationContext &context,
-    const std::shared_ptr<ngraph::Node>& operation,
+    const std::shared_ptr<ov::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
     const bool updatePrecision,
     const bool moveSubtract) const {
-    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation, dequantization, updatePrecision, moveSubtract);
+    const auto result = ov::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation, dequantization, updatePrecision, moveSubtract);
     updateOutput(context, result.lastDequantization, result.newOperation);
     return result.newOperation;
 }
 
 void LayerTransformation::updateOutput(
     TransformationContext &context,
-    std::shared_ptr<ngraph::Node> lastNode,
-    std::shared_ptr<ngraph::Node> originalNode) const {
+    std::shared_ptr<ov::Node> lastNode,
+    std::shared_ptr<ov::Node> originalNode) const {
     // TODO: not tested!!!
     for (auto output : lastNode->outputs()) {
         for (auto input : output.get_target_inputs()) {
-            if (is_type<ngraph::opset1::Result>(input.get_node())) {
+            if (is_type<ov::opset1::Result>(input.get_node())) {
                 const std::string originalName = originalNode->get_friendly_name();
                 originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
                 lastNode->set_friendly_name(originalName);
@@ -349,12 +349,12 @@ void LayerTransformation::updateOutput(
 
 void LayerTransformation::updateOutput(
     TransformationContext& context,
-    std::shared_ptr<ngraph::Node> lastNode,
+    std::shared_ptr<ov::Node> lastNode,
     std::string originalName) const {
     const size_t outputSize = context.function->get_output_size();
     for (size_t i = 0; i < outputSize; ++i) {
-        std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
-        std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
+        std::shared_ptr<ov::Node> result = context.function->get_output_op(i);
+        std::shared_ptr<ov::Node> outputNode = result->get_input_node_shared_ptr(0);
         if (outputNode.get() == lastNode.get()) {
             lastNode->set_friendly_name(originalName);
             break;
@@ -362,8 +362,8 @@ void LayerTransformation::updateOutput(
     }
 }
 
-void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) {
-    ngraph::graph_rewrite_callback internal_callback = [this, &context](ngraph::pattern::Matcher &m) {
+void LayerTransformation::addPattern(ov::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) {
+    ov::graph_rewrite_callback internal_callback = [this, &context](ov::pattern::Matcher &m) {
         const bool result = transform(context, m);
         (void)result;
 #ifdef LPT_DISPLAY_PRECISION
@@ -372,19 +372,19 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
             std::cout << "Operation was transformed: " <<
                 operationNode->get_type_name() << ", " <<
                 operationNode->get_friendly_name() << ", output operation precision: " <<
-                ((operationNode->get_output_size() == 1u) ? operationNode->get_output_element_type(0) : ngraph::element::Type()) <<
+                ((operationNode->get_output_size() == 1u) ? operationNode->get_output_element_type(0) : ov::element::Type()) <<
                 std::endl;
         }
 #endif
         return false;
     };
     // TODO: better name for matcher? required?
-    auto m = std::make_shared<ngraph::pattern::Matcher>(patternRoot, "SingleNodeMatcher");
+    auto m = std::make_shared<ov::pattern::Matcher>(patternRoot, "SingleNodeMatcher");
     NGRAPH_SUPPRESS_DEPRECATED_START
-    pass.add_matcher(m, internal_callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    pass.add_matcher(m, internal_callback, ov::pass::PassProperty::CHANGE_DYNAMIC_STATE);
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

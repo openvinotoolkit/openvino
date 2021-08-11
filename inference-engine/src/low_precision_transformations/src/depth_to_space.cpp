@@ -8,16 +8,16 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::DepthToSpaceTransformation, "DepthToSpaceTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::DepthToSpaceTransformation, "DepthToSpaceTransformation", 0);
 
 DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : TransparentBaseTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::DepthToSpace>({ pattern::wrap_type<opset1::Multiply>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -25,11 +25,11 @@ DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : T
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "DepthToSpaceTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "DepthToSpaceTransformation");
     this->register_matcher(m, callback);
 }
 
-bool DepthToSpaceTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
+bool DepthToSpaceTransformation::transform(TransformationContext &context, ov::pattern::Matcher &m) {
     std::shared_ptr<Node> depthToSpace = m.get_match_root();
     if (!canBeTransformed(context, depthToSpace)) {
         return false;

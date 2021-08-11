@@ -20,7 +20,7 @@
 #include <low_precision/common/ie_lpt_exception.hpp>
 #include <low_precision/network_helper.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -160,4 +160,4 @@ bool QuantizationDetails::isSupportedLevel(const size_t level) {
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

@@ -9,16 +9,16 @@
 
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReduceMeanTransformation, "ReduceMeanTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::ReduceMeanTransformation, "ReduceMeanTransformation", 0);
 
 ReduceMeanTransformation::ReduceMeanTransformation(const Params& params) : ReduceBaseTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::ReduceMean>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -26,7 +26,7 @@ ReduceMeanTransformation::ReduceMeanTransformation(const Params& params) : Reduc
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ReduceMeanTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "ReduceMeanTransformation");
     this->register_matcher(m, callback);
 }
 
@@ -44,4 +44,4 @@ bool ReduceMeanTransformation::getUpdatePrecision(const std::shared_ptr<Node>& r
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

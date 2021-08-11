@@ -12,7 +12,7 @@
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 
-namespace ngraph {
+namespace ov {
 
 class LP_TRANSFORMATIONS_API PrecisionPreservedAttribute;
 
@@ -31,7 +31,7 @@ public:
 
 using PrecisionPreservedAttributePtr = std::shared_ptr<PrecisionPreservedAttribute>;
 
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<PrecisionPreservedAttributePtr>;
+extern template class LP_TRANSFORMATIONS_API ov::VariantImpl<PrecisionPreservedAttributePtr>;
 
 template<>
 class LP_TRANSFORMATIONS_API VariantWrapper<PrecisionPreservedAttributePtr> : public VariantImpl<PrecisionPreservedAttributePtr> {
@@ -48,4 +48,4 @@ public:
 
     std::string to_string() override;
 };
-} // namespace ngraph
+} // namespace ov

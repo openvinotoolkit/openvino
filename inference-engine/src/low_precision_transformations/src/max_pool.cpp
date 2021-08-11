@@ -12,16 +12,16 @@
 
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MaxPoolTransformation, "MaxPoolTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::MaxPoolTransformation, "MaxPoolTransformation", 0);
 
 MaxPoolTransformation::MaxPoolTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = pattern::wrap_type<opset1::MaxPool>({ pattern::wrap_type<opset1::Multiply>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -29,7 +29,7 @@ MaxPoolTransformation::MaxPoolTransformation(const Params& params) : LayerTransf
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MaxPoolTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "MaxPoolTransformation");
     this->register_matcher(m, callback);
 }
 
@@ -51,7 +51,7 @@ bool MaxPoolTransformation::canBeTransformed(const TransformationContext& contex
     return true;
 }
 
-bool MaxPoolTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool MaxPoolTransformation::transform(TransformationContext& context, ov::pattern::Matcher &m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -67,4 +67,4 @@ bool MaxPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) co
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

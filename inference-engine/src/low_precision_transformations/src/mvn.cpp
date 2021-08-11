@@ -20,16 +20,16 @@
 
 #include "ngraph/opsets/opset6.hpp"
 
-using namespace ngraph;
-using namespace ngraph::pass;
-using namespace ngraph::pass::low_precision;
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::pass::low_precision;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MVNTransformation, "MVNTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::MVNTransformation, "MVNTransformation", 0);
 
 namespace mvn {
 
 template<typename T>
-std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Constant& originalConst) {
+std::shared_ptr<ov::op::Constant> createNewScalesConst(const ov::op::Constant& originalConst) {
     std::vector<T> source = originalConst.cast_vector<T>();
 
     std::vector<T> newData(source.size());
@@ -37,19 +37,19 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
         newData[i] = source[i] < 0 ? T{-1} : T{1};
     }
 
-    const ngraph::element::Type type = originalConst.get_output_element_type(0);
-    return ngraph::op::Constant::create(type, originalConst.get_shape(), newData);
+    const ov::element::Type type = originalConst.get_output_element_type(0);
+    return ov::op::Constant::create(type, originalConst.get_shape(), newData);
 }
 
 } // namespace mvn
 
 MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = std::make_shared<pattern::op::Or>(OutputVector{
-        pattern::wrap_type<ngraph::op::MVN>({ pattern::wrap_type<ngraph::opset1::Multiply>() }),
-        pattern::wrap_type<ngraph::opset6::MVN>({ pattern::wrap_type<ngraph::opset1::Multiply>(), pattern::wrap_type<ngraph::opset1::Constant>() })
+        pattern::wrap_type<ov::op::MVN>({ pattern::wrap_type<ov::opset1::Multiply>() }),
+        pattern::wrap_type<ov::opset6::MVN>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() })
     });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -57,7 +57,7 @@ MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MVNTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "MVNTransformation");
     this->register_matcher(m, callback);
 }
 
@@ -109,7 +109,7 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
     return perTensor && isScalarScales;
 }
 
-bool MVNTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
+bool MVNTransformation::transform(TransformationContext &context, ov::pattern::Matcher &m) {
     std::shared_ptr<Node> operation = m.get_match_root();
     if (!canBeTransformed(context, operation)) {
         return false;
@@ -137,12 +137,12 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
     const auto type = scalesConst->get_output_element_type(0);
     if (normalizeVariance) {
         switch (type) {
-            case ngraph::element::Type_t::f16: {
-                newScalesConst = mvn::createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f16>::value_type>(*scalesConst);
+            case ov::element::Type_t::f16: {
+                newScalesConst = mvn::createNewScalesConst<ov::element_type_traits<ov::element::Type_t::f16>::value_type>(*scalesConst);
                 break;
             }
-            case ngraph::element::Type_t::f32: {
-                newScalesConst = mvn::createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f32>::value_type>(*scalesConst);
+            case ov::element::Type_t::f32: {
+                newScalesConst = mvn::createNewScalesConst<ov::element_type_traits<ov::element::Type_t::f32>::value_type>(*scalesConst);
                 break;
             }
             default: {
@@ -162,7 +162,7 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
     auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
         DequantizationMultiply(newMVN, newScalesConst),
         mvn->get_output_element_type(0));
-    ngraph::copy_runtime_info({ mvn, newMultiply }, newMultiply);
+    ov::copy_runtime_info({ mvn, newMultiply }, newMultiply);
 
     replace_node(mvn, newMultiply);
 

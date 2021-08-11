@@ -15,15 +15,15 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ConvolutionTransformation, "ConvolutionTransformation", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::low_precision::ConvolutionTransformation, "ConvolutionTransformation", 0);
 
 ConvolutionTransformation::ConvolutionTransformation(const Params& params) : WeightableLayerTransformation(params) {
-    auto matcher = ngraph::pattern::wrap_type<opset1::Convolution>({
-        ngraph::pattern::wrap_type<opset1::Multiply>(),
+    auto matcher = ov::pattern::wrap_type<opset1::Convolution>({
+        ov::pattern::wrap_type<opset1::Multiply>(),
         std::make_shared<pattern::op::Or>(OutputVector {
             pattern::wrap_type<opset1::Multiply>(),
             pattern::wrap_type<opset1::FakeQuantize>()
@@ -31,7 +31,7 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
     });
 
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -39,7 +39,7 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ConvolutionTransformation");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcher, "ConvolutionTransformation");
     this->register_matcher(m, callback);
 }
 
@@ -51,7 +51,7 @@ bool ConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const No
     return WeightableLayerTransformation::isQuantizedStatic(layer, false);
 }
 
-bool ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
+bool ConvolutionTransformation::transform(TransformationContext &context, ov::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
 
     if (!canConvolutionBeTransformed(context, convolution)) {
@@ -62,7 +62,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                                                     NetworkHelper::getDequantization(reshapeFromWeights);
         if (dequantization.empty()) {
             const auto fqOnWeights = getFakeQuantizeOnWeights(convolution);
-            std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
+            std::shared_ptr<ov::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
             if (reshapeFromWeights != nullptr) {
                 resultConstant = fold_reshape<opset1::Reshape>(
                         resultConstant,
@@ -84,8 +84,8 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     {
         std::shared_ptr<opset1::Subtract> subtract;
         if (dequantization.subtract != nullptr) {
-            std::shared_ptr<ngraph::Node> layer = dequantization.subtract;
-            ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(layer);
+            std::shared_ptr<ov::Node> layer = dequantization.subtract;
+            ov::pass::low_precision::NetworkHelper::cleanRunTimeInfo(layer);
 
             auto optimizedSubtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
             if (optimizedSubtract == nullptr) {
@@ -128,9 +128,9 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             if (scales.size() == 1ul) {
                 newMultiplyAfterConst = dequantization.multiply->input_value(1).get_node_shared_ptr()->clone_with_new_inputs({});
             } else {
-                const ngraph::PartialShape inputPShape = convolution->get_input_partial_shape(0);
+                const ov::PartialShape inputPShape = convolution->get_input_partial_shape(0);
                 const size_t inputChannelsInGroup = inputPShape[1].get_length() / groupsCount;
-                const ngraph::PartialShape outputPShape = convolution->get_output_partial_shape(0);
+                const ov::PartialShape outputPShape = convolution->get_output_partial_shape(0);
                 std::vector<float> outputScales(outputPShape[1].get_length());
 
                 const size_t outputChannelsInGroup = outputPShape[1].get_length() / groupsCount;
@@ -179,11 +179,11 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         }
         NetworkHelper::copyInfo(convolution, relaxedNewConvolution);
 
-        std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+        std::shared_ptr<ov::opset1::Multiply> newMultiplyAfter = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
             std::vector<element::Type>{ deqPrecision, deqPrecision },
             std::vector<element::Type>{ dequantization.multiply->get_output_element_type(0) },
-            ngraph::op::TemporaryReplaceOutputType(relaxedNewConvolution, deqPrecision).get(),
-            ngraph::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
+            ov::op::TemporaryReplaceOutputType(relaxedNewConvolution, deqPrecision).get(),
+            ov::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
 
         replace_node(convolution, newMultiplyAfter);
         convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
@@ -214,7 +214,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         assert(!dequantization.empty());
         if (is_type<opset1::FakeQuantize>(dequantization.data.get_node())) {
             const std::shared_ptr<opset1::FakeQuantize> fq = as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr());
-            std::shared_ptr<ngraph::Node> newFQ = NetworkHelper::fold_fake_quantize(fq, true);
+            std::shared_ptr<ov::Node> newFQ = NetworkHelper::fold_fake_quantize(fq, true);
             NetworkHelper::copyInfo(fq, newFQ);
             replace_node(fq, newFQ);
         }
@@ -309,9 +309,9 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         }
     }
 
-    std::shared_ptr<ngraph::opset1::Multiply> finalDequantization = NetworkHelper::optimizeMultipliesAfter(
+    std::shared_ptr<ov::opset1::Multiply> finalDequantization = NetworkHelper::optimizeMultipliesAfter(
         convolution->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
-    ngraph::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
+    ov::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
     updateOutput(context, finalDequantization, convolution);
 
     // [C, 1, 1] -> [1, C, 1, 1]
@@ -324,10 +324,10 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
     if (is_type<opset1::Subtract>(onWeights)) {
         auto& rt = onWeights->get_rt_info();
-        rt["DISABLED_CONSTANT_FOLDING"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
+        rt["DISABLED_CONSTANT_FOLDING"] = std::make_shared<ov::VariantWrapper<std::string>>("");
     }
     return true;
 }
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

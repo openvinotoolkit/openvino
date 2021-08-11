@@ -8,7 +8,7 @@
 #include <ngraph/ngraph.hpp>
 #include "layer_transformation.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -16,13 +16,13 @@ namespace low_precision {
 * @brief ReduceBaseTransformation: base class for Reduce*Transformation
 * detects dequantization operations in front of the Reduce* layer and
 * propagates them through the Reduce* if possible
-* 
+*
 */
 
 class LP_TRANSFORMATIONS_API ReduceBaseTransformation : public LayerTransformation {
 public:
     ReduceBaseTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher& m) override;
+    bool transform(TransformationContext& context, ov::pattern::Matcher& m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const override;
 
 protected:
@@ -34,4 +34,4 @@ protected:
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov
