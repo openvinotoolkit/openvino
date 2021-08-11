@@ -78,7 +78,7 @@ const std::vector<fusingSpecificParams> fusingParamsSet {
         fusingSigmoid
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Check, ConvPoolActivTest, ::testing::ValuesIn(fusingParamsSet), ConvPoolActivTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Check, ConvPoolActivTest, ::testing::ValuesIn(fusingParamsSet), ConvPoolActivTest::getTestCaseName);
 
 } // namespace
 

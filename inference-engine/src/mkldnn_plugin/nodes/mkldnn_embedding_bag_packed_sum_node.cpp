@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 
 bool MKLDNNEmbeddingBagPackedSumNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto embBagPackedSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingBagPackedSum>(op);
+        const auto embBagPackedSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingBagPackedSum>(op);
         if (!embBagPackedSumOp) {
             errorMessage = "Node is not an instance of the EmbeddingBagPackedSum operation from opset v3.";
             return false;
@@ -58,12 +58,12 @@ void MKLDNNEmbeddingBagPackedSumNode::initSupportedPrimitiveDescriptors() {
             IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
     }
 
-    std::vector<DataConfigurator> inDataConfigurators({{TensorDescCreatorTypes::ncsp, inDataPrecision},
-                                                       {TensorDescCreatorTypes::ncsp, Precision::I32}});
+    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
+                                                       {LayoutType::ncsp, Precision::I32}});
     if (getOriginalInputsNumber() > PER_SAMPLE_WEIGHTS_IDX)
-        inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp, inDataPrecision});
+        inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
 
-    addSupportedPrimDesc(inDataConfigurators, {{TensorDescCreatorTypes::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
 }
 
 void MKLDNNEmbeddingBagPackedSumNode::initFromInputs() {
@@ -89,7 +89,8 @@ void MKLDNNEmbeddingBagPackedSumNode::execute(mkldnn::stream strm) {
     if (_withWeights)
         weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
 
-    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, getParentEdgeAt(0)->getDesc(), getChildEdgeAt(0)->getDesc());
+    MKLDNNEmbeddingBagSumNode::execute(srcData, weightsData, dstData, getParentEdgeAt(0)->getMemory().GetDesc().getPrecision(),
+                                       getParentEdgeAt(0)->getShape().getStaticDims(), getChildEdgeAt(0)->getShape().getStaticDims());
 }
 
 bool MKLDNNEmbeddingBagPackedSumNode::created() const {

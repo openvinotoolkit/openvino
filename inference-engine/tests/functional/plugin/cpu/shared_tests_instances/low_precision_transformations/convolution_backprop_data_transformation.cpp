@@ -100,7 +100,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationPa
     }
 };
 
-const std::vector<std::pair<ngraph::Shape, bool>> inputShapes = {
+const std::vector<std::pair<ngraph::PartialShape, bool>> inputShapes = {
     {{ 1, 8, 16, 16 }, true}
 };
 
@@ -108,7 +108,7 @@ const std::vector<ngraph::Shape> outputShapes = {
     { 16, 16 }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionBackpropDataTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionBackpropDataTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),

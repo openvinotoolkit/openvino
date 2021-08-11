@@ -28,6 +28,9 @@ bool fuse_type_to_shapeof(const std::shared_ptr<ngraph::Node>& node,
 bool fuse_type_to_shapeof_v0(const std::shared_ptr<ngraph::Node>& node,
                              ngraph::element::Type to,
                              size_t idx);
+bool fuse_type_to_range_v4(const std::shared_ptr<ngraph::Node>& node,
+                           ngraph::element::Type to,
+                           size_t idx);
 bool fuse_type_to_parameter(const std::shared_ptr<ngraph::Node>& node,
                             ngraph::element::Type to,
                             size_t idx);
@@ -341,7 +344,8 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         {opset4::ReduceLogicalAnd::type_info,
          fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
         {opset4::ReduceLogicalOr::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
-        {opset1::ShapeOf::type_info, fuse_type_to_shapeof_v0}};
+        {opset1::ShapeOf::type_info, fuse_type_to_shapeof_v0},
+        {opset4::Range::type_info, fuse_type_to_range_v4}};
 
     type_to_fuse.insert(m_additional_type_to_fuse_map.begin(), m_additional_type_to_fuse_map.end());
 
@@ -377,6 +381,19 @@ bool fuse_type_to_shapeof(const std::shared_ptr<ngraph::Node>& node, element::Ty
         if (to == element::i32 || to == element::i64)
         {
             shapeof->set_output_type(to);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool fuse_type_to_range_v4(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx)
+{
+    if (auto range = as_type_ptr<opset4::Range>(node))
+    {
+        if (to.is_integral_number() || to.is_real())
+        {
+            range->set_output_type(to);
             return true;
         }
     }

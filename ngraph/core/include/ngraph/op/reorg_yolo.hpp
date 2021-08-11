@@ -15,8 +15,8 @@ namespace ngraph
             class NGRAPH_API ReorgYolo : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"ReorgYolo", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 ReorgYolo() = default;
                 /// \brief Constructs a ReorgYolo operation
                 ///
@@ -29,7 +29,7 @@ namespace ngraph
 
                 void validate_and_infer_types() override;
 
-                virtual bool visit_attributes(AttributeVisitor& visitor) override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

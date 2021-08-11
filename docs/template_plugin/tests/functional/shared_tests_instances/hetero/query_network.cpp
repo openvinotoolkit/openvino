@@ -13,7 +13,7 @@ using namespace HeteroTests;
 
 auto ConvBias = ngraph::builder::subgraph::makeConvBias();
 
-INSTANTIATE_TEST_CASE_P(smoke_FullySupportedTopologies, QueryNetworkTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FullySupportedTopologies, QueryNetworkTest,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE, "HETERO:TEMPLATE", "MULTI:TEMPLATE"),
                                 ::testing::Values(ConvBias)),

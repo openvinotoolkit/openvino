@@ -96,7 +96,7 @@ const std::vector<Precision> netPrecisions = {
         Precision::BF16
 };
 
-INSTANTIATE_TEST_CASE_P(concat_Concat4D_CPU_Block8inPlace, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(concat_Concat4D_CPU_Block8inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(1),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{1, 8,  3, 5},
@@ -106,7 +106,7 @@ INSTANTIATE_TEST_CASE_P(concat_Concat4D_CPU_Block8inPlace, ConcatLayerCPUTest,
                                 ::testing::Values(planar_4D, planarChannels_4D, blocked8_4D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Concat4D_CPU_Block8, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block8, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(0, 2, 3),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 16, 3, 5},
@@ -116,7 +116,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Concat4D_CPU_Block8, ConcatLayerCPUTest,
                                 ::testing::Values(planar_4D_ref, planarChannels_4D, blocked8_4D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Concat4D_CPU_Block16inPlace, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(1),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 16, 3, 5},
@@ -126,7 +126,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Concat4D_CPU_Block16inPlace, ConcatLayerCPUTest,
                                 ::testing::Values(blocked16_4D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Concat4D_CPU_Block16, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block16, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(0, 2, 3),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 32, 3, 5},
@@ -136,7 +136,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Concat4D_CPU_Block16, ConcatLayerCPUTest,
                                 ::testing::Values(blocked16_4D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(concat_Concat5D_CPU_Block8inPlace, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(concat_Concat5D_CPU_Block8inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(1),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{1, 8,  3, 5, 7},
@@ -146,7 +146,7 @@ INSTANTIATE_TEST_CASE_P(concat_Concat5D_CPU_Block8inPlace, ConcatLayerCPUTest,
                                 ::testing::Values(planar_5D, planarChannels_5D, blocked8_5D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Concat5D_CPU_Block8, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block8, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(0, 2, 3, 4),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 16, 3, 5, 7},
@@ -156,7 +156,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Concat5D_CPU_Block8, ConcatLayerCPUTest,
                                 ::testing::Values(planar_5D_ref, planarChannels_5D, blocked8_5D_ref)),
                         ConcatLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Concat5D_CPU_Block16inPlace, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block16inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(1),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 16, 3, 5, 7},
@@ -166,7 +166,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Concat5D_CPU_Block16inPlace, ConcatLayerCPUTest,
                                 ::testing::Values(blocked16_5D)),
                         ConcatLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Concat5D_CPU_Block16, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat5D_CPU_Block16, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(0, 2, 3, 4),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 32, 3, 5, 7},
@@ -177,7 +177,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Concat5D_CPU_Block16, ConcatLayerCPUTest,
                         ConcatLayerCPUTest::getTestCaseName);
 
 
-INSTANTIATE_TEST_CASE_P(smoke_Concat_inPlace, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_inPlace, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(1),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 3, 5},
@@ -189,7 +189,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Concat_inPlace, ConcatLayerCPUTest,
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
                         ConcatLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Concat3D, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat3D, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(0, 2),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 4, 5},
@@ -199,7 +199,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Concat3D, ConcatLayerCPUTest,
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         ConcatLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Concat_1D_2D, ConcatLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_1D_2D, ConcatLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(0),
                                 ::testing::Values(std::vector<std::vector<size_t>>{{2, 4},

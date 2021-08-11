@@ -105,7 +105,7 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
         auto& kernel = kd.kernels[i];
         DispatchData dispatchData = SetDefault(newParams);
         auto cldnnJit = GetJitConstants(newParams);
-        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, optParams);
+        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, optParams, i);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);

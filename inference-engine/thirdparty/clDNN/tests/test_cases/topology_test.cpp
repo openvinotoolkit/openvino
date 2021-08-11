@@ -15,8 +15,8 @@
 #include <cldnn/primitives/softmax.hpp>
 #include <cldnn/primitives/activation.hpp>
 #include <cldnn/primitives/concatenation.hpp>
+#include <cldnn/graph/topology.hpp>
 
-#include <include/topology_impl.h>
 
 #include <iostream>
 #include <deque>
@@ -481,7 +481,7 @@ TEST_P(topology_test, TOPOLOGY)
      }
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TOPOLOGY,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TOPOLOGY,
     topology_test,
     ::testing::Combine( ::testing::ValuesIn(topology_test::generate_all_output_layouts()),
                         ::testing::ValuesIn(topology_test::all_generator_vectors<3>())),

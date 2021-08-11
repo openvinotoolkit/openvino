@@ -138,7 +138,7 @@ TEST_P(GridGeneratorIntervalsTest, detectron_grid_generator_dynamic_shapes_inter
     ASSERT_TRUE(grid_gen->get_output_partial_shape(0).same_scheme(params.ref_out_shape));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     type_prop,
     GridGeneratorIntervalsTest,
     ::testing::Values(

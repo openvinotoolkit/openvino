@@ -27,7 +27,7 @@ const std::vector<InferenceEngine::Precision> netPrecision = {
     InferenceEngine::Precision::FP32
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ExtractImagePatchesLayerTest, ExtractImagePatchesTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ExtractImagePatchesLayerTest, ExtractImagePatchesTest,
         ::testing::Combine(::testing::ValuesIn(inShapes),
                             ::testing::ValuesIn(kSizes),
                             ::testing::ValuesIn(strides),

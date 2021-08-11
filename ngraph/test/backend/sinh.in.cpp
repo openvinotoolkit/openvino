@@ -20,38 +20,86 @@
 // clang-format on
 
 #include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
+
 
 NGRAPH_TEST(${BACKEND_NAME}, sinh)
 {
-    Shape shape{6};
+    Shape shape{8};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Sinh>(A), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({-4, -3, -2, -1, 0, 1, 2, 3});
+    test_case.add_expected_output<float>(
+        shape, {sinhf(-4), sinhf(-3), sinhf(-2), sinhf(-1), sinhf(0), sinhf(1), sinhf(2), sinhf(3)});
+    test_case.run();
+}
 
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
-    vector<float> input{1.0f, 0.0f, -0.0f, -1.0f, 5.0f, -5.0f};
-    copy_data(a, input);
-    auto result = backend->create_tensor(element::f32, shape);
+NGRAPH_TEST(${BACKEND_NAME}, sinh_negative)
+{
+    Shape shape{5};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::Sinh>(A), ParameterVector{A});
 
-    std::transform(
-        input.begin(), input.end(), input.begin(), [](float x) -> float { return sinhf(x); });
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({-4, -3, -2, -1, -5});
+    test_case.add_expected_output<float>(
+        shape, {sinhf(-4), sinhf(-3), sinhf(-2), sinhf(-1), sinhf(-5)});
+    test_case.run();
+}
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(input, read_vector<float>(result)));
+NGRAPH_TEST(${BACKEND_NAME}, sinh_scalar)
+{
+    Shape shape{};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto f = make_shared<Function>(make_shared<op::Sinh>(A), ParameterVector{A});
+
+    const vector<float> a{13};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(shape, {sinhf(13)});
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 2);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, sinh_in_place)
+{
+    Shape shape{2};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto T = make_shared<op::Sinh>(A);
+    auto T2 = make_shared<op::Sinh>(T);
+
+    auto f = make_shared<Function>(T2, ParameterVector{A});
+
+    const vector<float> a{1, 3};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(shape, {sinhf(sinhf(1)), sinhf(sinhf(3))});
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 2);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, sinh_i32)
+{
+    Shape shape{5};
+    auto A = make_shared<op::Parameter>(element::i32, shape);;
+    auto f = make_shared<Function>(make_shared<op::Sinh>(A), ParameterVector{A});
+
+    const vector<int32_t> input{2, 1, 0, -1, -2};
+    const vector<int32_t> expected{4, 1, 0, -1, -4};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int32_t>({input});
+    test_case.add_expected_output<int32_t>(shape, {expected});
+    test_case.run();
 }

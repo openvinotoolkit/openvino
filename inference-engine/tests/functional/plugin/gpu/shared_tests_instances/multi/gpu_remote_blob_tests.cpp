@@ -16,7 +16,7 @@ const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remot
 #endif
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlobMultiGPU, MultiDevice_SupportTest,
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiGPU, MultiDevice_SupportTest,
                         ::testing::ValuesIn(device_names_and_support_for_remote_blobs), MultiDevice_SupportTest::getTestCaseName);
 
 TEST_P(MultiDevice_Test, cannotInferRemoteBlobIfNotInitializedForDevice) {
@@ -53,5 +53,5 @@ const std::vector<DevicesNames> device_names_and_support_for_remote_blobs2 {
         {"GPU.1"},  // another GPU (the test will test its presence), different OCL contexts
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_RemoteBlobMultiInitializedWithoutGPU, MultiDevice_Test,
+INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiInitializedWithoutGPU, MultiDevice_Test,
                         ::testing::ValuesIn(device_names_and_support_for_remote_blobs2), MultiDevice_Test::getTestCaseName);

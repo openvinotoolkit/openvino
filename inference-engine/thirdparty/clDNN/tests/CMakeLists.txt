@@ -2,25 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# TODO: fix in tests
+if(SUGGEST_OVERRIDE_SUPPORTED)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+
 # ========================================= Name / Output settings =====================================
 
-set(CLDNN_BUILD__PROJ             "clDNN_unit_tests")
+set(CLDNN_BUILD__PROJ             "clDNN_unit_tests64")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
-set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ}${CLDNN__OUT_CPU_SUFFIX}")
-
-# =========================================== Compiler options =========================================
-intel_config_flag_apply_settings(CompilerOptions CMAKE_CXX_FLAGS ALL_PATTERN ""
-    SET
-      WarnLevel3
-      StandardCxx11
-  )
-if (NOT MSVC)
-  intel_config_flag_apply_settings(CompilerOptions CMAKE_CXX_FLAGS ALL_PATTERN ""
-      SET_RAW
-        "-Wno-error=conversion-null"
-        "-Wno-error=type-limits"
-    )
-endif ()
 
 # ========================================= Source/Header files ========================================
 
@@ -55,17 +45,6 @@ file(GLOB __CLDNN_Sources__module_tests
     "${__CLDNN_Directory__module_tests}/*.cpp"
   )
 
-set(__CLDNN_Directory__gtest           "${CLDNN__GTEST_DIR}")
-set(__CLDNN_Label__gtest               "google test framework")
-file(GLOB __CLDNN_Sources__gtest
-    "${__CLDNN_Directory__gtest}/*.cc"
-  )
-
-if(UNIX)
-    set_source_files_properties(${__CLDNN_Sources__gtest} PROPERTIES
-        COMPILE_FLAGS "-Wno-undef")
-endif()
-
 if (MSVC)
   file(GLOB __CLDNN_Sources__natvis
     "${CMAKE_CURRENT_SOURCE_DIR}/float16.natvis"
@@ -84,7 +63,6 @@ set(__CLDNN_AllSources
     ${__CLDNN_Sources__test_cases}
     ${__CLDNN_Sources__test_utils}
     ${__CLDNN_Sources__module_tests}
-    ${__CLDNN_Sources__gtest}
     ${__CLDNN_Sources__natvis}
   )
 
@@ -94,7 +72,6 @@ source_group("${__CLDNN_Label__main}"         FILES ${__CLDNN_Sources__main})
 source_group("${__CLDNN_Label__test_cases}"   FILES ${__CLDNN_Sources__test_cases})
 source_group("${__CLDNN_Label__test_utils}"   FILES ${__CLDNN_Sources__test_utils})
 source_group("${__CLDNN_Label__module_tests}" FILES ${__CLDNN_Sources__module_tests})
-source_group("${__CLDNN_Label__gtest}"        FILES ${__CLDNN_Sources__gtest})
 
 # ===================================== Include/Link directories =======================================
 
@@ -111,9 +88,6 @@ include_directories(
     "${__CLDNN_Directory__ks_common}"
   )
 
-include_directories(SYSTEM
-    "${CLDNN__GTEST_DIR}")
-
 # =================================== Link targets and dependencies ====================================
 
 # Tests executable.
@@ -126,26 +100,19 @@ if(COMMAND set_ie_threading_interface_for)
 endif()
 
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
-set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
 # Set library dependencies
-target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE "${CLDNN_BUILD__PROJ__clDNN}")
+target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
+  "${CLDNN_BUILD__PROJ__clDNN}" OpenCL gtest gtest_main gmock)
 
 if(WIN32)
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE setupapi)
 elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
-target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${CLDNN__SYSTEM_LINK_LIBRARIES})
-
-# =================================== Custom pre- and post-steps =======================================
-
-if(CLDNN__RUN_TESTS)
-  add_custom_command(TARGET "${CLDNN_BUILD__PROJ}" POST_BUILD
-      WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
-      COMMAND "${CLDNN_BUILD__PROJ}"
-      COMMENT "Executing tests..."
-    )
-endif()
 
 # ======================================================================================================
+
+ie_sse42_optimization_flags(sse4_2_flags)
+set_source_files_properties(${__CLDNN_AllSources}
+  PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")

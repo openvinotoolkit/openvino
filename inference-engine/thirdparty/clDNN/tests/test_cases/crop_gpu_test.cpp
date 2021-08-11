@@ -761,7 +761,7 @@ TEST(crop_gpu, basic_in1x4x1x1_split) {
     set_values(input, input_vec);
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::outputs(topology.get_primitive_ids()));
+    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
 
     network network(engine, topology, bo);
     network.set_input_data("input", input);
@@ -877,7 +877,7 @@ TEST(crop_gpu, basic_i32_in1x4x1x1_split) {
     set_values(input, input_vec);
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::outputs(topology.get_primitive_ids()));
+    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
 
     network network(engine, topology, bo);
     network.set_input_data("input", input);
@@ -952,7 +952,7 @@ TEST(crop_gpu, basic_i64_in1x4x1x1_split) {
     set_values(input, input_vec);
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::outputs(topology.get_primitive_ids()));
+    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
 
     network network(engine, topology, bo);
     network.set_input_data("input", input);
@@ -1235,10 +1235,10 @@ static std::vector<size_t> batches = {1, 8, 16, 17};
 static std::vector<size_t> in_features = {18, 24, 32};
 static std::vector<size_t> crop_features = {4, 8, 12, 17};
 
-INSTANTIATE_TEST_CASE_P(crop_test, crop_gpu,
+INSTANTIATE_TEST_SUITE_P(crop_test, crop_gpu,
                         ::testing::Combine(
                                 ::testing::ValuesIn(batches),
                                 ::testing::ValuesIn(in_features),
                                 ::testing::ValuesIn(crop_features),
                                 ::testing::ValuesIn(formats)
-                                ), );
+                                ));

@@ -126,7 +126,7 @@ const std::vector<std::vector<size_t>> outIndices3 = {{0, 1, 2}, {0, 1, 1, 0, 2}
 const std::vector<std::vector<size_t>> outIndices4 = {{0, 1, 2, 3}, {0, 1, 1, 0, 2, 3}, {0, 0, 0, 2, 3}};
 
 
-INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Nspc2NcspSpecial, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_Nspc2NcspSpecial, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(4),
                                 ::testing::Values(1),
@@ -137,7 +137,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Nspc2NcspSpecial, SplitLayerCPUTest,
                                 ::testing::Values(perChannelsToPlanar_4D)),
                         SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Nspc2NcspSpecial, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split5D_CPU_Nspc2NcspSpecial, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(3),
                                 ::testing::Values(1),
@@ -148,7 +148,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Nspc2NcspSpecial, SplitLayerCPUTest,
                                 ::testing::Values(perChannelsToPlanar_5D)),
                         SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Block8inPlace, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_Block8inPlace, SplitLayerCPUTest,
                     ::testing::Combine(
                             ::testing::Values(3),
                             ::testing::Values(0, 1),
@@ -159,7 +159,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Block8inPlace, SplitLayerCPUTest,
                             ::testing::Values(planar_4D, planar_4D_ref, perChannels_4D, blocked8_4D)),
                     SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Block8, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_Block8, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(3),
                                 ::testing::Values(2, 3),
@@ -170,7 +170,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Block8, SplitLayerCPUTest,
                                 ::testing::Values(planar_4D, planar_4D_ref, perChannels_4D, blocked8_4D_ref)),
                         SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Block16inPlace, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_Block16inPlace, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(4),
                                 ::testing::Values(0, 1),
@@ -181,7 +181,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Block16inPlace, SplitLayerCPUTest,
                                 ::testing::Values(blocked16_4D)),
                         SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Block16, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split4D_CPU_Block16, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(4),
                                 ::testing::Values(2, 3),
@@ -192,7 +192,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split4D_CPU_Block16, SplitLayerCPUTest,
                                 ::testing::Values(blocked16_4D_ref)),
                         SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Block8inPlace, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split5D_CPU_Block8inPlace, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(3),
                                 ::testing::Values(0, 1),
@@ -203,7 +203,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Block8inPlace, SplitLayerCPUTest,
                                 ::testing::Values(planar_5D, planar_5D_ref, perChannels_5D, blocked8_5D)),
                         SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Block8, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split5D_CPU_Block8, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(3),
                                 ::testing::Values(2, 3, 4),
@@ -214,7 +214,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Block8, SplitLayerCPUTest,
                                 ::testing::Values(planar_5D, planar_5D_ref, perChannels_5D, blocked8_5D_ref)),
                         SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Block16inPlace, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split5D_CPU_Block16inPlace, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(4),
                                 ::testing::Values(0, 1),
@@ -225,7 +225,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Block16inPlace, SplitLayerCPUTest,
                                 ::testing::Values(blocked16_5D)),
                         SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Block16, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split5D_CPU_Block16, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(4),
                                 ::testing::Values(2, 3, 4),
@@ -236,7 +236,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split5D_CPU_Block16, SplitLayerCPUTest,
                                 ::testing::Values(blocked16_5D_ref)),
                         SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split3D, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split3D, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(7),
                                 ::testing::Values(0, 1, 2),
@@ -247,7 +247,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split3D, SplitLayerCPUTest,
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"}, CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
                                 SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split2D, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split2D, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(2),
                                 ::testing::Values(0, 1),
@@ -258,7 +258,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Split2D, SplitLayerCPUTest,
                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"}, CPUSpecificParams{{}, {}, {"ref"}, "ref"})),
                         SplitLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Split1D, SplitLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split1D, SplitLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Values(5),
                                 ::testing::Values(0),

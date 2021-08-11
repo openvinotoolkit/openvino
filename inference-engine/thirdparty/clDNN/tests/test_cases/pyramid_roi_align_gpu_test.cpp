@@ -20,7 +20,7 @@ struct pyramid_roi_align_typed_test : testing::Test {
 };
 using pyramid_roi_align_types = testing::Types<float, half_t>;
 
-TYPED_TEST_CASE(pyramid_roi_align_typed_test, pyramid_roi_align_types);
+TYPED_TEST_SUITE(pyramid_roi_align_typed_test, pyramid_roi_align_types);
 
 TYPED_TEST(pyramid_roi_align_typed_test, smoke_4levels) {
     using Type = typename pyramid_roi_align_typed_test<TypeParam>::Type;
@@ -108,7 +108,7 @@ TYPED_TEST(pyramid_roi_align_typed_test, smoke_4levels) {
                                { P2_scale, P3_scale, P4_scale, P5_scale },
                                starting_level));
 
-    auto net = network(engine, topo);
+    cldnn::network net(engine, topo);
     net.set_input_data("rois", rois_mem);
 
     std::vector<float> expected_out = {

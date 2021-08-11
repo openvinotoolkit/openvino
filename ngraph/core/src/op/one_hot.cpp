@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::OneHot::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::OneHot, "OneHot", 1);
 
 op::v1::OneHot::OneHot(const Output<Node>& indices,
                        const Output<Node>& depth,

@@ -16,11 +16,11 @@ class InsertSelectTests(unittest.TestCase):
     # graph have no splices - selects should not be inserted
     def test_insert_select_0(self):
         graph = build_graph({
-                             'placeholder_1': {'kind': 'op', 'op': 'Parameter'},
+                             'input': {'kind': 'op', 'op': 'Parameter'},
                              'placeholder_data_1': {'kind': 'data', 'shape': [1, 13]},
                              'memory': {'kind': 'op', 'op': 'Assign'},
                              },
-                            [('placeholder_1', 'placeholder_data_1'),
+                            [('input', 'placeholder_data_1'),
                              ('placeholder_data_1', 'memory')
                              ],
                             nodes_with_edges_only=True)
@@ -33,7 +33,7 @@ class InsertSelectTests(unittest.TestCase):
     # graph contains 1 splice with context length 5, should be inserted select with memory as counter with length 5
     def test_insert_select_1(self):
         graph = build_graph({
-                             'placeholder_1': {'kind': 'op', 'op': 'Parameter'},
+                             'input': {'kind': 'op', 'op': 'Parameter'},
                              'placeholder_data_1': {'kind': 'data', 'shape': [1, 13]},
                              'splice_1': {'kind': 'op', 'op': 'Splice', 'context': np.array([-2, -1, 0, 1, 2])},
                              'splice_data_1': {'kind': 'data', 'shape': [1, 13]},
@@ -41,7 +41,7 @@ class InsertSelectTests(unittest.TestCase):
                              'placeholder_data_2': {'kind': 'data', 'shape': [1, 26]},
                              'memory': {'kind': 'op', 'op': 'Assign', 'index': 0},
                              },
-                            [('placeholder_1', 'placeholder_data_1'),
+                            [('input', 'placeholder_data_1'),
                              ('placeholder_data_1', 'splice_1'), ('splice_1', 'splice_data_1'),
                              ('splice_data_1', 'placeholder_2'), ('placeholder_2', 'placeholder_data_2'),
                              ('placeholder_data_2', 'memory')
@@ -49,7 +49,7 @@ class InsertSelectTests(unittest.TestCase):
                             nodes_with_edges_only=True)
         AddSelectBeforeMemoryNodePattern().find_and_replace_pattern(graph)
         ref_graph = build_graph({
-                                 'placeholder_1': {'kind': 'op', 'op': 'Parameter'},
+                                 'input': {'kind': 'op', 'op': 'Parameter'},
                                  'placeholder_data_1': {'kind': 'data', 'shape': [1, 13]},
                                  'splice_1': {'kind': 'op', 'op': 'Splice', 'context': np.array([-2, -1, 0, 1, 2])},
                                  'splice_data_1': {'kind': 'data', 'shape': [1, 13]},
@@ -109,7 +109,7 @@ class InsertSelectTests(unittest.TestCase):
                                  'placeholder_data_2': {'kind': 'data', 'shape': [1, 26]},
                                  'memory': {'kind': 'op', 'op': 'Assign'},
                                  },
-                                [('placeholder_1', 'placeholder_data_1'),
+                                [('input', 'placeholder_data_1'),
                                  ('placeholder_data_1', 'splice_1'), ('splice_1', 'splice_data_1'),
                                  ('splice_data_1', 'placeholder_2'), ('placeholder_2', 'placeholder_data_2'),
                                 ('placeholder_data_2', 'select', {'in': 1}),
@@ -168,7 +168,7 @@ class InsertSelectTests(unittest.TestCase):
     # should be inserted select with memory as counter with length 5
     def test_insert_select_2(self):
         graph = build_graph({
-                             'placeholder_1': {'kind': 'op', 'op': 'Parameter'},
+                             'input': {'kind': 'op', 'op': 'Parameter'},
                              'placeholder_data_1': {'kind': 'data', 'shape': [1, 13]},
                              'splice_1': {'kind': 'op', 'op': 'Splice', 'context': np.array([-2, -1, 0, 1, 2])},
                              'splice_data_1': {'kind': 'data', 'shape': [1, 65]},
@@ -178,7 +178,7 @@ class InsertSelectTests(unittest.TestCase):
                              'placeholder_data_2': {'kind': 'data', 'shape': [1, 26]},
                              'memory': {'kind': 'op', 'op': 'Assign'},
                              },
-                            [('placeholder_1', 'placeholder_data_1'),
+                            [('input', 'placeholder_data_1'),
                              ('placeholder_data_1', 'splice_1'), ('splice_1', 'splice_data_1'),
                              ('placeholder_data_1', 'splice_2'), ('splice_2', 'splice_data_2'),
                              ('splice_data_1', 'placeholder_2'), ('placeholder_2', 'placeholder_data_2'),
@@ -187,7 +187,7 @@ class InsertSelectTests(unittest.TestCase):
                             nodes_with_edges_only=True)
         AddSelectBeforeMemoryNodePattern().find_and_replace_pattern(graph)
         ref_graph = build_graph({
-                                 'placeholder_1': {'kind': 'op', 'op': 'Parameter'},
+                                 'input': {'kind': 'op', 'op': 'Parameter'},
                                  'placeholder_data_1': {'kind': 'data', 'shape': [1, 13]},
                                  'splice_1': {'kind': 'op', 'op': 'Splice', 'context': np.array([-2, -1, 0, 1, 2])},
                                  'splice_data_1': {'kind': 'data', 'shape': [1, 65]},
@@ -249,7 +249,7 @@ class InsertSelectTests(unittest.TestCase):
                                  'placeholder_data_2': {'kind': 'data', 'shape': [1, 26]},
                                  'memory': {'kind': 'op', 'op': 'Assign'},
                                  },
-                                [('placeholder_1', 'placeholder_data_1'),
+                                [('input', 'placeholder_data_1'),
                                  ('placeholder_data_1', 'splice_1'), ('splice_1', 'splice_data_1'),
                                  ('placeholder_data_1', 'splice_2'), ('splice_2', 'splice_data_2'),
                                  ('splice_data_1', 'placeholder_2'), ('placeholder_2', 'placeholder_data_2'),
@@ -308,7 +308,7 @@ class InsertSelectTests(unittest.TestCase):
     # should be inserted select with memory as counter with length 7
     def test_insert_select_3(self):
         graph = build_graph({
-                             'placeholder_1': {'kind': 'op', 'op': 'Parameter'},
+                             'input': {'kind': 'op', 'op': 'Parameter'},
                              'placeholder_data_1': {'kind': 'data', 'shape': [1, 13]},
                              'splice_1': {'kind': 'op', 'op': 'Splice', 'context': np.array([-2, -1, 0, 1, 2])},
                              'splice_data_1': {'kind': 'data', 'shape': [1, 65]},
@@ -318,7 +318,7 @@ class InsertSelectTests(unittest.TestCase):
                              'placeholder_data_2': {'kind': 'data', 'shape': [1, 26]},
                              'memory': {'kind': 'op', 'op': 'Assign', 'index': 0},
                              },
-                            [('placeholder_1', 'placeholder_data_1'),
+                            [('input', 'placeholder_data_1'),
                              ('placeholder_data_1', 'splice_1'), ('splice_1', 'splice_data_1'),
                              ('splice_data_1', 'splice_2'), ('splice_2', 'splice_data_2'),
                              ('splice_data_2', 'placeholder_2'), ('placeholder_2', 'placeholder_data_2'),
@@ -327,7 +327,7 @@ class InsertSelectTests(unittest.TestCase):
                             nodes_with_edges_only=True)
         AddSelectBeforeMemoryNodePattern().find_and_replace_pattern(graph)
         ref_graph = build_graph({
-                                 'placeholder_1': {'kind': 'op', 'op': 'Parameter'},
+                                 'input': {'kind': 'op', 'op': 'Parameter'},
                                  'placeholder_data_1': {'kind': 'data', 'shape': [1, 13]},
                                  'splice_1': {'kind': 'op', 'op': 'Splice', 'context': np.array([-2, -1, 0, 1, 2])},
                                  'splice_data_1': {'kind': 'data', 'shape': [1, 65]},
@@ -389,7 +389,7 @@ class InsertSelectTests(unittest.TestCase):
                                  'placeholder_data_2': {'kind': 'data', 'shape': [1, 26]},
                                  'memory': {'kind': 'op', 'op': 'Assign', 'index': 0},
                                  },
-                                [('placeholder_1', 'placeholder_data_1'),
+                                [('input', 'placeholder_data_1'),
                                  ('placeholder_data_1', 'splice_1'), ('splice_1', 'splice_data_1'),
                                  ('splice_data_1', 'splice_2'), ('splice_2', 'splice_data_2'),
                                  ('splice_data_2', 'placeholder_2'), ('placeholder_2', 'placeholder_data_2'),

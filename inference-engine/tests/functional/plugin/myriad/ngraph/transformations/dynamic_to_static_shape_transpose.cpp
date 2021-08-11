@@ -104,7 +104,7 @@ protected:
 TEST_P(DynamicToStaticShapeTranspose, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeTranspose, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeTranspose, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32,

@@ -217,7 +217,7 @@ public:
             cldnn::build_option::tuning_config(tune_conf),
             cldnn::build_option::optimize_data(true)
         );
-        auto network = cldnn::network(_engine, topology, build_opts);
+        cldnn::network network(_engine, topology, build_opts);
         auto in_mem = _engine.allocate_memory(cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 16, 3, 3 }));
         network.set_input_data("input", in_mem);
         network.execute();
@@ -339,7 +339,7 @@ TEST_P(cache_version_test, update) {
         .test();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke,
     cache_version_test,
     testing::Values(cache_version::version_1, cache_version::version_1_2, cache_version::version_2),

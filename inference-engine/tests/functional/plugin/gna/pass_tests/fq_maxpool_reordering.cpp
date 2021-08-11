@@ -59,7 +59,7 @@ public:
         return result.str();
     }
 
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const {
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
         return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution);
     }
 
@@ -136,7 +136,7 @@ const std::vector<size_t> levels = {
     65535,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_fq_maxpool_reordering, FQMaxpoolReordering,
+INSTANTIATE_TEST_SUITE_P(smoke_fq_maxpool_reordering, FQMaxpoolReordering,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),

@@ -50,21 +50,21 @@ namespace {
     };
     IE_SUPPRESS_DEPRECATED_END
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
                 ::testing::ValuesIn(inconfigs)),
             IncorrectConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, IncorrectConfigTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                 ::testing::ValuesIn(multiinconfigs)),
             IncorrectConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, IncorrectConfigTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
@@ -104,75 +104,64 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> autoconf = {
-            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU}}
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "YES"}},
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU},
+                    {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "YES"}},
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU},
+                    {std::string("AUTO_"), "NAN"}},
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU},
+                    {std::string("AUTO_"), "NAN"}}
     };
 
-    const std::vector<std::map<std::string, std::string>> auto_cpu_gpu_conf = {
-        {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
-    };
-
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CorrectConfigAPITests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigAPITests,
             ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
                 ::testing::ValuesIn(conf)),
             CorrectConfigAPITests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_GPU_BehaviorTests, CorrectConfigAPITests,
+    INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, CorrectConfigAPITests,
             ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
                 ::testing::ValuesIn(conf_gpu)),
             CorrectConfigAPITests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, CorrectConfigAPITests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CorrectConfigAPITests,
             ::testing::Combine(
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                     ::testing::ValuesIn(multiconf)),
             CorrectConfigAPITests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, CorrectConfigAPITests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigTests,
             ::testing::Combine(
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                     ::testing::ValuesIn(autoconf)),
             CorrectConfigAPITests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_AutoCG_BehaviorTests, CorrectConfigAPITests,
-                            ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(auto_cpu_gpu_conf)),
-                            CorrectConfigAPITests::getTestCaseName);
-
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                    ::testing::ValuesIn(conf)),
+                    ::testing::ValuesIn(inconfigs)),
              IncorrectConfigAPITests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, IncorrectConfigAPITests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                    ::testing::ValuesIn(multiconf)),
+                    ::testing::ValuesIn(multiinconfigs)),
             IncorrectConfigAPITests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                     ::testing::ValuesIn(autoinconfigs)),
             IncorrectConfigAPITests::getTestCaseName);
-
-    INSTANTIATE_TEST_CASE_P(smoke_AutoCG_BehaviorTests, IncorrectConfigAPITests,
-                            ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(autoinconfigs)),
-                            IncorrectConfigAPITests::getTestCaseName);
 
 
 } // namespace

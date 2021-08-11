@@ -8,18 +8,18 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
-#include <shared_test_classes/single_layer/convolution_backprop.hpp>
+#include <shared_test_classes/single_layer/convolution_backprop_data.hpp>
 
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
-using LayerTestsDefinitions::convBackpropSpecificParams;
-using LayerTestsDefinitions::convBackpropLayerTestParamsSet;
+using LayerTestsDefinitions::convBackpropDataSpecificParams;
+using LayerTestsDefinitions::convBackpropDataLayerTestParamsSet;
 
 typedef std::tuple<
-    convBackpropLayerTestParamsSet,
+    convBackpropDataLayerTestParamsSet,
     CPUSpecificParams,
     fusingSpecificParams,
     std::map<std::string, std::string> > deconvLayerCPUTestParamsSet;
@@ -28,14 +28,14 @@ class DeconvolutionLayerCPUTest : public testing::WithParamInterface<deconvLayer
     virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<deconvLayerCPUTestParamsSet> obj) {
-        convBackpropLayerTestParamsSet basicParamsSet;
+        convBackpropDataLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::map<std::string, std::string> additionalConfig;
         std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = obj.param;
 
         std::ostringstream result;
-        result << LayerTestsDefinitions::ConvolutionBackpropLayerTest::getTestCaseName(testing::TestParamInfo<convBackpropLayerTestParamsSet>(
+        result << LayerTestsDefinitions::ConvolutionBackpropDataLayerTest::getTestCaseName(testing::TestParamInfo<convBackpropDataLayerTestParamsSet>(
             basicParamsSet, 0));
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -52,7 +52,7 @@ public:
     }
 protected:
     void SetUp() override {
-        convBackpropLayerTestParamsSet basicParamsSet;
+        convBackpropDataLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::map<std::string, std::string> additionalConfig;
@@ -63,7 +63,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
-        convBackpropSpecificParams convParams;
+        convBackpropDataSpecificParams convParams;
         std::vector<size_t> inputShape;
         std::vector<size_t> outputShape;
         auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
@@ -152,7 +152,7 @@ const auto convParams_ExplicitPadding_Planar_2D = ::testing::Combine(
     ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Planar_2D,
@@ -169,7 +169,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Planar_2D,
@@ -198,7 +198,7 @@ const auto convParams_ExplicitPadding_Planar_3D = ::testing::Combine(
     ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Planar_3D,
@@ -215,7 +215,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Planar_3D,
@@ -244,7 +244,7 @@ const auto convParams_ExplicitPadding_Blocked_2D = ::testing::Combine(
     ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Blocked_2D,
@@ -261,7 +261,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Blocked_2D,
@@ -290,7 +290,7 @@ const auto convParams_ExplicitPadding_Blocked_3D = ::testing::Combine(
     ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Blocked_3D,
@@ -307,7 +307,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_Blocked_3D,
@@ -337,7 +337,7 @@ const auto convParams_ExplicitPadding_1x1_2D = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_1x1_2D,
@@ -354,7 +354,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_BF16, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_1x1_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_1x1_2D,

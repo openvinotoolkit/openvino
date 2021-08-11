@@ -40,7 +40,7 @@ const auto maxPool_ExplicitPad_FloorRounding_Params = ::testing::Combine(
         ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_MaxPool_ExplicitPad_FloorRpunding, PoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_FloorRpunding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_FloorRounding_Params,
                                 ::testing::ValuesIn(netPrecisions),
@@ -65,7 +65,7 @@ const auto maxPool_ExplicitPad_CeilRounding_Params = ::testing::Combine(
         ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_MaxPool_ExplicitPad_CeilRpunding, PoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_CeilRpunding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_CeilRounding_Params,
                                 ::testing::ValuesIn(netPrecisions),
@@ -92,7 +92,7 @@ const auto avgPoolExplicitPadCeilRoundingParams = ::testing::Combine(
         ::testing::Values(true, false)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
                        ::testing::Combine(
                                avgPoolExplicitPadCeilRoundingParams,
                                ::testing::ValuesIn(netPrecisions),
@@ -117,7 +117,7 @@ const auto avgPoolExplicitPadFloorRoundingParams = ::testing::Combine(
 );
 
 
-INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 avgPoolExplicitPadFloorRoundingParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -143,7 +143,7 @@ const auto allPools_ValidPad_Params = ::testing::Combine(
         ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                         ::testing::Combine(
                                 allPools_ValidPad_Params,
                                 ::testing::ValuesIn(netPrecisions),

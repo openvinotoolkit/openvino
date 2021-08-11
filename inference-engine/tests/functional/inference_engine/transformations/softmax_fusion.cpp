@@ -55,7 +55,7 @@ TEST_P(SoftmaxFusionFixture, SoftmaxFusion) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(SoftmaxFusionTests, SoftmaxFusionFixture,
+INSTANTIATE_TEST_SUITE_P(SoftmaxFusionTests, SoftmaxFusionFixture,
         ::testing::Values(
             std::make_tuple(1, 1),
             std::make_tuple(1, -2),
@@ -109,7 +109,7 @@ TEST_P(NegativeSoftmaxFusionFixture, NegativeSoftmaxFusion) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(NegativeSoftmaxFusionTests, NegativeSoftmaxFusionFixture,
+INSTANTIATE_TEST_SUITE_P(NegativeSoftmaxFusionTests, NegativeSoftmaxFusionFixture,
         ::testing::ValuesIn(std::vector<std::tuple<std::vector<int64_t>, std::vector<int64_t>>>{
                                 std::make_tuple<std::vector<int64_t>, std::vector<int64_t>>({2}, {1}),
                                 std::make_tuple<std::vector<int64_t>, std::vector<int64_t>>({1}, {-1}),

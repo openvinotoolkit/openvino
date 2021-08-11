@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
 #include "include/data_types.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 
 KERNEL(tile_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {

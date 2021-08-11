@@ -15,6 +15,7 @@
 #include "layer_quantizer.hpp"
 #include "scale_factor_calc.hpp"
 #include "weights_converter.hpp"
+#include "gna_itt.hpp"
 
 namespace GNAPluginNS {
 
@@ -40,6 +41,7 @@ class ModelQuantizer {
 
     template <class PreQuantisationCb>
     InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model, const PreQuantisationCb &cb, std::vector<float> scaleFactor) const {
+        OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ModelQuantizer::quantize");
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
             auto newLayer = InferenceEngine::injectData<QuantizedLayerParams>(lp);
             transformLayer(newLayer, WeightsConverter());
@@ -98,14 +100,70 @@ class ModelQuantizer {
                               int optWeightsBytesSize, int inputsBytesSize, bool fakeQuantize) const {
         ScaleFactorCalculator sf(net, mandWeightsBytesSize, optWeightsBytesSize, inputsBytesSize, fakeQuantize);
 
-        while (!sf.allLayersProcessed()) {
-            for (auto &&layer : sf.getStartLayers()) {
+        int infiniteLoopCount = 0;
+        std::vector<std::string> infiniteLoopPattern;
+        std::vector<std::string> infiniteLoopHistory;
+        while (!sf.allLayersProcessed() && infiniteLoopCount <= 2) {
+            auto layers = sf.getStartLayers();
+            infiniteLoopHistory.emplace_back(layers.front()->name);
+            for (auto &&layer : layers) {
                 transformLayer(layer, sf);
                 // transforming until we reached cases where output scale updated due to situation in downstream layer
                 if (sf.needToRestart()) {
+                    infiniteLoopHistory.back() += "#" + layer->name;
                     break;
                 }
             }
+
+            // looking for infinite loop by using algorithm of compute prefix function, complexity O(N)
+            std::map<int, int> prefixFunction;
+            int k = infiniteLoopHistory.size();
+            for (int i = infiniteLoopHistory.size() - 2; i >= 0; i--) {
+                while (k < infiniteLoopHistory.size() && infiniteLoopHistory[k - 1] != infiniteLoopHistory[i]) {
+                    auto iter = prefixFunction.find(k);
+                    k = iter == prefixFunction.end() ? infiniteLoopHistory.size() : iter->second;
+                }
+
+                if (infiniteLoopHistory[k - 1] == infiniteLoopHistory[i]) {
+                    k--;
+                }
+
+                if ((infiniteLoopHistory.size() - i) % 2 == 0 && (infiniteLoopHistory.size() - i) / 2 == infiniteLoopHistory.size() - k) {
+                    infiniteLoopPattern.clear();
+                    int patternLength = (infiniteLoopHistory.size() - i)/2;
+                    for (int j = 0; j < patternLength; j++) {
+                        infiniteLoopPattern.emplace_back(infiniteLoopHistory[infiniteLoopHistory.size() - patternLength + j]);
+                    }
+                    infiniteLoopHistory.clear();
+                    gnalog() << "infinite loop detected\n";
+                    break;
+                }
+
+                prefixFunction.emplace(i, k);
+            }
+
+            if (infiniteLoopHistory.empty()) {
+                infiniteLoopCount++;
+            } else {
+                if (infiniteLoopCount > 0 &&
+                    (infiniteLoopHistory.size()%infiniteLoopPattern.size() == 0 || sf.allLayersProcessed()) &&
+                    !std::equal(infiniteLoopHistory.begin() + (infiniteLoopHistory.size() - infiniteLoopPattern.size()),
+                        infiniteLoopHistory.end(), infiniteLoopPattern.begin())) {
+                    infiniteLoopCount = 0;
+                    infiniteLoopPattern.clear();
+                    gnalog() << "infinite loop fixed\n";
+                }
+            }
+
+            sf.SetInfiniteLoopCount(infiniteLoopCount);
+        }
+
+        if (infiniteLoopCount > 0) {
+            std::string additionalInformation;
+            for (const auto& p : infiniteLoopPattern) {
+                additionalInformation += '\n' + p;
+            }
+            THROW_GNA_EXCEPTION << "infinite loop: " + additionalInformation;
         }
     }
 };

@@ -19,17 +19,17 @@ ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulT
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
 
-    auto normalize = std::make_shared<ngraph::op::NormalizeL2>(input_0, axis, 0.0f, ngraph::op::EpsMode::ADD);
+    auto normalize = std::make_shared<ngraph::opset1::NormalizeL2>(input_0, axis, 0.0f, ngraph::op::EpsMode::ADD);
     auto mul = std::make_shared<ngraph::opset1::Multiply> (normalize, input_1);
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto mul = std::dynamic_pointer_cast<ngraph::opset1::Multiply> (m.get_match_root());
         if (!mul) return false;
 
-        auto normalize = std::dynamic_pointer_cast<ngraph::op::NormalizeL2> (mul->input(0).get_source_output().get_node_shared_ptr());
+        auto normalize = std::dynamic_pointer_cast<ngraph::opset1::NormalizeL2> (mul->input(0).get_source_output().get_node_shared_ptr());
         auto weights_output = mul->input(1).get_source_output();
         if (!normalize) {
-            normalize = std::dynamic_pointer_cast<ngraph::op::NormalizeL2> (mul->input(1).get_source_output().get_node_shared_ptr());
+            normalize = std::dynamic_pointer_cast<ngraph::opset1::NormalizeL2> (mul->input(1).get_source_output().get_node_shared_ptr());
             weights_output = mul->input(1).get_source_output();
             if (!normalize) return false;
         }
@@ -80,10 +80,10 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNormalizeL2ToLegacyMatcher, "Convert
 ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
-    auto normalize = std::make_shared<ngraph::op::NormalizeL2>(input_0, axis, 0.0f, ngraph::op::EpsMode::ADD);
+    auto normalize = std::make_shared<ngraph::opset1::NormalizeL2>(input_0, axis, 0.0f, ngraph::op::EpsMode::ADD);
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto normalize = std::dynamic_pointer_cast<ngraph::op::NormalizeL2> (m.get_match_root());
+        auto normalize = std::dynamic_pointer_cast<ngraph::opset1::NormalizeL2> (m.get_match_root());
         if (!normalize) return false;
 
         auto const_axis = std::dynamic_pointer_cast<ngraph::opset1::Constant> (normalize->input(1).get_source_output().get_node_shared_ptr());

@@ -19,7 +19,7 @@ The following diagram illustrates the typical OpenVINO™ workflow (click to see
 ### Model Preparation, Conversion and Optimization
 
 You can use your framework of choice to prepare and train a deep learning model or just download a pre-trained model from the Open Model Zoo. The Open Model Zoo includes deep learning solutions to a variety of vision problems, including object recognition, face recognition, pose estimation, text detection, and action recognition, at a range of measured complexities.
-Several of these pre-trained models are used also in the [code samples](IE_DG/Samples_Overview.md) and [application demos](@ref omz_demos_README). To download models from the Open Model Zoo, the [Model Downloader](@ref omz_tools_downloader_README) tool is used.
+Several of these pre-trained models are used also in the [code samples](IE_DG/Samples_Overview.md) and [application demos](@ref omz_demos). To download models from the Open Model Zoo, the [Model Downloader](@ref omz_tools_downloader) tool is used.
 
 One of the core component of the OpenVINO™ toolkit is the [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) a cross-platform command-line
 tool that converts a trained neural network from its source framework to an open-source, nGraph-compatible [Intermediate Representation (IR)](MO_DG/IR_and_opsets.md) for use in inference operations. The Model Optimizer imports models trained in popular frameworks such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX* and performs a few optimizations to remove excess layers and group operations when possible into simpler, faster graphs.
@@ -94,12 +94,12 @@ Intel® Distribution of OpenVINO™ toolkit includes the following components:
 - [Open Model Zoo](@ref omz_models_group_intel)     
     - [Demos](@ref omz_demos): Console applications that provide robust application templates to help you implement specific deep learning scenarios.
     - Additional Tools: A set of tools to work with your models including [Accuracy Checker Utility](@ref omz_tools_accuracy_checker) and [Model Downloader](@ref omz_tools_downloader).
-    - [Documentation for Pretrained Models](@ref omz_models_group_intel): Documentation for pre-trained models that are available in the [Open Model Zoo repository](https://github.com/opencv/open_model_zoo).
-- Deep Learning Streamer (DL Streamer): Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. DL Streamer can be installed by the Intel® Distribution of OpenVINO™ toolkit installer. Its open-source version is available on [GitHub](https://github.com/opencv/gst-video-analytics). For the DL Streamer documentation, see:
+    - [Documentation for Pretrained Models](@ref omz_models_group_intel): Documentation for pre-trained models that are available in the [Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo).
+- Deep Learning Streamer (DL Streamer): Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. DL Streamer can be installed by the Intel® Distribution of OpenVINO™ toolkit installer. Its open-source version is available on [GitHub](https://github.com/openvinotoolkit/dlstreamer_gst). For the DL Streamer documentation, see:
     - [DL Streamer Samples](@ref gst_samples_README)
     - [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/)
-    - [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements)
-    - [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial)
+    - [Elements](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Elements)
+    - [Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial)
 - [OpenCV](https://docs.opencv.org/master/) : OpenCV* community version compiled for Intel® hardware
 - [Intel® Media SDK](https://software.intel.com/en-us/media-sdk) (in Intel® Distribution of OpenVINO™ toolkit for Linux only)
 

@@ -51,7 +51,7 @@ public:
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
 
-    void SetCore(InferenceEngine::ICore* core) noexcept override;
+    void SetCore(std::weak_ptr<InferenceEngine::ICore> core) noexcept override;
 
     void SetName(const std::string& name) noexcept override;
 

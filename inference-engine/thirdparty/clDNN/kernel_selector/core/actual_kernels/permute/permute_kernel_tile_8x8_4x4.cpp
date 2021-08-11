@@ -102,18 +102,18 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
     } else {
         // dim is expanded
         if (dim_change.first == 4 && dim_change.second == 5) {
-            order_str = ("b, y,  (x * TILE_SIZE + lh) / " + std::to_string(params.output.Y().v)
-                                 + ", (x * TILE_SIZE +lh) % " + std::to_string(params.output.Y().v)
+            order_str = ("b, y,  (x * TILE_SIZE + lh) / " + toCodeString(params.output.Y().v)
+                                 + ", (x * TILE_SIZE +lh) % " + toCodeString(params.output.Y().v)
                                  + ", (f * TILE_SIZE)");
         } else if (dim_change.first == 4 && dim_change.second == 6) {
-            order_str = ("b, y, (x * TILE_SIZE + lh) / (" + std::to_string(params.output.Y().v)
-                                 + " * " + std::to_string(params.output.Z().v) + ")"
-                                 + ", (x * TILE_SIZE + lh) / " + std::to_string(params.output.Y().v)
-                                 + ", (x * TILE_SIZE + lh) % " + std::to_string(params.output.Y().v)
+            order_str = ("b, y, (x * TILE_SIZE + lh) / (" + toCodeString(params.output.Y().v)
+                                 + " * " + toCodeString(params.output.Z().v) + ")"
+                                 + ", (x * TILE_SIZE + lh) / " + toCodeString(params.output.Y().v)
+                                 + ", (x * TILE_SIZE + lh) % " + toCodeString(params.output.Y().v)
                                  + ", (f * TILE_SIZE)");
         } else if (dim_change.first == 5 && dim_change.second == 6) {
-            order_str = ("b, z, y /" + std::to_string(params.output.Z().v)
-                                 + ", y % " + std::to_string(params.output.Z().v)
+            order_str = ("b, z, y /" + toCodeString(params.output.Z().v)
+                                 + ", y % " + toCodeString(params.output.Z().v)
                                  + ", (x * TILE_SIZE + lh), (f * TILE_SIZE)");
         } else {
             throw std::runtime_error("Unsupported combination\n");

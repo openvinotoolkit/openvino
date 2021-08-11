@@ -14,9 +14,9 @@ Params params[] = {
 
 }  // namespace
 
-INSTANTIATE_TEST_CASE_P(MYRIAD, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(MYRIAD, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(DISABLED_MYRIAD, CoreThreadingTestsWithIterations,
+INSTANTIATE_TEST_SUITE_P(DISABLED_MYRIAD, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(2),
                      testing::Values(2),

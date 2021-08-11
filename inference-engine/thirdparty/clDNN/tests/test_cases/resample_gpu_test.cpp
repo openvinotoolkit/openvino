@@ -701,7 +701,7 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
         auto build_opts = build_options(
             build_option::force_implementations({ {"resample", {params.out_format, ""}} })
         );
-        auto net = network(engine, topo, build_opts);
+        cldnn::network net(engine, topo, build_opts);
 
         auto in_mem = engine.allocate_memory(in_layout);
         fill_random(in_mem);
@@ -746,7 +746,7 @@ struct resample_random_test_param_generator : std::vector<resample_random_test_p
 
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_resample,
+INSTANTIATE_TEST_SUITE_P(smoke_resample,
                         resample_random_test,
                         testing::ValuesIn(
                             resample_random_test_param_generator()
@@ -759,7 +759,7 @@ INSTANTIATE_TEST_CASE_P(smoke_resample,
                             .smoke_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
-                        ), );
+                        ));
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -874,7 +874,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         build_opts.set_option(build_option::outputs({"resample"}));
         build_opts.set_option(build_option::force_implementations({ {"resample", {params.in_format, "resample_ref"}} }));
 
-        auto net = network(engine, topo, build_opts);
+        cldnn::network net(engine, topo, build_opts);
         net.set_input_data("in", in_mem);
 
         auto result = net.execute();
@@ -893,7 +893,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         build_opts_opt.set_option(build_option::outputs({"resample_opt"}));
         build_opts.set_option(build_option::force_implementations({ {"resample_opt", {params.in_format, "resample_opt"}} }));
 
-        auto net_opt = network(engine, topo_opt, build_opts_opt);
+        cldnn::network net_opt(engine, topo_opt, build_opts_opt);
 
         // Use in_mem from ref network
         net_opt.set_input_data("in", in_mem);
@@ -944,20 +944,20 @@ TEST_P(caffe_resample_random_test, random) {
     execute_compare(param, true);
 }
 
-INSTANTIATE_TEST_CASE_P(caffe_smoke_caffe_fsv16,
+INSTANTIATE_TEST_SUITE_P(caffe_smoke_caffe_fsv16,
                         caffe_resample_random_test,
                         testing::ValuesIn(
                             caffe_resample_random_test_param_generator()
                             .smoke_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .smoke_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
-                        ), );
+                        ));
 
-INSTANTIATE_TEST_CASE_P(caffe_smoke_caffe_fsv32,
+INSTANTIATE_TEST_SUITE_P(caffe_smoke_caffe_fsv32,
                         caffe_resample_random_test,
                         testing::ValuesIn(
                             caffe_resample_random_test_param_generator()
                             .smoke_params(data_types::f16, format::fs_b_yx_fsv32, format::fs_b_yx_fsv32)
-                        ), );
+                        ));
 
 TEST(resample_gpu, interpolate_in2x2x3x2_nearest1) {
     //  Input  : 2x2x3x2

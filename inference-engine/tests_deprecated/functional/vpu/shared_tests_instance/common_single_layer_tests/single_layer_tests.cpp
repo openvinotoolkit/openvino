@@ -44,7 +44,7 @@ getTestCaseName(testing::TestParamInfo<std::tuple<InitialShapes, NewShapes, Plug
     return device2FilterName[pluginParams.deviceName] + helper->getType();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         // TODO: rewrite to ngraph to have reshape functionality
         DISABLED_Conv_nightly, CommonSingleLayerTest,
         ::testing::Combine(
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_CASE_P(
 ), getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         // TODO: rewrite to ngraph to have reshape functionality
         DISABLED_Deconv_nightly, CommonSingleLayerTest,
         ::testing::Combine(
@@ -78,7 +78,7 @@ INSTANTIATE_TEST_CASE_P(
 ), getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         // TODO: rewrite to ngraph to have reshape functionality
         DISABLED_Pool_nightly, CommonSingleLayerTest,
         ::testing::Combine(

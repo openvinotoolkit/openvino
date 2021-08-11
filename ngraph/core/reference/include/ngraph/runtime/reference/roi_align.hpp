@@ -35,6 +35,7 @@ namespace ngraph
                 auto feature_map_width = feature_maps_shape[3];
                 auto num_rois = rois_shape[0];
 
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform feature_maps_transform(feature_maps_shape);
                 CoordinateTransform rois_transform(rois_shape);
                 CoordinateTransform out_transform(out_shape);
@@ -225,6 +226,7 @@ namespace ngraph
                         tmp_out.clear();
                     }
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
                 return;
             }
         } // namespace reference

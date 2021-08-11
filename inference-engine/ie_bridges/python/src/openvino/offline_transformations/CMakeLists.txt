@@ -20,7 +20,9 @@ set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/offline_transformations_
 # create target
 
 cython_add_module(${TARGET_NAME} ${SOURCES})
+
 add_dependencies(${TARGET_NAME} ie_api)
+ov_python_disable_intel_warnings(${TARGET_NAME})
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME ${TARGET_NAME}
@@ -54,12 +56,12 @@ add_custom_command(TARGET ${TARGET_NAME}
 # install
 
 # TODO: use ${PYTHON_VERSION}_dev component below
-# ie_cpack_add_component(${PYTHON_VERSION}_dev DEPENDS ${PYTHON_VERSION})
+# ie_cpack_add_component(${PYTHON_VERSION}_dev DEPENDS ${PYTHON_COMPONENT})
 
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION}
-        LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_VERSION})
+        RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_COMPONENT}
+        LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations COMPONENT ${PYTHON_COMPONENT})
 
 install(PROGRAMS __init__.py
         DESTINATION python/${PYTHON_VERSION}/openvino/offline_transformations
-        COMPONENT ${PYTHON_VERSION})
+        COMPONENT ${PYTHON_COMPONENT})

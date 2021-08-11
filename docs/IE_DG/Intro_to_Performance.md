@@ -31,6 +31,12 @@ input images to achieve optimal throughput. However, high batch size also comes 
 latency penalty. So, for more real-time oriented usages, lower batch sizes (as low as a single input) are used.
 Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample, which allows latency vs. throughput measuring.
 
+## Using Caching API for first inference latency optimization
+Since with the 2021.4 release, Inference Engine provides an ability to enable internal caching of loaded networks.
+This can significantly reduce load network latency for some devices at application startup.
+Internally caching uses plugin's Export/ImportNetwork flow, like it is done for [Compile tool](../../inference-engine/tools/compile_tool/README.md), using the regular ReadNetwork/LoadNetwork API.
+Refer to the [Model Caching Overview](Model_caching_overview.md) for more detailed explanation.
+
 ## Using Async API
 To gain better performance on accelerators, such as VPU, the Inference Engine uses the asynchronous approach (see
 [Integrating Inference Engine in Your Application (current API)](Integrate_with_customer_application_new_API.md)).
