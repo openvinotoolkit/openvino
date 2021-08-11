@@ -23,6 +23,7 @@ struct RefLogicalParams {
     Tensor expected;
 };
 
+
 struct Builder : ParamsBuilder<RefLogicalParams> {
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, opType);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, input1);
@@ -35,7 +36,11 @@ public:
     void SetUp() override {
         const auto& params = GetParam();
         function = CreateFunction(params.opType, params.input1.shape, params.input2.shape, params.input1.type);
-        inputData = {params.input1.data, params.input2.data};
+        if (params.opType == ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
+            inputData = {params.input1.data};
+        } else {
+            inputData = {params.input1.data, params.input2.data};
+        }
         refOutData = {params.expected.data};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RefLogicalParams>& obj) {
@@ -43,7 +48,9 @@ public:
         std::ostringstream result;
         result << "LogicalType=" << param.opType << "_";
         result << "inpt_shape1=" << param.input1.shape << "_";
-        result << "inpt_shape2=" << param.input2.shape << "_";
+        if (param.opType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
+            result << "inpt_shape2=" << param.input2.shape << "_";
+        }
         result << "iType=" << param.input1.type << "_";
         result << "oType=" << param.expected.type;
         return result.str();
@@ -55,7 +62,11 @@ private:
         const auto in1 = std::make_shared<ngraph::op::Parameter>(elem_type, input_shape1);
         const auto in2 = std::make_shared<ngraph::op::Parameter>(elem_type, input_shape2);
         const auto logical_op = ngraph::builder::makeLogical(in1, in2, op_type);
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector {logical_op}, ngraph::ParameterVector {in1, in2});
+        if (op_type == ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
+            return std::make_shared<ngraph::Function>(ngraph::NodeVector {logical_op}, ngraph::ParameterVector {in1});
+        } else {
+            return std::make_shared<ngraph::Function>(ngraph::NodeVector {logical_op}, ngraph::ParameterVector {in1, in2});
+        }
     }
 };
 }  // namespace LogicalOpsRefTestDefinitions
