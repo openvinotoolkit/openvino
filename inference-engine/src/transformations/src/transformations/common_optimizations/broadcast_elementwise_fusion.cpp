@@ -8,13 +8,13 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::BroadcastElementwiseFusion, "BroadcastElementwiseFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::BroadcastElementwiseFusion, "BroadcastElementwiseFusion", 0);
 
-bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
-                             const ngraph::PartialShape & input_shape,
-                             const ngraph::PartialShape & broadcast_shape) {
-    auto b = std::dynamic_pointer_cast<ngraph::op::util::BinaryElementwiseArithmetic>(eltwise.get_node_shared_ptr());
-    if (!b || b->get_autob() == ngraph::op::AutoBroadcastSpec::NONE) {
+bool can_eliminate_broadcast(const ov::Output<ov::Node>& eltwise,
+                             const ov::PartialShape & input_shape,
+                             const ov::PartialShape & broadcast_shape) {
+    auto b = std::dynamic_pointer_cast<ov::op::util::BinaryElementwiseArithmetic>(eltwise.get_node_shared_ptr());
+    if (!b || b->get_autob() == ov::op::AutoBroadcastSpec::NONE) {
         return false;
     }
 
@@ -51,14 +51,14 @@ bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
     return true;
 }
 
-ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
+ov::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     MATCHER_SCOPE(BroadcastElementwiseFusion);
     auto broadcast_input = pattern::any_input();
-    auto broadcast = pattern::wrap_type<ngraph::opset5::Broadcast>({broadcast_input, pattern::any_input()});
+    auto broadcast = pattern::wrap_type<ov::opset5::Broadcast>({broadcast_input, pattern::any_input()});
     auto eltwise_input = pattern::any_input();
     auto eltwise = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pattern::Matcher& m) {
         auto & pattern_value = m.get_pattern_value_map();
 
         const auto & m_eltwise_input = pattern_value.at(eltwise_input);
@@ -78,6 +78,6 @@ ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(eltwise, matcher_name);
     register_matcher(m, callback);
 }

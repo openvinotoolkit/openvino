@@ -14,7 +14,7 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/util.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API SimplifyShapeOfSubGraph;
@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API GatherNopElimination;
 class TRANSFORMATIONS_API SimplifyGatherShapeOf;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 
 /**
@@ -33,10 +33,10 @@ class TRANSFORMATIONS_API SimplifyGatherShapeOf;
  * operations with the first ShapeOf in this group. All ShapeOfs in this group
  * must be equal and consume the same output port.
  */
-class ngraph::pass::SharedShapeOf: public ngraph::pass::FunctionPass {
+class ov::pass::SharedShapeOf: public ov::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
 };
 
 /**
@@ -45,7 +45,7 @@ public:
  * operations with the first Gather in this group and updated indices input
  * in case all Gathers in the group are consumed by the same Concat in incremental order.
  */
-class ngraph::pass::GroupedGatherElimination: public ngraph::pass::MatcherPass {
+class ov::pass::GroupedGatherElimination: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     GroupedGatherElimination();
@@ -55,17 +55,17 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief SimplifyShapeOfSubGraph transformation runs specific optimizations of shape sub-graphs
  */
-class ngraph::pass::SimplifyShapeOfSubGraph: public ngraph::pass::FunctionPass {
+class ov::pass::SimplifyShapeOfSubGraph: public ov::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
 };
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief GatherNopElimination transformation optimizes out useless Gather operations
  */
-class ngraph::pass::GatherNopElimination: public ngraph::pass::MatcherPass {
+class ov::pass::GatherNopElimination: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     GatherNopElimination();
@@ -77,7 +77,7 @@ public:
  * Other cases into Concat of shapeof/gather(data) + shapeof(indices) transformation optimizes out
  * useless Gather operations
  */
-class ngraph::pass::SimplifyGatherShapeOf: public ngraph::pass::MatcherPass {
+class ov::pass::SimplifyGatherShapeOf: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SimplifyGatherShapeOf();

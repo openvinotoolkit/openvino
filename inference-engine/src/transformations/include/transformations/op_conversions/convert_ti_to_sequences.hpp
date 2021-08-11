@@ -14,7 +14,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertTensorIteratorToLSTMSequence;
@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API ConvertTensorIteratorToRNNSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -30,7 +30,7 @@ class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
  * converts this pattern to LSTMSequence layer and replaces them TensorIterator.
  */
 
-class ngraph::pass::ConvertTensorIteratorToLSTMSequence: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertTensorIteratorToLSTMSequence: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToLSTMSequence();
@@ -42,7 +42,7 @@ public:
  * converts this pattern to RNNSequence layer and replaces them TensorIterator.
  */
 
-class ngraph::pass::ConvertTensorIteratorToRNNSequence: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertTensorIteratorToRNNSequence: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToRNNSequence();
@@ -54,7 +54,7 @@ public:
  * converts this pattern to GRUSequence layer and replaces them TensorIterator.
  */
 
-class ngraph::pass::ConvertTensorIteratorToGRUSequence: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertTensorIteratorToGRUSequence: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertTensorIteratorToGRUSequence();

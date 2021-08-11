@@ -14,7 +14,7 @@
 #include <ngraph/slice_plan.hpp>
 #include <ngraph/util.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API StridedSliceOptimization;
@@ -23,7 +23,7 @@ class TRANSFORMATIONS_API SharedStridedSliceEraser;
 class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 
 /**
@@ -31,10 +31,10 @@ class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
  * @brief UselessStridedSliceEraser transformation removes StridedSlice operations
  * with equal input and output shapes.
  */
-class ngraph::pass::UselessStridedSliceEraser: public ngraph::pass::FunctionPass {
+class ov::pass::UselessStridedSliceEraser: public ov::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
 };
 
 /**
@@ -43,10 +43,10 @@ public:
  * operations with first StridedSlice in this group. All SrtideSlices in this group
  * must be equal and consume the same output port.
  */
-class ngraph::pass::SharedStridedSliceEraser: public ngraph::pass::FunctionPass {
+class ov::pass::SharedStridedSliceEraser: public ov::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
 };
 
 /**
@@ -55,10 +55,10 @@ public:
  * operations with VariadicSplit. All StridedSlice operations must slice data
  * with the same axis and stride = 1.
  */
-class ngraph::pass::GroupedStridedSliceOptimizer: public ngraph::pass::FunctionPass {
+class ov::pass::GroupedStridedSliceOptimizer: public ov::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
 };
 
 /**
@@ -66,10 +66,10 @@ public:
  * @brief StridedSliceOptimization transformation executes all transformations
  * related to StridedSlice optimizations.
  */
-class ngraph::pass::StridedSliceOptimization: public ngraph::pass::FunctionPass {
+class ov::pass::StridedSliceOptimization: public ov::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
 };
 
-ngraph::SlicePlan get_slice_plan(std::shared_ptr<ngraph::opset1::StridedSlice> slice);
+ov::SlicePlan get_slice_plan(std::shared_ptr<ov::opset1::StridedSlice> slice);

@@ -8,19 +8,19 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertGather7ToGather1;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief ConvertGather7ToGather1 converts v7::Gather into v1::Gather.
  */
-class ngraph::pass::ConvertGather7ToGather1 : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertGather7ToGather1 : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertGather7ToGather1();

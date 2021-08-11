@@ -12,16 +12,16 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API SmartReshape;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::SmartReshape: public ngraph::pass::FunctionPass {
+class ov::pass::SmartReshape: public ov::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
 };

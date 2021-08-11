@@ -14,16 +14,16 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::LeakyReluFusion, "LeakyReluFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::LeakyReluFusion, "LeakyReluFusion", 0);
 
-ngraph::pass::LeakyReluFusion::LeakyReluFusion() {
+ov::pass::LeakyReluFusion::LeakyReluFusion() {
     MATCHER_SCOPE(LeakyReluFusion);
-    auto data_pattern = ngraph::pattern::any_input();
-    auto alpha_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
-    auto multiply_pattern = ngraph::pattern::wrap_type<opset8::Multiply>({data_pattern, alpha_pattern}, pattern::consumers_count(1));
-    auto max_pattern = ngraph::pattern::wrap_type<opset8::Maximum>({data_pattern, multiply_pattern});
+    auto data_pattern = ov::pattern::any_input();
+    auto alpha_pattern = ov::pattern::any_input(pattern::has_static_shape());
+    auto multiply_pattern = ov::pattern::wrap_type<opset8::Multiply>({data_pattern, alpha_pattern}, pattern::consumers_count(1));
+    auto max_pattern = ov::pattern::wrap_type<opset8::Maximum>({data_pattern, multiply_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map.at(data_pattern);
         const auto & original_alpha_pattern = pattern_map.at(alpha_pattern);
@@ -31,7 +31,7 @@ ngraph::pass::LeakyReluFusion::LeakyReluFusion() {
         if (shape_size(original_alpha_pattern.get_shape()) != 1)
             return false;
 
-        auto leaky_relu = register_new_node<ngraph::opset8::PRelu>(data, original_alpha_pattern);
+        auto leaky_relu = register_new_node<ov::opset8::PRelu>(data, original_alpha_pattern);
         auto maximum = pattern_map.at(max_pattern);
         leaky_relu->set_friendly_name(maximum.get_node()->get_friendly_name());
 
@@ -45,6 +45,6 @@ ngraph::pass::LeakyReluFusion::LeakyReluFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(max_pattern, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(max_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

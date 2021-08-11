@@ -12,7 +12,7 @@
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace internal {
 
@@ -28,7 +28,7 @@ public:
                                 const Output<Node>& score_threshold,
                                 int center_point_box,
                                 bool sort_result_descending,
-                                const ngraph::element::Type& output_type = ngraph::element::i64);
+                                const ov::element::Type& output_type = ov::element::i64);
 
     NonMaxSuppressionIEInternal(const Output<Node>& boxes,
                                 const Output<Node>& scores,
@@ -38,7 +38,7 @@ public:
                                 const Output<Node>& soft_nms_sigma,
                                 int center_point_box,
                                 bool sort_result_descending,
-                                const ngraph::element::Type& output_type = ngraph::element::i64);
+                                const ov::element::Type& output_type = ov::element::i64);
 
     void validate_and_infer_types() override;
 
@@ -56,4 +56,4 @@ private:
 
 }  // namespace internal
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

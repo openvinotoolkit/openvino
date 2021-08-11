@@ -13,15 +13,15 @@
 
 #include "ngraph/op/gelu.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertGELU;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertGELU: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertGELU: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertGELU();

@@ -16,7 +16,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace util {
 
@@ -37,7 +37,7 @@ bool normalize_single_value(std::vector<T> vec, float & value) {
 }
 
 template <class T>
-bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
+bool has_op_with_type(const std::shared_ptr<const ov::Function> &function) {
     for (const auto & op : function->get_ops()) {
         if (std::dynamic_pointer_cast<T>(op)) {
             return true;
@@ -46,7 +46,7 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
     return false;
 }
 
-inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
+inline std::string create_ie_output_name(const ov::Output<ov::Node>& output) {
     const auto& prev_layer = output.get_node_shared_ptr();
     std::string out_name = prev_layer->get_friendly_name();
     if (prev_layer->get_output_size() != 1)
@@ -55,7 +55,7 @@ inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& out
 }
 
 template <typename T>
-bool has_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constant,
+bool has_constant_value(const std::shared_ptr<ov::opset4::Constant>& constant,
                         const T value,
                         T epsilon = std::numeric_limits<T>::epsilon()) {
     if (!constant) {
@@ -68,10 +68,10 @@ bool has_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constan
         return false;
     }
 
-    if (constant->get_element_type() == ngraph::element::f16 ||
-        constant->get_element_type() == ngraph::element::f32 ||
-        constant->get_element_type() == ngraph::element::f64 ||
-        constant->get_element_type() == ngraph::element::bf16) {
+    if (constant->get_element_type() == ov::element::f16 ||
+        constant->get_element_type() == ov::element::f32 ||
+        constant->get_element_type() == ov::element::f64 ||
+        constant->get_element_type() == ov::element::bf16) {
             const auto data = constant->cast_vector<T>();
             if (std::fabs(data[0] - value) > epsilon) {
                 return false;
@@ -88,21 +88,21 @@ bool has_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constan
 
 TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<op::Constant> & const_node, float & value);
 
-TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> normalize_constant(const std::shared_ptr<op::Constant> & constant,
+TRANSFORMATIONS_API std::shared_ptr<ov::Node> normalize_constant(const std::shared_ptr<op::Constant> & constant,
                                                                            const PartialShape & shape);
 
-TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> broadcastTo(const Output<Node>& input, const Shape& shape);
+TRANSFORMATIONS_API std::shared_ptr<ov::Node> broadcastTo(const Output<Node>& input, const Shape& shape);
 
-TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node> & input, const Shape& shape);
+TRANSFORMATIONS_API std::shared_ptr<ov::Node> reshapeTo(const Output<Node> & input, const Shape& shape);
 
-TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, float value, float eps = 1e-5);
+TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ov::op::Constant>& const_node, float value, float eps = 1e-5);
 
-TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ngraph::Function> &function);
+TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ov::Function> &function);
 
-TRANSFORMATIONS_API bool check_for_broadcast(const ngraph::Shape &ref_shape, const ngraph::Shape &other_shape);
+TRANSFORMATIONS_API bool check_for_broadcast(const ov::Shape &ref_shape, const ov::Shape &other_shape);
 
-TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
-                                                             const ngraph::Output<ngraph::Node>& apply_to);
+TRANSFORMATIONS_API std::shared_ptr<ov::Node> activation(const std::string& activation_name,
+                                                             const ov::Output<ov::Node>& apply_to);
 
 TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node> &seq_len_input, int64_t max_seq_len);
 
@@ -133,4 +133,4 @@ TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::s
 
 }  // namespace util
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

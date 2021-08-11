@@ -11,7 +11,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ReshapeAMatMul;
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ReshapeBMatMul;
 class TRANSFORMATIONS_API TransposeMatMul;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -29,17 +29,17 @@ class TRANSFORMATIONS_API TransposeMatMul;
  *  - MatMul(any_input, Reshape(any_input, any_input))
  */
 
-class ngraph::pass::ReshapeAMatMul: public ngraph::pass::MatcherPass {
+class ov::pass::ReshapeAMatMul: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ReshapeAMatMul();
 };
-class ngraph::pass::ReshapeBMatMul: public ngraph::pass::MatcherPass {
+class ov::pass::ReshapeBMatMul: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ReshapeBMatMul();
 };
-class ngraph::pass::TransposeMatMul: public ngraph::pass::MatcherPass {
+class ov::pass::TransposeMatMul: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     TransposeMatMul();

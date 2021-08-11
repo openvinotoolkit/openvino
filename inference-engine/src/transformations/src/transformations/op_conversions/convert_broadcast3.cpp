@@ -14,9 +14,9 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBroadcast3, "ConvertBroadcast3", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertBroadcast3, "ConvertBroadcast3", 0);
 
-bool make_compatible_shape(const ngraph::PartialShape & input_shape, std::vector<size_t> & target_shape) {
+bool make_compatible_shape(const ov::PartialShape & input_shape, std::vector<size_t> & target_shape) {
     if (input_shape.rank().is_dynamic()) {
         return false;
     }
@@ -55,11 +55,11 @@ bool make_compatible_shape(const ngraph::PartialShape & input_shape, std::vector
     return true;
 }
 
-ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
+ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
     MATCHER_SCOPE(ConvertBroadcast3);
     auto broadcast = pattern::wrap_type<opset3::Broadcast>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto broadcast = std::dynamic_pointer_cast<opset3::Broadcast>(m.get_match_root());
         if (!broadcast) {
             return false;
@@ -92,9 +92,9 @@ ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
                 auto constant_one = opset1::Constant::create(input_element_type, {1}, {1});
                 auto broadcast_ones = std::make_shared<opset1::Broadcast>(constant_one, target_shape_input);
                 if (input_element_type == element::boolean) {
-                    input = std::make_shared<ngraph::opset1::LogicalOr>(input, broadcast_ones);
+                    input = std::make_shared<ov::opset1::LogicalOr>(input, broadcast_ones);
                 } else {
-                    input = std::make_shared<ngraph::opset1::Multiply>(input, broadcast_ones);
+                    input = std::make_shared<ov::opset1::Multiply>(input, broadcast_ones);
                 }
                 copy_runtime_info(broadcast, broadcast_ones);
             }

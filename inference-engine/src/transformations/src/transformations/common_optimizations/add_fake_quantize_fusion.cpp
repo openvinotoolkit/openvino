@@ -14,20 +14,20 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::AddFakeQuantizeFusion, "AddFakeQuantizeFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::AddFakeQuantizeFusion, "AddFakeQuantizeFusion", 0);
 
-ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
+ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
     MATCHER_SCOPE(AddFakeQuantizeFusion);
-    auto input_pattern = ngraph::pattern::any_input();
-    auto const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
-    auto add_pattern = ngraph::pattern::wrap_type<opset5::Add>({input_pattern, const_pattern},
+    auto input_pattern = ov::pattern::any_input();
+    auto const_pattern = ov::pattern::wrap_type<opset5::Constant>();
+    auto add_pattern = ov::pattern::wrap_type<opset5::Add>({input_pattern, const_pattern},
                                                                pattern::consumers_count(1));
-    auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({add_pattern,
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input()});
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    auto fq_pattern = ov::pattern::wrap_type<opset5::FakeQuantize>({add_pattern,
+                                                                        ov::pattern::any_input(),
+                                                                        ov::pattern::any_input(),
+                                                                        ov::pattern::any_input(),
+                                                                        ov::pattern::any_input()});
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
         if (!fq)
@@ -65,6 +65,6 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fq_pattern, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(fq_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

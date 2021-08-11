@@ -11,14 +11,14 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API Proposal1Scales;
 class TRANSFORMATIONS_API Proposal4Scales;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -35,13 +35,13 @@ class TRANSFORMATIONS_API Proposal4Scales;
  *      Parameter [batch, 3 or 4] -> Reshape [-1] -> StridedSlice[0: 3 or 4] -(in: 3)-> PriorBox
  */
 
-class ngraph::pass::Proposal1Scales : public ngraph::pass::MatcherPass {
+class ov::pass::Proposal1Scales : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     Proposal1Scales();
 };
 
-class ngraph::pass::Proposal4Scales : public ngraph::pass::MatcherPass {
+class ov::pass::Proposal4Scales : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     Proposal4Scales();

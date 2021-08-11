@@ -15,9 +15,9 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchToSpaceFusion, "BatchToSpaceFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::BatchToSpaceFusion, "BatchToSpaceFusion", 0);
 
-ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
+ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
     MATCHER_SCOPE(BatchToSpaceFusion);
     auto data_pattern = pattern::any_input(pattern::has_static_shape());
     auto reshape_before_pattern = pattern::wrap_type<opset6::Reshape>({data_pattern, pattern::wrap_type<opset6::Constant>()}, pattern::rank_equals(4));
@@ -32,7 +32,7 @@ ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
     auto trans_after_pattern = pattern::wrap_type<opset6::Transpose>({slice_pattern, pattern::wrap_type<opset6::Constant>()}, pattern::rank_equals(4));
     auto reshape_or_transpose_after_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_after_pattern, trans_after_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto get_reshape_or_transpose = [&pattern_map] (const std::shared_ptr<Node>& reshape_pattern,
@@ -99,7 +99,7 @@ ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         }
         auto crops_begin = op::Constant::create(element::i64, Shape{4}, starts_value);
         auto crops_end = op::Constant::create(element::i64, Shape{4}, ends_value);
-        auto batch_to_space = register_new_node<ngraph::opset6::BatchToSpace>(pattern_map.at(data_pattern), block_shape, crops_begin, crops_end);
+        auto batch_to_space = register_new_node<ov::opset6::BatchToSpace>(pattern_map.at(data_pattern), block_shape, crops_begin, crops_end);
         batch_to_space->set_friendly_name(reshape_or_trans_after->get_friendly_name());
 
         copy_runtime_info({
@@ -114,6 +114,6 @@ ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_or_transpose_after_pattern, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(reshape_or_transpose_after_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

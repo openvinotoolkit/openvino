@@ -10,7 +10,7 @@
 #include <transformations_visibility.hpp>
 
 
-namespace ngraph {
+namespace ov {
 template <>
 class TRANSFORMATIONS_API VariantWrapper<Strides> : public VariantImpl<Strides> {
 public:
@@ -21,8 +21,8 @@ public:
     }
 };
 
-} // namespace ngraph
+} // namespace ov
 
-TRANSFORMATIONS_API bool has_strides_prop(const ngraph::Input<ngraph::Node>& node);
-TRANSFORMATIONS_API ngraph::Strides get_strides_prop(const ngraph::Input<ngraph::Node>& node);
-TRANSFORMATIONS_API void insert_strides_prop(ngraph::Input<ngraph::Node>& node, const ngraph::Strides& strides);
+TRANSFORMATIONS_API bool has_strides_prop(const ov::Input<ov::Node>& node);
+TRANSFORMATIONS_API ov::Strides get_strides_prop(const ov::Input<ov::Node>& node);
+TRANSFORMATIONS_API void insert_strides_prop(ov::Input<ov::Node>& node, const ov::Strides& strides);

@@ -11,15 +11,15 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertMulticlassNmsToMulticlassNmsIE;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertMulticlassNmsToMulticlassNmsIE: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertMulticlassNmsToMulticlassNmsIE();

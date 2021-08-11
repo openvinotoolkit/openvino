@@ -6,14 +6,14 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/smart_reshape/mimic_set_batch_size.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MimicSetBatchSize, "MimicSetBatchSize", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::MimicSetBatchSize, "MimicSetBatchSize", 0);
 
-bool ngraph::pass::MimicSetBatchSize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::pass::MimicSetBatchSize::run_on_function(std::shared_ptr<ov::Function> f) {
     RUN_ON_FUNCTION_SCOPE(MimicSetBatchSize);
     // extracting ratio of out to in 0-index dimension value from the folded function
-    auto specialized_function = ngraph::clone_function(*f);
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+    auto specialized_function = ov::clone_function(*f);
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ConstantFolding>();
     manager.run_passes(specialized_function);
 
     std::map<std::string, float> scale;
@@ -36,9 +36,9 @@ bool ngraph::pass::MimicSetBatchSize::run_on_function(std::shared_ptr<ngraph::Fu
             continue;
 
         const auto & shape_of = std::make_shared<opset5::ShapeOf>(reshape->get_input_source_output(0), reshape->get_input_element_type(1));
-        const auto & new_input_batch = std::make_shared<ngraph::opset5::Gather>(
-                shape_of, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0}));
+        const auto & new_input_batch = std::make_shared<ov::opset5::Gather>(
+                shape_of, ov::opset5::Constant::create(ov::element::i64, {1}, std::vector<int64_t>{0}),
+                ov::opset5::Constant::create(ov::element::i64, {}, std::vector<int64_t>{0}));
 
         const std::shared_ptr<Node> & new_output_batch = std::make_shared<opset5::Convert>(
                 std::make_shared<opset5::Ceiling>(
@@ -49,10 +49,10 @@ bool ngraph::pass::MimicSetBatchSize::run_on_function(std::shared_ptr<ngraph::Fu
 
         std::vector<int64_t> non_batch_dims(reshape->get_output_partial_shape(0).rank().get_length() - 1);
         std::iota(non_batch_dims.begin(), non_batch_dims.end(), 1);
-        const auto & non_batch_dims_node = std::make_shared<ngraph::opset5::Gather>(
+        const auto & non_batch_dims_node = std::make_shared<ov::opset5::Gather>(
                 reshape->input_value(1),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {non_batch_dims.size()}, non_batch_dims),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0}));
+                ov::opset5::Constant::create(ov::element::i64, {non_batch_dims.size()}, non_batch_dims),
+                ov::opset5::Constant::create(ov::element::i64, {}, std::vector<int64_t>{0}));
         auto new_reshape_pattern = std::make_shared<opset5::Concat>(OutputVector{new_output_batch, non_batch_dims_node}, 0);
         reshape->input(1).replace_source_output(new_reshape_pattern->output(0));
         transformed = true;

@@ -11,7 +11,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvolutionMultiplyFusion;
@@ -20,27 +20,27 @@ class TRANSFORMATIONS_API ConvolutionBackpropDataMultiplyFusion;
 class TRANSFORMATIONS_API GroupConvolutionBackpropDataMultiplyFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvolutionMultiplyFusion: public ngraph::pass::MatcherPass {
+class ov::pass::ConvolutionMultiplyFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvolutionMultiplyFusion();
 };
 
-class ngraph::pass::GroupConvolutionMultiplyFusion: public ngraph::pass::MatcherPass {
+class ov::pass::GroupConvolutionMultiplyFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     GroupConvolutionMultiplyFusion();
 };
 
-class ngraph::pass::ConvolutionBackpropDataMultiplyFusion: public ngraph::pass::MatcherPass {
+class ov::pass::ConvolutionBackpropDataMultiplyFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvolutionBackpropDataMultiplyFusion();
 };
 
-class ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion: public ngraph::pass::MatcherPass {
+class ov::pass::GroupConvolutionBackpropDataMultiplyFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     GroupConvolutionBackpropDataMultiplyFusion();

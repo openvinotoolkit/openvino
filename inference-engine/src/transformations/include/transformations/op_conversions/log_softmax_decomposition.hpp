@@ -7,19 +7,19 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
     class TRANSFORMATIONS_API LogSoftmaxDecomposition;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief LogSoftmaxDecomposition transformation into sub-graph x - log(reduce_sum(exp(x), axis)).
  */
-class ngraph::pass::LogSoftmaxDecomposition : public ngraph::pass::MatcherPass {
+class ov::pass::LogSoftmaxDecomposition : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     LogSoftmaxDecomposition();

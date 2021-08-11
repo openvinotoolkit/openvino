@@ -11,13 +11,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
  * 3. Input shape rank must be static and greater than 3
  */
 
-class ngraph::pass::ConvertPadToGroupConvolution: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertPadToGroupConvolution: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertPadToGroupConvolution();

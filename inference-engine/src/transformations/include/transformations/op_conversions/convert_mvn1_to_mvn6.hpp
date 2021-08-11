@@ -8,19 +8,19 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertMVN1ToMVN6;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief ConvertMVN1ToMVN6 covert v0:MVN into v6::MVN.
  */
-class ngraph::pass::ConvertMVN1ToMVN6 : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertMVN1ToMVN6 : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertMVN1ToMVN6();

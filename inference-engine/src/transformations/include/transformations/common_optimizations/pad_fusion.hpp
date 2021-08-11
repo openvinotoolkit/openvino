@@ -8,7 +8,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API PadFusion;
@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API PadFusionGroupConvolution;
 class TRANSFORMATIONS_API PadFusionGroupConvolutionBackpropData;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -30,7 +30,7 @@ class TRANSFORMATIONS_API PadFusionGroupConvolutionBackpropData;
  * - pad value is 0
  * - exclude_pad in AvgPool is set to false or pads_begin, pads_end are set to zero
  */
-class ngraph::pass::PadFusionAvgPool: public ngraph::pass::MatcherPass {
+class ov::pass::PadFusionAvgPool: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PadFusionAvgPool();
@@ -43,7 +43,7 @@ public:
  * - pad mode is op::PadMode::CONSTANT
  * - pad value is 0
  */
-class ngraph::pass::PadFusionMaxPool: public ngraph::pass::MatcherPass {
+class ov::pass::PadFusionMaxPool: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PadFusionMaxPool();
@@ -56,7 +56,7 @@ public:
  * - pad mode is op::PadMode::CONSTANT
  * - pad value is 0
  */
-class ngraph::pass::PadFusionConvolution: public ngraph::pass::MatcherPass {
+class ov::pass::PadFusionConvolution: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PadFusionConvolution();
@@ -70,7 +70,7 @@ public:
  * - pad value is 0
  * - pads in ConvolutionBackpropData are greater than pads in Pad node
  */
-class ngraph::pass::PadFusionConvolutionBackpropData: public ngraph::pass::MatcherPass {
+class ov::pass::PadFusionConvolutionBackpropData: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PadFusionConvolutionBackpropData();
@@ -83,7 +83,7 @@ public:
  * - pad mode is op::PadMode::CONSTANT
  * - pad value is 0
  */
-class ngraph::pass::PadFusionGroupConvolution: public ngraph::pass::MatcherPass {
+class ov::pass::PadFusionGroupConvolution: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PadFusionGroupConvolution();
@@ -97,21 +97,21 @@ public:
  * - pad value is 0
  * - pads in GroupConvolutionBackpropData are greater than pads in Pad node
  */
-class ngraph::pass::PadFusionGroupConvolutionBackpropData: public ngraph::pass::MatcherPass {
+class ov::pass::PadFusionGroupConvolutionBackpropData: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PadFusionGroupConvolutionBackpropData();
 };
 
-class ngraph::pass::PadFusion: public ngraph::pass::GraphRewrite {
+class ov::pass::PadFusion: public ov::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     PadFusion() {
-        add_matcher<ngraph::pass::PadFusionAvgPool>();
-        add_matcher<ngraph::pass::PadFusionMaxPool>();
-        add_matcher<ngraph::pass::PadFusionConvolution>();
-        add_matcher<ngraph::pass::PadFusionConvolutionBackpropData>();
-        add_matcher<ngraph::pass::PadFusionGroupConvolution>();
-        add_matcher<ngraph::pass::PadFusionGroupConvolutionBackpropData>();
+        add_matcher<ov::pass::PadFusionAvgPool>();
+        add_matcher<ov::pass::PadFusionMaxPool>();
+        add_matcher<ov::pass::PadFusionConvolution>();
+        add_matcher<ov::pass::PadFusionConvolutionBackpropData>();
+        add_matcher<ov::pass::PadFusionGroupConvolution>();
+        add_matcher<ov::pass::PadFusionGroupConvolutionBackpropData>();
     }
 };

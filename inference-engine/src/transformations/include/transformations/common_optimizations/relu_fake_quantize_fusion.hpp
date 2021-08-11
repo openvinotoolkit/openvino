@@ -8,13 +8,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ReluFakeQuantizeFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API ReluFakeQuantizeFusion;
  * -  'input_low' has non negative values
  */
 
-class ngraph::pass::ReluFakeQuantizeFusion: public ngraph::pass::MatcherPass {
+class ov::pass::ReluFakeQuantizeFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ReluFakeQuantizeFusion();

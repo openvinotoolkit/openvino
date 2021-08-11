@@ -11,7 +11,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertRNNSequenceToTensorIterator;
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ConvertGRUSequenceToTensorIterator;
 class TRANSFORMATIONS_API ConvertLSTMSequenceToTensorIterator;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API ConvertLSTMSequenceToTensorIterator;
  * *
  */
 
-class ngraph::pass::ConvertRNNSequenceToTensorIterator: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertRNNSequenceToTensorIterator: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertRNNSequenceToTensorIterator();
@@ -39,7 +39,7 @@ public:
  * *
  */
 
-class ngraph::pass::ConvertGRUSequenceToTensorIterator: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertGRUSequenceToTensorIterator: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertGRUSequenceToTensorIterator();
@@ -51,7 +51,7 @@ public:
  * *
  */
 
-class ngraph::pass::ConvertLSTMSequenceToTensorIterator: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertLSTMSequenceToTensorIterator: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertLSTMSequenceToTensorIterator();

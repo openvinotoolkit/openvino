@@ -11,13 +11,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API SpaceToBatchFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -31,7 +31,7 @@ class TRANSFORMATIONS_API SpaceToBatchFusion;
  * - SpaceToDepthMode must be BLOCKS_FIRST
  */
 
-class ngraph::pass::SpaceToBatchFusion: public ngraph::pass::MatcherPass {
+class ov::pass::SpaceToBatchFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SpaceToBatchFusion();

@@ -11,15 +11,15 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API PullTransposeThroughFQUp;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::PullTransposeThroughFQUp: public ngraph::pass::MatcherPass {
+class ov::pass::PullTransposeThroughFQUp: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     PullTransposeThroughFQUp();

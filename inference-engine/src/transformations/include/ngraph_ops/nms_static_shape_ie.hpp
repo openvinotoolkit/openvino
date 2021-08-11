@@ -13,7 +13,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 namespace internal {
 
@@ -86,23 +86,23 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
 }
 
 template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info() const { return get_type_info_static(); }
+const ::ov::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info() const { return get_type_info_static(); }
 
 template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_static() {
+const ::ov::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_static() {
     auto BaseNmsOpTypeInfoPtr = &BaseNmsOp::get_type_info_static();
 
     // TODO: it should be static const std::string name = std::string("NmsStaticShapeIE_") + BaseNmsOpTypeInfoPtr->name;
     //       but currently it will not pass conversion ot Legacy Opset correctly
     static const std::string name = BaseNmsOpTypeInfoPtr->name;
 
-    static const ::ngraph::Node::type_info_t type_info_static{
+    static const ::ov::Node::type_info_t type_info_static{
         name.c_str(), BaseNmsOpTypeInfoPtr->version, BaseNmsOpTypeInfoPtr};
     return type_info_static;
 }
 
 template <typename BaseNmsOp>
-const ::ngraph::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info = NmsStaticShapeIE<BaseNmsOp>::get_type_info_static();
+const ::ov::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info = NmsStaticShapeIE<BaseNmsOp>::get_type_info_static();
 
 #ifdef __clang__
 extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<op::v8::MulticlassNms>;
@@ -111,4 +111,4 @@ extern template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<op::v8:
 
 }  // namespace internal
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

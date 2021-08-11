@@ -12,19 +12,19 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::FakeQuantizeReshapeFusion, "FakeQuantizeReshapeFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::FakeQuantizeReshapeFusion, "FakeQuantizeReshapeFusion", 0);
 
-ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
+ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
     MATCHER_SCOPE(FakeQuantizeReshapeFusion);
-    const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
-            {ngraph::pattern::wrap_type<opset4::Constant>(), // for weights only
-             ngraph::pattern::any_input(),
-             ngraph::pattern::any_input(),
-             ngraph::pattern::any_input(),
-             ngraph::pattern::any_input()},
+    const auto fq_node_p = ov::pattern::wrap_type<opset4::FakeQuantize>(
+            {ov::pattern::wrap_type<opset4::Constant>(), // for weights only
+             ov::pattern::any_input(),
+             ov::pattern::any_input(),
+             ov::pattern::any_input(),
+             ov::pattern::any_input()},
             pattern::consumers_count(1));
-    const auto reshape_node_p = ngraph::pattern::wrap_type<opset4::Reshape>(
-            {fq_node_p, ngraph::pattern::any_input()}, [](const Output<Node> & output) {
+    const auto reshape_node_p = ov::pattern::wrap_type<opset4::Reshape>(
+            {fq_node_p, ov::pattern::any_input()}, [](const Output<Node> & output) {
                 // WA: check that all Reshape node consumers are not GroupConvolution operations
                 const auto & target_inputs = output.get_target_inputs();
                 return std::all_of(target_inputs.begin(), target_inputs.end(),
@@ -33,7 +33,7 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
                         });
             });
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         const auto &pattern_map = m.get_pattern_value_map();
         const auto fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
         if (fq_node->is_dynamic())
@@ -76,6 +76,6 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_node_p, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(reshape_node_p, matcher_name);
     this->register_matcher(m, callback);
 }

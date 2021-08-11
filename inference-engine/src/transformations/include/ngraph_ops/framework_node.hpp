@@ -13,7 +13,7 @@
 #include "ngraph/strides.hpp"
 #include "ngraph/partial_shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 class TRANSFORMATIONS_API FrameworkNodeAttrs {
@@ -74,8 +74,8 @@ public:
     void cache_output_descriptor();
 
 private:
-    std::vector<std::tuple<ngraph::PartialShape, ngraph::element::Type>> m_inputs_desc;
-    std::vector<std::tuple<ngraph::PartialShape, ngraph::element::Type>> m_output_desc;
+    std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_inputs_desc;
+    std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_output_desc;
 
     FrameworkNodeAttrs m_attrs;
 };
@@ -90,4 +90,4 @@ public:
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<FrameworkNodeAttr>", 0};
     const DiscreteTypeInfo& get_type_info() const override { return type_info; }
 };
-} // namespace ngraph
+} // namespace ov

@@ -14,9 +14,9 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DilatedConvolutionConverter, "DilatedConvolutionConverter", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::DilatedConvolutionConverter, "DilatedConvolutionConverter", 0);
 
-ngraph::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
+ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
     MATCHER_SCOPE(DilatedConvolutionConverter);
     auto data_pattern = pattern::any_input();
     auto block_shape_pattern = pattern::wrap_type<opset6::Constant>();

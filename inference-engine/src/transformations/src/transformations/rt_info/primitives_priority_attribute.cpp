@@ -16,9 +16,9 @@
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph_ops/deconvolution_ie.hpp"
 
-namespace ngraph {
+namespace ov {
 
-template class ngraph::VariantImpl<PrimitivesPriority>;
+template class ov::VariantImpl<PrimitivesPriority>;
 
 constexpr VariantTypeInfo VariantWrapper<PrimitivesPriority>::type_info;
 
@@ -26,14 +26,14 @@ std::string PrimitivesPriority::getPrimitivesPriority() const {
     return primitives_priority;
 }
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::merge(const ngraph::NodeVector & nodes) {
+std::shared_ptr<ov::Variant> VariantWrapper<PrimitivesPriority>::merge(const ov::NodeVector & nodes) {
     auto isConvolutionBased = [](const std::shared_ptr<Node> & node) -> bool {
-        if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
-            std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
-            std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
-            std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node) ||
-            std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) ||
-            std::dynamic_pointer_cast<ngraph::op::DeconvolutionIE>(node)) {
+        if (std::dynamic_pointer_cast<ov::opset1::Convolution>(node) ||
+            std::dynamic_pointer_cast<ov::opset1::GroupConvolution>(node) ||
+            std::dynamic_pointer_cast<ov::opset1::GroupConvolutionBackpropData>(node) ||
+            std::dynamic_pointer_cast<ov::opset1::ConvolutionBackpropData>(node) ||
+            std::dynamic_pointer_cast<ov::op::ConvolutionIE>(node) ||
+            std::dynamic_pointer_cast<ov::op::DeconvolutionIE>(node)) {
             return true;
         }
         return false;
@@ -59,11 +59,11 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::merge(const
     return std::make_shared<VariantWrapper<PrimitivesPriority> >(PrimitivesPriority(final_primitives_priority));
 }
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::init(const std::shared_ptr<ngraph::Node> & node) {
+std::shared_ptr<ov::Variant> VariantWrapper<PrimitivesPriority>::init(const std::shared_ptr<ov::Node> & node) {
     throw ngraph_error(std::string(type_info.name) + " has no default initialization.");
 }
 
-std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> &node) {
+std::string getPrimitivesPriority(const std::shared_ptr<ov::Node> &node) {
     const auto &rtInfo = node->get_rt_info();
     using PrimitivesPriorityWrapper = VariantWrapper<PrimitivesPriority>;
 
@@ -74,4 +74,4 @@ std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> &node) {
     return pp.getPrimitivesPriority();
 }
 
-}  // namespace ngraph
+}  // namespace ov

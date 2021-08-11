@@ -7,13 +7,13 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
     class TRANSFORMATIONS_API Gelu7Downgrade;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -21,7 +21,7 @@ namespace pass {
  * set of plugins support v7::Gelu which has an attribute specifying approximation mode. For other plugins the
  * behaviour is to use v2 version of the operation which does not support the approximation mode.
  */
-class ngraph::pass::Gelu7Downgrade : public ngraph::pass::MatcherPass {
+class ov::pass::Gelu7Downgrade : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     Gelu7Downgrade();

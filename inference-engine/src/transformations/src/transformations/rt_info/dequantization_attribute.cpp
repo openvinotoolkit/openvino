@@ -13,9 +13,9 @@
 
 #include "transformations/rt_info/dequantization_attribute.hpp"
 
-namespace ngraph {
+namespace ov {
 
-template class ngraph::VariantImpl<DequantizationAttr>;
+template class ov::VariantImpl<DequantizationAttr>;
 
 constexpr VariantTypeInfo VariantWrapper<DequantizationAttr>::type_info;
 
@@ -23,7 +23,7 @@ std::string DequantizationAttr::getDequantizationAttr() const {
     return dequantization_attribute;
 }
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<DequantizationAttr>::merge(const ngraph::NodeVector & nodes) {
+std::shared_ptr<ov::Variant> VariantWrapper<DequantizationAttr>::merge(const ov::NodeVector & nodes) {
     std::set<std::string> dequantizations;
 
     for (auto& node : nodes) {
@@ -40,11 +40,11 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<DequantizationAttr>::merge(const
     return std::make_shared<VariantWrapper<DequantizationAttr>>(DequantizationAttr(final_primitives_priority));
 }
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<DequantizationAttr>::init(const std::shared_ptr<ngraph::Node> & node) {
+std::shared_ptr<ov::Variant> VariantWrapper<DequantizationAttr>::init(const std::shared_ptr<ov::Node> & node) {
     return std::make_shared<VariantWrapper<DequantizationAttr>>(DequantizationAttr(node->get_friendly_name()));
 }
 
-std::string getDequantization(const std::shared_ptr<ngraph::Node>& node) {
+std::string getDequantization(const std::shared_ptr<ov::Node>& node) {
     const auto& rtInfo = node->get_rt_info();
     using getDequantizationWrapper = VariantWrapper<DequantizationAttr>;
 
@@ -56,4 +56,4 @@ std::string getDequantization(const std::shared_ptr<ngraph::Node>& node) {
 }
 
 
-}  // namespace ngraph
+}  // namespace ov

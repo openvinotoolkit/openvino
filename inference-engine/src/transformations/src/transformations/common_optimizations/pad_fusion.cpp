@@ -14,7 +14,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/validation_util.hpp>
 
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(pass::PadFusion, "PadFusion", 0);
 

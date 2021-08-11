@@ -19,12 +19,12 @@
 #include <transformations/utils/utils.hpp>
 #include "itt.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvFusion, "ConvFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvFusion, "ConvFusion", 0);
 
 template <class A, class B>
-std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(std::shared_ptr<ngraph::Node> node) {
+std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(std::shared_ptr<ov::Node> node) {
     auto eltwise = std::dynamic_pointer_cast<A>(node->input(0).get_source_output().get_node_shared_ptr());
     auto constant = std::dynamic_pointer_cast<B>(node->input(1).get_source_output().get_node_shared_ptr());
 
@@ -42,13 +42,13 @@ std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(std::shar
 
 template <class Conv>
 bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
-    if (!ngraph::is_type<ngraph::op::ConvolutionIE>(conv)) {
+    if (!ov::is_type<ov::op::ConvolutionIE>(conv)) {
         return false;
     }
 
-    auto isLowPrecision = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
-        const ngraph::element::Type inputType = node->get_input_element_type(index);
-        return (inputType == ngraph::element::i8) || (inputType == ngraph::element::u8);
+    auto isLowPrecision = [](const std::shared_ptr<ov::Node>& node, const size_t index) {
+        const ov::element::Type inputType = node->get_input_element_type(index);
+        return (inputType == ov::element::i8) || (inputType == ov::element::u8);
     };
 
     // Convolution operation has to be executed in INT8 if ...
@@ -57,7 +57,7 @@ bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
         return true;
     }
 
-    const std::shared_ptr<ngraph::opset1::Subtract> subtract = ngraph::as_type_ptr<ngraph::opset1::Subtract>(conv->get_input_node_shared_ptr(0));
+    const std::shared_ptr<ov::opset1::Subtract> subtract = ov::as_type_ptr<ov::opset1::Subtract>(conv->get_input_node_shared_ptr(0));
     if (subtract == nullptr) {
         return false;
     }
@@ -67,13 +67,13 @@ bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
 }
 
 template <class Conv>
-bool conv_callback(ngraph::pattern::Matcher &m) {
+bool conv_callback(ov::pattern::Matcher &m) {
     auto eltwise = m.get_match_root();
 
-    std::shared_ptr<ngraph::opset1::Constant> m_const;
+    std::shared_ptr<ov::opset1::Constant> m_const;
     std::shared_ptr<Conv> m_conv;
     // FIXME: use auto [m_conv, m_const] when C++17 is available
-    std::tie(m_conv, m_const) = parse_eltwise_inputs<Conv, ngraph::opset1::Constant>(eltwise);
+    std::tie(m_conv, m_const) = parse_eltwise_inputs<Conv, ov::opset1::Constant>(eltwise);
     if (!m_conv || !m_const) {
         return false;
     }
@@ -111,95 +111,95 @@ bool conv_callback(ngraph::pattern::Matcher &m) {
     }
 
     if (final_const.get_shape().size() > 1) {
-        final_const = std::make_shared<ngraph::opset1::Reshape>(final_const,
-                                                                ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {channel_dim}), true);
+        final_const = std::make_shared<ov::opset1::Reshape>(final_const,
+                                                                ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {channel_dim}), true);
     }
 
-    ngraph::Output<ngraph::Node> new_conv, new_weights, new_bias;
-    if (std::dynamic_pointer_cast<ngraph::opset1::Add>(eltwise)) {
+    ov::Output<ov::Node> new_conv, new_weights, new_bias;
+    if (std::dynamic_pointer_cast<ov::opset1::Add>(eltwise)) {
         // Fuse: ConvolutionIE/DeconvolutionIE->Add
         if (m_conv->inputs().size() == 2) {
             new_bias = final_const;
         } else {
-            new_bias = std::make_shared<ngraph::opset1::Add>(final_const, m_conv->input_value(2));
+            new_bias = std::make_shared<ov::opset1::Add>(final_const, m_conv->input_value(2));
         }
         new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), m_conv->input_value(1), new_bias});
-    } else if (std::is_same<Conv, ngraph::op::ConvolutionIE>() && std::dynamic_pointer_cast<ngraph::opset1::Multiply>(eltwise) &&
+    } else if (std::is_same<Conv, ov::op::ConvolutionIE>() && std::dynamic_pointer_cast<ov::opset1::Multiply>(eltwise) &&
                !IsConvInLowPrecision(m_conv)) {
         // Fuse: ConvolutionIE->Mul
         auto weights_shape = m_conv->input(1).get_shape();
 
-        ngraph::Shape weights_const_shape(weights_shape.size(), 1);
+        ov::Shape weights_const_shape(weights_shape.size(), 1);
         weights_const_shape[0] = weights_shape[0];
 
-        auto const_reshape = std::make_shared<ngraph::opset1::Reshape>(final_const,
-                                                                       ngraph::opset1::Constant::create(ngraph::element::i64,
-                                                                                                        ngraph::Shape{weights_const_shape.size()},
+        auto const_reshape = std::make_shared<ov::opset1::Reshape>(final_const,
+                                                                       ov::opset1::Constant::create(ov::element::i64,
+                                                                                                        ov::Shape{weights_const_shape.size()},
                                                                                                         weights_const_shape),
                                                                        true);
-        new_weights = std::make_shared<ngraph::opset1::Multiply> (m_conv->input_value(1), const_reshape);
+        new_weights = std::make_shared<ov::opset1::Multiply> (m_conv->input_value(1), const_reshape);
         if (m_conv->inputs().size() == 2) {
             new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), new_weights});
         } else {
-            auto bias_reshape = std::make_shared<ngraph::opset1::Reshape>(final_const,
-                                                                          ngraph::opset1::Constant::create(ngraph::element::i64,
-                                                                                                           ngraph::Shape{1},
+            auto bias_reshape = std::make_shared<ov::opset1::Reshape>(final_const,
+                                                                          ov::opset1::Constant::create(ov::element::i64,
+                                                                                                           ov::Shape{1},
                                                                                                            {weights_shape[0]}),
                                                                           true);
-            new_bias = std::make_shared<ngraph::opset1::Multiply>(bias_reshape, final_const);
+            new_bias = std::make_shared<ov::opset1::Multiply>(bias_reshape, final_const);
             new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), new_weights, new_bias});
         }
     } else {
         return false;
     }
 
-    ngraph::copy_runtime_info({m_conv, eltwise}, new_conv.get_node_shared_ptr());
+    ov::copy_runtime_info({m_conv, eltwise}, new_conv.get_node_shared_ptr());
     new_conv.get_node_shared_ptr()->set_friendly_name(m.get_match_root()->get_friendly_name());
-    ngraph::replace_node(m.get_match_root(), new_conv.get_node_shared_ptr());
+    ov::replace_node(m.get_match_root(), new_conv.get_node_shared_ptr());
     return true;
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvAddFusion, "ConvAddFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvAddFusion, "ConvAddFusion", 0);
 
-ngraph::pass::ConvAddFusion::ConvAddFusion() {
+ov::pass::ConvAddFusion::ConvAddFusion() {
     MATCHER_SCOPE(ConvAddFusion);
-    auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
-    auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, pattern::any_input()});
+    auto conv = ov::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
+    auto add = ov::pattern::wrap_type<opset1::Add>({conv, pattern::any_input()});
 
-    matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
+    matcher_pass_callback callback = [](ov::pattern::Matcher &m) {
         return conv_callback<op::ConvolutionIE>(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvMultiplyFusion, "ConvMultiplyFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvMultiplyFusion, "ConvMultiplyFusion", 0);
 
-ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
+ov::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
     MATCHER_SCOPE(ConvMultiplyFusion);
-    auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
-    auto add = ngraph::pattern::wrap_type<opset1::Multiply>({conv, pattern::any_input()});
+    auto conv = ov::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
+    auto add = ov::pattern::wrap_type<opset1::Multiply>({conv, pattern::any_input()});
 
-    matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
+    matcher_pass_callback callback = [](ov::pattern::Matcher &m) {
         return conv_callback<op::ConvolutionIE>(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DeconvAddFusion, "DeconvAddFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::DeconvAddFusion, "DeconvAddFusion", 0);
 
-ngraph::pass::DeconvAddFusion::DeconvAddFusion() {
+ov::pass::DeconvAddFusion::DeconvAddFusion() {
     MATCHER_SCOPE(DeconvAddFusion);
-    auto conv = ngraph::pattern::wrap_type<op::DeconvolutionIE>(pattern::consumers_count(1));
-    auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, pattern::any_input()});
+    auto conv = ov::pattern::wrap_type<op::DeconvolutionIE>(pattern::consumers_count(1));
+    auto add = ov::pattern::wrap_type<opset1::Add>({conv, pattern::any_input()});
 
-    matcher_pass_callback callback = [](ngraph::pattern::Matcher &m){
+    matcher_pass_callback callback = [](ov::pattern::Matcher &m){
         return conv_callback<op::DeconvolutionIE>(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }

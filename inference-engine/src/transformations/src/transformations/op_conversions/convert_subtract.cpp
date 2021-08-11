@@ -12,18 +12,18 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSubtract, "ConvertSubtract", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertSubtract, "ConvertSubtract", 0);
 
-ngraph::pass::ConvertSubtract::ConvertSubtract() {
+ov::pass::ConvertSubtract::ConvertSubtract() {
     MATCHER_SCOPE(ConvertSubtract);
-    auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
+    auto sub = ov::pattern::wrap_type<ov::opset1::Subtract>();
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
 
-        auto sub = std::dynamic_pointer_cast<ngraph::opset1::Subtract>(m.get_match_root());
+        auto sub = std::dynamic_pointer_cast<ov::opset1::Subtract>(m.get_match_root());
         if (!sub) {
             return false;
         }
@@ -60,18 +60,18 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
             }
         }
 
-        auto neg = std::make_shared<ngraph::opset1::Multiply>(sub->input(1).get_source_output(),
+        auto neg = std::make_shared<ov::opset1::Multiply>(sub->input(1).get_source_output(),
                                                               opset1::Constant::create(sub->get_input_element_type(1), Shape{}, {-1}));
 
-        auto add = std::make_shared<ngraph::opset1::Add>(sub->input(0).get_source_output(), neg);
+        auto add = std::make_shared<ov::opset1::Add>(sub->input(0).get_source_output(), neg);
 
         add->set_friendly_name(sub->get_friendly_name());
-        ngraph::copy_runtime_info(sub, {neg, add});
-        ngraph::replace_node(sub, add);
+        ov::copy_runtime_info(sub, {neg, add});
+        ov::replace_node(sub, add);
 
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(sub, matcher_name);
     this->register_matcher(m, callback);
 }

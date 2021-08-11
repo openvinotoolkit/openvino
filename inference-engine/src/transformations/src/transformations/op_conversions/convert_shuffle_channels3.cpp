@@ -13,15 +13,15 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-using namespace ngraph;
+using namespace ov;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShuffleChannels3, "ConvertShuffleChannels3", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertShuffleChannels3, "ConvertShuffleChannels3", 0);
 
-ngraph::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
+ov::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
     MATCHER_SCOPE(ConvertShuffleChannels3);
     auto shuffle_channels = pattern::wrap_type<opset3::ShuffleChannels>();
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
+    ov::matcher_pass_callback callback = [this](pattern::Matcher &m) {
         auto shuffle_channels = std::dynamic_pointer_cast<::opset3::ShuffleChannels>(m.get_match_root());
         if (!shuffle_channels || transformation_callback(shuffle_channels)) {
             return false;
@@ -99,6 +99,6 @@ ngraph::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shuffle_channels, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(shuffle_channels, matcher_name);
     register_matcher(m, callback);
 }

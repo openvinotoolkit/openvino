@@ -7,13 +7,13 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API BinarizeWeights;
 
 } // namespace pass
-} // namespace ngraph
+} // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -72,7 +72,7 @@ class TRANSFORMATIONS_API BinarizeWeights;
  * If it's zero - norm factor is equal to output_low and output_high otherwise
  */
 
-class ngraph::pass::BinarizeWeights : public ngraph::pass::MatcherPass {
+class ov::pass::BinarizeWeights : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     BinarizeWeights();

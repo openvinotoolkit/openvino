@@ -13,7 +13,7 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::ConvolutionIE::type_info;
 
@@ -146,7 +146,7 @@ void op::ConvolutionIE::validate_and_infer_types() {
     set_output_type(0, m_output_type, result_shape);
 }
 
-shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ngraph::OutputVector & new_args) const {
+shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ov::OutputVector & new_args) const {
     INTERNAL_OP_SCOPE(ConvolutionIE_clone_with_new_inputs);
     if (new_args.size() == 2) {
         return make_shared<ConvolutionIE>(new_args.at(0),

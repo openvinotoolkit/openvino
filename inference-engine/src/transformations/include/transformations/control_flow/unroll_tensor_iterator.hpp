@@ -11,13 +11,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API UnrollTensorIterator;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API UnrollTensorIterator;
  * are added to the network.
  */
 
-class ngraph::pass::UnrollTensorIterator: public ngraph::pass::FunctionPass {
+class ov::pass::UnrollTensorIterator: public ov::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<Function>) override;

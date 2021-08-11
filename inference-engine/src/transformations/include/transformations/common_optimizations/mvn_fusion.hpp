@@ -13,7 +13,7 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "ngraph/pattern/matcher.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API MVNFusion;
@@ -21,14 +21,14 @@ class TRANSFORMATIONS_API MVNFusionWithoutConstants;
 class TRANSFORMATIONS_API MVNFusionWithConstantsInside;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief MVNFusion transformation replaces group of
  * operations: (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps) to MVN op.
  */
-class ngraph::pass::MVNFusionWithoutConstants : public ngraph::pass::MatcherPass {
+class ov::pass::MVNFusionWithoutConstants : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     MVNFusionWithoutConstants();
@@ -39,7 +39,7 @@ public:
  * @brief MVNFusion transformation replaces group of
  * operations: gamma * (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps) + beta to MVN op.
  */
-class ngraph::pass::MVNFusionWithConstantsInside : public ngraph::pass::MatcherPass {
+class ov::pass::MVNFusionWithConstantsInside : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     MVNFusionWithConstantsInside();
@@ -49,11 +49,11 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief MVNFusion transformation replaces various sub-graphs with a MVN op.
  */
-class ngraph::pass::MVNFusion: public ngraph::pass::GraphRewrite {
+class ov::pass::MVNFusion: public ov::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     MVNFusion() {
-        add_matcher<ngraph::pass::MVNFusionWithoutConstants>();
-        add_matcher<ngraph::pass::MVNFusionWithConstantsInside>();
+        add_matcher<ov::pass::MVNFusionWithoutConstants>();
+        add_matcher<ov::pass::MVNFusionWithConstantsInside>();
     }
 };

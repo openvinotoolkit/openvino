@@ -12,19 +12,19 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertInterpolate1ToInterpolate4;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief ConvertInterpolate1ToInterpolate4 covert v0:interpolate into v4::Interpolate.
  */
-class ngraph::pass::ConvertInterpolate1ToInterpolate4: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertInterpolate1ToInterpolate4: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertInterpolate1ToInterpolate4();

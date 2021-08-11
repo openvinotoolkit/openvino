@@ -12,14 +12,14 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMod, "ConvertMod", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertMod, "ConvertMod", 0);
 
-ngraph::pass::ConvertMod::ConvertMod() {
+ov::pass::ConvertMod::ConvertMod() {
     MATCHER_SCOPE(ConvertMod);
-    auto mod = ngraph::pattern::wrap_type<opset1::Mod>();
+    auto mod = ov::pattern::wrap_type<opset1::Mod>();
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto mod = std::dynamic_pointer_cast<ngraph::opset1::Mod> (m.get_match_root());
+    ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        auto mod = std::dynamic_pointer_cast<ov::opset1::Mod> (m.get_match_root());
         if (!mod) {
             return false;
         }
@@ -31,7 +31,7 @@ ngraph::pass::ConvertMod::ConvertMod() {
 
         // truncated(a / b)
         auto div = register_new_node<opset1::Divide>(dividend, divisor);
-        auto convert_to_i64 = std::make_shared<opset1::Convert>(div, ngraph::element::i64);
+        auto convert_to_i64 = std::make_shared<opset1::Convert>(div, ov::element::i64);
         auto convert = std::make_shared<opset1::Convert>(convert_to_i64, dividend_et);
         // truncated(a / b) * b
         auto multiplication = std::make_shared<opset1::Multiply>(convert, divisor);
@@ -42,11 +42,11 @@ ngraph::pass::ConvertMod::ConvertMod() {
         auto mul = std::make_shared<opset1::Multiply>(dividend_sign, sub);
 
         mul->set_friendly_name(mod->get_friendly_name());
-        ngraph::copy_runtime_info(mod, {dividend, dividend_sign, divisor, div, convert_to_i64, convert, multiplication, sub, mul});
-        ngraph::replace_node(mod, mul);
+        ov::copy_runtime_info(mod, {dividend, dividend_sign, divisor, div, convert_to_i64, convert, multiplication, sub, mul});
+        ov::replace_node(mod, mul);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mod, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(mod, matcher_name);
     this->register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

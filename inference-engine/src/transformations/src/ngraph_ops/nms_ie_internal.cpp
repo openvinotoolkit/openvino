@@ -9,7 +9,7 @@
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::internal::NonMaxSuppressionIEInternal::type_info;
 
@@ -20,7 +20,7 @@ op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Out
                                                                        const Output<Node>& score_threshold,
                                                                        int center_point_box,
                                                                        bool sort_result_descending,
-                                                                       const ngraph::element::Type& output_type)
+                                                                       const ov::element::Type& output_type)
         : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
           m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type) {
     constructor_validate_and_infer_types();
@@ -34,13 +34,13 @@ op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Out
                                                                        const Output<Node>& soft_nms_sigma,
                                                                        int center_point_box,
                                                                        bool sort_result_descending,
-                                                                       const ngraph::element::Type& output_type)
+                                                                       const ov::element::Type& output_type)
         : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma}),
           m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::internal::NonMaxSuppressionIEInternal::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+std::shared_ptr<Node> op::internal::NonMaxSuppressionIEInternal::clone_with_new_inputs(const ov::OutputVector &new_args) const {
     INTERNAL_OP_SCOPE(internal_NonMaxSuppressionIEInternal_clone_with_new_inputs);
     if (new_args.size() == 6) {
         return make_shared<NonMaxSuppressionIEInternal>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
@@ -51,7 +51,7 @@ std::shared_ptr<Node> op::internal::NonMaxSuppressionIEInternal::clone_with_new_
                                              new_args.at(4), m_center_point_box, m_sort_result_descending,
                                              m_output_type);
     }
-    throw ngraph::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
+    throw ov::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
 }
 
 bool op::internal::NonMaxSuppressionIEInternal::visit_attributes(AttributeVisitor& visitor) {

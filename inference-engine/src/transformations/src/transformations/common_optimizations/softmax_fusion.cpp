@@ -14,20 +14,20 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftmaxFusion, "SoftmaxFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::SoftmaxFusion, "SoftmaxFusion", 0);
 
-ngraph::pass::SoftmaxFusion::SoftmaxFusion() {
+ov::pass::SoftmaxFusion::SoftmaxFusion() {
     MATCHER_SCOPE(SoftmaxFusion);
-    auto data_pattern = ngraph::pattern::any_input(pattern::has_static_rank());
-    auto reduce_max_axes_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
-    auto reduce_max_pattern = ngraph::pattern::wrap_type<opset6::ReduceMax>({data_pattern, reduce_max_axes_pattern});
-    auto sub_pattern = ngraph::pattern::wrap_type<opset6::Subtract>({data_pattern, reduce_max_pattern});
-    auto exp_pattern = ngraph::pattern::wrap_type<opset6::Exp>({sub_pattern});
-    auto reduce_sum_axes_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
-    auto reduce_sum_pattern = ngraph::pattern::wrap_type<opset6::ReduceSum>({exp_pattern, reduce_sum_axes_pattern});
-    auto div_pattern = ngraph::pattern::wrap_type<opset6::Divide>({exp_pattern, reduce_sum_pattern});
+    auto data_pattern = ov::pattern::any_input(pattern::has_static_rank());
+    auto reduce_max_axes_pattern = ov::pattern::wrap_type<opset6::Constant>();
+    auto reduce_max_pattern = ov::pattern::wrap_type<opset6::ReduceMax>({data_pattern, reduce_max_axes_pattern});
+    auto sub_pattern = ov::pattern::wrap_type<opset6::Subtract>({data_pattern, reduce_max_pattern});
+    auto exp_pattern = ov::pattern::wrap_type<opset6::Exp>({sub_pattern});
+    auto reduce_sum_axes_pattern = ov::pattern::wrap_type<opset6::Constant>();
+    auto reduce_sum_pattern = ov::pattern::wrap_type<opset6::ReduceSum>({exp_pattern, reduce_sum_axes_pattern});
+    auto div_pattern = ov::pattern::wrap_type<opset6::Divide>({exp_pattern, reduce_sum_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root()))
             return false;
 
@@ -53,7 +53,7 @@ ngraph::pass::SoftmaxFusion::SoftmaxFusion() {
         if (reduce_max_axis != reduce_sum_axis)
             return false;
 
-        auto softmax = register_new_node<ngraph::opset6::Softmax>(pattern_map.at(data_pattern), reduce_sum_axis);
+        auto softmax = register_new_node<ov::opset6::Softmax>(pattern_map.at(data_pattern), reduce_sum_axis);
         auto div = pattern_map.at(div_pattern).get_node_shared_ptr();
         softmax->set_friendly_name(div->get_friendly_name());
 
@@ -70,6 +70,6 @@ ngraph::pass::SoftmaxFusion::SoftmaxFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div_pattern, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(div_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -13,20 +13,20 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "ngraph/pattern/matcher.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API SplitSqueezeConcatFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief SplitSqueezeConcatFusion transformation replaces group of
  * operations: Split -> Squeeze (multiple) -> Concat to Transpose -> Reshape ops.
  */
-class ngraph::pass::SplitSqueezeConcatFusion : public ngraph::pass::MatcherPass {
+class ov::pass::SplitSqueezeConcatFusion : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SplitSqueezeConcatFusion();

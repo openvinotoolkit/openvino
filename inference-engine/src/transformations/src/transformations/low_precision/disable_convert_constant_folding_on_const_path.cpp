@@ -15,22 +15,22 @@
 #include <ngraph/variant.hpp>
 #include "transformations/rt_info/dequantization_attribute.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DisableConvertConstantFoldingOnConstPath, "DisableConvertConstantFoldingOnConstPath", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::DisableConvertConstantFoldingOnConstPath, "DisableConvertConstantFoldingOnConstPath", 0);
 
-ngraph::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFoldingOnConstPath(
+ov::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFoldingOnConstPath(
     const element::TypeVector & inputPrecisions) {
-    auto matcherData = ngraph::pattern::any_input();
-    auto matcherConvert = ngraph::pattern::wrap_type<opset3::Convert>({ matcherData }, pattern::consumers_count(1));
+    auto matcherData = ov::pattern::any_input();
+    auto matcherConvert = ov::pattern::wrap_type<opset3::Convert>({ matcherData }, pattern::consumers_count(1));
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
+    ov::matcher_pass_callback callback = [=](ov::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         const auto convert = opsMap.at(matcherConvert).get_node_shared_ptr();
 
         // validation by Convert operation input precisions
         if (!inputPrecisions.empty()) {
-            const ngraph::element::Type inputPrecision = convert->input(0).get_element_type();
+            const ov::element::Type inputPrecision = convert->input(0).get_element_type();
             if (std::find(inputPrecisions.begin(), inputPrecisions.end(), inputPrecision) == inputPrecisions.end()) {
                 return false;
             }
@@ -52,8 +52,8 @@ ngraph::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFo
             return false;
         }
         auto child = target_inputs.begin()->get_node();
-        if (is_type<ngraph::opset1::Constant>(parent) &&
-            (is_type<ngraph::opset1::Subtract>(child) || is_type<ngraph::opset1::Multiply>(child))) {
+        if (is_type<ov::opset1::Constant>(parent) &&
+            (is_type<ov::opset1::Subtract>(child) || is_type<ov::opset1::Multiply>(child))) {
             auto& rtInfo = convert->get_rt_info();
             rtInfo["DISABLED_CONSTANT_FOLDING"] = std::make_shared<VariantWrapper<std::string>>("");
             return true;
@@ -62,6 +62,6 @@ ngraph::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFo
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcherConvert, "DisableConvertConstantFoldingOnConstPath");
+    auto m = std::make_shared<ov::pattern::Matcher>(matcherConvert, "DisableConvertConstantFoldingOnConstPath");
     this->register_matcher(m, callback);
 }

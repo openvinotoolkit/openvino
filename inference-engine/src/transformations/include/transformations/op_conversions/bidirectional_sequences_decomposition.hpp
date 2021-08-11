@@ -12,7 +12,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API BidirectionalSequenceDecomposition;
@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API BidirectionalGRUSequenceDecomposition;
 class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -30,7 +30,7 @@ class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
  *
  */
 
-class ngraph::pass::BidirectionalLSTMSequenceDecomposition : public ngraph::pass::MatcherPass {
+class ov::pass::BidirectionalLSTMSequenceDecomposition : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     BidirectionalLSTMSequenceDecomposition();
@@ -42,7 +42,7 @@ public:
  *
  */
 
-class ngraph::pass::BidirectionalGRUSequenceDecomposition : public ngraph::pass::MatcherPass {
+class ov::pass::BidirectionalGRUSequenceDecomposition : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     BidirectionalGRUSequenceDecomposition();
@@ -54,7 +54,7 @@ public:
  *
  */
 
-class ngraph::pass::BidirectionalRNNSequenceDecomposition : public ngraph::pass::MatcherPass {
+class ov::pass::BidirectionalRNNSequenceDecomposition : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     BidirectionalRNNSequenceDecomposition();
@@ -66,12 +66,12 @@ public:
  *
  */
 
-class ngraph::pass::BidirectionalSequenceDecomposition : public ngraph::pass::GraphRewrite {
+class ov::pass::BidirectionalSequenceDecomposition : public ov::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     BidirectionalSequenceDecomposition() {
-        add_matcher<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-        add_matcher<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
-        add_matcher<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+        add_matcher<ov::pass::BidirectionalLSTMSequenceDecomposition>();
+        add_matcher<ov::pass::BidirectionalGRUSequenceDecomposition>();
+        add_matcher<ov::pass::BidirectionalRNNSequenceDecomposition>();
     }
 };

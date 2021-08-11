@@ -14,19 +14,19 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ReluFakeQuantizeFusion, "ReluFakeQuantizeFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ReluFakeQuantizeFusion, "ReluFakeQuantizeFusion", 0);
 
-ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
+ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
     MATCHER_SCOPE(ReluFakeQuantizeFusion);
-    auto data_pattern = ngraph::pattern::any_input();
-    auto relu_pattern = ngraph::pattern::wrap_type<opset5::Relu>({data_pattern}, pattern::consumers_count(1));
-    auto input_low_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
-    auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({relu_pattern, input_low_pattern,
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input()});
+    auto data_pattern = ov::pattern::any_input();
+    auto relu_pattern = ov::pattern::wrap_type<opset5::Relu>({data_pattern}, pattern::consumers_count(1));
+    auto input_low_pattern = ov::pattern::wrap_type<opset5::Constant>();
+    auto fq_pattern = ov::pattern::wrap_type<opset5::FakeQuantize>({relu_pattern, input_low_pattern,
+                                                                        ov::pattern::any_input(),
+                                                                        ov::pattern::any_input(),
+                                                                        ov::pattern::any_input()});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto relu = pattern_map[relu_pattern];
@@ -41,7 +41,7 @@ ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
         if (!fq)
             return false;
 
-        auto new_fq = register_new_node<ngraph::opset5::FakeQuantize>(data,
+        auto new_fq = register_new_node<ov::opset5::FakeQuantize>(data,
                                                                       fq->input_value(1),
                                                                       fq->input_value(2),
                                                                       fq->input_value(3),
@@ -55,6 +55,6 @@ ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fq_pattern, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(fq_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -10,7 +10,7 @@
 #include <ngraph/pass/pass.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvStridesPropagation;
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API UnsupportedNodesStridesPropagation;
 class TRANSFORMATIONS_API StridesOptimization;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -27,7 +27,7 @@ class TRANSFORMATIONS_API StridesOptimization;
  * or inserts pooling between current node and its consumers if the consumers have different StridesProp attributes.
  * Strides can be propagated if Convolution kernel is {1, 1, ...}
  */
-class ngraph::pass::ConvStridesPropagation: public ngraph::pass::MatcherPass {
+class ov::pass::ConvStridesPropagation: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvStridesPropagation();
@@ -38,7 +38,7 @@ public:
  * @brief SupportedNodesStridesPropagation either propagates stride (greater than 1) from current node up through the graph
  * or inserts pooling between current node and its consumers if the consumers have different StridesProp attributes.
  */
-class ngraph::pass::SupportedNodesStridesPropagation: public ngraph::pass::MatcherPass {
+class ov::pass::SupportedNodesStridesPropagation: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SupportedNodesStridesPropagation();
@@ -49,7 +49,7 @@ public:
  * @brief UnsupportedNodesStridesPropagation inserts pooling between current node and its consumers
  * if the consumers have different StridesProp attributes.
  */
-class ngraph::pass::UnsupportedNodesStridesPropagation: public ngraph::pass::MatcherPass {
+class ov::pass::UnsupportedNodesStridesPropagation: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     UnsupportedNodesStridesPropagation();
@@ -59,12 +59,12 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief StridesOptimization transformation works backward on function and propagates strides up through the graph if possible
  */
-class ngraph::pass::StridesOptimization: public ngraph::pass::BackwardGraphRewrite {
+class ov::pass::StridesOptimization: public ov::pass::BackwardGraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     StridesOptimization() {
-        add_matcher<ngraph::pass::ConvStridesPropagation>();
-        add_matcher<ngraph::pass::SupportedNodesStridesPropagation>();
-        add_matcher<ngraph::pass::UnsupportedNodesStridesPropagation>();
+        add_matcher<ov::pass::ConvStridesPropagation>();
+        add_matcher<ov::pass::SupportedNodesStridesPropagation>();
+        add_matcher<ov::pass::UnsupportedNodesStridesPropagation>();
     }
 };

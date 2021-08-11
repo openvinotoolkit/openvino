@@ -11,8 +11,8 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 
-bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
-                       const ngraph::AxisVector& permutation, const ngraph::Shape& shape_reshape_after,
+bool check_block_first(const ov::Shape& shape_input, const ov::Shape& shape_reshape_before,
+                       const ov::AxisVector& permutation, const ov::Shape& shape_reshape_after,
                        size_t& possible_block_size) {
     bool is_transformation_valid = true;
     uint64_t spatial_dims = shape_input.size() - 2;
@@ -22,7 +22,7 @@ bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     uint64_t c_dim = static_cast<uint64_t>(shape_input[1] / std::pow(possible_block_size, spatial_dims));
 
     // x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2, ..., DK])
-    ngraph::Shape expected_shape = {shape_input[0]};
+    ov::Shape expected_shape = {shape_input[0]};
     for (uint64_t i = 0; i < spatial_dims; ++i)
         expected_shape.push_back(possible_block_size);
     expected_shape.push_back(c_dim);
@@ -31,7 +31,7 @@ bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     is_transformation_valid &= (expected_shape == shape_reshape_before);
 
     // x'' = transpose(x', [0,  K + 1,  K + 2, 1, K + 3, 2, K + 4, 3, ..., K + (K + 1), K])
-    ngraph::AxisVector expected_permutation = {0, static_cast<size_t>(spatial_dims + 1)};
+    ov::AxisVector expected_permutation = {0, static_cast<size_t>(spatial_dims + 1)};
     for (uint64_t i = 2; i < shape_input.size(); ++i) {
         expected_permutation.push_back(spatial_dims + i);
         expected_permutation.push_back(i - 1);
@@ -47,8 +47,8 @@ bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     return is_transformation_valid;
 }
 
-bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
-                       const ngraph::AxisVector& permutation, const ngraph::Shape& shape_reshape_after,
+bool check_depth_first(const ov::Shape& shape_input, const ov::Shape& shape_reshape_before,
+                       const ov::AxisVector& permutation, const ov::Shape& shape_reshape_after,
                        size_t& possible_block_size) {
     bool is_transformation_valid = true;
     uint64_t spatial_dims = shape_input.size() - 2;
@@ -58,7 +58,7 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     uint64_t c_dim = static_cast<uint64_t>(shape_input[1] / std::pow(possible_block_size, spatial_dims));
 
     // x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2, ..., DK])
-    ngraph::Shape expected_shape = {shape_input[0], static_cast<size_t>(c_dim)};
+    ov::Shape expected_shape = {shape_input[0], static_cast<size_t>(c_dim)};
     for (uint64_t i = 0; i < spatial_dims; ++i)
         expected_shape.push_back(possible_block_size);
     for (uint64_t i = 2; i < shape_input.size(); ++i)
@@ -66,7 +66,7 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     is_transformation_valid &= (expected_shape == shape_reshape_before);
 
     // x'' = transpose(x', [0,  1,  K + 2, 2, K + 3, 3, K + 4, 4, ..., K + (K + 1), K + 1])
-    ngraph::AxisVector expected_permutation = {0, 1};
+    ov::AxisVector expected_permutation = {0, 1};
     for (uint64_t i = 2; i < shape_input.size(); ++i) {
         expected_permutation.push_back(spatial_dims + i);
         expected_permutation.push_back(i);
@@ -82,30 +82,30 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     return is_transformation_valid;
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::DepthToSpaceFusion, "DepthToSpaceFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::DepthToSpaceFusion, "DepthToSpaceFusion", 0);
 
-ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
+ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
     MATCHER_SCOPE(DepthToSpaceFusion);
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
     auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
     auto input3 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
-    auto reshape_before = std::make_shared<ngraph::opset3::Reshape> (input0, input1, false);
-    auto permute = std::make_shared<ngraph::opset3::Transpose> (reshape_before, input2);
-    auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, input3, false);
+    auto reshape_before = std::make_shared<ov::opset3::Reshape> (input0, input1, false);
+    auto permute = std::make_shared<ov::opset3::Transpose> (reshape_before, input2);
+    auto reshape_after = std::make_shared<ov::opset3::Reshape> (permute, input3, false);
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto reshape_after = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(m.get_match_root());
+    ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        auto reshape_after = std::dynamic_pointer_cast<ov::opset3::Reshape>(m.get_match_root());
         if (!reshape_after) {
             return false;
         }
 
-        auto permute = std::dynamic_pointer_cast<ngraph::opset3::Transpose>(reshape_after->input_value(0).get_node_shared_ptr());
+        auto permute = std::dynamic_pointer_cast<ov::opset3::Transpose>(reshape_after->input_value(0).get_node_shared_ptr());
         if (!permute || permute->get_output_target_inputs(0).size() != 1) {
             return false;
         }
 
-        auto reshape_before = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(permute->input_value(0).get_node_shared_ptr());
+        auto reshape_before = std::dynamic_pointer_cast<ov::opset3::Reshape>(permute->input_value(0).get_node_shared_ptr());
         if (!reshape_before || reshape_before->get_output_target_inputs(0).size() != 1) {
             return false;
         }
@@ -136,31 +136,31 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
             return false;
         }
 
-        ngraph::AxisVector permutation;
+        ov::AxisVector permutation;
         if (auto input_const = std::dynamic_pointer_cast<opset3::Constant>(permute->input_value(1).get_node_shared_ptr())) {
             permutation = input_const->get_axis_vector_val();
         } else {
             return false;
         }
 
-        ngraph::opset3::DepthToSpace::DepthToSpaceMode mode;
+        ov::opset3::DepthToSpace::DepthToSpaceMode mode;
         size_t block_size;
         if (check_depth_first(shape_input, shape_reshape_before, permutation, shape_reshape_after, block_size)) {
-            mode = ngraph::opset3::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST;
+            mode = ov::opset3::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST;
         } else if (check_block_first(shape_input, shape_reshape_before, permutation, shape_reshape_after, block_size)) {
-            mode = ngraph::opset3::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
+            mode = ov::opset3::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
         } else {
             return false;
         }
 
         auto depth_to_space =
-                std::make_shared<ngraph::opset3::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
+                std::make_shared<ov::opset3::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
         depth_to_space->set_friendly_name(reshape_after->get_friendly_name());
-        ngraph::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
-        ngraph::replace_node(reshape_after, depth_to_space);
+        ov::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
+        ov::replace_node(reshape_after, depth_to_space);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(reshape_after, matcher_name);
     register_matcher(m, callback);
 }

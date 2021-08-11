@@ -18,17 +18,17 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class NGRAPH_API ConvertPrecision;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ConvertPrecision transformation convert precision for entire ngraph::Function
+ * @brief ConvertPrecision transformation convert precision for entire ov::Function
  * List of supported precision conversion:
  *    FROM -> TO
  *      u8 -> i32
@@ -71,13 +71,13 @@ class NGRAPH_API ConvertPrecision;
  *     LessEqual
  */
 
-using type_to_fuse_map = std::unordered_map<ngraph::NodeTypeInfo, std::function<bool(const std::shared_ptr<ngraph::Node>&, ngraph::element::Type, size_t idx)>>;
-using precisions_array = std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>>;
+using type_to_fuse_map = std::unordered_map<ov::NodeTypeInfo, std::function<bool(const std::shared_ptr<ov::Node>&, ov::element::Type, size_t idx)>>;
+using precisions_array = std::vector<std::pair<ov::element::Type, ov::element::Type>>;
 
-class ngraph::pass::ConvertPrecision : public ngraph::pass::FunctionPass {
+class ov::pass::ConvertPrecision : public ov::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertPrecision(ngraph::element::Type_t from, ngraph::element::Type_t to, type_to_fuse_map additional_type_to_fuse_map = {})
+    ConvertPrecision(ov::element::Type_t from, ov::element::Type_t to, type_to_fuse_map additional_type_to_fuse_map = {})
         : FunctionPass(),
         m_precisions(precisions_array {{ from, to }}),
         m_additional_type_to_fuse_map(additional_type_to_fuse_map) {}

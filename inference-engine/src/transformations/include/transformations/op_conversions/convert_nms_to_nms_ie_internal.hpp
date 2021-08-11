@@ -11,15 +11,15 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertNMSToNMSIEInternal;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertNMSToNMSIEInternal: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertNMSToNMSIEInternal: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertNMSToNMSIEInternal();

@@ -10,14 +10,14 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "ngraph/pattern/matcher.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API EliminateUnsqueezeGather;
 class TRANSFORMATIONS_API EliminateGatherUnsqueeze;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -25,7 +25,7 @@ class TRANSFORMATIONS_API EliminateGatherUnsqueeze;
  * that was previously added by Unsqueeze
  */
 
-class ngraph::pass::EliminateUnsqueezeGather : public ngraph::pass::MatcherPass {
+class ov::pass::EliminateUnsqueezeGather : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     EliminateUnsqueezeGather();
@@ -37,7 +37,7 @@ public:
  * Unsqueeze makes it a 1D tensor
  */
 
-class ngraph::pass::EliminateGatherUnsqueeze : public ngraph::pass::MatcherPass {
+class ov::pass::EliminateGatherUnsqueeze : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     EliminateGatherUnsqueeze();

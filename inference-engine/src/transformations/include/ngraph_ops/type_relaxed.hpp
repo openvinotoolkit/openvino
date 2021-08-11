@@ -13,7 +13,7 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 /// A base class for templated TypeRelaxed that maintains overridden input types and output types for an operation.
@@ -219,25 +219,25 @@ std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVec
 }
 
 template <typename BaseOp>
-const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info() const { return get_type_info_static(); }
+const ::ov::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info() const { return get_type_info_static(); }
 
 template <typename BaseOp>
-const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
+const ::ov::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
     auto baseOpTypeInfoPtr = &BaseOp::get_type_info_static();
 
     // TODO: it should be static const std::string name = std::string("TypeRelaxed_") + baseOpTypeInfoPtr->name;
     //       but currently it will not pass conversion ot Legacy Opset correctly
     static const std::string name = baseOpTypeInfoPtr->name;
 
-    static const ::ngraph::Node::type_info_t type_info_static{
+    static const ::ov::Node::type_info_t type_info_static{
         name.c_str(), baseOpTypeInfoPtr->version, baseOpTypeInfoPtr};
     return type_info_static;
 }
 
 template <typename BaseOp>
-const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info = TypeRelaxed<BaseOp>::get_type_info_static();
+const ::ov::Node::type_info_t TypeRelaxed<BaseOp>::type_info = TypeRelaxed<BaseOp>::get_type_info_static();
 
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov

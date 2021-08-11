@@ -4,4 +4,4 @@
 
 #include "transformations/common_optimizations/algebraic_simplification.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::AlgebraicSimplification, "AlgebraicSimplification", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::AlgebraicSimplification, "AlgebraicSimplification", 0);

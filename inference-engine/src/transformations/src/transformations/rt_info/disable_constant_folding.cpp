@@ -4,11 +4,11 @@
 
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
-template class ngraph::VariantImpl<ngraph::DisableConstantFolding>;
+template class ov::VariantImpl<ov::DisableConstantFolding>;
 
-constexpr ngraph::VariantTypeInfo ngraph::VariantWrapper<ngraph::DisableConstantFolding>::type_info;
+constexpr ov::VariantTypeInfo ov::VariantWrapper<ov::DisableConstantFolding>::type_info;
 
-void ngraph::disable_constant_folding(const std::shared_ptr<Node>& node) {
+void ov::disable_constant_folding(const std::shared_ptr<Node>& node) {
     auto & rt_info = node->get_rt_info();
     rt_info[VariantWrapper<DisableConstantFolding>::type_info.name] = make_variant<DisableConstantFolding>({});
 }

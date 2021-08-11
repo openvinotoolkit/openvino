@@ -7,13 +7,13 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvToBinaryConv;
 
 } // namespace pass
-} // namespace ngraph
+} // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -70,7 +70,7 @@ class TRANSFORMATIONS_API ConvToBinaryConv;
  *                                          |
  *                                          v
  */
-class ngraph::pass::ConvToBinaryConv : public ngraph::pass::MatcherPass {
+class ov::pass::ConvToBinaryConv : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvToBinaryConv();

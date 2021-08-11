@@ -11,13 +11,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ClampFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API ClampFusion;
  * - one of the parameters to Minimum is a scalar constant
  */
 
-class ngraph::pass::ClampFusion: public ngraph::pass::MatcherPass {
+class ov::pass::ClampFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ClampFusion();

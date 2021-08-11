@@ -15,7 +15,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 //`simplify_gather`, optimizes gather if Gather is gathering the
 // whole input tensor
@@ -222,7 +222,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
     // eliminate redundant squeeze->unsqueeze
     if (squeeze) {
         const auto& data_shape = squeeze->input_value(0).get_partial_shape();
-        if (ngraph::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
+        if (ov::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
                                       unsqueeze->input_value(1).get_node_shared_ptr())) {
             return replace_output_update_name(unsqueeze->output(0), squeeze->input_value(0));
         }
@@ -293,7 +293,7 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
         } else {
             data_shape = input->input(0).get_partial_shape();
         }
-        if (ngraph::compare_constants(unsqueeze->input_value(1).get_node_shared_ptr(),
+        if (ov::compare_constants(unsqueeze->input_value(1).get_node_shared_ptr(),
                                       squeeze->input_value(1).get_node_shared_ptr())) {
             return replace_output_update_name(squeeze->output(0), unsqueeze->input_value(0));
         }
@@ -343,16 +343,16 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
 #define ECHO(NAME) #NAME
 #define STR(NAME) ECHO(NAME)
 #define SIMPLE_MATCHER_PASS_DEFINITION(NAME, OP, FUNC) \
-class NAME : public ngraph::pass::MatcherPass { \
+class NAME : public ov::pass::MatcherPass { \
 public: \
 NGRAPH_RTTI_DECLARATION; \
 NAME() { \
     MATCHER_SCOPE(NAME); \
-    auto match_node = ngraph::pattern::wrap_type<OP>(); \
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) { \
+    auto match_node = ov::pattern::wrap_type<OP>(); \
+    ov::matcher_pass_callback callback = [=](ov::pattern::Matcher &m) { \
         return FUNC(m.get_match_root()); \
     }; \
-    auto m = std::make_shared<ngraph::pattern::Matcher>(match_node, matcher_name); \
+    auto m = std::make_shared<ov::pattern::Matcher>(match_node, matcher_name); \
     register_matcher(m, callback); \
 }  \
 }; \
@@ -374,8 +374,8 @@ pass::EliminatePad::EliminatePad() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pad = m.get_match_root();
 
-        auto pad_begin_const = ngraph::get_constant_from_source(pad->input_value(1));
-        auto pad_end_const = ngraph::get_constant_from_source(pad->input_value(2));
+        auto pad_begin_const = ov::get_constant_from_source(pad->input_value(1));
+        auto pad_end_const = ov::get_constant_from_source(pad->input_value(2));
 
         if (!pad_begin_const || !pad_end_const) {
             return false;
@@ -503,9 +503,9 @@ pass::EliminateTranspose::EliminateTranspose() {
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NopElimination, "NopElimination", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::NopElimination, "NopElimination", 0);
 
-ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
+ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
     add_matcher<EliminatePad>();
     add_matcher<EliminateConvert>();

@@ -15,9 +15,9 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SpaceToBatchFusion, "SpaceToBatchFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::SpaceToBatchFusion, "SpaceToBatchFusion", 0);
 
-ngraph::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
+ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
     MATCHER_SCOPE(SpaceToBatchFusion);
     auto data_pattern = pattern::any_input();
     auto reshape_before_pattern = pattern::wrap_type<opset6::Reshape>({data_pattern, pattern::wrap_type<opset6::Constant>()}, pattern::rank_equals(4));

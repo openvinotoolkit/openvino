@@ -9,7 +9,7 @@
 #include <transformations_visibility.hpp>
 #include <utility>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API GeluFusion;
@@ -18,14 +18,14 @@ class TRANSFORMATIONS_API GeluFusionWithErfTwo;
 class TRANSFORMATIONS_API GeluFusionWithErfThree;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief GeluFusion transformation replaces a sub-graph
  * (0.5 * x) * (1 + erf(x / sqrt(2))) with a Gelu op.
  */
-class ngraph::pass::GeluFusionWithErfOne : public ngraph::pass::MatcherPass {
+class ov::pass::GeluFusionWithErfOne : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     GeluFusionWithErfOne();
@@ -36,7 +36,7 @@ public:
  * @brief GeluFusion transformation replaces a sub-graph
  * 0.5 * (x * (1 + erf(x / sqrt(2))) with a Gelu op.
  */
-class ngraph::pass::GeluFusionWithErfTwo : public ngraph::pass::MatcherPass {
+class ov::pass::GeluFusionWithErfTwo : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     GeluFusionWithErfTwo();
@@ -47,7 +47,7 @@ public:
  * @brief GeluFusion transformation replaces a sub-graph
  * x * (0.5 * (1 + erf(x / sqrt(2))) with a Gelu op.
  */
-class ngraph::pass::GeluFusionWithErfThree : public ngraph::pass::MatcherPass {
+class ov::pass::GeluFusionWithErfThree : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     GeluFusionWithErfThree();
@@ -57,12 +57,12 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief GeluFusion transformation replaces various sub-graphs with a Gelu op.
  */
-class ngraph::pass::GeluFusion : public ngraph::pass::GraphRewrite {
+class ov::pass::GeluFusion : public ov::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     GeluFusion() {
-        add_matcher<ngraph::pass::GeluFusionWithErfOne>();
-        add_matcher<ngraph::pass::GeluFusionWithErfTwo>();
-        add_matcher<ngraph::pass::GeluFusionWithErfThree>();
+        add_matcher<ov::pass::GeluFusionWithErfOne>();
+        add_matcher<ov::pass::GeluFusionWithErfTwo>();
+        add_matcher<ov::pass::GeluFusionWithErfThree>();
     }
 };

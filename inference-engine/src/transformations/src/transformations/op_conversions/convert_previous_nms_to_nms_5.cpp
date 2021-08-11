@@ -16,30 +16,30 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-using namespace ngraph;
+using namespace ov;
 
 namespace {
 struct NMSAttributes {
-    ngraph::element::Type output_type;
-    ngraph::opset5::NonMaxSuppression::BoxEncodingType box_encoding;
+    ov::element::Type output_type;
+    ov::opset5::NonMaxSuppression::BoxEncodingType box_encoding;
     bool sort_result_descending;
     bool is_supported_nms;
 };
 
-    NMSAttributes get_nms4_attrs(const std::shared_ptr<ngraph::opset4::NonMaxSuppression>& nms4) {
+    NMSAttributes get_nms4_attrs(const std::shared_ptr<ov::opset4::NonMaxSuppression>& nms4) {
         NMSAttributes attrs;
 
-        attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
+        attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
         attrs.is_supported_nms = true;
         attrs.sort_result_descending = true;
-        attrs.output_type = ::ngraph::element::i64;
+        attrs.output_type = ::ov::element::i64;
 
         switch (nms4->get_box_encoding()) {
-            case ::ngraph::opset4::NonMaxSuppression::BoxEncodingType::CENTER:
-                attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER;
+            case ::ov::opset4::NonMaxSuppression::BoxEncodingType::CENTER:
+                attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CENTER;
                 break;
-            case ::ngraph::opset4::NonMaxSuppression::BoxEncodingType::CORNER:
-                attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
+            case ::ov::opset4::NonMaxSuppression::BoxEncodingType::CORNER:
+                attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
                 break;
             default:
                 throw ngraph_error("NonMaxSuppression layer " + nms4->get_friendly_name() +
@@ -52,20 +52,20 @@ struct NMSAttributes {
         return attrs;
     }
 
-    NMSAttributes get_nms3_attrs(const std::shared_ptr<ngraph::opset3::NonMaxSuppression>& nms3) {
+    NMSAttributes get_nms3_attrs(const std::shared_ptr<ov::opset3::NonMaxSuppression>& nms3) {
         NMSAttributes attrs;
 
-        attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
+        attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
         attrs.is_supported_nms = true;
         attrs.sort_result_descending = true;
-        attrs.output_type = ::ngraph::element::i64;
+        attrs.output_type = ::ov::element::i64;
 
         switch (nms3->get_box_encoding()) {
-            case ::ngraph::opset3::NonMaxSuppression::BoxEncodingType::CENTER:
-                attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER;
+            case ::ov::opset3::NonMaxSuppression::BoxEncodingType::CENTER:
+                attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CENTER;
                 break;
-            case ::ngraph::opset3::NonMaxSuppression::BoxEncodingType::CORNER:
-                attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
+            case ::ov::opset3::NonMaxSuppression::BoxEncodingType::CORNER:
+                attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
                 break;
             default:
                 throw ngraph_error("NonMaxSuppression layer " + nms3->get_friendly_name() +
@@ -78,20 +78,20 @@ struct NMSAttributes {
         return attrs;
     }
 
-    NMSAttributes get_nms1_attrs(const std::shared_ptr<ngraph::opset1::NonMaxSuppression>& nms1) {
+    NMSAttributes get_nms1_attrs(const std::shared_ptr<ov::opset1::NonMaxSuppression>& nms1) {
         NMSAttributes attrs;
 
-        attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
+        attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
         attrs.is_supported_nms = true;
         attrs.sort_result_descending = true;
-        attrs.output_type = ::ngraph::element::i64;
+        attrs.output_type = ::ov::element::i64;
 
         switch (nms1->get_box_encoding()) {
-            case ::ngraph::opset1::NonMaxSuppression::BoxEncodingType::CENTER:
-                attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER;
+            case ::ov::opset1::NonMaxSuppression::BoxEncodingType::CENTER:
+                attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CENTER;
                 break;
-            case ::ngraph::opset1::NonMaxSuppression::BoxEncodingType::CORNER:
-                attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
+            case ::ov::opset1::NonMaxSuppression::BoxEncodingType::CORNER:
+                attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
                 break;
             default:
                 throw ngraph_error("NonMaxSuppression layer " + nms1->get_friendly_name() +
@@ -103,22 +103,22 @@ struct NMSAttributes {
         return attrs;
     }
 
-    NMSAttributes get_nms_attrs(const std::shared_ptr<ngraph::Node>& root) {
+    NMSAttributes get_nms_attrs(const std::shared_ptr<ov::Node>& root) {
         NMSAttributes attrs;
-        attrs.output_type = ::ngraph::element::i64;
-        attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
+        attrs.output_type = ::ov::element::i64;
+        attrs.box_encoding = ::ov::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
         attrs.sort_result_descending = false;
         attrs.is_supported_nms = false;
 
-        auto nms_4 = std::dynamic_pointer_cast<ngraph::opset4::NonMaxSuppression>(root);
+        auto nms_4 = std::dynamic_pointer_cast<ov::opset4::NonMaxSuppression>(root);
         if (nms_4) {
             return get_nms4_attrs(nms_4);
         }
-        auto nms_3 = std::dynamic_pointer_cast<ngraph::opset3::NonMaxSuppression>(root);
+        auto nms_3 = std::dynamic_pointer_cast<ov::opset3::NonMaxSuppression>(root);
         if (nms_3) {
             return get_nms3_attrs(nms_3);
         }
-        auto nms_1 = std::dynamic_pointer_cast<ngraph::opset1::NonMaxSuppression>(root);
+        auto nms_1 = std::dynamic_pointer_cast<ov::opset1::NonMaxSuppression>(root);
         if (nms_1) {
             return get_nms1_attrs(nms_1);
         }
@@ -138,11 +138,11 @@ struct NMSAttributes {
 
         size_t num_of_args = new_args.size();
 
-        const auto& arg2 = num_of_args > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i64, Shape{}, {0});
-        const auto& arg3 = num_of_args > 3 ? new_args.at(3) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
-        const auto& arg4 = num_of_args > 4 ? new_args.at(4) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg2 = num_of_args > 2 ? new_args.at(2) : ov::opset5::Constant::create(element::i64, Shape{}, {0});
+        const auto& arg3 = num_of_args > 3 ? new_args.at(3) : ov::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg4 = num_of_args > 4 ? new_args.at(4) : ov::opset5::Constant::create(element::f32, Shape{}, {.0f});
 
-        const auto nms_5 = impl->register_new_node<ngraph::op::v5::NonMaxSuppression>(
+        const auto nms_5 = impl->register_new_node<ov::op::v5::NonMaxSuppression>(
                 new_args.at(0),
                 new_args.at(1),
                 arg2,
@@ -153,47 +153,47 @@ struct NMSAttributes {
                 attrs.output_type);
 
         nms_5->set_friendly_name(root->get_friendly_name());
-        ngraph::copy_runtime_info(root, nms_5);
+        ov::copy_runtime_info(root, nms_5);
         root->output(0).replace(nms_5->output(0));
         return true;
     }
 } // namespace
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS4ToNMS5, "ConvertNMS4ToNMS5", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertNMS4ToNMS5, "ConvertNMS4ToNMS5", 0);
 
-ngraph::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
+ov::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
     MATCHER_SCOPE(ConvertNMS4ToNMS5);
-    auto nms = ngraph::pattern::wrap_type<ngraph::opset4::NonMaxSuppression>();
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    auto nms = ov::pattern::wrap_type<ov::opset4::NonMaxSuppression>();
+    ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         return callback_func(m, this);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS3ToNMS5, "ConvertNMS3ToNMS5", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertNMS3ToNMS5, "ConvertNMS3ToNMS5", 0);
 
-ngraph::pass::ConvertNMS3ToNMS5::ConvertNMS3ToNMS5() {
+ov::pass::ConvertNMS3ToNMS5::ConvertNMS3ToNMS5() {
     MATCHER_SCOPE(ConvertNMS3ToNMS5);
-    auto nms = ngraph::pattern::wrap_type<ngraph::opset3::NonMaxSuppression>();
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    auto nms = ov::pattern::wrap_type<ov::opset3::NonMaxSuppression>();
+    ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         return callback_func(m, this);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS1ToNMS5, "ConvertNMS1ToNMS5", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertNMS1ToNMS5, "ConvertNMS1ToNMS5", 0);
 
-ngraph::pass::ConvertNMS1ToNMS5::ConvertNMS1ToNMS5() {
+ov::pass::ConvertNMS1ToNMS5::ConvertNMS1ToNMS5() {
     MATCHER_SCOPE(ConvertNMS1ToNMS5);
-    auto nms = ngraph::pattern::wrap_type<ngraph::opset1::NonMaxSuppression>();
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    auto nms = ov::pattern::wrap_type<ov::opset1::NonMaxSuppression>();
+    ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         return callback_func(m, this);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

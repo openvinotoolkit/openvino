@@ -14,80 +14,80 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/op/util/activation_functions.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertRNNSequenceToTensorIterator, "ConvertRNNSequenceToTensorIterator", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGRUSequenceToTensorIterator, "ConvertGRUSequenceToTensorIterator", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLSTMSequenceToTensorIterator, "ConvertLSTMSequenceToTensorIterator", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertRNNSequenceToTensorIterator, "ConvertRNNSequenceToTensorIterator", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertGRUSequenceToTensorIterator, "ConvertGRUSequenceToTensorIterator", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertLSTMSequenceToTensorIterator, "ConvertLSTMSequenceToTensorIterator", 0);
 
 namespace {
-    ngraph::Output<ngraph::Node> get_current_iter(ngraph::ParameterVector &body_params,
-                                                  ngraph::ResultVector &body_results,
-                                                  const ngraph::Output<ngraph::Node> &seq_lengths) {
-        auto curr_iter_body_param = std::make_shared<ngraph::opset5::Parameter>(seq_lengths.get_element_type(),
-                                                                                ngraph::Shape{1});
+    ov::Output<ov::Node> get_current_iter(ov::ParameterVector &body_params,
+                                                  ov::ResultVector &body_results,
+                                                  const ov::Output<ov::Node> &seq_lengths) {
+        auto curr_iter_body_param = std::make_shared<ov::opset5::Parameter>(seq_lengths.get_element_type(),
+                                                                                ov::Shape{1});
         // increment current iteration
-        auto one = std::make_shared<ngraph::opset5::Constant>(seq_lengths.get_element_type(), ngraph::Shape{1},
+        auto one = std::make_shared<ov::opset5::Constant>(seq_lengths.get_element_type(), ov::Shape{1},
                                                               std::vector<int64_t>{1});
-        auto add = std::make_shared<ngraph::opset5::Add>(curr_iter_body_param, one);
-        auto curr_iter_result = std::make_shared<ngraph::opset5::Result>(add);
+        auto add = std::make_shared<ov::opset5::Add>(curr_iter_body_param, one);
+        auto curr_iter_result = std::make_shared<ov::opset5::Result>(add);
         body_params.push_back(curr_iter_body_param);
         body_results.push_back(curr_iter_result);
         return curr_iter_body_param;
     }
 
-    ngraph::Output<ngraph::Node> get_masked_value(const std::shared_ptr<ngraph::opset5::TensorIterator> &ti,
-                                                  ngraph::ParameterVector &body_params,
-                                                  ngraph::ResultVector &body_results,
-                                                  const ngraph::Output<ngraph::Node> &current_iter,
-                                                  const ngraph::Output<ngraph::Node> &data,
-                                                  const ngraph::Output<ngraph::Node> &seq_lengths) {
+    ov::Output<ov::Node> get_masked_value(const std::shared_ptr<ov::opset5::TensorIterator> &ti,
+                                                  ov::ParameterVector &body_params,
+                                                  ov::ResultVector &body_results,
+                                                  const ov::Output<ov::Node> &current_iter,
+                                                  const ov::Output<ov::Node> &data,
+                                                  const ov::Output<ov::Node> &seq_lengths) {
         const auto &data_type = data.get_element_type();
         const auto &data_shape = data.get_shape();
-        const auto &data_shape_size = ngraph::shape_size(data_shape);
+        const auto &data_shape_size = ov::shape_size(data_shape);
 
         // body parameters
-        auto aggregated_Y_h_body_param = std::make_shared<ngraph::opset5::Parameter>(data_type, data_shape);
+        auto aggregated_Y_h_body_param = std::make_shared<ov::opset5::Parameter>(data_type, data_shape);
 
         body_params.push_back(aggregated_Y_h_body_param);
 
         // Create mask node deciding whether or not to mask batch data.
-        ngraph::Output<ngraph::Node> batch_seq_length = ngraph::builder::opset1::legacy_broadcast_for_binary_operation(
+        ov::Output<ov::Node> batch_seq_length = ov::builder::opset1::legacy_broadcast_for_binary_operation(
                 data, seq_lengths, 0);
-        auto mask_value = std::make_shared<ngraph::opset5::Constant>(data_type, data_shape, std::vector<float>(data_shape_size, 0.f));
-        auto mask_condition = std::make_shared<ngraph::opset5::Greater>(current_iter, batch_seq_length);
-        auto mask_Y_h = std::make_shared<ngraph::opset5::Equal>(current_iter, batch_seq_length);
+        auto mask_value = std::make_shared<ov::opset5::Constant>(data_type, data_shape, std::vector<float>(data_shape_size, 0.f));
+        auto mask_condition = std::make_shared<ov::opset5::Greater>(current_iter, batch_seq_length);
+        auto mask_Y_h = std::make_shared<ov::opset5::Equal>(current_iter, batch_seq_length);
 
         // Select values depending on mask.
         // Select(<condition>, <true_value>, <false_value>)
-        auto select_aggregated_H = std::make_shared<ngraph::opset5::Select>(mask_Y_h, data, aggregated_Y_h_body_param);
-        auto aggregated_result = std::make_shared<ngraph::opset5::Result>(select_aggregated_H);
+        auto select_aggregated_H = std::make_shared<ov::opset5::Select>(mask_Y_h, data, aggregated_Y_h_body_param);
+        auto aggregated_result = std::make_shared<ov::opset5::Result>(select_aggregated_H);
         body_results.push_back(aggregated_result);
-        return std::make_shared<ngraph::opset5::Select>(mask_condition, mask_value, data);
+        return std::make_shared<ov::opset5::Select>(mask_condition, mask_value, data);
     }
 
-    ngraph::NodeVector squeeze_nodes(const ngraph::OutputVector &nodes_to_squeeze, const ngraph::OutputVector &axes) {
-        ngraph::NodeVector squeezed_nodes(nodes_to_squeeze.size());
+    ov::NodeVector squeeze_nodes(const ov::OutputVector &nodes_to_squeeze, const ov::OutputVector &axes) {
+        ov::NodeVector squeezed_nodes(nodes_to_squeeze.size());
         for (size_t i = 0; i < nodes_to_squeeze.size(); ++i) {
-            squeezed_nodes[i] = std::make_shared<ngraph::opset5::Squeeze>(nodes_to_squeeze[i], axes[i]);
+            squeezed_nodes[i] = std::make_shared<ov::opset5::Squeeze>(nodes_to_squeeze[i], axes[i]);
         }
         return squeezed_nodes;
     }
 } // namespace
 
-ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
+ov::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIterator() {
     MATCHER_SCOPE(ConvertRNNSequenceToTensorIterator);
     // X, H, seq_lengths - static, W,R,B - any
-    auto rnn_seq = ngraph::pattern::wrap_type<opset5::RNNSequence>({pattern::any_input(pattern::has_static_shape()),
+    auto rnn_seq = ov::pattern::wrap_type<opset5::RNNSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(),
                                                                     pattern::any_input(),
                                                                     pattern::any_input()});
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
-        auto sequence = std::dynamic_pointer_cast<ngraph::opset5::RNNSequence>(m.get_match_root());
+    ov::matcher_pass_callback callback = [this](ov::pattern::Matcher &m) {
+        auto sequence = std::dynamic_pointer_cast<ov::opset5::RNNSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL || transformation_callback(sequence)) {
+        if (!sequence || sequence->get_direction() == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL || transformation_callback(sequence)) {
             return false;
         }
 
@@ -98,11 +98,11 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
         const auto &W = sequence->input_value(3); // const in the body
         const auto &R = sequence->input_value(4); // const in the body
         const auto &B = sequence->input_value(5); // const in the body
-        bool is_reverse = sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::REVERSE;
+        bool is_reverse = sequence->get_direction() == ov::op::RecurrentSequenceDirection::REVERSE;
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         auto max_seq_len = X.get_shape().at(1);
-        bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
+        bool enable_mask = ov::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
 
         std::shared_ptr<Node> reverse_seq_before;
         if (is_reverse && enable_mask) {
@@ -152,7 +152,7 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
         body_results.push_back(concat_res);
         body_results.push_back(H_res);
 
-        auto body = std::make_shared<ngraph::Function>(body_results, body_params);
+        auto body = std::make_shared<ov::Function>(body_results, body_params);
         tensor_iterator->set_function(body);
         // TensorIterator Body: end
 
@@ -177,14 +177,14 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
         if (enable_mask) {
             // create initial values for body_parameters in outer graph
             // aggregated Y_h - concatenation of the last non-zero values for each batch
-            auto aggregated_Y_h = std::make_shared<ngraph::opset5::Constant>(H_body_param->get_element_type(),
+            auto aggregated_Y_h = std::make_shared<ov::opset5::Constant>(H_body_param->get_element_type(),
                                                                              H_body_param->get_shape(),
                                                                              std::vector<float>(shape_size(H_body_param->get_shape()),
                                                                                                 0.f));
-            auto init_val_curr_iter = std::make_shared<ngraph::opset5::Constant>(seq_lengths.get_element_type(),
-                                                                                 ngraph::Shape{1},
+            auto init_val_curr_iter = std::make_shared<ov::opset5::Constant>(seq_lengths.get_element_type(),
+                                                                                 ov::Shape{1},
                                                                                  std::vector<int64_t>{1});
-            ngraph::copy_runtime_info(sequence, {aggregated_Y_h, init_val_curr_iter});
+            ov::copy_runtime_info(sequence, {aggregated_Y_h, init_val_curr_iter});
 
             // set initial value and back edge for current iteration
             tensor_iterator->set_merged_input(body_params.at(0), init_val_curr_iter, body_results.at(0));
@@ -216,37 +216,37 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
              */
             auto identity_1 = std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), axis_1);
             auto identity_2 = std::make_shared<opset5::Squeeze>(identity_1, axis_1);
-            ngraph::copy_runtime_info(sequence, {reverse_seq_after, tensor_iterator, identity_1, identity_2, reverse_seq_before});
-            ngraph::replace_node(sequence, {reverse_seq_after, identity_2});
+            ov::copy_runtime_info(sequence, {reverse_seq_after, tensor_iterator, identity_1, identity_2, reverse_seq_before});
+            ov::replace_node(sequence, {reverse_seq_after, identity_2});
             tensor_iterator->set_friendly_name(sequence->get_friendly_name() + "/tensor_iterator");
             reverse_seq_after->set_friendly_name(sequence->get_friendly_name() + ".0");
             identity_2->set_friendly_name(sequence->get_friendly_name() + ".1");
         } else {
-            ngraph::copy_runtime_info(sequence, tensor_iterator);
-            ngraph::replace_node(sequence, tensor_iterator);
+            ov::copy_runtime_info(sequence, tensor_iterator);
+            ov::replace_node(sequence, tensor_iterator);
         }
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_seq, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(rnn_seq, matcher_name);
     register_matcher(m, callback);
 }
 
-ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator() {
+ov::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIterator() {
     MATCHER_SCOPE(ConvertGRUSequenceToTensorIterator);
     // X, H, seq_lengths - static, W,R,B - any
-    auto rnn_seq = ngraph::pattern::wrap_type<opset5::GRUSequence>({pattern::any_input(pattern::has_static_shape()),
+    auto rnn_seq = ov::pattern::wrap_type<opset5::GRUSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(pattern::has_static_shape()),
                                                                     pattern::any_input(),
                                                                     pattern::any_input(),
                                                                     pattern::any_input()});
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
-        auto sequence = std::dynamic_pointer_cast<ngraph::opset5::GRUSequence>(m.get_match_root());
+    ov::matcher_pass_callback callback = [this](ov::pattern::Matcher &m) {
+        auto sequence = std::dynamic_pointer_cast<ov::opset5::GRUSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL || transformation_callback(sequence)) {
+        if (!sequence || sequence->get_direction() == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL || transformation_callback(sequence)) {
             return false;
         }
 
@@ -257,11 +257,11 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
         const auto &W = sequence->input_value(3); // const in the body
         const auto &R = sequence->input_value(4); // const in the body
         const auto &B = sequence->input_value(5); // const in the body
-        bool is_reverse = sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::REVERSE;
+        bool is_reverse = sequence->get_direction() == ov::op::RecurrentSequenceDirection::REVERSE;
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         auto max_seq_len = X.get_shape().at(1);
-        bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
+        bool enable_mask = ov::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
 
         std::shared_ptr<Node> reverse_seq_before;
         if (is_reverse && enable_mask) {
@@ -311,7 +311,7 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
         body_results.push_back(concat_res);
         body_results.push_back(H_res);
 
-        auto body = std::make_shared<ngraph::Function>(body_results, body_params);
+        auto body = std::make_shared<ov::Function>(body_results, body_params);
         tensor_iterator->set_function(body);
         // TensorIterator Body: end
 
@@ -336,14 +336,14 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
         if (enable_mask) {
             // create initial values for body_parameters in outer graph
             // aggregated Y_h - concatenation of the last non-zero values for each batch
-            auto aggregated_Y_h = std::make_shared<ngraph::opset5::Constant>(H_body_param->get_element_type(),
+            auto aggregated_Y_h = std::make_shared<ov::opset5::Constant>(H_body_param->get_element_type(),
                                                                              H_body_param->get_shape(),
                                                                              std::vector<float>(shape_size(H_body_param->get_shape()),
                                                                                                 0.f));
-            auto init_val_curr_iter = std::make_shared<ngraph::opset5::Constant>(seq_lengths.get_element_type(),
-                                                                                 ngraph::Shape{1},
+            auto init_val_curr_iter = std::make_shared<ov::opset5::Constant>(seq_lengths.get_element_type(),
+                                                                                 ov::Shape{1},
                                                                                  std::vector<int64_t>{1});
-            ngraph::copy_runtime_info(sequence, {aggregated_Y_h, init_val_curr_iter});
+            ov::copy_runtime_info(sequence, {aggregated_Y_h, init_val_curr_iter});
 
             // set initial value and back edge for current iteration
             tensor_iterator->set_merged_input(body_params.at(0), init_val_curr_iter, body_results.at(0));
@@ -375,38 +375,38 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
              */
             auto identity_1 = std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), axis_1);
             auto identity_2 = std::make_shared<opset5::Squeeze>(identity_1, axis_1);
-            ngraph::copy_runtime_info(sequence, {reverse_seq_after, tensor_iterator, reverse_seq_before, identity_2, identity_1});
-            ngraph::replace_node(sequence, {reverse_seq_after, identity_2});
+            ov::copy_runtime_info(sequence, {reverse_seq_after, tensor_iterator, reverse_seq_before, identity_2, identity_1});
+            ov::replace_node(sequence, {reverse_seq_after, identity_2});
             tensor_iterator->set_friendly_name(sequence->get_friendly_name() + "/tensor_iterator");
             reverse_seq_after->set_friendly_name(sequence->get_friendly_name() + ".0");
             identity_2->set_friendly_name(sequence->get_friendly_name() + ".1");
         } else {
-            ngraph::copy_runtime_info(sequence, tensor_iterator);
-            ngraph::replace_node(sequence, tensor_iterator);
+            ov::copy_runtime_info(sequence, tensor_iterator);
+            ov::replace_node(sequence, tensor_iterator);
         }
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_seq, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(rnn_seq, matcher_name);
     register_matcher(m, callback);
 }
 
-ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterator() {
+ov::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterator() {
     MATCHER_SCOPE(ConvertLSTMSequenceToTensorIterator);
     // X, H, C, seq_lengths - static, W,R,B - any
-    auto rnn_seq = ngraph::pattern::wrap_type<opset5::LSTMSequence>({pattern::any_input(pattern::has_static_shape()),
+    auto rnn_seq = ov::pattern::wrap_type<opset5::LSTMSequence>({pattern::any_input(pattern::has_static_shape()),
                                                                      pattern::any_input(pattern::has_static_shape()),
                                                                      pattern::any_input(pattern::has_static_shape()),
                                                                      pattern::any_input(pattern::has_static_shape()),
                                                                      pattern::any_input(),
                                                                      pattern::any_input(),
                                                                      pattern::any_input()});
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
-        auto sequence = std::dynamic_pointer_cast<ngraph::opset5::LSTMSequence>(m.get_match_root());
+    ov::matcher_pass_callback callback = [this](ov::pattern::Matcher &m) {
+        auto sequence = std::dynamic_pointer_cast<ov::opset5::LSTMSequence>(m.get_match_root());
 
         // Bidirectional Sequence op should be decomposed to Reverse + Forward
         // (e.g. apply BidirectionalRNNSequenceDecomposition transformation before this one)
-        if (!sequence || sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL || transformation_callback(sequence)) {
+        if (!sequence || sequence->get_direction() == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL || transformation_callback(sequence)) {
             return false;
         }
 
@@ -418,11 +418,11 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
         const auto &W = sequence->input_value(4); // const in the body
         const auto &R = sequence->input_value(5); // const in the body
         const auto &B = sequence->input_value(6); // const in the body
-        bool is_reverse = sequence->get_direction() == ngraph::op::RecurrentSequenceDirection::REVERSE;
+        bool is_reverse = sequence->get_direction() == ov::op::RecurrentSequenceDirection::REVERSE;
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         auto max_seq_len = X.get_shape().at(1);
-        bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
+        bool enable_mask = ov::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
 
         std::shared_ptr<Node> reverse_seq_before;
         if (is_reverse && enable_mask) {
@@ -483,7 +483,7 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
         body_results.push_back(H_res);
         body_results.push_back(C_res);
 
-        auto body = std::make_shared<ngraph::Function>(body_results, body_params);
+        auto body = std::make_shared<ov::Function>(body_results, body_params);
         tensor_iterator->set_function(body);
         // TensorIterator Body: end
         if (is_reverse) {
@@ -509,18 +509,18 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
         if (enable_mask) {
             // create initial values for body_parameters in outer graph
             // aggregated Y_h - concatenation of the last non-zero values for each batch
-            auto aggregated_Y_h = std::make_shared<ngraph::opset5::Constant>(H_body_param->get_element_type(),
+            auto aggregated_Y_h = std::make_shared<ov::opset5::Constant>(H_body_param->get_element_type(),
                                                                              H_body_param->get_shape(),
                                                                              std::vector<float>(shape_size(H_body_param->get_shape()),
                                                                                                 0.f));
-            auto aggregated_Y_c = std::make_shared<ngraph::opset5::Constant>(C_body_param->get_element_type(),
+            auto aggregated_Y_c = std::make_shared<ov::opset5::Constant>(C_body_param->get_element_type(),
                                                                              C_body_param->get_shape(),
                                                                              std::vector<float>(shape_size(C_body_param->get_shape()),
                                                                                                 0.f));
-            auto init_val_curr_iter = std::make_shared<ngraph::opset5::Constant>(seq_lengths.get_element_type(),
-                                                                                 ngraph::Shape{1},
+            auto init_val_curr_iter = std::make_shared<ov::opset5::Constant>(seq_lengths.get_element_type(),
+                                                                                 ov::Shape{1},
                                                                                  std::vector<int64_t>{1});
-            ngraph::copy_runtime_info(sequence, {aggregated_Y_h, init_val_curr_iter, aggregated_Y_c});
+            ov::copy_runtime_info(sequence, {aggregated_Y_h, init_val_curr_iter, aggregated_Y_c});
 
             // set initial value and back edge for current iteration
             tensor_iterator->set_merged_input(body_params.at(0), init_val_curr_iter, body_results.at(0));
@@ -560,20 +560,20 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
             auto identity_1_c = std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(2), axis_1);
             auto identity_2_c = std::make_shared<opset5::Squeeze>(identity_1_c, axis_1);
 
-            ngraph::copy_runtime_info(sequence, {reverse_seq_after, tensor_iterator, reverse_seq_before, identity_2_c, identity_1_c,
+            ov::copy_runtime_info(sequence, {reverse_seq_after, tensor_iterator, reverse_seq_before, identity_2_c, identity_1_c,
                                                  identity_1_h, identity_2_h});
-            ngraph::replace_node(sequence, {reverse_seq_after, identity_2_h, identity_2_c});
+            ov::replace_node(sequence, {reverse_seq_after, identity_2_h, identity_2_c});
             tensor_iterator->set_friendly_name(sequence->get_friendly_name() + "/tensor_iterator");
             reverse_seq_after->set_friendly_name(sequence->get_friendly_name() + ".0");
             identity_2_h->set_friendly_name(sequence->get_friendly_name() + ".1");
             identity_2_c->set_friendly_name(sequence->get_friendly_name() + ".2");
         } else {
-            ngraph::copy_runtime_info(sequence, tensor_iterator);
-            ngraph::replace_node(sequence, tensor_iterator);
+            ov::copy_runtime_info(sequence, tensor_iterator);
+            ov::replace_node(sequence, tensor_iterator);
         }
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_seq, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(rnn_seq, matcher_name);
     register_matcher(m, callback);
 }

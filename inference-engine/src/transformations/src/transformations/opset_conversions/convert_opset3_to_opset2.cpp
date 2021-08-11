@@ -16,17 +16,17 @@
 
 #include <ngraph/pass/manager.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet3ToOpSet2, "ConvertOpSet3ToOpSet2", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertOpSet3ToOpSet2, "ConvertOpSet3ToOpSet2", 0);
 
-bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ov::Function> f) {
     RUN_ON_FUNCTION_SCOPE(ConvertOpSet3ToOpSet2);
-    ngraph::pass::Manager manager(get_pass_config());
+    ov::pass::Manager manager(get_pass_config());
 
-    manager.register_pass<ngraph::pass::ConvertBroadcast3>();
-    manager.register_pass<ngraph::pass::ConvertShapeOf3>();
-    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
-    manager.register_pass<ngraph::pass::ConvertTopK3>();
-    manager.register_pass<ngraph::pass::SoftPlusDecomposition>();
+    manager.register_pass<ov::pass::ConvertBroadcast3>();
+    manager.register_pass<ov::pass::ConvertShapeOf3>();
+    manager.register_pass<ov::pass::ConvertShuffleChannels3>();
+    manager.register_pass<ov::pass::ConvertTopK3>();
+    manager.register_pass<ov::pass::SoftPlusDecomposition>();
 
     manager.run_passes(f);
 

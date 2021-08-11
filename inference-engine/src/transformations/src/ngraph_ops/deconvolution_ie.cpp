@@ -16,7 +16,7 @@
 #include "ngraph_ops/type_relaxed.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 constexpr NodeTypeInfo op::DeconvolutionIE::type_info;
 
@@ -89,8 +89,8 @@ void op::DeconvolutionIE::validate_and_infer_types() {
         conv = std::make_shared<op::TypeRelaxed<opset1::GroupConvolutionBackpropData>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(input_value(0), element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(input_value(0), element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
             m_output_shape,
             m_strides,
             m_pads_begin,
@@ -102,8 +102,8 @@ void op::DeconvolutionIE::validate_and_infer_types() {
         conv = std::make_shared<op::TypeRelaxed<opset1::GroupConvolutionBackpropData>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(input_value(0), element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(input_value(0), element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
             m_strides,
             m_pads_begin,
             m_pads_end,
@@ -114,7 +114,7 @@ void op::DeconvolutionIE::validate_and_infer_types() {
     set_output_type(0, m_output_type, conv.get_partial_shape());
 }
 
-shared_ptr<Node> op::DeconvolutionIE::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+shared_ptr<Node> op::DeconvolutionIE::clone_with_new_inputs(const ov::OutputVector &new_args) const {
     INTERNAL_OP_SCOPE(DeconvolutionIE_clone_with_new_inputs);
     if (new_args.size() == 2) {
         return make_shared<DeconvolutionIE>(new_args.at(0),
@@ -142,7 +142,7 @@ shared_ptr<Node> op::DeconvolutionIE::clone_with_new_inputs(const ngraph::Output
                                             m_output_padding,
                                             m_output_shape);
     }
-    throw ngraph::ngraph_error("Unexpected number of arguments");
+    throw ov::ngraph_error("Unexpected number of arguments");
 }
 
 bool op::DeconvolutionIE::visit_attributes(AttributeVisitor& visitor) {

@@ -11,7 +11,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertConvolutions;
@@ -22,39 +22,39 @@ class TRANSFORMATIONS_API ConvertDeconvolution;
 class TRANSFORMATIONS_API ConvertGroupDeconvolution;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertConvolution: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertConvolution: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertConvolution();
 };
 
-class ngraph::pass::ConvertGroupConvolution: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertGroupConvolution: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertGroupConvolution();
 };
 
-class ngraph::pass::ConvertDeconvolution: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertDeconvolution: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertDeconvolution();
 };
 
-class ngraph::pass::ConvertGroupDeconvolution: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertGroupDeconvolution: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertGroupDeconvolution();
 };
 
-class ngraph::pass::ConvertConvolutions: public ngraph::pass::GraphRewrite {
+class ov::pass::ConvertConvolutions: public ov::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertConvolutions() {
-        add_matcher<ngraph::pass::ConvertConvolution>();
-        add_matcher<ngraph::pass::ConvertGroupConvolution>();
-        add_matcher<ngraph::pass::ConvertDeconvolution>();
-        add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
+        add_matcher<ov::pass::ConvertConvolution>();
+        add_matcher<ov::pass::ConvertGroupConvolution>();
+        add_matcher<ov::pass::ConvertDeconvolution>();
+        add_matcher<ov::pass::ConvertGroupDeconvolution>();
     }
 };

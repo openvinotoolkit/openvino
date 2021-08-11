@@ -12,23 +12,23 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftPlusFusion, "SoftPlusFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::SoftPlusFusion, "SoftPlusFusion", 0);
 
-ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
+ov::pass::SoftPlusFusion::SoftPlusFusion() {
     MATCHER_SCOPE(SoftPlusFusion);
     // fuses ln(exp(x) + 1.0) operations into SoftPlus(x)
-    auto input = ngraph::pattern::any_input();
-    auto exp = std::make_shared<ngraph::opset4::Exp>(input);
-    auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>(
+    auto input = ov::pattern::any_input();
+    auto exp = std::make_shared<ov::opset4::Exp>(input);
+    auto add_constant = ov::pattern::wrap_type<ov::opset4::Constant>(
             pattern::type_matches_any({element::f32, element::f16}));
-    auto add = std::make_shared<ngraph::opset4::Add>(exp, add_constant);
-    auto log = std::make_shared<ngraph::opset4::Log>(add);
+    auto add = std::make_shared<ov::opset4::Add>(exp, add_constant);
+    auto log = std::make_shared<ov::opset4::Log>(add);
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+    ov::matcher_pass_callback callback = [=](ov::pattern::Matcher &m) {
         const auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto constant = std::dynamic_pointer_cast<ov::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         if (!constant) return false;
 
         auto data = constant->cast_vector<float>();
@@ -36,16 +36,16 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
             return false;
         }
 
-        auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(exp_input);
+        auto softplus = std::make_shared<ov::opset4::SoftPlus>(exp_input);
 
         softplus->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(log).get_node_shared_ptr(),
+        ov::copy_runtime_info({pattern_to_output.at(log).get_node_shared_ptr(),
                                    pattern_to_output.at(add).get_node_shared_ptr(),
                                    pattern_to_output.at(exp).get_node_shared_ptr()}, softplus);
-        ngraph::replace_node(m.get_match_root(), softplus);
+        ov::replace_node(m.get_match_root(), softplus);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(log, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(log, matcher_name);
     register_matcher(m, callback);
 }

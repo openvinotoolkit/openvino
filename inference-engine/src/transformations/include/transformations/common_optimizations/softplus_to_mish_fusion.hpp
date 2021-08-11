@@ -13,20 +13,20 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "ngraph/pattern/matcher.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API SoftPlusToMishFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief SoftPlusToMishFusion transformation replaces group of
  * operations: x * tanh(softplus(x)) to Mish op.
  */
-class ngraph::pass::SoftPlusToMishFusion: public ngraph::pass::MatcherPass {
+class ov::pass::SoftPlusToMishFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SoftPlusToMishFusion();

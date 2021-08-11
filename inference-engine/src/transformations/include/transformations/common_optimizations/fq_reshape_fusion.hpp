@@ -11,13 +11,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API FakeQuantizeReshapeFusion;
 
 } // namespace pass
-} // namespace ngraph
+} // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API FakeQuantizeReshapeFusion;
  * following FQ broadcasting semantics
  */
 
-class ngraph::pass::FakeQuantizeReshapeFusion : public ngraph::pass::MatcherPass {
+class ov::pass::FakeQuantizeReshapeFusion : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     FakeQuantizeReshapeFusion();

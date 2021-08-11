@@ -10,13 +10,13 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API WeightsDequantizeToFakeQuantize;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API WeightsDequantizeToFakeQuantize;
  *      Constant (i8) -> Convert (to fp) -> FakeQuantize ->
  *  deducing levels and FakeQuantize limits according to actual values in the weights Constant
  */
-class ngraph::pass::WeightsDequantizeToFakeQuantize: public ngraph::pass::MatcherPass {
+class ov::pass::WeightsDequantizeToFakeQuantize: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     WeightsDequantizeToFakeQuantize();

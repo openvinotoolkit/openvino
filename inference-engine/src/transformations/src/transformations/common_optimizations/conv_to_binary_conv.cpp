@@ -13,7 +13,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvToBinaryConv, "ConvToBinaryConv", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvToBinaryConv, "ConvToBinaryConv", 0);
 
 static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) {
     std::vector<uint8_t> out;
@@ -30,18 +30,18 @@ static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) 
     return out;
 }
 
-ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
+ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
     MATCHER_SCOPE(ConvToBinaryConv);
-    auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>(
-            {ngraph::pattern::any_input(),
-             ngraph::pattern::any_input(),
-             ngraph::pattern::any_input(),
-             ngraph::pattern::wrap_type<opset5::Constant>(),
-             ngraph::pattern::wrap_type<opset5::Constant>()},
+    auto fq_pattern = ov::pattern::wrap_type<opset5::FakeQuantize>(
+            {ov::pattern::any_input(),
+             ov::pattern::any_input(),
+             ov::pattern::any_input(),
+             ov::pattern::wrap_type<opset5::Constant>(),
+             ov::pattern::wrap_type<opset5::Constant>()},
             pattern::consumers_count(1));
-    auto conv_pattern = ngraph::pattern::wrap_type<opset5::Convolution>({fq_pattern, ngraph::pattern::wrap_type<opset5::Constant>()});
+    auto conv_pattern = ov::pattern::wrap_type<opset5::Convolution>({fq_pattern, ov::pattern::wrap_type<opset5::Constant>()});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         auto conv = std::dynamic_pointer_cast<opset5::Convolution>(m.get_match_root());
         if (!conv)
             return false;
@@ -101,7 +101,7 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
                                                                                                    Shape{weights_reduced_shape.size()},
                                                                                                    weights_reduced_shape),
                                                                               false);
-            weights_reduced_reshaped = ngraph::get_constant_from_source(weights_reduced_reshaped);
+            weights_reduced_reshaped = ov::get_constant_from_source(weights_reduced_reshaped);
             auto add = std::make_shared<opset5::Add>(new_conv, weights_reduced_reshaped);
             auto mul = std::make_shared<opset5::Multiply>(add, op::Constant::create(element::f32, Shape{}, {0.5}));
             copy_runtime_info(conv, {new_conv, add, mul});
@@ -125,6 +125,6 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

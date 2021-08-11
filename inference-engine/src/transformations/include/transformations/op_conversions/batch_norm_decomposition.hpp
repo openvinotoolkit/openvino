@@ -15,15 +15,15 @@
 
 using namespace std;
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API BatchNormDecomposition;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::BatchNormDecomposition: public ngraph::pass::MatcherPass {
+class ov::pass::BatchNormDecomposition: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     BatchNormDecomposition();

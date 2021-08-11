@@ -10,23 +10,23 @@
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::WeightsDequantizeToFakeQuantize, "WeightsDequantizeToFakeQuantize", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::WeightsDequantizeToFakeQuantize, "WeightsDequantizeToFakeQuantize", 0);
 
-ngraph::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
+ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     MATCHER_SCOPE(WeightsDequantizeToFakeQuantize);
 
-    const auto weights = ngraph::pattern::wrap_type<ngraph::opset6::Constant>(pattern::type_matches(element::i8));
-    const auto convert = ngraph::pattern::wrap_type<ngraph::opset6::Convert>({weights});
-    const auto sub_c = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
-    const auto sub = ngraph::pattern::wrap_type<ngraph::opset6::Subtract>({convert, sub_c});
+    const auto weights = ov::pattern::wrap_type<ov::opset6::Constant>(pattern::type_matches(element::i8));
+    const auto convert = ov::pattern::wrap_type<ov::opset6::Convert>({weights});
+    const auto sub_c = ov::pattern::wrap_type<ov::opset6::Constant>();
+    const auto sub = ov::pattern::wrap_type<ov::opset6::Subtract>({convert, sub_c});
 
     const auto sub_or_convert = std::make_shared<pattern::op::Or>(OutputVector{convert, sub});
 
-    const auto mul_c = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
-    const auto mul = ngraph::pattern::wrap_type<ngraph::opset6::Multiply>({sub_or_convert, mul_c});
+    const auto mul_c = ov::pattern::wrap_type<ov::opset6::Constant>();
+    const auto mul = ov::pattern::wrap_type<ov::opset6::Multiply>({sub_or_convert, mul_c});
 
-    ngraph::matcher_pass_callback callback;
-    callback = [=](ngraph::pattern::Matcher &m) {
+    ov::matcher_pass_callback callback;
+    callback = [=](ov::pattern::Matcher &m) {
         const auto &pattern_map = m.get_pattern_map();
 
         const auto &weights_node = as_type_ptr<opset6::Constant>(pattern_map.at(weights));
@@ -59,7 +59,7 @@ ngraph::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize()
         if (pattern_map.count(sub))
             nodes_to_copy_RT_info_from.push_back(sub);
 
-        ngraph::copy_runtime_info(nodes_to_copy_RT_info_from, fq);
+        ov::copy_runtime_info(nodes_to_copy_RT_info_from, fq);
         multiply_node->output(0).replace(fq->output(0));
 
         if (convert_node->get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
@@ -67,6 +67,6 @@ ngraph::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize()
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }

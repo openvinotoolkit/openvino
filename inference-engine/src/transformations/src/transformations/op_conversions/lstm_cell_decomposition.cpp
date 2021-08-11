@@ -14,14 +14,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::LSTMCellDecomposition, "LSTMCellDecomposition", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::LSTMCellDecomposition, "LSTMCellDecomposition", 0);
 
-ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
+ov::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
     MATCHER_SCOPE(LSTMCellDecomposition);
     auto any_lstm = pattern::wrap_type<opset1::LSTMCell, opset4::LSTMCell>();
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(m.get_match_root());
+    ov::matcher_pass_callback callback = [this](ov::pattern::Matcher& m) {
+        auto lstm_cell = std::dynamic_pointer_cast<ov::op::util::RNNCellBase>(m.get_match_root());
         if (!lstm_cell || transformation_callback(lstm_cell)) {
             return false;
         }
@@ -40,7 +40,7 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         auto add = std::make_shared<opset4::Add>(Ht_R, bias);
         auto XHB = std::make_shared<opset4::Add>(Xt_W, add);
 
-        auto axis_node = ngraph::opset4::Constant::create(element::u64, Shape{}, {1});
+        auto axis_node = ov::opset4::Constant::create(element::u64, Shape{}, {1});
         auto split = std::make_shared<opset4::Split>(XHB, axis_node, 4);
         Output<Node> f = split->output(0);
         Output<Node> i = split->output(1);
@@ -57,17 +57,17 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
             i = clamp_i;
             c = clamp_c;
             o = clamp_o;
-            ngraph::copy_runtime_info(lstm_cell, {clamp_f, clamp_i, clamp_c, clamp_o});
+            ov::copy_runtime_info(lstm_cell, {clamp_f, clamp_i, clamp_c, clamp_o});
         }
 
         // ft = f(Xt*(Wf^T) + Ht-1*(Rf^T) + Wbf + Rbf)
         // it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
         // ct = g(Xt*(Wc^T) + Ht-1*(Rc^T) + Wbc + Rbc)
         // ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Wbo + Rbo)
-        auto f_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], f);
-        auto i_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], i);
-        auto c_t = ngraph::op::util::activation(lstm_cell->get_activations()[1], c);
-        auto o_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], o);
+        auto f_t = ov::op::util::activation(lstm_cell->get_activations()[0], f);
+        auto i_t = ov::op::util::activation(lstm_cell->get_activations()[0], i);
+        auto c_t = ov::op::util::activation(lstm_cell->get_activations()[1], c);
+        auto o_t = ov::op::util::activation(lstm_cell->get_activations()[0], o);
 
         // Ct = ft (.) Ct-1 + it (.) ct
         auto mul1 = std::make_shared<opset4::Multiply>(f_t, C_t);
@@ -75,17 +75,17 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         auto out_C = std::make_shared<opset4::Add>(mul1, mul2);
 
         // H = ot (.) h(Ct)
-        auto hC = ngraph::op::util::activation(lstm_cell->get_activations()[2], out_C);
+        auto hC = ov::op::util::activation(lstm_cell->get_activations()[2], out_C);
         auto out_H = std::make_shared<opset4::Multiply>(o_t, hC);
 
         out_H->set_friendly_name(lstm_cell->get_friendly_name()+".0");
         out_C->set_friendly_name(lstm_cell->get_friendly_name()+".1");
-        ngraph::copy_runtime_info(lstm_cell, {Xt_W, Ht_R, add, split, mul1, mul2, out_H, hC, out_C, axis_node, XHB,
+        ov::copy_runtime_info(lstm_cell, {Xt_W, Ht_R, add, split, mul1, mul2, out_H, hC, out_C, axis_node, XHB,
                                               f_t, i_t, c_t, o_t});
-        ngraph::replace_node(lstm_cell, {out_H->output(0), out_C->output(0)});
+        ov::replace_node(lstm_cell, {out_H->output(0), out_C->output(0)});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(any_lstm, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(any_lstm, matcher_name);
     register_matcher(m, callback);
 }

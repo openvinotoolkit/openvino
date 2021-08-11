@@ -14,9 +14,9 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <numeric>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeToReshape, "TransposeToReshape", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::TransposeToReshape, "TransposeToReshape", 0);
 
-using namespace ngraph;
+using namespace ov;
 
 bool replace_transpose_with_reshape(const std::shared_ptr<Node>& transpose) {
     auto data = transpose->input_value(0);
@@ -25,7 +25,7 @@ bool replace_transpose_with_reshape(const std::shared_ptr<Node>& transpose) {
     const size_t input_shape_rank = input_shape.rank().get_length();
 
     auto order = as_type_ptr<opset6::Constant>(transpose->input_value(1).get_node_shared_ptr());
-    if (!order || !ngraph::shape_size(order->get_shape())) {
+    if (!order || !ov::shape_size(order->get_shape())) {
         return false;
     }
 
@@ -101,15 +101,15 @@ bool replace_transpose_with_reshape(const std::shared_ptr<Node>& transpose) {
     return true;
 }
 
-ngraph::pass::TransposeToReshape::TransposeToReshape() {
+ov::pass::TransposeToReshape::TransposeToReshape() {
     MATCHER_SCOPE(TransposeToReshape);
 
     auto transpose_label = pattern::wrap_type<opset6::Transpose>(
         { pattern::any_input(pattern::has_static_rank()), pattern::wrap_type<opset6::Constant>() });
-    ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pattern::Matcher& m) {
         return replace_transpose_with_reshape(m.get_match_root());
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(transpose_label, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

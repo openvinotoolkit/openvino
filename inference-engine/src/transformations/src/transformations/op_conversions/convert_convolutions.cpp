@@ -16,20 +16,20 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolutions, "ConvertConvolutions", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolution, "ConvertConvolution", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertConvolutions, "ConvertConvolutions", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertConvolution, "ConvertConvolution", 0);
 
-ngraph::pass::ConvertConvolution::ConvertConvolution() {
+ov::pass::ConvertConvolution::ConvertConvolution() {
     MATCHER_SCOPE(ConvertConvolution);
-    auto conv = ngraph::pattern::wrap_type<opset1::Convolution>();
+    auto conv = ov::pattern::wrap_type<opset1::Convolution>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution> (m.get_match_root());
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto conv = std::dynamic_pointer_cast<ov::opset1::Convolution> (m.get_match_root());
         if (!conv) {
             return false;
         }
 
-        auto conv_ie = std::make_shared<ngraph::op::ConvolutionIE>(conv->input_value(0),
+        auto conv_ie = std::make_shared<ov::op::ConvolutionIE>(conv->input_value(0),
                                                                    conv->input_value(1),
                                                                    conv->get_strides(),
                                                                    conv->get_dilations(),
@@ -38,24 +38,24 @@ ngraph::pass::ConvertConvolution::ConvertConvolution() {
                                                                    conv->get_output_element_type(0),
                                                                    1 /* groups */,
                                                                    conv->get_auto_pad());
-        ngraph::copy_runtime_info(conv, conv_ie);
+        ov::copy_runtime_info(conv, conv_ie);
         conv_ie->set_friendly_name(conv->get_friendly_name());
-        ngraph::replace_node(conv, conv_ie);
+        ov::replace_node(conv, conv_ie);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(conv, matcher_name);
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupConvolution, "ConvertGroupConvolution", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertGroupConvolution, "ConvertGroupConvolution", 0);
 
-ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
+ov::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
     MATCHER_SCOPE(ConvertGroupConvolution);
-    auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolution>();
+    auto gconv = ov::pattern::wrap_type<opset1::GroupConvolution>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto gconv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution> (m.get_match_root());
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto gconv = std::dynamic_pointer_cast<ov::opset1::GroupConvolution> (m.get_match_root());
         if (!gconv) {
             return false;
         }
@@ -72,11 +72,11 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
         if (std::dynamic_pointer_cast<opset1::Reshape>(w_input) && w_input->input_value(0).get_shape() == reshape_shape) {
             weights = w_input->input_value(0);
         } else {
-            weights = std::make_shared<ngraph::opset1::Reshape>(gconv->input_value(1),
+            weights = std::make_shared<ov::opset1::Reshape>(gconv->input_value(1),
                                                                 op::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape), true);
-            ngraph::copy_runtime_info(gconv, weights.get_node_shared_ptr());
+            ov::copy_runtime_info(gconv, weights.get_node_shared_ptr());
         }
-        auto conv_ie = std::make_shared<ngraph::op::ConvolutionIE>(gconv->input_value(0),
+        auto conv_ie = std::make_shared<ov::op::ConvolutionIE>(gconv->input_value(0),
                                                                    weights,
                                                                    gconv->get_strides(),
                                                                    gconv->get_dilations(),
@@ -86,28 +86,28 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
                                                                    group,
                                                                    gconv->get_auto_pad());
         conv_ie->set_friendly_name(gconv->get_friendly_name());
-        ngraph::copy_runtime_info(gconv, conv_ie);
-        ngraph::replace_node(gconv, conv_ie);
+        ov::copy_runtime_info(gconv, conv_ie);
+        ov::replace_node(gconv, conv_ie);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(gconv, matcher_name);
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDeconvolution, "ConvertDeconvolution", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertDeconvolution, "ConvertDeconvolution", 0);
 
-ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
+ov::pass::ConvertDeconvolution::ConvertDeconvolution() {
     MATCHER_SCOPE(ConvertDeconvolution);
-    auto conv = ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>();
+    auto conv = ov::pattern::wrap_type<opset1::ConvolutionBackpropData>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto deconv = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData> (m.get_match_root());
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto deconv = std::dynamic_pointer_cast<ov::opset1::ConvolutionBackpropData> (m.get_match_root());
         if (!deconv) {
             return false;
         }
 
-        auto deconv_ie = std::make_shared<ngraph::op::DeconvolutionIE>(deconv->input_value(0),
+        auto deconv_ie = std::make_shared<ov::op::DeconvolutionIE>(deconv->input_value(0),
                                                                        deconv->input_value(1),
                                                                        deconv->get_strides(),
                                                                        deconv->get_dilations(),
@@ -120,23 +120,23 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
                                                                        (deconv->inputs().size() == 3 ? deconv->input_value(2).get_node_shared_ptr()
                                                                                                      : nullptr));
         deconv_ie->set_friendly_name(deconv->get_friendly_name());
-        ngraph::copy_runtime_info(deconv, deconv_ie);
-        ngraph::replace_node(deconv, deconv_ie);
+        ov::copy_runtime_info(deconv, deconv_ie);
+        ov::replace_node(deconv, deconv_ie);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(conv, matcher_name);
     this->register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupDeconvolution, "ConvertGroupDeconvolution", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertGroupDeconvolution, "ConvertGroupDeconvolution", 0);
 
-ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
+ov::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
     MATCHER_SCOPE(ConvertGroupDeconvolution);
-    auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolutionBackpropData>();
+    auto gconv = ov::pattern::wrap_type<opset1::GroupConvolutionBackpropData>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto gconv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData> (m.get_match_root());
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto gconv = std::dynamic_pointer_cast<ov::opset1::GroupConvolutionBackpropData> (m.get_match_root());
         if (!gconv) {
             return false;
         }
@@ -151,9 +151,9 @@ ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
             reshape_shape.push_back(weights_shape[i]);
         }
 
-        auto reshape = std::make_shared<ngraph::opset1::Reshape>(gconv->input_value(1),
+        auto reshape = std::make_shared<ov::opset1::Reshape>(gconv->input_value(1),
                                                                  op::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape), true);
-        auto conv_ie = std::make_shared<ngraph::op::DeconvolutionIE>(gconv->input_value(0),
+        auto conv_ie = std::make_shared<ov::op::DeconvolutionIE>(gconv->input_value(0),
                                                                      reshape,
                                                                      gconv->get_strides(),
                                                                      gconv->get_dilations(),
@@ -166,11 +166,11 @@ ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
                                                                      (gconv->inputs().size() == 3 ? gconv->input_value(2).get_node_shared_ptr()
                                                                                                   : nullptr));
         conv_ie->set_friendly_name(gconv->get_friendly_name());
-        ngraph::copy_runtime_info(gconv, conv_ie);
-        ngraph::replace_node(gconv, conv_ie);
+        ov::copy_runtime_info(gconv, conv_ie);
+        ov::replace_node(gconv, conv_ie);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(gconv, matcher_name);
     this->register_matcher(m, callback);
 }

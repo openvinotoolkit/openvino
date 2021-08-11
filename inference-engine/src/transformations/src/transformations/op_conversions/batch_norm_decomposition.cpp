@@ -13,11 +13,11 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-using namespace ngraph;
+using namespace ov;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchNormDecomposition, "BatchNormDecomposition", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::BatchNormDecomposition, "BatchNormDecomposition", 0);
 
-ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
+ov::pass::BatchNormDecomposition::BatchNormDecomposition() {
     MATCHER_SCOPE(BatchNormDecomposition);
     auto bn = pattern::wrap_type<opset1::BatchNormInference, opset5::BatchNormInference>({
         pattern::any_input(pattern::has_static_rank()),
@@ -27,7 +27,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
         pattern::any_input(pattern::has_static_shape())
     });
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
+    ov::matcher_pass_callback callback = [this](ov::pattern::Matcher &m) {
         auto m_bn = m.get_match_root();
         Output<Node> m_input, m_gamma, m_beta, m_mean, m_var;
         double eps;
@@ -86,7 +86,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
 
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(bn, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(bn, matcher_name);
     this->register_matcher(m, callback);
 }
 

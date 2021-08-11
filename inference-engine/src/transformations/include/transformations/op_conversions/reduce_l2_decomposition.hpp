@@ -13,19 +13,19 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "ngraph/pattern/matcher.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ReduceL2Decomposition;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief Decomposes ReduceL2 into sqrt(ReduceSum(x * x)).
  */
-class ngraph::pass::ReduceL2Decomposition: public ngraph::pass::MatcherPass {
+class ov::pass::ReduceL2Decomposition: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ReduceL2Decomposition();

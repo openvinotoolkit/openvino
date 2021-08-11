@@ -14,19 +14,19 @@
 #include <transformations/smart_reshape/set_batch_size.hpp>
 #include <transformations/smart_reshape/strided_slice_squeeze.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SetBatchSize, "SetBatchSize", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::SetBatchSize, "SetBatchSize", 0);
 
-bool ngraph::pass::SetBatchSize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+bool ov::pass::SetBatchSize::run_on_function(std::shared_ptr<ov::Function> f) {
     RUN_ON_FUNCTION_SCOPE(SetBatchSize);
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::SetBatchSize");
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ov::pass::SetBatchSize");
 
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     // This pass must be called first in pipeline
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::SharedSqueeze>();
-    manager.register_pass<ngraph::pass::SqueezeStridedSlice>();
-    manager.register_pass<ngraph::pass::StridedSliceSqueeze>();
-    manager.register_pass<ngraph::pass::MimicSetBatchSize>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::SharedSqueeze>();
+    manager.register_pass<ov::pass::SqueezeStridedSlice>();
+    manager.register_pass<ov::pass::StridedSliceSqueeze>();
+    manager.register_pass<ov::pass::MimicSetBatchSize>();
     manager.run_passes(f);
     return true;
 }

@@ -11,13 +11,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
     class TRANSFORMATIONS_API ShuffleChannelsFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -33,7 +33,7 @@ namespace pass {
  *        and are not necessary when ShuffleChannelsFusion using inside CommonOptimizations
  */
 
-class ngraph::pass::ShuffleChannelsFusion : public ngraph::pass::MatcherPass {
+class ov::pass::ShuffleChannelsFusion : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ShuffleChannelsFusion(const bool reshape_constants_check);

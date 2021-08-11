@@ -10,13 +10,13 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "ngraph/pattern/matcher.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API BroadcastElementwiseFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API BroadcastElementwiseFusion;
  * are equal neighboring input shape of ElementWise.
  */
 
-class ngraph::pass::BroadcastElementwiseFusion: public ngraph::pass::MatcherPass {
+class ov::pass::BroadcastElementwiseFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     BroadcastElementwiseFusion();

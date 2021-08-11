@@ -12,14 +12,14 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDepthToSpace, "ConvertDepthToSpace", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertDepthToSpace, "ConvertDepthToSpace", 0);
 
-ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
+ov::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
     MATCHER_SCOPE(ConvertDepthToSpace);
-    auto dts_node = ngraph::pattern::wrap_type<ngraph::opset1::DepthToSpace>({pattern::any_input(pattern::has_static_shape())});
+    auto dts_node = ov::pattern::wrap_type<ov::opset1::DepthToSpace>({pattern::any_input(pattern::has_static_shape())});
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto dts_node = std::dynamic_pointer_cast<ngraph::opset1::DepthToSpace> (m.get_match_root());
+    ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        auto dts_node = std::dynamic_pointer_cast<ov::opset1::DepthToSpace> (m.get_match_root());
         if (!dts_node || transformation_callback(dts_node)) {
             return false;
         }
@@ -52,10 +52,10 @@ ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
         }
 
         switch (mode) {
-            case ngraph::op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
+            case ov::op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
                 shape_begin.push_back(C);
                 break;
-            case ngraph::op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
+            case ov::op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
                 shape_begin.insert(shape_begin.begin() + 1, C);
                 break;
         }
@@ -67,14 +67,14 @@ ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
         // Calculate Transpose order
         std::vector<int64_t> order{0};
         switch (mode) {
-            case ngraph::op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
+            case ov::op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
                 order.push_back(spatial_dims + 1);
                 for (size_t i = 1; i <= spatial_dims; ++i) {
                     order.push_back(spatial_dims + 1 + i);
                     order.push_back(i);
                 }
                 break;
-            case ngraph::op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
+            case ov::op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
                 order.push_back(1);
                 for (size_t i = 1; i <= spatial_dims; ++i) {
                     order.push_back(spatial_dims + 1 + i);
@@ -93,15 +93,15 @@ ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
             return op::Constant::create(element::i64, Shape{v.size()}, v);
         };
 
-        auto reshape_begin = std::make_shared<ngraph::opset1::Reshape>(input, create_constant(shape_begin), true);
-        auto transpose = std::make_shared<ngraph::opset1::Transpose>(reshape_begin, create_constant(order));
-        auto reshape_end = std::make_shared<ngraph::opset1::Reshape>(transpose, create_constant(shape_end), true);
+        auto reshape_begin = std::make_shared<ov::opset1::Reshape>(input, create_constant(shape_begin), true);
+        auto transpose = std::make_shared<ov::opset1::Transpose>(reshape_begin, create_constant(order));
+        auto reshape_end = std::make_shared<ov::opset1::Reshape>(transpose, create_constant(shape_end), true);
         reshape_end->set_friendly_name(dts_node->get_friendly_name());
-        ngraph::copy_runtime_info(dts_node, {reshape_begin, transpose, reshape_end});
-        ngraph::replace_node(dts_node, reshape_end);
+        ov::copy_runtime_info(dts_node, {reshape_begin, transpose, reshape_end});
+        ov::replace_node(dts_node, reshape_end);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(dts_node, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(dts_node, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -10,20 +10,20 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API SoftPlusFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief SoftPlusFusion transformation replaces group of
  * operations: log(exp(x) + 1) to SoftPlus op.
  */
-class ngraph::pass::SoftPlusFusion: public ngraph::pass::MatcherPass {
+class ov::pass::SoftPlusFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SoftPlusFusion();

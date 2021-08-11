@@ -13,7 +13,7 @@
 #include <openvino/itt.hpp>
 #include <openvino/cc/ngraph/itt.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace itt {
 namespace domains {
@@ -21,7 +21,7 @@ namespace domains {
 }   // namespace domains
 }   // namespace itt
 }   // namespace pass
-}   // namespace ngraph
+}   // namespace ov
 
 OV_CC_DOMAINS(internal_op);
 

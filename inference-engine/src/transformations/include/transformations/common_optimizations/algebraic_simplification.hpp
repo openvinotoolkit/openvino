@@ -9,15 +9,15 @@
 
 #include <transformations_visibility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API AlgebraicSimplification;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::AlgebraicSimplification : public GraphRewrite {
+class ov::pass::AlgebraicSimplification : public GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     AlgebraicSimplification() = default;

@@ -13,7 +13,7 @@
 #include <transformations_visibility.hpp>
 
 
-namespace ngraph {
+namespace ov {
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -41,4 +41,4 @@ public:
 };
 
 TRANSFORMATIONS_API void disable_constant_folding(const std::shared_ptr<Node>& node);
-}  // namespace ngraph
+}  // namespace ov

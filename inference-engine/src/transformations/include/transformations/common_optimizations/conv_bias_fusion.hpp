@@ -23,7 +23,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvFusion;
@@ -32,32 +32,32 @@ class TRANSFORMATIONS_API ConvMultiplyFusion;
 class TRANSFORMATIONS_API DeconvAddFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvAddFusion: public ngraph::pass::MatcherPass {
+class ov::pass::ConvAddFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvAddFusion();
 };
 
-class ngraph::pass::ConvMultiplyFusion: public ngraph::pass::MatcherPass {
+class ov::pass::ConvMultiplyFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvMultiplyFusion();
 };
 
-class ngraph::pass::DeconvAddFusion: public ngraph::pass::MatcherPass {
+class ov::pass::DeconvAddFusion: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     DeconvAddFusion();
 };
 
-class ngraph::pass::ConvFusion: public ngraph::pass::GraphRewrite {
+class ov::pass::ConvFusion: public ov::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvFusion() {
-        add_matcher<ngraph::pass::ConvAddFusion>();
-        add_matcher<ngraph::pass::ConvMultiplyFusion>();
-        add_matcher<ngraph::pass::DeconvAddFusion>();
+        add_matcher<ov::pass::ConvAddFusion>();
+        add_matcher<ov::pass::ConvMultiplyFusion>();
+        add_matcher<ov::pass::DeconvAddFusion>();
     }
 };

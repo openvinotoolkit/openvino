@@ -10,26 +10,26 @@
 #include <transformations/utils/utils.hpp>
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::EliminateUnsqueezeGather, "EliminateUnsqueezeGather", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::EliminateUnsqueezeGather, "EliminateUnsqueezeGather", 0);
 
-ngraph::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
+ov::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
     MATCHER_SCOPE(EliminateUnsqueezeGather);
     // Remove Unsqueeze + Gather pair, if Gather gathers data by `1` dimension that was previously added by Unsqueeze
-    const auto unsqueezeAxis = ngraph::pattern::any_input();
-    const auto unsqueezeInput = ngraph::pattern::any_input();
-    const auto unsqueeze = ngraph::pattern::wrap_type<ngraph::opset6::Unsqueeze>({unsqueezeInput, unsqueezeAxis}, pattern::consumers_count(1));
-    const auto gatherIndices = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
-    const auto gatherAxis = ngraph::pattern::any_input();
-    const auto gather = ngraph::pattern::wrap_type<ngraph::op::util::GatherBase>({unsqueeze, gatherIndices, gatherAxis});
+    const auto unsqueezeAxis = ov::pattern::any_input();
+    const auto unsqueezeInput = ov::pattern::any_input();
+    const auto unsqueeze = ov::pattern::wrap_type<ov::opset6::Unsqueeze>({unsqueezeInput, unsqueezeAxis}, pattern::consumers_count(1));
+    const auto gatherIndices = ov::opset6::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto gatherAxis = ov::pattern::any_input();
+    const auto gather = ov::pattern::wrap_type<ov::op::util::GatherBase>({unsqueeze, gatherIndices, gatherAxis});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pattern::Matcher& m) {
         auto& patternValue = m.get_pattern_value_map();
 
         const auto& m_unsqueezeAxis = patternValue.at(unsqueezeAxis);
         const auto& m_gatherAxis = patternValue.at(gatherAxis);
 
-        const auto& unsqueezeAxisNode = ngraph::as_type_ptr<ngraph::opset6::Constant>(m_unsqueezeAxis.get_node_shared_ptr());
-        const auto& gatherAxisNode = ngraph::as_type_ptr<ngraph::opset6::Constant>(m_gatherAxis.get_node_shared_ptr());
+        const auto& unsqueezeAxisNode = ov::as_type_ptr<ov::opset6::Constant>(m_unsqueezeAxis.get_node_shared_ptr());
+        const auto& gatherAxisNode = ov::as_type_ptr<ov::opset6::Constant>(m_gatherAxis.get_node_shared_ptr());
 
         if (!unsqueezeAxisNode || !gatherAxisNode) {
             return false;
@@ -50,45 +50,45 @@ ngraph::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
         const auto& m_unsqueeze = patternValue.at(unsqueeze);
         const auto& m_unsqueezeInput = patternValue.at(unsqueezeInput);
 
-        ngraph::copy_runtime_info(m_gather.get_node_shared_ptr(), m_unsqueeze.get_node_shared_ptr());
+        ov::copy_runtime_info(m_gather.get_node_shared_ptr(), m_unsqueeze.get_node_shared_ptr());
         m_gather.replace(m_unsqueezeInput);
 
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gather, "EliminateUnsqueezeGather");
+    auto m = std::make_shared<ov::pattern::Matcher>(gather, "EliminateUnsqueezeGather");
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::EliminateGatherUnsqueeze, "EliminateGatherUnsqueeze", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::EliminateGatherUnsqueeze, "EliminateGatherUnsqueeze", 0);
 
-ngraph::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
+ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
     MATCHER_SCOPE(EliminateGatherUnsqueeze);
 
-    const auto gather_indices_label = ngraph::pattern::wrap_type<ngraph::op::Constant>(pattern::rank_equals(0));
-    const auto gather_axis_label = ngraph::pattern::wrap_type<ngraph::op::Constant>();
-    const auto gather_label = ngraph::pattern::wrap_type<ngraph::op::util::GatherBase>(
-            {ngraph::pattern::any_input(), gather_indices_label, gather_axis_label}, pattern::rank_equals(0));
+    const auto gather_indices_label = ov::pattern::wrap_type<ov::op::Constant>(pattern::rank_equals(0));
+    const auto gather_axis_label = ov::pattern::wrap_type<ov::op::Constant>();
+    const auto gather_label = ov::pattern::wrap_type<ov::op::util::GatherBase>(
+            {ov::pattern::any_input(), gather_indices_label, gather_axis_label}, pattern::rank_equals(0));
 
-    const auto unsqueeze_label = ngraph::pattern::wrap_type<ngraph::opset6::Unsqueeze>(
-            {gather_label, ngraph::pattern::any_input()}, pattern::rank_equals(1));
+    const auto unsqueeze_label = ov::pattern::wrap_type<ov::opset6::Unsqueeze>(
+            {gather_label, ov::pattern::any_input()}, pattern::rank_equals(1));
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pattern::Matcher& m) {
         auto pattern_nodes = m.get_pattern_map();
 
         auto& gather_indices = pattern_nodes.at(gather_indices_label);
         auto& gather = pattern_nodes.at(gather_label);
         auto& unsqueeze = pattern_nodes.at(unsqueeze_label);
 
-        auto new_indices = ngraph::op::util::make_try_fold<ngraph::opset6::Reshape>(gather_indices, opset6::Constant::create(element::i32, {1}, {1}), false);
+        auto new_indices = ov::op::util::make_try_fold<ov::opset6::Reshape>(gather_indices, opset6::Constant::create(element::i32, {1}, {1}), false);
         auto new_gather = gather->clone_with_new_inputs({gather->input_value(0), new_indices, gather->input_value(2)});
 
         new_gather->set_friendly_name(gather->get_friendly_name());
-        ngraph::copy_runtime_info({unsqueeze, gather}, {new_gather, new_indices});
-        ngraph::replace_node(unsqueeze, new_gather);
+        ov::copy_runtime_info({unsqueeze, gather}, {new_gather, new_indices});
+        ov::replace_node(unsqueeze, new_gather);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze_label, "EliminateGatherUnsqueeze");
+    auto m = std::make_shared<ov::pattern::Matcher>(unsqueeze_label, "EliminateGatherUnsqueeze");
     register_matcher(m, callback);
 }

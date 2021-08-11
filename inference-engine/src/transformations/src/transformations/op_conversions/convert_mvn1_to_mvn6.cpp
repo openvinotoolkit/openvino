@@ -14,14 +14,14 @@
 
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMVN1ToMVN6, "ConvertMVN1ToMVN6", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertMVN1ToMVN6, "ConvertMVN1ToMVN6", 0);
 
-ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
+ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
     MATCHER_SCOPE(ConvertMVN1ToMVN6);
-    auto mvn = pattern::wrap_type<ngraph::opset2::MVN>();
+    auto mvn = pattern::wrap_type<ov::opset2::MVN>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto mvn_node = std::dynamic_pointer_cast<ngraph::opset2::MVN>(m.get_match_root());
+    ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto mvn_node = std::dynamic_pointer_cast<ov::opset2::MVN>(m.get_match_root());
         if (!mvn_node) {
             return false;
         }
@@ -37,16 +37,16 @@ ngraph::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {
         }
         std::vector<int64_t> axes_v(input_rank.get_length() - start_axis);
         std::iota(axes_v.begin(), axes_v.end(), start_axis);
-        auto axes = opset6::Constant::create(ngraph::element::i64, { axes_v.size() }, axes_v);
-        auto mvn6_node = std::make_shared<ngraph::opset6::MVN>(input,
+        auto axes = opset6::Constant::create(ov::element::i64, { axes_v.size() }, axes_v);
+        auto mvn6_node = std::make_shared<ov::opset6::MVN>(input,
             axes,
             mvn_node->get_normalize_variance(),
             mvn_node->get_eps(),
-            ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
+            ov::op::MVNEpsMode::OUTSIDE_SQRT);
 
         mvn6_node->set_friendly_name(mvn_node->get_friendly_name());
-        ngraph::copy_runtime_info(mvn_node, mvn6_node);
-        ngraph::replace_node(mvn_node, mvn6_node);
+        ov::copy_runtime_info(mvn_node, mvn6_node);
+        ov::replace_node(mvn_node, mvn6_node);
         return true;
     };
 

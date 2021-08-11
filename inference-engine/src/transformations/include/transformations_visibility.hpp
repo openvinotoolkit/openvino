@@ -13,7 +13,7 @@
 
 /**
  * @defgroup ie_transformation_api Inference Engine Transformation API
- * @brief Defines Inference Engine Transformations API which is used to transform ngraph::Function
+ * @brief Defines Inference Engine Transformations API which is used to transform ov::Function
  *
  * @{
  * @defgroup ie_runtime_attr_api Runtime information

@@ -14,22 +14,22 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MVNFusion, "MVNFusion", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::MVNFusion, "MVNFusion", 0);
 
 template <class T>
-std::function<bool(ngraph::Output<ngraph::Node>)> value_is_equal_to(const std::vector<T>& ref_values) {
-    return [ref_values](ngraph::Output<ngraph::Node> output) -> bool {
+std::function<bool(ov::Output<ov::Node>)> value_is_equal_to(const std::vector<T>& ref_values) {
+    return [ref_values](ov::Output<ov::Node> output) -> bool {
         auto node = output.get_node_shared_ptr();
-        if (auto const_node = std::dynamic_pointer_cast<ngraph::op::Constant>(node)) {
+        if (auto const_node = std::dynamic_pointer_cast<ov::op::Constant>(node)) {
             return const_node->template cast_vector<T>() == ref_values;
         }
         return false;
     };
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MVNFusionWithoutConstants, "MVNFusionWithoutConstants", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::MVNFusionWithoutConstants, "MVNFusionWithoutConstants", 0);
 
-ngraph::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
+ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     MATCHER_SCOPE(MVNFusionWithoutConstants);
     // Detect MVN decomposition pattern:
     // (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps)
@@ -68,7 +68,7 @@ ngraph::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     auto mean3_axes = pattern::wrap_type<opset6::Constant>();
     auto mean3 = pattern::wrap_type<opset6::ReduceMean>({ power, mean3_axes });
 
-    auto const_0_5 = pattern::wrap_type<ngraph::opset6::Constant>(value_is_equal_to<float>({0.5}));
+    auto const_0_5 = pattern::wrap_type<ov::opset6::Constant>(value_is_equal_to<float>({0.5}));
     auto eps = pattern::wrap_type<opset6::Constant>();
     // ------------------- OUTSIDE_SQRT ----------------------
 
@@ -104,18 +104,18 @@ ngraph::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
     auto div_alt = pattern::wrap_type<opset6::Divide>({ sub1, outsideOrInside });
     const auto powerMulOrDiv = std::make_shared<pattern::op::Or>(OutputVector{ div, div_alt });
 
-    ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(x);
 
-        auto const_eps_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
+        auto const_eps_node = std::dynamic_pointer_cast<ov::opset6::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
         float eps_value;
         if (!op::util::get_single_value(const_eps_node, eps_value)) {
             return false;
         }
 
-        auto axes_1_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
-        auto axes_3_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean3_axes).get_node_shared_ptr());
+        auto axes_1_node = std::dynamic_pointer_cast<ov::opset6::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
+        auto axes_3_node = std::dynamic_pointer_cast<ov::opset6::Constant>(pattern_to_output.at(mean3_axes).get_node_shared_ptr());
 
         if (!axes_1_node || !axes_3_node) {
             return false;
@@ -128,7 +128,7 @@ ngraph::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
             return false;
         }
         if (pattern_to_output.count(mean2_axes)) {
-            auto axes_2_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
+            auto axes_2_node = std::dynamic_pointer_cast<ov::opset6::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
             if (!axes_2_node) {
                 return false;
             }
@@ -138,7 +138,7 @@ ngraph::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
             }
         }
 
-        ngraph::NodeVector nodes_to_copy_info({ pattern_to_output.at(mean1).get_node_shared_ptr(),
+        ov::NodeVector nodes_to_copy_info({ pattern_to_output.at(mean1).get_node_shared_ptr(),
                                                 pattern_to_output.at(sub1).get_node_shared_ptr(),
                                                 pattern_to_output.at(power).get_node_shared_ptr(),
                                                 pattern_to_output.at(mean3).get_node_shared_ptr() });
@@ -163,7 +163,7 @@ ngraph::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
         } else {
             return false;
         }
-        auto mvn = std::make_shared<ngraph::opset6::MVN>(exp_input, axes_1_node, true, eps_value, mode);
+        auto mvn = std::make_shared<ov::opset6::MVN>(exp_input, axes_1_node, true, eps_value, mode);
 
         if (pattern_to_output.count(mean2) && pattern_to_output.count(sub2)) {
             nodes_to_copy_info.push_back(pattern_to_output.at(mean2).get_node_shared_ptr());
@@ -182,18 +182,18 @@ ngraph::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
         }
 
         mvn->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(nodes_to_copy_info, mvn);
-        ngraph::replace_node(m.get_match_root(), mvn);
+        ov::copy_runtime_info(nodes_to_copy_info, mvn);
+        ov::replace_node(m.get_match_root(), mvn);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(powerMulOrDiv, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(powerMulOrDiv, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::MVNFusionWithConstantsInside, "MVNFusionWithConstantsInside", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::MVNFusionWithConstantsInside, "MVNFusionWithConstantsInside", 0);
 
-ngraph::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
+ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
     MATCHER_SCOPE(MVNFusionWithConstantsInside);
     // Detect MVN decomposition pattern:
     // (x - ReduceMean(x, axes)) * gamma / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps) + beta
@@ -247,14 +247,14 @@ ngraph::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
     // gamma * (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps) + beta
     auto add = pattern::wrap_type<opset6::Add>({ mul2, sub });
 
-    ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(x);
 
-        auto const_0_5_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
-        auto const_gamma_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(gamma).get_node_shared_ptr());
-        auto const_beta_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(beta).get_node_shared_ptr());
-        auto const_eps_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
+        auto const_0_5_node = std::dynamic_pointer_cast<ov::opset6::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
+        auto const_gamma_node = std::dynamic_pointer_cast<ov::opset6::Constant>(pattern_to_output.at(gamma).get_node_shared_ptr());
+        auto const_beta_node = std::dynamic_pointer_cast<ov::opset6::Constant>(pattern_to_output.at(beta).get_node_shared_ptr());
+        auto const_eps_node = std::dynamic_pointer_cast<ov::opset6::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
         if (!const_0_5_node || !const_beta_node || !const_gamma_node || !const_eps_node) {
             return false;
         }
@@ -265,8 +265,8 @@ ngraph::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
             return false;
         }
 
-        auto axes_1_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
-        auto axes_2_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
+        auto axes_1_node = std::dynamic_pointer_cast<ov::opset6::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
+        auto axes_2_node = std::dynamic_pointer_cast<ov::opset6::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
         if (!axes_1_node || !axes_2_node) {
             return false;
         }
@@ -277,11 +277,11 @@ ngraph::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
             return false;
         }
 
-        auto mvn = std::make_shared<ngraph::opset6::MVN>(x_output, axes_1_node, true, eps_value, op::MVNEpsMode::INSIDE_SQRT);
-        auto mul_gamma = std::make_shared<ngraph::opset6::Multiply>(mvn, const_gamma_node);
-        auto add_beta = std::make_shared<ngraph::opset6::Add>(mul_gamma, const_beta_node);
+        auto mvn = std::make_shared<ov::opset6::MVN>(x_output, axes_1_node, true, eps_value, op::MVNEpsMode::INSIDE_SQRT);
+        auto mul_gamma = std::make_shared<ov::opset6::Multiply>(mvn, const_gamma_node);
+        auto add_beta = std::make_shared<ov::opset6::Add>(mul_gamma, const_beta_node);
 
-        ngraph::copy_runtime_info({ pattern_to_output.at(mean1).get_node_shared_ptr(),
+        ov::copy_runtime_info({ pattern_to_output.at(mean1).get_node_shared_ptr(),
                                    pattern_to_output.at(squared_difference).get_node_shared_ptr(),
                                    pattern_to_output.at(add_eps).get_node_shared_ptr(),
                                    pattern_to_output.at(power).get_node_shared_ptr(),
@@ -292,10 +292,10 @@ ngraph::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
                                    pattern_to_output.at(add).get_node_shared_ptr() },
                                   { mvn, const_gamma_node, mul_gamma, const_beta_node, add_beta });
         add_beta->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), add_beta);
+        ov::replace_node(m.get_match_root(), add_beta);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(add, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

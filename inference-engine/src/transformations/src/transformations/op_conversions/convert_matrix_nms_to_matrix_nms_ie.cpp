@@ -16,14 +16,14 @@
 #include "ngraph_ops/nms_static_shape_ie.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatrixNmsToMatrixNmsIE, "ConvertMatrixNmsToMatrixNmsIE", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertMatrixNmsToMatrixNmsIE, "ConvertMatrixNmsToMatrixNmsIE", 0);
 
-ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE() {
+ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE() {
     MATCHER_SCOPE(ConvertMatrixNmsToMatrixNmsIE);
-    auto nms = ngraph::pattern::wrap_type<ngraph::opset8::MatrixNms>();
+    auto nms = ov::pattern::wrap_type<ov::opset8::MatrixNms>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
-        auto nms = std::dynamic_pointer_cast<ngraph::opset8::MatrixNms>(m.get_match_root());
+    ov::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        auto nms = std::dynamic_pointer_cast<ov::opset8::MatrixNms>(m.get_match_root());
         if (!nms) {
             return false;
         }
@@ -33,7 +33,7 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE() {
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
         attrs.output_type = element::i32;
-        auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(
+        auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ov::opset8::MatrixNms>>(
                 new_args.at(0),
                 new_args.at(1),
                 attrs);
@@ -56,11 +56,11 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE() {
         }
 
         nms_new->set_friendly_name(nms->get_friendly_name());
-        ngraph::copy_runtime_info(nms, new_ops);
-        ngraph::replace_node(nms, {output_0, output_1, output_2});
+        ov::copy_runtime_info(nms, new_ops);
+        ov::replace_node(nms, {output_0, output_1, output_2});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

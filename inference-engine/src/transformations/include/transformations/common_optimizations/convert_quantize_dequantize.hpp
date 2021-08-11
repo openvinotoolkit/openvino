@@ -11,13 +11,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertQuantizeDequantize;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -30,7 +30,7 @@ class TRANSFORMATIONS_API ConvertQuantizeDequantize;
  * - 'zero_point' and 'scale' must be broadcastable to FakeQuantize's output
  */
 
-class ngraph::pass::ConvertQuantizeDequantize: public ngraph::pass::MatcherPass {
+class ov::pass::ConvertQuantizeDequantize: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertQuantizeDequantize();

@@ -18,7 +18,7 @@
 #include <transformations_visibility.hpp>
 
 
-namespace ngraph {
+namespace ov {
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -74,9 +74,9 @@ public:
 
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 
-    std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector & nodes) override;
+    std::shared_ptr<ov::Variant> merge(const ov::NodeVector & nodes) override;
 
-    std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
+    std::shared_ptr<ov::Variant> init(const std::shared_ptr<ov::Node> & node) override;
 };
 
 /**
@@ -84,7 +84,7 @@ public:
  * @brief getFusedNames return string with operation names separated by coma in alphabetical order
  * @param[in] node The node will be used to get FusedNames attribute
  */
-TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ngraph::Node> & node);
+TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ov::Node> & node);
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -92,6 +92,6 @@ TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ngraph::Node
  * @param[in] node The node will be used to get FusedNames attribute
  * @return vector of strings
  */
-TRANSFORMATIONS_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> & node);
+TRANSFORMATIONS_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ov::Node> & node);
 
-}  // namespace ngraph
+}  // namespace ov

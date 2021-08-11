@@ -13,14 +13,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/pattern.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPadToGroupConvolution, "ConvertPadToGroupConvolution", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::ConvertPadToGroupConvolution, "ConvertPadToGroupConvolution", 0);
 
-ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
+ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     MATCHER_SCOPE(ConvertPadToGroupConvolution);
-    auto neg = ngraph::pattern::wrap_type<opset4::Pad>(pattern::has_static_dim(1));
+    auto neg = ov::pattern::wrap_type<opset4::Pad>(pattern::has_static_dim(1));
 
-    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto pad = std::dynamic_pointer_cast<ngraph::opset4::Pad> (m.get_match_root());
+    ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        auto pad = std::dynamic_pointer_cast<ov::opset4::Pad> (m.get_match_root());
         if (!pad) {
             return false;
         }
@@ -77,11 +77,11 @@ ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         auto conv = std::make_shared<opset4::GroupConvolution>(input, weights, stride, new_pad_begin, new_pad_end, stride);
 
         conv->set_friendly_name(pad->get_friendly_name());
-        ngraph::copy_runtime_info(pad, conv);
-        ngraph::replace_node(pad, conv);
+        ov::copy_runtime_info(pad, conv);
+        ov::replace_node(pad, conv);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(neg, matcher_name);
+    auto m = std::make_shared<ov::pattern::Matcher>(neg, matcher_name);
     this->register_matcher(m, callback);
 }

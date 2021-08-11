@@ -11,13 +11,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API DilatedConvolutionConverter;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API DilatedConvolutionConverter;
  * - pads in SpaceToBatch must have 0 on first and second position
  */
 
-class ngraph::pass::DilatedConvolutionConverter: public ngraph::pass::MatcherPass {
+class ov::pass::DilatedConvolutionConverter: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     DilatedConvolutionConverter();

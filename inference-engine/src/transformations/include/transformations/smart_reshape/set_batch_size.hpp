@@ -12,21 +12,21 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API SetBatchSize;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief Generic caller for all the transformations responsible to make model reshape-able by batch dimension
  */
 
-class ngraph::pass::SetBatchSize: public ngraph::pass::FunctionPass {
+class ov::pass::SetBatchSize: public ov::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<ov::Function> f) override;
 };

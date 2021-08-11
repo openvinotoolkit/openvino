@@ -11,7 +11,7 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "ngraph/pattern/matcher.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API NormalizeL2Fusion;
@@ -19,14 +19,14 @@ class TRANSFORMATIONS_API NormalizeL2FusionWithMax;
 class TRANSFORMATIONS_API NormalizeL2FusionWithAdd;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
  * @brief NormalizeL2FusionWithMax transformation replaces a sub-graph
  * x/(max(sqrt(sum(x[j0, ..., jN]**2), eps)) with a NormalizeL2 op.
  */
-class ngraph::pass::NormalizeL2FusionWithMax: public ngraph::pass::MatcherPass {
+class ov::pass::NormalizeL2FusionWithMax: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     NormalizeL2FusionWithMax();
@@ -37,7 +37,7 @@ public:
  * @brief NormalizeL2FusionWithAdd transformation replaces a sub-graph
  * x/(add(sqrt(sum(x[j0, ..., jN]**2), eps)) with a NormalizeL2 op.
  */
-class ngraph::pass::NormalizeL2FusionWithAdd: public ngraph::pass::MatcherPass {
+class ov::pass::NormalizeL2FusionWithAdd: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     NormalizeL2FusionWithAdd();
@@ -47,11 +47,11 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief NormalizeL2Fusion transformation replaces various sub-graphs with a NormalizeL2 op.
  */
-class ngraph::pass::NormalizeL2Fusion: public ngraph::pass::GraphRewrite {
+class ov::pass::NormalizeL2Fusion: public ov::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     NormalizeL2Fusion() {
-        add_matcher<ngraph::pass::NormalizeL2FusionWithMax>();
-        add_matcher<ngraph::pass::NormalizeL2FusionWithAdd>();
+        add_matcher<ov::pass::NormalizeL2FusionWithMax>();
+        add_matcher<ov::pass::NormalizeL2FusionWithAdd>();
     }
 };

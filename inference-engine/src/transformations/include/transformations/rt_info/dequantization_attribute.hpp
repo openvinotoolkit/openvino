@@ -18,7 +18,7 @@
 #include <transformations_visibility.hpp>
 
 
-namespace ngraph {
+namespace ov {
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -60,9 +60,9 @@ public:
 
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 
-    std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector & nodes) override;
+    std::shared_ptr<ov::Variant> merge(const ov::NodeVector & nodes) override;
 
-    std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
+    std::shared_ptr<ov::Variant> init(const std::shared_ptr<ov::Node> & node) override;
 };
 
 /**
@@ -70,6 +70,6 @@ public:
  * @brief getDequantization return string with dequantization value
  * @param[in] node The node will be used to get Dequantization attribute
  */
-TRANSFORMATIONS_API std::string getDequantization(const std::shared_ptr<ngraph::Node>& node);
+TRANSFORMATIONS_API std::string getDequantization(const std::shared_ptr<ov::Node>& node);
 
-}  // namespace ngraph
+}  // namespace ov

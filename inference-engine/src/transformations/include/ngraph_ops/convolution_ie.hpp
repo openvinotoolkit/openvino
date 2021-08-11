@@ -13,7 +13,7 @@
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 
 class TRANSFORMATIONS_API ConvolutionIE : public Op {
@@ -120,4 +120,4 @@ protected:
 };
 
 }  // namespace op
-}  // namespace ngraph
+}  // namespace ov
