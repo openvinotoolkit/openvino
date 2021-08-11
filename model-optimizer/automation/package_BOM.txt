@@ -24,7 +24,6 @@ extensions/back/ForceStrictPrecision.py
 extensions/back/fuse_sub_div_min.py
 extensions/back/FuseTransposesSequence.py
 extensions/back/GatherNormalizer.py
-extensions/back/GroupedConvWeightsNormalize.py
 extensions/back/insert_compatibility_l2normalization.py
 extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
@@ -47,7 +46,7 @@ extensions/back/ReduceMerge.py
 extensions/back/ReduceTransposeDimensions.py
 extensions/back/remove_last_softmax_pattern.py
 extensions/back/RemoveUselessConvert.py
-extensions/back/Reshape0DToSqueeze.py
+extensions/back/Reshape0DToSqueeze.py/Users/elazarev/Documents/git/dldt/model-optimizer/extensions/back/ConvolutionNormalizer.py
 extensions/back/ReshapeMutation.py
 extensions/back/ResultNormalizer.py
 extensions/back/ResultRename.py
