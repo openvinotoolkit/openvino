@@ -14,7 +14,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
-    ngraph::element::f16
+    // ngraph::element::f16
 };
 
 const std::vector<ngraph::PartialShape> inputShapes = {
@@ -27,7 +27,6 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
 };
 
 namespace commonTestCases {
-
 const std::vector<ngraph::op::PadMode> padModes = {
     ngraph::op::PadMode::CONSTANT,
     ngraph::op::PadMode::EDGE,
@@ -87,7 +86,6 @@ INSTANTIATE_TEST_CASE_P(smoke_LPT, PadTransformation,
 } // namespace commonTestCases
 
 namespace testCasesForConstantMode {
-
 const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
     // tensor quantization
     {
@@ -111,7 +109,6 @@ INSTANTIATE_TEST_CASE_P(smoke_LPT, PadTransformation,
 } // namespace testCasesForConstantMode
 
 namespace testCasesForOtherModes {
-
 const std::vector<ngraph::op::PadMode> modesWithoutConstant = {
     ngraph::op::PadMode::EDGE,
     ngraph::op::PadMode::REFLECT,
@@ -139,5 +136,4 @@ INSTANTIATE_TEST_CASE_P(smoke_LPT, PadTransformation,
         ::testing::ValuesIn(params)),
     PadTransformation::getTestCaseName);
 } // namespace testCasesForOtherModes
-
 }  // namespace

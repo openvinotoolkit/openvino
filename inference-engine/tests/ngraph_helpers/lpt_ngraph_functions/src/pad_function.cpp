@@ -58,13 +58,14 @@ std::shared_ptr<Function> PadFunction::get(
     const builder::subgraph::FakeQuantizeOnData& fakeQuantize,
     const std::vector<uint64_t>& padsBegin,
     const std::vector<uint64_t>& padsEnd,
-    const op::PadMode mode) {
+    const op::PadMode mode,
+    const float padValue) {
     const auto input = std::make_shared<opset1::Parameter>(inputPrecision, inputShape);
     const auto fqOnData = makeFakeQuantize(input, inputPrecision, fakeQuantize);
 
     const auto padsBeginConst = opset1::Constant::create(element::u64, Shape{ padsBegin.size() }, padsBegin);
     const auto padsEndConst = opset1::Constant::create(element::u64, Shape{ padsEnd.size() }, padsEnd);
-    const auto padsValueConst = opset1::Constant::create(inputPrecision, Shape{}, { 0.f });
+    const auto padsValueConst = opset1::Constant::create(inputPrecision, Shape{}, { padValue });
     const auto pad = std::make_shared<opset1::Pad>(fqOnData, padsBeginConst, padsEndConst, padsValueConst, mode);
     pad->set_friendly_name("Pad");
 

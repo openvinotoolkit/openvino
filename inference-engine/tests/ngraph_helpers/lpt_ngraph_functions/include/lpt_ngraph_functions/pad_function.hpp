@@ -33,7 +33,8 @@ static std::shared_ptr<Function> get(
     const builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
     const std::vector<uint64_t>& padsBegin,
     const std::vector<uint64_t>& padsEnd,
-    const op::PadMode mode);
+    const op::PadMode mode,
+    const float padValue = 0.f);
 };
 }  // namespace subgraph
 }  // namespace builder

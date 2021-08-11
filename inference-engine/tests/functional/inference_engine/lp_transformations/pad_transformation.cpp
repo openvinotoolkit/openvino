@@ -108,6 +108,7 @@ public:
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.expected.dequantizationBefore;
+
         return result.str();
     }
 };
@@ -374,7 +375,7 @@ const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
             ngraph::element::u8,
             {{}, {}, {}},
             ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.f, 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 0.f}, ngraph::element::f32, {1, 1, 9, 1}}}
+            {{ngraph::element::f32}, {}, {{1.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 1.f}, ngraph::element::f32, {1, 1, 9, 1}}}
         }
     }
 };
@@ -391,48 +392,111 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation::getTestCaseName);
 } // namespace testCasesForConstantMode
 
-// dequantization with "CONSTANT" mode and non zero value: dequantization isn't propagated
-namespace testCasesForConstantModeWithNonZeroValues {
-const std::vector<PadTransformationTestValues> testValuesForConstantMode2 = {
+ // dequantization with "CONSTANT" mode (non zero value) and non unique pad dimension: dequantization isn't propagated
+ namespace testCasesForConstantModeWithNonZeroValues {
+ const std::vector<PadTransformationTestValues> testValuesForConstantMode2 = {
+     {
+         LayerTransformation::createParamsI8I8(),
+         {
+             ngraph::element::i8,
+             {{ngraph::element::f32}, {}, {3.f}}
+         },
+         {
+             ngraph::element::i8,
+             {{ngraph::element::f32}, {}, {3.f}},
+             ngraph::element::f32,
+             {{}, {}, {}}
+         }
+     },
+     {
+         LayerTransformation::createParamsI8I8(),
+         {
+             ngraph::element::i8,
+             {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}}
+         },
+         {
+             ngraph::element::i8,
+             {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}},
+             ngraph::element::f32,
+             {{}, {}, {}}
+         }
+     },
+     {
+         LayerTransformation::createParamsU8I8(),
+         {
+             ngraph::element::u8,
+             {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}}
+         },
+         {
+             ngraph::element::u8,
+             {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}},
+             ngraph::element::f32,
+             {{}, {}, {}}
+         }
+     }
+ };
+
+ INSTANTIATE_TEST_SUITE_P(
+     smoke_LPT,
+     PadTransformation,
+     ::testing::Combine(
+         ::testing::ValuesIn(inputShapes),
+         ::testing::Values(padsBySpatialDimensions),
+         ::testing::Values(ngraph::op::PadMode::CONSTANT),
+         ::testing::Values(1.f),
+         ::testing::ValuesIn(testValuesForConstantMode2)),
+     PadTransformation::getTestCaseName);
+ } // namespace testCasesForConstantModeWithNonZeroValues
+
+namespace testCasesForConstantModeAndUniquePadDimension {
+const std::pair<std::vector<uint64_t>, std::vector<uint64_t>> padsByUniqueDimension = {
+    {0, 0, 2, 0},
+    {0, 0, 1, 0}
+};
+
+const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
     {
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {3.f}}
+            {
+                {ngraph::element::f32},
+                {{64.f, 64.f, 64.f, 32.f, 32.f, 32.f}, ngraph::element::f32, {1, 1, 6, 1}},
+                {{3.f, 3.f, 3.f, 2.f, 2.f, 2.f}, ngraph::element::f32, {1, 1, 6, 1}}
+            }
         },
         {
             ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {3.f}},
-            ngraph::element::f32,
-            {{}, {}, {}}
+            {},
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{0.f, 0.f, 64.f, 64.f, 64.f, 32.f, 32.f, 32.f, 0.f}, ngraph::element::f32, {1, 1, 9, 1}},
+                {{1.f, 1.f, 3.f, 3.f, 3.f, 2.f, 2.f, 2.f, 1.f}, ngraph::element::f32, {1, 1, 9, 1}}
+            }
         }
     },
     {
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}}
+            {
+                {ngraph::element::f32},
+                {64.f},
+                {3.f}
+            }
         },
         {
             ngraph::element::i8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}},
-            ngraph::element::f32,
-            {{}, {}, {}}
+            {},
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{0.f, 0.f, 64.f, 64.f, 64.f, 64.f, 64.f, 64.f, 0.f}, ngraph::element::f32, {1, 1, 9, 1}},
+                {3.f}
+            }
         }
     },
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}}
-        },
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{3.f, 1.f, 2.f}}},
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    }
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -440,12 +504,75 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::Values(padsBySpatialDimensions),
+        ::testing::Values(padsByUniqueDimension),
         ::testing::Values(ngraph::op::PadMode::CONSTANT),
-        ::testing::Values(1.f),
-        ::testing::ValuesIn(testValuesForConstantMode2)),
+        ::testing::Values(0.f),
+        ::testing::ValuesIn(testValuesForConstantMode)),
     PadTransformation::getTestCaseName);
-} // namespace testCasesForConstantModeWithNonZeroValues
+} // namespace testCasesForConstantModeAndUniquePadDimension
+
+namespace testCasesForNonZeroConstantModeAndUniquePadDimension {
+const std::pair<std::vector<uint64_t>, std::vector<uint64_t>> padsByUniqueDimension = {
+    {0, 0, 2, 0},
+    {0, 0, 1, 0}
+};
+
+const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{3.f, 3.f, 3.f, 2.f, 2.f, 2.f}, ngraph::element::f32, {1, 1, 6, 1}}
+            }
+        },
+        {
+            ngraph::element::i8,
+            {},
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{1.f, 1.f, 3.f, 3.f, 3.f, 2.f, 2.f, 2.f, 1.f}, ngraph::element::f32, {1, 1, 9, 1}}
+            }
+        }
+    },
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {64.f},
+                {3.f}
+            }
+        },
+        {
+            ngraph::element::i8,
+            {},
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{0.f, 0.f, 64.f, 64.f, 64.f, 64.f, 64.f, 64.f, 0.f}, ngraph::element::f32, {1, 1, 9, 1}},
+                {{1.f, 1.f, 3.f, 3.f, 3.f, 3.f, 3.f, 3.f, 1.f}, ngraph::element::f32, {1, 1, 9, 1}}
+            }
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    PadTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::Values(padsByUniqueDimension),
+        ::testing::Values(ngraph::op::PadMode::CONSTANT),
+        ::testing::Values(2.f),
+        ::testing::ValuesIn(testValuesForConstantMode)),
+    PadTransformation::getTestCaseName);
+} // namespace testCasesForNonZeroConstantModeAndUniquePadDimension
 
 namespace testCasesForEdgeMode {
 const std::vector<PadTransformationTestValues> testValuesForEdgeMode = {
