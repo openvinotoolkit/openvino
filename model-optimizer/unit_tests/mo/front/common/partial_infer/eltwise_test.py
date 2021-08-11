@@ -4,9 +4,10 @@
 import unittest
 
 import numpy as np
+from generator import generator, generate
 
 from mo.front.common.partial_infer.eltwise import eltwise_infer
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 from mo.graph.graph import Node
 from mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
@@ -19,8 +20,26 @@ nodes_attributes = {'node_1': {'value': 2, 'kind': 'data'},
                     }
 
 
+@generator
 class TestEltwiseInfer(unittest.TestCase):
-    def test_eltwise_infer_max(self):
+    @generate(*[
+        (np.array(2), [], np.array(3), [], lambda a, b: np.multiply(a, b), np.array(6), []),
+        (np.array(2), [], np.array(3), [], lambda a, b: np.maximum(a, b), np.array(3), []),
+        (np.array(2), [], np.array(3), [], lambda a, b: np.add(a, b), np.array(5), []),
+        (None, [1, 5], None, [1, 1], lambda a, b: np.add(a, b), None, [1, 5]),
+        (None, [dynamic_dimension_value, 3], None, [1, 1], lambda a, b: np.add(a, b), None,
+         [dynamic_dimension_value, 3]),
+        (None, [dynamic_dimension_value, 3], None, [1, dynamic_dimension_value], lambda a, b: np.add(a, b), None,
+         [dynamic_dimension_value, 3]),
+        (None, [4, 5, dynamic_dimension_value, 3], None, [1, dynamic_dimension_value], lambda a, b: np.add(a, b), None,
+         [4, 5, dynamic_dimension_value, 3]),
+        # dynamic value propagation
+        (shape_array([dynamic_dimension_value, 5]), [2], np.array(3), [], lambda a, b: np.add(a, b),
+         shape_array([dynamic_dimension_value, 8]), [2]),
+        (shape_array([dynamic_dimension_value, 5]), [2], np.array([3, 7]), [], lambda a, b: np.add(a, b),
+         shape_array([dynamic_dimension_value, 12]), [2]),
+    ])
+    def test_eltwise_infer(self, value1, shape1, value2, shape2, shape_infer, exp_value, exp_shape):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'eltw_1'),
                              ('node_2', 'eltw_1'),
@@ -28,71 +47,22 @@ class TestEltwiseInfer(unittest.TestCase):
                              ('node_3', 'op_output')
                              ],
                             {'node_3': {'shape': None},
-                             'node_1': {'shape': int64_array([])},
-                             'node_2': {'shape': int64_array([])},
+                             'node_1': {'shape': value1.shape if value1 is not None else shape_array(shape1),
+                                        'value': value1},
+                             'node_2': {'shape': value2.shape if value2 is not None else shape_array(shape2),
+                                        'value': value2}
                              })
 
         graph.graph['layout'] = 'NCHW'
 
         eltwise_node = Node(graph, 'eltw_1')
 
-        eltwise_infer(eltwise_node, lambda a, b: np.maximum(a, b))
-        exp_shape = int64_array([])
-        exp_value = 3
+        eltwise_infer(eltwise_node, shape_infer)
         res_shape = graph.node['node_3']['shape']
         res_value = eltwise_node.out_node().value
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape[i])
-
-        self.assertEqual(exp_value, res_value)
-
-    def test_eltwise_infer_sum(self):
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'eltw_1'),
-                             ('node_2', 'eltw_1'),
-                             ('eltw_1', 'node_3'),
-                             ('node_3', 'op_output')
-                             ],
-                            {'node_3': {'shape': None},
-                             'node_1': {'shape': int64_array([])},
-                             'node_2': {'shape': int64_array([])}
-                             })
-        graph.graph['layout'] = 'NCHW'
-        eltwise_node = Node(graph, 'eltw_1')
-
-        eltwise_infer(eltwise_node, lambda a, b: np.add(a, b))
-        exp_shape = int64_array([])
-        exp_value = 5
-        res_shape = graph.node['node_3']['shape']
-        res_value = eltwise_node.out_node().value
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape[i])
-
-        self.assertEqual(exp_value, res_value)
-
-    def test_eltwise_infer_mul(self):
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'eltw_1'),
-                             ('node_2', 'eltw_1'),
-                             ('eltw_1', 'node_3'),
-                             ('node_3', 'op_output')
-                             ],
-                            {'node_3': {'shape': None},
-                             'node_1': {'shape': int64_array([])},
-                             'node_2': {'shape': int64_array([])}
-                             })
-        graph.graph['layout'] = 'NCHW'
-        eltwise_node = Node(graph, 'eltw_1')
-
-        eltwise_infer(eltwise_node, lambda a, b: np.multiply(a, b))
-        exp_shape = int64_array([])
-        exp_value = 6
-        res_shape = graph.node['node_3']['shape']
-        res_value = eltwise_node.out_node().value
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape[i])
-
-        self.assertEqual(exp_value, res_value)
+        if exp_value is not None:
+            self.assertTrue(np.ma.allequal(res_value, exp_value))
+        self.assertTrue(np.ma.allequal(res_shape, exp_shape))
 
     def test_eltwise_infer_none_val(self):
         graph = build_graph(nodes_attributes,
