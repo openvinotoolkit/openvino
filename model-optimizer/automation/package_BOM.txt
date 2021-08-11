@@ -299,7 +299,6 @@ extensions/front/onnx/group_norm_ext.py
 extensions/front/onnx/gru_ext.py
 extensions/front/onnx/hard_sigmoid_ext.py
 extensions/front/onnx/identity_ext.py
-extensions/front/onnx/If_ext.py
 extensions/front/onnx/image_scaler_ext.py
 extensions/front/onnx/instance_normalization_ext.py
 extensions/front/onnx/logsoftmaxONNX_to_logsoftmax.py
