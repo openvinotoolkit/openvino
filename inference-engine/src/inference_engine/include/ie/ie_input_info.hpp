@@ -142,7 +142,7 @@ public:
      * @brief Returns the input shape. May have undefined dimensions.
      * @return PartialShape object describing input shape.
      */
-     ngraph::PartialShape getPartialShape() {
+    ngraph::PartialShape getPartialShape() {
         if (!_inputData) {
             IE_THROW() << "Data is empty!";
         }
