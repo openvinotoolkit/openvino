@@ -54,72 +54,18 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
 # Gflags
 #
 
-function(add_gflags)
-    # common gflags settings
-    set(GFLAGS_IS_SUBPROJECT TRUE)
-    set(HAVE_SYS_STAT_H 1)
-    set(HAVE_INTTYPES_H 1)
-    set(INTTYPES_FORMAT C99)
-    set(BUILD_TESTING OFF)
-    set(BUILD_SHARED_LIBS OFF)
-
-    add_subdirectory(gflags EXCLUDE_FROM_ALL)
-
-    set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
-    openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
-endfunction()
-
-add_gflags()
+add_subdirectory(gflags EXCLUDE_FROM_ALL)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 
 #
 # Google Tests framework
 #
 
-function(add_gtest_libraries)
-    set(gtest_force_shared_crt ON CACHE BOOL "disable static CRT for google test")
-
-    set(BUILD_SHARED_LIBS OFF)
-    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
-
-    get_target_property(gtest_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
-    set_target_properties(gtest PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${gtest_include_dirs}")
-
-    get_target_property(gmock_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
-    set_target_properties(gmock PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${gmock_include_dirs};${gmock_SOURCE_DIR}/include")
-
-    set(gtest_targets gtest gtest_main gmock gmock_main)
-
-    foreach(target IN LISTS gtest_targets)
-    # If we have specified /Z7 option, remove -Zi option which comes from gtest
-        if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-            get_target_property(_target_cxx_flags ${target} COMPILE_OPTIONS)
-            if(_target_cxx_flags)
-                if(CMAKE_CXX_FLAGS_DEBUG MATCHES ".+/Z7.+" OR CMAKE_CXX_FLAGS_RELWITHDEBINFO MATCHES ".+/Z7.+")
-                    string(REPLACE "-Zi" " " _target_cxx_flags ${_target_cxx_flags})
-                    message(STATUS "Removing -Zi flag from target " ${target})
-                    set_target_properties(${target} PROPERTIES COMPILE_OPTIONS "${_target_cxx_flags}")
-                endif()
-            endif()
-        elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
-            CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-            target_compile_options(${target} PRIVATE -Wno-undef)
-            if(CMAKE_COMPILER_IS_GNUCXX)
-                target_compile_options(${target} PRIVATE -Wno-deprecated-copy)
-            endif()
-        endif()
-        ov_disable_all_warnings(${target})
-    endforeach()
-
-    set_target_properties(gtest gtest_main gmock gmock_main
-                          PROPERTIES FOLDER thirdparty)
 
     openvino_developer_export_targets(COMPONENT inference_engine_tests
                                       TARGETS gmock gmock_main gtest gtest_main)
-endfunction()
-
-if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
-    add_gtest_libraries()
 endif()
 
 #
