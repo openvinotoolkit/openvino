@@ -115,7 +115,9 @@ struct InferRequestWrap {
 
     void setBlob(const std::string& blob_name, const InferenceEngine::Blob::Ptr& blob_ptr);
 
-    void setBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data, const InferenceEngine::PreProcessInfo& info);
+    void setBlob(const std::string& name,
+                 const InferenceEngine::Blob::Ptr& data,
+                 const InferenceEngine::PreProcessInfo& info);
 
     void setBatch(int size);
 
@@ -160,13 +162,23 @@ struct IECore {
     std::map<std::string, InferenceEngine::Version> getVersions(const std::string& deviceName);
     InferenceEnginePython::IENetwork readNetwork(const std::string& modelPath, const std::string& binPath);
     InferenceEnginePython::IENetwork readNetwork(const std::string& model, const uint8_t* bin, size_t bin_size);
-    std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetwork(IENetwork network, const std::string& deviceName,
-                                                                      const std::map<std::string, std::string>& config, int num_requests);
-    std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetworkFromFile(const std::string& modelPath, const std::string& deviceName,
-                                                                              const std::map<std::string, std::string>& config, int num_requests);
-    std::unique_ptr<InferenceEnginePython::IEExecNetwork> importNetwork(const std::string& modelFIle, const std::string& deviceName,
-                                                                        const std::map<std::string, std::string>& config, int num_requests);
-    std::map<std::string, std::string> queryNetwork(IENetwork network, const std::string& deviceName, const std::map<std::string, std::string>& config);
+    std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetwork(IENetwork network,
+                                                                      const std::string& deviceName,
+                                                                      const std::map<std::string, std::string>& config,
+                                                                      int num_requests);
+    std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetworkFromFile(
+        const std::string& modelPath,
+        const std::string& deviceName,
+        const std::map<std::string, std::string>& config,
+        int num_requests);
+    std::unique_ptr<InferenceEnginePython::IEExecNetwork> importNetwork(
+        const std::string& modelFIle,
+        const std::string& deviceName,
+        const std::map<std::string, std::string>& config,
+        int num_requests);
+    std::map<std::string, std::string> queryNetwork(IENetwork network,
+                                                    const std::string& deviceName,
+                                                    const std::map<std::string, std::string>& config);
     void setConfig(const std::map<std::string, std::string>& config, const std::string& deviceName = std::string());
     void registerPlugin(const std::string& pluginName, const std::string& deviceName);
     void unregisterPlugin(const std::string& deviceName);
