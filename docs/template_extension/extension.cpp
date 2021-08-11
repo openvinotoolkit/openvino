@@ -49,12 +49,15 @@ Extension::Extension() {
 
 //! [extension:dtor]
 Extension::~Extension() {
-#ifdef NGRAPH_ONNX_FRONTEND_ENABLED
-    ngraph::onnx_import::unregister_operator(Operation::type_info.name, 1, "custom_domain");
-#    ifdef OPENCV_IMPORT_ENABLED
-    ngraph::onnx_import::unregister_operator(FFTOp::type_info.name, 1, "custom_domain");
-#    endif  // OPENCV_IMPORT_ENABLED
-#endif      // NGRAPH_ONNX_FRONTEND_ENABLED
+    try {
+#ifdef NGRAPH_ONNX_IMPORT_ENABLED
+        ngraph::onnx_import::unregister_operator(Operation::type_info.name, 1, "custom_domain");
+    #ifdef OPENCV_IMPORT_ENABLED
+        ngraph::onnx_import::unregister_operator(FFTOp::type_info.name, 1, "custom_domain");
+    #endif  // OPENCV_IMPORT_ENABLED
+#endif      // NGRAPH_ONNX_IMPORT_ENABLED
+    } catch (...) {
+    }
 }
 //! [extension:dtor]
 

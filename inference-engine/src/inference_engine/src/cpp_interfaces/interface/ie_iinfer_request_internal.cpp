@@ -126,11 +126,10 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
             data = it->second->getRoiBlob();
         } else {
             data = _inputs[name];
-            checkBlob(
-                data,
-                name,
-                true,
-                foundInput->getTensorDesc().getLayout() != SCALAR ? foundInput->getTensorDesc().getDims() : oneVector);
+            const auto& dims = foundInput->getTensorDesc().getDims();
+            // const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) :
+            // foundInput->getTensorDesc().getDims();
+            checkBlob(data, name, true, foundInput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
 
             auto& devBlob = _deviceInputs[name];
             if (preProcessingRequired(foundInput, data, devBlob)) {
@@ -140,11 +139,10 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
         }
     } else {
         data = _outputs[name];
-        checkBlob(
-            data,
-            name,
-            false,
-            foundOutput->getTensorDesc().getLayout() != SCALAR ? foundOutput->getTensorDesc().getDims() : oneVector);
+        // const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) :
+        // foundOutput->getTensorDesc().getDims();
+        const auto& dims = foundOutput->getTensorDesc().getDims();
+        checkBlob(data, name, false, foundOutput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
     }
     return data;
 }
@@ -174,6 +172,10 @@ const PreProcessInfo& IInferRequestInternal::GetPreProcess(const std::string& na
 void IInferRequestInternal::SetBatch(int batch) {
     IE_THROW(NotImplemented);
 }
+
+// void IInferRequestInternal::SetShape(const std::string &name, const SizeVector &dims) {
+//    IE_THROW(NotImplemented);
+//}
 
 std::vector<std::shared_ptr<IVariableStateInternal>> IInferRequestInternal::QueryState() {
     IE_THROW(NotImplemented);
@@ -252,6 +254,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
         IE_THROW(NotAllocated) << strNotAllocated;
     }
     size_t refSize;
+    bool isDynamic = false;
     if (refDims.empty()) {
         SizeVector dims;
         if (isInput) {
@@ -263,7 +266,10 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             if (foundInputPair == std::end(_networkInputs)) {
                 IE_THROW(NotFound) << "Failed to find input with name: \'" << name << "\'";
             }
-            dims = foundInputPair->second->getTensorDesc().getDims();
+            isDynamic = foundInputPair->second->getInputData()->getPartialShape().is_dynamic();
+            dims = /*m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) : */ foundInputPair->second
+                       ->getTensorDesc()
+                       .getDims();
             refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
         } else {
             auto foundOutputPair = std::find_if(std::begin(_networkOutputs),
@@ -274,14 +280,22 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
             if (foundOutputPair == std::end(_networkOutputs)) {
                 IE_THROW(NotFound) << "Failed to find output with name: \'" << name << "\'";
             }
-            dims = foundOutputPair->second->getTensorDesc().getDims();
+            isDynamic = foundOutputPair->second->getPartialShape().is_dynamic();
+            ngraph::PartialShape blobPartialShape(blob->getTensorDesc().getDims());
+            if (foundOutputPair->second->getPartialShape().compatible(blobPartialShape)) {
+                dims = blob->getTensorDesc().getDims();
+            } else {
+                // TODO: it is strange to request tensor desc from data when the shapes are not compatible, probably we
+                // need to immediately throw here
+                dims = foundOutputPair->second->getTensorDesc().getDims();
+            }
             refSize = foundOutputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
         }
     } else {
         refSize = details::product(refDims);
     }
 
-    if (refSize != blob->size()) {
+    if (!isDynamic && refSize != blob->size()) {
         IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
     }
     const bool remoteBlobPassed = blob->is<RemoteBlob>();
