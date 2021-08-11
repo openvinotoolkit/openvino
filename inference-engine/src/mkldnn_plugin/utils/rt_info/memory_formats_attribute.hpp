@@ -10,7 +10,7 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 
-namespace ngraph {
+namespace ov {
 
 constexpr const char *MLKDNNInputMemoryFormatsAttr = "MLKDNNInputMemoryFormats";
 constexpr const char *MLKDNNOutputMemoryFormatsAttr = "MLKDNNOutputMemoryFormats";
@@ -101,4 +101,4 @@ public:
 
 std::string getMLKDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node);
 
-}  // namespace ngraph
+}  // namespace ov

@@ -8,7 +8,7 @@
 
 #include "memory_formats_attribute.hpp"
 
-namespace ngraph {
+namespace ov {
 
 template class ngraph::MLKDNNMemoryFormatsHelper<MLKDNNInputMemoryFormats>;
 constexpr VariantTypeInfo VariantWrapper<MLKDNNInputMemoryFormats>::type_info;
@@ -24,4 +24,4 @@ std::string getMLKDNNOutputMemoryFormats(const std::shared_ptr<ngraph::Node> & n
     return MLKDNNMemoryFormatsHelper<MLKDNNOutputMemoryFormats>::getMemoryFormats(node);
 }
 
-}  // namespace ngraph
+}  // namespace ov
