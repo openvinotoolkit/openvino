@@ -475,7 +475,6 @@ set(MULTI_TEST_SRC
     backend/normalize_l2.in.cpp
     backend/non_max_suppression.in.cpp
     backend/non_zero.in.cpp
-    backend/numeric.in.cpp
     backend/one_hot.in.cpp
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
