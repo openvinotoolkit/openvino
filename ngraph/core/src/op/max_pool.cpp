@@ -24,11 +24,15 @@ op::v1::MaxPool::MaxPool(const Output<Node>& arg,
                          const ov::Shape& kernel,
                          const op::RoundingType rounding_type,
                          const PadType auto_pad)
-    : op::util::MaxPoolBase(arg, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad) {
+    : op::util::MaxPoolBase(arg, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
+{
+    std::cout<< "MAXPOOL_NGRAPHOP" << std::endl;
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor) {
+bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor)
+{
+    std::cout << "visit_attributes" << std::endl;
     NGRAPH_OP_SCOPE(v1_MaxPool_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -39,7 +43,10 @@ bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::v1::MaxPool::validate_and_infer_types() {
+void op::v1::MaxPool::validate_and_infer_types()
+{
+    std::cout<< "validate_and_infer_types" << std::endl;
+
     NGRAPH_OP_SCOPE(v1_MaxPool_validate_and_infer_types);
 
     MaxPoolBase::validate_and_infer_types();
@@ -49,7 +56,9 @@ void op::v1::MaxPool::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
-shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    std::cout<< "clone_with_new_inputs" << std::endl;
     NGRAPH_OP_SCOPE(v1_MaxPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::MaxPool>(new_args.at(0),
