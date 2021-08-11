@@ -56,7 +56,7 @@ void Node::init_order()
     }
 
     // Find position for new element and orders
-    std::vector<std::pair<int64_t, OrderElement::Ptr>> elements;
+    std::vector<std::pair<std::pair<int64_t /*id*/, int64_t/*depth*/>, OrderElement::Ptr>> elements;
     OrderElement::Ptr max_element;
     for (auto & p : orders) {
         if (p.second != m_order) continue;
@@ -73,19 +73,13 @@ void Node::init_order()
             break;
         }
 
-        elements.emplace_back(el->get_id(), el);
+        elements.emplace_back(el->get_id_with_depth(), el);
     }
-
-    sort(elements.rbegin(), elements.rend());
 
     if (!max_element && !elements.empty())
     {
+        sort(elements.rbegin(), elements.rend());
         max_element = elements[0].second;
-        if (elements.size() > 1)
-        {
-            assert(elements[0].first > elements[1].first);
-            // TODO: search for max element
-        }
     }
 
     assert(orders.empty() || max_element);
@@ -166,9 +160,13 @@ Node::Node(const OutputVector& arguments, size_t output_size) : Node() {
     init_order();
 }
 
-Node::~Node() {
-    for (descriptor::Input& input : m_inputs) {
-        if (input.has_output()) {
+Node::~Node()
+{
+    m_order->remove(m_order_element);
+    for (descriptor::Input& input : m_inputs)
+    {
+        if (input.has_output())
+        {
             // This test adds 1 to the actual count, so a count of 2 means this input is the only
             // reference to the node.
             if (input.get_output().get_node().use_count() == 2) {
@@ -181,7 +179,6 @@ Node::~Node() {
             input.remove_output();
         }
     }
-    m_order->remove(m_order_element);
     // std::cout << "~Node: " << (size_t)this << std::endl;
 }
 

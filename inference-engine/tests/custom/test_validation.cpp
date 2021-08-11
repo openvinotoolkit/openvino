@@ -6,7 +6,9 @@
 #include <gtest/gtest.h>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <chrono>
+
 #include <inference_engine.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
@@ -31,11 +33,12 @@ bool is_topological_order(const NodeVector & nodes) {
 TEST(check, bert) {
     auto core = InferenceEngine::Core();
     //auto net = core.ReadNetwork("/tmp/googlenet-v4.xml");
-    auto net = core.ReadNetwork("/tmp/text-to-speech-en-multi-0001-regression.xml");
-    // auto net = core.ReadNetwork("/Users/gleb_dmitrievich/Work/repos/openvino/yolo-v2-ava-0001.xml");
+    //auto net = core.ReadNetwork("/tmp/text-to-speech-en-multi-0001-regression.xml");
+    //auto net = core.ReadNetwork("/Users/gleb_dmitrievich/Work/repos/openvino/yolo-v2-ava-0001.xml");
+    auto net = core.ReadNetwork("/Users/gleb_dmitrievich/Work/repos/openvino/bert-small-uncased-whole-word-masking-squad-0002.xml");
     auto f = net.getFunction();
 
-    const int iter = 1;
+    const int iter = 100;
 
     std::cout << "get_ordered_ops()\n";
     {
@@ -127,7 +130,19 @@ TEST(check, bert) {
 
     std::cout << "apply common optimizations\n";
     {
-        std::cout << "CommonOptimizations: optimized" << std::endl;
+        std::vector<double> t1(iter);
+        for (auto &d : t1) {
+            auto before = std::chrono::high_resolution_clock::now();
+            m.run_passes(f);
+            auto after = std::chrono::high_resolution_clock::now();
+            d = std::chrono::duration_cast<std::chrono::nanoseconds>(after - before).count();
+        }
+        auto diff = std::accumulate(t1.begin(), t1.end(), 0.0) / t1.size();
+        printf("Elapsed time is %lf nanoseconds.\n", diff);
+    }
+
+    std::cout << "again apply common optimizations\n";
+    {
         std::vector<double> t1(iter);
         for (auto &d : t1) {
             auto before = std::chrono::high_resolution_clock::now();
@@ -241,5 +256,33 @@ TEST(check, apply_transformation)
         el = el->output;
     }
     ASSERT_EQ(topological_order.size(), 6);
+    ASSERT_TRUE(is_topological_order(topological_order));
+}
+
+TEST(check, constant_folding)
+{
+    std::shared_ptr<Function> f;
+    {
+        auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
+        auto shapeof = std::make_shared<opset5::ShapeOf>(data);
+        auto mul = std::make_shared<opset5::Multiply>(shapeof, opset5::Constant::create(element::i64, Shape{}, {1}));
+        auto reshape = std::make_shared<opset5::Reshape>(data, mul, true);
+        f = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
+    }
+
+    ngraph::pass::Manager m;
+    m.register_pass<ngraph::pass::ConstantFolding>();
+    m.run_passes(f);
+
+    auto order = (*f->get_parameters().begin())->m_order;
+    auto el = order->begin();
+    NodeVector topological_order;
+    while (el)
+    {
+        topological_order.push_back(el->node->shared_from_this());
+        std::cout << el->node->get_type_name() << std::endl;
+        el = el->output;
+    }
+    ASSERT_EQ(topological_order.size(), 4);
     ASSERT_TRUE(is_topological_order(topological_order));
 }

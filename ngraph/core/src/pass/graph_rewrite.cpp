@@ -167,46 +167,9 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f,
     // list of matchers to run for a node; define here to keep memory allocated
     std::vector<size_t> matcher_passes_to_run;
 
-//    for (auto & node : f->get_ordered_ops())
-//    {
-//        if (forward)
-//        {
-//            nodes_to_run.push_back(node);
-//        }
-//        else
-//        {
-//            nodes_to_run.push_front(node);
-//        }
-//    }
-    std::cout << "GraphRewrite:" <<  get_name() << std::endl;
     auto order = f->get_parameters()[0]->m_order;
     order->reindexing();
     auto el = (forward ? order->begin() : order->end());
-
-    std::cout << "BEFORE!\n";
-    auto order_after = f->get_parameters()[0]->m_order;
-    order->reindexing();
-    el = order->begin();
-
-    int64_t cnt_orig = 0;
-    for (auto node :f->get_ordered_ops()) {
-        auto tmp = node->m_order_element;
-        if (tmp->id_is_not_set()) {
-            std::cout << "ID IS NOT SET FOR: " << tmp->node << std::endl;
-        }
-        ++cnt_orig;
-    }
-    auto tmp = el;
-    int64_t cnt{0};
-    while (tmp) {
-        if (tmp->id_is_not_set()) {
-            std::cout << "ID IS NOT SET FOR: " << tmp->node << std::endl;
-        }
-        tmp = tmp->output;
-        ++cnt;
-    }
-    std::cout << "ops count (cached): " << cnt << std::endl;
-    std::cout << "ops count (orig): " << cnt_orig << std::endl;
 
     while (el || !nodes_to_run.empty())
     {

@@ -48,6 +48,31 @@ namespace ngraph
             // throw ngraph::ngraph_error("No element with id was found");
         }
 
+        std::pair<int64_t, int64_t> get_id_with_depth() const
+        {
+            if (!id_is_not_set())
+            {
+                return {m_id, 0};
+            }
+
+            int64_t depth = 0;
+            auto el = input;
+            while (el)
+            {
+                if (el->id_is_not_set())
+                {
+                    ++depth;
+                    el = el->input;
+                }
+                else
+                {
+                    return {el->get_id(), depth};
+                }
+            }
+            return {0, depth};
+            // throw ngraph::ngraph_error("No element with id was found");
+        }
+
         void set_id(int64_t id) { m_id = id; }
 
         void reset_id() { m_id = -1; }
