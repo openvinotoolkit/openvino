@@ -113,19 +113,7 @@ endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
     NOT DEFINED OpenVINO_SOURCE_DIR)
-    function(add_gflags)
-        # common gflags settings
-        set(GFLAGS_IS_SUBPROJECT TRUE)
-        set(HAVE_SYS_STAT_H 1)
-        set(HAVE_INTTYPES_H 1)
-        set(INTTYPES_FORMAT C99)
-        set(BUILD_TESTING OFF)
-        set(BUILD_SHARED_LIBS OFF)
-
-        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
-    endfunction()
-    add_gflags()
+    add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
