@@ -439,7 +439,7 @@ struct ThrowNow final {
 #ifdef NDEBUG
 #    define IE_ASSERT(EXPRESSION) \
         if (!(EXPRESSION))        \
-        IE_THROW(GeneralError) << " AssertionFailed: " << #EXPRESSION  // NOLINT
+        IE_THROW(GeneralError) << " AssertionFailed: " << #EXPRESSION
 #else
 /**
  * @private

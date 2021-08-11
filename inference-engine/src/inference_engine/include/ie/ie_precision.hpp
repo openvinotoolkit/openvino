@@ -67,7 +67,7 @@ public:
      * @brief Constructor with specified precision
      * @param value A value of ePrecision to create an object from
      */
-    Precision(const Precision::ePrecision value) {  // NOLINT
+    Precision(const Precision::ePrecision value) {
         precisionInfo = getPrecisionInfo(value);
     }
 

@@ -37,7 +37,7 @@ public:
     /**
      * @brief The PreAllocator class does not utilize this function
      */
-    void unlock(void*) noexcept override {}  // NOLINT
+    void unlock(void*) noexcept override {}
 
     /**
      * @brief Returns a pointer to preallocated memory
@@ -55,7 +55,7 @@ public:
      * @brief The PreAllocator class cannot release the handle
      * @return false
      */
-    bool free(void*) noexcept override {  // NOLINT
+    bool free(void*) noexcept override {
         return false;
     }
 };

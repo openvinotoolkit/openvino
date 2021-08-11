@@ -142,8 +142,6 @@ if (TBBBIND_2_4_FOUND)
     target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
-
 # Create shared library file from object library
 
 add_library(${TARGET_NAME} SHARED
@@ -151,6 +149,8 @@ add_library(${TARGET_NAME} SHARED
             ${LEGACY_LIBRARY_SHARED_SRCS}
             ${vs_version_file}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
