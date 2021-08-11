@@ -4,8 +4,8 @@
 
 #pragma once
 
+#include <editor.hpp>
 #include <frontend_manager/input_model.hpp>
-#include <onnx_editor/editor.hpp>
 
 namespace ngraph
 {
