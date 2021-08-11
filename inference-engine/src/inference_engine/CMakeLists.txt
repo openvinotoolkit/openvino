@@ -150,14 +150,7 @@ add_library(${TARGET_NAME} SHARED
             ${vs_version_file}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
-foreach(src IN LISTS IE_STATIC_DEPENDENT_FILES LIBRARY_SRC LIBRARY_HEADERS PUBLIC_HEADERS)
-    if(IS_ABSOLUTE "${src}")
-        list(APPEND full_src_names ${src})
-    else()
-        list(APPEND full_src_names "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
-    endif()
-endforeach()
-add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${full_src_names})
+add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
