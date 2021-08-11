@@ -78,8 +78,12 @@ void pass::Manager::run_passes(shared_ptr<Function> func) {
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
             // on on entire ngraph::Function
-            function_changed = GraphRewrite(matcher_pass).run_on_function(func);
-        } else if (auto function_pass = dynamic_pointer_cast<FunctionPass>(pass)) {
+            auto tmp = GraphRewrite(matcher_pass);
+            tmp.set_name(matcher_pass->get_name());
+            function_changed = tmp.run_on_function(func);
+        }
+        else if (auto function_pass = dynamic_pointer_cast<FunctionPass>(pass))
+        {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
             if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {

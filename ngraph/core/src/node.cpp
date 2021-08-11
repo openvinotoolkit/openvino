@@ -9,6 +9,7 @@
 #include <sstream>
 #include <typeindex>
 #include <typeinfo>
+#include <assert.h>
 
 #include "itt.hpp"
 #include "ngraph/descriptor/input.hpp"

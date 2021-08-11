@@ -27,6 +27,11 @@ namespace ngraph
 
         int64_t get_id() const
         {
+            if (!id_is_not_set())
+            {
+                return m_id;
+            }
+
             auto el = input;
             while (el)
             {

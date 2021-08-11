@@ -246,6 +246,8 @@ std::vector<shared_ptr<Node>> Function::get_ordered_ops() const {
 }
 
 std::vector<shared_ptr<Node>> Function::get_cached_ordered_ops() const {
+{
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Function::get_cached_ordered_ops");
     auto tmp = m_parameters[0]->m_order;
 
     NodeVector res;
