@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "single_layer_tests/convolution_backprop.hpp"
+#include "single_layer_tests/convolution_backprop_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -51,7 +51,7 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -62,9 +62,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, Convol
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ConvolutionBackpropLayerTest::getTestCaseName);
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -75,12 +75,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, Convoluti
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ConvolutionBackpropLayerTest::getTestCaseName);
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t >> inputShape2D = {{1, 3, 9, 12}};
 const std::vector<std::vector<size_t >> outputShapes2D = {{6, 6}, {4, 9}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_OutputShapeDefined, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_OutputShapeDefined, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -91,7 +91,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_OutputShapeDefined, Con
                                 ::testing::ValuesIn(inputShape2D),
                                 ::testing::ValuesIn(outputShapes2D),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ConvolutionBackpropLayerTest::getTestCaseName);
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 const std::vector<std::vector<ptrdiff_t>> outputPadding2D = {{1, 1}, {2, 2}};
 const std::vector<std::vector<size_t >> testStrides2D = {{3, 3}};
@@ -117,7 +117,7 @@ const auto conv2DParams_AutoPadValid_output_padding = ::testing::Combine(
         ::testing::ValuesIn(outputPadding2D)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid_output_padding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -128,9 +128,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding_OutputP
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ConvolutionBackpropLayerTest::getTestCaseName);
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding_output_padding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -141,7 +141,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddi
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ConvolutionBackpropLayerTest::getTestCaseName);
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 /* ============= 3D ConvolutionBackpropData ============= */
 const std::vector<std::vector<size_t >> inputShapes3D = {{1, 3, 10, 10, 10},
@@ -174,7 +174,7 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -185,9 +185,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding, Convol
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ConvolutionBackpropLayerTest::getTestCaseName);
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadValid, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadValid, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -198,12 +198,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadValid, Convoluti
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ConvolutionBackpropLayerTest::getTestCaseName);
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t >> inputShape3D = {{1, 3, 10, 10, 10}};
 const std::vector<std::vector<size_t >> outputShapes3D = {{8, 8, 8}, {10, 10, 10}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_OutputShapeDefined, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_OutputShapeDefined, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
@@ -214,7 +214,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_OutputShapeDefined, Con
                                 ::testing::ValuesIn(inputShape3D),
                                 ::testing::ValuesIn(outputShapes3D),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ConvolutionBackpropLayerTest::getTestCaseName);
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 const std::vector<std::vector<ptrdiff_t>> outputPadding3D = {{1, 1, 1}, {2, 2, 2}};
 const std::vector<std::vector<size_t >> testStrides3D = {{3, 3, 3}};
@@ -240,7 +240,7 @@ const auto conv3DParams_AutoPadValid_output_padding = ::testing::Combine(
         ::testing::ValuesIn(outputPadding3D)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv3DParams_AutoPadValid_output_padding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -251,9 +251,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding_OutputP
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ConvolutionBackpropLayerTest::getTestCaseName);
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv3DParams_ExplicitPadding_output_padding,
                                 ::testing::ValuesIn(netPrecisions),
@@ -264,6 +264,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddi
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::ValuesIn(emptyOutputShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        ConvolutionBackpropLayerTest::getTestCaseName);
+                        ConvolutionBackpropDataLayerTest::getTestCaseName);
 
 }  // namespace
