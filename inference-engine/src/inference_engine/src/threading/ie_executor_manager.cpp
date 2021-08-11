@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "threading/ie_executor_manager.hpp"
+
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "threading/ie_executor_manager.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 
 namespace InferenceEngine {
@@ -30,15 +31,14 @@ IStreamsExecutor::Ptr ExecutorManagerImpl::getIdleCPUStreamsExecutor(const IStre
             continue;
 
         const auto& executorConfig = it.first;
-        if (executorConfig._name == config._name &&
-            executorConfig._streams == config._streams &&
+        if (executorConfig._name == config._name && executorConfig._streams == config._streams &&
             executorConfig._threadsPerStream == config._threadsPerStream &&
             executorConfig._threadBindingType == config._threadBindingType &&
             executorConfig._threadBindingStep == config._threadBindingStep &&
             executorConfig._threadBindingOffset == config._threadBindingOffset)
-            if (executorConfig._threadBindingType != IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                 || executorConfig._threadPreferredCoreType == config._threadPreferredCoreType)
-            return executor;
+            if (executorConfig._threadBindingType != IStreamsExecutor::ThreadBindingType::HYBRID_AWARE ||
+                executorConfig._threadPreferredCoreType == config._threadPreferredCoreType)
+                return executor;
     }
     auto newExec = std::make_shared<CPUStreamsExecutor>(config);
     cpuStreamsExecutors.emplace_back(std::make_pair(config, newExec));
@@ -64,9 +64,10 @@ void ExecutorManagerImpl::clear(const std::string& id) {
     } else {
         executors.erase(id);
         cpuStreamsExecutors.erase(
-            std::remove_if(cpuStreamsExecutors.begin(), cpuStreamsExecutors.end(),
+            std::remove_if(cpuStreamsExecutors.begin(),
+                           cpuStreamsExecutors.end(),
                            [&](const std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>& it) {
-                              return it.first._name == id;
+                               return it.first._name == id;
                            }),
             cpuStreamsExecutors.end());
     }

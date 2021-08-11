@@ -10,18 +10,18 @@
 
 #pragma once
 
-#include <ostream>
 #include <map>
 #include <memory>
+#include <ostream>
 #include <string>
 #include <vector>
 
-#include "ie_parameter.hpp"
-#include "ie_remote_context.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "cpp/ie_infer_request.hpp"
 #include "details/ie_so_loader.h"
 #include "ie_iexecutable_network.hpp"
+#include "ie_parameter.hpp"
+#include "ie_remote_context.hpp"
 
 namespace ov {
 namespace runtime {
@@ -36,16 +36,16 @@ class IExecutableNetworkInternal;
  * @brief This is an interface of an executable network
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
-    details::SharedObjectLoader                  _so;
-    std::shared_ptr<IExecutableNetworkInternal>  _impl;
+    details::SharedObjectLoader _so;
+    std::shared_ptr<IExecutableNetworkInternal> _impl;
 
     /**
      * @brief Constructs ExecutableNetwork from the initialized std::shared_ptr
-     * @param so Plugin to use. This is required to ensure that ExecutableNetwork can work properly even if plugin object is destroyed.
+     * @param so Plugin to use. This is required to ensure that ExecutableNetwork can work properly even if plugin
+     * object is destroyed.
      * @param impl Initialized shared pointer
      */
-    ExecutableNetwork(const details::SharedObjectLoader&                   so,
-                      const std::shared_ptr<IExecutableNetworkInternal>&   impl);
+    ExecutableNetwork(const details::SharedObjectLoader& so, const std::shared_ptr<IExecutableNetworkInternal>& impl);
     friend class Core;
     friend class ov::runtime::Core;
 
