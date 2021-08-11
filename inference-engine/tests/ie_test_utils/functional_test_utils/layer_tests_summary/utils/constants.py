@@ -31,6 +31,7 @@ VERIFIED_OP_REFERENCES = [
     'DepthToSpace-1',
     'DetectionOutput-1',
     'Divide-1',
+    'Equal-1',
     'Erf-1',
     'ExperimentalDetectronDetectionOutput-6',
     'ExperimentalDetectronGenerateProposalsSingleImage-6',

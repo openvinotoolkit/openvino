@@ -20,11 +20,12 @@ static const char image_message[] = "Path to a folder with images or paths to im
 static const char model_message[] = "Required. Path to an .xml file with a trained model.";
 
 /// @brief message for assigning cnn calculation to device
-static const char target_device_message[] = "Optional. Specify the target device to infer on (the list of available devices is shown "
-                                            "below). "
-                                            "Default value is CPU. Use \"-d HETERO:<comma_separated_devices_list>\" format to specify "
-                                            "HETERO plugin. "
-                                            "Sample will look for a suitable plugin for device specified";
+static const char target_device_message[] =
+    "Optional. Specify the target device to infer on (the list of available devices is shown "
+    "below). "
+    "Default value is CPU. Use \"-d HETERO:<comma_separated_devices_list>\" format to specify "
+    "HETERO plugin. "
+    "Sample will look for a suitable plugin for device specified";
 
 /// @brief message for plugin custom kernels desc
 static const char custom_plugin_cfg_message[] = "Required for GPU, MYRIAD, HDDL custom kernels. "
@@ -35,7 +36,8 @@ static const char custom_ex_library_message[] = "Required for CPU plugin custom 
                                                 "Absolute path to a shared library with the kernels implementations.";
 
 /// @brief message for mean values arguments
-static const char preprocess_data_message[] = "Mean values. Required if the model needs mean values for preprocessing and postprocessing.";
+static const char preprocess_data_message[] =
+    "Mean values. Required if the model needs mean values for preprocessing and postprocessing.";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
