@@ -93,11 +93,12 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
 
-                bool has_evaluate() const override { return true; }
+                bool has_evaluate() const override;
 
             private:
                 using OutputMap =
                     std::map<int64_t, std::shared_ptr<MultiSubGraphOp::OutputDescription>>;
+
                 void validate_and_infer_type_body(
                     const std::shared_ptr<Function>& body,
                     const ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors);

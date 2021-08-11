@@ -280,6 +280,12 @@ bool op::v8::If::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     return true;
 }
 
+bool op::v8::If::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v8_If_has_evaluate);
+    return true;
+}
+
 void op::v8::If::set_input(const Output<Node>& value,
                            const std::shared_ptr<Parameter>& then_parameter,
                            const std::shared_ptr<Parameter>& else_parameter)
