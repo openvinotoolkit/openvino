@@ -63,17 +63,11 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
         deviceName_ = "MULTI";
         config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
     } else if (deviceName_.find("AUTO") == 0) {
-        deviceName_ = "AUTO";
-        if (deviceName.size() > std::string("AUTO").size()) {
-            std::string deviceList = deviceName.substr(std::string("AUTO:").size());
-            if (deviceList.find("AUTO") != std::string::npos) {
-                IE_THROW() << "Device list for AUTO should not be AUTO";
-            }
-            config_[InferenceEngine::KEY_AUTO_DEVICE_LIST] = deviceName.substr(std::string("AUTO:").size());
-        }
+        deviceName_ = "MULTI";
+        config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(std::string("AUTO:").size());
     } else {
         if (deviceName_.empty()) {
-            deviceName_ = "AUTO";
+            deviceName_ = "MULTI";
         }
         InferenceEngine::DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
@@ -856,9 +850,9 @@ public:
             } else if (deviceName.find("AUTO") == 0) {
                 auto pos = deviceName.find_first_of(":");
                 if (pos != std::string::npos) {
-                    deviceNames = InferenceEngine::DeviceIDParser::getHeteroDevices(deviceName.substr(pos + 1));
+                    deviceNames = InferenceEngine::DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
                 }
-                deviceNames.emplace_back("AUTO");
+                deviceNames.push_back("MULTI");
             } else {
                 deviceNames.push_back(deviceName);
             }
