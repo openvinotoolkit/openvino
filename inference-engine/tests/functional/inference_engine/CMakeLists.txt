@@ -34,7 +34,7 @@ set(DEPENDENCIES
     test_model_zoo
 )
 
-if (NOT NGRAPH_ONNX_IMPORT_ENABLE)
+if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
@@ -56,9 +56,9 @@ addIeTargetTest(
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-if(NGRAPH_ONNX_IMPORT_ENABLE)
+if(NGRAPH_ONNX_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
-        NGRAPH_ONNX_IMPORT_ENABLE
+        NGRAPH_ONNX_FRONTEND_ENABLE
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
     add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
 endif()

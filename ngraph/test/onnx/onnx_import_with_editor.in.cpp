@@ -12,7 +12,7 @@
 // clang-format on
 
 #include "gtest/gtest.h"
-#include "onnx_editor/editor.hpp"
+#include "editor.hpp"
 #include "ngraph/ngraph.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"

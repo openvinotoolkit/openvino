@@ -11,7 +11,7 @@
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "onnx_editor/editor.hpp"
+#include "editor.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/engine/interpreter_engine.hpp"
 #include "util/onnx_test_util.hpp"

@@ -530,7 +530,7 @@ set(MULTI_TEST_SRC
     backend/zero_sized.in.cpp
 )
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
             onnx/onnx_import_controlflow.in.cpp
@@ -550,7 +550,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
             onnx/onnx_tensor_names.cpp)
 endif()
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND SRC onnx/onnx_editor.cpp)
     list(APPEND MULTI_TEST_SRC
         onnx/onnx_test_utils.in.cpp
@@ -601,7 +601,7 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
     # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
     # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
     target_include_directories(unit-test
@@ -617,11 +617,10 @@ if (OV_COMPILER_IS_CLANG)
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
-    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
-
-    target_link_libraries(unit-test PRIVATE onnx_importer)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
+    get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ngraph_frontend SOURCE_DIR)
+    target_include_directories(unit-test PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
+    target_link_libraries(unit-test PRIVATE onnx_ngraph_frontend)
     if (LINUX)
         target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)
