@@ -18,8 +18,6 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
     {{1, 16}, {1, 16}, {1, 16}, {1, 16}},
     {{1, 32}, {1, 32}, {1, 32}, {1, 32}},
     {{1, 16}, {1, 32}, {1, 16}, {1, 32}, {1, 16}, {1, 32}},
-    {{1, 10, 10}, {1, 10, 10}},
-    {{1, 10, 10, 10}, {1, 10, 10, 10}}
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
