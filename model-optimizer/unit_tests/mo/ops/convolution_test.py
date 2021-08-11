@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
 from mo.graph.graph import Node
 from mo.ops.convolution import Convolution
 from mo.utils.error import Error
@@ -51,6 +51,36 @@ class TestConvolutionPartialInfer(unittest.TestCase):
         res_shape = graph.node['conv_output']['shape']
         for i in range(0, len(exp_shape)):
             self.assertEqual(exp_shape[i], res_shape[i])
+
+    def test_caffe_conv2d_dynamic_input_infer(self):
+        graph = build_graph(nodes_attributes,
+                            [('conv_input', 'conv_node'),
+                             ('conv_weights', 'conv_node'),
+                             ('conv_node', 'conv_output'),
+                             ('conv_output', 'op_output')
+                             ],
+                            {'conv_output': {'shape': None},
+                             'conv_input': {'shape': shape_array([1, 3, dynamic_dimension_value, 227])},
+                             'conv_weights': {'shape': np.array([64, 3, 3, 3]),
+                                              'dim_attrs': ['spatial_dims', 'channel_dims', 'batch_dims', 'axis']},
+                             'conv_node': {'pad_spatial_shape': np.array([[0, 0], [0, 0]]),
+                                           'conv_pad': np.array([[0, 0], [0, 0], [0, 0], [0, 0]]),
+                                           'dilation': np.array([1, 1, 1, 1]), 'bias_addable': True, 'bias_term': False,
+                                           'output_spatial_shape': None, 'output_shape': None,
+                                           'stride': np.array([1, 1, 1, 1]), 'group': 1,
+                                           'kernel_spatial_idx': np.array([2, 3]),
+                                           'input_feature_channel': 1,
+                                           'output_feature_channel': 0,
+                                           'output': 64, 'kernel_spatial': np.array([3, 3]),
+                                           'spatial_dims': np.array([2, 3]), 'channel_dims': np.array([1]),
+                                           'batch_dims': np.array([0])}
+                             })
+
+        conv_node = Node(graph, 'conv_node')
+        Convolution.infer(conv_node)
+        exp_shape = shape_array([1, 64, dynamic_dimension_value, 225])
+        res_shape = graph.node['conv_output']['shape']
+        self.assertTrue(np.ma.allequal(exp_shape, res_shape))
 
     def test_caffe_conv2d_infer_no_shape(self):
         graph = build_graph(nodes_attributes,
@@ -115,6 +145,43 @@ class TestConvolutionPartialInfer(unittest.TestCase):
 
         for i in range(0, len(exp_shape)):
             self.assertEqual(exp_shape[i], res_shape[i])
+
+    def test_deconv_dynamic_infer_ideal(self):
+        graph = build_graph(nodes_attributes,
+                            [('conv_input', 'conv_node'),
+                             ('conv_weights', 'conv_node'),
+                             ('conv_node', 'conv_output'),
+                             ('conv_output', 'op_output')
+                             ],
+                            {'conv_output': {'shape': None},
+                             'conv_input': {'shape': shape_array([1, 21, dynamic_dimension_value, 16])},
+                             'conv_weights': {'shape': np.array([1, 21, 4, 4]),
+                                              'dim_attrs': ['spatial_dims', 'channel_dims', 'batch_dims', 'axis']},
+                             'conv_node': {#'spatial_dims': np.array([2, 3]), 'batch_dims': np.array([0]),
+                                           'channel_dims': np.array([1]), 'bias_addable': True, 'bias_term': False,
+                                           'batch_dims': np.array([0]),
+                                           'pad_spatial_shape': np.array([[0, 0], [0, 0]]),
+                                           'kernel_spatial': np.array([4, 4]), 'output_spatial_shape': None,
+                                           'kernel_spatial_idx': np.array([2, 3]),
+                                           'input_feature_channel': 1,
+                                           'output_feature_channel': 0,
+                                           'output_padding': np.array([0, 0, 1, 1]),
+                                           'type': 'Deconvolution', 'output': 21, 'dilation': np.array([1, 1, 1, 1]),
+                                           'group': 1, 'stride': np.array([1, 1, 2, 2]), 'output_shape': None}
+                             })
+
+        deconv_node = Node(graph, 'conv_node')
+
+        Convolution.infer(deconv_node)
+        res_shape = deconv_node['output_shape']
+        exp_shape = shape_array([1, 21, dynamic_dimension_value, 35])
+
+        self.assertTrue(np.ma.allequal(exp_shape, res_shape))
+
+        # Check that after double infer shape and pad attrs do not changes
+        Convolution.infer(deconv_node)
+
+        self.assertTrue(np.ma.allequal(exp_shape, res_shape))
 
     def test_deconv_infer_no_shape(self):
         graph = build_graph(nodes_attributes,
