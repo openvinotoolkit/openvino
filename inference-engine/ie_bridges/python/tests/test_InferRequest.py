@@ -8,7 +8,7 @@ import warnings
 import threading
 from datetime import datetime
 
-from openvino.inference_engine import ie_api as ie
+from openvino.inference_engine import IECore, IENetwork, Blob, TensorDesc, PreProcessInfo, MeanVariant, ResizeAlgorithm, WaitMode, StatusCode, format_map
 from conftest import model_path, image_path
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
@@ -44,30 +44,30 @@ def read_image():
 
 
 def load_sample_model(device, num_requests=1):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=num_requests)
     return executable_network
 
 
 def test_input_blobs(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=2)
-    td = ie.TensorDesc("FP32", (1, 3, 32, 32), "NCHW")
+    td = TensorDesc("FP32", (1, 3, 32, 32), "NCHW")
     assert executable_network.requests[0].input_blobs['data'].tensor_desc == td
 
 
 def test_output_blobs(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=2)
-    td = ie.TensorDesc("FP32", (1, 10), "NC")
+    td = TensorDesc("FP32", (1, 10), "NC")
     assert executable_network.requests[0].output_blobs['fc_out'].tensor_desc == td
 
 
 def test_inputs_list(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=2)
 
@@ -78,7 +78,7 @@ def test_inputs_list(device):
 
 
 def test_outputs_list(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=2)
 
@@ -89,7 +89,7 @@ def test_outputs_list(device):
 
 
 def test_access_input_buffer(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=1)
     buffer = executable_network.requests[0]._get_blob_buffer("data".encode()).to_numpy()
@@ -102,7 +102,7 @@ def test_access_input_buffer(device):
 
 
 def test_access_output_buffer(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=1)
     buffer = executable_network.requests[0]._get_blob_buffer("fc_out".encode()).to_numpy()
@@ -115,7 +115,7 @@ def test_access_output_buffer(device):
 
 
 def test_write_to_input_blobs_directly(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
@@ -129,7 +129,7 @@ def test_write_to_input_blobs_directly(device):
 
 
 def test_write_to_input_blobs_copy(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
@@ -142,7 +142,7 @@ def test_write_to_input_blobs_copy(device):
 
 
 def test_infer(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
@@ -156,7 +156,7 @@ def test_infer(device):
 
 
 def test_async_infer_default_timeout(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
@@ -171,13 +171,13 @@ def test_async_infer_default_timeout(device):
 
 
 def test_async_infer_wait_finish(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
     request = exec_net.requests[0]
     request.async_infer({'data': img})
-    request.wait(ie.WaitMode.RESULT_READY)
+    request.wait(WaitMode.RESULT_READY)
     res = request.output_blobs['fc_out'].buffer
     assert np.argmax(res) == 2
     del exec_net
@@ -186,27 +186,27 @@ def test_async_infer_wait_finish(device):
 
 
 def test_async_infer_wait_time(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=2)
     img = read_image()
     request = exec_net.requests[0]
     request.async_infer({'data': img})
     start_time = datetime.utcnow()
-    status = request.wait(ie.WaitMode.RESULT_READY)
-    assert status == ie.StatusCode.OK
+    status = request.wait(WaitMode.RESULT_READY)
+    assert status == StatusCode.OK
     time_delta = datetime.utcnow() - start_time
     latency_ms = (time_delta.microseconds / 1000) + (time_delta.seconds * 1000)
     timeout = max(100, latency_ms)
     request = exec_net.requests[1]
     request.async_infer({'data': img})
     max_repeat = 10
-    status = ie.StatusCode.REQUEST_BUSY
+    status = StatusCode.REQUEST_BUSY
     i = 0
-    while i < max_repeat and status != ie.StatusCode.OK:
+    while i < max_repeat and status != StatusCode.OK:
         status = request.wait(timeout)
         i += 1
-    assert status == ie.StatusCode.OK
+    assert status == StatusCode.OK
     res = request.output_blobs['fc_out'].buffer
     assert np.argmax(res) == 2
     del exec_net
@@ -215,24 +215,24 @@ def test_async_infer_wait_time(device):
 
 
 def test_async_infer_wait_status(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
     request = exec_net.requests[0]
     request.async_infer({'data': img})
-    request.wait(ie.WaitMode.RESULT_READY)
+    request.wait(WaitMode.RESULT_READY)
     res = request.output_blobs['fc_out'].buffer
     assert np.argmax(res) == 2
-    status = request.wait(ie.WaitMode.STATUS_ONLY)
-    assert status == ie.StatusCode.OK
+    status = request.wait(WaitMode.STATUS_ONLY)
+    assert status == StatusCode.OK
     del exec_net
     del ie_core
     del net
 
 
 def test_async_infer_fill_inputs(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
@@ -240,7 +240,7 @@ def test_async_infer_fill_inputs(device):
     request.input_blobs['data'].buffer[:] = img
     request.async_infer()
     status_end = request.wait()
-    assert status_end == ie.StatusCode.OK
+    assert status_end == StatusCode.OK
     res = request.output_blobs['fc_out'].buffer
     assert np.argmax(res[0]) == 2
     del exec_net
@@ -249,14 +249,14 @@ def test_async_infer_fill_inputs(device):
 
 
 def test_infer_modify_outputs(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
     request = exec_net.requests[0]
     outputs0 = exec_net.infer({'data': img})
     status_end = request.wait()
-    assert status_end == ie.StatusCode.OK
+    assert status_end == StatusCode.OK
     assert np.argmax(outputs0['fc_out']) == 2
     outputs0['fc_out'][:] = np.zeros(shape=(1, 10), dtype=np.float32)
     outputs1 = request.output_blobs
@@ -282,7 +282,7 @@ def test_async_infer_callback(device):
     def callback(self, status):
         callback.callback_called = 1
 
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
@@ -290,7 +290,7 @@ def test_async_infer_callback(device):
     request.set_completion_callback(callback)
     request.async_infer({'data': img})
     status = request.wait()
-    assert status == ie.StatusCode.OK
+    assert status == StatusCode.OK
     res = request.output_blobs['fc_out'].buffer
     assert np.argmax(res) == 2
     assert callback.callback_called == 1
@@ -310,17 +310,17 @@ def test_async_infer_callback_wait_before_start(device):
     def callback(self, status):
         callback.callback_called = 1
 
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
     request = exec_net.requests[0]
     request.set_completion_callback(callback)
     status = request.wait()
-    assert status == ie.StatusCode.INFER_NOT_STARTED
+    assert status == StatusCode.INFER_NOT_STARTED
     request.async_infer({'data': img})
     status = request.wait()
-    assert status == ie.StatusCode.OK
+    assert status == StatusCode.OK
     res = request.output_blobs['fc_out'].buffer
     assert np.argmax(res) == 2
     assert callback.callback_called == 1
@@ -334,11 +334,11 @@ def test_async_infer_callback_wait_in_callback(device):
             self.request = request
             self.cv = threading.Condition()
             self.request.set_completion_callback(self.callback)
-            self.status_code = self.request.wait(ie.WaitMode.STATUS_ONLY)
-            assert self.status_code == ie.StatusCode.INFER_NOT_STARTED
+            self.status_code = self.request.wait(WaitMode.STATUS_ONLY)
+            assert self.status_code == StatusCode.INFER_NOT_STARTED
 
         def callback(self, statusCode, userdata):
-            self.status_code = self.request.wait(ie.WaitMode.STATUS_ONLY)
+            self.status_code = self.request.wait(WaitMode.STATUS_ONLY)
             self.cv.acquire()
             self.cv.notify()
             self.cv.release()
@@ -348,11 +348,11 @@ def test_async_infer_callback_wait_in_callback(device):
             self.cv.acquire()
             self.cv.wait()
             self.cv.release()
-            status = self.request.wait(ie.WaitMode.RESULT_READY)
-            assert status == ie.StatusCode.OK
-            assert self.status_code == ie.StatusCode.OK
+            status = self.request.wait(WaitMode.RESULT_READY)
+            assert status == StatusCode.OK
+            assert self.status_code == StatusCode.OK
 
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
@@ -363,7 +363,7 @@ def test_async_infer_callback_wait_in_callback(device):
 
 
 def test_get_perf_counts(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     if device == "CPU":
         if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
             pytest.skip("Can't run on ARM plugin due-to ngraph")
@@ -385,7 +385,7 @@ def test_get_perf_counts(device):
                     reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
                             "Dynamic batch fully supported only on CPU")
 def test_set_batch_size(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
         pytest.skip("Can't run on ARM plugin due-to dynamic batch isn't supported")
     ie_core.set_config({"DYN_BATCH_ENABLED": "YES"}, device)
@@ -404,7 +404,7 @@ def test_set_batch_size(device):
 
 
 def test_set_zero_batch_size(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     request = exec_net.requests[0]
@@ -417,7 +417,7 @@ def test_set_zero_batch_size(device):
 
 
 def test_set_negative_batch_size(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     request = exec_net.requests[0]
@@ -430,7 +430,7 @@ def test_set_negative_batch_size(device):
 
 
 def test_blob_setter(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     if device == "CPU":
         if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
             pytest.skip("Can't run on ARM plugin")
@@ -444,8 +444,8 @@ def test_blob_setter(device):
     res_1 = np.sort(exec_net_1.infer({"data": img})['fc_out'])
 
     img = np.transpose(img, axes=(0, 2, 3, 1)).astype(np.float32)
-    tensor_desc = ie.TensorDesc("FP32", [1, 3, 32, 32], "NHWC")
-    img_blob = ie.Blob(tensor_desc, img)
+    tensor_desc = TensorDesc("FP32", [1, 3, 32, 32], "NHWC")
+    img_blob = Blob(tensor_desc, img)
     request = exec_net_2.requests[0]
     request.set_blob('data', img_blob)
     request.infer()
@@ -454,41 +454,41 @@ def test_blob_setter(device):
 
 
 def test_blob_setter_with_preprocess(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
     img = read_image()
-    tensor_desc = ie.TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
-    img_blob = ie.Blob(tensor_desc, img)
-    preprocess_info = ie.PreProcessInfo()
-    preprocess_info.mean_variant = ie.MeanVariant.MEAN_IMAGE
+    tensor_desc = TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
+    img_blob = Blob(tensor_desc, img)
+    preprocess_info = PreProcessInfo()
+    preprocess_info.mean_variant = MeanVariant.MEAN_IMAGE
 
     request = exec_net.requests[0]
     request.set_blob('data', img_blob, preprocess_info)
     pp = request.preprocess_info["data"]
-    assert pp.mean_variant == ie.MeanVariant.MEAN_IMAGE
+    assert pp.mean_variant == MeanVariant.MEAN_IMAGE
 
 
 def test_getting_preprocess(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
     request = exec_net.requests[0]
     preprocess_info = request.preprocess_info["data"]
-    assert isinstance(preprocess_info, ie.PreProcessInfo)
-    assert preprocess_info.mean_variant == ie.MeanVariant.NONE
+    assert isinstance(preprocess_info, PreProcessInfo)
+    assert preprocess_info.mean_variant == MeanVariant.NONE
 
 
 def test_resize_algorithm_work(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net_1 = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
     img = read_image()
     res_1 = np.sort(exec_net_1.infer({"data": img})['fc_out'])
 
-    net.input_info['data'].preprocess_info.resize_algorithm = ie.ResizeAlgorithm.RESIZE_BILINEAR
+    net.input_info['data'].preprocess_info.resize_algorithm = ResizeAlgorithm.RESIZE_BILINEAR
 
     exec_net_2 = ie_core.load_network(net, device)
 
@@ -502,10 +502,10 @@ def test_resize_algorithm_work(device):
     image = image.transpose((2, 0, 1)).astype(np.float32)
     image = np.expand_dims(image, 0)
 
-    tensor_desc = ie.TensorDesc("FP32", [1, 3, image.shape[2], image.shape[3]], "NCHW")
-    img_blob = ie.Blob(tensor_desc, image)
+    tensor_desc = TensorDesc("FP32", [1, 3, image.shape[2], image.shape[3]], "NCHW")
+    img_blob = Blob(tensor_desc, image)
     request = exec_net_2.requests[0]
-    assert request.preprocess_info["data"].resize_algorithm == ie.ResizeAlgorithm.RESIZE_BILINEAR
+    assert request.preprocess_info["data"].resize_algorithm == ResizeAlgorithm.RESIZE_BILINEAR
     request.set_blob('data', img_blob)
     request.infer()
     res_2 = np.sort(request.output_blobs['fc_out'].buffer)
@@ -520,17 +520,15 @@ def test_resize_algorithm_work(device):
                     reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
                     "Memory layers fully supported only on CPU")
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     if device == "CPU":
         if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
             pytest.skip("Can't run on ARM plugin")
 
     layout = ["C", "HW", "CHW", "NCHW"]
 
-    from openvino.inference_engine import TensorDesc, Blob, format_map
-
-    net = ie.IENetwork(create_function_with_memory(input_shape, format_map[data_type]))
-    ie_core = ie.IECore()
+    net = IENetwork(create_function_with_memory(input_shape, format_map[data_type]))
+    ie_core = IECore()
     exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
     request = exec_net.requests[0]
     mem_states = request.query_state()

@@ -6,7 +6,7 @@ import os
 import pytest
 import warnings
 
-from openvino.inference_engine import ie_api as ie
+from openvino.inference_engine import IECore, CDataPtr, DataPtr, InputInfoCPtr, InferRequest, WaitMode, StatusCode
 from conftest import model_path, image_path
 
 
@@ -29,7 +29,7 @@ def read_image():
 
 
 def test_infer(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     img = read_image()
@@ -40,7 +40,7 @@ def test_infer(device):
 
 
 def test_infer_net_from_buffer(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     with open(test_net_bin, 'rb') as f:
         bin = f.read()
     with open(test_net_xml, 'rb') as f:
@@ -59,7 +59,7 @@ def test_infer_net_from_buffer(device):
 
 
 def test_infer_wrong_input_name(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     img = read_image()
@@ -71,40 +71,40 @@ def test_infer_wrong_input_name(device):
 
 
 def test_input_info(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=5)
-    assert isinstance(exec_net.input_info['data'], ie.InputInfoCPtr)
+    assert isinstance(exec_net.input_info['data'], InputInfoCPtr)
     assert exec_net.input_info['data'].name == "data"
     assert exec_net.input_info['data'].precision == "FP32"
-    assert isinstance(exec_net.input_info['data'].input_data, ie.DataPtr)
+    assert isinstance(exec_net.input_info['data'].input_data, DataPtr)
     del exec_net
     del ie_core
 
 
 def test_outputs(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=5)
     assert len(exec_net.outputs) == 1
     assert "fc_out" in exec_net.outputs
-    assert isinstance(exec_net.outputs['fc_out'], ie.CDataPtr)
+    assert isinstance(exec_net.outputs['fc_out'], CDataPtr)
     del exec_net
     del ie_core
 
 
 def test_access_requests(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=5)
     assert len(exec_net.requests) == 5
-    assert isinstance(exec_net.requests[0], ie.InferRequest)
+    assert isinstance(exec_net.requests[0], InferRequest)
     del exec_net
     del ie_core
 
 
 def test_async_infer_one_req(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
@@ -117,7 +117,7 @@ def test_async_infer_one_req(device):
 
 
 def test_async_infer_many_req(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=5)
     img = read_image()
@@ -131,7 +131,7 @@ def test_async_infer_many_req(device):
 
 
 def test_async_infer_many_req_get_idle(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     num_requests = 5
     exec_net = ie_core.load_network(net, device, num_requests=num_requests)
@@ -140,14 +140,14 @@ def test_async_infer_many_req_get_idle(device):
     for id in range(2*num_requests):
         request_id = exec_net.get_idle_request_id()
         if request_id == -1:
-            status = exec_net.wait(num_requests=1, timeout=ie.WaitMode.RESULT_READY)
-            assert(status == ie.StatusCode.OK)
+            status = exec_net.wait(num_requests=1, timeout=WaitMode.RESULT_READY)
+            assert(status == StatusCode.OK)
         request_id = exec_net.get_idle_request_id()
         assert(request_id >= 0)
         request_handler = exec_net.start_async(request_id=request_id, inputs={'data': img})
         check_id.add(request_id)
-    status = exec_net.wait(timeout=ie.WaitMode.RESULT_READY)
-    assert status == ie.StatusCode.OK
+    status = exec_net.wait(timeout=WaitMode.RESULT_READY)
+    assert status == StatusCode.OK
     for id in range(num_requests):
         if id in check_id:
             assert np.argmax(exec_net.requests[id].output_blobs['fc_out'].buffer) == 2
@@ -156,7 +156,7 @@ def test_async_infer_many_req_get_idle(device):
 
 
 def test_wait_before_start(device):
-  ie_core = ie.IECore()
+  ie_core = IECore()
   net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
   num_requests = 5
   exec_net = ie_core.load_network(net, device, num_requests=num_requests)
@@ -164,17 +164,17 @@ def test_wait_before_start(device):
   requests = exec_net.requests
   for id in range(num_requests):
       status = requests[id].wait()
-      assert status == ie.StatusCode.INFER_NOT_STARTED
+      assert status == StatusCode.INFER_NOT_STARTED
       request_handler = exec_net.start_async(request_id=id, inputs={'data': img})
       status = requests[id].wait()
-      assert status == ie.StatusCode.OK
+      assert status == StatusCode.OK
       assert np.argmax(request_handler.output_blobs['fc_out'].buffer) == 2
   del exec_net
   del ie_core
 
 
 def test_wrong_request_id(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=1)
     img = read_image()
@@ -187,7 +187,7 @@ def test_wrong_request_id(device):
 
 def test_wrong_num_requests(device):
     with pytest.raises(ValueError) as e:
-        ie_core = ie.IECore()
+        ie_core = IECore()
         net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
         ie_core.load_network(net, device, num_requests=-1)
         assert "Incorrect number of requests specified: -1. Expected positive integer number or zero for auto detection" \
@@ -197,7 +197,7 @@ def test_wrong_num_requests(device):
 
 def test_wrong_num_requests_core(device):
     with pytest.raises(ValueError) as e:
-        ie_core = ie.IECore()
+        ie_core = IECore()
         net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
         exec_net = ie_core.load_network(net, device, num_requests=-1)
         assert "Incorrect number of requests specified: -1. Expected positive integer number or zero for auto detection" \
@@ -206,7 +206,7 @@ def test_wrong_num_requests_core(device):
 
 
 def test_plugin_accessible_after_deletion(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     img = read_image()
@@ -217,7 +217,7 @@ def test_plugin_accessible_after_deletion(device):
 
 
 def test_exec_graph(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     if device == "CPU":
         if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
             pytest.skip("Can't run on ARM plugin due-to get_exec_graph_info method isn't implemented")
@@ -238,7 +238,7 @@ def test_exec_graph(device):
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "MYRIAD",
                     reason="Device specific test. Only MYRIAD plugin implements network export")
 def test_export_import():
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, "MYRIAD")
     exported_net_file = 'exported_model.bin'
@@ -256,13 +256,13 @@ def test_export_import():
 def test_multi_out_data(device):
     # Regression test 23965
     # Check that CDataPtr for all output layers not copied  between outputs map items
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     net.add_outputs(['28/Reshape'])
     exec_net = ie_core.load_network(net, device)
     assert "fc_out" in exec_net.outputs and "28/Reshape" in exec_net.outputs
-    assert isinstance(exec_net.outputs["fc_out"], ie.CDataPtr)
-    assert isinstance(exec_net.outputs["28/Reshape"], ie.CDataPtr)
+    assert isinstance(exec_net.outputs["fc_out"], CDataPtr)
+    assert isinstance(exec_net.outputs["28/Reshape"], CDataPtr)
     assert exec_net.outputs["fc_out"].name == "fc_out" and exec_net.outputs["fc_out"].shape == [1, 10]
     assert exec_net.outputs["28/Reshape"].name == "28/Reshape" and exec_net.outputs["28/Reshape"].shape == [1, 5184]
     del ie_core
@@ -270,7 +270,7 @@ def test_multi_out_data(device):
 
 
 def test_get_metric(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     network_name = exec_net.get_metric("NETWORK_NAME")
@@ -279,7 +279,7 @@ def test_get_metric(device):
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_get_config(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
         pytest.skip("Can't run on ARM plugin due-to CPU dependent test")
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
@@ -291,7 +291,7 @@ def test_get_config(device):
 # issue 28996
 # checks that objects can deallocate in this order, if not - segfault happends
 def test_input_info_deallocation(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     input_info = exec_net.input_info["data"]
@@ -301,7 +301,7 @@ def test_input_info_deallocation(device):
 
 
 def test_outputs_deallocation(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
     output = exec_net.outputs["fc_out"]
@@ -311,7 +311,7 @@ def test_outputs_deallocation(device):
 
 
 def test_exec_graph_info_deallocation(device):
-    ie_core = ie.IECore()
+    ie_core = IECore()
     if device == "CPU":
         if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
             pytest.skip("Can't run on ARM plugin due-to get_exec_graph_info method isn't implemented")
