@@ -49,7 +49,6 @@ def teardown_module():
 
 def skip_if_onnx_frontend_is_disabled():
     front_ends = fem.get_available_front_ends()
-    print(front_ends)
     if "onnx" not in front_ends:
         pytest.skip()
 
