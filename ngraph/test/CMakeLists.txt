@@ -153,6 +153,7 @@ set(SRC
     type_prop/idft.cpp
     type_prop/interpolate.cpp
     type_prop/logical_and.cpp
+    type_prop/logical_or.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
@@ -414,7 +415,6 @@ set(MULTI_TEST_SRC
     backend/comparison.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
-    backend/convert_like.in.cpp
     backend/convolution_backprop.in.cpp
     backend/convolution.in.cpp
     backend/binary_convolution.in.cpp
@@ -457,7 +457,6 @@ set(MULTI_TEST_SRC
     backend/log.in.cpp
     backend/log_softmax.in.cpp
     backend/logical_not.in.cpp
-    backend/logical_or.in.cpp
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
@@ -476,7 +475,6 @@ set(MULTI_TEST_SRC
     backend/normalize_l2.in.cpp
     backend/non_max_suppression.in.cpp
     backend/non_zero.in.cpp
-    backend/numeric.in.cpp
     backend/one_hot.in.cpp
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
