@@ -89,7 +89,8 @@ int main(int argc, char* argv[]) {
             // Config for device plugin custom extension is loaded from an .xml
             // description
             ie.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, "GPU");
-            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c << slog::endl;
+            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c
+                       << slog::endl;
         }
         // -----------------------------------------------------------------------------------------------------
 
@@ -130,8 +131,8 @@ int main(int argc, char* argv[]) {
                 continue;
             }
             /** Store image data **/
-            std::shared_ptr<unsigned char> data(
-                reader->getData(inputInfoItem.second->getTensorDesc().getDims()[3], inputInfoItem.second->getTensorDesc().getDims()[2]));
+            std::shared_ptr<unsigned char> data(reader->getData(inputInfoItem.second->getTensorDesc().getDims()[3],
+                                                                inputInfoItem.second->getTensorDesc().getDims()[2]));
             if (data.get() != nullptr) {
                 imagesData.push_back(data);
             }
@@ -151,7 +152,8 @@ int main(int argc, char* argv[]) {
         // BlobMap outputBlobs;
         std::string firstOutputName;
 
-        const float meanValues[] = {static_cast<const float>(FLAGS_mean_val_r), static_cast<const float>(FLAGS_mean_val_g),
+        const float meanValues[] = {static_cast<const float>(FLAGS_mean_val_r),
+                                    static_cast<const float>(FLAGS_mean_val_g),
                                     static_cast<const float>(FLAGS_mean_val_b)};
 
         for (auto& item : outputInfo) {
@@ -241,16 +243,20 @@ int main(int argc, char* argv[]) {
         size_t W = moutput->getTensorDesc().getDims()[3];
         size_t nPixels = W * H;
 
-        slog::info << "Output size [N,C,H,W]: " << num_images << ", " << num_channels << ", " << H << ", " << W << slog::endl;
+        slog::info << "Output size [N,C,H,W]: " << num_images << ", " << num_channels << ", " << H << ", " << W
+                   << slog::endl;
 
         {
             std::vector<float> data_img(nPixels * num_channels);
 
             for (size_t n = 0; n < num_images; n++) {
                 for (size_t i = 0; i < nPixels; i++) {
-                    data_img[i * num_channels] = static_cast<float>(output_data[i + n * nPixels * num_channels] + meanValues[0]);
-                    data_img[i * num_channels + 1] = static_cast<float>(output_data[(i + nPixels) + n * nPixels * num_channels] + meanValues[1]);
-                    data_img[i * num_channels + 2] = static_cast<float>(output_data[(i + 2 * nPixels) + n * nPixels * num_channels] + meanValues[2]);
+                    data_img[i * num_channels] =
+                        static_cast<float>(output_data[i + n * nPixels * num_channels] + meanValues[0]);
+                    data_img[i * num_channels + 1] =
+                        static_cast<float>(output_data[(i + nPixels) + n * nPixels * num_channels] + meanValues[1]);
+                    data_img[i * num_channels + 2] =
+                        static_cast<float>(output_data[(i + 2 * nPixels) + n * nPixels * num_channels] + meanValues[2]);
 
                     float temp = data_img[i * num_channels];
                     data_img[i * num_channels] = data_img[i * num_channels + 2];
