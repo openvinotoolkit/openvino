@@ -35,7 +35,6 @@ op::v8::If::If(const Output<Node>& execution_condition)
 static ngraph::PartialShape resolve_shape(const ngraph::PartialShape& then_pshape,
                                           const ngraph::PartialShape& else_pshape)
 {
-
     // then_pshape - shape of output from then_body
     // else_pshape - shape of output from else_body
     auto then_rank = then_pshape.rank();
@@ -134,7 +133,6 @@ void op::v8::If::validate_and_infer_types()
     // Trying to get cond as const value
     if (const auto& cond_value = get_constant_from_source(if_condition))
     {
-
         // If cond is const shape and inference is run for one of bodies another body is skipped
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(
@@ -161,7 +159,6 @@ void op::v8::If::validate_and_infer_types()
     }
     else // condition is non constant
     {
-
         // If cond is non const, shape and type inference is run for both bodies
         validate_and_infer_type_body(get_then_body(), m_input_descriptions[then_body_index]);
         validate_and_infer_type_body(get_else_body(), m_input_descriptions[else_body_index]);
