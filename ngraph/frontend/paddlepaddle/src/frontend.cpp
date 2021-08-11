@@ -195,7 +195,6 @@ namespace ngraph
                 else
                 {
                     pdpd::NamedOutputs named_outputs = func(nodes_dict, op_place);
-
                     if (!named_outputs.empty())
                     {
                         // set layer name by the name of first output var
@@ -216,8 +215,13 @@ namespace ngraph
                                     "the number of outputs of the ngraph node.");
                                 for (size_t idx = 0; idx < ng_outputs.size(); ++idx)
                                 {
+                                    auto tensor = op_place->get_output_port(port.parameter(), idx)
+                                                      ->get_target_tensor();
                                     const auto& var_name = port.arguments()[idx];
-                                    ng_outputs[idx].get_tensor().set_names({var_name});
+                                    auto tensor_names = tensor->get_names();
+                                    ng_outputs[idx].get_tensor().set_names(
+                                        std::unordered_set<std::string>(tensor_names.begin(),
+                                                                        tensor_names.end()));
                                     // if nodes_dict already has node mapped to this tensor name it
                                     // usually means that it was overwritten using setTensorValue
                                     if (!nodes_dict.count(var_name))

@@ -37,6 +37,7 @@ namespace ngraph
             std::vector<Place::Ptr> getInputs() const;
             std::vector<Place::Ptr> getOutputs() const;
             Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
+            Place::Ptr getPlaceByOperationName(const std::string& operationName) const;
             void overrideAllOutputs(const std::vector<Place::Ptr>& outputs);
             void overrideAllInputs(const std::vector<Place::Ptr>& inputs);
             void extractSubgraph(const std::vector<Place::Ptr>& inputs,
@@ -65,8 +66,11 @@ namespace ngraph
             void cutAndAddNewInput(Place::Ptr place, const std::string& new_name_optional);
 
             void freeNameForTensor(const std::string& name);
+            void freeNameForOperation(const std::string& name);
+
             void addNameForTensor(Place::Ptr tensor, const std::string& new_name);
             void setNameForTensor(Place::Ptr tensor, const std::string& new_name);
+            void setNameForOperation(Place::Ptr op, const std::string& new_name);
 
         private:
             void loadPlaces();
@@ -83,6 +87,7 @@ namespace ngraph
             std::vector<Place::Ptr> m_outputs;
             std::map<pdpd::TensorName, Output<Node>> m_tensor_values;
             std::map<std::string, std::shared_ptr<TensorPlacePDPD>> m_var_names;
+            std::map<std::string, std::shared_ptr<OpPlacePDPD>> m_op_names;
 
             // shows if some nodes might be deleted from graph
             bool m_graph_changed = false;
@@ -589,6 +594,31 @@ namespace ngraph
             m_var_names[new_name] = tensor_pdpd;
         }
 
+        void InputModelPDPD::InputModelPDPDImpl::freeNameForOperation(const std::string& name)
+        {
+            if (m_op_names.count(name) != 0)
+            {
+                m_op_names[name]->remove_name(name);
+                m_op_names.erase(name);
+            }
+        }
+
+        void InputModelPDPD::InputModelPDPDImpl::setNameForOperation(Place::Ptr op,
+                                                                     const std::string& new_name)
+        {
+            auto op_place = std::dynamic_pointer_cast<OpPlacePDPD>(op);
+            FRONT_END_GENERAL_CHECK(op_place != nullptr, "Cannot cast this Place to OpPlacePDPD.");
+            op_place->set_name(new_name);
+        }
+
+        Place::Ptr InputModelPDPD::InputModelPDPDImpl::getPlaceByOperationName(
+            const std::string& operationName) const
+        {
+            if (m_op_names.count(operationName))
+                return m_op_names.at(operationName);
+            return nullptr;
+        }
+
         InputModelPDPD::InputModelPDPD(const std::string& path)
             : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)}
         {
@@ -701,6 +731,22 @@ namespace ngraph
         std::map<std::string, std::shared_ptr<TensorPlacePDPD>> InputModelPDPD::getVarNames() const
         {
             return _impl->getVarNames();
+        }
+
+        void InputModelPDPD::set_name_for_operation(Place::Ptr op, const std::string& new_name)
+        {
+            _impl->setNameForOperation(op, new_name);
+        }
+
+        void InputModelPDPD::free_name_for_operation(const std::string& name)
+        {
+            _impl->freeNameForOperation(name);
+        }
+
+        Place::Ptr
+            InputModelPDPD::get_place_by_operation_name(const std::string& operationName) const
+        {
+            return _impl->getPlaceByOperationName(operationName);
         }
 
     } // namespace frontend

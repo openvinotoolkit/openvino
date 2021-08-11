@@ -188,19 +188,6 @@ Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_
     return nullptr;
 }
 
-Place::Ptr InputModel::get_place_by_operation_name_and_input_port(const std::string& operation_name,
-                                                                  int input_port_index)
-{
-    return nullptr;
-}
-
-Place::Ptr
-    InputModel::get_place_by_operation_name_and_output_port(const std::string& operation_name,
-                                                            int output_port_index)
-{
-    return nullptr;
-}
-
 void InputModel::set_name_for_tensor(Place::Ptr tensor, const std::string& new_name)
 {
     FRONT_END_NOT_IMPLEMENTED(set_name_for_tensor);

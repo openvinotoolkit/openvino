@@ -33,6 +33,7 @@ namespace ngraph
             std::vector<Place::Ptr> get_inputs() const override;
             std::vector<Place::Ptr> get_outputs() const override;
             Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
+            Place::Ptr get_place_by_operation_name(const std::string& operationName) const override;
             void override_all_outputs(const std::vector<Place::Ptr>& outputs) override;
             void override_all_inputs(const std::vector<Place::Ptr>& inputs) override;
             void extract_subgraph(const std::vector<Place::Ptr>& inputs,
@@ -49,8 +50,11 @@ namespace ngraph
                                        const std::string& new_name_optional = "") override;
 
             void free_name_for_tensor(const std::string& name) override;
+            void free_name_for_operation(const std::string& name) override;
+
             void add_name_for_tensor(Place::Ptr tensor, const std::string& new_name) override;
             void set_name_for_tensor(Place::Ptr tensor, const std::string& new_name) override;
+            void set_name_for_operation(Place::Ptr op, const std::string& new_name) override;
         };
 
     } // namespace frontend

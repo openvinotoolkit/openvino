@@ -246,6 +246,12 @@ Place::Ptr OpPlacePDPD::get_target_tensor(int outputPortIndex) const
     return get_output_port(outputPortIndex)->get_target_tensor();
 }
 
+std::vector<std::string> OpPlacePDPD::get_names() const
+{
+    FRONT_END_GENERAL_CHECK(m_names.size() == 1, "Only one name for operation is supported.");
+    return m_names;
+}
+
 TensorPlacePDPD::TensorPlacePDPD(const InputModelPDPD& input_model,
                                  const std::vector<std::string>& names,
                                  const paddle::framework::proto::VarDesc& var_desc)

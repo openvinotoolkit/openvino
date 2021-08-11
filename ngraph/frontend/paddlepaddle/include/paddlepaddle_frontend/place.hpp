@@ -180,6 +180,8 @@ namespace ngraph
             Ptr get_target_tensor(const std::string& outputName,
                                   int outputPortIndex) const override;
 
+            std::vector<std::string> get_names() const override;
+
         private:
             const paddle::framework::proto::OpDesc& m_op_desc;
             std::map<std::string, std::vector<std::shared_ptr<InPortPlacePDPD>>> m_input_ports;
