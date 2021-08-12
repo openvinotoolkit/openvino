@@ -126,7 +126,7 @@ const std::vector<size_t> outputCount = {
     1, 2, 4
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_fq_activation, FQOutputsActivation,
+INSTANTIATE_TEST_CASE_P(smoke_fq_activation, FQOutputsActivation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
