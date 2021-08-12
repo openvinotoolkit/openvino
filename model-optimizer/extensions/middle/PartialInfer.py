@@ -31,8 +31,8 @@ class PartialInfer(MiddleReplacementPattern):
                       'input shapes ("-1" dimension in the TensorFlow model or dimension with string value in the ONNX '
                       'model). Some of the OpenVINO plugins require model input shapes to be static, so you should '
                       'call "reshape" method in the Inference Engine and specify static input shapes. For the optimal '
-                      'performance it is still recommended to update input shapes with fixed ones using “--input” or '
-                      '“--input_shape” command line parameters.'
+                      'performance it is still recommended to update input shapes with fixed ones using "--input" or '
+                      '"--input_shape" command line parameters.'
                       .format(','.join('name="{}" shape="{}"'.format(name, unmask_shape(shape))
                                        for name, shape in dynamic_inputs.items())),
                       extra={'is_warning': True})
