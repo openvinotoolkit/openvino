@@ -158,10 +158,6 @@ bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
     return isGnaLibVersion2_1 && isUpTo20HwGnaDevice(compileTargetDevice);
 }
 
-namespace {
-    const volatile auto Gna2DeviceVersion3_0 = static_cast<Gna2DeviceVersion>(0x30);
-} // namespace
-
 Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const bool execTarget) const {
     auto parsed = Gna2DeviceVersion2_0;
     auto throwUnsupportedGnaTarget = [&](std::string extraSuffix) {
@@ -169,7 +165,7 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
         THROW_GNA_EXCEPTION << "Unsupported " << key << " = \"" << target << "\"" << extraSuffix;
     };
     if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
-        if (!isGnaLibVersion2_1)
+        if (!isGnaLibVersion2_1 && !isGnaLibVersion3_0)
             throwUnsupportedGnaTarget(", when GNA Library version is 2.0.X.Y");
         parsed = Gna2DeviceVersion3_0;
     } else if (target != InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
@@ -180,7 +176,7 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
 
 Gna2DeviceVersion GNADeviceHelper::getDefaultTarget() const {
     if (detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation)
-        return isGnaLibVersion2_1 ? Gna2DeviceVersion3_0 : Gna2DeviceVersion2_0;
+        return (isGnaLibVersion3_0 ||  isGnaLibVersion2_1) ? Gna2DeviceVersion3_0 : Gna2DeviceVersion2_0;
     return detectedGnaDevVersion;
 }
 
