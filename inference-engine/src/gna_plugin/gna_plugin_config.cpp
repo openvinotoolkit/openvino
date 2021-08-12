@@ -90,8 +90,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                 }
             }
             auto scale_factor = InferenceEngine::CNNLayer::ie_parse_float(value);
-            if (fp32eq(scale_factor, 0.0f)) {
-                THROW_GNA_EXCEPTION << "input scale factor of 0.0f not supported";
+            if (fp32eq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
+                THROW_GNA_EXCEPTION << "input scale factor of 0.0f or +-inf not supported";
             }
             // missing scale factors are set to be 1.0f
             if (inputScaleFactors.size() <= input_index) {
@@ -131,7 +131,13 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             if (supportedTargets.count(value) == 0) {
                 THROW_GNA_EXCEPTION << "Unsupported GNA config value (key, value): (" << key << ", " << value << ")";
             }
-            (key == GNA_CONFIG_KEY(EXEC_TARGET) ? gnaExecTarget : gnaCompileTarget) = value;
+            if (key == GNA_CONFIG_KEY(EXEC_TARGET)) {
+                gnaExecTarget = value;
+                if (gnaCompileTarget == "")
+                    gnaCompileTarget = value;
+            } else {
+                gnaCompileTarget = value;
+            }
         } else if (key == GNA_CONFIG_KEY(COMPACT_MODE)) {
             if (value == PluginConfigParams::YES) {
                 gnaFlags.compact_mode = true;

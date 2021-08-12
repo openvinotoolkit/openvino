@@ -29,7 +29,7 @@ public:
         const std::shared_ptr<opset1::Constant>& value = nullptr);
     static std::shared_ptr<Function> get(
         const element::Type netPrecision,
-        const Shape& inputShape,
+        const PartialShape& inputShape,
         const Shape& outputShape,
         const builder::subgraph::FakeQuantizeOnData& fqOnData,
         const std::shared_ptr<Node>& weights);

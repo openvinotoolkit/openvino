@@ -131,6 +131,12 @@ static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer,
     return copyWithQuant;
 }
 
+static bool hasNextFuncLayer(const CNNLayerPtr layer) {
+    return CNNNetHasNextLayerSkipCertain(layer, 0, 0, [](CNNLayerPtr layer) {
+                return LayerInfo(layer).isNonFunctional();
+            });
+}
+
 static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayerPtr l, std::shared_ptr<IPassManager> passmanager) {
     std::vector<CNNLayerPtr> prevLayers;
 
@@ -796,7 +802,8 @@ void InsertIdentityLayerPass::run() {
                 for (auto && nextLayer : getInputTo(nextData)) {
                     if (nextLayer.second.get() == l.get())
                         continue;
-                    if (getCandidatesForIdentityInsertion(nextLayer.second, getPassManager()).empty()) {
+                    if (getCandidatesForIdentityInsertion(nextLayer.second, getPassManager()).empty() &&
+                        hasNextFuncLayer(nextLayer.second)) {
                         notAll = true;
                     }
                 }
@@ -1530,16 +1537,7 @@ void SubstituteScaleShiftBroadCastPass::run() {
             continue;
         }
 
-        // only 3d scaleshift supported where number of c is arbitrary
-        auto lastD = reshape_batch ? dataDims[1] : dataDims.back();
-        if (lastD != weightsElements) {
-            THROW_GNA_EXCEPTION << "Unsupported layer: " << l->name
-                                << " should have last dim(" << lastD << ") equal to weights(" << weightsElements << ") length";
-        }
-        if (dataDims.size() == 2) {
-            THROW_GNA_EXCEPTION << "For layer: " << l->name
-                                << " weights size(" << weightsElements<< ") invalid: should match input size of(" << lastD << ")";
-        }
+        // TODO: add broadcasting rules checks
 
         gnalog() << "Substitution ScaleShift broadcast for layer: " << l->name << "\n";
         if (nElements % scaleShift->_weights->size()) {
@@ -1614,44 +1612,6 @@ void BroadcastConstPass::run() {
             prevLayer->outData.front()->setLayout(nextLayer->outData.front()->getLayout());
         }
         gnalog() << "Const layer '" << constLayer->name << "' was changed to match output of '" << nextLayer->name << "'\n";
-    }
-}
-
-void InsertIdentityToLSTMCellPass::run() {
-    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertIdentityToLSTMCellPass");
-    for (auto layer : *pLayers) {
-        if (layer->type == "LSTMCell") {
-            // This fixed the cases when both functional and non-functional outputs are mixed (or not outputs are used)
-            // which results in scratch buffer being used so outputs cannot be used in form of blob or by non-functional layers
-            // downside is scaling down from i32 to i16 which may
-            for (int output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
-                int numOfIdentityLayers = ((this->getPassManager())->getIntVar(identityLayersCounterName))++;
-                auto activationName = std::string("lstm_identity_") + std::to_string(numOfIdentityLayers);
-                auto& output = layer->outData[output_idx];
-                auto& input_to = getInputTo(output);
-
-                CNNLayerPtr activationLayer =
-                    std::make_shared<GenericLayer>(LayerParams({activationName, "identity", InferenceEngine::Precision::FP32}));
-
-                auto dataPtr = std::make_shared<Data>("lstm_identity_data_" + std::to_string(numOfIdentityLayers), output->getTensorDesc());
-
-                auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-                auto activationLayerWithQuant = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(activationLayer) : activationLayer;
-                getCreatorLayer(dataPtr) = activationLayerWithQuant;
-                activationLayerWithQuant->outData.push_back(dataPtr);
-                activationLayerWithQuant->insData.push_back(output);
-                auto& activationInputTo = getInputTo(dataPtr);
-
-                for (auto& input : input_to) {
-                    auto& next_layer = input.second;
-                    activationInputTo[input.first] = next_layer;
-                    std::replace_if(std::begin(next_layer->insData), std::end(next_layer->insData),
-                        [output](DataWeakPtr data) { return data.lock() == output; }, dataPtr);
-                }
-                input_to.clear();
-                input_to[activationName] = activationLayerWithQuant;
-            }
-        }
     }
 }
 
@@ -2142,8 +2102,11 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             THROW_GNA_LAYER_EXCEPTION(fqLayer) << "Zero levels";
         }
 
-        // Before FQ layer is removed, the previous layer has to be updated with its quantization data
-        auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
+        // Before FQ layer is removed, the previous functional layer has to be updated with its quantization data
+        auto prevFuncLayer = CNNNetPrevLayerSkipCertain(*fqLayer, 0, [](CNNLayerPtr layer) {
+            return LayerInfo(layer).isNonFunctional();
+        });
+        auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevFuncLayer);
         quantParamsPrevLayer->_dst_quant.SetLevels(fqLevels);
         quantParamsPrevLayer->_dst_quant.SetMinValues({ inputRange.first[0] }, true);
         quantParamsPrevLayer->_dst_quant.SetMaxValues({ inputRange.second[0] }, true);
@@ -2182,11 +2145,11 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         // Find all output layers connected to FQ
         auto nextLayers = CNNNetGetAllNextLayersSkipCertain(*fqLayer, -1, donotSkip);
         if (nextLayers.empty()) {
-            return;
+            continue;
         }
 
         if (isFQFuseAllowed) {
-            getInputTo(prevData).clear();
+            getInputTo(prevData).erase(l->name);
         }
 
         // Connect all next layers after FQ to the layer that is before FQ
@@ -2220,6 +2183,17 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
         }
     };
 
+    auto transpInfoMatchWeightsSize = [](const std::vector<TranspositionInfo> &transpositionInfo, size_t weightsSize, const std::string &layerName) {
+        size_t totalElements = 0;
+        for (auto && transpositionInfoPart : transpositionInfo) {
+            totalElements += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
+        }
+        if (totalElements != weightsSize) {
+            THROW_GNA_EXCEPTION << layerName << " weights elements from transposition info (" << totalElements
+                                << ") don't match input dimensions (" << weightsSize << ")";
+        }
+    };
+
     for (auto &&l : *pLayers) {
         if (LayerInfo(l).isScaleShift()) {
             std::vector<TranspositionInfo> transpositionInfo;
@@ -2237,6 +2211,10 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                 }
                 auto weightable = dynamic_cast<WeightableLayer*>(l.get());
                 IE_ASSERT(weightable != nullptr);
+
+                size_t totalWeights = weightable->_weights->size();
+                transpInfoMatchWeightsSize(transpositionInfo, totalWeights, l->name);
+
                 ConvertTensorFromNCHWToNHWC(weightable->precision.size(), 1, weightable->_weights->size(),
                     weightable->_weights->cbuffer().as<uint8_t*>(), true, transpositionInfo);
                 if (weightable->_biases) {
@@ -2270,14 +2248,9 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                         // If we found a split it's not possible to rotate data
                         THROW_GNA_EXCEPTION << l->name << " won't be transposed due to a split before it";
                     }
-                    size_t totalColumns = 0;
-                    for (auto && transpositionInfoPart : transpositionInfo) {
-                        totalColumns += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
-                    }
-                    if (weightsColumns != totalColumns) {
-                        THROW_GNA_EXCEPTION << l->name << " weights columns from transposition info (" << totalColumns
-                                            << ") don't match input dimensions (" << weightsColumns << ")";
-                    }
+
+                    transpInfoMatchWeightsSize(transpositionInfo, weightsColumns, l->name);
+
                     ConvertTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
                                                 true, transpositionInfo);
                     gnalog() << l->name << " weights rows transposition info:\n";
@@ -2297,14 +2270,9 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                         // If we found a concat it's not possible to rotate data
                         THROW_GNA_EXCEPTION << l->name << " won't be transposed due to a concat after it";
                     }
-                    size_t totalRows = 0;
-                    for (const auto& transpositionInfoPart : transpositionInfo) {
-                        totalRows += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
-                    }
-                    if (weightsRows != totalRows) {
-                        THROW_GNA_EXCEPTION << l->name << " weights rows from transposition info (" << totalRows
-                                            << ") don't match output dimensions (" << weightsRows << ")";
-                    }
+
+                    transpInfoMatchWeightsSize(transpositionInfo, weightsRows, l->name);
+
                     ConvertTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
                                                 false, transpositionInfo);
                     gnalog() << l->name << " weights columns transposition info:\n";

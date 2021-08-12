@@ -35,10 +35,10 @@ void regclass_pyngraph_FrontEndManager(py::module m)
                 get_available_front_ends : List[str]
                     List of available frontend names.
              )");
+
     fem.def("load_by_framework",
             &ngraph::frontend::FrontEndManager::load_by_framework,
             py::arg("framework"),
-            py::arg("capabilities") = ngraph::frontend::FrontEndCapabilities::FEC_DEFAULT,
             R"(
                 Loads frontend by name of framework and capabilities.
 
@@ -47,39 +47,30 @@ void regclass_pyngraph_FrontEndManager(py::module m)
                 framework : str
                     Framework name. Throws exception if name is not in list of available frontends.
 
-                capabilities : int
-                    Frontend capabilities. Default is FrontEndCapabilities.FEC_DEFAULT. It is recommended to use only
-                    those capabilities which are needed to minimize load time.
-
                 Returns
                 ----------
                 load_by_framework : FrontEnd
                     Frontend interface for further loading of models.
              )");
-}
 
-void regclass_pyngraph_FEC(py::module m)
-{
-    class FeCaps
-    {
-    public:
-        int get_caps() const { return m_caps; }
+    fem.def(
+        "load_by_model",
+        [](const std::shared_ptr<ngraph::frontend::FrontEndManager>& fem,
+           const std::string& model_path) { return fem->load_by_model(model_path); },
+        py::arg("model_path"),
+        R"(
+                Selects and loads appropriate frontend depending on model file extension and other file info (header).
 
-    private:
-        int m_caps;
-    };
+                Parameters
+                ----------
+                model_path : str
+                    Path to model file/directory.
 
-    py::class_<FeCaps, std::shared_ptr<FeCaps>> type(m, "FrontEndCapabilities");
-    // type.doc() = "FrontEndCapabilities";
-    type.attr("DEFAULT") = ngraph::frontend::FrontEndCapabilities::FEC_DEFAULT;
-    type.attr("CUT") = ngraph::frontend::FrontEndCapabilities::FEC_CUT;
-    type.attr("NAMES") = ngraph::frontend::FrontEndCapabilities::FEC_NAMES;
-    type.attr("WILDCARDS") = ngraph::frontend::FrontEndCapabilities::FEC_WILDCARDS;
-
-    type.def(
-        "__eq__",
-        [](const FeCaps& a, const FeCaps& b) { return a.get_caps() == b.get_caps(); },
-        py::is_operator());
+                Returns
+                ----------
+                load_by_model : FrontEnd
+                    Frontend interface for further loading of models. 'None' if no suitable frontend is found
+            )");
 }
 
 void regclass_pyngraph_GeneralFailureFrontEnd(py::module m)

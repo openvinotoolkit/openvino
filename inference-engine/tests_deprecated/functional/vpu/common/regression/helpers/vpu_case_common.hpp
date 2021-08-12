@@ -83,6 +83,5 @@ protected:
     std::map <std::string, std::string> config_;
 
     //Operations
-    virtual void SetUp() override = 0;
     virtual void InitConfig();
 };

@@ -10,7 +10,7 @@
 As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *Minimum* operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
 
 \f[
-o_{i} = min(a_{i}, b_{i})
+o_{i} = min(a_{i},\ b_{i})
 \f]
 
 **Attributes**:
@@ -27,8 +27,8 @@ o_{i} = min(a_{i}, b_{i})
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape. Required.
-* **2**: A tensor of type *T* and arbitrary shape. Required.
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 

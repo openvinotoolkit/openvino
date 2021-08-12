@@ -25,7 +25,8 @@ std::string GroupConvolutionTransformation::getTestCaseName(testing::TestParamIn
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     GroupConvolutionTransformationParam param;
-    std::tie(netPrecision, targetDevice, params, param) = obj.param;
+    bool addPrecisionPreserved;
+    std::tie(netPrecision, targetDevice, params, param, addPrecisionPreserved) = obj.param;
 
     std::ostringstream result;
     result <<
@@ -35,6 +36,7 @@ std::string GroupConvolutionTransformation::getTestCaseName(testing::TestParamIn
         param.group << "_" <<
         param.groupCalculationDimention << "_" <<
         param.fakeQuantizeOnData << "_" <<
+        (addPrecisionPreserved ? "max_pool_" : "") <<
         param.fakeQuantizeOnWeights;
     return result.str();
 }
@@ -45,7 +47,8 @@ void GroupConvolutionTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     GroupConvolutionTransformationParam param;
-    std::tie(netPrecision, targetDevice, params, param) = this->GetParam();
+    bool addPrecisionPreserved;
+    std::tie(netPrecision, targetDevice, params, param, addPrecisionPreserved) = this->GetParam();
 
     function = ngraph::builder::subgraph::GroupConvolutionFunction::getOriginal(
         netPrecision,
@@ -54,9 +57,8 @@ void GroupConvolutionTransformation::SetUp() {
         param.group,
         param.groupCalculationDimention,
         param.fakeQuantizeOnData,
-        param.fakeQuantizeOnWeights);
-
-    validate();
+        param.fakeQuantizeOnWeights,
+        addPrecisionPreserved);
 }
 
 void GroupConvolutionTransformation::Run() {
@@ -71,24 +73,6 @@ void GroupConvolutionTransformation::Run() {
         }
         EXPECT_EQ(actualPrecision, expectedPrecision);
     }
-}
-
-void GroupConvolutionTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    GroupConvolutionTransformationParam param;
-
-    std::tie(netPrecision, targetDevice, params, param) = this->GetParam();
-
-    auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-    EXPECT_EQ(1ul, transformed->get_output_size());
-    std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
-
-    std::shared_ptr<ngraph::Node> parent = output->get_input_node_shared_ptr(0);
-    ASSERT_FALSE(parent == nullptr);
-    const std::string typeName = parent->get_type_name();
-
-    ASSERT_TRUE(typeName == "ScaleShiftIE" || typeName == "PowerIE" || typeName == "ConvolutionIE");
 }
 
 TEST_P(GroupConvolutionTransformation, CompareWithRefImpl) {

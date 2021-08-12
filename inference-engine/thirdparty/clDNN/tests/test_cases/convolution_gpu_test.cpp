@@ -7687,9 +7687,9 @@ public:
             build_option::optimize_data(true),
             build_option::force_implementations({ {"conv", {input_format(), ""}} })
         );
-        auto prog = program(engine, topo, build_opts);
+        auto prog = program::build_program(engine, topo, build_opts);
 
-        auto net = network(prog, 0);
+        cldnn::network net(prog, 0);
 
         auto input_lay = layout(input_type(), format::bfyx, input_size(), padding_size());
         auto input_mem = engine.allocate_memory(input_lay);
@@ -8047,9 +8047,9 @@ public:
             build_option::optimize_data(true),
             build_option::force_implementations({ {"conv", { this->input_format(), ""}} })
         );
-        auto prog = program(engine, topo, build_opts);
+        auto prog = program::build_program(engine, topo, build_opts);
 
-        auto net = network(prog, 0);
+        cldnn::network net(prog, 0);
 
         auto input_lay = layout(this->input_type(), format::b_fs_yx_fsv4,  this->input_size(), this->padding_size());
         auto input_mem = engine.allocate_memory(input_lay);
@@ -8107,7 +8107,7 @@ class convolution_scale_random_test : public convolution_random_test_base<InputT
 public:
     using parent = convolution_random_test_base<InputT, WeightsT, OutputT>;
 
-    virtual primitive_id output_primitive_id() const {
+    primitive_id output_primitive_id() const override {
         return "scale_wa_reorder";
     }
 
@@ -8454,11 +8454,11 @@ public:
         return all_test_params;
     }
 
-    virtual bool is_format_supported(cldnn::format format) {
+    bool is_format_supported(cldnn::format format) override {
         return ((format == cldnn::format::bfyx) || (format == cldnn::format::yxfb));
     }
 
-    virtual cldnn::tensor get_expected_output_tensor() {
+    cldnn::tensor get_expected_output_tensor() override {
         auto convolution = std::static_pointer_cast<const cldnn::convolution>(layer_params);
         tensor input_size = generic_params->input_layouts[0].size;
         tensor dilation = convolution->dilation;
@@ -8477,7 +8477,7 @@ public:
         return cldnn::tensor(input_size.batch[0], output_features, output_size_x, output_size_y);
     }
 
-    virtual void prepare_input_for_test(std::vector<cldnn::memory::ptr>& inputs) {
+    void prepare_input_for_test(std::vector<cldnn::memory::ptr>& inputs) override {
         if (generic_params->data_type == data_types::f32) {
             prepare_input_for_test_typed<float>(inputs);
         } else {
@@ -8610,7 +8610,7 @@ public:
         return output;
     }
 
-    virtual memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs) {
+    memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs) override {
         if (generic_params->data_type == data_types::f32) {
             return generate_reference_typed<float>(inputs);
         } else {

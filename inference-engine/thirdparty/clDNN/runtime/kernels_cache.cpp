@@ -55,7 +55,7 @@
 namespace {
 std::mutex cacheAccessMutex;
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 std::wstring multiByteCharToWString(const char* str) {
 #ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
@@ -69,7 +69,7 @@ std::wstring multiByteCharToWString(const char* str) {
     return result;
 #endif  // _WIN32
 }
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 
 static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
     std::lock_guard<std::mutex> lock(cacheAccessMutex);
@@ -242,7 +242,7 @@ kernels_cache::kernels_cache(engine& engine) : _engine(engine) { }
 kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_string>& kernel_string,
     bool dump_custom_program) {
-
+    std::lock_guard<std::mutex> lock(_mutex);
     // we need unique id in order to avoid conflict across topologies.
     const auto kernel_num = _kernels.size() + _kernels_code.size();
     kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
@@ -279,12 +279,18 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
 
     bool dump_sources = !_engine.configuration().sources_dumps_dir.empty() || batch.dump_custom_program;
+    std::string dump_sources_dir = _engine.configuration().sources_dumps_dir;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
+        dump_sources = true;
+        dump_sources_dir = debug_config->dump_sources;
+    }
 
     std::string err_log;  // accumulated build log from all program's parts (only contains messages from parts which
 
     std::string current_dump_file_name = "";
     if (dump_sources) {
-        current_dump_file_name = _engine.configuration().sources_dumps_dir;
+        current_dump_file_name = dump_sources_dir;
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 

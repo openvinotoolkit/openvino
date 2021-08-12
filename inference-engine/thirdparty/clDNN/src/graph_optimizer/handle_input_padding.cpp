@@ -17,7 +17,7 @@ using namespace cldnn;
 // Symmetric padding can be done using input_offset parameter for primitives.
 // Asymmetric padding can be done by adding border primitive before them. It's safe way without modyfing optimized
 // kernels.
-void handle_input_padding::run(program_impl& p) {
+void handle_input_padding::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (!node->is_type<convolution>()) {
             continue;

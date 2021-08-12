@@ -72,7 +72,7 @@ TEST(gpu_streams, check_networks_can_use_the_same_weights) {
             convolution("conv", "input", { "weights" }, { 1,1,1,2 }));
 
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
-    program prog(engine, topology, build_options());
+    auto prog = program::build_program(engine, topology, build_options());
     network network0(prog, 0);
     network network1(prog, 1);
 
@@ -136,7 +136,7 @@ TEST(gpu_streams, check_networks_use_unique_mutable_data_per_stream) {
             convolution("conv", "input", { "weights" }, { 1,1,1,2 }));
 
     set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
-    program prog(engine, topology, build_options());
+    auto prog = program::build_program(engine, topology, build_options());
     network network0(prog, 0);
     network network1(prog, 1);
 

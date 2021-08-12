@@ -13,19 +13,21 @@ namespace ngraph
     {
         class OpPlacePDPD;
         class TensorPlacePDPD;
-
         class PDPD_API InputModelPDPD : public InputModel
         {
             friend class FrontEndPDPD;
             class InputModelPDPDImpl;
             std::shared_ptr<InputModelPDPDImpl> _impl;
 
-            std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces() const;
-            std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces() const;
-            std::map<std::string, Output<Node>> getTensorValues() const;
+            std::vector<std::shared_ptr<OpPlacePDPD>> get_op_places() const;
+            std::map<std::string, std::shared_ptr<TensorPlacePDPD>> get_var_places() const;
+            std::map<std::string, Output<Node>> get_tensor_values() const;
 
         public:
             explicit InputModelPDPD(const std::string& path);
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+            explicit InputModelPDPD(const std::wstring& path);
+#endif
             explicit InputModelPDPD(const std::vector<std::istream*>& streams);
             std::vector<Place::Ptr> get_inputs() const override;
             std::vector<Place::Ptr> get_outputs() const override;

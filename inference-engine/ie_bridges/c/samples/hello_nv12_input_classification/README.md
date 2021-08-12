@@ -35,7 +35,7 @@ To build the sample, please use instructions available at [Build the Sample Appl
 
 To run the sample, you need specify a model and image:
 
-- you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 The sample accepts an uncompressed image in the NV12 color format. To run the sample, you need to
@@ -62,17 +62,29 @@ ffmpeg -i cat.jpg -pix_fmt nv12 cat.yuv
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-You can perform inference on an NV12 image using a trained AlexNet network on a CPU with the following command:
+### Example
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+```
+python <path_to_omz_tools>/downloader.py --name alexnet
+```
 
-```sh
-./hello_nv12_input_classification_c <path_to_model>/alexnet_fp32.xml <path_to_image>/cat.yuv 300x300 CPU
+2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+
+```
+python <path_to_omz_tools>/converter.py --name alexnet
+```
+
+3. Perform inference of NV12 image using `alexnet` model on a `CPU`, for example:
+
+```
+<path_to_sample>/hello_nv12_input_classification_c <path_to_model>/alexnet.xml <path_to_image>/cat.yuv 300x300 CPU
 ```
 
 ## Sample Output
 
 The application outputs top-10 inference results.
 
-```sh
+```
 Top 10 results:
 
 Image ./cat.yuv
@@ -97,7 +109,7 @@ This sample is an API example, for any performance measurements please use the d
 
 - [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
 - [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
-- [Model Downloader](@ref omz_tools_downloader_README)
+- [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [ie_network_set_color_format]:https://docs.openvinotoolkit.org/latest/ie_c_api/group__Network.html#ga85f3251f1f7b08507c297e73baa58969
