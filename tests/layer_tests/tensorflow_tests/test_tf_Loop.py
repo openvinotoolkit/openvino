@@ -8,7 +8,6 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 
 class TestLoop(CommonTFLayerTest):
-    skip_framework = True
 
     def create_loop(self):
         """
@@ -20,10 +19,6 @@ class TestLoop(CommonTFLayerTest):
 
         #   Create TF model
         import tensorflow as tf
-        from tensorflow import keras
-        from tensorflow.compat.v1 import graph_util
-        from tensorflow.python.keras import backend as K
-        from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 
         g = tf.Graph()
         with g.as_default():
@@ -35,15 +30,14 @@ class TestLoop(CommonTFLayerTest):
 
             def body(x_arg, v_arg, i_arg, a_combined_arg, b_combined_arg):
                 x_slice = tf.slice(x_arg, [0, 0], [1, x_arg.shape[1]])
-                v_slice = tf.slice(v_arg, [0], [1])
-                j = tf.constant([0], dtype=tf.int32, shape=[1])
                 i_arg = tf.add(i_arg, 1)
                 a_combined_arg = tf.add(a_combined_arg, x_slice)
                 return x_arg, v_arg, i_arg, a_combined_arg, b_combined_arg
 
             while_condition = lambda x, v, i, a_combined, b_combined: i < v.shape[0]
 
-            tf.while_loop(while_condition, body, [x, v, i, a_combined, b_combined], name="whilenode")
+            x, v, i, a_combined, b_combined = tf.while_loop(while_condition, body, [x, v, i, a_combined, b_combined],
+                                                            name="whilenode")
 
         return g, None
 
@@ -55,10 +49,6 @@ class TestLoop(CommonTFLayerTest):
 
         """
         import tensorflow as tf
-        from tensorflow import keras
-        from tensorflow.compat.v1 import graph_util
-        from tensorflow.python.keras import backend as K
-        from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 
         #   Create TF model
 
@@ -99,6 +89,7 @@ class TestLoop(CommonTFLayerTest):
 
     @pytest.mark.precommit
     @pytest.mark.timeout(250)
+    @pytest.mark.xfail(reason='61587,62349')
     def test_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip('Loop not supported on GPU')
@@ -107,6 +98,7 @@ class TestLoop(CommonTFLayerTest):
 
     @pytest.mark.precommit
     @pytest.mark.timeout(250)
+    @pytest.mark.xfail(reason='61587,62349')
     def test_loop_in_loop_simple_precommit(self, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip('Loop not supported on GPU')
