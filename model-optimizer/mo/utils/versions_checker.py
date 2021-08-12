@@ -35,11 +35,12 @@ def get_imported_module_version(imported_module):
     Get imported module version
     :return: version(str) or raise AttributeError exception
     """
-    version_attrs = ["__version__", "VERSION"]
+    version_attrs = ["__version__", "VERSION", "version"]
     installed_version = None
     for attr in version_attrs:
         if installed_version is None:
             installed_version = getattr(imported_module, attr, None)
+            installed_version = installed_version if isinstance(installed_version, str) else None
         else:
             return installed_version
     raise AttributeError("{} module doesn't have version attribute".format(imported_module))
