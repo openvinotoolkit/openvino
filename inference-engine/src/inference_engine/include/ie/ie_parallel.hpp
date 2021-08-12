@@ -110,7 +110,7 @@ inline int parallel_get_env_threads() {
 }
 
 #elif IE_THREAD == IE_THREAD_SEQ
-#    include <algorithm>  // NOLINT
+#    include <algorithm>
 inline int parallel_get_env_threads() {
     return 1;
 }

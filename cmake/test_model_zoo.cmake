@@ -17,7 +17,7 @@ function(ov_model_convert SRC DST OUT)
         get_filename_component(name_we "${in_file}" NAME_WE)
         set(model_source_dir "${SRC}/${rel_dir}")
 
-        if(NOT NGRAPH_ONNX_IMPORT_ENABLE AND ext MATCHES "^\\.(onnx|prototxt)$")
+        if(NOT NGRAPH_ONNX_FRONTEND_ENABLE AND ext MATCHES "^\\.(onnx|prototxt)$")
             # don't copy / process ONNX / prototxt files
             continue()
         endif()
@@ -78,7 +78,7 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  ie_onnx_import_out_files)
 
 if(ENABLE_TESTS)
-    if(NGRAPH_ONNX_IMPORT_ENABLE AND ENABLE_REQUIREMENTS_INSTALL)
+    if(NGRAPH_ONNX_FRONTEND_ENABLE AND ENABLE_REQUIREMENTS_INSTALL)
         find_package(PythonInterp 3 REQUIRED)
 
         get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)

@@ -175,6 +175,7 @@ def create_test_onnx_models():
 
 fem = FrontEndManager()
 test_models_names = []
+ONNX_FRONTEND_NAME = "onnx_experimental"
 
 
 def setup_module():
@@ -191,7 +192,7 @@ def teardown_module():
 
 def skip_if_onnx_frontend_is_disabled():
     front_ends = fem.get_available_front_ends()
-    if "onnx" not in front_ends:
+    if ONNX_FRONTEND_NAME not in front_ends:
         pytest.skip()
 
 
@@ -243,7 +244,7 @@ def compare_functions(current, expected):  # noqa: C901 the function is too comp
 
 def test_extract_subgraph():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -264,7 +265,7 @@ def test_extract_subgraph():
 
 def test_extract_subgraph_2():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -284,7 +285,7 @@ def test_extract_subgraph_2():
 
 def test_extract_subgraph_3():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -305,7 +306,7 @@ def test_extract_subgraph_3():
 
 def test_extract_subgraph_4():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -329,7 +330,7 @@ def test_extract_subgraph_4():
 
 def test_override_all_outputs():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -349,7 +350,7 @@ def test_override_all_outputs():
 
 def test_override_all_outputs_2():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -368,7 +369,7 @@ def test_override_all_outputs_2():
 
 def test_override_all_inputs():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -391,7 +392,7 @@ def test_override_all_inputs():
 
 def test_override_all_inputs_exceptions():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -413,7 +414,7 @@ def test_override_all_inputs_exceptions():
 
 def test_is_input_output():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -439,7 +440,7 @@ def test_is_input_output():
 
 def test_set_partial_shape():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -462,7 +463,7 @@ def test_set_partial_shape():
 
 def test_get_partial_shape():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -485,7 +486,7 @@ def test_get_partial_shape():
 
 def test_get_inputs():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -495,7 +496,7 @@ def test_get_inputs():
 
 def test_get_outputs():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -507,7 +508,7 @@ def test_get_outputs():
 
 def test_is_equal():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -579,7 +580,7 @@ def test_is_equal_data():
 
 def test_get_place_by_tensor_name():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
