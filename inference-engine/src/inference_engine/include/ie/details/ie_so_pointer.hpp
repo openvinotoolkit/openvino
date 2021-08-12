@@ -9,10 +9,10 @@
 #pragma once
 
 #include <cassert>
+#include <functional>
 #include <memory>
 #include <string>
 #include <type_traits>
-#include <functional>
 
 #include "ie_common.h"
 #include "ie_so_loader.h"
@@ -31,7 +31,8 @@ class SOCreatorTrait {};
  * @tparam C A char type
  */
 template <typename C>
-using enableIfSupportedChar = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
+using enableIfSupportedChar =
+    typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
 
 /**
  * @brief This class instantiate object using shared library
@@ -44,8 +45,10 @@ class SOPointer {
 
     IE_SUPPRESS_DEPRECATED_START
     struct HasRelease {
-        template <typename C> static char test(decltype(&C::Release));
-        template <typename C> static long test(...);
+        template <typename C>
+        static char test(decltype(&C::Release));
+        template <typename C>
+        static long test(...);
         constexpr static const bool value = sizeof(test<T>(nullptr)) == sizeof(char);
     };
     IE_SUPPRESS_DEPRECATED_END
@@ -60,10 +63,8 @@ public:
      * @brief The main constructor
      * @param name Name of a shared library file
      */
-    template <typename C,
-              typename = enableIfSupportedChar<C>>
-    SOPointer(const std::basic_string<C> & name)
-        : _so(name.c_str()) {
+    template <typename C, typename = enableIfSupportedChar<C>>
+    SOPointer(const std::basic_string<C>& name) : _so(name.c_str()) {
         Load(std::integral_constant<bool, HasRelease::value>{});
     }
 
@@ -78,8 +79,7 @@ public:
      * @brief Constructs an object with existing loader
      * @param so Existing pointer to a library loader
      */
-    explicit SOPointer(const SharedObjectLoader& so)
-        : _so(so) {
+    explicit SOPointer(const SharedObjectLoader& so) : _so(so) {
         Load(std::integral_constant<bool, HasRelease::value>{});
     }
 
@@ -88,9 +88,8 @@ public:
      * @param that copied SOPointer object
      */
     template <typename U>
-    SOPointer(const SOPointer<U>& that)
-        : _so(that._so),
-          _ptr(std::dynamic_pointer_cast<T>(that._ptr)) {
+    SOPointer(const SOPointer<U>& that) : _so(that._so),
+                                          _ptr(std::dynamic_pointer_cast<T>(that._ptr)) {
         IE_ASSERT(_ptr != nullptr);
     }
 
@@ -123,7 +122,7 @@ public:
         return _so;
     }
 
-    operator std::shared_ptr<T>& () noexcept {
+    operator std::shared_ptr<T>&() noexcept {
         return _ptr;
     }
 
@@ -136,7 +135,8 @@ protected:
             void* create = nullptr;
             try {
                 create = _so.get_symbol((SOCreatorTrait<T>::name + std::string("Shared")).c_str());
-            } catch (const NotFound&) {}
+            } catch (const NotFound&) {
+            }
             if (create == nullptr) {
                 create = _so.get_symbol(SOCreatorTrait<T>::name);
                 using CreateF = StatusCode(T*&, ResponseDesc*);
@@ -144,17 +144,23 @@ protected:
                 ResponseDesc desc;
                 StatusCode sts = reinterpret_cast<CreateF*>(create)(object, &desc);
                 if (sts != OK) {
-                    IE_EXCEPTION_SWITCH(sts, ExceptionType,
-                        InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << desc.msg)
+                    IE_EXCEPTION_SWITCH(sts,
+                                        ExceptionType,
+                                        InferenceEngine::details::ThrowNow<ExceptionType>{} <<=
+                                        std::stringstream{} << IE_LOCATION << desc.msg)
                 }
                 IE_SUPPRESS_DEPRECATED_START
-                _ptr = std::shared_ptr<T>(object, [] (T* ptr){ptr->Release();});
+                _ptr = std::shared_ptr<T>(object, [](T* ptr) {
+                    ptr->Release();
+                });
                 IE_SUPPRESS_DEPRECATED_END
             } else {
                 using CreateF = void(std::shared_ptr<T>&);
                 reinterpret_cast<CreateF*>(create)(_ptr);
             }
-        } catch(...) {details::Rethrow();}
+        } catch (...) {
+            details::Rethrow();
+        }
     }
 
     /**
@@ -164,7 +170,9 @@ protected:
         try {
             using CreateF = void(std::shared_ptr<T>&);
             reinterpret_cast<CreateF*>(_so.get_symbol(SOCreatorTrait<T>::name))(_ptr);
-        } catch(...) {details::Rethrow();}
+        } catch (...) {
+            details::Rethrow();
+        }
     }
 
     /**

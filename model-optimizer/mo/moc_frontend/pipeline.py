@@ -9,22 +9,18 @@ from mo.moc_frontend.extractor import fe_user_data_repack
 from mo.middle.passes.infer import validate_batch_in_shape
 
 from ngraph import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
-from ngraph.frontend import Place                 # pylint: disable=no-name-in-module,import-error
+from ngraph.frontend import FrontEnd, Place       # pylint: disable=no-name-in-module,import-error
 from ngraph.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
 
 
-def moc_pipeline(argv: argparse.Namespace):
+def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     """
     Load input model and convert it to nGraph function
-    :param: parsed command line arguments
+    :param: argv: parsed command line arguments
+    :param: moc_front_end: Loaded Frontend for converting input model
     :return: converted nGraph function ready for serialization
     """
-    fem = argv.feManager
-    log.debug('Available front ends: {}'.format(
-        str(fem.get_available_front_ends())))
-    log.debug('Initializing new FE for framework {}'.format(argv.framework))
-    fe = fem.load_by_framework(argv.framework)
-    input_model = fe.load(argv.input_model)
+    input_model = moc_front_end.load(argv.input_model)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
@@ -78,7 +74,6 @@ def moc_pipeline(argv: argparse.Namespace):
 
     def shape_to_array(shape: PartialShape):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
-        return
 
     # Set batch size
     if argv.batch is not None and argv.batch > 0:
@@ -100,5 +95,5 @@ def moc_pipeline(argv: argparse.Namespace):
                 joined_name, old_shape_array, new_shape))
             input_model.set_partial_shape(place, new_partial_shape)
 
-    ngraph_function = fe.convert(input_model)
+    ngraph_function = moc_front_end.convert(input_model)
     return ngraph_function
