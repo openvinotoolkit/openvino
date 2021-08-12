@@ -95,6 +95,7 @@ set(SRC
     type_prop/asinh.cpp
     type_prop/assign.cpp
     type_prop/atan.cpp
+    type_prop/atanh.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
@@ -241,6 +242,7 @@ set(SRC
     visitors/op/add.cpp
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
+    visitors/op/atanh.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
     visitors/op/broadcast.cpp
@@ -403,7 +405,6 @@ set(MULTI_TEST_SRC
     backend/asin.in.cpp
     backend/asinh.in.cpp
     backend/atan.in.cpp
-    backend/atanh.in.cpp
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
