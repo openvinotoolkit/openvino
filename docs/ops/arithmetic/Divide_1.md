@@ -11,7 +11,7 @@ Before performing arithmetic operation, input tensors *a* and *b* are broadcaste
 After broadcasting *Divide* performs division operation for the input tensors *a* and *b* using the formula below:
 
 \f[
-o_{i} = a_{i} / b_{i}
+o_{i} = \frac{a_{i}}{b_{i}}
 \f]
 
 The result of division by zero is undefined.
