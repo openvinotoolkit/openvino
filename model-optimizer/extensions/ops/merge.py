@@ -36,9 +36,9 @@ class Merge(Op):
                                        'executable' in n and n['executable']]
             tensor = inferred_and_executable[0]
 
-            if all([np.ma.allequal(tensor.value, n.value) for n in inferred_and_executable]):
-                if tensor.has_valid('value'):
-                    node.out_node().value = tensor.value.copy()
+            if all([np.ma.allequal(tensor.value, n.value) for n in inferred_and_executable]) and \
+                    tensor.has_valid('value'):
+                node.out_node().value = tensor.value.copy()
 
         # do not use set_shape(tensor.shape) here because input port shape may be different from the calculated output
         # shape and `set_shape` will raise an error that shape has changed

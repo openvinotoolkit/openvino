@@ -35,7 +35,7 @@ def compare_dimensions(dim1, dim2):
 
 def compare_shapes(shape1, shape2):
     """
-    Compares with two shape tensors. The shapes are considered equal if they have the same rank and the corresponding
+    Compares two shape tensors. The shapes are considered equal if they have the same rank and the corresponding
     dimensions are either equal or at least one of them is dynamic.
 
     :param shape1: the first shape to compare

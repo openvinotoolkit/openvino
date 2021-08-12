@@ -72,9 +72,8 @@ class Range(Op):
         delta = node.in_port(2).data.get_value()
 
         for input in (start, limit, delta):
-            if input is not None:
-                if not node.has_valid('output_type'):
-                    node['output_type'] = input.dtype
+            if input is not None and not node.has_valid('output_type'):
+                node['output_type'] = input.dtype
 
         if not is_fully_defined(start) or not is_fully_defined(limit) or not is_fully_defined(delta):
             node.out_port(0).data.set_shape(shape_array([dynamic_dimension_value]))
