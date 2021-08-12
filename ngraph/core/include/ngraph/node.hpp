@@ -36,7 +36,7 @@
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
 #include "ngraph/variant.hpp"
-#include "topological_order.hpp"
+#include "ngraph/topological_order.hpp"
 
 namespace ngraph {
 template <typename NodeType>
