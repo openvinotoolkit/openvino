@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <fstream>
+#include "op_fuzzy.hpp"
 
 #include <cnpy.h>
+
+#include <fstream>
+
 #include "ngraph/ngraph.hpp"
-#include "op_fuzzy.hpp"
 #include "paddle_utils.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_control.hpp"
@@ -167,10 +169,9 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("yolo_box_scale_xy"),
                                              std::string("yolo_box_uneven_wh")};
 
-INSTANTIATE_TEST_SUITE_P(
-    PDPDFuzzyOpTest,
-    FrontEndFuzzyOpTest,
-    ::testing::Combine(::testing::Values(PADDLE_FE),
-                       ::testing::Values(std::string(TEST_PADDLE_MODELS_DIRNAME)),
-                       ::testing::ValuesIn(models)),
-    PDPDFuzzyOpTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(PDPDFuzzyOpTest,
+                         FrontEndFuzzyOpTest,
+                         ::testing::Combine(::testing::Values(PADDLE_FE),
+                                            ::testing::Values(std::string(TEST_PADDLE_MODELS_DIRNAME)),
+                                            ::testing::ValuesIn(models)),
+                         PDPDFuzzyOpTest::getTestCaseName);
