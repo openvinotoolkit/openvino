@@ -3,12 +3,13 @@
 //
 
 #include "ie_transformations.hpp"
-#include <ngraph/pass/low_latency.hpp>
-#include <ngraph/pass/manager.hpp>
+
+#include "ngraph/pass/low_latency.hpp"
+#include "ngraph/pass/manager.hpp"
 
 using namespace InferenceEngine;
 
-void InferenceEngine::LowLatency(InferenceEngine::CNNNetwork &network) {
+void InferenceEngine::LowLatency(InferenceEngine::CNNNetwork& network) {
     auto function = network.getFunction();
     ngraph::pass::Manager manager;
     NGRAPH_SUPPRESS_DEPRECATED_START
@@ -17,8 +18,7 @@ void InferenceEngine::LowLatency(InferenceEngine::CNNNetwork &network) {
     manager.run_passes(function);
 }
 
-void InferenceEngine::lowLatency2(InferenceEngine::CNNNetwork &network,
-                                  bool use_const_initializer) {
+void InferenceEngine::lowLatency2(InferenceEngine::CNNNetwork& network, bool use_const_initializer) {
     auto function = network.getFunction();
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::LowLatency2>(use_const_initializer);

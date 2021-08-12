@@ -43,6 +43,12 @@ namespace ngraph
             /// \return nGraph function after decoding
             std::shared_ptr<Function> decode(InputModel::Ptr model) const override;
 
+            /// \brief Gets name of this FrontEnd. Can be used by clients
+            /// if frontend is selected automatically by FrontEndManager::load_by_model
+            ///
+            /// \return Paddle frontend name.
+            std::string get_name() const override;
+
         protected:
             /// \brief Check if FrontEndPDPD can recognize model from given parts
             /// \param params Can be path to folder which contains __model__ file or path to

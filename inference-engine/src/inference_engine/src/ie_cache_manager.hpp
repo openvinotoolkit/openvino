@@ -9,12 +9,13 @@
  */
 #pragma once
 
-#include <memory>
 #include <fstream>
-#include <string>
 #include <functional>
-#include "ie_api.h"
+#include <memory>
+#include <string>
+
 #include "file_utils.h"
+#include "ie_api.h"
 
 namespace InferenceEngine {
 
