@@ -45,8 +45,6 @@ struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_
         mov(reg_kernel, ptr[this->param1 + GET_OFF(filt)]);
         if (jcp_.with_bias)
             mov(reg_bias, ptr[this->param1 + GET_OFF(bias)]);
-        if (jcp_.with_modulation)
-            mov(reg_modulation, ptr[this->param1 + GET_OFF(modulation)]);
         mov(reg_output, ptr[this->param1 + GET_OFF(dst)]);
         mov(reg_input_buffer, ptr[this->param1 + GET_OFF(buf)]);
         mov(reg_oh_pos, ptr[param1 + GET_OFF(oh_pos)]);
@@ -73,26 +71,24 @@ private:
     reg64_t reg_def_off = r9;
     reg64_t reg_kernel = r10;
     reg64_t reg_bias = r11;
-    reg64_t reg_modulation = rcx;
     reg64_t reg_output = r12;
     reg64_t reg_oh_pos = r13;
     reg64_t aux_reg_bias = rsi;
     reg64_t reg_ow_pos = rdx;
     reg64_t aux_reg_output = reg_ow_pos;
     reg64_t reg_dg_iter = reg_output;
-    reg64_t reg_gr_iter = rsp;
     reg64_t aux_reg_input = rax;
     reg64_t aux2_reg_input = reg_kernel;
     reg64_t reg_ic_iter = rbx;
     reg64_t reg_oc_work = reg_ic_iter;
     reg64_t aux_reg_def_off = reg_bias;
+    reg64_t reg_input_buffer = abi_not_param1;
     reg64_t aux_reg_input_buffer = r14;
     reg32_t reg_tmp_32 = r15d;
     reg64_t reg_tmp_64 = r15;
     reg64_t reg_table = rbp;
-    reg64_t reg_input_buffer = aux_reg_input;
     reg64_t aux_reg_kernel = reg_table;
-    reg64_t aux2_reg_kernel = reg_tmp_64;
+    reg64_t aux2_reg_kernel = r15;
     reg64_t aux2_reg_input_buffer = aux_reg_bias;
     reg64_t aux3_reg_input_buffer = reg_input;
 
@@ -123,9 +119,6 @@ private:
 
             add(reg_input, jcp_.ur_w * jcp_.stride_w * jcp_.ic * jcp_.typesize_in);
             add(reg_def_off, jcp_.ur_w * jcp_.typesize_off);
-            if (jcp_.with_modulation) {
-                add(reg_modulation, jcp_.ur_w * jcp_.typesize_modulation);
-            }
             add(reg_output, jcp_.ur_w * jcp_.oc * jcp_.typesize_out);
 
             add(reg_ow_pos, jcp_.ur_w);
@@ -224,8 +217,7 @@ private:
         Label exit;
 
         push(reg_oc_work);
-        if (jcp_.with_bias)
-            push(aux_reg_bias);
+        push(aux_reg_bias);
 
         mov(aux2_reg_kernel, aux_reg_kernel);
         mov(aux2_reg_input_buffer, reg_input_buffer);
@@ -251,8 +243,8 @@ private:
                 apply_filter(ow_step, oc_blocks_step, oc_step, jcp_.ic % jcp_.ic_block);
             }
         }
-        if (jcp_.with_bias)
-            pop(aux_reg_bias);
+
+        pop(aux_reg_bias);
         pop(reg_oc_work);
     }
 
@@ -264,9 +256,6 @@ private:
         mov(aux_reg_def_off, reg_def_off);
         mov(aux_reg_input, reg_input);
         mov(aux2_reg_input_buffer, aux_reg_input_buffer);
-        if (jcp_.with_modulation) {
-            push(reg_modulation);
-        }
         xor_(reg_dg_iter, reg_dg_iter);
 
         const int ic_per_def_group = jcp_.ic / jcp_.dg;
@@ -282,14 +271,10 @@ private:
                         Label ic_loop_tail;
                         Label ic_loop_zeros;
                         Label loop_end;
-                        Label v1_condition_end_main;
-                        Label v2_condition_end_main;
-                        Label v3_condition_end_main;
-                        Label v4_condition_end_main;
-                        Label v1_condition_end_tail;
-                        Label v2_condition_end_tail;
-                        Label v3_condition_end_tail;
-                        Label v4_condition_end_tail;
+                        Label h_sec_opt;
+                        Label h_sec_opt_exit;
+                        Label w_sec_opt;
+                        Label w_sec_opt_exit;
 
                         mov(aux2_reg_input, aux_reg_input);
                         add(aux2_reg_input, (ow * jcp_.stride_w * jcp_.ic) * jcp_.typesize_in);
@@ -302,48 +287,45 @@ private:
                         Xmm xmm_map_h = Xmm(2);
                         Xmm xmm_ih_in = Xmm(4);
                         Xmm xmm_ih_im = Xmm(1);
+                        Xmm xmm_cur_height = xmm_ih_im;
                         Xmm xmm_h_low = xmm_ih_in;
-                        Xmm xmm_h_high = xmm_ih_im;
+                        Xmm xmm_h_high = xmm_cur_height;
                         Xmm xmm_lh = xmm_map_h;
                         Xmm xmm_hh = Xmm(3);
 
                         Xmm xmm_map_w = Xmm(6);
                         Xmm xmm_iw_in = Xmm(8);
                         Xmm xmm_iw_im = Xmm(5);
+                        Xmm xmm_cur_width = xmm_iw_im;
                         Xmm xmm_w_low = xmm_iw_in;
-                        Xmm xmm_w_high = xmm_iw_im;
+                        Xmm xmm_w_high = xmm_cur_width;
                         Xmm xmm_lw = xmm_map_w;
                         Xmm xmm_hw = Xmm(7);
 
-                        Xmm xmm_v1_off = xmm_lh;
-                        Xmm xmm_v2_off = xmm_hh;
-                        Xmm xmm_v3_off = xmm_lw;
-                        Xmm xmm_v4_off = xmm_hw;
+                        Xmm xmm_v1_off = Xmm(9);
+                        Xmm xmm_v2_off = Xmm(10);
+                        Xmm xmm_v3_off = Xmm(11);
+                        Xmm xmm_v4_off = Xmm(12);
 
-                        Xmm xmm_cur_height = Xmm(13);
-                        Xmm xmm_cur_width = Xmm(14);
+                        Xmm xmm_w1 = xmm_h_low;
+                        Xmm xmm_w2 = xmm_h_high;
+                        Xmm xmm_w3 = xmm_w_low;
+                        Xmm xmm_w4 = xmm_w_high;
 
-                        Xmm xmm_w1 = Xmm(9);
-                        Xmm xmm_w2 = Xmm(10);
-                        Xmm xmm_w3 = Xmm(11);
-                        Xmm xmm_w4 = Xmm(12);
+                        Xmm xmm_v1 = xmm_lh;
+                        Xmm xmm_v2 = xmm_hh;
+                        Xmm xmm_v3 = xmm_lw;
+                        Xmm xmm_v4 = xmm_hw;
 
-                        Xmm xmm_v1 = xmm_v1_off;
-                        Xmm xmm_v2 = xmm_v2_off;
-                        Xmm xmm_v3 = xmm_v3_off;
-                        Xmm xmm_v4 = xmm_v4_off;
+                        Vmm vmm_w1 = Vmm(xmm_h_low.getIdx());
+                        Vmm vmm_w2 = Vmm(xmm_h_high.getIdx());
+                        Vmm vmm_w3 = Vmm(xmm_w_low.getIdx());
+                        Vmm vmm_w4 = Vmm(xmm_w_high.getIdx());
 
-                        Vmm vmm_w1 = Vmm(xmm_w1.getIdx());
-                        Vmm vmm_w2 = Vmm(xmm_w2.getIdx());
-                        Vmm vmm_w3 = Vmm(xmm_w3.getIdx());
-                        Vmm vmm_w4 = Vmm(xmm_w4.getIdx());
-
-                        Vmm vmm_v1 = Vmm(xmm_v1_off.getIdx());
-                        Vmm vmm_v2 = Vmm(xmm_v2_off.getIdx());
-                        Vmm vmm_v3 = Vmm(xmm_v3_off.getIdx());
-                        Vmm vmm_v4 = Vmm(xmm_v4_off.getIdx());
-
-                        // condition check
+                        Vmm vmm_v1 = Vmm(xmm_lh.getIdx());
+                        Vmm vmm_v2 = Vmm(xmm_hh.getIdx());
+                        Vmm vmm_v3 = Vmm(xmm_lw.getIdx());
+                        Vmm vmm_v4 = Vmm(xmm_hw.getIdx());
 
                         size_t def_off_h = ((2 * (kh * jcp_.kw + kw) + 0) * jcp_.oh * jcp_.ow) + ow;
                         mov(reg_tmp_32, ptr[aux_reg_def_off + def_off_h * jcp_.typesize_off]);
@@ -374,7 +356,6 @@ private:
 
                         size_t def_off_w = ((2 * (kh * jcp_.kw + kw) + 1) * jcp_.oh * jcp_.ow) + ow;
                         mov(reg_tmp_32, ptr[aux_reg_def_off + def_off_w * jcp_.typesize_off]);
-
                         movq(xmm_tmp, reg_tmp_64);
                         mov(reg_tmp_32, float2int(static_cast<float>((kw * (jcp_.dilate_w + 1)))));
                         movq(xmm_map_w, reg_tmp_64);
@@ -399,53 +380,83 @@ private:
                         cmp(reg_tmp_32, 0);
                         je(init_with_zeros, T_NEAR);
 
-                        // interpolation calculation
 
                         movd(xmm_cur_height, table_val(3));
                         psubd(xmm_cur_height, xmm_ih_in);
 
                         roundps(xmm_h_low, xmm_map_h, 1);
                         cvtps2dq(xmm_h_low, xmm_h_low);
-                        maxss(xmm_h_low, table_val(0));
 
-                        if (jcp_.with_bi_pad) {
-                            movdqu(xmm_h_high, xmm_h_low);
-                            paddd(xmm_h_high, table_val(5));
-                        } else {
-                            roundps(xmm_h_high, xmm_map_h, 2);
-                            cvtps2dq(xmm_h_high, xmm_h_high);
-                            minss(xmm_h_high, xmm_cur_height);
-                        }
+                        movups(xmm_tmp, xmm_cur_height);
+                        pcmpgtd(xmm_tmp, xmm_h_low);
+
+                        movq(reg_tmp_64, xmm_tmp);
+                        cmp(reg_tmp_32, 0);
+                        jne(h_sec_opt, T_NEAR);
+
+                        movups(xmm_h_low, xmm_cur_height);
+                        movups(xmm_h_high, xmm_h_low);
+                        jmp(h_sec_opt_exit);
+
+                        L(h_sec_opt);
+
+                        movups(xmm_h_high, xmm_h_low);
+                        paddd(xmm_h_high, table_val(5));
+
+                        L(h_sec_opt_exit);
+
+                        cvtdq2ps(xmm_tmp, xmm_h_low);
+                        subss(xmm_lh, xmm_tmp);
+                        movss(xmm_hh, table_val(5));
+                        cvtdq2ps(xmm_hh, xmm_hh);
+                        subss(xmm_hh, xmm_lh);
+
 
                         movd(xmm_cur_width, table_val(4));
                         psubd(xmm_cur_width, xmm_iw_in);
 
                         roundps(xmm_w_low, xmm_map_w, 1);
                         cvtps2dq(xmm_w_low, xmm_w_low);
-                        maxss(xmm_w_low, table_val(0));
 
-                        if (jcp_.with_bi_pad) {
-                            movdqu(xmm_w_high, xmm_w_low);
-                            paddd(xmm_w_high, table_val(5));
-                        } else {
-                            roundps(xmm_w_high, xmm_map_w, 2);
-                            cvtps2dq(xmm_w_high, xmm_w_high);
-                            minss(xmm_w_high, xmm_cur_width);
-                        }
+                        movups(xmm_tmp, xmm_cur_width);
+                        pcmpgtd(xmm_tmp, xmm_w_low);
+
+                        movq(reg_tmp_64, xmm_tmp);
+                        cmp(reg_tmp_32, 0);
+                        jne(w_sec_opt, T_NEAR);
+
+                        movups(xmm_w_low, xmm_cur_width);
+                        movups(xmm_w_high, xmm_w_low);
+                        jmp(w_sec_opt_exit);
+
+                        L(w_sec_opt);
+
+                        movups(xmm_w_high, xmm_w_low);
+                        paddd(xmm_w_high, table_val(5));
+
+                        L(w_sec_opt_exit);
 
                         cvtdq2ps(xmm_tmp, xmm_w_low);
                         subss(xmm_lw, xmm_tmp);
-
                         movss(xmm_hw, table_val(5));
                         cvtdq2ps(xmm_hw, xmm_hw);
                         subss(xmm_hw, xmm_lw);
 
-                        cvtdq2ps(xmm_tmp, xmm_h_low);
-                        subss(xmm_lh, xmm_tmp);
 
-                        movss(xmm_hh, table_val(5));
-                        cvtdq2ps(xmm_hh, xmm_hh);
-                        subss(xmm_hh, xmm_lh);
+                        movups(xmm_v1_off, table_val(2));
+                        cvtps2dq(xmm_v1_off, xmm_v1_off);
+                        movups(xmm_v3_off, xmm_v1_off);
+
+                        pmulld(xmm_v1_off, xmm_h_low);
+                        movups(xmm_v2_off, xmm_v1_off);
+                        paddd(xmm_v1_off, xmm_w_low);
+                        paddd(xmm_v2_off, xmm_w_high);
+
+                        pmulld(xmm_v3_off, xmm_h_high);
+                        movups(xmm_v4_off, xmm_v3_off);
+                        paddd(xmm_v3_off, xmm_w_low);
+                        paddd(xmm_v4_off, xmm_w_high);
+
 
                         movss(xmm_w1, xmm_hh);
                         mulss(xmm_w1, xmm_hw);
@@ -476,97 +487,29 @@ private:
                             movq(reg_tmp_64, xmm_v1_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
-                            // w_low >= 0
-                            movups(xmm_tmp, xmm_w_low);
-                            pcmpgtd(xmm_tmp, table_val(0));
-                            movq(reg_tmp_64, xmm_tmp);
-                            cmp(reg_tmp_32, 0);
-                            // jne(v1_condition_end_main, T_NEAR);
-
-                            // h_low >= 0
-                            movups(xmm_tmp, xmm_h_low);
-                            pcmpgtd(xmm_tmp, table_val(0));
-                            movq(reg_tmp_64, xmm_tmp);
-                            cmp(reg_tmp_32, 0);
-                            // jne(v1_condition_end_main, T_NEAR);
-
                             uni_vmovups(vmm_v1, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v1, vmm_v1, vmm_w1);
-                            L(v1_condition_end_main);
-
 
                             pmovsxdq(xmm_v2_off, xmm_v2_off);
                             movq(reg_tmp_64, xmm_v2_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
-
-                            // w_high <= cur_width - 1
-                            movups(xmm_tmp, xmm_w_high);
-                            psubd(xmm_tmp, table_val(0));
-                            pcmpgtd(xmm_tmp, table_val(4));
-                            movq(reg_tmp_64, xmm_tmp);
-                            cmp(reg_tmp_32, 0);
-                            // je(v2_condition_end_main, T_NEAR);
-
-                            // h_low >= 0
-                            movups(xmm_tmp, xmm_h_low);
-                            pcmpgtd(xmm_tmp, table_val(0));
-                            movq(reg_tmp_64, xmm_tmp);
-                            cmp(reg_tmp_32, 0);
-                            // jne(v2_condition_end_main, T_NEAR);
-
                             uni_vmovups(vmm_v2, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v2, vmm_v2, vmm_w2);
-                            L(v2_condition_end_main);
 
                             pmovsxdq(xmm_v3_off, xmm_v3_off);
                             movq(reg_tmp_64, xmm_v3_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
-
-                            // w_low >= 0
-                            movups(xmm_tmp, xmm_w_low);
-                            pcmpgtd(xmm_tmp, table_val(0));
-                            movq(reg_tmp_64, xmm_tmp);
-                            cmp(reg_tmp_32, 0);
-                            // jne(v3_condition_end_main, T_NEAR);
-
-                            // h_high <= cur_height
-                            movups(xmm_tmp, xmm_h_high);
-                            psubd(xmm_tmp, table_val(0));
-                            pcmpgtd(xmm_tmp, table_val(3));
-                            movq(reg_tmp_64, xmm_tmp);
-                            cmp(reg_tmp_32, 0);
-                            // je(v3_condition_end_main, T_NEAR);
-
                             uni_vmovups(vmm_v3, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v3, vmm_v3, vmm_w3);
-                            L(v3_condition_end_main);
 
                             pmovsxdq(xmm_v4_off, xmm_v4_off);
                             movq(reg_tmp_64, xmm_v4_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
-
-                            // w_high <= cur_width
-                            movups(xmm_tmp, xmm_w_high);
-                            psubd(xmm_tmp, table_val(0));
-                            pcmpgtd(xmm_tmp, table_val(3));
-                            movq(reg_tmp_64, xmm_tmp);
-                            cmp(reg_tmp_32, 0);
-                            // je(v4_condition_end_main, T_NEAR);
-
-                            // h_high <= cur_height
-                            movups(xmm_tmp, xmm_h_high);
-                            psubd(xmm_tmp, table_val(0));
-                            pcmpgtd(xmm_tmp, table_val(4));
-                            movq(reg_tmp_64, xmm_tmp);
-                            cmp(reg_tmp_32, 0);
-                            // je(v4_condition_end_main, T_NEAR);
-
                             uni_vmovups(vmm_v4, ptr[reg_tmp_64]);
                             uni_vmulps(vmm_v4, vmm_v4, vmm_w4);
-                            L(v4_condition_end_main);
 
                             uni_vaddps(vmm_v1, vmm_v1, vmm_v2);
                             uni_vaddps(vmm_v1, vmm_v1, vmm_v3);
@@ -586,123 +529,37 @@ private:
 
                             size_t input_buffer_off = (size_t) kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
 
-                            movss(xmm_v1, table_val(0));
-                            // w_low >= 0
-                            movq(reg_tmp_64, xmm_w_low);
-                            cmp(reg_tmp_32, 0);
-                            jl(v1_condition_end_tail, T_NEAR);
-
-                            // h_low >= 0
-                            movq(reg_tmp_64, xmm_h_low);
-                            cmp(reg_tmp_32, 0);
-                            jl(v1_condition_end_tail, T_NEAR);
-
-                            movups(xmm_v1_off, table_val(2));
-                            cvtps2dq(xmm_v1_off, xmm_v1_off);
-                            pmulld(xmm_v1_off, xmm_h_low);
-                            paddd(xmm_v1_off, xmm_w_low);
                             pmovsxdq(xmm_v1_off, xmm_v1_off);
-
                             movq(reg_tmp_64, xmm_v1_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
                             movss(xmm_v1, ptr[reg_tmp_64]);
                             mulss(xmm_v1, xmm_w1);
-                            L(v1_condition_end_tail);
 
-                            movss(xmm_v2, table_val(0));
-                            // w_high <= cur_width - 1
-                            movq(xmm_tmp, xmm_w_high);
-                            pcmpgtd(xmm_tmp, xmm_cur_width);
-                            movq(reg_tmp_64, xmm_tmp);
-                            cmp(reg_tmp_32, 0);
-                            jne(v2_condition_end_tail, T_NEAR);
-
-                            // h_low >= 0
-                            movq(reg_tmp_64, xmm_h_low);
-                            cmp(reg_tmp_32, 0);
-                            jl(v2_condition_end_tail, T_NEAR);
-
-
-                            movups(xmm_v2_off, table_val(2));
-                            cvtps2dq(xmm_v2_off, xmm_v2_off);
-                            pmulld(xmm_v2_off, xmm_h_low);
-                            paddd(xmm_v2_off, xmm_w_high);
                             pmovsxdq(xmm_v2_off, xmm_v2_off);
-
                             movq(reg_tmp_64, xmm_v2_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
                             movss(xmm_v2, ptr[reg_tmp_64]);
                             mulss(xmm_v2, xmm_w2);
-                            L(v2_condition_end_tail);
 
-                            movss(xmm_v3, table_val(0));
-                            // w_low >= 0
-                            movq(reg_tmp_64, xmm_w_low);
-                            cmp(reg_tmp_32, 0);
-                            jl(v3_condition_end_tail, T_NEAR);
-
-                            // h_high <= cur_height - 1
-                            movq(xmm_tmp, xmm_h_high);
-                            pcmpgtd(xmm_tmp, xmm_cur_height);
-                            movq(reg_tmp_64, xmm_tmp);
-                            cmp(reg_tmp_32, 0);
-                            jne(v3_condition_end_tail, T_NEAR);
-
-                            movups(xmm_v3_off, table_val(2));
-                            cvtps2dq(xmm_v3_off, xmm_v3_off);
-                            pmulld(xmm_v3_off, xmm_h_high);
-                            paddd(xmm_v3_off, xmm_w_low);
                             pmovsxdq(xmm_v3_off, xmm_v3_off);
-
                             movq(reg_tmp_64, xmm_v3_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
                             movss(xmm_v3, ptr[reg_tmp_64]);
                             mulss(xmm_v3, xmm_w3);
 
-                            L(v3_condition_end_tail);
-
-                            movss(xmm_v4, table_val(0));
-                            // w_high <= cur_width - 1
-                            movq(xmm_tmp, xmm_w_high);
-                            pcmpgtd(xmm_tmp, xmm_cur_width);
-                            movq(reg_tmp_64, xmm_tmp);
-                            cmp(reg_tmp_32, 0);
-                            jne(v4_condition_end_tail, T_NEAR);
-
-                            // h_high <= cur_height - 1
-                            movq(xmm_tmp, xmm_h_high);
-                            pcmpgtd(xmm_tmp, xmm_cur_height);
-                            movq(reg_tmp_64, xmm_tmp);
-                            cmp(reg_tmp_32, 0);
-                            jne(v4_condition_end_tail, T_NEAR);
-
-
-                            movups(xmm_v4_off, table_val(2));
-                            cvtps2dq(xmm_v4_off, xmm_v4_off);
-                            pmulld(xmm_v4_off, xmm_h_high);
-                            paddd(xmm_v4_off, xmm_w_high);
                             pmovsxdq(xmm_v4_off, xmm_v4_off);
-
                             movq(reg_tmp_64, xmm_v4_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
                             add(reg_tmp_64, aux2_reg_input);
-
                             movss(xmm_v4, ptr[reg_tmp_64]);
                             mulss(xmm_v4, xmm_w4);
-                            L(v4_condition_end_tail);
 
                             addss(xmm_v1, xmm_v2);
                             addss(xmm_v1, xmm_v3);
                             addss(xmm_v1, xmm_v4);
-
-                            if (jcp_.with_modulation) {
-                                size_t modulation_offset = ((kh * jcp_.kw + kw) * jcp_.oh * jcp_.ow) + ow;
-                                mulss(xmm_v1, ptr[reg_modulation + modulation_offset * jcp_.typesize_modulation]);
-                            }
-
                             movss(ptr[aux3_reg_input_buffer + input_buffer_off * jcp_.typesize_in], xmm_v1);
 
                             add(aux2_reg_input, jcp_.typesize_in);
@@ -736,18 +593,13 @@ private:
             }
 
             add(aux_reg_def_off, 2 * jcp_.kh * jcp_.kw * jcp_.oh * jcp_.ow * jcp_.typesize_off);
-            if (jcp_.with_modulation) {
-                add(reg_modulation, jcp_.kh * jcp_.kw * jcp_.oh * jcp_.ow * jcp_.typesize_modulation);
-            }
             add(aux_reg_input, ic_per_def_group * jcp_.typesize_in);
             add(aux2_reg_input_buffer, ic_per_def_group * jcp_.typesize_in);
             inc(reg_dg_iter);
             jmp(dg_loop, T_NEAR);
         }
+
         L(dg_loop_end);
-        if (jcp_.with_modulation) {
-            pop(reg_modulation);
-        }
     }
 
     void store_output(int ow_step, int oc_blocks_step, int oc_step) {
@@ -827,40 +679,35 @@ private:
         mov(aux_reg_input_buffer, reg_input_buffer);
 
         push(reg_output);
-        if (jcp_.with_bias)
-            push(reg_bias);
+        push(reg_bias);
         push(reg_input);
         push(reg_kernel);
-        push(reg_input_buffer);
 
         interpolate_input(ow_step);
 
-        pop(reg_input_buffer);
         pop(reg_kernel);
         pop(reg_input);
-        if (jcp_.with_bias)
-            pop(reg_bias);
+        pop(reg_bias);
         pop(reg_output);
 
         push(reg_ow_pos);
 
         mov(aux_reg_kernel, reg_kernel);
         mov(aux_reg_output, reg_output);
-        if (jcp_.with_bias)
-            mov(aux_reg_bias, reg_bias);
+        mov(aux_reg_bias, reg_bias);
 
         mov(reg_oc_work, jcp_.oc);
 
         L(oc_unrolled_loop); {
             cmp(reg_oc_work, jcp_.nb_oc_blocking * jcp_.oc_block);
             jl(oc_main_loop, T_NEAR);
+
             ic_loop(ow_step, jcp_.nb_oc_blocking, jcp_.oc_block);
             store_output(ow_step, jcp_.nb_oc_blocking, jcp_.oc_block);
 
             add(aux_reg_kernel, jcp_.nb_oc_blocking * jcp_.nb_ic * jcp_.kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block * jcp_.typesize_in);
             add(aux_reg_output, jcp_.nb_oc_blocking * jcp_.oc_block * jcp_.typesize_out);
-            if (jcp_.with_bias)
-                add(aux_reg_bias, jcp_.nb_oc_blocking * jcp_.oc_block * jcp_.typesize_bia);
+            add(aux_reg_bias, jcp_.nb_oc_blocking * jcp_.oc_block * jcp_.typesize_bia);
             sub(reg_oc_work, jcp_.nb_oc_blocking * jcp_.oc_block);
 
             jmp(oc_unrolled_loop, T_NEAR);
@@ -869,13 +716,13 @@ private:
         L(oc_main_loop); {
             cmp(reg_oc_work, jcp_.oc_block);
             jl(oc_tail, T_NEAR);
+
             ic_loop(ow_step, 1, jcp_.oc_block);
             store_output(ow_step, 1, jcp_.oc_block);
 
             add(aux_reg_kernel, jcp_.nb_ic * jcp_.kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block * jcp_.typesize_in);
             add(aux_reg_output, jcp_.oc_block * jcp_.typesize_out);
-            if (jcp_.with_bias)
-                add(aux_reg_bias, jcp_.oc_block * jcp_.typesize_bia);
+            add(aux_reg_bias, jcp_.oc_block * jcp_.typesize_bia);
             sub(reg_oc_work, jcp_.oc_block);
 
             jmp(oc_main_loop, T_NEAR);
@@ -935,6 +782,7 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
     } else {
         with_bilinear_pad = false;
     }
+    enforceRef = (op->get_type_info() == ngraph::op::v8::DeformableConvolution::type_info);
 }
 
 void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
@@ -966,12 +814,6 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-//    const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
-//    if (group != 1 && (((getParentEdgeAt(0)->getShape().getStaticDims()[0] / group) % simd_w != 0)
-//    || ((getChildEdgeAt(0)->getShape().getStaticDims()[1] / group) % simd_w != 0))) {
-//        enforceRef = true;
-//    }
-    enforceRef = true;
     size_t inputsNumber = getOriginalInputsNumber();
     NodeConfig config;
     config.dynBatchSupport = false;
@@ -1243,8 +1085,7 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
 
 void MKLDNNDeformableConvolutionNode::executeOptimized(const float* src, const float* offsets, const float* weights, float* dst,
                                                        const std::vector<size_t>& src_strides, const std::vector<size_t>& off_strides,
-                                                       const std::vector<size_t>& dst_strides, const float* modulation,
-                                                       const std::vector<size_t>& modulation_strides) {
+                                                       const std::vector<size_t>& dst_strides) {
     size_t buffer_size = (size_t)jcp.nthr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic * jcp.typesize_in;
     std::vector<float> input_buffer(buffer_size, 0);
     float* input_buffer_ptr = &input_buffer[0];
@@ -1260,11 +1101,6 @@ void MKLDNNDeformableConvolutionNode::executeOptimized(const float* src, const f
         par_conv.src = &src[n * src_strides[0] + _ic*jcp.ic_block * src_strides[1] +
                             (oh * jcp.stride_h - jcp.t_pad) * src_strides[2] - jcp.l_pad * src_strides[3]];
         par_conv.off = &offsets[n * off_strides[0] + oh * off_strides[2]];
-        if (modulation != nullptr) {
-            par_conv.modulation = &modulation[n * modulation_strides[0] + oh * modulation_strides[2]];
-        } else {
-            par_conv.modulation = nullptr;
-        }
         par_conv.filt = weights;
         par_conv.dst = &dst[n * dst_strides[0] + _oc*jcp.oc_block * dst_strides[1] + oh * dst_strides[2]];
 
@@ -1321,7 +1157,7 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
 
 
     if (def_conv_kernel) {
-        executeOptimized(src, offsets, weights, dst, src_strides, off_strides, dst_strides, modulation, modulation_strides);
+        executeOptimized(src, offsets, weights, dst, src_strides, off_strides, dst_strides);
     } else {
         executeReference(src, offsets, weights, dst, src_strides, off_strides, wei_strides, dst_strides, modulation, modulation_strides);
     }

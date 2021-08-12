@@ -101,8 +101,7 @@ private:
                           const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides,
                           const float* modulation = nullptr, const std::vector<size_t>& modulation_strides = {});
     void executeOptimized(const float* src, const float* offsets, const float* weights, float* dst,
-                          const std::vector<size_t>& src_strides, const std::vector<size_t>& off_strides, const std::vector<size_t>& dst_strides,
-                          const float* modulation = nullptr, const std::vector<size_t>& modulation_strides = {});
+                          const std::vector<size_t>& src_strides, const std::vector<size_t>& off_strides, const std::vector<size_t>& dst_strides);
 };
 
 }  // namespace MKLDNNPlugin
