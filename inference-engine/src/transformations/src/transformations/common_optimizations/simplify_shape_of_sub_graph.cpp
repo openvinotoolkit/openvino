@@ -24,7 +24,10 @@ bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Functi
     bool graph_rewritten = false;
 
     std::map<ngraph::Output<Node>, std::vector<std::shared_ptr<ngraph::Node>>> source_to_shape_of;
-    for (const auto & node : f->get_ordered_ops()) {
+    auto el = f->get_order()->begin();
+    while (el) {
+        auto node = el->node->shared_from_this();
+        el = el->output;
         // Recursively apply transformation for sub-graph based operations
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
             if (auto sub_graph = sub_graph_node->get_function())

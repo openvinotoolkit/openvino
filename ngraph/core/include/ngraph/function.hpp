@@ -20,6 +20,7 @@
 #include "ngraph/op/sink.hpp"
 #include "ngraph/op/util/variable.hpp"
 
+<<<<<<< HEAD
 namespace ngraph {
 /// A user-defined function.
 class NGRAPH_API Function {
@@ -130,6 +131,10 @@ public:
 
     /// \brief Returns true if any of the op's defined in the function contains partial shape
     bool is_dynamic() const;
+
+    Order::Ptr get_order() const {
+        return m_parameters[0]->m_order;
+    }
 
     /// \brief Replace the `parameter_index`th parameter of the function with `parameter`.
     ///

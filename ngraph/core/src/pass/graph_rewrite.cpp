@@ -130,10 +130,6 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, bool forwa
     }
 
     deque<std::weak_ptr<Node>> nodes_to_run;
-    for (auto& node : f->get_ordered_ops())
-    {
-        nodes_to_run.emplace_back(node);
-    }
 
     // This lambda preforms execution of particular MatcherPass on given node.
     // It automatically handles nodes registered by MatcherPass during transformation and set
@@ -170,14 +166,24 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, bool forwa
     // list of matchers to run for a node; define here to keep memory allocated
     std::vector<size_t> matcher_passes_to_run;
 
-    while (!nodes_to_run.empty())
+    auto el = (forward ? f->get_order()->begin() : f->get_order()->end());
+    while (el || !nodes_to_run.empty())
     {
-        auto weak_node = nodes_to_run.front();
-        nodes_to_run.pop_front();
+        std::shared_ptr<Node> node;
+        if (!nodes_to_run.empty())
+        {
+            auto weak_node = nodes_to_run.front();
+            nodes_to_run.pop_front();
 
-        auto node = weak_node.lock();
-        if (!node)
-            continue;
+            node = weak_node.lock();
+            if (!node)
+                continue;
+        }
+        else
+        {
+            node = el->node->shared_from_this();
+            el = (forward ? el->output : el->input);
+        }
 
         // Recursive apply Matchers for sub-graph based nodes
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {

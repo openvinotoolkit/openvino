@@ -199,7 +199,14 @@ void Function::validate_nodes_and_infer_types() const {
     std::map<Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
     std::stringstream unregistered_variables;
-    for (auto& node : get_ordered_ops()) {
+
+
+    auto el = get_order()->begin();
+    while(el)
+    {
+        auto node = el->node->shared_from_this();
+        el = el->output;
+
         node->revalidate_and_infer_types();
         if (op::is_parameter(node) && std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
             unregistered_parameters << node << std::endl;

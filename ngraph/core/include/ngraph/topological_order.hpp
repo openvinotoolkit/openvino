@@ -171,9 +171,9 @@ namespace ngraph
 
         void remove(OrderElement::Ptr element);
 
-        OrderElement::Ptr begin() { return m_begin; }
+        OrderElement::Ptr begin() const { return m_begin; }
 
-        OrderElement::Ptr end() { return m_end; }
+        OrderElement::Ptr end() const { return m_end; }
 
         void reindexing()
         {
