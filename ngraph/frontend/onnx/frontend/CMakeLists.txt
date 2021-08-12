@@ -32,11 +32,12 @@ add_library(ngraph::onnx_ngraph_frontend ALIAS onnx_ngraph_frontend)
 
 add_clang_format_target(onnx_ngraph_frontend_clang FOR_TARGETS onnx_ngraph_frontend)
 
-# TODO: fix empty class name
-#ov_ncc_naming_style(FOR_TARGET onnx_ngraph_frontend
-#                    INCLUDE_DIRECTORY "${ONNX_FRONTEND_INCLUDE_DIR}"
-#                    ADDITIONAL_INCLUDE_DIRECTORIES
-#                        $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+ov_ncc_naming_style(FOR_TARGET onnx_ngraph_frontend
+                   INCLUDE_DIRECTORY "${ONNX_FRONTEND_INCLUDE_DIR}"
+                   DEFINITIONS
+                       $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>
+                   ADDITIONAL_INCLUDE_DIRECTORIES
+                       $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME onnx_ngraph_frontend

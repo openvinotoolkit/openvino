@@ -8,7 +8,7 @@
 
 **Detailed description**:
 
-*RandomUniform* operation generates random numbers from a uniform distribution in the range `[*minval*, *maxval*)`. 
+*RandomUniform* operation generates random numbers from a uniform distribution in the range `[minval, maxval)`. 
 The generation algorithm is based on underlying random integer generator that uses Philox algorithm. Philox algorithm 
 is a counter-based pseudo-random generator, which produces uint32 values. Single invocation of Philox algorithm returns 
 four result random values, depending on the given *key* and *counter* values. *Key* and *counter* are initialized 
@@ -42,7 +42,7 @@ R' = mulhi(R, M) {\oplus} k {\oplus} L \\
 mulhi(a, b) = floor((a {\times} b) / 2^{32}) \\
 mullo(a, b) = (a {\times} b) \mod 2^{32}
 \f]
-where `{\oplus}` - bitwise xor, *k* = `R_{key}` for updating counter, *k* = `L_{key}` for updating *n*, 
+where \f${\oplus}\f$ - bitwise xor, *k* = \f$R_{key}\f$ for updating counter, *k* = \f$L_{key}\f$ for updating *n*, 
 *M* = `0xD2511F53` for updating *n*, *M* = `0xCD9E8D57` for updating *counter*.
 
 After each round *key* is raised by summing with another pair of const values:
@@ -50,7 +50,7 @@ After each round *key* is raised by summing with another pair of const values:
 L += 0x9E3779B9 \\
 R += 0xBB67AE85
 \f]
-Values *L'_{n}*, *R'_{n}*, *L'_{counter}*, *R'_{counter}* are resulting four random numbers.
+Values \f$L'_{n}, R'_{n}, L'_{counter}, R'_{counter}\f$ are resulting four random numbers.
 
 Float values between [0..1) are obtained from 32-bit integers by the following rules.
 
