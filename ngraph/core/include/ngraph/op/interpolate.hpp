@@ -45,6 +45,7 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 enum class InterpolateMode
                 {
                     // clang-format off
@@ -52,14 +53,13 @@ namespace ngraph
                     NGRAPH_ENUM_DEPRECATED(linear, "Please use LINEAR instead"),
                     NGRAPH_ENUM_DEPRECATED(cubic, "Please use CUBIC instead"),
                     NGRAPH_ENUM_DEPRECATED(area, "Please use AREA instead"),
-                    NGRAPH_SUPPRESS_DEPRECATED_START
                     NEAREST = nearest,
                     LINEAR = linear,
                     CUBIC = cubic,
                     AREA = area
-                    NGRAPH_SUPPRESS_DEPRECATED_END
                     // clang-format on
                 };
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
                 Interpolate() = default;
                 /// \brief Constructs a Interpolate operation
@@ -95,17 +95,17 @@ namespace ngraph
                 ///
                 /// sizes  - output shape for interpolated axes is calculated using input `sizes`
                 /// scales - output shape for interpolated axes is calculated using input `scales`
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 enum class ShapeCalcMode
                 {
                     // clang-format off
                     NGRAPH_ENUM_DEPRECATED(sizes, "Please use SIZES instead"),
                     NGRAPH_ENUM_DEPRECATED(scales, "Please use SCALES instead"),
-                    NGRAPH_SUPPRESS_DEPRECATED_START
                     SIZES = sizes,
                     SCALES = scales
-                    NGRAPH_SUPPRESS_DEPRECATED_END
                     // clang-format on
                 };
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
                 /// \brief Interpolation mode
                 ///
@@ -113,6 +113,7 @@ namespace ngraph
                 /// linear      - linear interpolation as in TensorFlow
                 /// linear_onnx - linear interpolation as in ONNX
                 /// cubic       - cubic interpolation
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 enum class InterpolateMode
                 {
                     // clang-format off
@@ -120,18 +121,18 @@ namespace ngraph
                     NGRAPH_ENUM_DEPRECATED(linear, "Please use LINEAR instead"),
                     NGRAPH_ENUM_DEPRECATED(linear_onnx, "Please use LINEAR_ONNX instead"),
                     NGRAPH_ENUM_DEPRECATED(cubic, "Please use CUBIC instead"),
-                    NGRAPH_SUPPRESS_DEPRECATED_START
                     NEAREST = nearest,
                     LINEAR = linear,
                     LINEAR_ONNX = linear_onnx,
                     CUBIC = cubic
-                    NGRAPH_SUPPRESS_DEPRECATED_END
                     // clang-format on
                 };
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
                 /// \brief Mode of the calculation of the source coordinate from resized one
                 ///
                 /// These modes are modes from ONNX runtime.
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 enum class CoordinateTransformMode
                 {
                     // clang-format off
@@ -140,17 +141,17 @@ namespace ngraph
                     NGRAPH_ENUM_DEPRECATED(asymmetric, "Please use ASYMMETRIC instead"),
                     NGRAPH_ENUM_DEPRECATED(tf_half_pixel_for_nn, "Please use TF_HALF_PIXEL_FOR_NN instead"),
                     NGRAPH_ENUM_DEPRECATED(align_corners, "Please use ALIGN_CORNERS instead"),
-                    NGRAPH_SUPPRESS_DEPRECATED_START
                     HALF_PIXEL = half_pixel,
                     PYTORCH_HALF_PIXEL = pytorch_half_pixel,
                     ASYMMETRIC = asymmetric,
                     TF_HALF_PIXEL_FOR_NN = tf_half_pixel_for_nn,
                     ALIGN_CORNERS = align_corners
-                    NGRAPH_SUPPRESS_DEPRECATED_END
                     // clang-format on
                 };
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
                 /// \brief Round modes for the nearest interpolation.
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 enum class NearestMode
                 {
                     // clang-format off
@@ -159,15 +160,14 @@ namespace ngraph
                     NGRAPH_ENUM_DEPRECATED(floor, "Please use FLOOR instead"),
                     NGRAPH_ENUM_DEPRECATED(ceil, "Please use CEIL instead"),
                     NGRAPH_ENUM_DEPRECATED(simple, "Please use SIMPLE instead"),
-                    NGRAPH_SUPPRESS_DEPRECATED_START
                     ROUND_PREFER_FLOOR = round_prefer_floor,
                     ROUND_PREFER_CEIL = round_prefer_ceil,
                     FLOOR = floor,
                     CEIL = ceil,
                     SIMPLE = simple
-                    NGRAPH_SUPPRESS_DEPRECATED_END
                     // clang-format on
                 };
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
                 struct InterpolateAttrs
                 {

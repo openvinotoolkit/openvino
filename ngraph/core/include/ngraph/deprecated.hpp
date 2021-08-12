@@ -21,9 +21,13 @@
 #elif defined(__INTEL_COMPILER)
 #define NGRAPH_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #define NGRAPH_ENUM_DEPRECATED(val, msg) val NGRAPH_DEPRECATED(msg)
-#elif (defined(__GNUC__) && __GNUC__ >= 6) || defined(__clang__)
+#elif defined(__GNUC__)
 #define NGRAPH_DEPRECATED(msg) __attribute__((deprecated((msg))))
+#if __GNUC__ < 6 && !defined(__clang__)
+#define NGRAPH_ENUM_DEPRECATED(val, msg) val
+#else
 #define NGRAPH_ENUM_DEPRECATED(val, msg) val NGRAPH_DEPRECATED(msg)
+#endif
 #else
 #define NGRAPH_DEPRECATED(msg)
 #define NGRAPH_ENUM_DEPRECATED(val, msg) val
