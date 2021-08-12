@@ -100,7 +100,13 @@ def test_decode_and_convert():
 def test_load_by_model():
     skip_if_onnx_frontend_is_disabled()
 
-    assert fem.load_by_model(onnx_model_filename)
-    assert fem.load_by_model("test.prototxt")
+    fe = fem.load_by_model(onnx_model_filename)
+    assert fe
+    assert fe.get_name() == "onnx"
+    model = fe.load(onnx_model_filename)
+    assert model
+    decoded_function = fe.decode(model)
+    assert decoded_function
+
     assert not fem.load_by_model("test.xx")
     assert not fem.load_by_model("onnx.yy")

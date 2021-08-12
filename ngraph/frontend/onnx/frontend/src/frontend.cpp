@@ -69,10 +69,6 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         {
             return true;
         }
-        if (file_util::get_file_ext(path) == ".prototxt")
-        {
-            return true;
-        }
     }
     return false;
 }
