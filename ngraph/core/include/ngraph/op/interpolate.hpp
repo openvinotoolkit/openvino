@@ -48,10 +48,10 @@ namespace ngraph
                 enum class InterpolateMode
                 {
                     // clang-format off
-                    nearest NGRAPH_DEPRECATED("Please use NEAREST instead"),
-                    linear NGRAPH_DEPRECATED("Please use LINEAR instead"),
-                    cubic NGRAPH_DEPRECATED("Please use CUBIC instead"),
-                    area NGRAPH_DEPRECATED("Please use AREA instead"),
+                    NGRAPH_ENUM_DEPRECATED(nearest, "Please use NEAREST instead"),
+                    NGRAPH_ENUM_DEPRECATED(linear, "Please use LINEAR instead"),
+                    NGRAPH_ENUM_DEPRECATED(cubic, "Please use CUBIC instead"),
+                    NGRAPH_ENUM_DEPRECATED(area, "Please use AREA instead"),
                     NGRAPH_SUPPRESS_DEPRECATED_START
                     NEAREST = nearest,
                     LINEAR = linear,
@@ -98,8 +98,8 @@ namespace ngraph
                 enum class ShapeCalcMode
                 {
                     // clang-format off
-                    sizes NGRAPH_DEPRECATED("Please use SIZES instead"),
-                    scales NGRAPH_DEPRECATED("Please use SCALES instead"),
+                    NGRAPH_ENUM_DEPRECATED(sizes, "Please use SIZES instead"),
+                    NGRAPH_ENUM_DEPRECATED(scales, "Please use SCALES instead"),
                     NGRAPH_SUPPRESS_DEPRECATED_START
                     SIZES = sizes,
                     SCALES = scales
@@ -116,10 +116,10 @@ namespace ngraph
                 enum class InterpolateMode
                 {
                     // clang-format off
-                    nearest NGRAPH_DEPRECATED("Please use NEAREST instead"),
-                    linear NGRAPH_DEPRECATED("Please use LINEAR instead"),
-                    linear_onnx NGRAPH_DEPRECATED("Please use LINEAR_ONNX instead"),
-                    cubic NGRAPH_DEPRECATED("Please use CUBIC instead"),
+                    NGRAPH_ENUM_DEPRECATED(nearest, "Please use NEAREST instead"),
+                    NGRAPH_ENUM_DEPRECATED(linear, "Please use LINEAR instead"),
+                    NGRAPH_ENUM_DEPRECATED(linear_onnx, "Please use LINEAR_ONNX instead"),
+                    NGRAPH_ENUM_DEPRECATED(cubic, "Please use CUBIC instead"),
                     NGRAPH_SUPPRESS_DEPRECATED_START
                     NEAREST = nearest,
                     LINEAR = linear,
@@ -135,11 +135,11 @@ namespace ngraph
                 enum class CoordinateTransformMode
                 {
                     // clang-format off
-                    half_pixel NGRAPH_DEPRECATED("Please use HALF_PIXEL instead"),
-                    pytorch_half_pixel NGRAPH_DEPRECATED("Please use PYTORCH_HALF_PIXEL instead"),
-                    asymmetric NGRAPH_DEPRECATED("Please use ASYMMETRIC instead"),
-                    tf_half_pixel_for_nn NGRAPH_DEPRECATED("Please use TF_HALF_PIXEL_FOR_NN instead"),
-                    align_corners NGRAPH_DEPRECATED("Please use ALIGN_CORNERS instead"),
+                    NGRAPH_ENUM_DEPRECATED(half_pixel, "Please use HALF_PIXEL instead"),
+                    NGRAPH_ENUM_DEPRECATED(pytorch_half_pixel, "Please use PYTORCH_HALF_PIXEL instead"),
+                    NGRAPH_ENUM_DEPRECATED(asymmetric, "Please use ASYMMETRIC instead"),
+                    NGRAPH_ENUM_DEPRECATED(tf_half_pixel_for_nn, "Please use TF_HALF_PIXEL_FOR_NN instead"),
+                    NGRAPH_ENUM_DEPRECATED(align_corners, "Please use ALIGN_CORNERS instead"),
                     NGRAPH_SUPPRESS_DEPRECATED_START
                     HALF_PIXEL = half_pixel,
                     PYTORCH_HALF_PIXEL = pytorch_half_pixel,
@@ -154,11 +154,11 @@ namespace ngraph
                 enum class NearestMode
                 {
                     // clang-format off
-                    round_prefer_floor NGRAPH_DEPRECATED("Please use ROUND_PREFER_FLOOR instead"),
-                    round_prefer_ceil NGRAPH_DEPRECATED("Please use ROUND_PREFER_CEIL instead"),
-                    floor NGRAPH_DEPRECATED("Please use FLOOR instead"),
-                    ceil NGRAPH_DEPRECATED("Please use CEIL instead"),
-                    simple NGRAPH_DEPRECATED("Please use SIMPLE instead"),
+                    NGRAPH_ENUM_DEPRECATED(round_prefer_floor, "Please use ROUND_PREFER_FLOOR instead"),
+                    NGRAPH_ENUM_DEPRECATED(round_prefer_ceil, "Please use ROUND_PREFER_CEIL instead"),
+                    NGRAPH_ENUM_DEPRECATED(floor, "Please use FLOOR instead"),
+                    NGRAPH_ENUM_DEPRECATED(ceil, "Please use CEIL instead"),
+                    NGRAPH_ENUM_DEPRECATED(simple, "Please use SIMPLE instead"),
                     NGRAPH_SUPPRESS_DEPRECATED_START
                     ROUND_PREFER_FLOOR = round_prefer_floor,
                     ROUND_PREFER_CEIL = round_prefer_ceil,
