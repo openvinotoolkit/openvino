@@ -37,6 +37,7 @@ def run_function(function, *inputs, expected):
 
 fem = FrontEndManager()
 onnx_model_filename = "model.onnx"
+ONNX_FRONTEND_NAME = "onnx_experimental"
 
 
 def setup_module():
@@ -49,14 +50,14 @@ def teardown_module():
 
 def skip_if_onnx_frontend_is_disabled():
     front_ends = fem.get_available_front_ends()
-    if "onnx" not in front_ends:
+    if ONNX_FRONTEND_NAME not in front_ends:
         pytest.skip()
 
 
 def test_convert():
     skip_if_onnx_frontend_is_disabled()
 
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load(onnx_model_filename)
@@ -74,7 +75,7 @@ def test_convert():
 def test_decode_and_convert():
     skip_if_onnx_frontend_is_disabled()
 
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load(onnx_model_filename)

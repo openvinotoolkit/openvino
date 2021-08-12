@@ -166,7 +166,7 @@ namespace ngraph
                 const std::map<std::string, Output<Node>>&, const std::shared_ptr<OpPlacePDPD>&)>
                 func)
         {
-            auto nodes_dict(model->getTensorValues());
+            auto nodes_dict(model->get_tensor_values());
             ParameterVector parameter_nodes;
             ResultVector result_nodes;
 
@@ -183,7 +183,7 @@ namespace ngraph
                 parameter_nodes.push_back(param);
             }
 
-            const auto& op_places = model->getOpPlaces();
+            const auto& op_places = model->get_op_places();
             for (const auto& op_place : op_places)
             {
                 const auto& op_desc = op_place->get_desc();
@@ -399,6 +399,8 @@ namespace ngraph
             auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);
             return f;
         }
+
+        std::string FrontEndPDPD::get_name() const { return "paddle"; }
     } // namespace frontend
 } // namespace ngraph
 
