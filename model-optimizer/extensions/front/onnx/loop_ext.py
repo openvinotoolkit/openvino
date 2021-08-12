@@ -45,7 +45,7 @@ class LoopExtractor(FrontExtractorOp):
         body_parameters = add_initializers_and_inputs_to_graph(body_graph, body_graph_proto, data_nodes_map)
 
         external_edges = []  # (src_node, src_out_port), dest_body_parameter_node
-        # save additional edeges information for graph on each level, the first one is the deepest
+        # save additional edges information for graph on each level, the first one is the deepest
         additional_params = []  # (src_node, src_out_port) -> parameter_node (for manually added Parameters)
         # Go through all nodes in the original model order because data nodes are defined on-the-fly and order matters
         for pb_node in body_graph_proto.node:
