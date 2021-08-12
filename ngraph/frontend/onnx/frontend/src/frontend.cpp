@@ -58,7 +58,7 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) co
 
 std::string FrontEndONNX::get_name() const
 {
-    return "onnx";
+    return "onnx_experimental";
 }
 
 bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const
