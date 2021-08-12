@@ -19,9 +19,9 @@ namespace ngraph
             class InputModelPDPDImpl;
             std::shared_ptr<InputModelPDPDImpl> _impl;
 
-            std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces() const;
-            std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces() const;
-            std::map<std::string, Output<Node>> getTensorValues() const;
+            std::vector<std::shared_ptr<OpPlacePDPD>> get_op_places() const;
+            std::map<std::string, std::shared_ptr<TensorPlacePDPD>> get_var_places() const;
+            std::map<std::string, Output<Node>> get_tensor_values() const;
 
         public:
             explicit InputModelPDPD(const std::string& path);

@@ -34,7 +34,7 @@ jobs:
       - name: Create code style diff
         if: failure()
         run: |
-          cmake --build . --target clang_format_fix_all
+          cmake --build . --target clang_format_fix_all -j8
           git diff > code_style_diff.diff
         working-directory: build
 
@@ -42,7 +42,7 @@ jobs:
         if: failure()
         with:
           name: code_style_diff
-          path: code_style_diff.diff
+          path: build/code_style_diff.diff
 
   ShellCheck:
     runs-on: ubuntu-18.04
