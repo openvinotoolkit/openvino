@@ -47,6 +47,10 @@ namespace ngraph
 
                 enum class InterpolateMode
                 {
+                    NEAREST,
+                    LINEAR,
+                    CUBIC,
+                    AREA,
                     nearest,
                     linear,
                     cubic,
@@ -89,6 +93,8 @@ namespace ngraph
                 /// scales - output shape for interpolated axes is calculated using input `scales`
                 enum class ShapeCalcMode
                 {
+                    SIZES,
+                    SCALES,
                     sizes,
                     scales
                 };
@@ -101,6 +107,10 @@ namespace ngraph
                 /// cubic       - cubic interpolation
                 enum class InterpolateMode
                 {
+                    NEAREST,
+                    LINEAR,
+                    LINEAR_ONNX,
+                    CUBIC,
                     nearest,
                     linear,
                     linear_onnx,
@@ -112,6 +122,11 @@ namespace ngraph
                 /// These modes are modes from ONNX runtime.
                 enum class CoordinateTransformMode
                 {
+                    HALF_PIXEL,
+                    PYTORCH_HALF_PIXEL,
+                    ASYMMETRIC,
+                    TF_HALF_PIXEL_FOR_NN,
+                    ALIGN_CORNERS,
                     half_pixel,
                     pytorch_half_pixel,
                     asymmetric,
@@ -122,6 +137,11 @@ namespace ngraph
                 /// \brief Round modes for the nearest interpolation.
                 enum class NearestMode
                 {
+                    ROUND_PREFER_FLOOR,
+                    ROUND_PREFER_CEIL,
+                    FLOOR,
+                    CEIL,
+                    SIMPLE,
                     round_prefer_floor,
                     round_prefer_ceil,
                     floor,
