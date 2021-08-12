@@ -9,7 +9,7 @@
 #include "default_opset.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "onnx_editor/editor.hpp"
+#include "editor.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/test_control.hpp"
 

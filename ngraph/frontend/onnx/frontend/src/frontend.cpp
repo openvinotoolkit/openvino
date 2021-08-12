@@ -7,6 +7,7 @@
 #include <input_model.hpp>
 #include <onnx_frontend/frontend.hpp>
 #include <onnx_import/onnx.hpp>
+#include <utils/onnx_internal.hpp>
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -19,7 +20,7 @@ extern "C" ONNX_FRONTEND_API FrontEndVersion GetAPIVersion()
 extern "C" ONNX_FRONTEND_API void* GetFrontEndData()
 {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
-    res->m_name = "onnx";
+    res->m_name = "onnx_experimental";
     res->m_creator = []() { return std::make_shared<FrontEndONNX>(); };
     return res;
 }
@@ -44,7 +45,7 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) c
 
 void FrontEndONNX::convert(std::shared_ptr<ngraph::Function> partially_converted) const
 {
-    onnx_import::convert_decoded_function(partially_converted);
+    onnx_import::detail::convert_decoded_function(partially_converted);
 }
 
 std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) const

@@ -3,8 +3,8 @@
 //
 
 /**
- * @brief This header file provides structures to store info about pre-processing of network inputs (scale, mean image,
- * ...)
+ * @brief This header file provides structures to store info about pre-processing of
+ * network inputs (scale, mean image, ...)
  *
  * @file ie_preprocess.hpp
  */
@@ -155,8 +155,7 @@ public:
         } else if (meanImage.get()->getTensorDesc().getDims().size() != 2) {
             IE_THROW() << "Failed to set invalid mean image for channel: number of dimensions != 2";
         } else if (channel >= _channelsInfo.size()) {
-            IE_THROW() << "Channel " << channel
-                               << " exceed number of PreProcess channels: " << _channelsInfo.size();
+            IE_THROW() << "Channel " << channel << " exceed number of PreProcess channels: " << _channelsInfo.size();
         }
         _variant = MEAN_IMAGE;
         _channelsInfo[channel]->meanData = meanImage;

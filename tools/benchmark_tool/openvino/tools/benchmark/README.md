@@ -8,7 +8,7 @@ Upon start-up, the application reads command-line parameters and loads a network
 plugin, which is chosen depending on a specified device. The number of infer requests and execution approach depend
 on the mode defined with the `-api` command-line parameter.
 
-> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ### Synchronous API
 
@@ -47,7 +47,7 @@ Notice that the benchmark_app usually produces optimal performance for any devic
 $benchmark_app -m <model> -i <input> -d CPU
 ```
 
-But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](./docs/IE_DG/Intro_to_Performance.md).
+But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](../../../../../docs/IE_DG/Intro_to_Performance.md).
 
 Running the application with the `-h` or `--help`' option yields the following usage message:
 
@@ -158,7 +158,7 @@ If a model has mixed input types, input folder should contain all required files
 
 To run the tool, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
-> **NOTE**: Before running the demo with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the demo with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 For example, to do inference of an image using a trained network with multiple outputs on CPU, run the following command:
 
@@ -187,6 +187,6 @@ Throughput: 73.28 FPS
 ```
 
 ## See Also
-* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
-* [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Model Downloader](https://github.com/openvinotoolkit/open_model_zoo/tree/2018/model_downloader)
