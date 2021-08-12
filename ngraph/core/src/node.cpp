@@ -4,12 +4,12 @@
 
 #include "ngraph/node.hpp"
 
+#include <assert.h>
 #include <memory>
 #include <ngraph/validation_util.hpp>
 #include <sstream>
 #include <typeindex>
 #include <typeinfo>
-#include <assert.h>
 
 #include "itt.hpp"
 #include "ngraph/descriptor/input.hpp"
@@ -26,7 +26,7 @@ atomic<size_t> Node::m_next_instance_id(0);
 
 void Node::init_order()
 {
-    if(m_order_element)
+    if (m_order_element)
     {
         return;
     }
@@ -41,25 +41,28 @@ void Node::init_order()
     }
 
     // Find max order
-    for (const auto & p : orders)
+    for (const auto& p : orders)
     {
-        const auto & o = p.second;
+        const auto& o = p.second;
         if (!m_order || o->size() > m_order->size())
         {
             m_order = o;
         }
     }
 
-    if  (!m_order)
+    if (!m_order)
     {
         m_order = std::make_shared<Order>();
     }
 
     // Find position for new element and orders
-    std::vector<std::pair<std::pair<int64_t /*id*/, int64_t/*depth*/>, OrderElement::Ptr>> elements;
+    std::vector<std::pair<std::pair<int64_t /*id*/, int64_t /*depth*/>, OrderElement::Ptr>>
+        elements;
     OrderElement::Ptr max_element;
-    for (auto & p : orders) {
-        if (p.second != m_order) continue;
+    for (auto& p : orders)
+    {
+        if (p.second != m_order)
+            continue;
 
         if (!p.second->initialization_is_finished())
         {
@@ -67,8 +70,9 @@ void Node::init_order()
             break;
         }
 
-        const auto &el = p.first;
-        if (!el->output /* last element in order */) {
+        const auto& el = p.first;
+        if (!el->output /* last element in order */)
+        {
             max_element = el;
             break;
         }
@@ -95,12 +99,12 @@ void Node::init_order()
     }
     m_order_element = el;
 
-
     // Insert orders
-    for (auto & p : orders)
+    for (auto& p : orders)
     {
-        const auto & o = p.second;
-        if (o == m_order) continue;
+        const auto& o = p.second;
+        if (o == m_order)
+            continue;
         // merge orders
         m_order->insert_after(max_element, o);
         o->reset(m_order);

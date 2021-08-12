@@ -182,7 +182,7 @@ void Function::prerequirements(bool detect_variables, bool detect_parameters) {
         check_all_variables_registered(ordered_ops, m_variables);
 
     // WA to initialize orders
-    for (auto & p : m_parameters)
+    for (auto& p : m_parameters)
     {
         if (p->m_order)
             p->m_order->finish_initialization();

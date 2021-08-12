@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/node.hpp"
 #include "ngraph/topological_order.hpp"
+#include "ngraph/node.hpp"
 
 namespace ngraph
 {
@@ -48,4 +48,4 @@ namespace ngraph
         }
         --m_size;
     }
-} // namespace std
+} // namespace ngraph

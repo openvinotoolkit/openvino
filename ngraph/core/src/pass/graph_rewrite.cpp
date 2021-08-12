@@ -80,8 +80,7 @@ bool pass::GraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f)
     return apply_matcher_passes(f, true);
 }
 
-bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f,
-                                              bool forward)
+bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, bool forward)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
 
@@ -131,7 +130,7 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f,
     }
 
     deque<std::weak_ptr<Node>> nodes_to_run;
-    for (auto & node : f->get_ordered_ops())
+    for (auto& node : f->get_ordered_ops())
     {
         nodes_to_run.emplace_back(node);
     }

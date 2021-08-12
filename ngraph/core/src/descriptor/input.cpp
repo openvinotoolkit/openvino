@@ -39,7 +39,8 @@ void descriptor::Input::replace_output(Output& new_output)
     {
         if (new_output.get_raw_node()->m_order != m_node->m_order)
         {
-            m_node->m_order->insert_after(m_output->get_raw_node()->m_order_element, new_output.get_raw_node()->m_order);
+            m_node->m_order->insert_after(m_output->get_raw_node()->m_order_element,
+                                          new_output.get_raw_node()->m_order);
             new_output.get_raw_node()->m_order->reset(m_node->m_order);
         }
     }

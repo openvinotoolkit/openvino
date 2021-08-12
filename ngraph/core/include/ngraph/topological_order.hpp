@@ -4,25 +4,29 @@
 
 #pragma once
 
+#include <assert.h>
 #include <cstddef>
+#include <deque>
 #include <ostream>
 #include <vector>
-#include <deque>
-#include <assert.h>
 
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
 namespace ngraph
 {
-    class OrderElement {
+    class OrderElement
+    {
     public:
         using Ptr = std::shared_ptr<OrderElement>;
-        OrderElement(Node * n) : node(n) {}
+        OrderElement(Node* n)
+            : node(n)
+        {
+        }
 
         OrderElement::Ptr input;
         OrderElement::Ptr output;
-        Node * node;
+        Node* node;
 
         bool id_is_not_set() const { return m_id == -1; }
 
@@ -77,11 +81,13 @@ namespace ngraph
         void set_id(int64_t id) { m_id = id; }
 
         void reset_id() { m_id = -1; }
+
     private:
         int64_t m_id{-1};
     };
 
-    class Order {
+    class Order
+    {
     public:
         using Ptr = std::shared_ptr<Order>;
 
@@ -103,7 +109,7 @@ namespace ngraph
             m_need_reindexing = true;
         }
 
-        void push_back(const Order & order)
+        void push_back(const Order& order)
         {
             auto element = order.m_begin;
             element->input = m_end;
@@ -153,7 +159,7 @@ namespace ngraph
         {
             int64_t cnt{0};
             auto el = m_begin;
-            while(el)
+            while (el)
             {
                 el = el->output;
                 ++cnt;
@@ -171,11 +177,12 @@ namespace ngraph
 
         void reindexing()
         {
-            if (!m_need_reindexing) return;
+            if (!m_need_reindexing)
+                return;
             int64_t id{0};
             auto el = m_begin;
             int64_t cnt{0};
-            while(el)
+            while (el)
             {
                 el->set_id(id);
                 id += 1;
@@ -204,6 +211,6 @@ namespace ngraph
         bool m_initialization_finished{false};
     };
 
-//    NGRAPH_API
-//    std::ostream& operator<<(std::ostream& s, const Strides& strides);
+    //    NGRAPH_API
+    //    std::ostream& operator<<(std::ostream& s, const Strides& strides);
 } // namespace ngraph
