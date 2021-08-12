@@ -361,26 +361,23 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
             node = custom_ops[op_type](new_graph, op.attrs()).create_node()
         else:
             if op_type not in Op.registered_ops:
-                log.warning('Operation {} not found in MO operations, please check it! '
+                log.warning('Operation {} is not found in MO operations, please check it! '
                             'Simple shape infer function is used'.format(op_type))
                 node = Op(new_graph, op.attrs()).create_node()
                 node['infer'] = Extender.const_shape_infer
                 if 'ir_data_attrs' in op:
-                    node['IE'] = [(
-                                    'layer',
-                                    [('id', lambda node: node.node), 'name', 'type', 'version'],
-                                    [
-                                        (
-                                            'data',
-                                            list(op.ir_data_attrs.keys()),
-                                            []),
-                                        '@ports',
-                                        '@consts'])]
+                    node['IE'] = [('layer',
+                                   [('id', lambda node: node.node), 'name', 'type', 'version'],
+                                   [('data',
+                                     list(op.ir_data_attrs.keys()),
+                                     []),
+                                    '@ports',
+                                    '@consts'])]
 
             else:
                 node = Op.get_op_class_by_name(op_type)(new_graph, op.attrs()).create_node()
 
-        # This attribute is no more needed and we can delete it
+        # This attribute is no longer needed and we can delete it
         if 'ir_data_attrs' in node:
             del node['ir_data_attrs']
 
