@@ -541,7 +541,7 @@ def test_is_equal():
 
 def test_is_equal_data():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
