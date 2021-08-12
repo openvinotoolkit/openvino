@@ -15,17 +15,17 @@ namespace LayerTestsDefinitions {
 std::string PadTransformation::getTestCaseName(testing::TestParamInfo<PadTransformationParams> obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
-    ngraph::op::PadMode mode;
+    ngraph::op::PadMode padMode;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     PadTransformationParam param;
-    std::tie(netPrecision, inputShape, mode, targetDevice, params, param) = obj.param;
+    std::tie(netPrecision, inputShape, padMode, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params)
            << "_" << param.fakeQuantize << "_"
            << CommonTestUtils::vec2str(param.padsBegin) << CommonTestUtils::vec2str(param.padsEnd) << "_"
-           << mode << "_" << (mode == ngraph::op::PadMode::CONSTANT ? "" : std::to_string(param.padValue));
+           << padMode << "_" << (padMode == ngraph::op::PadMode::CONSTANT ? "" : std::to_string(param.padValue));
     return result.str();
 }
 
