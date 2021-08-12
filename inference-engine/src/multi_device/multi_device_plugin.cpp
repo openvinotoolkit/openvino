@@ -98,8 +98,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
 InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::string& name,
         const std::map<std::string, InferenceEngine::Parameter> & options) const {
-    if (name == MULTI_CONFIG_KEY(DEVICE_PRIORITIES)) {
-        auto it = _config.find(MULTI_CONFIG_KEY(DEVICE_PRIORITIES));
+    if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name)) {
+        auto it = _config.find(name);
         if (it == _config.end()) {
             IE_THROW() << "Value for KEY_MULTI_DEVICE_PRIORITIES is not set";
         } else {
