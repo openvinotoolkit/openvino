@@ -19,6 +19,7 @@
 #include <ie_core.hpp>
 #include "ie_common.h"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include <threading/ie_executor_manager.hpp>
@@ -90,6 +91,7 @@ namespace BehaviorTestsDefinitions {
         ie->SetConfig({ { CONFIG_KEY(CACHE_DIR), "./test_cache" } });
         ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
         ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        CommonTestUtils::removeDir("./test_cache");
     }
 
     using CorrectSingleOptionCustomValueConfigTests = BehaviorTestsUtils::BehaviorTestsSingleOptionCustom;
