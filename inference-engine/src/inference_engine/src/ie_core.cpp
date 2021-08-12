@@ -62,19 +62,11 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
     } else if (deviceName_.find("MULTI:") == 0) {
         deviceName_ = "MULTI";
         config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
-    } else if (deviceName_.find("AUTO") == 0) {
-        deviceName_ = "AUTO";
-        if (deviceName.size() > std::string("AUTO").size()) {
-            std::string deviceList = deviceName.substr(std::string("AUTO:").size());
-            if (deviceList.find("AUTO") != std::string::npos) {
-                IE_THROW() << "Device list for AUTO should not be AUTO";
-            }
-            config_[InferenceEngine::KEY_AUTO_DEVICE_LIST] = deviceName.substr(std::string("AUTO:").size());
-        }
+    } else if (deviceName_.find("AUTO:") == 0) {
+        deviceName_ = "MULTI";
+        config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] =
+            deviceName.substr(std::string("AUTO:").size());
     } else {
-        if (deviceName_.empty()) {
-            deviceName_ = "AUTO";
-        }
         InferenceEngine::DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
         std::string deviceIDLocal = parser.getDeviceID();
@@ -579,6 +571,15 @@ public:
             }
         }
 
+        // AUTO case
+        {
+            if (deviceName.find("AUTO:") == 0) {
+                IE_THROW()
+                    << "You can get specific metrics with the GetMetric only for the MULTI itself (without devices). "
+                       "To get individual devices's metrics call GetMetric for each device separately";
+            }
+        }
+
         auto parsed = parseDeviceNameIntoConfig(deviceName);
 
         // we need to return a copy of Parameter object which is created on Core side,
@@ -856,9 +857,9 @@ public:
             } else if (deviceName.find("AUTO") == 0) {
                 auto pos = deviceName.find_first_of(":");
                 if (pos != std::string::npos) {
-                    deviceNames = InferenceEngine::DeviceIDParser::getHeteroDevices(deviceName.substr(pos + 1));
+                    deviceNames = InferenceEngine::DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
                 }
-                deviceNames.emplace_back("AUTO");
+                deviceNames.emplace_back("MULTI");
             } else {
                 deviceNames.push_back(deviceName);
             }
