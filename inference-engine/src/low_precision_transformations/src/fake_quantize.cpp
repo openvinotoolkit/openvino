@@ -56,10 +56,9 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
 namespace fq {
 
 static std::shared_ptr<Node> updateShape(std::shared_ptr<Node> constantOp, const PartialShape& targetShape) {
-    const auto constant = as_type_ptr<opset1::Constant>(constantOp);
-    assert(constant != nullptr);
+    assert(constantOp->get_output_partial_shape(0).is_static());
+    const Shape shape = constantOp->get_output_shape(0);
 
-    const Shape shape = constant->get_shape();
     if ((shape.size() > 1ul) && (shape.size() < static_cast<size_t>(targetShape.rank().get_length()))) {
         constantOp = fold<opset1::Unsqueeze>(
             constantOp,

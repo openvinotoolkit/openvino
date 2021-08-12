@@ -177,10 +177,10 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 
                 const auto weightsPShape = subtractFromWeights->get_input_partial_shape(0);
                 assert(weightsPShape.is_static());
-                const Shape weightsShape = weightsPShape.to_shape();
 
-                Shape zeroPointShape(weightsShape.size(), 1ul);
-                zeroPointShape[1] = weightsShape[1];
+                const size_t weightsRankValue = weightsPShape.rank().get_length();
+                Shape zeroPointShape(weightsRankValue, 1ul);
+                zeroPointShape[1] = static_cast<size_t>(weightsPShape[1].get_length());
 
                 auto zeroPointConstant = fold<opset1::Broadcast>(
                         subtractFromWeights->get_input_node_shared_ptr(1),

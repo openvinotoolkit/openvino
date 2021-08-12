@@ -41,11 +41,10 @@ bool FuseFakeQuantizeTransformation::transform(TransformationContext& context, n
 namespace fuse_fq {
 
 std::shared_ptr<Node> updateShape(std::shared_ptr<Node> op, const PartialShape& targetPShape) {
-    const auto constant = as_type_ptr<opset1::Constant>(op);
-    const Shape shape = constant->get_shape();
-
     assert(targetPShape.is_static());
-    const auto targetShape = targetPShape.to_shape();
+    assert(op->get_output_partial_shape(0).is_static());
+    const Shape targetShape = targetPShape.to_shape();
+    const Shape shape = op->get_output_shape(0);
 
     if ((shape.size() < targetShape.size()) && (shape.size() > 1ul)) {
         op = fold<opset1::Unsqueeze>(
@@ -89,14 +88,16 @@ bool eltwiseWithConstant(const std::shared_ptr<Node>& eltwise) {
     Shape shape = constant->get_shape();
     if ((!shape.empty()) && (shape_size(shape) != 1ul)) {
         const auto eltwisePShape = eltwise->get_output_partial_shape(0);
-        assert(eltwisePShape.is_static());
-        const Shape eltwiseShape = eltwisePShape.to_shape();
-
-        if ((eltwiseShape.size() - shape.size()) > 1) {
+        if (eltwisePShape.rank().is_dynamic()) {
             return false;
         }
 
-        if ((eltwiseShape.size() - shape.size()) == 1ul) {
+        const size_t eltwiseOutRank = eltwisePShape.rank().get_length();
+        if ((eltwiseOutRank - shape.size()) > 1) {
+            return false;
+        }
+
+        if ((eltwiseOutRank - shape.size()) == 1ul) {
             shape.insert(shape.begin(), 1ul);
         }
 

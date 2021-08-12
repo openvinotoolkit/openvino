@@ -44,14 +44,15 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
 
     auto transposeDeqConstant = [](
         const std::shared_ptr<opset1::Constant>& dequantizationConstant,
-        const PartialShape& transposeOutputShape,
+        const PartialShape& transposeOutputPShape,
         const std::shared_ptr<Node>& transposeConstant) -> std::shared_ptr<Node> {
             const auto constantShape = dequantizationConstant->get_shape();
             if (shape_size(constantShape) == 1ul) {
                 return NetworkHelper::toScalar(dequantizationConstant);
             }
 
-            const size_t transposeOutRank = transposeOutputShape.rank().get_length();
+            assert(transposeOutputPShape.rank().is_static());
+            const size_t transposeOutRank = transposeOutputPShape.rank().get_length();
             if (constantShape.size() != transposeOutRank) {
                 const auto unsqueezeConst = opset1::Constant::create(element::i32, Shape{ 1 }, std::vector<size_t>{ 0 });
                 const auto deqConstantWithBatch = fold<opset1::Unsqueeze>(dequantizationConstant, unsqueezeConst);
