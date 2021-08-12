@@ -31,7 +31,7 @@ bool ngraph::pass::MimicSetBatchSize::run_on_function(std::shared_ptr<ngraph::Fu
     }
     // apply transformation to original function
     bool transformed = false;
-    for (auto & reshape : f->get_cached_ordered_ops()) {
+    for (auto & reshape : f->get_ordered_ops()) {
         if (!is_type<opset5::Reshape>(reshape) || !scale.count(reshape->get_friendly_name()) || reshape->get_output_partial_shape(0).rank().is_dynamic())
             continue;
 

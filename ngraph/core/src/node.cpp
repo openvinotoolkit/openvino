@@ -162,7 +162,9 @@ Node::Node(const OutputVector& arguments, size_t output_size) : Node() {
 
 Node::~Node()
 {
-    m_order->remove(m_order_element);
+    if (m_order)
+        m_order->remove(m_order_element);
+
     for (descriptor::Input& input : m_inputs)
     {
         if (input.has_output())

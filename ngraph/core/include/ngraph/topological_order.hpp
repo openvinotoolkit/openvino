@@ -8,6 +8,7 @@
 #include <ostream>
 #include <vector>
 #include <deque>
+#include <assert.h>
 
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/ngraph_visibility.hpp"
@@ -148,6 +149,18 @@ namespace ngraph
             m_need_reindexing = true;
         }
 
+        void validate()
+        {
+            int64_t cnt{0};
+            auto el = m_begin;
+            while(el)
+            {
+                el = el->output;
+                ++cnt;
+            }
+            assert(cnt == m_size);
+        }
+
         void reset(Order::Ptr order);
 
         void remove(OrderElement::Ptr element);
@@ -161,20 +174,27 @@ namespace ngraph
             if (!m_need_reindexing) return;
             int64_t id{0};
             auto el = m_begin;
+            int64_t cnt{0};
             while(el)
             {
                 el->set_id(id);
                 id += 1;
                 el = el->output;
+                ++cnt;
             }
             m_need_reindexing = false;
+            assert(cnt == m_size);
         }
 
         int64_t size() const { return m_size; }
 
         bool initialization_is_finished() const { return m_initialization_finished; }
 
-        void finish_initialization() { m_initialization_finished = true; }
+        void finish_initialization()
+        {
+            m_initialization_finished = true;
+            reindexing();
+        }
 
     private:
         OrderElement::Ptr m_begin{nullptr};

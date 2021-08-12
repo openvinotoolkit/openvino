@@ -107,8 +107,6 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
                         replacement->set_friendly_name(input_node->get_friendly_name() + "." +
                                                        std::to_string(input_value.get_index()));
                     }
-                    // TODO: fix replace method
-                    input_value.get_node()->m_order->insert_after(input_value.get_node()->m_order_element, replacement->m_order_element);
                     input_value.replace(replacement);
                     // Propagate runtime info attributes to replacement consumer nodes
                     copy_runtime_info_to_target_inputs(input_node, replacement);

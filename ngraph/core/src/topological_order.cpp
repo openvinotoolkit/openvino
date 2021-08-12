@@ -10,12 +10,19 @@ namespace ngraph
     void Order::reset(Order::Ptr order)
     {
         auto e = m_begin;
+        int64_t cnt{0};
         while (e)
         {
+            ++cnt;
             e->node->m_order = order;
             e->reset_id();
+            if (e == m_end)
+            {
+                break;
+            }
             e = e->output;
         }
+        assert(cnt == m_size);
         m_size = 0;
     }
 

@@ -184,7 +184,8 @@ void Function::prerequirements(bool detect_variables, bool detect_parameters) {
     // WA to initialize orders
     for (auto & p : m_parameters)
     {
-        p->m_order->finish_initialization();
+        if (p->m_order)
+            p->m_order->finish_initialization();
     }
 }
 
@@ -229,6 +230,7 @@ void Function::validate_nodes_and_infer_types() const {
 }
 
 std::vector<shared_ptr<Node>> Function::get_ordered_ops() const {
+    return get_cached_ordered_ops();
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Function::get_ordered_ops");
 
     vector<shared_ptr<Node>> nodes;

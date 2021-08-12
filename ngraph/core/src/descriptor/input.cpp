@@ -33,8 +33,19 @@ descriptor::Input::~Input() {
     remove_output();
 }
 
-void descriptor::Input::replace_output(Output& new_output) {
-    if (m_output != nullptr) {
+void descriptor::Input::replace_output(Output& new_output)
+{
+    if (m_node->m_order_element)
+    {
+        if (new_output.get_raw_node()->m_order != m_node->m_order)
+        {
+            m_node->m_order->insert_after(m_output->get_raw_node()->m_order_element, new_output.get_raw_node()->m_order);
+            new_output.get_raw_node()->m_order->reset(m_node->m_order);
+        }
+    }
+
+    if (m_output != nullptr)
+    {
         m_output->remove_input(this);
     }
     new_output.add_input(this);

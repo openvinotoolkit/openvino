@@ -18,7 +18,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollTensorIterator, "UnrollTensorIterator
 
 bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator);
-    for (const auto& op : f->get_cached_ordered_ops()) {
+    for (const auto& op : f->get_ordered_ops()) {
         auto sub_graph_op = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op);
         if (!sub_graph_op || transformation_callback(sub_graph_op)) {
             continue;
@@ -37,7 +37,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
         std::vector<std::shared_ptr<ngraph::Function>> body_functions(num_iter);
         for (int64_t idx = 0; idx < num_iter; ++idx) {
             body_functions[idx] = clone_function(*function);
-            for (auto &node : body_functions[idx]->get_cached_ordered_ops()) {
+            for (auto &node : body_functions[idx]->get_ordered_ops()) {
                 node->set_friendly_name(sub_graph_op->get_friendly_name() + "/" + std::to_string(idx + 1) + "/" +
                                         node->get_friendly_name());
                 copy_runtime_info(sub_graph_op, node);
