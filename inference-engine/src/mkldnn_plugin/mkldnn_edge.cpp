@@ -380,7 +380,7 @@ void MKLDNNEdge::init() {
     if (edgePtr.get() == this) {
         changeStatus(Status::NeedAllocation);
     } else {
-        if (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant()) {
+        if (getParent()->isConstant() && !getChild()->isConstant()) {
             changeStatus(Status::NeedAllocation);
             return;
         }
