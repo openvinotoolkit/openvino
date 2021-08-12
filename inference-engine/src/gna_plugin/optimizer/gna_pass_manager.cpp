@@ -1113,6 +1113,9 @@ void InsertConcatAligningFilterPass::run() {
                                             SizeVector({filterWeights.size()}),
                                             Layout::C));
                 concatAligningFilter->_weights->allocate();
+                if (!concatAligningFilter->_weights->buffer().as<float*>()) {
+                    THROW_GNA_EXCEPTION << "Failed to allocate weights of size " << filterWeights.size() << " for " << filterName;
+                }
 
                 CopyVectorToBlob(concatAligningFilter->_weights, filterWeights);
 
