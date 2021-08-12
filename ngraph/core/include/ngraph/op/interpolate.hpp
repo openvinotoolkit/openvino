@@ -47,14 +47,14 @@ namespace ngraph
 
                 enum class InterpolateMode
                 {
-                    NEAREST,
-                    LINEAR,
-                    CUBIC,
-                    AREA,
                     nearest,
                     linear,
                     cubic,
-                    area
+                    area,
+                    NEAREST = nearest,
+                    LINEAR = linear,
+                    CUBIC = cubic,
+                    AREA = area
                 };
 
                 Interpolate() = default;
@@ -93,10 +93,10 @@ namespace ngraph
                 /// scales - output shape for interpolated axes is calculated using input `scales`
                 enum class ShapeCalcMode
                 {
-                    SIZES,
-                    SCALES,
                     sizes,
-                    scales
+                    scales,
+                    SIZES = sizes,
+                    SCALES = scales
                 };
 
                 /// \brief Interpolation mode
@@ -107,14 +107,14 @@ namespace ngraph
                 /// cubic       - cubic interpolation
                 enum class InterpolateMode
                 {
-                    NEAREST,
-                    LINEAR,
-                    LINEAR_ONNX,
-                    CUBIC,
                     nearest,
                     linear,
                     linear_onnx,
-                    cubic
+                    cubic,
+                    NEAREST = nearest,
+                    LINEAR = linear,
+                    LINEAR_ONNX = linear_onnx,
+                    CUBIC = cubic
                 };
 
                 /// \brief Mode of the calculation of the source coordinate from resized one
@@ -122,31 +122,31 @@ namespace ngraph
                 /// These modes are modes from ONNX runtime.
                 enum class CoordinateTransformMode
                 {
-                    HALF_PIXEL,
-                    PYTORCH_HALF_PIXEL,
-                    ASYMMETRIC,
-                    TF_HALF_PIXEL_FOR_NN,
-                    ALIGN_CORNERS,
                     half_pixel,
                     pytorch_half_pixel,
                     asymmetric,
                     tf_half_pixel_for_nn,
-                    align_corners
+                    align_corners,
+                    HALF_PIXEL = half_pixel,
+                    PYTORCH_HALF_PIXEL = pytorch_half_pixel,
+                    ASYMMETRIC = asymmetric,
+                    TF_HALF_PIXEL_FOR_NN = tf_half_pixel_for_nn,
+                    ALIGN_CORNERS = align_corners
                 };
 
                 /// \brief Round modes for the nearest interpolation.
                 enum class NearestMode
                 {
-                    ROUND_PREFER_FLOOR,
-                    ROUND_PREFER_CEIL,
-                    FLOOR,
-                    CEIL,
-                    SIMPLE,
                     round_prefer_floor,
                     round_prefer_ceil,
                     floor,
                     ceil,
-                    simple
+                    simple,
+                    ROUND_PREFER_FLOOR = round_prefer_floor,
+                    ROUND_PREFER_CEIL = round_prefer_ceil,
+                    FLOOR = floor,
+                    CEIL = ceil,
+                    SIMPLE = simple
                 };
 
                 struct InterpolateAttrs
