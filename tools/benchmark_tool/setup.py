@@ -10,10 +10,10 @@ $ python setup.py sdist bdist_wheel
 """
 from setuptools import setup, find_packages
 
-with open('openvino/tools/benchmark/README.md', 'r', encoding='utf-8') as f:
+with open('README.md', 'r', encoding='utf-8') as f:
     long_description = f.read()
 
-with open('openvino/tools/benchmark/requirements.txt') as f:
+with open('requirements.txt') as f:
     required = f.read().splitlines()
 required.extend(['openvino'])
 

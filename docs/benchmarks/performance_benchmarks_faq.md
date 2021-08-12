@@ -15,7 +15,7 @@ The models used in the performance benchmarks were chosen based on general adopt
 CF means Caffe*, while TF means TensorFlow*.
 
 #### 5. How can I run the benchmark results on my own?
-All of the performance benchmarks were generated using the open-sourced tool within the Intel® Distribution of OpenVINO™ toolkit called `benchmark_app`, which is available in both [C++](../../inference-engine/samples/benchmark_app/README.md) and [Python](../../inference-engine/tools/benchmark_tool/README.md). 
+All of the performance benchmarks were generated using the open-sourced tool within the Intel® Distribution of OpenVINO™ toolkit called `benchmark_app`, which is available in both [C++](../../inference-engine/samples/benchmark_app/README.md) and [Python](../../tools/benchmark_tool/README.md). 
 
 #### 6. What image sizes are used for the classification network models?
 The image size used in the inference depends on the network being benchmarked. The following table shows the list of input sizes for each network model.

@@ -29,8 +29,10 @@ if(ENABLE_PYTHON)
     ie_cpack_add_component(python_tools_${PYTHON_VERSION})
     ie_cpack_add_component(python_tools)
 
-    install(DIRECTORY ../inference-engine/tools/benchmark_tool
-            DESTINATION deployment_tools/tools
+    install(FILES benchmark_tool/benchmark_app.py
+                  benchmark_tool/README.md
+                  benchmark_tool/requirements.txt
+            DESTINATION deployment_tools/tools/benchmark_tool
             COMPONENT python_tools)
 
     install(DIRECTORY ../inference-engine/tools/cross_check_tool
