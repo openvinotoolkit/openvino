@@ -67,6 +67,9 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
         config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] =
             deviceName.substr(std::string("AUTO:").size());
     } else {
+        if (deviceName_ == "AUTO") {
+            deviceName_ = "MULTI";
+        }
         InferenceEngine::DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
         std::string deviceIDLocal = parser.getDeviceID();
@@ -630,11 +633,14 @@ public:
      * @param deviceName A name of device
      * @return Reference to a CPP plugin wrapper
      */
-    InferenceEngine::InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
+    InferenceEngine::InferencePlugin GetCPPPluginByName(const std::string& pluginName) const {
         OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "CoreImpl::GetCPPPluginByName");
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
-
+        auto deviceName = pluginName;
+        if (deviceName == "AUTO") {
+            deviceName = "MULTI";
+        }
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
             IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
