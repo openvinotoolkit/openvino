@@ -10,9 +10,9 @@
  */
 #pragma once
 
-#include "ie_plugin_config.hpp"
-#include "ie_api.h"
 #include "gpu/gpu_config.hpp"
+#include "ie_api.h"
+#include "ie_plugin_config.hpp"
 
 namespace InferenceEngine {
 
@@ -24,8 +24,8 @@ namespace CLDNNConfigParams {
 /**
  * @brief shortcut for defining configuration keys
  */
-#define CLDNN_CONFIG_KEY(name) InferenceEngine::CLDNNConfigParams::_CONFIG_KEY(CLDNN_##name)
-#define DECLARE_CLDNN_CONFIG_KEY(name) DECLARE_CONFIG_KEY(CLDNN_##name)
+#define CLDNN_CONFIG_KEY(name)           InferenceEngine::CLDNNConfigParams::_CONFIG_KEY(CLDNN_##name)
+#define DECLARE_CLDNN_CONFIG_KEY(name)   DECLARE_CONFIG_KEY(CLDNN_##name)
 #define DECLARE_CLDNN_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(CLDNN_##name)
 
 /**
@@ -67,9 +67,10 @@ DECLARE_CLDNN_CONFIG_KEY(SOURCES_DUMPS_DIR);
 
 /**
  * @brief This key enables FP16 precision for quantized models.
- * By default the model is converted to FP32 precision before running LPT. If this key is enabled (default), then non-quantized layers
- * will be converted back to FP16 after LPT, which might imrpove the performance if a model has a lot of compute operations in
- * non-quantized path. This key has no effect if current device doesn't have INT8 optimization capabilities.
+ * By default the model is converted to FP32 precision before running LPT. If this key is enabled (default), then
+ * non-quantized layers will be converted back to FP16 after LPT, which might imrpove the performance if a model has a
+ * lot of compute operations in non-quantized path. This key has no effect if current device doesn't have INT8
+ * optimization capabilities.
  */
 DECLARE_CLDNN_CONFIG_KEY(ENABLE_FP16_FOR_QUANTIZED_MODELS);
 

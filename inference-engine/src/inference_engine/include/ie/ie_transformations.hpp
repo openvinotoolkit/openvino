@@ -10,8 +10,8 @@
 
 #pragma once
 
-#include <ie_api.h>
-#include <cpp/ie_cnn_network.h>
+#include "cpp/ie_cnn_network.h"
+#include "ie_api.h"
 
 namespace InferenceEngine {
 
@@ -56,7 +56,6 @@ INFERENCE_ENGINE_DEPRECATED("This transformation will be removed in 2023.1. "
                             "Use InferenceEngine::lowLatency2 instead.")
 INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
 
-
 /**
  * @brief The transformation finds all TensorIterator/Loop layers in the network,
  * processes all back edges that describe a connection between Result and Parameter
@@ -84,7 +83,6 @@ INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
           If "false, then the transformation leaves existed initializing subgraph for ReadValue operation.
  * Loop operation by a given number. Does not affect TensorIterators.
  */
-INFERENCE_ENGINE_API_CPP(void) lowLatency2(InferenceEngine::CNNNetwork& network,
-                                           bool use_const_initializer = true);
+INFERENCE_ENGINE_API_CPP(void) lowLatency2(InferenceEngine::CNNNetwork& network, bool use_const_initializer = true);
 
-} // namespace InferenceEngine
+}  // namespace InferenceEngine

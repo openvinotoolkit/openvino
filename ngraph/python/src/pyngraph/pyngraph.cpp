@@ -13,7 +13,7 @@
 #include "pyngraph/node_factory.hpp"
 #include "pyngraph/node_input.hpp"
 #include "pyngraph/node_output.hpp"
-#if defined(NGRAPH_ONNX_IMPORT_ENABLE)
+#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
 #include "pyngraph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyngraph/dimension.hpp"
@@ -66,7 +66,7 @@ PYBIND11_MODULE(_pyngraph, m)
     regclass_pyngraph_op_Constant(m_op);
     regclass_pyngraph_op_Parameter(m_op);
     regclass_pyngraph_op_Result(m_op);
-#if defined(NGRAPH_ONNX_IMPORT_ENABLE)
+#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
     regmodule_pyngraph_onnx_import(m);
 #endif
     regmodule_pyngraph_op_util(m_op);
