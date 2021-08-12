@@ -88,7 +88,8 @@ namespace ngraph
         class PlaceOpONNX : public Place
         {
         public:
-            PlaceOpONNX(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+            PlaceOpONNX(const onnx_editor::EditorNode& node,
+                        std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
             std::vector<std::string> get_names() const override;
 
             Place::Ptr get_output_port() const override;
