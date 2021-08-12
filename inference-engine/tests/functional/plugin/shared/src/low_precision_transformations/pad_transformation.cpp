@@ -23,7 +23,9 @@ std::string PadTransformation::getTestCaseName(testing::TestParamInfo<PadTransfo
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params)
-           << "_" << mode << param.fakeQuantize;
+           << "_" << param.fakeQuantize << "_"
+           << CommonTestUtils::vec2str(param.padsBegin) << CommonTestUtils::vec2str(param.padsEnd) << "_"
+           << mode << "_" << (mode == ngraph::op::PadMode::CONSTANT) ? "" : std::to_string(param.padValue);
     return result.str();
 }
 
@@ -41,7 +43,8 @@ void PadTransformation::SetUp() {
         param.fakeQuantize,
         param.padsBegin,
         param.padsEnd,
-        mode);
+        mode,
+        param.padValue);
 }
 
 void PadTransformation::Run() {
