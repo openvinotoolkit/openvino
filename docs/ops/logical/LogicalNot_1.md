@@ -25,7 +25,7 @@
 *LogicalNot* does the following with the input tensor *a*:
 
 \f[
-a_{i} = not(a_{i})
+a_{i} = \lnot a_{i}
 \f]
 
 **Examples**

@@ -8,8 +8,8 @@
 
 **Note**:  This is recommended to not compute LogSoftmax directly as Log(Softmax(x, axis)), more numeric stable is to compute LogSoftmax as:
 \f[
-t = (x - ReduceMax(x, axis)) \\
-LogSoftmax(x, axis) = t - Log(ReduceSum(Exp(t), axis))
+t = (x - ReduceMax(x,\ axis)) \\
+LogSoftmax(x, axis) = t - Log(ReduceSum(Exp(t),\ axis))
 \f]
 
 **Attributes**

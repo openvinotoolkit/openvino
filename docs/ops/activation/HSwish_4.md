@@ -10,7 +10,7 @@
 element in the output tensor with the following formula:
 
 \f[
-HSwish(x) = x \frac{min(max(x + 3, 0), 6)}{6}
+HSwish(x) = x \cdot \frac{min(max(x + 3,\ 0),\ 6)}{6}
 \f]
 
 The HSwish operation is introduced in the following [article](https://arxiv.org/pdf/1905.02244.pdf).

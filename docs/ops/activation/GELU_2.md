@@ -12,7 +12,7 @@
 It performs element-wise activation function on a given input tensor, based on the following mathematical formula:
 
 \f[
-    Gelu(x) = x\cdot\Phi(x) = x\cdot\frac{1}{2}\cdot\left[1 + erf\left(x/\sqrt{2}\right)\right]
+    Gelu(x) = x\cdot\Phi(x) = x\cdot\frac{1}{2}\cdot\left[1 + erf\frac{x}{\sqrt{2}}\right]
 \f]
 
 where Φ(x) is the Cumulative Distribution Function for Gaussian Distribution.

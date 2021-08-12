@@ -15,7 +15,7 @@
 
 Let *min_value* and *max_value* be *min* and *max*, respectively. The mathematical formula of *Clamp* is as follows:
 \f[
-clamp( x_{i} )=\min\big( \max\left( x_{i}, min\_value \right), max\_value \big)
+clamp( x_{i} )=\min\big( \max\left( x_{i},\ min\_value \right),\ max\_value \big)
 \f]
 
 **Attributes**:

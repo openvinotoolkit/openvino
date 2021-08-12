@@ -10,7 +10,7 @@
 element in the output tensor with the following formula:
 
 \f[
-a_{i} = ceiling(a_{i})
+a_{i} = \lceil a_{i} \rceil
 \f]
 
 **Attributes**: *Ceiling* operation has no attributes.

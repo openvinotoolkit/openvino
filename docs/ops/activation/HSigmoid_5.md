@@ -10,7 +10,7 @@
 element in the output tensor with the following formula:
 
 \f[
-HSigmoid(x) = \frac{min(max(x + 3, 0), 6)}{6}
+HSigmoid(x) = \frac{min(max(x + 3,\ 0),\ 6)}{6}
 \f]
 
 The HSigmoid operation is introduced in the following [article](https://arxiv.org/pdf/1905.02244.pdf).
