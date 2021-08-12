@@ -13,19 +13,12 @@
 #define PDPD_API NGRAPH_HELPER_DLL_IMPORT
 #endif // paddlepaddle_ngraph_frontend_EXPORTS
 
-namespace ngraph
-{
-    namespace frontend
-    {
-        inline void PDPD_ASSERT(bool ex, const std::string& msg = "Unspecified error.")
-        {
-            if (!ex)
-                throw std::runtime_error(msg);
-        }
+#define PDPD_ASSERT(ex, msg)                                                                       \
+    {                                                                                              \
+        if (!(ex))                                                                                 \
+            throw std::runtime_error(msg);                                                         \
+    }
 
 #define PDPD_THROW(msg) throw std::runtime_error(std::string("ERROR: ") + msg)
 
 #define NOT_IMPLEMENTED(msg) throw std::runtime_error(std::string(msg) + " is not implemented")
-
-    } // namespace frontend
-} // namespace ngraph
