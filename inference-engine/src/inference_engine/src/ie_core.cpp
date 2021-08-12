@@ -62,10 +62,14 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
     } else if (deviceName_.find("MULTI:") == 0) {
         deviceName_ = "MULTI";
         config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
-    } else if (deviceName_.find("AUTO:") == 0) {
+    } else if (deviceName_.find("AUTO") == 0) {
         deviceName_ = "MULTI";
-        config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] =
-            deviceName.substr(std::string("AUTO:").size());
+        if (deviceName_.find("AUTO:") == 0) {
+            config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] =
+                deviceName.substr(std::string("AUTO:").size());
+        }
+        // fixme: please correct me with a better key-value name
+        config_[InferenceEngine::PluginConfigParams::KEY_WORK_MODE] = InferenceEngine::PluginConfigParams::AUTO;
     } else {
         if (deviceName_ == "AUTO") {
             deviceName_ = "MULTI";
@@ -583,7 +587,12 @@ public:
             }
         }
 
-        auto parsed = parseDeviceNameIntoConfig(deviceName);
+        std::string pluginName = deviceName;
+        if (pluginName == "AUTO") {
+            pluginName = "MULTI";
+        }
+
+        auto parsed = parseDeviceNameIntoConfig(pluginName);
 
         // we need to return a copy of Parameter object which is created on Core side,
         // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
