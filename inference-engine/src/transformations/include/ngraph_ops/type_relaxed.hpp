@@ -82,6 +82,57 @@ public:
     }
 
 protected:
+    void remember_input_data_types(Node &node, element::TypeVector &old_input_types) {
+        // Remember all input data types
+        for (size_t i = 0; i < node.get_input_size(); ++i) {
+            old_input_types.push_back(node.get_input_element_type(i));
+        }
+
+        // Reset input data types to m_output_data_type.
+        for (size_t i = 0; i < node.get_input_size(); ++i) {
+            auto origin_input_type = get_origin_input_type(i);
+            if (origin_input_type != element::undefined) {
+                node.get_input_tensor(i).set_tensor_type(origin_input_type, node.get_input_partial_shape(i));
+            }
+        }
+    }
+
+    void restore_input_data_types(Node &node, const element::TypeVector &old_input_types) {
+        // Restore original input data types
+        for (size_t i = 0; i < node.get_input_size(); ++i) {
+            node.get_input_tensor(i).set_tensor_type(old_input_types[i], node.get_input_partial_shape(i));
+        }
+
+        if (m_original_output_data_types.empty()) {
+            m_original_output_data_types = element::TypeVector(node.get_output_size());
+        }
+
+        // Save inferred output types
+        for (size_t i = 0; i < node.get_output_size(); ++i) {
+            m_original_output_data_types[i] = node.get_output_element_type(i);
+        }
+
+	// Override (some) output types
+        for (size_t i = 0; i < node.get_output_size(); ++i) {
+            auto overridden_output_type = get_overridden_output_type(i);
+            if (overridden_output_type != element::undefined) {
+                node.set_output_type(0, overridden_output_type, node.get_output_partial_shape(i));
+            }
+        }
+    }
+
+    void visit_attributes(AttributeVisitor& visitor) {
+        bool type_relax = true;
+        visitor.on_attribute("type_relax", type_relax);
+        visitor.on_attribute("input_data_types", m_input_data_types);
+        visitor.on_attribute("output_data_types", m_output_data_types);
+    }
+
+    void init_rt_info(Node &node) const {
+        node.get_rt_info()["opset"] = std::make_shared<ngraph::VariantWrapper<std::string>>("type_relaxed_opset");
+    }
+
+protected:
     // Data types that are used for parent shape/type infer function input ports
     // to infer output data types
     element::TypeVector m_input_data_types;
@@ -136,7 +187,7 @@ public:
     using BaseOp::BaseOp;
 
     TypeRelaxed() {
-        BaseOp::get_rt_info()["opset"] = std::make_shared<ngraph::VariantWrapper<std::string>>("type_relaxed_opset");
+        init_rt_info(*this);
     }
 
     TypeRelaxed(
@@ -175,7 +226,7 @@ public:
 private:
     void init() {
         validate_and_infer_types();
-        BaseOp::get_rt_info()["opset"] = std::make_shared<ngraph::VariantWrapper<std::string>>("type_relaxed_opset");
+        init_rt_info(*this);
     }
 };
 
@@ -236,45 +287,15 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
 
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {
-    // Remember all input data types
     element::TypeVector old_input_types;
-    for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
-        old_input_types.push_back(BaseOp::get_input_element_type(i));
-    }
 
-    // Reset input data types to m_output_data_type.
-    for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
-        auto origin_input_type = get_origin_input_type(i);
-        if (origin_input_type != element::undefined) {
-            BaseOp::get_input_tensor(i).set_tensor_type(origin_input_type, BaseOp::get_input_partial_shape(i));
-        }
-    }
+    remember_input_data_types(*this, old_input_types);
 
     NGRAPH_SUPPRESS_DEPRECATED_START
     BaseOp::validate_and_infer_types();
     NGRAPH_SUPPRESS_DEPRECATED_END
 
-    // Restore original input data types
-    for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
-        BaseOp::get_input_tensor(i).set_tensor_type(old_input_types[i], BaseOp::get_input_partial_shape(i));
-    }
-
-    if (m_original_output_data_types.empty()) {
-        m_original_output_data_types = element::TypeVector(BaseOp::get_output_size());
-    }
-
-    // Save inferred output types
-    for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
-        m_original_output_data_types[i] = BaseOp::get_output_element_type(i);
-    }
-
-    // Override (some) output types
-    for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
-        auto overridden_output_type = get_overridden_output_type(i);
-        if (overridden_output_type != element::undefined) {
-            BaseOp::set_output_type(0, overridden_output_type, BaseOp::get_output_partial_shape(i));
-        }
-    }
+    restore_input_data_types(*this, old_input_types);
 }
 
 
@@ -292,10 +313,7 @@ std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVec
 
 template <typename BaseOp>
 bool TypeRelaxed<BaseOp>::visit_attributes(AttributeVisitor& visitor) {
-    bool type_relax = true;
-    visitor.on_attribute("type_relax", type_relax);
-    visitor.on_attribute("input_data_types", m_input_data_types);
-    visitor.on_attribute("output_data_types", m_output_data_types);
+    TypeRelaxedBase::visit_attributes(visitor);
     BaseOp::visit_attributes(visitor);
     return true;
 }
