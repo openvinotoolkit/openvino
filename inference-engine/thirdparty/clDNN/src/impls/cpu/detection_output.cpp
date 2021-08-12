@@ -3,7 +3,6 @@
 //
 
 #include "detection_output_inst.h"
-#include "network_impl.h"
 #include "impls/implementation_map.hpp"
 #include "math_utils.h"
 #include "register.hpp"
@@ -384,10 +383,9 @@ struct detection_output_impl : typed_primitive_impl<detection_output> {
                 }
             }
         }
-        // In case number of detections is smaller than keep_top_k fill the rest of the buffer with invalid image id
-        // (-1).
-        while (count < num_of_images * args.keep_top_k) {
-            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE] = (dtype)-1.f;
+        const int final_cnt = count;
+        for (int i = count; i < num_of_images * args.keep_top_k; i++) {
+            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE] = (i == final_cnt ? (dtype)-1.f : (dtype)0.f);
             out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 1] = (dtype)0.f;
             out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 2] = (dtype)0.f;
             out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 3] = (dtype)0.f;

@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "ngraph/node.hpp"
+#include "ngraph/descriptor/output.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
@@ -25,17 +25,10 @@ namespace ngraph
         class NGRAPH_API HostTensor : public ngraph::runtime::Tensor
         {
         public:
-            HostTensor(const element::Type& element_type,
-                       const Shape& shape,
-                       void* memory_pointer,
-                       const std::string& name = "");
-            HostTensor(const element::Type& element_type,
-                       const Shape& shape,
-                       const std::string& name = "");
-            HostTensor(const element::Type& element_type,
-                       const PartialShape& partial_shape,
-                       const std::string& name = "");
-            HostTensor(const std::string& name = "");
+            HostTensor(const element::Type& element_type, const Shape& shape, void* memory_pointer);
+            HostTensor(const element::Type& element_type, const Shape& shape);
+            HostTensor(const element::Type& element_type, const PartialShape& partial_shape);
+            HostTensor();
             explicit HostTensor(const Output<Node>&);
             explicit HostTensor(const std::shared_ptr<op::v0::Constant>& constant);
             virtual ~HostTensor() override;
