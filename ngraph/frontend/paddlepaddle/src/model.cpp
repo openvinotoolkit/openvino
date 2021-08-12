@@ -47,12 +47,12 @@ namespace ngraph
             void setElementType(Place::Ptr place, const ngraph::element::Type&);
             void setTensorValue(Place::Ptr place, const void* value);
 
-            std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces() const;
-            std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces() const
+            std::vector<std::shared_ptr<OpPlacePDPD>> get_op_places() const;
+            std::map<std::string, std::shared_ptr<TensorPlacePDPD>> get_var_places() const
             {
                 return m_var_places;
             }
-            std::map<pdpd::TensorName, Output<Node>> getTensorValues() const
+            std::map<pdpd::TensorName, Output<Node>> get_tensor_values() const
             {
                 return m_tensor_values;
             };
@@ -236,7 +236,7 @@ namespace ngraph
         } // namespace pdpd
 
         std::vector<std::shared_ptr<OpPlacePDPD>>
-            InputModelPDPD::InputModelPDPDImpl::getOpPlaces() const
+            InputModelPDPD::InputModelPDPDImpl::get_op_places() const
         {
             if (m_graph_changed)
             {
@@ -519,19 +519,20 @@ namespace ngraph
         {
         }
 
-        std::vector<std::shared_ptr<OpPlacePDPD>> InputModelPDPD::getOpPlaces() const
+        std::vector<std::shared_ptr<OpPlacePDPD>> InputModelPDPD::get_op_places() const
         {
-            return _impl->getOpPlaces();
+            return _impl->get_op_places();
         }
 
-        std::map<std::string, std::shared_ptr<TensorPlacePDPD>> InputModelPDPD::getVarPlaces() const
+        std::map<std::string, std::shared_ptr<TensorPlacePDPD>>
+            InputModelPDPD::get_var_places() const
         {
-            return _impl->getVarPlaces();
+            return _impl->get_var_places();
         }
 
-        std::map<pdpd::TensorName, Output<Node>> InputModelPDPD::getTensorValues() const
+        std::map<pdpd::TensorName, Output<Node>> InputModelPDPD::get_tensor_values() const
         {
-            return _impl->getTensorValues();
+            return _impl->get_tensor_values();
         }
 
         std::vector<Place::Ptr> InputModelPDPD::get_inputs() const { return _impl->getInputs(); }
