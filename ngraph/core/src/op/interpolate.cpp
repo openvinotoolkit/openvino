@@ -83,10 +83,10 @@ namespace ngraph
     {
         static auto enum_names = EnumNames<op::v0::Interpolate::InterpolateMode>(
             "op::v0::Interpolate::InterpolateMode",
-            {{"nearest", op::v0::Interpolate::InterpolateMode::nearest},
-             {"linear", op::v0::Interpolate::InterpolateMode::linear},
-             {"cubic", op::v0::Interpolate::InterpolateMode::cubic},
-             {"area", op::v0::Interpolate::InterpolateMode::area}});
+            {{"nearest", op::v0::Interpolate::InterpolateMode::NEAREST},
+             {"linear", op::v0::Interpolate::InterpolateMode::LINEAR},
+             {"cubic", op::v0::Interpolate::InterpolateMode::CUBIC},
+             {"area", op::v0::Interpolate::InterpolateMode::AREA}});
         return enum_names;
     }
 
@@ -290,7 +290,7 @@ void op::v4::Interpolate::validate_and_infer_types()
         }
     }
 
-    if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
+    if (m_attrs.shape_calculation_mode == ShapeCalcMode::SCALES)
     {
         if (const auto& const_scales = get_constant_from_source(input_value(2)))
         {
@@ -375,7 +375,7 @@ namespace
 
         std::vector<float> scales;
         size_t num_of_axes = axes.size();
-        if (attrs.shape_calculation_mode == ShapeCalcMode::scales)
+        if (attrs.shape_calculation_mode == ShapeCalcMode::SCALES)
         {
             float* scales_ptr = args[scales_port]->get_data_ptr<float>();
             scales.insert(scales.end(), scales_ptr, scales_ptr + num_of_axes);
@@ -475,7 +475,7 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs,
 
     PartialShape output_shape{padded_input_shape};
 
-    if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
+    if (m_attrs.shape_calculation_mode == ShapeCalcMode::SCALES)
     {
         infer_using_scales(output_shape, axes, scales, padded_input_shape);
     }
@@ -563,10 +563,10 @@ namespace ngraph
     {
         static auto enum_names = EnumNames<op::v4::Interpolate::InterpolateMode>(
             "op::v4::Interpolate::InterpolateMode",
-            {{"nearest", op::v4::Interpolate::InterpolateMode::nearest},
-             {"linear", op::v4::Interpolate::InterpolateMode::linear},
-             {"linear_onnx", op::v4::Interpolate::InterpolateMode::linear_onnx},
-             {"cubic", op::v4::Interpolate::InterpolateMode::cubic}});
+            {{"nearest", op::v4::Interpolate::InterpolateMode::NEAREST},
+             {"linear", op::v4::Interpolate::InterpolateMode::LINEAR},
+             {"linear_onnx", op::v4::Interpolate::InterpolateMode::LINEAR_ONNX},
+             {"cubic", op::v4::Interpolate::InterpolateMode::CUBIC}});
         return enum_names;
     }
 
@@ -583,8 +583,8 @@ namespace ngraph
     {
         static auto enum_names = EnumNames<op::v4::Interpolate::ShapeCalcMode>(
             "op::v4::Interpolate::ShapeCalcMode",
-            {{"sizes", op::v4::Interpolate::ShapeCalcMode::sizes},
-             {"scales", op::v4::Interpolate::ShapeCalcMode::scales}});
+            {{"sizes", op::v4::Interpolate::ShapeCalcMode::SIZES},
+             {"scales", op::v4::Interpolate::ShapeCalcMode::SCALES}});
         return enum_names;
     }
 
@@ -601,13 +601,13 @@ namespace ngraph
     {
         static auto enum_names = EnumNames<op::v4::Interpolate::CoordinateTransformMode>(
             "op::v4::Interpolate::CoordinateTransformMode",
-            {{"half_pixel", op::v4::Interpolate::CoordinateTransformMode::half_pixel},
+            {{"half_pixel", op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL},
              {"pytorch_half_pixel",
-              op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel},
-             {"asymmetric", op::v4::Interpolate::CoordinateTransformMode::asymmetric},
+              op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL},
+             {"asymmetric", op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC},
              {"tf_half_pixel_for_nn",
-              op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn},
-             {"align_corners", op::v4::Interpolate::CoordinateTransformMode::align_corners}});
+              op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN},
+             {"align_corners", op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS}});
         return enum_names;
     }
 
@@ -626,11 +626,11 @@ namespace ngraph
     {
         static auto enum_names = EnumNames<op::v4::Interpolate::NearestMode>(
             "op::v4::Interpolate::NearestMode",
-            {{"round_prefer_floor", op::v4::Interpolate::NearestMode::round_prefer_floor},
-             {"round_prefer_ceil", op::v4::Interpolate::NearestMode::round_prefer_ceil},
-             {"floor", op::v4::Interpolate::NearestMode::floor},
-             {"ceil", op::v4::Interpolate::NearestMode::ceil},
-             {"simple", op::v4::Interpolate::NearestMode::simple}});
+            {{"round_prefer_floor", op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR},
+             {"round_prefer_ceil", op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL},
+             {"floor", op::v4::Interpolate::NearestMode::FLOOR},
+             {"ceil", op::v4::Interpolate::NearestMode::CEIL},
+             {"simple", op::v4::Interpolate::NearestMode::SIMPLE}});
         return enum_names;
     }
 
