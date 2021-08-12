@@ -67,7 +67,10 @@ void TemplateInferRequest::allocateDeviceBuffers() {
 }
 
 template <typename BlobData, typename GetNetworkPrecisionF>
-static void AllocateImplSingle(BlobMap& blobMap, BlobMap& networkBlobMap, BlobData& blobData, GetNetworkPrecisionF&& GetNetworkPrecision,
+static void AllocateImplSingle(BlobMap& blobMap,
+                               BlobMap& networkBlobMap,
+                               BlobData& blobData,
+                               GetNetworkPrecisionF&& GetNetworkPrecision,
                                const SizeVector& dims) {
     auto& precision = blobData.second->getTensorDesc().getPrecision();
     auto layout = blobData.second->getTensorDesc().getLayout();
@@ -105,7 +108,7 @@ static void AllocateImpl(const BlobDataMap& userDataMap,
         } else if (partialShape.rank().is_static()) {
             dims = SizeVector(partialShape.rank().get_length(), 0);
         } else {
-            dims = SizeVector {0};
+            dims = SizeVector{0};
         }
         AllocateImplSingle(userBlobMap, deviceBlobMap, userData, GetNetworkPrecision, dims);
     }
@@ -255,7 +258,8 @@ void TemplateInferRequest::inferPreprocess() {
         auto index = _executableNetwork->_inputIndex[networkInput.first];
         const auto& parameter = _executableNetwork->_function->get_parameters()[index];
         auto parameterShape = networkInput.second->getTensorDesc().getDims();
-        //    m_realShapes.find(networkInput.first) != m_realShapes.end() ? ngraph::Shape(m_realShapes.at(networkInput.first)) : parameter->get_shape();
+        //    m_realShapes.find(networkInput.first) != m_realShapes.end() ?
+        //    ngraph::Shape(m_realShapes.at(networkInput.first)) : parameter->get_shape();
         const auto& parameterType = parameter->get_element_type();
         _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(
             parameterType,
@@ -320,7 +324,8 @@ void TemplateInferRequest::inferPostprocess() {
             blobCopy(networkOutput, outputBlob);
         } else if (result->get_partial_shape().is_dynamic()) {
             auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(output.first)];
-            tensor->read(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<char*>(), tensor->get_size_in_bytes());
+            tensor->read(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<char*>(),
+                         tensor->get_size_in_bytes());
         }
     }
     _durations[Postprocess] = Time::now() - start;
@@ -343,15 +348,14 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
             data = _inputs[name];
             if (foundInput->getInputData()->isDynamic() && data) {
                 auto rank = foundInput->getInputData()->getPartialShape().rank();
-                SizeVector dims = rank.is_dynamic() ? SizeVector {0} : SizeVector(rank.get_length(), 0);
+                SizeVector dims = rank.is_dynamic() ? SizeVector{0} : SizeVector(rank.get_length(), 0);
                 data->setShape(dims);
             }
             /*
             if (m_realShapes.find(name) == m_realShapes.end() && foundInput->getInputData()->isDynamic())
                 IE_THROW() << "Cannot get blob " << name << " which contains dynamic shapes";
-            const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes[name] : foundInput->getTensorDesc().getDims();
-            if (data) {
-                if (data->getTensorDesc().getDims() != dims) {
+            const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes[name] :
+            foundInput->getTensorDesc().getDims(); if (data) { if (data->getTensorDesc().getDims() != dims) {
                     // TODO: implement something smart here instead of raw re-allocation
                     data.reset();
                 }
@@ -362,7 +366,9 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
                 const auto& pshape = parameters.at(_executableNetwork->_inputIndex.at(name))->get_partial_shape();
                 dims = pshape.is_dynamic() ? SizeVector({0}) : pshape.get_shape();
                 AllocateImplSingle(
-                    _inputs, _deviceInputs, *_networkInputs.find(name),
+                    _inputs,
+                    _deviceInputs,
+                    *_networkInputs.find(name),
                     [&](const std::string& blobName) {
                         return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
                     },
@@ -375,7 +381,7 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
             auto& devBlob = _deviceInputs[name];
             if (foundInput->getInputData()->isDynamic() && devBlob) {
                 auto rank = foundInput->getInputData()->getPartialShape().rank();
-                SizeVector dims = rank.is_dynamic() ? SizeVector {0} : SizeVector(rank.get_length(), 0);
+                SizeVector dims = rank.is_dynamic() ? SizeVector{0} : SizeVector(rank.get_length(), 0);
                 devBlob->setShape(dims);
             }
             if (preProcessingRequired(foundInput, data, devBlob)) {
@@ -391,7 +397,8 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
         } else if (_outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
             dims = _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_shape();
         } else {
-            IE_THROW() << "Output blob dimensions are not all known for output name " << name << " with partial shape: " << foundOutput->getPartialShape();
+            IE_THROW() << "Output blob dimensions are not all known for output name " << name
+                       << " with partial shape: " << foundOutput->getPartialShape();
         }
 
         if (data) {
@@ -404,7 +411,9 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
         if (!data) {
             auto&& results = _executableNetwork->_function->get_results();
             AllocateImplSingle(
-                _outputs, _networkOutputBlobs, *_networkOutputs.find(name),
+                _outputs,
+                _networkOutputBlobs,
+                *_networkOutputs.find(name),
                 [&](const std::string& blobName) {
                     return results.at(_executableNetwork->_outputIndex.at(blobName))->get_element_type();
                 },
@@ -440,7 +449,8 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
         // ilavreno: the condition below is obsolete, but we need an exact list of precisions
         // which are supports by G-API preprocessing
         if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
-            IE_THROW(ParameterMismatch) << "Failed to set Blob with precision not corresponding to user input precision";
+            IE_THROW(ParameterMismatch)
+                << "Failed to set Blob with precision not corresponding to user input precision";
         }
 
         auto& devBlob = _deviceInputs[name];
@@ -466,7 +476,8 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
                                    ? InferenceEngine::details::product(devBlob->getTensorDesc().getDims())
                                    : 1;
             if (dataSize != inputSize) {
-                IE_THROW() << "Input blob size is not equal network input size (" << dataSize << "!=" << inputSize << ").";
+                IE_THROW() << "Input blob size is not equal network input size (" << dataSize << "!=" << inputSize
+                           << ").";
             }
             _inputs[name] = userBlob;
             devBlob = userBlob;
@@ -486,12 +497,16 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
             devBlob->allocate();
             _networkOutputBlobs[name] = devBlob;
         }
-        size_t outputSize = devBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR ? details::product(devBlob->getTensorDesc().getDims()) : 1;
+        size_t outputSize = devBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
+                                ? details::product(devBlob->getTensorDesc().getDims())
+                                : 1;
         if (dataSize != outputSize) {
-            IE_THROW() << "Output blob size is not equal network output size (" << dataSize << "!=" << outputSize << ").";
+            IE_THROW() << "Output blob size is not equal network output size (" << dataSize << "!=" << outputSize
+                       << ").";
         }
         if (foundOutput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
-            IE_THROW(ParameterMismatch) << "Failed to set Blob with precision not corresponding to user output precision";
+            IE_THROW(ParameterMismatch)
+                << "Failed to set Blob with precision not corresponding to user output precision";
         }
         _outputs[name] = userBlob;
     }
@@ -511,7 +526,8 @@ void TemplateInferRequest::SetShape(const std::string& name, const InferenceEngi
                        << foundInput->getInputData()->getPartialShape();
     } else {
         if (!foundOutput->getPartialShape().compatible(newShape))
-            IE_THROW() << "New shape " << newShape << " for " << name << " is incompatible with original shape " << foundOutput->getPartialShape();
+            IE_THROW() << "New shape " << newShape << " for " << name << " is incompatible with original shape " <<
+foundOutput->getPartialShape();
     }
 }
 */

@@ -20,7 +20,8 @@ OpImplementation::OpImplementation(const std::shared_ptr<ngraph::Node>& node) {
             IE_THROW() << "Cannot create implementation for operation with incorrect number of inputs or outputs!";
         if (castedNode->get_input_partial_shape(0).is_dynamic() || castedNode->get_output_partial_shape(0).is_dynamic())
             IE_THROW() << "Cannot create implementation for op with dynamic shapes!";
-        if (castedNode->get_input_element_type(0) != ngraph::element::f32 || castedNode->get_output_element_type(0) != ngraph::element::f32)
+        if (castedNode->get_input_element_type(0) != ngraph::element::f32 ||
+            castedNode->get_output_element_type(0) != ngraph::element::f32)
             IE_THROW() << "Operation supports only FP32 tensors.";
         add = castedNode->getAddAttr();
         inShape = castedNode->get_input_shape(0);
