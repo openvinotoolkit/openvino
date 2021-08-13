@@ -7,7 +7,6 @@
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/xor.hpp"
-
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -28,39 +27,37 @@ shared_ptr<Node> op::v1::LogicalXor::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::LogicalXor>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-namespace logxor
-{
-    template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg0,
-                  const HostTensorPtr& arg1,
-                  const HostTensorPtr& out,
-                  const op::AutoBroadcastSpec& broadcast_spec)
-    {
-        runtime::reference::logical_xor(arg0->get_data_ptr<ET>(),
-                                        arg1->get_data_ptr<ET>(),
-                                        out->get_data_ptr<ET>(),
-                                        arg0->get_shape(),
-                                        arg1->get_shape(),
-                                        broadcast_spec);
-        return true;
-    }
+namespace logxor {
+template <element::Type_t ET>
+bool evaluate(const HostTensorPtr& arg0,
+              const HostTensorPtr& arg1,
+              const HostTensorPtr& out,
+              const op::AutoBroadcastSpec& broadcast_spec) {
+    runtime::reference::logical_xor(arg0->get_data_ptr<ET>(),
+                                    arg1->get_data_ptr<ET>(),
+                                    out->get_data_ptr<ET>(),
+                                    arg0->get_shape(),
+                                    arg1->get_shape(),
+                                    broadcast_spec);
+    return true;
+}
 
-    bool evaluate_logxor(const HostTensorPtr& arg0,
-                         const HostTensorPtr& arg1,
-                         const HostTensorPtr& out,
-                         const op::AutoBroadcastSpec& broadcast_spec)
-    {
-        bool rc = true;
-        out->set_broadcast(broadcast_spec, arg0, arg1);
-        switch (arg0->get_element_type())
-        {
-            NGRAPH_TYPE_CASE(evaluate_logxor, boolean, arg0, arg1, out, broadcast_spec);
-        default: rc = false; break;
-        }
-        return rc;
+bool evaluate_logxor(const HostTensorPtr& arg0,
+                     const HostTensorPtr& arg1,
+                     const HostTensorPtr& out,
+                     const op::AutoBroadcastSpec& broadcast_spec) {
+    bool rc = true;
+    out->set_broadcast(broadcast_spec, arg0, arg1);
+    switch (arg0->get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_logxor, boolean, arg0, arg1, out, broadcast_spec);
+    default:
+        rc = false;
+        break;
     }
     return rc;
 }
+return rc;
+}  // namespace logxor
 }  // namespace logxor
 
 bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -71,10 +68,11 @@ bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs, const HostTen
 
 bool op::v1::LogicalXor::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_LogicalXor_has_evaluate);
-    switch (get_input_element_type(0))
-    {
-    case ngraph::element::boolean: return true;
-    default: break;
+    switch (get_input_element_type(0)) {
+    case ngraph::element::boolean:
+        return true;
+    default:
+        break;
     }
     return false;
 }
@@ -99,10 +97,11 @@ bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVect
 
 bool op::v0::Xor::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Xor_has_evaluate);
-    switch (get_input_element_type(0))
-    {
-    case ngraph::element::boolean: return true;
-    default: break;
+    switch (get_input_element_type(0)) {
+    case ngraph::element::boolean:
+        return true;
+    default:
+        break;
     }
     return false;
 }
