@@ -3,14 +3,12 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -18,8 +16,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, prior_box_op)
-{
+TEST(attributes, prior_box_op) {
     NodeBuilder::get_ops().register_factory<opset1::PriorBox>();
     const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{128, 128});
     const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
