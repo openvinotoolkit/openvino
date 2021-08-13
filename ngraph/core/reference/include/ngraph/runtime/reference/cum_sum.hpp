@@ -5,14 +5,6 @@
 #pragma once
 
 #include <cmath>
-#include <iterator>
-#include <map>
-#include <numeric>
-#include <utility>
-#include <vector>
-
-#include "ngraph/runtime/reference/transpose.hpp"
-#include "utils/span.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -27,31 +19,24 @@ void cumsum(const T* arg,
             const bool reverse) {
     const auto rank = tensor_shape.size();
     const auto axis = axis_tensor[0] >= 0 ? axis_tensor[0] : rank + axis_tensor[0];
-
-    const auto slices_count = shape_size(Shape(tensor_shape.begin(), tensor_shape.begin() + axis));
-    const auto offset = shape_size(Shape(tensor_shape.begin() + axis + 1, tensor_shape.end()));
-
     const auto axis_dim = tensor_shape[axis];
-    for (auto i = 0; i < slices_count; ++i) {
-        auto exclusive_shift = exclusive ? offset : 0;
 
-        for (auto o = 0; o < offset; ++o) {
-            if (reverse) {
-                auto sequence_start_idx = i * axis_dim * offset + o + (axis_dim - 1) * offset;
-                out[sequence_start_idx] = exclusive ? static_cast<T>(0) : arg[sequence_start_idx];
-                for (auto j = 1; j < axis_dim; ++j) {
-                    auto element_idx = sequence_start_idx - j * offset;
-                    auto in_idx = element_idx + exclusive_shift;
-                    out[element_idx] = out[element_idx + offset] + arg[in_idx];
-                }
-            } else {
-                auto sequence_start_idx = i * axis_dim * offset + o;
-                out[sequence_start_idx] = exclusive ? static_cast<T>(0) : arg[sequence_start_idx];
-                for (auto j = 1; j < axis_dim; ++j) {
-                    auto element_idx = sequence_start_idx + j * offset;
-                    auto in_idx = element_idx - exclusive_shift;
-                    out[element_idx] = out[element_idx - offset] + arg[in_idx];
-                }
+    const auto size_before_axis = shape_size(Shape(tensor_shape.begin(), tensor_shape.begin() + axis));
+    const auto size_after_axis = shape_size(Shape(tensor_shape.begin() + axis + 1, tensor_shape.end()));
+
+    const auto reverse_shift = reverse ? -1 : 1;
+    const auto element_shift = exclusive ? size_after_axis * reverse_shift : 0;
+
+    for (auto i = 0; i < size_before_axis; ++i) {
+        const auto slice_idx = i * axis_dim * size_after_axis + reverse * size_after_axis * (axis_dim - 1);
+        for (auto j = 0; j < size_after_axis; ++j) {
+            const auto sequence_start_idx = slice_idx + j;
+            out[sequence_start_idx] = exclusive ? static_cast<T>(0) : arg[sequence_start_idx];
+            for (auto k = 1; k < axis_dim; ++k) {
+                const auto element_idx = sequence_start_idx + (k * size_after_axis) * reverse_shift;
+                const auto in_idx = element_idx - element_shift;
+                const auto previous_sum_idx = element_idx - size_after_axis * reverse_shift;
+                out[element_idx] = out[previous_sum_idx] + arg[in_idx];
             }
         }
     }
