@@ -13,9 +13,9 @@
 
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/ngraph_visibility.hpp"
-#include "ngraph/node.hpp"
 
 namespace ngraph {
+class Node;
 class OrderElement {
 public:
     using Ptr = std::shared_ptr<OrderElement>;

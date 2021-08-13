@@ -508,8 +508,8 @@ private:
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
 
 public:
-    Order::Ptr m_order;
-    OrderElement::Ptr m_order_element;
+    std::shared_ptr<Order> m_order;
+    std::shared_ptr<OrderElement> m_order_element;
 
     void init_order();
 };
