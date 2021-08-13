@@ -36,7 +36,7 @@ TensorDesc verifyNV12BlobInput(const Blob::Ptr& y, const Blob::Ptr& uv) {
     // check Blob element size
     if (yMemoryBlob->element_size() != uvMemoryBlob->element_size()) {
         IE_THROW() << "Y and UV planes have different element sizes: " << yMemoryBlob->element_size()
-                           << " != " << uvMemoryBlob->element_size();
+                   << " != " << uvMemoryBlob->element_size();
     }
 
     // check tensor descriptor parameters
@@ -64,7 +64,7 @@ TensorDesc verifyNV12BlobInput(const Blob::Ptr& y, const Blob::Ptr& uv) {
     const auto& uvDims = uvDesc.getDims();
     if (yDims.size() != 4 || uvDims.size() != 4) {
         IE_THROW() << "Y and UV planes dimension sizes must be 4, actual: " << yDims.size() << "(Y plane) and "
-                           << uvDims.size() << "(UV plane)";
+                   << uvDims.size() << "(UV plane)";
     }
 
     // check batch size
@@ -83,13 +83,13 @@ TensorDesc verifyNV12BlobInput(const Blob::Ptr& y, const Blob::Ptr& uv) {
     // check height
     if (yDims[2] != 2 * uvDims[2]) {
         IE_THROW() << "The height of the Y plane must be equal to (2 * the height of the UV plane), actual: "
-                           << yDims[2] << "(Y plane) and " << uvDims[2] << "(UV plane)";
+                   << yDims[2] << "(Y plane) and " << uvDims[2] << "(UV plane)";
     }
 
     // check width
     if (yDims[3] != 2 * uvDims[3]) {
-        IE_THROW() << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: "
-                           << yDims[3] << "(Y plane) and " << uvDims[3] << "(UV plane)";
+        IE_THROW() << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: " << yDims[3]
+                   << "(Y plane) and " << uvDims[3] << "(UV plane)";
     }
 
     return {Precision::U8, {}, Layout::NCHW};
@@ -112,10 +112,10 @@ TensorDesc verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blo
     auto uMemoryBlob = u->as<MemoryBlob>();
     auto vMemoryBlob = v->as<MemoryBlob>();
     // check Blob element size
-    if (yMemoryBlob->element_size() != uMemoryBlob->element_size() || yMemoryBlob->element_size() != vMemoryBlob->element_size()) {
+    if (yMemoryBlob->element_size() != uMemoryBlob->element_size() ||
+        yMemoryBlob->element_size() != vMemoryBlob->element_size()) {
         IE_THROW() << "Y and UV planes have different element sizes: " << yMemoryBlob->element_size()
-                           << " != " << uMemoryBlob->element_size()
-                           << " != " << vMemoryBlob->element_size();
+                   << " != " << uMemoryBlob->element_size() << " != " << vMemoryBlob->element_size();
     }
 
     // check tensor descriptor parameters
@@ -152,8 +152,7 @@ TensorDesc verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blo
 
     if (yDims.size() != 4 || uDims.size() != 4 || vDims.size() != 4) {
         IE_THROW() << "Y,U and V planes dimension sizes must be 4, actual: " << yDims.size() << "(Y plane) and "
-                           << uDims.size() << "(U plane) "
-                           << vDims.size() << "(V plane)";
+                   << uDims.size() << "(U plane) " << vDims.size() << "(V plane)";
     }
 
     // check batch size
@@ -174,23 +173,23 @@ TensorDesc verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blo
 
     // check height
     if (yDims[2] != 2 * uDims[2]) {
-        IE_THROW() << "The height of the Y plane must be equal to (2 * the height of the U plane), actual: "
-                           << yDims[2] << "(Y plane) and " << uDims[2] << "(U plane)";
+        IE_THROW() << "The height of the Y plane must be equal to (2 * the height of the U plane), actual: " << yDims[2]
+                   << "(Y plane) and " << uDims[2] << "(U plane)";
     }
 
     if (yDims[2] != 2 * vDims[2]) {
         IE_THROW() << "The height of the Y plane must be equal to (2 * the height of the UV plane), actual: "
-                           << yDims[2] << "(Y plane) and " << vDims[2] << "(V plane)";
+                   << yDims[2] << "(Y plane) and " << vDims[2] << "(V plane)";
     }
 
     // check width
     if (yDims[3] != 2 * uDims[3]) {
-        IE_THROW() << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: "
-                           << yDims[3] << "(Y plane) and " << uDims[3] << "(U plane)";
+        IE_THROW() << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: " << yDims[3]
+                   << "(Y plane) and " << uDims[3] << "(U plane)";
     }
     if (yDims[3] != 2 * vDims[3]) {
-        IE_THROW() << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: "
-                           << yDims[3] << "(Y plane) and " << vDims[3] << "(V plane)";
+        IE_THROW() << "The width of the Y plane must be equal to (2 * the width of the UV plane), actual: " << yDims[3]
+                   << "(Y plane) and " << vDims[3] << "(V plane)";
     }
 
     return {Precision::U8, {}, Layout::NCHW};
@@ -215,7 +214,8 @@ TensorDesc getBlobTensorDesc(const Blob::Ptr& blob) {
 TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
     // verify invariants
     if (blobs.empty()) {
-        IE_THROW() << "BatchedBlob cannot be created from empty vector of Blob, Please, make sure vector contains at least one Blob";
+        IE_THROW() << "BatchedBlob cannot be created from empty vector of Blob, Please, make sure vector contains at "
+                      "least one Blob";
     }
 
     // Cannot create a compound blob from nullptr Blob objects
@@ -227,10 +227,9 @@ TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
 
     const auto subBlobDesc = getBlobTensorDesc(blobs[0]);
 
-    if (std::any_of(blobs.begin(), blobs.end(),
-                    [&subBlobDesc](const Blob::Ptr& blob) {
-                        return getBlobTensorDesc(blob) != subBlobDesc;
-                    })) {
+    if (std::any_of(blobs.begin(), blobs.end(), [&subBlobDesc](const Blob::Ptr& blob) {
+            return getBlobTensorDesc(blob) != subBlobDesc;
+        })) {
         IE_THROW() << "All blobs tensors should be equal";
     }
 
@@ -272,9 +271,9 @@ TensorDesc verifyBatchedBlobInput(const std::vector<Blob::Ptr>& blobs) {
 
 }  // anonymous namespace
 
-CompoundBlob::CompoundBlob(const TensorDesc& tensorDesc): Blob(tensorDesc) {}
+CompoundBlob::CompoundBlob(const TensorDesc& tensorDesc) : Blob(tensorDesc) {}
 
-CompoundBlob::CompoundBlob(const std::vector<Blob::Ptr>& blobs): CompoundBlob(TensorDesc{}) {
+CompoundBlob::CompoundBlob(const std::vector<Blob::Ptr>& blobs) : CompoundBlob(TensorDesc{}) {
     // Cannot create a compound blob from nullptr Blob objects
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob == nullptr;
@@ -293,7 +292,7 @@ CompoundBlob::CompoundBlob(const std::vector<Blob::Ptr>& blobs): CompoundBlob(Te
     this->_blobs = blobs;
 }
 
-CompoundBlob::CompoundBlob(std::vector<Blob::Ptr>&& blobs): CompoundBlob(TensorDesc{}) {
+CompoundBlob::CompoundBlob(std::vector<Blob::Ptr>&& blobs) : CompoundBlob(TensorDesc{}) {
     // Cannot create a compound blob from nullptr Blob objects
     if (std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
             return blob == nullptr;
@@ -361,13 +360,11 @@ const std::shared_ptr<IAllocator>& CompoundBlob::getAllocator() const noexcept {
     return _allocator;
 };
 
-NV12Blob::NV12Blob(const Blob::Ptr& y, const Blob::Ptr& uv)
-    : CompoundBlob(verifyNV12BlobInput(y, uv)) {
+NV12Blob::NV12Blob(const Blob::Ptr& y, const Blob::Ptr& uv) : CompoundBlob(verifyNV12BlobInput(y, uv)) {
     this->_blobs = {y, uv};
 }
 
-NV12Blob::NV12Blob(Blob::Ptr&& y, Blob::Ptr&& uv)
-    : CompoundBlob(verifyNV12BlobInput(y, uv)) {
+NV12Blob::NV12Blob(Blob::Ptr&& y, Blob::Ptr&& uv) : CompoundBlob(verifyNV12BlobInput(y, uv)) {
     this->_blobs = {std::move(y), std::move(uv)};
 }
 
@@ -409,8 +406,7 @@ I420Blob::I420Blob(const Blob::Ptr& y, const Blob::Ptr& u, const Blob::Ptr& v)
     this->_blobs = {y, u, v};
 }
 
-I420Blob::I420Blob(Blob::Ptr&& y, Blob::Ptr&& u, Blob::Ptr&& v)
-    : CompoundBlob(verifyI420BlobInput(y, u, v)) {
+I420Blob::I420Blob(Blob::Ptr&& y, Blob::Ptr&& u, Blob::Ptr&& v) : CompoundBlob(verifyI420BlobInput(y, u, v)) {
     this->_blobs = {std::move(y), std::move(u), std::move(v)};
 }
 
@@ -458,13 +454,11 @@ Blob::Ptr I420Blob::createROI(const ROI& roi) const {
     return std::make_shared<I420Blob>(yRoiBlob, uRoiBlob, vRoiBlob);
 }
 
-BatchedBlob::BatchedBlob(const std::vector<Blob::Ptr>& blobs)
-    : CompoundBlob(verifyBatchedBlobInput(blobs)) {
+BatchedBlob::BatchedBlob(const std::vector<Blob::Ptr>& blobs) : CompoundBlob(verifyBatchedBlobInput(blobs)) {
     this->_blobs = blobs;
 }
 
-BatchedBlob::BatchedBlob(std::vector<Blob::Ptr>&& blobs)
-    : CompoundBlob(verifyBatchedBlobInput(blobs)) {
+BatchedBlob::BatchedBlob(std::vector<Blob::Ptr>&& blobs) : CompoundBlob(verifyBatchedBlobInput(blobs)) {
     this->_blobs = std::move(blobs);
 }
 

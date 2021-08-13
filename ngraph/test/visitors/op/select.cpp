@@ -3,7 +3,6 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -13,8 +12,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, select)
-{
+TEST(attributes, select) {
     NodeBuilder::get_ops().register_factory<opset1::Select>();
     auto in_cond = std::make_shared<op::Parameter>(element::boolean, Shape{3, 2});
     auto in_then = std::make_shared<op::Parameter>(element::f32, Shape{3, 2});

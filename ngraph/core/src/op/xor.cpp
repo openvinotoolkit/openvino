@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/xor.hpp"
+
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/xor.hpp"
@@ -17,13 +18,11 @@ NGRAPH_RTTI_DEFINITION(op::v1::LogicalXor, "LogicalXor", 1, util::BinaryElementw
 op::v1::LogicalXor::LogicalXor(const Output<Node>& arg0,
                                const Output<Node>& arg1,
                                const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseLogical(arg0, arg1, auto_broadcast)
-{
+    : BinaryElementwiseLogical(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v1::LogicalXor::clone_with_new_inputs(const OutputVector& new_args) const
-{
+shared_ptr<Node> op::v1::LogicalXor::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v1_LogicalXor_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::LogicalXor>(new_args.at(0), new_args.at(1), this->get_autob());
@@ -60,18 +59,17 @@ namespace logxor
         }
         return rc;
     }
-} // namespace logxor
+    return rc;
+}
+}  // namespace logxor
 
-bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs,
-                                  const HostTensorVector& inputs) const
-{
+bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_LogicalXor_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
     return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
-bool op::v1::LogicalXor::has_evaluate() const
-{
+bool op::v1::LogicalXor::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_LogicalXor_has_evaluate);
     switch (get_input_element_type(0))
     {
@@ -83,29 +81,23 @@ bool op::v1::LogicalXor::has_evaluate() const
 
 constexpr NodeTypeInfo op::v0::Xor::type_info;
 
-op::v0::Xor::Xor(const Output<Node>& arg0,
-                 const Output<Node>& arg1,
-                 const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseLogical(arg0, arg1, auto_broadcast)
-{
+op::v0::Xor::Xor(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
+    : BinaryElementwiseLogical(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v0::Xor::clone_with_new_inputs(const OutputVector& new_args) const
-{
+shared_ptr<Node> op::v0::Xor::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_Xor_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v0::Xor>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
+bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Xor_evaluate);
     return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
-bool op::v0::Xor::has_evaluate() const
-{
+bool op::v0::Xor::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Xor_has_evaluate);
     switch (get_input_element_type(0))
     {

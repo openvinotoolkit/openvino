@@ -11,27 +11,29 @@
 
 #include <string>
 
+#include "ie_parameter.hpp"
+
 namespace InferenceEngine {
 
 namespace gpu {
 
 namespace details {
 /**
-* @brief This wrapper class is used to obtain low-level handles
-* from remote blob or context object parameters.
-*/
+ * @brief This wrapper class is used to obtain low-level handles
+ * from remote blob or context object parameters.
+ */
 class param_map_obj_getter {
 protected:
     /**
-    * @brief Template function that returns specified
-    * object parameter typecasted to desired user type
-    */
+     * @brief Template function that returns specified
+     * object parameter typecasted to desired user type
+     */
     template <typename Result, typename Tmp>
     Result _ObjFromParams(const ParamMap& params,
-        const std::string& handle_Key,
-        const std::string& type_Key,
-        const std::string& obj_T1,
-        const std::string& obj_T2 = "__") const {
+                          const std::string& handle_Key,
+                          const std::string& type_Key,
+                          const std::string& obj_T1,
+                          const std::string& obj_T2 = "__") const {
         auto itrType = params.find(type_Key);
         if (itrType == params.end())
             IE_THROW() << "Parameter of type " << type_Key << " not found";
@@ -50,9 +52,9 @@ protected:
     }
 
     /**
-    * @brief Same as _ObjFromParams(), but should be used if check
-    * for object type is not required
-    */
+     * @brief Same as _ObjFromParams(), but should be used if check
+     * for object type is not required
+     */
     template <typename Result>
     Result _ObjFromParamSimple(const ParamMap& params, const std::string& handle_Key) const {
         auto itrHandle = params.find(handle_Key);
@@ -65,11 +67,10 @@ protected:
     }
 
     /**
-    * @brief Template function that extracts string value
-    * from map entry under specified key
-    */
-    std::string _StrFromParams(const ParamMap& params,
-        std::string Key) const {
+     * @brief Template function that extracts string value
+     * from map entry under specified key
+     */
+    std::string _StrFromParams(const ParamMap& params, std::string Key) const {
         auto itrType = params.find(Key);
         if (itrType == params.end())
             IE_THROW() << "Parameter key " << Key << " not found";

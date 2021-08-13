@@ -4,43 +4,39 @@
 
 #include "cnn_network_ngraph_impl.hpp"
 
-#include <cpp/ie_cnn_network.h>
-#include <ie_common.h>
 #include <math.h>
-
-#include <ie_memcpy.h>
-#include <blob_factory.hpp>
-
 
 #include <cassert>
 #include <map>
 #include <memory>
-#include <vector>
-#include <unordered_set>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/graph_util.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <set>
 #include <string>
+#include <unordered_set>
+#include <vector>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/smart_reshape/set_batch_size.hpp>
-#include <transformations/smart_reshape/smart_reshape.hpp>
+#include "blob_factory.hpp"
+#include "cpp/ie_cnn_network.h"
+#include "ie_common.h"
+#include "ie_memcpy.h"
+#include "ngraph/graph_util.hpp"
+#include "ngraph/ngraph.hpp"
+#include "ngraph/pass/constant_folding.hpp"
+#include "ngraph/pass/manager.hpp"
 #include "transformations/serialize.hpp"
+#include "transformations/smart_reshape/set_batch_size.hpp"
+#include "transformations/smart_reshape/smart_reshape.hpp"
+#include "transformations/utils/utils.hpp"
 
 // TODO: remove this pass usage
-#include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
-
+#include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
-
-#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
 #include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
+#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
 
-#include "ie_ngraph_utils.hpp"
 #include "exec_graph_info.hpp"
 #include "ie_itt.hpp"
+#include "ie_ngraph_utils.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -48,7 +44,8 @@ using details::CNNNetworkNGraphImpl;
 using InferenceEngine::details::CNNNetworkNGraphImpl;
 using ngraph::Function;
 
-void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName,
+void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output,
+                                               const std::string& outName,
                                                DataPtr& ptr) {
     const auto isCompatible = [](size_t size, const Layout& l) -> bool {
         switch (size) {
@@ -111,10 +108,10 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
     }
 }
 
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
-    const std::shared_ptr<Function>& nGraph,
-    const std::vector<IExtensionPtr>& exts)
-    : _ngraph_function(nGraph), _ie_extensions(exts) {
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph,
+                                           const std::vector<IExtensionPtr>& exts)
+    : _ngraph_function(nGraph),
+      _ie_extensions(exts) {
     // Restore usual attributes for CNNNetwork
     auto keep_input_info = [](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
         InputInfo::Ptr info(new InputInfo());
@@ -152,7 +149,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
         if (output.second->getPrecision() == Precision::I64) {
             output.second->setPrecision(Precision::I32);
         } else if (output.second->getPrecision() != Precision::FP32 &&
-            output.second->getPrecision() != Precision::I32) {
+                   output.second->getPrecision() != Precision::I32) {
             output.second->setPrecision(Precision::FP32);
         }
     }
@@ -225,18 +222,20 @@ void CNNNetworkNGraphImpl::validate(int version) {
     _ngraph_function->validate_nodes_and_infer_types();
 }
 
-StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t outputIndex,
+StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
+                                           size_t outputIndex,
                                            ResponseDesc* resp) noexcept {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::addOutput");
 
     try {
-        for (const auto & layer : _ngraph_function->get_ops()) {
+        for (const auto& layer : _ngraph_function->get_ops()) {
             // Result can have the same name as previous operation
             if (layer->get_friendly_name() == layerName && !std::dynamic_pointer_cast<ngraph::op::Result>(layer)) {
                 // Check that output port exists
                 if (layer->outputs().size() <= outputIndex) {
                     return DescriptionBuffer(OUT_OF_BOUNDS, resp)
-                    << "port index " << outputIndex << " exceeds the number of layer outputs " << layer->outputs().size();
+                           << "port index " << outputIndex << " exceeds the number of layer outputs "
+                           << layer->outputs().size();
                 }
                 std::string outputName = layerName;
                 if (layer->outputs().size() != 1) {
@@ -271,7 +270,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
     return DescriptionBuffer(NOT_FOUND, resp) << "Cannot add output! Layer " << layerName << " wasn't found!";
 }
 
-void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node> & output) {
+void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node>& output) {
     auto dataName = ngraph::op::util::create_ie_output_name(output);
     DataPtr data;
     if (_data.count(dataName))
@@ -313,16 +312,16 @@ void CNNNetworkNGraphImpl::reshape() {
     reshape({});
 }
 
-StatusCode
-CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
-                              ResponseDesc* responseDesc) noexcept {
-    if (inputShapes.empty()) return OK;
+StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+                                         ResponseDesc* responseDesc) noexcept {
+    if (inputShapes.empty())
+        return OK;
 
-    const auto & params = _ngraph_function->get_parameters();
+    const auto& params = _ngraph_function->get_parameters();
 
     // Check that we need to do reshape only if input shapes will be changed
     bool needReshape = false;
-    for (const auto & param : params) {
+    for (const auto& param : params) {
         const auto it = inputShapes.find(param->get_friendly_name());
         if (it == inputShapes.end()) {
             continue;
@@ -333,11 +332,12 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         }
     }
 
-    if (!needReshape) return OK;
+    if (!needReshape)
+        return OK;
 
     // save original parameters shape
     std::map<std::string, ngraph::PartialShape> originalInputShapes;
-    for (const auto & param : params) {
+    for (const auto& param : params) {
         originalInputShapes[param->get_friendly_name()] = param->get_partial_shape();
     }
 
@@ -347,7 +347,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         ssr_manager.run_passes(_ngraph_function);
 
         std::map<std::string, ngraph::PartialShape> reshapeShapes;
-        for (const auto & item : inputShapes) {
+        for (const auto& item : inputShapes) {
             reshapeShapes[item.first] = ngraph::PartialShape(item.second);
         }
         reshape(reshapeShapes);
@@ -359,8 +359,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
     return OK;
 }
 
-void
-CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
+void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
 
     auto params = _ngraph_function->get_parameters();
@@ -377,9 +376,9 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>&
         _ngraph_function->validate_nodes_and_infer_types();
 
     const auto& results = _ngraph_function->get_results();
-    bool outputs_are_static = all_of(
-            begin(results), end(results),
-            [](const std::shared_ptr<ngraph::Node>& n){ return n->get_output_partial_shape(0).is_static(); });
+    bool outputs_are_static = all_of(begin(results), end(results), [](const std::shared_ptr<ngraph::Node>& n) {
+        return n->get_output_partial_shape(0).is_static();
+    });
 
     {
         shared_ptr<Function> specialized_ngraph_function = nullptr;
@@ -398,7 +397,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>&
                 manager.register_pass<::ngraph::pass::ConstantFolding>();
                 // OneHotToLegacy changes output precision
                 manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
-                        specialized_ngraph_function);
+                    specialized_ngraph_function);
                 manager.run_passes(specialized_ngraph_function);
             }
             specialized_ngraph_function->validate_nodes_and_infer_types();
@@ -443,12 +442,12 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>&
         }
 #endif
         std::unordered_set<std::string> opName;
-        for (const auto &result : specialized_ngraph_function->get_results()) {
+        for (const auto& result : specialized_ngraph_function->get_results()) {
             addOutput(result->input_value(0));
         }
 
-        for (const auto &parameter : specialized_ngraph_function->get_parameters()) {
-            const auto &outName = parameter->get_friendly_name();
+        for (const auto& parameter : specialized_ngraph_function->get_parameters()) {
+            const auto& outName = parameter->get_friendly_name();
             if (opName.find(outName) != opName.end()) {
                 IE_THROW() << "All operations in nGraph function should have unique friendly names!";
             }
@@ -468,9 +467,10 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
             custom_opsets.insert(begin(opset), end(opset));
         }
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::Serialize>(
-            xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
-            custom_opsets);
+        manager.register_pass<ngraph::pass::Serialize>(xmlPath,
+                                                       binPath,
+                                                       ngraph::pass::Serialize::Version::IR_V10,
+                                                       custom_opsets);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -482,9 +482,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
-                                           std::ostream& binBuf,
-                                           ResponseDesc* resp) const noexcept {
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
+    noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
@@ -492,9 +491,10 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
             custom_opsets.insert(begin(opset), end(opset));
         }
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::Serialize>(
-            xmlBuf, binBuf, ngraph::pass::Serialize::Version::IR_V10,
-            custom_opsets);
+        manager.register_pass<ngraph::pass::Serialize>(xmlBuf,
+                                                       binBuf,
+                                                       ngraph::pass::Serialize::Version::IR_V10,
+                                                       custom_opsets);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -506,9 +506,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
-                                           Blob::Ptr& binBlob,
-                                           ResponseDesc* resp) const noexcept {
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
+    noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
@@ -518,15 +517,16 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
 
         std::stringstream binBuf;
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::Serialize>(
-            xmlBuf, binBuf, ngraph::pass::Serialize::Version::IR_V10,
-            custom_opsets);
+        manager.register_pass<ngraph::pass::Serialize>(xmlBuf,
+                                                       binBuf,
+                                                       ngraph::pass::Serialize::Version::IR_V10,
+                                                       custom_opsets);
         manager.run_passes(_ngraph_function);
 
         std::streambuf* pbuf = binBuf.rdbuf();
         unsigned long bufSize = binBuf.tellp();
 
-        TensorDesc tensorDesc(Precision::U8, { bufSize }, Layout::C);
+        TensorDesc tensorDesc(Precision::U8, {bufSize}, Layout::C);
         binBlob = make_shared_blob<uint8_t>(tensorDesc);
         binBlob->allocate();
         pbuf->sgetn(binBlob->buffer(), bufSize);
@@ -540,46 +540,66 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
+StatusCode CNNNetworkNGraphImpl::getOVNameForTensor(std::string& ov_name,
+                                                    const std::string& orig_name,
+                                                    ResponseDesc* resp) const noexcept {
     if (_tensorNames.find(orig_name) == _tensorNames.end())
-        return DescriptionBuffer(NOT_FOUND, resp) << "Framework tensor with name \"" << orig_name << "\" was not mapped to OpenVINO data!";
+        return DescriptionBuffer(NOT_FOUND, resp)
+               << "Framework tensor with name \"" << orig_name << "\" was not mapped to OpenVINO data!";
     ov_name = _tensorNames.at(orig_name);
     return OK;
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
     try {
-        if (getBatchSize() == size) return OK;
+        if (getBatchSize() == size)
+            return OK;
         auto original_parameters = _ngraph_function->get_parameters();
-        if (original_parameters.empty()) return DescriptionBuffer(GENERAL_ERROR, responseDesc) << "Cannot set batch! Function doesn't contain parameters!";
+        if (original_parameters.empty())
+            return DescriptionBuffer(GENERAL_ERROR, responseDesc)
+                   << "Cannot set batch! Function doesn't contain parameters!";
 
         stringstream ss;
         ss << " Please use reshape method instead. Original parameter shapes are: ";
         for (size_t i = 0; i < original_parameters.size(); ++i) {
-            if (i) ss << ", ";
-            ss << "\"" << original_parameters[i]->get_friendly_name() << "\": " << original_parameters[i]->get_partial_shape();
+            if (i)
+                ss << ", ";
+            ss << "\"" << original_parameters[i]->get_friendly_name()
+               << "\": " << original_parameters[i]->get_partial_shape();
         }
 
         // ill-formed logic from the past setBatchSize (we keep it for backward-compatibility)
-        const auto first_parameter = *std::min_element(original_parameters.begin(), original_parameters.end(),
-            [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs){return lhs->get_friendly_name() < rhs->get_friendly_name();});
+        const auto first_parameter =
+            *std::min_element(original_parameters.begin(),
+                              original_parameters.end(),
+                              [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
+                                  return lhs->get_friendly_name() < rhs->get_friendly_name();
+                              });
         const auto first_parameter_pshape = first_parameter->get_partial_shape();
-        if (first_parameter_pshape.is_dynamic()) return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) <<
-            "Cannot set batch! Function contains parameter with partially defined shape!" << ss.str();
+        if (first_parameter_pshape.is_dynamic())
+            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc)
+                   << "Cannot set batch! Function contains parameter with partially defined shape!" << ss.str();
         const auto first_parameter_rank = first_parameter_pshape.rank().get_length();
-        if (first_parameter_rank == 0 || first_parameter_rank == 1 || first_parameter_rank == 3) return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) <<
-            "Cannot set batch! Function contains 0D/1D/3D parameter with unknown batch dimension placement." << ss.str();
+        if (first_parameter_rank == 0 || first_parameter_rank == 1 || first_parameter_rank == 3)
+            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc)
+                   << "Cannot set batch! Function contains 0D/1D/3D parameter with unknown batch dimension placement."
+                   << ss.str();
 
         std::map<std::string, std::vector<size_t>> inShapes;
-        for (const auto &parameter : original_parameters) {
-            const auto & pshape = parameter->get_partial_shape();
-            if (pshape.is_dynamic()) return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) <<
-                "Cannot set batch! Function contains parameter with partially defined shape!" << ss.str();
-            const auto & rank = pshape.rank().get_length();
-            if (rank == 0) return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) <<
-                "Cannot set batch! Function contains 0D/1D/3D parameter with unknown batch dimension placement." << ss.str();
+        for (const auto& parameter : original_parameters) {
+            const auto& pshape = parameter->get_partial_shape();
+            if (pshape.is_dynamic())
+                return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc)
+                       << "Cannot set batch! Function contains parameter with partially defined shape!" << ss.str();
+            const auto& rank = pshape.rank().get_length();
+            if (rank == 0)
+                return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc)
+                       << "Cannot set batch! Function contains 0D/1D/3D parameter with unknown batch dimension "
+                          "placement."
+                       << ss.str();
             auto shape = parameter->get_shape();
-            shape[0] = {static_cast<size_t>(std::ceil(size * static_cast<float>(shape[0]) / static_cast<float>(getBatchSize())))};
+            shape[0] = {static_cast<size_t>(
+                std::ceil(size * static_cast<float>(shape[0]) / static_cast<float>(getBatchSize())))};
             inShapes[parameter->get_friendly_name()] = shape;
         }
         ngraph::pass::Manager ssr_manager;
