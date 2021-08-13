@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
+#include "ngraph/runtime/reference/split.hpp"
+
 #include <stdio.h>
 
+#include <cmath>
+
 #include "ngraph/check.hpp"
-#include "ngraph/runtime/reference/split.hpp"
 
 using namespace ngraph;
 
@@ -15,8 +17,7 @@ void runtime::reference::split(const char* data,
                                size_t elem_size,
                                int64_t axis,
                                size_t num_splits,
-                               char** out_data)
-{
+                               char** out_data) {
     const size_t part_length = data_shape.at(axis) / num_splits;
 
     Shape output_shape = data_shape;
@@ -26,8 +27,7 @@ void runtime::reference::split(const char* data,
     std::vector<size_t> upper_bounds = data_shape;
     upper_bounds.at(axis) = part_length;
 
-    for (size_t i = 0; i < num_splits; ++i)
-    {
+    for (size_t i = 0; i < num_splits; ++i) {
         runtime::reference::slice(data,
                                   out_data[i],
                                   data_shape,

@@ -24,8 +24,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 using ExperimentalTopK = op::v6::ExperimentalDetectronTopKROIs;
 
-NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_topk_rois_eval)
-{
+NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_topk_rois_eval) {
     size_t num_rois = 1;
 
     const auto input_rois_shape = Shape{2, 4};
@@ -55,8 +54,7 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_topk_rois_eval)
     ASSERT_TRUE(test::all_close_f(read_vector<float>(topk_rois_output), expected_result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_topk_rois_eval_2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_topk_rois_eval_2) {
     size_t num_rois = 2;
 
     const auto input_rois_shape = Shape{4, 4};
@@ -71,8 +69,8 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_topk_rois_eval_2)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     auto topk_rois_output = backend->create_tensor(element::f32, output_shape);
 
-    std::vector<float> input_rois_data = {1.0f,  1.0f,  4.0f,  5.0f,  3.0f,  2.0f,  7.0f,  9.0f,
-                                          10.0f, 15.0f, 13.0f, 17.0f, 13.0f, 10.0f, 18.0f, 15.0f};
+    std::vector<float> input_rois_data =
+        {1.0f, 1.0f, 4.0f, 5.0f, 3.0f, 2.0f, 7.0f, 9.0f, 10.0f, 15.0f, 13.0f, 17.0f, 13.0f, 10.0f, 18.0f, 15.0f};
     std::vector<float> input_probs_data = {0.1f, 0.7f, 0.5f, 0.9f};
     std::vector<float> expected_result = {13.0f, 10.0f, 18.0f, 15.0f, 3.0f, 2.0f, 7.0f, 9.0f};
 

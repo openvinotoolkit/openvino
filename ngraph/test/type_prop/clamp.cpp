@@ -9,8 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, clamp_basic_f32)
-{
+TEST(type_prop, clamp_basic_f32) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 32, 32});
     auto clamp = make_shared<op::Clamp>(data, 0.0, 2.1);
 
@@ -20,8 +19,7 @@ TEST(type_prop, clamp_basic_f32)
     ASSERT_EQ(clamp->get_output_shape(0), (Shape{1, 32, 32}));
 }
 
-TEST(type_prop, clamp_basic_i32)
-{
+TEST(type_prop, clamp_basic_i32) {
     auto data = make_shared<op::Parameter>(element::i32, Shape{1, 32, 32});
     auto clamp = make_shared<op::Clamp>(data, 0.0, 2.1);
 
@@ -31,21 +29,17 @@ TEST(type_prop, clamp_basic_i32)
     ASSERT_EQ(clamp->get_output_shape(0), (Shape{1, 32, 32}));
 }
 
-TEST(type_prop, clamp_shape_static_rank)
-{
-    auto data = make_shared<op::Parameter>(
-        element::f16, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 32});
+TEST(type_prop, clamp_shape_static_rank) {
+    auto data = make_shared<op::Parameter>(element::f16, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 32});
     auto clamp = make_shared<op::Clamp>(data, -2.1, 2.1);
 
     ASSERT_EQ(clamp->get_element_type(), element::f16);
     ASSERT_EQ(clamp->get_min(), -2.1);
     ASSERT_EQ(clamp->get_max(), 2.1);
-    ASSERT_EQ(clamp->get_output_partial_shape(0),
-              (PartialShape{Dimension::dynamic(), Dimension::dynamic(), 32}));
+    ASSERT_EQ(clamp->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), Dimension::dynamic(), 32}));
 }
 
-TEST(type_prop, clamp_shape_dynamic)
-{
+TEST(type_prop, clamp_shape_dynamic) {
     auto data = make_shared<op::Parameter>(element::u16, PartialShape::dynamic());
     auto clamp = make_shared<op::Clamp>(data, 1.5, 15.0);
 
@@ -55,28 +49,21 @@ TEST(type_prop, clamp_shape_dynamic)
     ASSERT_EQ(clamp->get_output_partial_shape(0), (PartialShape::dynamic()));
 }
 
-TEST(type_prop, clamp_invalid_element_type)
-{
+TEST(type_prop, clamp_invalid_element_type) {
     auto data = make_shared<op::Parameter>(element::boolean, Shape{2, 2});
 
-    try
-    {
+    try {
         auto clamp = make_shared<op::Clamp>(data, 0.5, 5.5);
         // Input element type is boolean
         FAIL() << "Invalid boolean element type for input not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
+    } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Input element type must be numeric");
-    }
-    catch (...)
-    {
+    } catch (...) {
         FAIL() << "Numeric element type node validation check failed for unexpected reason";
     }
 }
 
-TEST(type_prop, clamp_equal_attributes)
-{
+TEST(type_prop, clamp_equal_attributes) {
     auto data = make_shared<op::Parameter>(element::f64, Shape{2, 2});
 
     auto clamp = make_shared<op::Clamp>(data, 1.0, 1.0);
@@ -86,22 +73,16 @@ TEST(type_prop, clamp_equal_attributes)
     ASSERT_EQ(clamp->get_output_shape(0), (Shape{2, 2}));
 }
 
-TEST(type_prop, clamp_invalid_attributes)
-{
+TEST(type_prop, clamp_invalid_attributes) {
     auto data = make_shared<op::Parameter>(element::f64, Shape{2, 2});
 
-    try
-    {
+    try {
         auto clamp = make_shared<op::Clamp>(data, 2.0, 1.0);
         // Attribute 'max' not greater than 'min'
         FAIL() << "Attribute 'min' bigger than 'max' not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
+    } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Attribute 'min' must be less or equal than 'max'");
-    }
-    catch (...)
-    {
+    } catch (...) {
         FAIL() << "'min' and 'max' attributes node validation check failed for unexpected reason";
     }
 }

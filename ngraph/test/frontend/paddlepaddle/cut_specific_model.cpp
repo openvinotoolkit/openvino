@@ -3,6 +3,7 @@
 //
 
 #include "cut_specific_model.hpp"
+
 #include "paddle_utils.hpp"
 
 using namespace ngraph;
@@ -10,8 +11,7 @@ using namespace ngraph::frontend;
 
 using PDPDCutTest = FrontEndCutModelTest;
 
-static CutModelParam getTestData_2in_2out()
-{
+static CutModelParam getTestData_2in_2out() {
     CutModelParam res;
     res.m_frontEndName = PADDLE_FE;
     res.m_modelsPath = std::string(TEST_PADDLE_MODELS_DIRNAME);

@@ -11,46 +11,44 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        namespace v5
-        {
-            class NGRAPH_API GRUSequence : public util::RNNCellBase
-            {
-            public:
-                NGRAPH_RTTI_DECLARATION;
-                GRUSequence();
+namespace ngraph {
+namespace op {
+namespace v5 {
+class NGRAPH_API GRUSequence : public util::RNNCellBase {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    GRUSequence();
 
-                GRUSequence(const Output<Node>& X,
-                            const Output<Node>& H_t,
-                            const Output<Node>& sequence_lengths,
-                            const Output<Node>& W,
-                            const Output<Node>& R,
-                            const Output<Node>& B,
-                            size_t hidden_size,
-                            op::RecurrentSequenceDirection direction,
-                            const std::vector<std::string>& activations =
-                                std::vector<std::string>{"sigmoid", "tanh"},
-                            const std::vector<float>& activations_alpha = {},
-                            const std::vector<float>& activations_beta = {},
-                            float clip = 0.f,
-                            bool linear_before_reset = false);
+    GRUSequence(const Output<Node>& X,
+                const Output<Node>& H_t,
+                const Output<Node>& sequence_lengths,
+                const Output<Node>& W,
+                const Output<Node>& R,
+                const Output<Node>& B,
+                size_t hidden_size,
+                op::RecurrentSequenceDirection direction,
+                const std::vector<std::string>& activations = std::vector<std::string>{"sigmoid", "tanh"},
+                const std::vector<float>& activations_alpha = {},
+                const std::vector<float>& activations_beta = {},
+                float clip = 0.f,
+                bool linear_before_reset = false);
 
-                std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                void validate_and_infer_types() override;
+    void validate_and_infer_types() override;
 
-                bool visit_attributes(AttributeVisitor& visitor) override;
-                bool get_linear_before_reset() const { return m_linear_before_reset; }
-                op::RecurrentSequenceDirection get_direction() const { return m_direction; }
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    bool get_linear_before_reset() const {
+        return m_linear_before_reset;
+    }
+    op::RecurrentSequenceDirection get_direction() const {
+        return m_direction;
+    }
 
-            protected:
-                op::RecurrentSequenceDirection m_direction;
-                bool m_linear_before_reset;
-            };
-        } // namespace v5
-    }     // namespace op
-} // namespace ngraph
+protected:
+    op::RecurrentSequenceDirection m_direction;
+    bool m_linear_before_reset;
+};
+}  // namespace v5
+}  // namespace op
+}  // namespace ngraph

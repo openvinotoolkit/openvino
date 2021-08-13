@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
 #include "ngraph/runtime/aligned_buffer.hpp"
+
+#include "gtest/gtest.h"
 
 using namespace std;
 using namespace ngraph;
 
-TEST(aligned_buffer, alignment)
-{
+TEST(aligned_buffer, alignment) {
     runtime::AlignedBuffer buffer(100, 64);
     size_t addr = reinterpret_cast<size_t>(buffer.get_ptr()) % 64;
     EXPECT_EQ(addr, 0);
 }
 
-TEST(aligned_buffer, move)
-{
+TEST(aligned_buffer, move) {
     {
         runtime::AlignedBuffer buffer1(100, 64);
         runtime::AlignedBuffer buffer2(move(buffer1));

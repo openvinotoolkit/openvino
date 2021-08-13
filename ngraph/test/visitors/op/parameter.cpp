@@ -3,24 +3,20 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
-TEST(attributes, parameter_op)
-{
+TEST(attributes, parameter_op) {
     NodeBuilder::get_ops().register_factory<opset1::Parameter>();
-    auto parameter =
-        std::make_shared<op::Parameter>(element::f32, PartialShape{Dimension{1}, Dimension{4}});
+    auto parameter = std::make_shared<op::Parameter>(element::f32, PartialShape{Dimension{1}, Dimension{4}});
 
     NodeBuilder builder(parameter);
     auto g_parameter = as_type_ptr<opset1::Parameter>(builder.create());

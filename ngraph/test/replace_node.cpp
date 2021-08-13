@@ -3,9 +3,8 @@
 //
 
 #include "gtest/gtest.h"
-#include "util/type_prop.hpp"
-
 #include "ngraph/ngraph.hpp"
+#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -47,8 +46,7 @@ using namespace ngraph;
 //            |
 //           {r}
 //
-TEST(replace_node, replace_nodes)
-{
+TEST(replace_node, replace_nodes) {
     auto x = make_shared<op::Parameter>(element::f32, Shape{2});
     auto y = make_shared<op::Parameter>(element::f32, Shape{2});
     auto z = make_shared<op::Parameter>(element::f32, Shape{2});
@@ -109,8 +107,7 @@ TEST(replace_node, replace_nodes)
     ASSERT_EQ(z_replacement->get_input_node_shared_ptr(1), mul);
 }
 
-TEST(replace_node, simple_node_replacement)
-{
+TEST(replace_node, simple_node_replacement) {
     auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
     param->output(0).get_tensor().set_names({"a", "b"});
     auto relu = std::make_shared<op::Relu>(param);
@@ -123,8 +120,7 @@ TEST(replace_node, simple_node_replacement)
     ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
 }
 
-TEST(replace_node, node_elimination)
-{
+TEST(replace_node, node_elimination) {
     auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
     param->output(0).get_tensor().set_names({"a", "b"});
     auto relu1 = std::make_shared<op::Relu>(param);
@@ -137,8 +133,7 @@ TEST(replace_node, node_elimination)
     ASSERT_EQ(param->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"a", "b"}));
 }
 
-TEST(replace_node, output_replacement)
-{
+TEST(replace_node, output_replacement) {
     auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
     param->output(0).get_tensor().set_names({"a", "b"});
     auto relu = std::make_shared<op::Relu>(param);
@@ -152,8 +147,7 @@ TEST(replace_node, output_replacement)
     ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
 }
 
-TEST(replace_node, source_replacement)
-{
+TEST(replace_node, source_replacement) {
     auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
     param->output(0).get_tensor().set_names({"a", "b"});
 
@@ -166,5 +160,3 @@ TEST(replace_node, source_replacement)
     ASSERT_EQ(param->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"a", "b"}));
     ASSERT_EQ(param1->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
 }
-
-

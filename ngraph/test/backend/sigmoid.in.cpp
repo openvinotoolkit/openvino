@@ -28,8 +28,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, sigmoid_n1c1h2w2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, sigmoid_n1c1h2w2) {
     auto input = make_shared<op::Parameter>(element::f32, Shape{1, 1, 2, 2});
     auto sigmoid_node = make_shared<op::Sigmoid>(input);
     auto func = make_shared<Function>(sigmoid_node, ParameterVector{input});
@@ -53,8 +52,7 @@ NGRAPH_TEST(${BACKEND_NAME}, sigmoid_n1c1h2w2)
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, sigmoid_n1c1h4)
-{
+NGRAPH_TEST(${BACKEND_NAME}, sigmoid_n1c1h4) {
     auto input = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto sigmoid_node = make_shared<op::Sigmoid>(input);
     auto func = make_shared<Function>(sigmoid_node, ParameterVector{input});

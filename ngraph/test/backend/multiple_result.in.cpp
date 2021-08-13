@@ -19,8 +19,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 
 // Multiple retrive values
-NGRAPH_TEST(${BACKEND_NAME}, multiple_result)
-{
+NGRAPH_TEST(${BACKEND_NAME}, multiple_result) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);

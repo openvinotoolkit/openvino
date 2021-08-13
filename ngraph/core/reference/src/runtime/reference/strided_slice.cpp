@@ -2,18 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
+#include "ngraph/runtime/reference/strided_slice.hpp"
+
 #include <stdio.h>
+
+#include <cmath>
 
 #include "ngraph/check.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/runtime/reference/strided_slice.hpp"
 
 using namespace ngraph;
 
-void runtime::reference::strided_slice(
-    const char* arg, char* out, const Shape& arg_shape, const SlicePlan& sp, size_t elem_type)
-{
+void runtime::reference::strided_slice(const char* arg,
+                                       char* out,
+                                       const Shape& arg_shape,
+                                       const SlicePlan& sp,
+                                       size_t elem_type) {
     runtime::AlignedBuffer slice_out_buffer(shape_size(sp.reshape_in_shape) * elem_type);
     slice(reinterpret_cast<const char*>(arg),
           slice_out_buffer.get_ptr<char>(),

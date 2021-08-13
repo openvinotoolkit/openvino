@@ -7,16 +7,12 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
-{
-    namespace onnx_import
-    {
-        namespace op
-        {
-            namespace set_1
-            {
-                OutputVector image_scaler(const Node& node);
-            }
-        } // namespace op
-    }     // namespace onnx_import
-} // namespace ngraph
+namespace ngraph {
+namespace onnx_import {
+namespace op {
+namespace set_1 {
+OutputVector image_scaler(const Node& node);
+}
+}  // namespace op
+}  // namespace onnx_import
+}  // namespace ngraph

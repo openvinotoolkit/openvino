@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
-#include "ngraph/ngraph.hpp"
 #include "ngraph/op/prior_box.hpp"
+
+#include "gtest/gtest.h"
+#include "ngraph/ngraph.hpp"
 
 using namespace ngraph;
 
-TEST(type_prop, prior_box1)
-{
+TEST(type_prop, prior_box1) {
     op::PriorBoxAttrs attrs;
     attrs.min_size = {2.0f, 3.0f};
     attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
@@ -22,8 +21,7 @@ TEST(type_prop, prior_box1)
     ASSERT_EQ(pb->get_shape(), (Shape{2, 20480}));
 }
 
-TEST(type_prop, prior_box2)
-{
+TEST(type_prop, prior_box2) {
     op::PriorBoxAttrs attrs;
     attrs.min_size = {2.0f, 3.0f};
     attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
@@ -36,8 +34,7 @@ TEST(type_prop, prior_box2)
     ASSERT_EQ(pb->get_shape(), (Shape{2, 32768}));
 }
 
-TEST(type_prop, prior_box3)
-{
+TEST(type_prop, prior_box3) {
     op::PriorBoxAttrs attrs;
     attrs.min_size = {256.0f};
     attrs.max_size = {315.0f};

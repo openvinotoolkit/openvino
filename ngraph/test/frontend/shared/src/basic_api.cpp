@@ -3,39 +3,34 @@
 //
 
 #include "basic_api.hpp"
+
 #include "utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-std::string FrontEndBasicTest::getTestCaseName(const testing::TestParamInfo<BasicTestParam>& obj)
-{
+std::string FrontEndBasicTest::getTestCaseName(const testing::TestParamInfo<BasicTestParam>& obj) {
     std::string fe, path, fileName;
     std::tie(fe, path, fileName) = obj.param;
     return fe + "_" + FrontEndTestUtils::fileToTestName(fileName);
 }
 
-void FrontEndBasicTest::SetUp()
-{
+void FrontEndBasicTest::SetUp() {
     FrontEndTestUtils::setupTestEnv();
-    m_fem = FrontEndManager(); // re-initialize after setting up environment
+    m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }
 
-void FrontEndBasicTest::initParamTest()
-{
+void FrontEndBasicTest::initParamTest() {
     std::tie(m_feName, m_pathToModels, m_modelFile) = GetParam();
     m_modelFile = FrontEndTestUtils::make_model_path(m_pathToModels + m_modelFile);
 }
 
-void FrontEndBasicTest::doLoadFromFile()
-{
-    std::tie(m_frontEnd, m_inputModel) =
-        FrontEndTestUtils::load_from_file(m_fem, m_feName, m_modelFile);
+void FrontEndBasicTest::doLoadFromFile() {
+    std::tie(m_frontEnd, m_inputModel) = FrontEndTestUtils::load_from_file(m_fem, m_feName, m_modelFile);
 }
 
-TEST_P(FrontEndBasicTest, testLoadFromFile)
-{
+TEST_P(FrontEndBasicTest, testLoadFromFile) {
     ASSERT_NO_THROW(doLoadFromFile());
     ASSERT_EQ(m_frontEnd->get_name(), m_feName);
     std::shared_ptr<ngraph::Function> function;
@@ -43,8 +38,7 @@ TEST_P(FrontEndBasicTest, testLoadFromFile)
     ASSERT_NE(function, nullptr);
 }
 
-TEST_P(FrontEndBasicTest, testInputModel_getInputsOutputs)
-{
+TEST_P(FrontEndBasicTest, testInputModel_getInputsOutputs) {
     ASSERT_NO_THROW(doLoadFromFile());
 
     using CustomCheck = std::function<void(Place::Ptr)>;
@@ -62,26 +56,27 @@ TEST_P(FrontEndBasicTest, testInputModel_getInputsOutputs)
     };
     std::vector<Place::Ptr> inputs;
     ASSERT_NO_THROW(inputs = m_inputModel->get_inputs());
-    checkPlaces(inputs, [&](Place::Ptr place) { EXPECT_TRUE(place->is_input()); });
+    checkPlaces(inputs, [&](Place::Ptr place) {
+        EXPECT_TRUE(place->is_input());
+    });
 
     std::vector<Place::Ptr> outputs;
     ASSERT_NO_THROW(outputs = m_inputModel->get_outputs());
-    checkPlaces(outputs, [&](Place::Ptr place) { EXPECT_TRUE(place->is_output()); });
+    checkPlaces(outputs, [&](Place::Ptr place) {
+        EXPECT_TRUE(place->is_output());
+    });
 }
 
-TEST_P(FrontEndBasicTest, testInputModel_getPlaceByTensorName)
-{
+TEST_P(FrontEndBasicTest, testInputModel_getPlaceByTensorName) {
     ASSERT_NO_THROW(doLoadFromFile());
 
     auto testGetPlaceByTensorName = [&](const std::vector<Place::Ptr>& places) {
         EXPECT_GT(places.size(), 0);
-        for (auto place : places)
-        {
+        for (auto place : places) {
             ASSERT_NE(place, nullptr);
             std::vector<std::string> names;
             ASSERT_NO_THROW(names = place->get_names());
-            for (auto name : names)
-            {
+            for (auto name : names) {
                 EXPECT_NE(name, std::string());
                 Place::Ptr placeByName;
                 ASSERT_NO_THROW(placeByName = m_inputModel->get_place_by_tensor_name(name));
@@ -100,8 +95,7 @@ TEST_P(FrontEndBasicTest, testInputModel_getPlaceByTensorName)
     testGetPlaceByTensorName(inputs);
 }
 
-TEST_P(FrontEndBasicTest, testInputModel_overrideAll)
-{
+TEST_P(FrontEndBasicTest, testInputModel_overrideAll) {
     ASSERT_NO_THROW(doLoadFromFile());
 
     using GetPlaces = std::function<std::vector<Place::Ptr>()>;
@@ -122,16 +116,24 @@ TEST_P(FrontEndBasicTest, testInputModel_overrideAll)
             EXPECT_GT(placesSet.count(place), 0);
         });
     };
-    verifyOverride([&]() { return m_inputModel->get_inputs(); },
-                   [&](const std::vector<Place::Ptr>& p) { m_inputModel->override_all_inputs(p); });
+    verifyOverride(
+        [&]() {
+            return m_inputModel->get_inputs();
+        },
+        [&](const std::vector<Place::Ptr>& p) {
+            m_inputModel->override_all_inputs(p);
+        });
 
     verifyOverride(
-        [&]() { return m_inputModel->get_outputs(); },
-        [&](const std::vector<Place::Ptr>& p) { m_inputModel->override_all_outputs(p); });
+        [&]() {
+            return m_inputModel->get_outputs();
+        },
+        [&](const std::vector<Place::Ptr>& p) {
+            m_inputModel->override_all_outputs(p);
+        });
 }
 
-TEST_P(FrontEndBasicTest, testInputModel_overrideAll_empty)
-{
+TEST_P(FrontEndBasicTest, testInputModel_overrideAll_empty) {
     ASSERT_NO_THROW(doLoadFromFile());
     using GetPlaces = std::function<std::vector<Place::Ptr>()>;
     using OverrideEmpty = std::function<void(void)>;
@@ -146,21 +148,30 @@ TEST_P(FrontEndBasicTest, testInputModel_overrideAll_empty)
         std::for_each(places.begin(), places.end(), [&](Place::Ptr place) {
             std::vector<std::string> names;
             ASSERT_NO_THROW(names = place->get_names());
-            for (auto name : names)
-            {
+            for (auto name : names) {
                 customCB(name);
             }
         });
     };
-    verifyOverride([&]() { return m_inputModel->get_outputs(); },
-                   [&]() { m_inputModel->override_all_outputs({}); },
-                   [&](const std::string& name) {
-                       EXPECT_FALSE(m_inputModel->get_place_by_tensor_name(name)->is_output());
-                   });
+    verifyOverride(
+        [&]() {
+            return m_inputModel->get_outputs();
+        },
+        [&]() {
+            m_inputModel->override_all_outputs({});
+        },
+        [&](const std::string& name) {
+            EXPECT_FALSE(m_inputModel->get_place_by_tensor_name(name)->is_output());
+        });
 
-    verifyOverride([&]() { return m_inputModel->get_inputs(); },
-                   [&]() { m_inputModel->override_all_inputs({}); },
-                   [&](const std::string& name) {
-                       EXPECT_FALSE(m_inputModel->get_place_by_tensor_name(name)->is_input());
-                   });
+    verifyOverride(
+        [&]() {
+            return m_inputModel->get_inputs();
+        },
+        [&]() {
+            m_inputModel->override_all_inputs({});
+        },
+        [&](const std::string& name) {
+            EXPECT_FALSE(m_inputModel->get_place_by_tensor_name(name)->is_input());
+        });
 }

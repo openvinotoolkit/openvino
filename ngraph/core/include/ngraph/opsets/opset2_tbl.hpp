@@ -3,8 +3,8 @@
 //
 
 #ifndef NGRAPH_OP
-#warning "NGRAPH_OP not defined"
-#define NGRAPH_OP(x, y)
+#    warning "NGRAPH_OP not defined"
+#    define NGRAPH_OP(x, y)
 #endif
 
 NGRAPH_OP(Abs, ngraph::op::v0)
@@ -65,7 +65,7 @@ NGRAPH_OP(Minimum, ngraph::op::v1)
 NGRAPH_OP(Mod, ngraph::op::v1)
 NGRAPH_OP(Multiply, ngraph::op::v1)
 
-NGRAPH_OP(MVN, ngraph::op::v0) // Missing in opset1
+NGRAPH_OP(MVN, ngraph::op::v0)  // Missing in opset1
 
 NGRAPH_OP(Negative, ngraph::op::v0)
 NGRAPH_OP(NonMaxSuppression, ngraph::op::v1)
@@ -91,7 +91,7 @@ NGRAPH_OP(ReduceProd, ngraph::op::v1)
 NGRAPH_OP(ReduceSum, ngraph::op::v1)
 NGRAPH_OP(RegionYolo, ngraph::op::v0)
 
-NGRAPH_OP(ReorgYolo, ngraph::op::v0) // Missing in opset1
+NGRAPH_OP(ReorgYolo, ngraph::op::v0)  // Missing in opset1
 
 NGRAPH_OP(Reshape, ngraph::op::v1)
 NGRAPH_OP(Result, ngraph::op::v0)
@@ -104,7 +104,7 @@ NGRAPH_OP(ReverseSequence, ngraph::op::v0)
 // Moved out of opset2, it was added to opset1 by mistake
 // NGRAPH_OP(RNNCell, ngraph::op::v0)
 
-NGRAPH_OP(ROIPooling, ngraph::op::v0) // Missing in opset1
+NGRAPH_OP(ROIPooling, ngraph::op::v0)  // Missing in opset1
 
 NGRAPH_OP(Select, ngraph::op::v1)
 NGRAPH_OP(Selu, ngraph::op::v0)

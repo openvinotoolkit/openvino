@@ -9,8 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes)
-{
+TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes) {
     PartialShape logits_shape{3, 100, 1200};
     PartialShape seq_len_shape{3};
     Shape out_shape1{3, 100};
@@ -24,8 +23,7 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes)
     ASSERT_EQ(G->get_output_shape(1), out_shape2);
 }
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_bi)
-{
+TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_bi) {
     PartialShape logits_shape{3, 100, 1200};
     PartialShape seq_len_shape{3};
     Shape out_shape1{3, 100};
@@ -33,16 +31,14 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_bi)
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
     auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
     auto BI = op::Constant::create(element::i32, Shape{}, {1});
-    auto G =
-        make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, BI, false, element::i64, element::i64);
+    auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, BI, false, element::i64, element::i64);
     ASSERT_EQ(G->get_output_element_type(0), element::i64);
     ASSERT_EQ(G->get_output_element_type(1), element::i64);
     ASSERT_EQ(G->get_output_shape(0), out_shape1);
     ASSERT_EQ(G->get_output_shape(1), out_shape2);
 }
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_dinemic_bi)
-{
+TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_dinemic_bi) {
     PartialShape logits_shape{3, 100, 1200};
     PartialShape seq_len_shape{3};
     Shape out_shape1{3, 100};
@@ -50,16 +46,14 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_static_shapes_with_dinemic_bi)
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
     auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
     auto BI = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
-    auto G =
-        make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, BI, false, element::i64, element::i64);
+    auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, BI, false, element::i64, element::i64);
     ASSERT_EQ(G->get_output_element_type(0), element::i64);
     ASSERT_EQ(G->get_output_element_type(1), element::i64);
     ASSERT_EQ(G->get_output_shape(0), out_shape1);
     ASSERT_EQ(G->get_output_shape(1), out_shape2);
 }
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_output_static_shape1)
-{
+TEST(type_prop, ctc_greedy_decoder_seq_len_output_static_shape1) {
     PartialShape logits_shape{Dimension::dynamic(), 100, 1200};
     PartialShape seq_len_shape{3};
     Shape out_shape1{3, 100};
@@ -73,8 +67,7 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_output_static_shape1)
     ASSERT_EQ(G->get_output_shape(1), out_shape2);
 }
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_shapes)
-{
+TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_shapes) {
     PartialShape logits_shape{Dimension::dynamic(), Dimension::dynamic(), 1200};
     PartialShape seq_len_shape{Dimension::dynamic()};
     PartialShape out_shape1{Dimension::dynamic(), Dimension::dynamic()};
@@ -88,8 +81,7 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_shapes)
     ASSERT_TRUE(G->get_output_partial_shape(1).same_scheme(out_shape2));
 }
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_ranks1)
-{
+TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_ranks1) {
     PartialShape logits_shape = PartialShape::dynamic();
     PartialShape seq_len_shape{Dimension::dynamic()};
     PartialShape out_shape1{Dimension::dynamic(), Dimension::dynamic()};
@@ -103,8 +95,7 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_ranks1)
     ASSERT_TRUE(G->get_output_partial_shape(1).same_scheme(out_shape2));
 }
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_ranks2)
-{
+TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_ranks2) {
     PartialShape logits_shape = PartialShape::dynamic();
     PartialShape seq_mask_shape = PartialShape::dynamic();
     PartialShape out_shape1{Dimension::dynamic(), Dimension::dynamic()};
@@ -118,74 +109,53 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_ranks2)
     ASSERT_TRUE(G->get_output_partial_shape(1).same_scheme(out_shape2));
 }
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_incorrect_rank)
-{
+TEST(type_prop, ctc_greedy_decoder_seq_len_incorrect_rank) {
     PartialShape logits_shape{Dimension::dynamic(), 100, 1200, 5};
     PartialShape seq_len_shape{3};
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
     auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
 
-    try
-    {
+    try {
         auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, false);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("The rank of logits tensor must be equal to 3."));
-    }
-    catch (...)
-    {
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("The rank of logits tensor must be equal to 3."));
+    } catch (...) {
         FAIL() << "Rank check failed for unexpected reason";
     }
 }
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_incorrect_rank2)
-{
+TEST(type_prop, ctc_greedy_decoder_seq_len_incorrect_rank2) {
     PartialShape logits_shape{3, 100, 1200};
     PartialShape seq_len_shape{3, 100};
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
     auto I = make_shared<op::Parameter>(element::i32, seq_len_shape);
 
-    try
-    {
+    try {
         auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, false);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("The rank of sequence len tensor must be equal to 1."));
-    }
-    catch (...)
-    {
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("The rank of sequence len tensor must be equal to 1."));
+    } catch (...) {
         FAIL() << "Rank check failed for unexpected reason";
     }
 }
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_mismatched_dim1)
-{
+TEST(type_prop, ctc_greedy_decoder_seq_len_mismatched_dim1) {
     PartialShape logits_shape{4, 100, 1200};
     PartialShape seq_mask_shape{3};
     auto P = make_shared<op::Parameter>(element::f32, logits_shape);
     auto I = make_shared<op::Parameter>(element::i32, seq_mask_shape);
 
-    try
-    {
+    try {
         auto G = make_shared<op::v6::CTCGreedyDecoderSeqLen>(P, I, false);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("The first dimensions of input tensors must match."));
-    }
-    catch (...)
-    {
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("The first dimensions of input tensors must match."));
+    } catch (...) {
         FAIL() << "Rank check failed for unexpected reason";
     }
 }

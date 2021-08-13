@@ -3,28 +3,23 @@
 //
 
 #include "op/einsum.hpp"
+
 #include "default_opset.hpp"
 
-namespace ngraph
-{
-    namespace onnx_import
-    {
-        namespace op
-        {
-            namespace set_1
-            {
-                OutputVector einsum(const Node& node)
-                {
-                    const std::string& equation{node.get_attribute_value<std::string>("equation")};
+namespace ngraph {
+namespace onnx_import {
+namespace op {
+namespace set_1 {
+OutputVector einsum(const Node& node) {
+    const std::string& equation{node.get_attribute_value<std::string>("equation")};
 
-                    return OutputVector{
-                        std::make_shared<default_opset::Einsum>(node.get_ng_inputs(), equation)};
-                }
+    return OutputVector{std::make_shared<default_opset::Einsum>(node.get_ng_inputs(), equation)};
+}
 
-            } // namespace set_1
+}  // namespace set_1
 
-        } // namespace op
+}  // namespace op
 
-    } // namespace onnx_import
+}  // namespace onnx_import
 
-} // namespace ngraph
+}  // namespace ngraph

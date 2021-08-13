@@ -10,22 +10,17 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
-{
-    namespace onnx_import
-    {
-        namespace op
-        {
-            namespace set_1
-            {
-                inline OutputVector sign(const Node& node)
-                {
-                    return {std::make_shared<default_opset::Sign>(node.get_ng_inputs().at(0))};
-                }
-            } // namespace set_1
+namespace ngraph {
+namespace onnx_import {
+namespace op {
+namespace set_1 {
+inline OutputVector sign(const Node& node) {
+    return {std::make_shared<default_opset::Sign>(node.get_ng_inputs().at(0))};
+}
+}  // namespace set_1
 
-        } // namespace op
+}  // namespace op
 
-    } // namespace onnx_import
+}  // namespace onnx_import
 
-} // namespace ngraph
+}  // namespace ngraph

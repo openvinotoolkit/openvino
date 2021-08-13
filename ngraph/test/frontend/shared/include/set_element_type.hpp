@@ -4,19 +4,17 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
-
 #include <gtest/gtest.h>
 
-struct SetTypeFEParam
-{
+#include <frontend_manager/frontend_manager.hpp>
+
+struct SetTypeFEParam {
     std::string m_frontEndName;
     std::string m_modelsPath;
     std::string m_modelName;
 };
 
-class FrontEndElementTypeTest : public ::testing::TestWithParam<SetTypeFEParam>
-{
+class FrontEndElementTypeTest : public ::testing::TestWithParam<SetTypeFEParam> {
 public:
     SetTypeFEParam m_param;
     ngraph::frontend::FrontEndManager m_fem;

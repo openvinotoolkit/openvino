@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/gather_elements.hpp"
+
 #include "itt.hpp"
 #include "ngraph/shape.hpp"
 
@@ -13,24 +14,19 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::v6::GatherElements, "GatherElements", 6);
 
-op::v6::GatherElements::GatherElements(const Output<Node>& data,
-                                       const Output<Node>& indices,
-                                       const int64_t axis)
-    : Op({data, indices})
-    , m_axis(axis)
-{
+op::v6::GatherElements::GatherElements(const Output<Node>& data, const Output<Node>& indices, const int64_t axis)
+    : Op({data, indices}),
+      m_axis(axis) {
     constructor_validate_and_infer_types();
 }
 
-void op::v6::GatherElements::validate_and_infer_types()
-{
+void op::v6::GatherElements::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_GatherElements_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
     const auto& indices_type = get_input_element_type(1);
 
     NODE_VALIDATION_CHECK(this,
-                          indices_type == element::Type_t::i32 ||
-                              indices_type == element::Type_t::i64,
+                          indices_type == element::Type_t::i32 || indices_type == element::Type_t::i64,
                           "indices must be of int32 or int64 type. But instead got: ",
                           indices_type);
 
@@ -45,13 +41,11 @@ void op::v6::GatherElements::validate_and_infer_types()
 
     set_output_type(0, data_type, indices_pshape);
 
-    NODE_VALIDATION_CHECK(
-        this, data_rank.is_dynamic() || data_rank.get_length() >= 1, "data rank must be >= 1.");
+    NODE_VALIDATION_CHECK(this, data_rank.is_dynamic() || data_rank.get_length() >= 1, "data rank must be >= 1.");
 
     NODE_VALIDATION_CHECK(
         this,
-        data_rank.is_dynamic() ||
-            ((-data_rank.get_length() <= m_axis) && (m_axis < data_rank.get_length())),
+        data_rank.is_dynamic() || ((-data_rank.get_length() <= m_axis) && (m_axis < data_rank.get_length())),
         "axis must be within interval (-data.rank,  data.rank - 1). But instead Got: ",
         m_axis);
 
@@ -59,16 +53,14 @@ void op::v6::GatherElements::validate_and_infer_types()
                           indices_rank.is_dynamic() || indices_rank.get_length() >= 1,
                           "indices rank must be >= 1.");
 
-    if (data_rank.is_static() && indices_rank.is_dynamic())
-    {
+    if (data_rank.is_static() && indices_rank.is_dynamic()) {
         PartialShape out_shape_info(data_pshape);
         out_shape_info[axis] = Dimension::dynamic();
         set_output_type(0, data_type, out_shape_info);
         return;
     }
 
-    if (data_rank.is_dynamic())
-    {
+    if (data_rank.is_dynamic()) {
         if (indices_rank.is_dynamic())
             set_output_type(0, data_type, PartialShape::dynamic());
         return;
@@ -83,10 +75,8 @@ void op::v6::GatherElements::validate_and_infer_types()
                           indices_rank.get_length());
 
     PartialShape output_pshape(indices_pshape);
-    for (int i = 0; i < indices_rank.get_length(); i++)
-    {
-        if (i != axis)
-        {
+    for (int i = 0; i < indices_rank.get_length(); i++) {
+        if (i != axis) {
             // if size of the current dimension of indices is unknown it will be retrieved from data
             // e.g., if data_shape = {4, 4, ?}, indices_shape = {1, ?, 5} and axis = 0
             // (and if intervals intersect) then output_pshape will be {1, 4, 5}
@@ -107,15 +97,13 @@ void op::v6::GatherElements::validate_and_infer_types()
     set_output_type(0, data_type, output_pshape);
 }
 
-bool op::v6::GatherElements::visit_attributes(AttributeVisitor& visitor)
-{
+bool op::v6::GatherElements::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v6_GatherElements_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
-shared_ptr<Node> op::v6::GatherElements::clone_with_new_inputs(const OutputVector& new_args) const
-{
+shared_ptr<Node> op::v6::GatherElements::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v6_GatherElements_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v6::GatherElements>(new_args.at(0), new_args.at(1), m_axis);

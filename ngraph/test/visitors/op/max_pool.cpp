@@ -3,12 +3,10 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset8.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -16,8 +14,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, max_pool_op)
-{
+TEST(attributes, max_pool_op) {
     NodeBuilder::get_ops().register_factory<opset1::MaxPool>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{64, 3, 5});
 
@@ -28,8 +25,7 @@ TEST(attributes, max_pool_op)
     auto rounding_mode = op::RoundingType::FLOOR;
     auto auto_pad = op::PadType::EXPLICIT;
 
-    auto max_pool = make_shared<opset1::MaxPool>(
-        data, strides, pads_begin, pads_end, kernel, rounding_mode, auto_pad);
+    auto max_pool = make_shared<opset1::MaxPool>(data, strides, pads_begin, pads_end, kernel, rounding_mode, auto_pad);
     NodeBuilder builder(max_pool);
     auto g_max_pool = as_type_ptr<opset1::MaxPool>(builder.create());
 
@@ -41,8 +37,7 @@ TEST(attributes, max_pool_op)
     EXPECT_EQ(g_max_pool->get_auto_pad(), max_pool->get_auto_pad());
 }
 
-TEST(attributes, max_pool_v8_op)
-{
+TEST(attributes, max_pool_v8_op) {
     NodeBuilder::get_ops().register_factory<opset8::MaxPool>();
     const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 3, 37, 37});
 

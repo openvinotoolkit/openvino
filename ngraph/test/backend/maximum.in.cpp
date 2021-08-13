@@ -31,8 +31,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, maximum)
-{
+NGRAPH_TEST(${BACKEND_NAME}, maximum) {
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -47,8 +46,7 @@ NGRAPH_TEST(${BACKEND_NAME}, maximum)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, maximum_int32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, maximum_int32) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::i32, shape);
     auto B = make_shared<op::Parameter>(element::i32, shape);
@@ -63,8 +61,7 @@ NGRAPH_TEST(${BACKEND_NAME}, maximum_int32)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, maximum_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, maximum_int64) {
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::i64, shape);
     auto B = make_shared<op::Parameter>(element::i64, shape);

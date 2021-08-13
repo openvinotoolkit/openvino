@@ -3,18 +3,16 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
-#include "util/visitor.hpp"
 #include "ngraph/opsets/opset1.hpp"
+#include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, prior_box_clustered_op)
-{
+TEST(attributes, prior_box_clustered_op) {
     NodeBuilder::get_ops().register_factory<opset1::PriorBoxClustered>();
     const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
     const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{300, 300});

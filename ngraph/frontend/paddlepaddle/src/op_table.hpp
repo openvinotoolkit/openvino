@@ -6,22 +6,18 @@
 
 #include <functional>
 #include <map>
-#include <string>
-
 #include <ngraph/output_vector.hpp>
+#include <string>
 
 #include "node_context.hpp"
 
-namespace ngraph
-{
-    namespace frontend
-    {
-        namespace pdpd
-        {
-            using CreatorFunction = std::function<NamedOutputs(const NodeContext&)>;
+namespace ngraph {
+namespace frontend {
+namespace pdpd {
+using CreatorFunction = std::function<NamedOutputs(const NodeContext&)>;
 
-            std::map<std::string, CreatorFunction> get_supported_ops();
+std::map<std::string, CreatorFunction> get_supported_ops();
 
-        } // namespace pdpd
-    }     // namespace frontend
-} // namespace ngraph
+}  // namespace pdpd
+}  // namespace frontend
+}  // namespace ngraph

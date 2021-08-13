@@ -4,16 +4,15 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
-
 #include <gtest/gtest.h>
 
-using ConvertParam = std::tuple<std::string,  // FrontEnd name
-                                std::string,  // Base path to models
-                                std::string>; // Model name
+#include <frontend_manager/frontend_manager.hpp>
 
-class FrontEndConvertModelTest : public ::testing::TestWithParam<ConvertParam>
-{
+using ConvertParam = std::tuple<std::string,   // FrontEnd name
+                                std::string,   // Base path to models
+                                std::string>;  // Model name
+
+class FrontEndConvertModelTest : public ::testing::TestWithParam<ConvertParam> {
 public:
     std::string m_feName;
     std::string m_pathToModels;

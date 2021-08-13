@@ -14,8 +14,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, logical_xor)
-{
+NGRAPH_TEST(${BACKEND_NAME}, logical_xor) {
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::boolean, shape);
     auto B = make_shared<op::Parameter>(element::boolean, shape);

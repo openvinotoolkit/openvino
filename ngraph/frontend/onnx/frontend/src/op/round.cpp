@@ -5,28 +5,24 @@
 // Disabled in CMakeList
 // Update to higher opset required
 
+#include "op/round.hpp"
+
 #include <memory>
 
 #include "default_opset.hpp"
-#include "op/round.hpp"
 
-namespace ngraph
-{
-    namespace onnx_import
-    {
-        namespace op
-        {
-            namespace set_1
-            {
-                OutputVector round(const Node& node)
-                {
-                    return {std::make_shared<default_opset::Round>(
-                        node.get_ng_inputs().at(0), default_opset::Round::RoundMode::HALF_TO_EVEN)};
-                }
-            } // namespace set_1
+namespace ngraph {
+namespace onnx_import {
+namespace op {
+namespace set_1 {
+OutputVector round(const Node& node) {
+    return {std::make_shared<default_opset::Round>(node.get_ng_inputs().at(0),
+                                                   default_opset::Round::RoundMode::HALF_TO_EVEN)};
+}
+}  // namespace set_1
 
-        } // namespace op
+}  // namespace op
 
-    } // namespace onnx_import
+}  // namespace onnx_import
 
-} // namespace ngraph
+}  // namespace ngraph

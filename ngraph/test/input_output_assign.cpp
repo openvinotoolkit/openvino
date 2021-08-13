@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
-#include "ngraph/ngraph.hpp"
-
 #include <memory>
+
+#include "gtest/gtest.h"
+#include "ngraph/ngraph.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
 
-TEST(input_output, param_tensor)
-{
+TEST(input_output, param_tensor) {
     // Params have no arguments, so we can check that the value becomes a tensor output
     auto& et = element::f32;
     Shape shape{2, 4};
@@ -25,8 +23,7 @@ TEST(input_output, param_tensor)
     ASSERT_EQ(shape, param->get_shape());
 }
 
-TEST(input_output, simple_output)
-{
+TEST(input_output, simple_output) {
     auto param_0 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto add = make_shared<op::v1::Add>(param_0, param_1);
@@ -41,8 +38,7 @@ TEST(input_output, simple_output)
     // parameter
     ASSERT_EQ(1, add->get_output_size());
     ASSERT_EQ(2, add->get_input_size());
-    for (size_t i = 0; i < add->get_input_size(); i++)
-    {
+    for (size_t i = 0; i < add->get_input_size(); i++) {
         ASSERT_EQ(add->input_value(i).get_node_shared_ptr(), nodes.at(i));
     }
 }

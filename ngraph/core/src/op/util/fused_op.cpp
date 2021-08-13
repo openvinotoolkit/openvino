@@ -3,8 +3,8 @@
 //
 
 #include "ngraph/op/util/fused_op.hpp"
-#include "itt.hpp"
 
+#include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 
 using namespace ngraph;
@@ -13,23 +13,15 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::util::FusedOp, "FusedOp", 0);
 
-op::util::FusedOp::FusedOp()
-    : Op()
-{
-}
+op::util::FusedOp::FusedOp() : Op() {}
 
-op::util::FusedOp::FusedOp(const OutputVector& args)
-    : Op(args)
-{
-}
+op::util::FusedOp::FusedOp(const OutputVector& args) : Op(args) {}
 
-void op::util::FusedOp::validate_and_infer_types()
-{
+void op::util::FusedOp::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_FusedOp_validate_and_infer_types);
     pre_validate_and_infer_types();
 
-    if (!can_decompose_with_partial_shapes() && is_dynamic())
-    {
+    if (!can_decompose_with_partial_shapes() && is_dynamic()) {
         return;
     }
 
@@ -40,10 +32,8 @@ void op::util::FusedOp::validate_and_infer_types()
     auto subgraph = extract_subgraph(ngraph::as_node_vector(subgraph_outputs), nodes);
 
     size_t i = 0;
-    for (const auto& output : subgraph_outputs)
-    {
-        if (i >= get_output_size())
-        {
+    for (const auto& output : subgraph_outputs) {
+        if (i >= get_output_size()) {
             set_output_size(i + 1);
         }
         set_output_type(i, output.get_element_type(), output.get_shape());

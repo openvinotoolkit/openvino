@@ -10,8 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, rnn_cell)
-{
+TEST(type_prop, rnn_cell) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
@@ -26,8 +25,7 @@ TEST(type_prop, rnn_cell)
     EXPECT_EQ(rnn_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
 }
 
-TEST(type_prop, rnn_cell_invalid_input)
-{
+TEST(type_prop, rnn_cell_invalid_input) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
@@ -38,117 +36,85 @@ TEST(type_prop, rnn_cell_invalid_input)
 
     // Invalid W tensor shape.
     auto W = make_shared<opset4::Parameter>(element::f32, Shape{2 * hidden_size, input_size});
-    try
-    {
+    try {
         const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
         FAIL() << "RNNCell node was created with invalid data.";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter hidden_size mistmatched in W input."));
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in W input."));
     }
 
     // Invalid R tensor shape.
     W = make_shared<opset4::Parameter>(element::f32, Shape{hidden_size, input_size});
     R = make_shared<opset4::Parameter>(element::f32, Shape{hidden_size, 1});
-    try
-    {
+    try {
         const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
         FAIL() << "RNNCell node was created with invalid data.";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string(
-                "Parameter hidden_size not matched for R and initial_hidden_state inputs."));
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter hidden_size not matched for R and initial_hidden_state inputs."));
     }
 
     // Invalid H_t tensor shape.
     R = make_shared<opset4::Parameter>(element::f32, Shape{hidden_size, hidden_size});
     H_t = make_shared<opset4::Parameter>(element::f32, Shape{4, hidden_size});
-    try
-    {
+    try {
         const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
         FAIL() << "RNNCell node was created with invalid data.";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            std::string("Parameter batch_size not matched for X and initial_hidden_state inputs."));
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter batch_size not matched for X and initial_hidden_state inputs."));
     }
 
     // Invalid B tensor shape.
     H_t = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, hidden_size});
     auto B = make_shared<opset4::Parameter>(element::f32, Shape{2 * hidden_size});
-    try
-    {
+    try {
         const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, B, hidden_size);
         FAIL() << "RNNCell node was created with invalid data.";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter hidden_size mistmatched in B input."));
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in B input."));
     }
 }
 
-TEST(type_prop, rnn_cell_dynamic_batch_size)
-{
+TEST(type_prop, rnn_cell_dynamic_batch_size) {
     const auto batch_size = Dimension::dynamic();
     const size_t input_size = 3;
     const size_t hidden_size = 3;
 
-    const auto X =
-        make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
-    const auto H_t =
-        make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
-    const auto W =
-        make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, input_size});
-    const auto R =
-        make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
+    const auto X = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    const auto H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    const auto W = make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, input_size});
+    const auto R = make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
 
     const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size);
     EXPECT_EQ(rnn_cell->get_output_element_type(0), element::f32);
     EXPECT_EQ(rnn_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
 }
 
-TEST(type_prop, rnn_cell_dynamic_hidden_size)
-{
+TEST(type_prop, rnn_cell_dynamic_hidden_size) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const auto hidden_size = Dimension::dynamic();
 
-    const auto X =
-        make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
-    const auto H_t =
-        make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
-    const auto W =
-        make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, input_size});
-    const auto R =
-        make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
+    const auto X = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    const auto H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    const auto W = make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, input_size});
+    const auto R = make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
 
     const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, 3);
     EXPECT_EQ(rnn_cell->get_output_element_type(0), element::f32);
     EXPECT_EQ(rnn_cell->get_output_partial_shape(0), (PartialShape{batch_size, hidden_size}));
 }
 
-TEST(type_prop, rnn_cell_dynamic_inputs)
-{
+TEST(type_prop, rnn_cell_dynamic_inputs) {
     const auto batch_size = Dimension::dynamic();
     const auto input_size = Dimension::dynamic();
     const auto hidden_size = Dimension::dynamic();
 
-    const auto X =
-        make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
-    const auto R =
-        make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
-    const auto W =
-        make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, input_size});
-    const auto H_t =
-        make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
+    const auto X = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, input_size});
+    const auto R = make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
+    const auto W = make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, input_size});
+    const auto H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
 
     const auto rnn_cell = make_shared<opset4::RNNCell>(X, H_t, W, R, 2);
 
@@ -156,8 +122,7 @@ TEST(type_prop, rnn_cell_dynamic_inputs)
     EXPECT_EQ(rnn_cell->get_output_element_type(0), element::f32);
 }
 
-TEST(type_prop, rnn_cell_invalid_input_rank0)
-{
+TEST(type_prop, rnn_cell_invalid_input_rank0) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
@@ -168,41 +133,35 @@ TEST(type_prop, rnn_cell_invalid_input_rank0)
 
     // Invalid rank0 for W tensor.
     auto W = make_shared<opset4::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
+    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size), ngraph::NodeValidationFailure)
         << "RNNCell node was created with invalid data.";
 
     // Invalid rank0 for X tensor.
     W = make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, input_size});
     X = make_shared<opset4::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
+    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size), ngraph::NodeValidationFailure)
         << "RNNCell node was created with invalid data.";
 
     // Invalid rank0 for H_t tensor.
     X = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, input_size});
     H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
+    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size), ngraph::NodeValidationFailure)
         << "RNNCell node was created with invalid data.";
 
     // Invalid rank0 for R tensor.
     H_t = make_shared<opset4::Parameter>(element::f32, Shape{batch_size, hidden_size});
     R = make_shared<opset4::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size),
-                 ngraph::NodeValidationFailure)
+    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, hidden_size), ngraph::NodeValidationFailure)
         << "RNNCell node was created with invalid data.";
 
     // Invalid rank0 for B tensor.
     R = make_shared<opset4::Parameter>(element::f32, PartialShape{hidden_size, hidden_size});
     auto B = make_shared<opset4::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, B, hidden_size),
-                 ngraph::NodeValidationFailure)
+    ASSERT_THROW(make_shared<opset4::RNNCell>(X, H_t, W, R, B, hidden_size), ngraph::NodeValidationFailure)
         << "RNNCell node was created with invalid data.";
 }
 
-TEST(type_prop, rnn_cell_invalid_input_dynamic_rank)
-{
+TEST(type_prop, rnn_cell_invalid_input_dynamic_rank) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;

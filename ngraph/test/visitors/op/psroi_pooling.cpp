@@ -3,14 +3,12 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -18,8 +16,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, psroi_pooling_op)
-{
+TEST(attributes, psroi_pooling_op) {
     NodeBuilder::get_ops().register_factory<opset1::PSROIPooling>();
     auto input = make_shared<op::Parameter>(element::f32, Shape{1, 1024, 63, 38});
     auto coords = make_shared<op::Parameter>(element::f32, Shape{300, 5});
@@ -31,8 +28,14 @@ TEST(attributes, psroi_pooling_op)
     int spatial_bins_y = 1;
     string mode = "average";
 
-    auto psroi_pool = make_shared<opset1::PSROIPooling>(
-        input, coords, output_dim, group_size, spatial_scale, spatial_bins_x, spatial_bins_y, mode);
+    auto psroi_pool = make_shared<opset1::PSROIPooling>(input,
+                                                        coords,
+                                                        output_dim,
+                                                        group_size,
+                                                        spatial_scale,
+                                                        spatial_bins_x,
+                                                        spatial_bins_y,
+                                                        mode);
     NodeBuilder builder(psroi_pool);
     auto g_psroi_pool = as_type_ptr<opset1::PSROIPooling>(builder.create());
 

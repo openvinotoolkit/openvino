@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/node.hpp"
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
@@ -23,8 +24,7 @@ using PyRTMap = std::map<std::string, std::shared_ptr<ngraph::Variant>>;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
-void regclass_pyngraph_Node(py::module m)
-{
+void regclass_pyngraph_Node(py::module m) {
     py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
     node.def(
@@ -61,10 +61,8 @@ void regclass_pyngraph_Node(py::module m)
     node.def("__repr__", [](const ngraph::Node& self) {
         std::string type_name = self.get_type_name();
         std::stringstream shapes_ss;
-        for (size_t i = 0; i < self.get_output_size(); ++i)
-        {
-            if (i > 0)
-            {
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
                 shapes_ss << ", ";
             }
             shapes_ss << self.get_output_partial_shape(i);
@@ -265,20 +263,17 @@ void regclass_pyngraph_Node(py::module m)
                                (PyRTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info,
                                py::return_value_policy::reference_internal);
     node.def_property_readonly("version", &ngraph::Node::get_version);
-    node.def_property(
-        "friendly_name", &ngraph::Node::get_friendly_name, &ngraph::Node::set_friendly_name);
+    node.def_property("friendly_name", &ngraph::Node::get_friendly_name, &ngraph::Node::set_friendly_name);
 
     node.def("_get_attributes", [](const std::shared_ptr<ngraph::Node>& self) {
         util::DictAttributeSerializer dict_serializer(self);
         return dict_serializer.get_attributes();
     });
-    node.def(
-        "_set_attribute",
-        [](std::shared_ptr<ngraph::Node>& self, const std::string& atr_name, py::object value) {
-            py::dict attr_dict;
-            attr_dict[atr_name.c_str()] = value;
-            std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
-            util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
-            self->visit_attributes(dict_deserializer);
-        });
+    node.def("_set_attribute", [](std::shared_ptr<ngraph::Node>& self, const std::string& atr_name, py::object value) {
+        py::dict attr_dict;
+        attr_dict[atr_name.c_str()] = value;
+        std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
+        util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
+        self->visit_attributes(dict_deserializer);
+    });
 }

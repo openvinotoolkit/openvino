@@ -12,18 +12,15 @@ constexpr VariantTypeInfo VariantWrapper<int64_t>::type_info;
 
 Variant::~Variant() {}
 
-std::shared_ptr<ngraph::Variant> Variant::init(const std::shared_ptr<ngraph::Node>& node)
-{
+std::shared_ptr<ngraph::Variant> Variant::init(const std::shared_ptr<ngraph::Node>& node) {
     return nullptr;
 }
 
-std::shared_ptr<ngraph::Variant> Variant::merge(const ngraph::NodeVector& nodes)
-{
+std::shared_ptr<ngraph::Variant> Variant::merge(const ngraph::NodeVector& nodes) {
     return nullptr;
 }
 
-bool Variant::is_copyable() const
-{
+bool Variant::is_copyable() const {
     return true;
 }
 

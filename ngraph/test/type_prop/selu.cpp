@@ -9,8 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, selu_basic_inference_f32_3D)
-{
+TEST(type_prop, selu_basic_inference_f32_3D) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{1, 32, 32});
     const auto alpha = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto lambda = make_shared<op::Parameter>(element::f32, Shape{1});
@@ -20,8 +19,7 @@ TEST(type_prop, selu_basic_inference_f32_3D)
     ASSERT_EQ(selu->get_shape(), (Shape{1, 32, 32}));
 }
 
-TEST(type_prop, selu_basic_inference_f16_3D)
-{
+TEST(type_prop, selu_basic_inference_f16_3D) {
     const auto param = make_shared<op::Parameter>(element::f16, Shape{1, 32, 32});
     const auto alpha = make_shared<op::Parameter>(element::f16, Shape{1});
     const auto lambda = make_shared<op::Parameter>(element::f16, Shape{1});
@@ -31,8 +29,7 @@ TEST(type_prop, selu_basic_inference_f16_3D)
     ASSERT_EQ(selu->get_shape(), (Shape{1, 32, 32}));
 }
 
-TEST(type_prop, selu_basic_inference_f32_5D)
-{
+TEST(type_prop, selu_basic_inference_f32_5D) {
     const auto param = make_shared<op::Parameter>(element::f32, Shape{12, 135, 221, 31, 15});
     const auto alpha = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto lambda = make_shared<op::Parameter>(element::f32, Shape{1});
@@ -42,8 +39,7 @@ TEST(type_prop, selu_basic_inference_f32_5D)
     ASSERT_EQ(selu->get_shape(), (Shape{12, 135, 221, 31, 15}));
 }
 
-TEST(type_prop, selu_basic_inference_f16_5D)
-{
+TEST(type_prop, selu_basic_inference_f16_5D) {
     const auto param = make_shared<op::Parameter>(element::f16, Shape{12, 135, 221, 31, 15});
     const auto alpha = make_shared<op::Parameter>(element::f16, Shape{1});
     const auto lambda = make_shared<op::Parameter>(element::f16, Shape{1});
@@ -53,96 +49,71 @@ TEST(type_prop, selu_basic_inference_f16_5D)
     ASSERT_EQ(selu->get_shape(), (Shape{12, 135, 221, 31, 15}));
 }
 
-TEST(type_prop, selu_incompatible_input_type_boolean)
-{
+TEST(type_prop, selu_incompatible_input_type_boolean) {
     // Invalid data input element type
-    try
-    {
+    try {
         auto data = make_shared<op::Parameter>(element::boolean, Shape{1, 2, 3, 4});
         const auto alpha = make_shared<op::Parameter>(element::boolean, Shape{1});
         const auto lambda = make_shared<op::Parameter>(element::boolean, Shape{1});
         auto selu = make_shared<op::Selu>(data, alpha, lambda);
         // Data input expected to be of numeric type
         FAIL() << "Invalid input type not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
+    } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types must be floating-point"));
-    }
-    catch (...)
-    {
+    } catch (...) {
         FAIL() << "Input type check failed for unexpected reason";
     }
 }
 
-TEST(type_prop, selu_incompatible_input_type_i32)
-{
+TEST(type_prop, selu_incompatible_input_type_i32) {
     // Invalid data input element type
-    try
-    {
+    try {
         auto data = make_shared<op::Parameter>(element::i32, Shape{1, 2, 3, 4});
         const auto alpha = make_shared<op::Parameter>(element::i32, Shape{1});
         const auto lambda = make_shared<op::Parameter>(element::i32, Shape{1});
         auto selu = make_shared<op::Selu>(data, alpha, lambda);
         // Data input expected to be of numeric type
         FAIL() << "Invalid input type not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
+    } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types must be floating-point"));
-    }
-    catch (...)
-    {
+    } catch (...) {
         FAIL() << "Input type check failed for unexpected reason";
     }
 }
 
-TEST(type_prop, selu_incompatible_input_type_u16)
-{
+TEST(type_prop, selu_incompatible_input_type_u16) {
     // Invalid data input element type
-    try
-    {
+    try {
         auto data = make_shared<op::Parameter>(element::u16, Shape{1, 2, 3, 4});
         const auto alpha = make_shared<op::Parameter>(element::u16, Shape{1});
         const auto lambda = make_shared<op::Parameter>(element::u16, Shape{1});
         auto selu = make_shared<op::Selu>(data, alpha, lambda);
         // Data input expected to be of numeric type
         FAIL() << "Invalid input type not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
+    } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types must be floating-point"));
-    }
-    catch (...)
-    {
+    } catch (...) {
         FAIL() << "Input type check failed for unexpected reason";
     }
 }
 
-TEST(type_prop, selu_incompatible_input_types)
-{
+TEST(type_prop, selu_incompatible_input_types) {
     // Invalid data input element type
-    try
-    {
+    try {
         auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
         const auto alpha = make_shared<op::Parameter>(element::f32, Shape{1});
         const auto lambda = make_shared<op::Parameter>(element::u16, Shape{1});
         auto selu = make_shared<op::Selu>(data, alpha, lambda);
         // Data input expected to be of numeric type
         FAIL() << "Inavlid input types not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
+    } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Input element types do not match"));
-    }
-    catch (...)
-    {
+    } catch (...) {
         FAIL() << "Input type check failed for unexpected reason";
     }
 }
 
-TEST(type_prop, selu_dynamic_rank_input_shape_2D)
-{
+TEST(type_prop, selu_dynamic_rank_input_shape_2D) {
     const PartialShape param_shape{Dimension::dynamic(), 10};
     const auto param = std::make_shared<op::Parameter>(element::f32, param_shape);
     const auto alpha = make_shared<op::Parameter>(element::f32, Shape{2, 1});
@@ -151,8 +122,7 @@ TEST(type_prop, selu_dynamic_rank_input_shape_2D)
     ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape{Dimension(), 10}));
 }
 
-TEST(type_prop, selu_dynamic_rank_input_shape_3D)
-{
+TEST(type_prop, selu_dynamic_rank_input_shape_3D) {
     const PartialShape param_shape{100, Dimension::dynamic(), 58};
     const auto param = std::make_shared<op::Parameter>(element::f32, param_shape);
     const auto alpha = make_shared<op::Parameter>(element::f32, Shape{1});
@@ -161,8 +131,7 @@ TEST(type_prop, selu_dynamic_rank_input_shape_3D)
     ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape{100, Dimension(), 58}));
 }
 
-TEST(type_prop, selu_dynamic_rank_input_shape_full)
-{
+TEST(type_prop, selu_dynamic_rank_input_shape_full) {
     const auto param = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     const auto alpha = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto lambda = make_shared<op::Parameter>(element::f32, Shape{1});

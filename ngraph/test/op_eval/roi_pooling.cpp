@@ -14,8 +14,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(op_eval, roi_pooling_invalid_roi_batch_id)
-{
+NGRAPH_TEST(op_eval, roi_pooling_invalid_roi_batch_id) {
     const int H = 6;
     const int W = 6;
     const int image_size = H * W;
@@ -33,13 +32,11 @@ NGRAPH_TEST(op_eval, roi_pooling_invalid_roi_batch_id)
 
     const auto feat_maps = make_shared<op::Parameter>(element::f32, feat_maps_shape);
     const auto rois = make_shared<op::Parameter>(element::f32, rois_shape);
-    const auto roi_pooling =
-        make_shared<op::v0::ROIPooling>(feat_maps, rois, pooled_shape, spatial_scale, "max");
+    const auto roi_pooling = make_shared<op::v0::ROIPooling>(feat_maps, rois, pooled_shape, spatial_scale, "max");
     const auto f = make_shared<Function>(roi_pooling, ParameterVector{feat_maps, rois});
 
     vector<float> feat_maps_vect;
-    for (unsigned int i = 0; i < channels * image_size; i++)
-    {
+    for (unsigned int i = 0; i < channels * image_size; i++) {
         feat_maps_vect.push_back(1.f * i / 10);
     }
 

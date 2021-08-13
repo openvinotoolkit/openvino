@@ -13,8 +13,7 @@ using namespace ngraph;
 using Attrs = op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes;
 using ExperimentalROI = op::v6::ExperimentalDetectronROIFeatureExtractor;
 
-TEST(type_prop, detectron_roi_feature_extractor)
-{
+TEST(type_prop, detectron_roi_feature_extractor) {
     Attrs attrs;
     attrs.aligned = false;
     attrs.output_size = 14;
@@ -28,32 +27,29 @@ TEST(type_prop, detectron_roi_feature_extractor)
     auto pyramid_layer3 = std::make_shared<op::Parameter>(element::f32, Shape{1, 256, 25, 42});
 
     auto roi = std::make_shared<ExperimentalROI>(
-        NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3}, attrs);
+        NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3},
+        attrs);
 
     ASSERT_EQ(roi->get_output_element_type(0), element::f32);
     EXPECT_EQ(roi->get_output_shape(0), (Shape{1000, 256, 14, 14}));
 }
 
-TEST(type_prop, detectron_roi_feature_extractor_dynamic)
-{
+TEST(type_prop, detectron_roi_feature_extractor_dynamic) {
     Attrs attrs;
     attrs.aligned = false;
     attrs.output_size = 14;
     attrs.sampling_ratio = 2;
     attrs.pyramid_scales = {4, 8, 16, 32};
 
-    struct Shapes
-    {
+    struct Shapes {
         PartialShape input_shape;
         Dimension channels;
     };
 
     const auto dyn_dim = Dimension::dynamic();
 
-    std::vector<Shapes> shapes = {
-        {{1000, 4}, dyn_dim}, {{dyn_dim, 4}, 256}, {{dyn_dim, 4}, dyn_dim}};
-    for (const auto& s : shapes)
-    {
+    std::vector<Shapes> shapes = {{{1000, 4}, dyn_dim}, {{dyn_dim, 4}, 256}, {{dyn_dim, 4}, dyn_dim}};
+    for (const auto& s : shapes) {
         auto layer0_shape = PartialShape{1, s.channels, 200, 336};
         auto layer1_shape = PartialShape{1, s.channels, 100, 168};
         auto layer2_shape = PartialShape{1, s.channels, 50, 84};
@@ -76,19 +72,15 @@ TEST(type_prop, detectron_roi_feature_extractor_dynamic)
     }
 }
 
-struct ROIFeatureIntervalsTestParams
-{
+struct ROIFeatureIntervalsTestParams {
     PartialShape input_shape;
     Dimension channels[4];
     Dimension first_dims[4];
 };
 
-struct ROIFeatureIntervalsTest : ::testing::TestWithParam<ROIFeatureIntervalsTestParams>
-{
-};
+struct ROIFeatureIntervalsTest : ::testing::TestWithParam<ROIFeatureIntervalsTestParams> {};
 
-TEST_P(ROIFeatureIntervalsTest, detectron_roi_feature_extractor_intervals_1)
-{
+TEST_P(ROIFeatureIntervalsTest, detectron_roi_feature_extractor_intervals_1) {
     auto params = GetParam();
 
     Attrs attrs;
@@ -118,7 +110,8 @@ TEST_P(ROIFeatureIntervalsTest, detectron_roi_feature_extractor_intervals_1)
     auto pyramid_layer3 = std::make_shared<op::Parameter>(element::f32, layer3_shape);
 
     auto roi = std::make_shared<ExperimentalROI>(
-        NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3}, attrs);
+        NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3},
+        attrs);
 
     ASSERT_EQ(roi->get_output_element_type(0), element::f32);
     ASSERT_TRUE(roi->get_output_partial_shape(0).same_scheme(ref_out_shape));
@@ -128,153 +121,115 @@ INSTANTIATE_TEST_SUITE_P(
     type_prop,
     ROIFeatureIntervalsTest,
     ::testing::Values(
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(0, 5)},
-            {Dimension(0, 128), Dimension(0, 256), Dimension(0, 64), Dimension(0, 33)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(0, 5)},
-            {Dimension(0, 128), Dimension(0, 256), Dimension(0, 64), Dimension(33)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(2, 5)},
-            {Dimension(0, 128), Dimension(0, 256), Dimension(64), Dimension(0, 72)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(2, 5)},
-            {Dimension(0, 128), Dimension(0, 256), Dimension(64), Dimension(64)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(0, 5)},
-            {Dimension(0, 512), Dimension(256), Dimension(0, 640), Dimension(0, 330)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(0, 5)},
-            {Dimension(0, 512), Dimension(256), Dimension(0, 640), Dimension(256)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(2, 4)},
-            {Dimension(0, 512), Dimension(256), Dimension(256), Dimension(0, 720)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(2, 4)},
-            {Dimension(0, 380), Dimension(256), Dimension(256), Dimension(256)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(3, 4)},
-            {Dimension(0, 380), Dimension(256), Dimension(256), Dimension(256)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(3, 4)},
-            {Dimension(128), Dimension(0, 256), Dimension(0, 640), Dimension(0, 330)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(0, 6)},
-            {Dimension(128), Dimension(0, 256), Dimension(0, 640), Dimension(128)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(0, 6)},
-            {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(0, 720)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(3, 7)},
-            {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(128)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(4, 6)},
-            {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(0, 330)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(4, 6)},
-            {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(256)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(2, 8)},
-            {Dimension(256), Dimension(256), Dimension(256), Dimension(0, 330)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {1000, Dimension(2, 8)},
-            {Dimension(256), Dimension(256), Dimension(256), Dimension(256)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(0, 4)},
-            {Dimension(0, 128), Dimension(0, 256), Dimension(0, 64), Dimension(0, 33)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(0, 4)},
-            {Dimension(0, 128), Dimension(0, 256), Dimension(0, 64), Dimension(33)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(1, 4)},
-            {Dimension(0, 128), Dimension(0, 256), Dimension(64), Dimension(0, 72)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(1, 4)},
-            {Dimension(0, 128), Dimension(0, 256), Dimension(64), Dimension(64)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(2, 4)},
-            {Dimension(0, 512), Dimension(256), Dimension(0, 640), Dimension(0, 330)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(2, 4)},
-            {Dimension(0, 512), Dimension(256), Dimension(0, 640), Dimension(256)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(3, 5)},
-            {Dimension(0, 512), Dimension(256), Dimension(256), Dimension(0, 720)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(3, 5)},
-            {Dimension(0, 380), Dimension(256), Dimension(256), Dimension(256)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(4, 6)},
-            {Dimension(128), Dimension(0, 256), Dimension(0, 640), Dimension(0, 330)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(4, 6)},
-            {Dimension(128), Dimension(0, 256), Dimension(0, 640), Dimension(128)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(3, 8)},
-            {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(0, 720)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(3, 8)},
-            {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(128)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(4, 11)},
-            {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(0, 330)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(4, 11)},
-            {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(256)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(2, 16)},
-            {Dimension(256), Dimension(256), Dimension(256), Dimension(0, 330)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
-        ROIFeatureIntervalsTestParams{
-            {Dimension::dynamic(), Dimension(2, 16)},
-            {Dimension(256), Dimension(256), Dimension(256), Dimension(256)},
-            {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}}),
+        ROIFeatureIntervalsTestParams{{1000, Dimension(0, 5)},
+                                      {Dimension(0, 128), Dimension(0, 256), Dimension(0, 64), Dimension(0, 33)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(0, 5)},
+                                      {Dimension(0, 128), Dimension(0, 256), Dimension(0, 64), Dimension(33)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(2, 5)},
+                                      {Dimension(0, 128), Dimension(0, 256), Dimension(64), Dimension(0, 72)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(2, 5)},
+                                      {Dimension(0, 128), Dimension(0, 256), Dimension(64), Dimension(64)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(0, 5)},
+                                      {Dimension(0, 512), Dimension(256), Dimension(0, 640), Dimension(0, 330)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(0, 5)},
+                                      {Dimension(0, 512), Dimension(256), Dimension(0, 640), Dimension(256)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(2, 4)},
+                                      {Dimension(0, 512), Dimension(256), Dimension(256), Dimension(0, 720)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(2, 4)},
+                                      {Dimension(0, 380), Dimension(256), Dimension(256), Dimension(256)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(3, 4)},
+                                      {Dimension(0, 380), Dimension(256), Dimension(256), Dimension(256)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(3, 4)},
+                                      {Dimension(128), Dimension(0, 256), Dimension(0, 640), Dimension(0, 330)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(0, 6)},
+                                      {Dimension(128), Dimension(0, 256), Dimension(0, 640), Dimension(128)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(0, 6)},
+                                      {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(0, 720)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(3, 7)},
+                                      {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(128)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(4, 6)},
+                                      {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(0, 330)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(4, 6)},
+                                      {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(256)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(2, 8)},
+                                      {Dimension(256), Dimension(256), Dimension(256), Dimension(0, 330)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{1000, Dimension(2, 8)},
+                                      {Dimension(256), Dimension(256), Dimension(256), Dimension(256)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(0, 4)},
+                                      {Dimension(0, 128), Dimension(0, 256), Dimension(0, 64), Dimension(0, 33)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(0, 4)},
+                                      {Dimension(0, 128), Dimension(0, 256), Dimension(0, 64), Dimension(33)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(1, 4)},
+                                      {Dimension(0, 128), Dimension(0, 256), Dimension(64), Dimension(0, 72)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(1, 4)},
+                                      {Dimension(0, 128), Dimension(0, 256), Dimension(64), Dimension(64)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(2, 4)},
+                                      {Dimension(0, 512), Dimension(256), Dimension(0, 640), Dimension(0, 330)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(2, 4)},
+                                      {Dimension(0, 512), Dimension(256), Dimension(0, 640), Dimension(256)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(3, 5)},
+                                      {Dimension(0, 512), Dimension(256), Dimension(256), Dimension(0, 720)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(3, 5)},
+                                      {Dimension(0, 380), Dimension(256), Dimension(256), Dimension(256)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(4, 6)},
+                                      {Dimension(128), Dimension(0, 256), Dimension(0, 640), Dimension(0, 330)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(4, 6)},
+                                      {Dimension(128), Dimension(0, 256), Dimension(0, 640), Dimension(128)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(3, 8)},
+                                      {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(0, 720)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(3, 8)},
+                                      {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(128)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(4, 11)},
+                                      {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(0, 330)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(4, 11)},
+                                      {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(256)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(2, 16)},
+                                      {Dimension(256), Dimension(256), Dimension(256), Dimension(0, 330)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}},
+        ROIFeatureIntervalsTestParams{{Dimension::dynamic(), Dimension(2, 16)},
+                                      {Dimension(256), Dimension(256), Dimension(256), Dimension(256)},
+                                      {Dimension(0, 2), Dimension(1, 3), Dimension(0, 5), Dimension(1, 2)}}),
     PrintToDummyParamName());
 
-struct ROIFeatureIntervalsSameFirstDimsTestParams
-{
+struct ROIFeatureIntervalsSameFirstDimsTestParams {
     PartialShape input_shape;
     Dimension channels[4];
 };
 
-struct ROIFeatureIntervalsSameFirstDimsTest
-    : ::testing::TestWithParam<ROIFeatureIntervalsSameFirstDimsTestParams>
-{
-};
+struct ROIFeatureIntervalsSameFirstDimsTest : ::testing::TestWithParam<ROIFeatureIntervalsSameFirstDimsTestParams> {};
 
-TEST_P(ROIFeatureIntervalsSameFirstDimsTest, detectron_roi_feature_extractor_intervals_1)
-{
+TEST_P(ROIFeatureIntervalsSameFirstDimsTest, detectron_roi_feature_extractor_intervals_1) {
     auto params = GetParam();
 
     Attrs attrs;
@@ -304,7 +259,8 @@ TEST_P(ROIFeatureIntervalsSameFirstDimsTest, detectron_roi_feature_extractor_int
     auto pyramid_layer3 = std::make_shared<op::Parameter>(element::f32, layer3_shape);
 
     auto roi = std::make_shared<ExperimentalROI>(
-        NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3}, attrs);
+        NodeVector{input, pyramid_layer0, pyramid_layer1, pyramid_layer2, pyramid_layer3},
+        attrs);
 
     ASSERT_EQ(roi->get_output_element_type(0), element::f32);
     ASSERT_TRUE(roi->get_output_partial_shape(0).same_scheme(ref_out_shape));
@@ -335,9 +291,8 @@ INSTANTIATE_TEST_SUITE_P(
         ROIFeatureIntervalsSameFirstDimsTestParams{
             {Dimension(1000), Dimension(4)},
             {Dimension(0, 512), Dimension(256), Dimension(256), Dimension(0, 720)}},
-        ROIFeatureIntervalsSameFirstDimsTestParams{
-            {Dimension(1000), Dimension(4)},
-            {Dimension(0, 380), Dimension(256), Dimension(256), Dimension(256)}},
+        ROIFeatureIntervalsSameFirstDimsTestParams{{Dimension(1000), Dimension(4)},
+                                                   {Dimension(0, 380), Dimension(256), Dimension(256), Dimension(256)}},
         ROIFeatureIntervalsSameFirstDimsTestParams{
             {Dimension(1000), Dimension(4)},
             {Dimension(128), Dimension(0, 256), Dimension(0, 640), Dimension(0, 330)}},
@@ -347,21 +302,17 @@ INSTANTIATE_TEST_SUITE_P(
         ROIFeatureIntervalsSameFirstDimsTestParams{
             {Dimension(1000), Dimension(4)},
             {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(0, 720)}},
-        ROIFeatureIntervalsSameFirstDimsTestParams{
-            {Dimension(1000), Dimension(4)},
-            {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(128)}},
+        ROIFeatureIntervalsSameFirstDimsTestParams{{Dimension(1000), Dimension(4)},
+                                                   {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(128)}},
         ROIFeatureIntervalsSameFirstDimsTestParams{
             {Dimension(1000), Dimension(4)},
             {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(0, 330)}},
-        ROIFeatureIntervalsSameFirstDimsTestParams{
-            {Dimension(1000), Dimension(4)},
-            {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(256)}},
-        ROIFeatureIntervalsSameFirstDimsTestParams{
-            {Dimension(1000), Dimension(4)},
-            {Dimension(256), Dimension(256), Dimension(256), Dimension(0, 330)}},
-        ROIFeatureIntervalsSameFirstDimsTestParams{
-            {Dimension(1000), Dimension(4)},
-            {Dimension(256), Dimension(256), Dimension(256), Dimension(256)}},
+        ROIFeatureIntervalsSameFirstDimsTestParams{{Dimension(1000), Dimension(4)},
+                                                   {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(256)}},
+        ROIFeatureIntervalsSameFirstDimsTestParams{{Dimension(1000), Dimension(4)},
+                                                   {Dimension(256), Dimension(256), Dimension(256), Dimension(0, 330)}},
+        ROIFeatureIntervalsSameFirstDimsTestParams{{Dimension(1000), Dimension(4)},
+                                                   {Dimension(256), Dimension(256), Dimension(256), Dimension(256)}},
         ROIFeatureIntervalsSameFirstDimsTestParams{
             {Dimension::dynamic(), Dimension(4)},
             {Dimension(0, 128), Dimension(0, 256), Dimension(0, 64), Dimension(0, 33)}},
@@ -383,9 +334,8 @@ INSTANTIATE_TEST_SUITE_P(
         ROIFeatureIntervalsSameFirstDimsTestParams{
             {Dimension::dynamic(), Dimension(4)},
             {Dimension(0, 512), Dimension(256), Dimension(256), Dimension(0, 720)}},
-        ROIFeatureIntervalsSameFirstDimsTestParams{
-            {Dimension::dynamic(), Dimension(4)},
-            {Dimension(0, 380), Dimension(256), Dimension(256), Dimension(256)}},
+        ROIFeatureIntervalsSameFirstDimsTestParams{{Dimension::dynamic(), Dimension(4)},
+                                                   {Dimension(0, 380), Dimension(256), Dimension(256), Dimension(256)}},
         ROIFeatureIntervalsSameFirstDimsTestParams{
             {Dimension::dynamic(), Dimension(4)},
             {Dimension(128), Dimension(0, 256), Dimension(0, 640), Dimension(0, 330)}},
@@ -395,19 +345,15 @@ INSTANTIATE_TEST_SUITE_P(
         ROIFeatureIntervalsSameFirstDimsTestParams{
             {Dimension::dynamic(), Dimension(4)},
             {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(0, 720)}},
-        ROIFeatureIntervalsSameFirstDimsTestParams{
-            {Dimension::dynamic(), Dimension(4)},
-            {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(128)}},
+        ROIFeatureIntervalsSameFirstDimsTestParams{{Dimension::dynamic(), Dimension(4)},
+                                                   {Dimension(128), Dimension(0, 256), Dimension(128), Dimension(128)}},
         ROIFeatureIntervalsSameFirstDimsTestParams{
             {Dimension::dynamic(), Dimension(4)},
             {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(0, 330)}},
-        ROIFeatureIntervalsSameFirstDimsTestParams{
-            {Dimension::dynamic(), Dimension(4)},
-            {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(256)}},
-        ROIFeatureIntervalsSameFirstDimsTestParams{
-            {Dimension::dynamic(), Dimension(4)},
-            {Dimension(256), Dimension(256), Dimension(256), Dimension(0, 330)}},
-        ROIFeatureIntervalsSameFirstDimsTestParams{
-            {Dimension::dynamic(), Dimension(4)},
-            {Dimension(256), Dimension(256), Dimension(256), Dimension(256)}}),
+        ROIFeatureIntervalsSameFirstDimsTestParams{{Dimension::dynamic(), Dimension(4)},
+                                                   {Dimension(256), Dimension(256), Dimension(0, 640), Dimension(256)}},
+        ROIFeatureIntervalsSameFirstDimsTestParams{{Dimension::dynamic(), Dimension(4)},
+                                                   {Dimension(256), Dimension(256), Dimension(256), Dimension(0, 330)}},
+        ROIFeatureIntervalsSameFirstDimsTestParams{{Dimension::dynamic(), Dimension(4)},
+                                                   {Dimension(256), Dimension(256), Dimension(256), Dimension(256)}}),
     PrintToDummyParamName());

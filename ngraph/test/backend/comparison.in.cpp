@@ -8,8 +8,8 @@
 #include <cstdlib>
 #include <random>
 #include <string>
-#include "gtest/gtest.h"
 
+#include "gtest/gtest.h"
 #include "ngraph/log.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
@@ -26,8 +26,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, notequal)
-{
+NGRAPH_TEST(${BACKEND_NAME}, notequal) {
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -47,8 +46,7 @@ NGRAPH_TEST(${BACKEND_NAME}, notequal)
     EXPECT_EQ((vector<char>{0, 0, 1, 1, 1, 0, 0, 1}), read_vector<char>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, greater)
-{
+NGRAPH_TEST(${BACKEND_NAME}, greater) {
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -68,8 +66,7 @@ NGRAPH_TEST(${BACKEND_NAME}, greater)
     EXPECT_EQ((vector<char>{0, 1, 0, 1, 0, 1, 1, 0}), read_vector<char>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, greater_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, greater_int64) {
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::i64, shape);
     auto B = make_shared<op::Parameter>(element::i64, shape);
@@ -89,8 +86,7 @@ NGRAPH_TEST(${BACKEND_NAME}, greater_int64)
     EXPECT_EQ((vector<char>{1, 1, 0, 1, 0, 1, 1, 0}), read_vector<char>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, greatereq)
-{
+NGRAPH_TEST(${BACKEND_NAME}, greatereq) {
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);

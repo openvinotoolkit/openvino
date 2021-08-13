@@ -7,13 +7,10 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/node.hpp"
 
-namespace ngraph
-{
-    namespace builder
-    {
-        namespace opset1
-        {
-            // clang-format off
+namespace ngraph {
+namespace builder {
+namespace opset1 {
+// clang-format off
             /// \brief Sum-based Mean of a Tensor.
             ///
             /// Calculates
@@ -35,16 +32,12 @@ namespace ngraph
             /// | Type                                      | Description                                                                                                      |
             /// | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
             /// | \f$E[\textit{delete}(A,d_1,\dots,d_n)]\f$ | The tensor \f$T\f$, where \f$T\f$ is the input tensor with the `reduction_axes` \f$A\f$ eliminated by reduction. |
-            // clang-format on
-            std::shared_ptr<Node> mean(const Output<Node>& node,
-                                       const AxisSet& reduction_axes,
-                                       bool keep_dims = false);
+// clang-format on
+std::shared_ptr<Node> mean(const Output<Node>& node, const AxisSet& reduction_axes, bool keep_dims = false);
 
-            std::shared_ptr<Node> mean(const Output<Node>& node,
-                                       const Output<Node>& reduction_axes,
-                                       bool keep_dims = false);
+std::shared_ptr<Node> mean(const Output<Node>& node, const Output<Node>& reduction_axes, bool keep_dims = false);
 
-            // clang-format off
+// clang-format off
             /// \brief Sum-based Variance of a Tensor.
             ///
             /// If bessel_correct is true, calculates
@@ -70,16 +63,16 @@ namespace ngraph
             /// | Type                                      | Description                                                                                                      |
             /// | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
             /// | \f$E[\textit{delete}(A,d_1,\dots,d_n)]\f$ | The tensor \f$T\f$, where \f$T\f$ is the input tensor with the `reduction_axes` \f$A\f$ eliminated by reduction. |
-            // clang-format on
-            std::shared_ptr<Node> variance(const Output<Node>& value,
-                                           const AxisSet& reduction_axes,
-                                           const bool bessel_correction = false);
+// clang-format on
+std::shared_ptr<Node> variance(const Output<Node>& value,
+                               const AxisSet& reduction_axes,
+                               const bool bessel_correction = false);
 
-            std::shared_ptr<Node> variance(const Output<Node>& value,
-                                           const Output<Node>& reduction_axes,
-                                           bool keep_dims = false,
-                                           bool bessel_correction = false);
-        } // namespace opset1
+std::shared_ptr<Node> variance(const Output<Node>& value,
+                               const Output<Node>& reduction_axes,
+                               bool keep_dims = false,
+                               bool bessel_correction = false);
+}  // namespace opset1
 
-    } // namespace builder
-} // namespace ngraph
+}  // namespace builder
+}  // namespace ngraph

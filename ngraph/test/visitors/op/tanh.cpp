@@ -3,19 +3,16 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
-TEST(attributes, tanh_op)
-{
+TEST(attributes, tanh_op) {
     NodeBuilder::get_ops().register_factory<op::Tanh>();
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto tanh = make_shared<op::Tanh>(data_node);

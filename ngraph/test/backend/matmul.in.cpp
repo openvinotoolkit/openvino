@@ -28,8 +28,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x0_0x2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x0_0x2) {
     Shape shape_a{2, 0};
     Shape shape_b{0, 2};
     Shape shape_r{2, 2};
@@ -56,8 +55,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x0_0x2)
     EXPECT_TRUE(test::all_close_f((vector<float>{0, 0, 0, 0}), read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_0x2_2x0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_0x2_2x0) {
     Shape shape_a{0, 2};
 
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -80,8 +78,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_0x2_2x0)
     EXPECT_TRUE(test::all_close_f((vector<float>{}), read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_2x0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_2x0) {
     Shape shape_a{3, 2};
 
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
@@ -104,8 +101,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_2x0)
     EXPECT_TRUE(test::all_close_f((vector<float>{}), read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2_2x2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2_2x2) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -126,8 +122,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2_2x2)
     EXPECT_TRUE(test::all_close_f((vector<float>{19, 22, 43, 50}), read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3_3x3)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3_3x3) {
     Shape shape_in1{2, 3};
     Shape shape_in2{3, 3};
     Shape shape_out{2, 3};
@@ -149,12 +144,10 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3_3x3)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-                                  vector<float>{30.f, 36.f, 42.f, 66.f, 81.f, 96.f}));
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{30.f, 36.f, 42.f, 66.f, 81.f, 96.f}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3_3x3_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3_3x3_int64) {
     Shape shape_in1{2, 3};
     Shape shape_in2{3, 3};
     Shape shape_out{2, 3};
@@ -176,12 +169,10 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3_3x3_int64)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(
-        test::all_close(read_vector<int64_t>(result), vector<int64_t>{30, 36, 42, 66, 81, 96}));
+    EXPECT_TRUE(test::all_close(read_vector<int64_t>(result), vector<int64_t>{30, 36, 42, 66, 81, 96}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_3x3_transpose)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_3x3_transpose) {
     Shape shape_in1{3, 2};
     Shape shape_in2{3, 3};
     Shape shape_out{2, 3};
@@ -203,12 +194,10 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_3x3_transpose)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-                                  vector<float>{30.f, 36.f, 42.f, 66.f, 81.f, 96.f}));
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{30.f, 36.f, 42.f, 66.f, 81.f, 96.f}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_2x3_transpose)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_2x3_transpose) {
     Shape shape_in1{3, 2};
     Shape shape_in2{2, 3};
     Shape shape_out{2, 2};
@@ -230,12 +219,10 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3x2_2x3_transpose)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(
-        test::all_close_f(read_vector<float>(result), vector<float>{22.f, 28.f, 49.f, 64.f}));
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{22.f, 28.f, 49.f, 64.f}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3x2_3x3_transpose)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3x2_3x3_transpose) {
     Shape shape_in1{2, 3, 2};
     Shape shape_in2{3, 3};
     Shape shape_out{2, 2, 3};
@@ -257,13 +244,12 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3x2_3x3_transpose)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(test::all_close_f(
-        read_vector<float>(result),
-        vector<float>{30.f, 36.f, 42.f, 66.f, 81.f, 96.f, 42.f, 51.f, 60.f, 60.f, 72.f, 84.f}));
+    EXPECT_TRUE(
+        test::all_close_f(read_vector<float>(result),
+                          vector<float>{30.f, 36.f, 42.f, 66.f, 81.f, 96.f, 42.f, 51.f, 60.f, 60.f, 72.f, 84.f}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2) {
     Shape shape_in1{2};
     Shape shape_in2{2};
     Shape shape_out{};
@@ -287,8 +273,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2)
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{5.f}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose) {
     Shape shape_in1{2, 2, 3};
     Shape shape_in2{2, 1, 3};
     Shape shape_out{2, 2, 1};
@@ -315,12 +300,10 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(
-        test::all_close(read_vector<float>(result), vector<float>{14.f, 32.f, 122.f, 167.f}));
+    EXPECT_TRUE(test::all_close(read_vector<float>(result), vector<float>{14.f, 32.f, 122.f, 167.f}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose_int64) {
     Shape shape_in1{2, 2, 3};
     Shape shape_in2{2, 1, 3};
     Shape shape_out{2, 2, 1};
@@ -350,8 +333,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose_int64)
     EXPECT_TRUE(test::all_close(read_vector<int64_t>(result), vector<int64_t>{14, 32, 122, 167}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x3x1_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x3x1_int64) {
     Shape shape_in1{2, 2, 3};
     Shape shape_in2{2, 3, 1};
     Shape shape_out{2, 2, 1};
@@ -381,8 +363,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x3x1_int64)
     EXPECT_TRUE(test::all_close(read_vector<int64_t>(result), vector<int64_t>{14, 32, 122, 167}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_1x2x3_1x4x3x2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1x2x3_1x4x3x2) {
     Shape shape_in1{1, 2, 3};
     Shape shape_in2{1, 4, 3, 2};
     Shape shape_out{1, 4, 2, 2};
@@ -430,8 +411,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_1x2x3_1x4x3x2)
 }
 
 // 1D x 1D
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_false_false_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_false_false_param) {
     Shape shape_in1{3};
     Shape shape_in2{3};
     Shape shape_out{};
@@ -456,8 +436,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_false_false_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_true_true_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_true_true_param) {
     Shape shape_in1{3};
     Shape shape_in2{3};
     Shape shape_out{};
@@ -483,8 +462,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_true_true_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_false_false_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_false_false_const) {
     Shape shape_in1{3};
     Shape shape_in2{3};
     Shape shape_out{};
@@ -508,8 +486,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_false_false_const)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_true_true_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_true_true_const) {
     Shape shape_in1{3};
     Shape shape_in2{3};
     Shape shape_out{};
@@ -535,8 +512,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_true_true_const)
 }
 
 // 2D x 1D
-NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_x_3_false_false_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_x_3_false_false_param) {
     Shape shape_in1{1, 3};
     Shape shape_in2{3};
     Shape shape_out{1};
@@ -561,8 +537,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_x_3_false_false_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_x_3_false_false_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_x_3_false_false_const) {
     Shape shape_in1{1, 3};
     Shape shape_in2{3};
     Shape shape_out{1};
@@ -586,8 +561,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_x_3_false_false_const)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_x_3_true_false_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_x_3_true_false_param) {
     Shape shape_in1{3, 1};
     Shape shape_in2{3};
     Shape shape_out{1};
@@ -612,8 +586,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_x_3_true_false_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_x_3_true_false_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_x_3_true_false_const) {
     Shape shape_in1{3, 1};
     Shape shape_in2{3};
     Shape shape_out{1};
@@ -638,8 +611,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_x_3_true_false_const)
 }
 
 // 1D x 2D
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_1_false_false_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_1_false_false_param) {
     Shape shape_in1{3};
     Shape shape_in2{3, 1};
     Shape shape_out{1};
@@ -664,8 +636,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_1_false_false_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_1_false_false_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_1_false_false_const) {
     Shape shape_in1{3};
     Shape shape_in2{3, 1};
     Shape shape_out{1};
@@ -689,8 +660,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_3_1_false_false_const)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_false_true_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_false_true_param) {
     Shape shape_in1{3};
     Shape shape_in2{1, 3};
     Shape shape_out{1};
@@ -715,8 +685,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_false_true_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_false_true_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_false_true_const) {
     Shape shape_in1{3};
     Shape shape_in2{1, 3};
     Shape shape_out{1};
@@ -740,8 +709,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_false_true_const)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_true_true_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_true_true_param) {
     Shape shape_in1{3};
     Shape shape_in2{1, 3};
     Shape shape_out{1};
@@ -766,8 +734,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_true_true_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_true_true_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_true_true_const) {
     Shape shape_in1{3};
     Shape shape_in2{1, 3};
     Shape shape_out{1};
@@ -792,8 +759,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_true_true_const)
 }
 
 // 3D x 1D
-NGRAPH_TEST(${BACKEND_NAME}, matmul_1_1_3_x_3_false_false_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_1_3_x_3_false_false_param) {
     Shape shape_in1{1, 1, 3};
     Shape shape_in2{3};
     Shape shape_out{1, 1};
@@ -818,8 +784,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_1_1_3_x_3_false_false_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_1_1_3_x_3_false_false_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_1_3_x_3_false_false_const) {
     Shape shape_in1{1, 1, 3};
     Shape shape_in2{3};
     Shape shape_out{1, 1};
@@ -843,8 +808,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_1_1_3_x_3_false_false_const)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_1_x_3_true_false_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_1_x_3_true_false_param) {
     Shape shape_in1{1, 3, 1};
     Shape shape_in2{3};
     Shape shape_out{1, 1};
@@ -869,8 +833,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_1_x_3_true_false_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_1_x_3_true_false_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_1_x_3_true_false_const) {
     Shape shape_in1{1, 3, 1};
     Shape shape_in2{3};
     Shape shape_out{1, 1};
@@ -895,8 +858,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_1_3_1_x_3_true_false_const)
 }
 
 // 1D x 3D
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_1_false_false_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_1_false_false_param) {
     Shape shape_in1{3};
     Shape shape_in2{1, 3, 1};
     Shape shape_out{1, 1};
@@ -921,8 +883,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_1_false_false_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_1_3_false_true_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_1_3_false_true_param) {
     Shape shape_in1{3};
     Shape shape_in2{1, 1, 3};
     Shape shape_out{1, 1};
@@ -947,8 +908,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_1_3_false_true_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_1_false_false_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_1_false_false_const) {
     Shape shape_in1{3};
     Shape shape_in2{1, 3, 1};
     Shape shape_out{1, 1};
@@ -972,8 +932,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_3_1_false_false_const)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_1_3_false_true_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_1_3_false_true_const) {
     Shape shape_in1{3};
     Shape shape_in2{1, 1, 3};
     Shape shape_out{1, 1};
@@ -997,8 +956,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_1_1_3_false_true_const)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2_1_3_x_3_false_false_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2_1_3_x_3_false_false_param) {
     Shape shape_a{2, 2, 1, 3};
     Shape shape_b{3};
     Shape shape_out{2, 2, 1};
@@ -1027,8 +985,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2_1_3_x_3_false_false_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2_1_3_x_3_false_false_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2_1_3_x_3_false_false_const) {
     Shape shape_a{2, 2, 1, 3};
     Shape shape_b{3};
     Shape shape_out{2, 2, 1};
@@ -1056,8 +1013,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2_1_3_x_3_false_false_const)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_2_2_3_1_false_false_param)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_2_2_3_1_false_false_param) {
     Shape shape_a{3};
     Shape shape_b{2, 2, 3, 1};
     Shape shape_out{2, 2, 1};
@@ -1086,8 +1042,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_2_2_3_1_false_false_param)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_2_2_3_1_false_false_const)
-{
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_2_2_3_1_false_false_const) {
     Shape shape_a{3};
     Shape shape_b{2, 2, 3, 1};
     Shape shape_out{2, 2, 1};

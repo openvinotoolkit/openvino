@@ -31,15 +31,13 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, asin)
-{
+NGRAPH_TEST(${BACKEND_NAME}, asin) {
     Shape shape{11};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Asin>(A), ParameterVector{A});
 
     auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<float>(
-        {-1.f, -0.75f, -0.5f, -0.25f, -0.125f, 0.f, 0.125f, 0.25f, 0.5f, 0.75f, 1.f});
+    test_case.add_input<float>({-1.f, -0.75f, -0.5f, -0.25f, -0.125f, 0.f, 0.125f, 0.25f, 0.5f, 0.75f, 1.f});
     test_case.add_expected_output<float>(shape,
                                          {-1.57079633f,
                                           -0.84806208f,

@@ -3,12 +3,12 @@
 //
 
 #include "pyngraph/ops/util/regmodule_pyngraph_op_util.hpp"
+
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
 
-void regmodule_pyngraph_op_util(py::module m)
-{
+void regmodule_pyngraph_op_util(py::module m) {
     py::module m_util = m.def_submodule("util", "module pyngraph.op.util");
     //    regclass_pyngraph_op_util_RequiresTensorViewArgs(m_util);
     regclass_pyngraph_op_util_OpAnnotations(m_util);

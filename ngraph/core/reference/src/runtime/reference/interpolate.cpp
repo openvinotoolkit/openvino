@@ -3,19 +3,18 @@
 //
 
 #include "ngraph/runtime/reference/interpolate.hpp"
+
 #include <numeric>
 
 using namespace ngraph::runtime::reference;
 
 using Coordinate = ngraph::Coordinate;
 
-float InterpolateEvalHelper::triangle_coeff(float dz)
-{
+float InterpolateEvalHelper::triangle_coeff(float dz) {
     return std::max(0.0f, 1.0f - std::fabs(dz));
 }
 
-std::array<float, 4> InterpolateEvalHelper::get_cubic_coeff(float s, float a)
-{
+std::array<float, 4> InterpolateEvalHelper::get_cubic_coeff(float s, float a) {
     std::array<float, 4> coeff;
     float abs_s = std::fabs(s);
     coeff[0] = ((a * (abs_s + 1) - 5 * a) * (abs_s + 1) + 8 * a) * (abs_s + 1) - 4 * a;
@@ -25,12 +24,10 @@ std::array<float, 4> InterpolateEvalHelper::get_cubic_coeff(float s, float a)
     return coeff;
 }
 
-Coordinate InterpolateEvalHelper::get_input_coords_for_nearest_mode(const Coordinate& output_coord)
-{
+Coordinate InterpolateEvalHelper::get_input_coords_for_nearest_mode(const Coordinate& output_coord) {
     std::size_t input_rank = m_input_data_shape.size();
     auto input_coord = output_coord;
-    for (std::size_t i = 0; i < input_rank; ++i)
-    {
+    for (std::size_t i = 0; i < input_rank; ++i) {
         float length_original = static_cast<float>(m_input_data_shape[i]);
         float in_coord = m_get_original_coord(static_cast<float>(output_coord[i]),
                                               m_all_scales[i],
@@ -38,16 +35,13 @@ Coordinate InterpolateEvalHelper::get_input_coords_for_nearest_mode(const Coordi
                                               length_original);
         int64_t nearest_pixel = m_get_nearest_pixel(in_coord, m_all_scales[i] < 1.0);
         input_coord[i] =
-            std::max(static_cast<int64_t>(0),
-                     std::min(nearest_pixel, static_cast<int64_t>(length_original) - 1));
+            std::max(static_cast<int64_t>(0), std::min(nearest_pixel, static_cast<int64_t>(length_original) - 1));
     }
 
     return input_coord;
 }
 
-InterpolateEvalHelper::InfoForGenericLinearONNXMode
-    InterpolateEvalHelper::get_info_for_generic_linear_onnx()
-{
+InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_info_for_generic_linear_onnx() {
     InfoForGenericLinearONNXMode result;
 
     std::size_t input_rank = m_input_data_shape.size();
@@ -55,18 +49,18 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode
     Shape input_shape;
     Shape output_shape;
 
-    switch (input_rank)
-    {
+    switch (input_rank) {
     case 2:
         input_shape = Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1]};
         output_shape = Shape{1, 1, m_out_shape[0], m_out_shape[1]};
         break;
     case 3:
-        input_shape =
-            Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1], m_input_data_shape[2]};
+        input_shape = Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1], m_input_data_shape[2]};
         output_shape = Shape{1, 1, m_out_shape[0], m_out_shape[1], m_out_shape[2]};
         break;
-    default: input_shape = m_input_data_shape; output_shape = m_out_shape;
+    default:
+        input_shape = m_input_data_shape;
+        output_shape = m_out_shape;
     }
 
     int64_t batch_size = input_shape[0];
@@ -79,24 +73,18 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode
     input_index_multipliers[spatial_rank - 1] = 1;
     output_index_multipliers[spatial_rank - 1] = 1;
 
-    for (int64_t i = static_cast<int64_t>(spatial_rank) - 2; i >= 0; --i)
-    {
-        input_index_multipliers[i] =
-            input_index_multipliers[i + 1] * static_cast<int64_t>(input_shape[i + 3]);
-        output_index_multipliers[i] =
-            output_index_multipliers[i + 1] * static_cast<int64_t>(output_shape[i + 3]);
+    for (int64_t i = static_cast<int64_t>(spatial_rank) - 2; i >= 0; --i) {
+        input_index_multipliers[i] = input_index_multipliers[i + 1] * static_cast<int64_t>(input_shape[i + 3]);
+        output_index_multipliers[i] = output_index_multipliers[i + 1] * static_cast<int64_t>(output_shape[i + 3]);
     }
 
-    int64_t input_data_ptr_increment =
-        input_index_multipliers[0] * static_cast<int64_t>(input_shape[2]);
-    int64_t output_data_ptr_increment =
-        output_index_multipliers[0] * static_cast<int64_t>(output_shape[2]);
+    int64_t input_data_ptr_increment = input_index_multipliers[0] * static_cast<int64_t>(input_shape[2]);
+    int64_t output_data_ptr_increment = output_index_multipliers[0] * static_cast<int64_t>(output_shape[2]);
 
     std::vector<int64_t> input_spatial_shape(spatial_rank);
     std::vector<int64_t> output_spatial_shape(spatial_rank);
 
-    for (size_t i = 0; i < spatial_rank; ++i)
-    {
+    for (size_t i = 0; i < spatial_rank; ++i) {
         input_spatial_shape[i] = static_cast<int64_t>(input_shape[i + 2]);
         output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + 2]);
     }
@@ -114,8 +102,7 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode
     return result;
 }
 
-float InterpolateEvalHelper::get_in_coord(float coord, int64_t axis_idx)
-{
+float InterpolateEvalHelper::get_in_coord(float coord, int64_t axis_idx) {
     float scale = m_scales[axis_idx];
     int64_t axis = m_axes[axis_idx];
     float length_resized = static_cast<float>(m_out_shape[axis]);
@@ -123,12 +110,10 @@ float InterpolateEvalHelper::get_in_coord(float coord, int64_t axis_idx)
     return m_get_original_coord(coord, scale, length_resized, length_original);
 }
 
-InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_linear_mode()
-{
+InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_linear_mode() {
     std::size_t num_of_axes = m_axes.size();
     bool is_downsample = false;
-    for (std::size_t scale : m_scales)
-    {
+    for (std::size_t scale : m_scales) {
         is_downsample = is_downsample || (scale < 1.0);
     }
 
@@ -143,12 +128,10 @@ InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_lin
 
     std::vector<std::size_t> vector_for_indeces(num_of_axes);
     float prod_a = 1;
-    for (std::size_t i = 0; i < num_of_axes; ++i)
-    {
+    for (std::size_t i = 0; i < num_of_axes; ++i) {
         a[i] = antialias ? m_scales[i] : 1.0;
         prod_a *= a[i];
-        r[i] = (m_scales[i] > 1.0) ? static_cast<int64_t>(2)
-                                   : static_cast<int64_t>(std::ceil(2.0f / a[i]));
+        r[i] = (m_scales[i] > 1.0) ? static_cast<int64_t>(2) : static_cast<int64_t>(std::ceil(2.0f / a[i]));
         vector_for_indeces[i] = 2 * r[i] + 1;
     }
     Shape shape_for_indeces{vector_for_indeces};
@@ -165,8 +148,7 @@ InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_lin
     return result;
 }
 
-InterpolateEvalHelper::ICoords InterpolateEvalHelper::get_icoords(const Coordinate& output_coord)
-{
+InterpolateEvalHelper::ICoords InterpolateEvalHelper::get_icoords(const Coordinate& output_coord) {
     ICoords result;
 
     std::size_t input_rank = m_input_data_shape.size();
@@ -174,14 +156,12 @@ InterpolateEvalHelper::ICoords InterpolateEvalHelper::get_icoords(const Coordina
 
     std::vector<float> icoords(input_rank);
     std::vector<int64_t> icoords_r(input_rank);
-    for (std::size_t i = 0; i < input_rank; ++i)
-    {
+    for (std::size_t i = 0; i < input_rank; ++i) {
         icoords[i] = static_cast<float>(output_coord[i]);
         icoords_r[i] = output_coord[i];
     }
 
-    for (std::size_t i = 0; i < num_of_axes; ++i)
-    {
+    for (std::size_t i = 0; i < num_of_axes; ++i) {
         int64_t axis = m_axes[i];
         float coordinate = static_cast<float>(output_coord[axis]);
         float in_coord = get_in_coord(coordinate, i);
@@ -195,58 +175,50 @@ InterpolateEvalHelper::ICoords InterpolateEvalHelper::get_icoords(const Coordina
     return result;
 }
 
-InterpolateEvalHelper::LinearModeInnerIterationResult
-    InterpolateEvalHelper::inner_calculation(const Coordinate& output_coord,
-                                             const ICoords& icoords_data,
-                                             const InfoForLinearMode& info,
-                                             const Coordinate& index)
-{
+InterpolateEvalHelper::LinearModeInnerIterationResult InterpolateEvalHelper::inner_calculation(
+    const Coordinate& output_coord,
+    const ICoords& icoords_data,
+    const InfoForLinearMode& info,
+    const Coordinate& index) {
     std::size_t input_rank = m_input_data_shape.size();
     std::size_t num_of_axes = m_axes.size();
 
     LinearModeInnerIterationResult result;
 
     std::vector<size_t> inner_coords_vector(input_rank);
-    for (std::size_t i = 0; i < input_rank; ++i)
-    {
+    for (std::size_t i = 0; i < input_rank; ++i) {
         inner_coords_vector[i] = output_coord[i];
     }
 
-    for (std::size_t i = 0; i < num_of_axes; ++i)
-    {
+    for (std::size_t i = 0; i < num_of_axes; ++i) {
         int64_t axis = m_axes[i];
         inner_coords_vector[axis] = index[i] + icoords_data.icoords_r[axis] - info.r[i];
     }
 
     bool condition = true;
-    for (int64_t axis : m_axes)
-    {
-        condition = condition && (inner_coords_vector[axis] >= 0) &&
-                    (inner_coords_vector[axis] < m_input_data_shape[axis]);
+    for (int64_t axis : m_axes) {
+        condition =
+            condition && (inner_coords_vector[axis] >= 0) && (inner_coords_vector[axis] < m_input_data_shape[axis]);
     }
 
     result.condition = condition;
-    if (!condition)
-    {
+    if (!condition) {
         return result;
     }
 
     std::vector<float> dz(num_of_axes);
-    for (std::size_t i = 0; i < num_of_axes; ++i)
-    {
+    for (std::size_t i = 0; i < num_of_axes; ++i) {
         int64_t axis = m_axes[i];
         dz[i] = icoords_data.icoords[axis] - inner_coords_vector[axis];
     }
 
     float w = info.prod_a;
-    for (std::size_t i = 0; i < num_of_axes; ++i)
-    {
+    for (std::size_t i = 0; i < num_of_axes; ++i) {
         w *= triangle_coeff(info.a[i] * dz[i]);
     }
 
     std::vector<std::size_t> unsigned_inner_coords_vector(input_rank);
-    for (std::size_t i = 0; i < input_rank; ++i)
-    {
+    for (std::size_t i = 0; i < input_rank; ++i) {
         unsigned_inner_coords_vector[i] = inner_coords_vector[i];
     }
 

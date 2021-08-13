@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/strides.hpp"  // ngraph::Strides
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -9,13 +11,11 @@
 #include <sstream>
 #include <string>
 
-#include "ngraph/strides.hpp" // ngraph::Strides
 #include "pyngraph/strides.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Strides(py::module m)
-{
+void regclass_pyngraph_Strides(py::module m) {
     py::class_<ngraph::Strides, std::shared_ptr<ngraph::Strides>> strides(m, "Strides");
     strides.doc() = "ngraph.impl.Strides wraps ngraph::Strides";
     strides.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axis_strides"));

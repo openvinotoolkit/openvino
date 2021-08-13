@@ -6,13 +6,11 @@
 
 #include <cstddef>
 
-namespace ngraph
-{
-    class Coordinate;
-    class Shape;
-} // namespace ngraph
+namespace ngraph {
+class Coordinate;
+class Shape;
+}  // namespace ngraph
 
-namespace ngraph
-{
-    std::size_t coordinate_index(const Coordinate& c, const Shape& s);
+namespace ngraph {
+std::size_t coordinate_index(const Coordinate& c, const Shape& s);
 }

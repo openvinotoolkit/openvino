@@ -14,7 +14,7 @@
 #include "pyngraph/node_input.hpp"
 #include "pyngraph/node_output.hpp"
 #if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
-#include "pyngraph/onnx_import/onnx_import.hpp"
+#    include "pyngraph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyngraph/dimension.hpp"
 #include "pyngraph/frontend/frontend.hpp"
@@ -36,12 +36,11 @@
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(_pyngraph, m)
-{
+PYBIND11_MODULE(_pyngraph, m) {
     m.doc() = "Package ngraph.impl that wraps nGraph's namespace ngraph";
     regclass_pyngraph_PyRTMap(m);
     regmodule_pyngraph_types(m);
-    regclass_pyngraph_Dimension(m); // Dimension must be registered before PartialShape
+    regclass_pyngraph_Dimension(m);  // Dimension must be registered before PartialShape
     regclass_pyngraph_Shape(m);
     regclass_pyngraph_PartialShape(m);
     regclass_pyngraph_Node(m);

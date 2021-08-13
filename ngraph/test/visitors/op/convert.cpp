@@ -3,7 +3,6 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "util/visitor.hpp"
 
@@ -11,8 +10,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, convert_op_v0)
-{
+TEST(attributes, convert_op_v0) {
     using Convert = op::v0::Convert;
 
     NodeBuilder::get_ops().register_factory<Convert>();

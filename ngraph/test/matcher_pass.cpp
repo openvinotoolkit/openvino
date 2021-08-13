@@ -21,13 +21,10 @@
 using namespace ngraph;
 using namespace std;
 
-class TestMatcherPass : public pass::MatcherPass
-{
+class TestMatcherPass : public pass::MatcherPass {
 public:
-    TestMatcherPass()
-    {
-        auto m_relu1 =
-            ngraph::pattern::wrap_type<ngraph::opset3::Relu>(pattern::consumers_count(1));
+    TestMatcherPass() {
+        auto m_relu1 = ngraph::pattern::wrap_type<ngraph::opset3::Relu>(pattern::consumers_count(1));
         auto m_relu2 = ngraph::pattern::wrap_type<ngraph::opset3::Relu>({m_relu1});
 
         ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
@@ -58,8 +55,7 @@ public:
     }
 };
 
-TEST(pattern, matcher_pass)
-{
+TEST(pattern, matcher_pass) {
     {
         TestMatcherPass test_matcher;
         auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});

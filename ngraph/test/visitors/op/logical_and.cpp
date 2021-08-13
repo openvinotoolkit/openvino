@@ -7,7 +7,4 @@
 
 using Type = ::testing::Types<BinaryOperatorType<ngraph::opset1::LogicalAnd, ngraph::element::boolean>>;
 
-INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast,
-                               BinaryOperatorVisitor,
-                               Type,
-                               BinaryOperatorTypeName);
+INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast, BinaryOperatorVisitor, Type, BinaryOperatorTypeName);

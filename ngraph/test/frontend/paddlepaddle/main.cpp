@@ -4,7 +4,6 @@
 
 #include "utils.hpp"
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     return FrontEndTestUtils::run_tests(argc, argv);
 }

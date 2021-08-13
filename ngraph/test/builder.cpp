@@ -3,7 +3,6 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "util/all_close.hpp"
 #include "util/test_tools.hpp"
@@ -11,9 +10,8 @@
 using namespace ngraph;
 using namespace std;
 
-shared_ptr<runtime::Tensor>
-    make_reduce_result(function<shared_ptr<Node>(const shared_ptr<Node>&, const AxisSet&)> func)
-{
+shared_ptr<runtime::Tensor> make_reduce_result(
+    function<shared_ptr<Node>(const shared_ptr<Node>&, const AxisSet&)> func) {
     Shape shape_a{3, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{2};
@@ -30,8 +28,7 @@ shared_ptr<runtime::Tensor>
 }
 
 shared_ptr<runtime::Tensor> make_reduce_result_true(
-    function<shared_ptr<Node>(const shared_ptr<Node>&, const AxisSet&, bool)> func)
-{
+    function<shared_ptr<Node>(const shared_ptr<Node>&, const AxisSet&, bool)> func) {
     Shape shape_a{3, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{2};
@@ -48,8 +45,7 @@ shared_ptr<runtime::Tensor> make_reduce_result_true(
 }
 
 shared_ptr<runtime::Tensor> make_reduce_result_false(
-    function<shared_ptr<Node>(const shared_ptr<Node>&, const AxisSet&, bool)> func)
-{
+    function<shared_ptr<Node>(const shared_ptr<Node>&, const AxisSet&, bool)> func) {
     Shape shape_a{3, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{2};

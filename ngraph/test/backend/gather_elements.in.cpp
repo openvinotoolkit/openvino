@@ -16,8 +16,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_1D_gather_elements_3_indices_int32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_1D_gather_elements_3_indices_int32) {
     auto arg1 = make_shared<op::Parameter>(element::i32, PartialShape{3});
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape{7});
     int64_t axis = 0;
@@ -32,8 +31,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_1D_gather_elements_3_indices_int32)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2_indices_int32_axis_0)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2_indices_int32_axis_0) {
     auto arg1 = make_shared<op::Parameter>(element::i32, PartialShape{2, 2});
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape{2, 2});
     int64_t axis = 0;
@@ -54,8 +52,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2_indices_int32_axis_
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2_indices_int32_axis_1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2_indices_int32_axis_1) {
     auto arg1 = make_shared<op::Parameter>(element::i32, PartialShape{2, 2});
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape{2, 2});
     int64_t axis = 1;
@@ -77,8 +74,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2_indices_int32_axis_
     // clang-format on
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2_indices_int32_axis_minus_1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2_indices_int32_axis_minus_1) {
     auto arg1 = make_shared<op::Parameter>(element::i32, PartialShape{2, 2});
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape{2, 2});
     int64_t axis = -1;
@@ -100,8 +96,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2_indices_int32_axis_
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x3_indices_int32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x3_indices_int32) {
     auto arg1 = make_shared<op::Parameter>(element::i32, PartialShape{3, 3});
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3});
     int64_t axis = 0;
@@ -124,8 +119,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x3_indices_int32)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_3D_gather_elements_3x2x2_indices_int32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_3D_gather_elements_3x2x2_indices_int32) {
     auto arg1 = make_shared<op::Parameter>(element::i32, PartialShape{3, 2, 2});
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape{3, 2, 2});
     int64_t axis = -1;
@@ -165,8 +159,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_3D_gather_elements_3x2x2_indices_int32)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_4D_gather_elements_3x2x2x2_indices_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_4D_gather_elements_3x2x2x2_indices_int64) {
     auto arg1 = make_shared<op::Parameter>(element::i32, PartialShape{3, 2, 2, 2});
     auto arg2 = make_shared<op::Parameter>(element::i64, PartialShape{3, 2, 2, 4});
     int64_t axis = -1;
@@ -240,8 +233,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_4D_gather_elements_3x2x2x2_indices_int64)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_3D_gather_elements_3x2x2_indices_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_3D_gather_elements_3x2x2_indices_int64) {
     auto arg1 = make_shared<op::Parameter>(element::i32, PartialShape{3, 2, 2});
     auto arg2 = make_shared<op::Parameter>(element::i64, PartialShape{3, 2, 2});
     int64_t axis = -1;
@@ -279,8 +271,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_3D_gather_elements_3x2x2_indices_int64)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_3x2_data_bool)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_3x2_data_bool) {
     auto arg1 = make_shared<op::Parameter>(element::boolean, PartialShape{3, 2});
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape{2, 2});
     int64_t axis = 0;
@@ -303,8 +294,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_3x2_data_bool)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x3_data_float32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x3_data_float32) {
     auto arg1 = make_shared<op::Parameter>(element::f32, PartialShape{3, 3});
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3});
     int64_t axis = 0;
@@ -328,8 +318,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x3_data_float32)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2x1_data_float32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2x1_data_float32) {
     auto arg1 = make_shared<op::Parameter>(element::i32, PartialShape{2, 2, 1});
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape{4, 2, 1});
     int64_t axis = 0;
@@ -369,8 +358,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2x1_data_float32)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_1D_gather_elements_negative_test)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_1D_gather_elements_negative_test) {
     auto arg1 = make_shared<op::Parameter>(element::i32, PartialShape{3});
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape{7});
     int64_t axis = 0;
@@ -384,24 +372,18 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_1D_gather_elements_negative_test)
 
     test_case.add_multiple_inputs<int32_t>({data, indices});
     test_case.add_expected_output<int32_t>(vector<int32_t>{2, 3, 1, 3, 1, 1, 3});
-    try
-    {
+    try {
         test_case.run();
         // Should have thrown, so fail if it didn't
         FAIL() << "Evaluate out ouf bound indices check failed";
-    }
-    catch (const std::domain_error& error)
-    {
+    } catch (const std::domain_error& error) {
         ASSERT_EQ(error.what(), std::string("indices values of GatherElement exceed data size"));
-    }
-    catch (...)
-    {
+    } catch (...) {
         FAIL() << "Evaluate out ouf bound indices check failed";
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_negative_test)
-{
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_negative_test) {
     auto arg1 = make_shared<op::Parameter>(element::i32, PartialShape{3, 3});
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3});
     int64_t axis = 0;
@@ -421,18 +403,13 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_negative_test)
     test_case.add_expected_output<int32_t>(vector<int32_t>{4, 8, 3,
                                                            7, 2, 3});
     // clang-format on
-    try
-    {
+    try {
         test_case.run();
         // Should have thrown, so fail if it didn't
         FAIL() << "Evaluate out ouf bound indices check failed";
-    }
-    catch (const std::domain_error& error)
-    {
+    } catch (const std::domain_error& error) {
         ASSERT_EQ(error.what(), std::string("indices values of GatherElement exceed data size"));
-    }
-    catch (...)
-    {
+    } catch (...) {
         FAIL() << "Evaluate out ouf bound indices check failed";
     }
 }

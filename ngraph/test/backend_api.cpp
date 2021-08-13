@@ -12,21 +12,18 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(backend_api, registered_devices)
-{
+TEST(backend_api, registered_devices) {
     vector<string> devices = runtime::Backend::get_registered_devices();
     EXPECT_GE(devices.size(), 0);
 
     EXPECT_TRUE(find(devices.begin(), devices.end(), "INTERPRETER") != devices.end());
 }
 
-TEST(backend_api, invalid_name)
-{
+TEST(backend_api, invalid_name) {
     ASSERT_ANY_THROW(ngraph::runtime::Backend::create("COMPLETELY-BOGUS-NAME"));
 }
 
-TEST(backend_api, config)
-{
+TEST(backend_api, config) {
     auto backend = runtime::Backend::create("INTERPRETER");
     string error;
     string message = "hello";
@@ -37,8 +34,7 @@ TEST(backend_api, config)
     EXPECT_STREQ(error.c_str(), "");
 }
 
-TEST(backend_api, DISABLED_config_unsupported)
-{
+TEST(backend_api, DISABLED_config_unsupported) {
     auto backend = runtime::Backend::create("NOP");
     string error;
     string message = "hello";
