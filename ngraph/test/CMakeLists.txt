@@ -115,6 +115,7 @@ set(SRC
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
+    type_prop/cum_sum.cpp
     type_prop/deformable_convolution.cpp
     type_prop/deformable_convolution_opset8.cpp
     type_prop/deformable_psroi_pooling.cpp
