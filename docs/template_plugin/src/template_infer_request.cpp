@@ -258,8 +258,6 @@ void TemplateInferRequest::inferPreprocess() {
         auto index = _executableNetwork->_inputIndex[networkInput.first];
         const auto& parameter = _executableNetwork->_function->get_parameters()[index];
         auto parameterShape = networkInput.second->getTensorDesc().getDims();
-        //    m_realShapes.find(networkInput.first) != m_realShapes.end() ?
-        //    ngraph::Shape(m_realShapes.at(networkInput.first)) : parameter->get_shape();
         const auto& parameterType = parameter->get_element_type();
         _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(
             parameterType,
@@ -351,15 +349,6 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
                 SizeVector dims = rank.is_dynamic() ? SizeVector{0} : SizeVector(rank.get_length(), 0);
                 data->setShape(dims);
             }
-            /*
-            if (m_realShapes.find(name) == m_realShapes.end() && foundInput->getInputData()->isDynamic())
-                IE_THROW() << "Cannot get blob " << name << " which contains dynamic shapes";
-            const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes[name] :
-            foundInput->getTensorDesc().getDims(); if (data) { if (data->getTensorDesc().getDims() != dims) {
-                    // TODO: implement something smart here instead of raw re-allocation
-                    data.reset();
-                }
-            }*/
             SizeVector dims;
             if (!data) {
                 auto&& parameters = _executableNetwork->_function->get_parameters();
@@ -513,25 +502,6 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
 }
 // ! [infer_request:set_blob]
 
-// ! [infer_request:set_shape]
-/*
-void TemplateInferRequest::SetShape(const std::string& name, const InferenceEngine::SizeVector& dims) {
-    // Check partial shape compatibility
-    ngraph::PartialShape newShape(dims);
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
-    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        if (!foundInput->getInputData()->getPartialShape().compatible(newShape))
-            IE_THROW() << "New shape " << newShape << " for " << name << " is incompatible with original shape "
-                       << foundInput->getInputData()->getPartialShape();
-    } else {
-        if (!foundOutput->getPartialShape().compatible(newShape))
-            IE_THROW() << "New shape " << newShape << " for " << name << " is incompatible with original shape " <<
-foundOutput->getPartialShape();
-    }
-}
-*/
-// ! [infer_request:set_shape]
 
 // ! [infer_request:get_performance_counts]
 std::map<std::string, InferenceEngineProfileInfo> TemplateInferRequest::GetPerformanceCounts() const {

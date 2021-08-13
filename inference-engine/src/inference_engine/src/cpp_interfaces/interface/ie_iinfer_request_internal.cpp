@@ -127,8 +127,6 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
         } else {
             data = _inputs[name];
             const auto& dims = foundInput->getTensorDesc().getDims();
-            // const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) :
-            // foundInput->getTensorDesc().getDims();
             checkBlob(data, name, true, foundInput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
 
             auto& devBlob = _deviceInputs[name];
@@ -139,8 +137,6 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
         }
     } else {
         data = _outputs[name];
-        // const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) :
-        // foundOutput->getTensorDesc().getDims();
         const auto& dims = foundOutput->getTensorDesc().getDims();
         checkBlob(data, name, false, foundOutput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
     }
@@ -172,10 +168,6 @@ const PreProcessInfo& IInferRequestInternal::GetPreProcess(const std::string& na
 void IInferRequestInternal::SetBatch(int batch) {
     IE_THROW(NotImplemented);
 }
-
-// void IInferRequestInternal::SetShape(const std::string &name, const SizeVector &dims) {
-//    IE_THROW(NotImplemented);
-//}
 
 std::vector<std::shared_ptr<IVariableStateInternal>> IInferRequestInternal::QueryState() {
     IE_THROW(NotImplemented);
@@ -267,9 +259,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
                 IE_THROW(NotFound) << "Failed to find input with name: \'" << name << "\'";
             }
             isDynamic = foundInputPair->second->getInputData()->getPartialShape().is_dynamic();
-            dims = /*m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) : */ foundInputPair->second
-                       ->getTensorDesc()
-                       .getDims();
+            dims = foundInputPair->second->getTensorDesc().getDims();
             refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
         } else {
             auto foundOutputPair = std::find_if(std::begin(_networkOutputs),
