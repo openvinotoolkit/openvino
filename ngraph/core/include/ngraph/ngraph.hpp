@@ -69,6 +69,8 @@ void get_version(size_t& major, size_t& minor, size_t& patch, std::string& extra
 #include "ngraph/shape.hpp"
 #include "ngraph/shape_util.hpp"
 #include "ngraph/specialize_function.hpp"
+#include "ngraph/static_dimension.hpp"
+#include "ngraph/static_shape.hpp"
 #include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"

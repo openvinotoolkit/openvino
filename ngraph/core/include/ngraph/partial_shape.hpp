@@ -51,7 +51,7 @@ public:
 
     /// \brief Constructs a PartialShape with static rank from a vector of Dimension.
     /// \param dimensions The Dimension values for the constructed shape.
-    PartialShape(std::vector<Dimension> dimensions);
+    PartialShape(const std::vector<Dimension>& dimensions);
 
     /// \brief Constructs a PartialShape with static rank from a vector of dimensions values.
     /// \param dimensions The Dimension values for the constructed shape.
@@ -85,6 +85,14 @@ public:
     Rank rank() const {
         return m_rank_is_static ? Rank(m_dimensions.size()) : Rank::dynamic();
     }
+
+    /// \brief Get the rank of the static shape.
+    /// \return The rank of the shape.
+    size_t size() const {
+        NGRAPH_CHECK(m_rank_is_static);
+        return m_dimensions.size();
+    }
+
     /// \brief Construct a PartialShape with the given rank and all dimensions (if any) dynamic.
     /// \return A PartialShape with the given rank, and all dimensions (if any) dynamic.
     static PartialShape dynamic(Rank r = Rank::dynamic());
@@ -292,9 +300,51 @@ public:
         return m_dimensions.crend();
     }
 
+    /// \brief Returns a read/write iterator that points to the inserted element in the shape.
+    iterator insert(const_iterator position, const Dimension& val) {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+        return m_dimensions.insert(position, val);
+    }
+    /// \brief Returns a read/write iterator that points to the first of inserted elements in
+    /// the shape.
+    iterator insert(const_iterator position, size_t n, const Dimension& val) {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+        return m_dimensions.insert(position, n, val);
+    }
+    /// \brief Returns a read/write iterator that points to the first of inserted range of
+    /// elements in the shape.
+    template <class InputIterator>
+    iterator insert(const_iterator position, InputIterator first, InputIterator last) {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+        return m_dimensions.insert(position, first, last);
+    }
+    /// \brief Returns a read/write iterator that points to the inserted element in the shape.
+    iterator insert(const_iterator position, Dimension&& val) noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+        return m_dimensions.insert(position, val);
+    }
+    /// \brief Returns a read/write iterator that points to the first of inserted elements in
+    /// the shape.
+    iterator insert(const_iterator position, std::initializer_list<Dimension> il) {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+        return m_dimensions.insert(position, il);
+    }
+    /// \brief Requests that the dimensions vector capacity be enough to contain n elements
+    void reserve(size_t n) {
+        m_dimensions.reserve(n);
+    }
+    /// \brief Requests that the dimensions vector capacity be enough to contain n elements
+    void resize(size_t n) {
+        m_dimensions.resize(n);
+    }
+    /// \brief Returns size of allocated storage capacity
+    size_t capacity() {
+        return m_dimensions.capacity();
+    }
+
 private:
     // Private constructor for PartialShape::dynamic().
-    PartialShape(bool rank_is_static, std::vector<Dimension> dimensions);
+    PartialShape(bool rank_is_static, const std::vector<Dimension>& dimensions);
 
     // True if the shape's rank is static.
     bool m_rank_is_static;

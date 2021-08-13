@@ -61,10 +61,30 @@ public:
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
 
+    template <class ShapeType>
+    void shape_infer(const ShapeType& rhs, const ShapeType& lhs, ShapeType& output_shape) const;
+
 private:
     AutoBroadcastSpec m_autob;
     void validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob);
 };
+
+template <class ShapeType>
+void op::util::BinaryElementwiseArithmetic::shape_infer(const ShapeType& rhs,
+                                                        const ShapeType& lhs,
+                                                        ShapeType& output_shape) const {
+    output_shape = rhs;
+    if (m_autob.m_type == op::AutoBroadcastType::NONE) {
+        NODE_VALIDATION_CHECK(this, ShapeType::merge_into(output_shape, lhs), "Argument shapes are inconsistent.");
+    } else if (m_autob.m_type == op::AutoBroadcastType::NUMPY || m_autob.m_type == op::AutoBroadcastType::PDPD) {
+        NODE_VALIDATION_CHECK(this,
+                              ShapeType::broadcast_merge_into(output_shape, lhs, m_autob),
+                              "Argument shapes are inconsistent.");
+    } else {
+        NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");
+    }
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph

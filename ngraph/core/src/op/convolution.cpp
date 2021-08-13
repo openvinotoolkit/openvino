@@ -45,9 +45,7 @@ bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Convolution::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Convolution_validate_and_infer_types);
-    const PartialShape& data_batch_pshape = get_input_partial_shape(0);
     element::Type data_batch_et = get_input_element_type(0);
-    const PartialShape& filters_pshape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
 
     element::Type result_et;
@@ -64,23 +62,16 @@ void op::v1::Convolution::validate_and_infer_types() {
                           "Element types must be numeric. Got: ",
                           result_et);
 
-    Rank result_ps_rank;
-    NODE_VALIDATION_CHECK(this,
-                          Rank::merge(result_ps_rank, data_batch_pshape.rank(), filters_pshape.rank()),
-                          "Data batch and filters inputs must have same rank. Got: ",
-                          data_batch_pshape,
-                          " and ",
-                          filters_pshape);
+    auto before = std::chrono::high_resolution_clock::now();
+    auto after = std::chrono::high_resolution_clock::now();
 
-    PartialShape result_shape = validate_and_infer_convolution_forward_output_shape(this,
-                                                                                    result_ps_rank,
-                                                                                    data_batch_pshape,
-                                                                                    filters_pshape,
-                                                                                    m_auto_pad,
-                                                                                    m_strides,
-                                                                                    m_dilations,
-                                                                                    m_pads_begin,
-                                                                                    m_pads_end);
+    PartialShape input_shape = get_input_partial_shape(0);
+    PartialShape filters_shape = get_input_partial_shape(1);
+    PartialShape result_shape;
+    before = std::chrono::high_resolution_clock::now();
+    shape_infer(input_shape, filters_shape, result_shape);
+    after = std::chrono::high_resolution_clock::now();
+
     set_output_type(0, result_et, result_shape);
 }
 

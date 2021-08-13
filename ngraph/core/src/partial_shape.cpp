@@ -25,11 +25,11 @@ PartialShape::PartialShape(const Shape& shape)
       m_shape_type(ShapeType::SHAPE_IS_STATIC),
       m_dimensions(shape.begin(), shape.end()) {}
 
-PartialShape::PartialShape(bool rank_is_static, std::vector<Dimension> dimensions)
+PartialShape::PartialShape(bool rank_is_static, const std::vector<Dimension>& dimensions)
     : m_rank_is_static(rank_is_static),
       m_dimensions(std::move(dimensions)) {}
 
-PartialShape::PartialShape(std::vector<Dimension> dimensions)
+PartialShape::PartialShape(const std::vector<Dimension>& dimensions)
     : m_rank_is_static(true),
       m_dimensions(std::move(dimensions)) {}
 
