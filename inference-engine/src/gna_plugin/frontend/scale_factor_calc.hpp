@@ -19,6 +19,7 @@
 #include "gna_slope_scale.h"
 #include "runtime/pwl.h"
 #include "gna_data_types.hpp"
+#include "round_float_define.hpp"
 
 namespace GNAPluginNS {
 namespace frontend {
@@ -41,8 +42,8 @@ struct ScaleFactorUpdateResult {
  * @param p2 Second float value
  * @return Returns true if two float values are equal
  */
-static bool fp32eq(float p1, float p2) {
-    return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+static bool fp32eq(float p1, float p2, float accuracy = 0.00001f) {
+    return (std::abs(p1 - p2) <= accuracy * std::min(std::abs(p1), std::abs(p2)));
 }
 
 /**
@@ -73,14 +74,14 @@ static float selectBestOutputScaleFactors(float inScale, std::vector<float> outS
         auto sd = 0.0;
         for (size_t j = 0; j < slopes.size(); ++j) {
             auto s = gna_slope(slopes[j], inScale, outScale);
-            auto slope = static_cast<uint32_t>(s.slope * s.slope_scale);
-            if (slope < static_cast<uint32_t>(std::numeric_limits<int16_t>::min()) && slope > static_cast<uint32_t>(std::numeric_limits<int16_t>::max())) {
+            auto slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
+            if (slope < std::numeric_limits<int16_t>::min() || slope > std::numeric_limits<int16_t>::max()) {
                 sd += std::numeric_limits<int8_t>::max();
                 continue;
             }
 
             auto testSlope = static_cast<double>(slope) / s.slope_scale * inScale / outScale;
-            if (fp32eq(testSlope, slopes[j])) {
+            if (fp32eq(testSlope, slopes[j], 1.0E-6)) {
                 return outScale;
             }
 
