@@ -763,7 +763,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // network optimisation phases
     int passIdx = 0;
-    auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision, bool isNgraphPassesUsed) {
+    auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision) {
         auto passes = make_shared<PassManager>(PassManagerSettings{runBeforeCopy, lowPrecision}, network);
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
@@ -813,19 +813,19 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         };
         newNet = InferenceEngine::CNNNetCopy(network, visitor);
         // to run all passes need to have two calls to pass manager
-        run_passes(newNet, true, gnaFlags->input_low_precision, isNgraphPassesUsed);
-        run_passes(newNet, false, gnaFlags->input_low_precision, isNgraphPassesUsed);
+        run_passes(newNet, true, gnaFlags->input_low_precision);
+        run_passes(newNet, false, gnaFlags->input_low_precision);
     } else if (gnaFlags->fake_quantized) {
         switch (config.gnaPrecision) {
             case Precision::I16:
             {
-                ModelQuantizer<FakeQuantI16> q16(isNgraphPassesUsed);
+                ModelQuantizer<FakeQuantI16> q16;
                 newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
             }
             case Precision::I8:
             {
-                ModelQuantizer<FakeQuantI8> q8(isNgraphPassesUsed);
+                ModelQuantizer<FakeQuantI8> q8;
                 newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
             }
@@ -836,17 +836,17 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         switch (config.gnaPrecision) {
             case Precision::I16:
             {
-                ModelQuantizer<QuantI16> q16(isNgraphPassesUsed);
+                ModelQuantizer<QuantI16> q16;
                 newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
             }
             case Precision::I8:
             {
                 if (gnaFlags->input_low_precision == false) {
-                    ModelQuantizer<QuantI8> q8(isNgraphPassesUsed);
+                    ModelQuantizer<QuantI8> q8;
                     newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 } else {
-                    ModelQuantizer<QuantI8_I8> q8_8(isNgraphPassesUsed);
+                    ModelQuantizer<QuantI8_I8> q8_8;
                     newNet = q8_8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 }
                 break;

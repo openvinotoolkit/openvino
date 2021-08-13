@@ -26,10 +26,8 @@ namespace GNAPluginNS {
 template<class T>
 class ModelQuantizer {
  public:
-    ModelQuantizer(bool isNgraphPassesUsed) : isNgraphPassesUsed_(isNgraphPassesUsed) {}
-
     InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model, float scaleFactor) const {
-        return quantize(model, [](const InferenceEngine::CNNNetwork &, bool runBeforeCopy, bool lowPrecision, bool isNgraphPassesUsed){}, std::vector<float>({scaleFactor}));
+        return quantize(model, [](const InferenceEngine::CNNNetwork &, bool runBeforeCopy, bool lowPrecision){}, std::vector<float>({scaleFactor}));
     }
 
     template <class PreQuantisationCb>
@@ -38,7 +36,7 @@ class ModelQuantizer {
     }
 
     InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model, std::vector<float> scaleFactor) const {
-        return quantize(model, [](InferenceEngine::CNNNetwork &, bool runBeforeCopy, bool lowPrecision, bool isNgraphPassesUsed){}, scaleFactor);
+        return quantize(model, [](InferenceEngine::CNNNetwork &, bool runBeforeCopy, bool lowPrecision){}, scaleFactor);
     }
 
     template <class PreQuantisationCb>
@@ -51,13 +49,13 @@ class ModelQuantizer {
         };
         bool lowPrecision = (T::mandatory().getInputPrecision().size() == sizeof(uint8_t));
         InferenceEngine::CNNNetwork copiedNet = InferenceEngine::CNNNetCopy(model);
-        cb(copiedNet, true, lowPrecision, isNgraphPassesUsed_);
+        cb(copiedNet, true, lowPrecision);
 
         copiedNet = InferenceEngine::CNNNetCopy(copiedNet, visitor);
 
         // allow client code to access copied topology, to avoid copies if user would like to chain quantisation with
         // another preprocessing
-        cb(copiedNet, false, lowPrecision, isNgraphPassesUsed_);
+        cb(copiedNet, false, lowPrecision);
 
         if (scaleFactor.empty()) {
             THROW_GNA_EXCEPTION << "Scale factor is empty";
@@ -168,8 +166,5 @@ class ModelQuantizer {
             THROW_GNA_EXCEPTION << "infinite loop: " + additionalInformation;
         }
     }
-    private:
-        bool isNgraphPassesUsed_ = false;
-
 };
 }  // namespace GNAPluginNS
