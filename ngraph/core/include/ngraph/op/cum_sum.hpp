@@ -7,20 +7,16 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        namespace v0
-        {
-            /// \brief Tensor cumulative sum operation.
-            ///
-            /// Compute the cumulative sum of the input tensor along the axis specified.
-            ///
-            class NGRAPH_API CumSum : public Op
-            {
-            public:
-                NGRAPH_RTTI_DECLARATION;
+namespace ngraph {
+namespace op {
+namespace v0 {
+/// \brief Tensor cumulative sum operation.
+///
+/// Compute the cumulative sum of the input tensor along the axis specified.
+///
+class NGRAPH_API CumSum : public Op {
+public:
+    NGRAPH_RTTI_DECLARATION;
 
     /// \brief Constructs a cumulative summation operation.
     CumSum() = default;
@@ -55,11 +51,11 @@ namespace ngraph
         return m_reverse;
     }
 
-            private:
-                bool m_exclusive = false;
-                bool m_reverse = false;
-            };
-        } // namespace v0
-        using v0::CumSum;
-    } // namespace op
-} // namespace ngraph
+private:
+    bool m_exclusive = false;
+    bool m_reverse = false;
+};
+}  // namespace v0
+using v0::CumSum;
+}  // namespace op
+}  // namespace ngraph

@@ -12,8 +12,7 @@ using namespace std;
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
-TEST(attributes, cum_sum_op_default_attributes_no_axis_input)
-{
+TEST(attributes, cum_sum_op_default_attributes_no_axis_input) {
     NodeBuilder::get_ops().register_factory<opset3::CumSum>();
 
     Shape shape{1, 4};

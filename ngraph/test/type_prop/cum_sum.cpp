@@ -8,8 +8,7 @@
 
 using namespace ngraph;
 
-TEST(type_prop, cum_sum_op_default_attributes_no_axis_input)
-{
+TEST(type_prop, cum_sum_op_default_attributes_no_axis_input) {
     PartialShape data_shape{2, 4};
     auto A = std::make_shared<op::Parameter>(element::f32, data_shape);
     auto cum_sum = std::make_shared<op::v0::CumSum>(A);
@@ -21,8 +20,7 @@ TEST(type_prop, cum_sum_op_default_attributes_no_axis_input)
     EXPECT_EQ(cum_sum->get_output_partial_shape(0), data_shape);
 }
 
-TEST(type_prop, cum_sum_op_default_attributes_with_axis_param)
-{
+TEST(type_prop, cum_sum_op_default_attributes_with_axis_param) {
     PartialShape data_shape{2, 4};
     auto A = std::make_shared<op::Parameter>(element::f32, data_shape);
     auto axis = std::make_shared<op::Parameter>(element::i32, PartialShape{});
@@ -35,8 +33,7 @@ TEST(type_prop, cum_sum_op_default_attributes_with_axis_param)
     EXPECT_EQ(cum_sum->get_output_partial_shape(0), data_shape);
 }
 
-TEST(type_prop, cum_sum_op_default_attributes_with_axis_const)
-{
+TEST(type_prop, cum_sum_op_default_attributes_with_axis_const) {
     PartialShape data_shape{2, 4};
     auto A = std::make_shared<op::Parameter>(element::f32, data_shape);
     auto axis = op::Constant::create(element::i32, Shape{}, {1});
@@ -49,8 +46,7 @@ TEST(type_prop, cum_sum_op_default_attributes_with_axis_const)
     EXPECT_EQ(cum_sum->get_output_partial_shape(0), data_shape);
 }
 
-TEST(type_prop, cum_sum_op_custom_attributes)
-{
+TEST(type_prop, cum_sum_op_custom_attributes) {
     PartialShape data_shape{2, 4};
     auto A = std::make_shared<op::Parameter>(element::f32, data_shape);
     auto axis = std::make_shared<op::Parameter>(element::i32, PartialShape{});
@@ -65,8 +61,7 @@ TEST(type_prop, cum_sum_op_custom_attributes)
     EXPECT_EQ(cum_sum->get_output_partial_shape(0), data_shape);
 }
 
-TEST(type_prop, cum_sum_op_data_shapes)
-{
+TEST(type_prop, cum_sum_op_data_shapes) {
     std::vector<PartialShape> input_shpes{{},
                                           {10},
                                           {3, 5},
@@ -76,45 +71,34 @@ TEST(type_prop, cum_sum_op_data_shapes)
                                           {2, Dimension(2, 4), Dimension()},
                                           PartialShape::dynamic()};
 
-    for (auto& shape : input_shpes)
-    {
-        try
-        {
+    for (auto& shape : input_shpes) {
+        try {
             auto axis = std::make_shared<op::Parameter>(element::i32, PartialShape{});
             auto A = std::make_shared<op::Parameter>(element::f32, shape);
             auto cum_sum = std::make_shared<op::v0::CumSum>(A, axis);
 
             EXPECT_EQ(cum_sum->get_output_partial_shape(0), shape);
-        }
-        catch (...)
-        {
+        } catch (...) {
             FAIL() << "Data input shape validation check failed for unexpected reason";
         }
     }
 }
 
-TEST(type_prop, cum_sum_op_incorrect_axis_shapes)
-{
+TEST(type_prop, cum_sum_op_incorrect_axis_shapes) {
     PartialShape data_shape{2, 4};
     std::vector<PartialShape> incorrect_axis_shpes{{1}, {1, 1}, {2}};
-    for (auto& shape : incorrect_axis_shpes)
-    {
-        try
-        {
+    for (auto& shape : incorrect_axis_shpes) {
+        try {
             auto axis = std::make_shared<op::Parameter>(element::i32, shape);
             auto A = std::make_shared<op::Parameter>(element::f32, data_shape);
             auto cum_sum = std::make_shared<op::v0::CumSum>(A, axis);
-        }
-        catch (...)
-        {
-            FAIL()
-                << "CumSum axis input shape validation shouldn't throw for backward compatibility";
+        } catch (...) {
+            FAIL() << "CumSum axis input shape validation shouldn't throw for backward compatibility";
         }
     }
 }
 
-TEST(type_prop, cum_sum_op_element_types)
-{
+TEST(type_prop, cum_sum_op_element_types) {
     PartialShape data_shape{2, 4};
     std::vector<element::Type> element_types{element::u4,
                                              element::u8,
@@ -129,46 +113,33 @@ TEST(type_prop, cum_sum_op_element_types)
                                              element::u32,
                                              element::boolean};
 
-    for (auto& et : element_types)
-    {
-        try
-        {
+    for (auto& et : element_types) {
+        try {
             auto axis = std::make_shared<op::Parameter>(element::i32, PartialShape{});
             auto A = std::make_shared<op::Parameter>(et, data_shape);
 
             EXPECT_NO_THROW(std::make_shared<op::v0::CumSum>(A, axis));
-        }
-        catch (...)
-        {
+        } catch (...) {
             FAIL() << "Data input element type validation check failed for unexpected reason";
         }
     }
 }
 
-TEST(type_prop, cum_sum_op_incorrect_axis_element_type)
-{
-    std::vector<element::Type> element_types{
-        element::u32, element::f32, element::boolean, element::u32};
+TEST(type_prop, cum_sum_op_incorrect_axis_element_type) {
+    std::vector<element::Type> element_types{element::u32, element::f32, element::boolean, element::u32};
 
     PartialShape data_shape{2, 4};
 
-    for (auto& et : element_types)
-    {
-        try
-        {
+    for (auto& et : element_types) {
+        try {
             auto axis = std::make_shared<op::Parameter>(et, PartialShape{});
             auto A = std::make_shared<op::Parameter>(element::f32, data_shape);
             auto cum_sum = std::make_shared<op::v0::CumSum>(A, axis);
 
             FAIL() << "Invalid element type of axis input not detected";
-        }
-        catch (const NodeValidationFailure& error)
-        {
-            EXPECT_HAS_SUBSTRING(error.what(),
-                                 "axis element type must be either int64_t or int32_t");
-        }
-        catch (...)
-        {
+        } catch (const NodeValidationFailure& error) {
+            EXPECT_HAS_SUBSTRING(error.what(), "axis element type must be either int64_t or int32_t");
+        } catch (...) {
             FAIL() << "Axis input element type validation check failed for unexpected reason";
         }
     }

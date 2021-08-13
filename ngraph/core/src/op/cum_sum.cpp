@@ -55,8 +55,7 @@ shared_ptr<Node> op::v0::CumSum::clone_with_new_inputs(const OutputVector& new_a
     check_new_args_count(this, new_args);
     if (new_args.size() == 2)
         return make_shared<op::v0::CumSum>(new_args.at(0), new_args.at(1), m_exclusive, m_reverse);
-    else
-    {
+    else {
         return make_shared<op::v0::CumSum>(new_args.at(0), m_exclusive, m_reverse);
     }
 }
