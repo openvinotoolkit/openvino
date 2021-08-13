@@ -85,20 +85,4 @@ typedef std::tuple<
         std::pair<std::string, std::map<std::string, std::string>> // Additional backend configuration and alis name to it
 > fqLayerTestParamsSetRevise;
 
-class FakeQuantizeLayerTestRevise : public testing::WithParamInterface<fqLayerTestParamsSetRevise>,
-                                    virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<fqLayerTestParamsSetRevise>& obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
-protected:
-    void SetUp() override;
-    void UpdateSeed();
-
- protected:
-    float inputDataMin        = 0.0;
-    float inputDataMax        = 10.0;
-    float inputDataResolution = 1.0;
-    int32_t  seed = 1;
-};
-
 }  // namespace LayerTestsDefinitions
