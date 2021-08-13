@@ -24,7 +24,5 @@ endif()
 
 add_subdirectory(src)
 
-install(DIRECTORY test_runner/
-              RUNTIME DESTINATION tests/time_tests COMPONENT tests EXCLUDE_FROM_ALL)
-install(DIRECTORY scripts/
-              RUNTIME DESTINATION tests/time_tests COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY test_runner/ DESTINATION tests/time_tests COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY scripts/ DESTINATION tests/time_tests COMPONENT tests EXCLUDE_FROM_ALL)
