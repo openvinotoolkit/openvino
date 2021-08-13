@@ -32,6 +32,7 @@ private:
 public:
     void GenerateStridedSliceModel();
     void GenerateConstOnlyModel();
+    void GenerateMemoryModel();
     static std::string getTestCaseName(testing::TestParamInfo<concatMultiParams> obj);
 
 protected:
