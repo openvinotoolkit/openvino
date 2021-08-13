@@ -49,7 +49,7 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         } else {
             parent1 = makeFakeQuantize(input1, inputPrecision, fqOnData1);
         }
-        parent1->set_friendly_name("fakeQuantizeAfter1");
+        parent1->set_friendly_name("concat_fq1");
         if (!convert1.empty()) {
             parent1 = std::make_shared<opset1::Convert>(parent1, convert1.outPrecision);
         }
@@ -64,7 +64,7 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         } else {
             parent2 = makeFakeQuantize(input1, inputPrecision, fqOnData2);
         }
-        parent2->set_friendly_name("fakeQuantizeAfter2");
+        parent2->set_friendly_name("concat_fq2");
         if (!convert2.empty()) {
             parent1 = std::make_shared<opset1::Convert>(parent2, convert2.outPrecision);
         }
@@ -73,10 +73,16 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         }
     }
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, axis);
+    concat->set_friendly_name("concat");
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
-    const auto lastDequantization = makeDequantization(concat, dequantizationAfter);
-    lastDequantization->set_friendly_name("fakeQuantizeBefore");
+    std::shared_ptr<ngraph::Node> parent = concat;
+    if (!dequantizationAfter.empty()) {
+        const auto lastDequantization = makeDequantization(concat, dequantizationAfter);
+        lastDequantization->set_friendly_name("multiply");
+        parent = lastDequantization;
+    }
+    parent->set_friendly_name("output");
     if (!fqOnData3.empty()) {
         std::shared_ptr<Node> fq;
         if (operation == "relu") {
@@ -85,15 +91,11 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         } else {
             fq = makeFakeQuantize(concat, inputPrecision, fqOnData3);
         }
-        fq->set_friendly_name("fakeQuantizeBefore");
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fq) };
-        std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
-            results,
-            ngraph::ParameterVector{ input1, input2 },
-            "MoveFakeQuantize");
-        return function;
+        fq->set_friendly_name("fakeQuantizeAfter");
+        parent = fq;
     }
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastDequantization) };
+    parent->set_friendly_name("output");
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         results,
         ngraph::ParameterVector{ input1, input2 },

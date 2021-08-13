@@ -80,15 +80,16 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
         fq->get_input_node_shared_ptr(3),
         fq->get_input_node_shared_ptr(4),
         as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
+    fq1->set_friendly_name("concat_fq1");
     auto fq2 = std::make_shared<opset1::FakeQuantize>(fq2input,
         fq->get_input_node_shared_ptr(1),
         fq->get_input_node_shared_ptr(2),
         fq->get_input_node_shared_ptr(3),
         fq->get_input_node_shared_ptr(4),
         as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
+    fq2->set_friendly_name("concat_fq2");
 
     auto new_concat = concat->clone_with_new_inputs({ fq1->output(0), fq2->output(0) });
-
     replace_node(concat, new_concat);
     replace_node(fq, new_concat);
     updateOutput(context, new_concat, fq);
