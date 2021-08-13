@@ -62,14 +62,14 @@ static ngraph::PartialShape resolve_shape(const ngraph::PartialShape& then_pshap
 
 bool op::v8::If::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_If_visit_attributes);
-    m_bodies[then_body_index] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "then_branch");
-    m_bodies[else_body_index] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "else_branch");
-    visitor.on_attribute("then_body", m_bodies[then_body_index]);
-    visitor.on_attribute("else_body", m_bodies[else_body_index]);
-    visitor.on_attribute("then_inputs", m_input_descriptions[then_body_index]);
-    visitor.on_attribute("else_inputs", m_input_descriptions[else_body_index]);
-    visitor.on_attribute("then_outputs", m_output_descriptions[then_body_index]);
-    visitor.on_attribute("else_outputs", m_output_descriptions[else_body_index]);
+    m_bodies[THEN_BODY_INDEX] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "then_branch");
+    m_bodies[ELSE_BODY_INDEX] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "else_branch");
+    visitor.on_attribute("then_body", m_bodies[THEN_BODY_INDEX]);
+    visitor.on_attribute("else_body", m_bodies[ELSE_BODY_INDEX]);
+    visitor.on_attribute("then_inputs", m_input_descriptions[THEN_BODY_INDEX]);
+    visitor.on_attribute("else_inputs", m_input_descriptions[ELSE_BODY_INDEX]);
+    visitor.on_attribute("then_outputs", m_output_descriptions[THEN_BODY_INDEX]);
+    visitor.on_attribute("else_outputs", m_output_descriptions[ELSE_BODY_INDEX]);
     return true;
 }
 
@@ -116,7 +116,7 @@ void op::v8::If::validate_and_infer_types() {
                               val.size() == 1,
                               "The number of values in the If condition constant is greater than 1");
 
-        auto cond_index = val[0] ? then_body_index : else_body_index;
+        auto cond_index = val[0] ? THEN_BODY_INDEX : ELSE_BODY_INDEX;
         auto body = m_bodies[cond_index];
         auto input_descriptors = m_input_descriptions[cond_index];
         validate_and_infer_type_body(body, input_descriptors);
@@ -131,14 +131,14 @@ void op::v8::If::validate_and_infer_types() {
     } else  // condition is non constant
     {
         // If cond is non const, shape and type inference is run for both bodies
-        validate_and_infer_type_body(get_then_body(), m_input_descriptions[then_body_index]);
-        validate_and_infer_type_body(get_else_body(), m_input_descriptions[else_body_index]);
+        validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
+        validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
         auto output_nodes = outputs();
 
         // Getting map<output_index_from_if, output_description>. This map guarantees that each
         // output from the body will be met in it once.
-        auto then_outputs_map = get_mapping_outputs_on_body_description(m_output_descriptions[then_body_index]);
-        auto else_outputs_map = get_mapping_outputs_on_body_description(m_output_descriptions[else_body_index]);
+        auto then_outputs_map = get_mapping_outputs_on_body_description(m_output_descriptions[THEN_BODY_INDEX]);
+        auto else_outputs_map = get_mapping_outputs_on_body_description(m_output_descriptions[ELSE_BODY_INDEX]);
 
         // Checking each output from If. Each output must be associated with one output from each
         // body
@@ -158,10 +158,10 @@ void op::v8::If::validate_and_infer_types() {
             auto else_desc = else_outputs_map.at(output_index);
 
             auto then_node_result =
-                m_bodies[then_body_index]->get_results().at(then_desc->m_body_value_index)->input_value(0);
+                m_bodies[THEN_BODY_INDEX]->get_results().at(then_desc->m_body_value_index)->input_value(0);
 
             auto else_node_result =
-                m_bodies[else_body_index]->get_results().at(else_desc->m_body_value_index)->input_value(0);
+                m_bodies[ELSE_BODY_INDEX]->get_results().at(else_desc->m_body_value_index)->input_value(0);
 
             NODE_VALIDATION_CHECK(this,
                                   then_node_result.get_element_type() == else_node_result.get_element_type(),
@@ -240,8 +240,8 @@ void op::v8::If::set_input(const Output<Node>& value,
                            const std::shared_ptr<Parameter>& else_parameter) {
     NGRAPH_CHECK(then_parameter != nullptr || else_parameter != nullptr,
                  "Missing parameters! Both parameters are nullptr!");
-    auto then_param_index = m_bodies[then_body_index]->get_parameter_index(then_parameter);
-    auto else_param_index = m_bodies[else_body_index]->get_parameter_index(else_parameter);
+    auto then_param_index = m_bodies[THEN_BODY_INDEX]->get_parameter_index(then_parameter);
+    auto else_param_index = m_bodies[ELSE_BODY_INDEX]->get_parameter_index(else_parameter);
     NGRAPH_CHECK(then_parameter == nullptr || then_param_index != -1,
                  "Missing parameter ",
                  then_parameter->get_friendly_name(),
@@ -257,8 +257,8 @@ Output<Node> op::v8::If::set_output(const std::shared_ptr<Result>& then_result,
                                     const std::shared_ptr<Result>& else_result) {
     NGRAPH_CHECK(then_result != nullptr, "Incorrect result in \"then_body\"! Result cant be \'nullptr\'");
     NGRAPH_CHECK(else_result != nullptr, "Incorrect result in \"else_body\"! Result cant be \'nullptr\'");
-    auto then_result_id = m_bodies[then_body_index]->get_result_index(then_result);
-    auto else_result_id = m_bodies[else_body_index]->get_result_index(else_result);
+    auto then_result_id = m_bodies[THEN_BODY_INDEX]->get_result_index(then_result);
+    auto else_result_id = m_bodies[ELSE_BODY_INDEX]->get_result_index(else_result);
 
     NGRAPH_CHECK(then_result_id != -1, "Missing result ", then_result->get_friendly_name(), "in \'then_body\'!");
     NGRAPH_CHECK(else_result_id != -1, "Missing result ", else_result->get_friendly_name(), "in \'then_body\'!");

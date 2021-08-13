@@ -16,7 +16,7 @@ namespace v8 {
 /// \brief  If operation.
 class NGRAPH_API If : public util::MultiSubGraphOp {
 public:
-    enum BodyIndexes { then_body_index = 0, else_body_index = 1 };
+    enum BodyIndexes { THEN_BODY_INDEX = 0, ELSE_BODY_INDEX = 1 };
 
     NGRAPH_RTTI_DECLARATION;
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -33,28 +33,28 @@ public:
     ///
     /// \return then_body as ngraph::Function.
     const std::shared_ptr<Function>& get_then_body() const {
-        return m_bodies[then_body_index];
+        return m_bodies[THEN_BODY_INDEX];
     }
 
     /// \brief     gets else_body as ngraph::Function.
     ///
     /// \return else_body as ngraph::Function.
     const std::shared_ptr<Function>& get_else_body() const {
-        return m_bodies[else_body_index];
+        return m_bodies[ELSE_BODY_INDEX];
     }
 
     /// \brief     sets new ngraph::Function as new then_body.
     ///
     /// \param     body   new body for 'then' branch.
     void set_then_body(const std::shared_ptr<Function>& body) {
-        m_bodies[then_body_index] = body;
+        m_bodies[THEN_BODY_INDEX] = body;
     }
 
     /// \brief     sets new ngraph::Function as new else_body.
     ///
     /// \param     body   new body for 'else' branch.
     void set_else_body(const std::shared_ptr<Function>& body) {
-        m_bodies[else_body_index] = body;
+        m_bodies[ELSE_BODY_INDEX] = body;
     }
 
     /// \brief     sets new input to the operation associated with parameters
