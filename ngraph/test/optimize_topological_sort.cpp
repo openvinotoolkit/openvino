@@ -3,15 +3,13 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/validation_util.hpp"
 #include "util/test_tools.hpp"
 
 using namespace ngraph;
 
-TEST(optimize, test)
-{
+TEST(optimize, test) {
     auto ps = PartialShape{};
     ASSERT_TRUE(ps.rank().is_static());
     ASSERT_TRUE(ps.is_static());

@@ -34,9 +34,9 @@
 #include "ngraph/op/util/variable_value.hpp"
 #include "ngraph/output_vector.hpp"
 #include "ngraph/strides.hpp"
+#include "ngraph/topological_order.hpp"
 #include "ngraph/type.hpp"
 #include "ngraph/variant.hpp"
-#include "ngraph/topological_order.hpp"
 
 namespace ngraph {
 template <typename NodeType>
@@ -506,6 +506,7 @@ private:
     std::deque<descriptor::Output> m_outputs;
     std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
+
 public:
     Order::Ptr m_order;
     OrderElement::Ptr m_order_element;

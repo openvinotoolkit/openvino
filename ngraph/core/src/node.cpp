@@ -5,6 +5,7 @@
 #include "ngraph/node.hpp"
 
 #include <assert.h>
+
 #include <memory>
 #include <ngraph/validation_util.hpp>
 #include <sstream>
@@ -24,55 +25,45 @@ using namespace ngraph;
 
 atomic<size_t> Node::m_next_instance_id(0);
 
-void Node::init_order()
-{
-    if (m_order_element)
-    {
+void Node::init_order() {
+    if (m_order_element) {
         return;
     }
 
     // Get all orders
     std::vector<std::pair<OrderElement::Ptr, Order::Ptr>> orders;
-    for (auto& input : m_inputs)
-    {
+    for (auto& input : m_inputs) {
         input = descriptor::Input(this, input.get_index(), input.get_output());
         auto node = input.get_output().get_raw_node();
         orders.emplace_back(node->m_order_element, node->m_order);
     }
 
     // Find max order
-    for (const auto& p : orders)
-    {
+    for (const auto& p : orders) {
         const auto& o = p.second;
-        if (!m_order || o->size() > m_order->size())
-        {
+        if (!m_order || o->size() > m_order->size()) {
             m_order = o;
         }
     }
 
-    if (!m_order)
-    {
+    if (!m_order) {
         m_order = std::make_shared<Order>();
     }
 
     // Find position for new element and orders
-    std::vector<std::pair<std::pair<int64_t /*id*/, int64_t /*depth*/>, OrderElement::Ptr>>
-        elements;
+    std::vector<std::pair<std::pair<int64_t /*id*/, int64_t /*depth*/>, OrderElement::Ptr>> elements;
     OrderElement::Ptr max_element;
-    for (auto& p : orders)
-    {
+    for (auto& p : orders) {
         if (p.second != m_order)
             continue;
 
-        if (!p.second->initialization_is_finished())
-        {
+        if (!p.second->initialization_is_finished()) {
             max_element = p.second->end();
             break;
         }
 
         const auto& el = p.first;
-        if (!el->output /* last element in order */)
-        {
+        if (!el->output /* last element in order */) {
             max_element = el;
             break;
         }
@@ -80,8 +71,7 @@ void Node::init_order()
         elements.emplace_back(el->get_id_with_depth(), el);
     }
 
-    if (!max_element && !elements.empty())
-    {
+    if (!max_element && !elements.empty()) {
         sort(elements.rbegin(), elements.rend());
         max_element = elements[0].second;
     }
@@ -89,19 +79,15 @@ void Node::init_order()
     assert(orders.empty() || max_element);
 
     auto el = std::make_shared<OrderElement>(this);
-    if (!max_element)
-    {
+    if (!max_element) {
         m_order->push_back(el);
-    }
-    else
-    {
+    } else {
         m_order->insert_after(max_element, el);
     }
     m_order_element = el;
 
     // Insert orders
-    for (auto& p : orders)
-    {
+    for (auto& p : orders) {
         const auto& o = p.second;
         if (o == m_order)
             continue;
@@ -164,15 +150,12 @@ Node::Node(const OutputVector& arguments, size_t output_size) : Node() {
     init_order();
 }
 
-Node::~Node()
-{
+Node::~Node() {
     if (m_order)
         m_order->remove(m_order_element);
 
-    for (descriptor::Input& input : m_inputs)
-    {
-        if (input.has_output())
-        {
+    for (descriptor::Input& input : m_inputs) {
+        if (input.has_output()) {
             // This test adds 1 to the actual count, so a count of 2 means this input is the only
             // reference to the node.
             if (input.get_output().get_node().use_count() == 2) {
@@ -463,10 +446,8 @@ void Node::transfer_provenance_tags(const shared_ptr<Node>& replacement) {
     traverse_nodes({replacement}, set_prov_new_nodes, common_args);
 }
 
-Node* Node::get_input_node_ptr(size_t index) const
-{
-    NGRAPH_CHECK(
-        index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
+Node* Node::get_input_node_ptr(size_t index) const {
+    NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
     return m_inputs[index].get_output().get_raw_node();
 }
 

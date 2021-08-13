@@ -70,18 +70,15 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace pass
 }  // namespace ngraph
 
-bool pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f)
-{
+bool pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f) {
     return apply_matcher_passes(f, false);
 }
 
-bool pass::GraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f)
-{
+bool pass::GraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f) {
     return apply_matcher_passes(f, true);
 }
 
-bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, bool forward)
-{
+bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, bool forward) {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
 
     bool rewritten = false;
@@ -167,20 +164,16 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, bool forwa
     std::vector<size_t> matcher_passes_to_run;
 
     auto el = (forward ? f->get_order()->begin() : f->get_order()->end());
-    while (el || !nodes_to_run.empty())
-    {
+    while (el || !nodes_to_run.empty()) {
         std::shared_ptr<Node> node;
-        if (!nodes_to_run.empty())
-        {
+        if (!nodes_to_run.empty()) {
             auto weak_node = nodes_to_run.front();
             nodes_to_run.pop_front();
 
             node = weak_node.lock();
             if (!node)
                 continue;
-        }
-        else
-        {
+        } else {
             node = el->node->shared_from_this();
             el = (forward ? el->output : el->input);
         }
