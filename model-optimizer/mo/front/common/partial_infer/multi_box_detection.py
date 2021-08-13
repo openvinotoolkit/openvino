@@ -23,7 +23,7 @@ def multi_box_detection_infer(node: Node):
 
     if is_fully_defined(prior_boxes_shape[-1]) and prior_boxes_shape[-1] % prior_size != 0:
         raise Error('Amount of confidences "{}" is not divisible by {} for node "{}"'
-                    ''.format(conf_shape[-1], prior_size, node_name))
+                    ''.format(prior_boxes_shape[-1], prior_size, node_name))
 
     num_priors = prior_boxes_shape[-1] // prior_size
     if not node.has_valid('keep_top_k') or node.keep_top_k == -1:
