@@ -19,6 +19,7 @@
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/pattern/matcher.hpp"
+#include "ngraph/topological_order.hpp"
 
 using namespace std;
 using namespace ngraph;
