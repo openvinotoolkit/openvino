@@ -9,7 +9,6 @@
 #include "ngraph/op/util/elementwise_args.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/not.hpp"
-
 #include "ngraph/validation_util.hpp"
 
 using namespace ngraph;

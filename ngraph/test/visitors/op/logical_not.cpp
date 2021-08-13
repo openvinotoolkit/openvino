@@ -6,7 +6,4 @@
 
 using Type = ::testing::Types<UnaryOperatorType<ngraph::op::v1::LogicalNot, ngraph::element::boolean>>;
 
-INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_attribute,
-                               UnaryOperatorVisitor,
-                               Type,
-                               UnaryOperatorTypeName);
+INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_attribute, UnaryOperatorVisitor, Type, UnaryOperatorTypeName);
