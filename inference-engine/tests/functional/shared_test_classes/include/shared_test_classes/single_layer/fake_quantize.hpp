@@ -63,26 +63,4 @@ protected:
     int32_t  seed = 1;
 };
 
-
-//TODO after update all plugins remove *Revise types
-typedef std::tuple<
-        size_t,                         // fake quantize levels
-        std::vector<size_t>,            // fake quantize inputs shape
-        std::vector<float>,             // fake quantize (inputLow, inputHigh, outputLow, outputHigh) or empty for random
-        std::vector<float>,             // input generator data (low, high, resolution) or empty for default
-        ngraph::op::AutoBroadcastSpec   // fake quantize broadcast mode
-> fqSpecificParamsRevise;
-typedef std::tuple<
-        fqSpecificParamsRevise,
-        InferenceEngine::Precision,        // Net precision
-        InferenceEngine::Precision,        // Input precision
-        InferenceEngine::Precision,        // Output precision
-        InferenceEngine::Layout,           // Input layout
-        InferenceEngine::Layout,           // Output layout
-        InferenceEngine::SizeVector,       // Input shapes
-        LayerTestsUtils::TargetDevice,     // Device name
-
-        std::pair<std::string, std::map<std::string, std::string>> // Additional backend configuration and alis name to it
-> fqLayerTestParamsSetRevise;
-
 }  // namespace LayerTestsDefinitions
