@@ -3,11 +3,9 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset3.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -32,8 +30,7 @@ TEST(attributes, cum_sum_op_default_attributes_no_axis_input)
     EXPECT_EQ(g_cs->is_reverse(), cs->is_reverse());
 }
 
-TEST(attributes, cum_sum_op_default_attributes)
-{
+TEST(attributes, cum_sum_op_default_attributes) {
     NodeBuilder::get_ops().register_factory<opset3::CumSum>();
 
     Shape shape{1, 4};
@@ -51,8 +48,7 @@ TEST(attributes, cum_sum_op_default_attributes)
     EXPECT_EQ(g_cs->is_reverse(), cs->is_reverse());
 }
 
-TEST(attributes, cum_sum_op_custom_attributes)
-{
+TEST(attributes, cum_sum_op_custom_attributes) {
     NodeBuilder::get_ops().register_factory<opset3::CumSum>();
 
     Shape shape{1, 4};

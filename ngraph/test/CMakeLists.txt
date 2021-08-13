@@ -95,6 +95,7 @@ set(SRC
     type_prop/asinh.cpp
     type_prop/assign.cpp
     type_prop/atan.cpp
+    type_prop/atanh.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
@@ -154,6 +155,7 @@ set(SRC
     type_prop/idft.cpp
     type_prop/interpolate.cpp
     type_prop/logical_and.cpp
+    type_prop/logical_or.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
@@ -241,6 +243,7 @@ set(SRC
     visitors/op/add.cpp
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
+    visitors/op/atanh.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
     visitors/op/broadcast.cpp
@@ -403,7 +406,6 @@ set(MULTI_TEST_SRC
     backend/asin.in.cpp
     backend/asinh.in.cpp
     backend/atan.in.cpp
-    backend/atanh.in.cpp
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
@@ -457,7 +459,6 @@ set(MULTI_TEST_SRC
     backend/log.in.cpp
     backend/log_softmax.in.cpp
     backend/logical_not.in.cpp
-    backend/logical_or.in.cpp
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
@@ -476,7 +477,6 @@ set(MULTI_TEST_SRC
     backend/normalize_l2.in.cpp
     backend/non_max_suppression.in.cpp
     backend/non_zero.in.cpp
-    backend/numeric.in.cpp
     backend/one_hot.in.cpp
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
@@ -532,7 +532,7 @@ set(MULTI_TEST_SRC
     backend/zero_sized.in.cpp
 )
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
             onnx/onnx_import_controlflow.in.cpp
@@ -552,7 +552,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
             onnx/onnx_tensor_names.cpp)
 endif()
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND SRC onnx/onnx_editor.cpp)
     list(APPEND MULTI_TEST_SRC
         onnx/onnx_test_utils.in.cpp
@@ -561,9 +561,16 @@ endif()
 
 # SOURCE FOR FRONTEND TESTING
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
-set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
-add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
+foreach(src IN LISTS SRC MULTI_TEST_SRC)
+    if(IS_ABSOLUTE "${src}")
+        list(APPEND full_src_names ${src})
+    else()
+        list(APPEND full_src_names "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+    endif()
+endforeach()
+add_clang_format_target(unit-test_clang FOR_SOURCES ${full_src_names})
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
@@ -603,7 +610,7 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
     # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
     # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
     target_include_directories(unit-test
@@ -619,11 +626,10 @@ if (OV_COMPILER_IS_CLANG)
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
-    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
-
-    target_link_libraries(unit-test PRIVATE onnx_importer)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
+    get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ngraph_frontend SOURCE_DIR)
+    target_include_directories(unit-test PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
+    target_link_libraries(unit-test PRIVATE onnx_ngraph_frontend)
     if (LINUX)
         target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)

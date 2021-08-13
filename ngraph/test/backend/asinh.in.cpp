@@ -31,16 +31,14 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, asinh)
-{
+NGRAPH_TEST(${BACKEND_NAME}, asinh) {
     Shape shape{11};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Asinh>(A), ParameterVector{A});
 
     vector<float> input{0.f, 1.f, -1.f, 2.f, -2.f, 3.f, -3.f, 4.f, 5.f, 10.f, 100.f};
     vector<float> expected;
-    for (float f : input)
-    {
+    for (float f : input) {
         expected.push_back(std::asinh(f));
     }
 
@@ -50,8 +48,7 @@ NGRAPH_TEST(${BACKEND_NAME}, asinh)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, asinh_i32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, asinh_i32) {
     Shape shape{11};
     auto A = make_shared<op::Parameter>(element::i32, shape);
     auto f = make_shared<Function>(make_shared<op::Asinh>(A), ParameterVector{A});
