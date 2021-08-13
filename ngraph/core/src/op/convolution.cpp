@@ -62,16 +62,10 @@ void op::v1::Convolution::validate_and_infer_types() {
                           "Element types must be numeric. Got: ",
                           result_et);
 
-    auto before = std::chrono::high_resolution_clock::now();
-    auto after = std::chrono::high_resolution_clock::now();
-
     PartialShape input_shape = get_input_partial_shape(0);
     PartialShape filters_shape = get_input_partial_shape(1);
     PartialShape result_shape;
-    before = std::chrono::high_resolution_clock::now();
     shape_infer(input_shape, filters_shape, result_shape);
-    after = std::chrono::high_resolution_clock::now();
-
     set_output_type(0, result_et, result_shape);
 }
 
