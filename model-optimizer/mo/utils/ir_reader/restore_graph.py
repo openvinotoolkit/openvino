@@ -1,9 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import logging as log
 from copy import copy
 
 from extensions.back.ConvolutionNormalizer import ConvolutionNormalizer, ConvolutionWithGroupsResolver
+from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
 from extensions.back.PackBinaryWeights import PackBinaryWeights
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement
 from extensions.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
@@ -17,8 +19,14 @@ from mo.utils.class_registration import apply_replacements_list
 from mo.utils.ir_engine.ir_engine import IREngine
 from mo.utils.ir_reader.layer_to_class import copy_graph_with_ops, collect_extenders, collect_ops
 from mo.utils.utils import get_mo_root_dir
-from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
 
+
+def define_data_type(graph: Graph):
+    precision = 'FP32'
+    for const_node in graph.get_op_nodes(op='Const'):
+        if const_node.soft_get('element_type') == 'f16':
+            precision = 'FP16'
+    return precision
 
 def restore_graph_from_ir(path_to_xml: str, path_to_bin: str = None) -> (Graph, dict):
     """
@@ -54,7 +62,12 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
     if name is None:
         name = graph.name
 
-    precision = data_type_str_to_precision(graph.graph['cmd_params'].data_type)
+    if meta_data == {}:
+        log.warning('Provided graph does not contain meta_info section! Trying to define data_type from model.')
+        precision = define_data_type(graph)
+        graph.graph['cmd_params'].data_type = precision
+    else:
+        precision = data_type_str_to_precision(graph.graph['cmd_params'].data_type)
     assert precision in ['FP16', 'FP32'], 'Cannot define precision for restored model!'
 
     # List items order matters, do not change it.
