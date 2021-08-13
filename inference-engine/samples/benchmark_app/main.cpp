@@ -507,7 +507,7 @@ int main(int argc, char* argv[]) {
         if (!ov_perf_hint.empty()) {
             for (const auto& device : devices) {
                 std::vector<std::string> supported_config_keys =
-                        ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                    ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 slog::info << "Device: " << device << slog::endl;
                 for (const auto& cfg : supported_config_keys) {
                     try {
