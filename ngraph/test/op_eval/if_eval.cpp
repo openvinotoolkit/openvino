@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ngraph/pass/constant_folding.hpp>
 #include <string>
 #include <vector>
 
 #include "gtest/gtest.h"
-
-#include <ngraph/pass/constant_folding.hpp>
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/opsets/opset8.hpp"
@@ -19,8 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(op_eval, if_condition_const)
-{
+TEST(op_eval, if_condition_const) {
     auto X = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
     auto Y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
     auto cond = std::make_shared<ngraph::opset5::Constant>(element::boolean, Shape{1}, true);
@@ -68,8 +66,7 @@ TEST(op_eval, if_condition_const)
         EXPECT_NEAR(result_data1[i], X_v[i], 0.000001);
 }
 
-TEST(op_eval, if_condition_non_const)
-{
+TEST(op_eval, if_condition_non_const) {
     auto X = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
     auto Y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
     auto cond = make_shared<op::Parameter>(element::boolean, Shape{1});
@@ -84,10 +81,8 @@ TEST(op_eval, if_condition_non_const)
     auto else_op = std::make_shared<op::v1::Add>(Xe, Ye);
     auto then_op_result = make_shared<op::Result>(then_op);
     auto else_op_result = make_shared<op::Result>(else_op);
-    auto then_body =
-        make_shared<ngraph::Function>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
-    auto else_body =
-        make_shared<ngraph::Function>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
+    auto then_body = make_shared<ngraph::Function>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
+    auto else_body = make_shared<ngraph::Function>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
     auto if_op = make_shared<op::v8::If>(cond);
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
@@ -122,8 +117,7 @@ TEST(op_eval, if_condition_non_const)
         EXPECT_NEAR(result_data[i], expected_results[i], 0.000001);
 }
 
-TEST(op_eval, if_free_sample)
-{
+TEST(op_eval, if_free_sample) {
     auto cond = make_shared<op::Parameter>(element::boolean, Shape{1});
     auto A = std::make_shared<ngraph::opset5::Constant>(element::f32, Shape{1}, 8.0);
     auto B = std::make_shared<ngraph::opset5::Constant>(element::f32, Shape{1}, 2.0);
@@ -138,10 +132,8 @@ TEST(op_eval, if_free_sample)
     auto fun = make_shared<Function>(OutputVector{res}, ParameterVector{cond});
     fun->validate_nodes_and_infer_types();
     auto result1 = make_shared<HostTensor>(), result2 = make_shared<HostTensor>();
-    ASSERT_TRUE(
-        fun->evaluate({result1}, {make_host_tensor<element::Type_t::boolean>(Shape{1}, {true})}));
-    ASSERT_TRUE(
-        fun->evaluate({result2}, {make_host_tensor<element::Type_t::boolean>(Shape{1}, {false})}));
+    ASSERT_TRUE(fun->evaluate({result1}, {make_host_tensor<element::Type_t::boolean>(Shape{1}, {true})}));
+    ASSERT_TRUE(fun->evaluate({result2}, {make_host_tensor<element::Type_t::boolean>(Shape{1}, {false})}));
     auto result_data1 = read_vector<float>(result1);
     auto result_data2 = read_vector<float>(result2);
     EXPECT_EQ(result1->get_element_type(), element::f32);
@@ -152,8 +144,7 @@ TEST(op_eval, if_free_sample)
     EXPECT_NEAR(result_data2[0], 2.0, 0.000001);
 }
 
-TEST(op_eval, if_constant_folding)
-{
+TEST(op_eval, if_constant_folding) {
     auto cond = std::make_shared<ngraph::opset5::Constant>(element::boolean, Shape{1}, false);
     auto A1 = std::make_shared<ngraph::opset5::Constant>(element::f32, Shape{1}, 37.0);
     auto A2 = std::make_shared<ngraph::opset5::Constant>(element::f32, Shape{1}, 45.0);
@@ -191,8 +182,7 @@ TEST(op_eval, if_constant_folding)
     EXPECT_NEAR(val[0], 1000.0, 0.000001);
 }
 
-TEST(op_eval, if_dynamism)
-{
+TEST(op_eval, if_dynamism) {
     auto X = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
     auto Y = make_shared<op::Parameter>(element::f32, Shape{4, 2, 2});
     auto Z = make_shared<op::Parameter>(element::f32, Shape{8, 8, 8});
@@ -210,10 +200,10 @@ TEST(op_eval, if_dynamism)
     auto then_op_result2 = make_shared<op::Result>(Yt);
     auto else_op_result1 = make_shared<op::Result>(else_op);
     auto else_op_result2 = make_shared<op::Result>(Ze);
-    auto then_body = make_shared<ngraph::Function>(OutputVector{then_op_result1, then_op_result2},
-                                                   ParameterVector{Xt, Yt});
-    auto else_body = make_shared<ngraph::Function>(OutputVector{else_op_result1, else_op_result2},
-                                                   ParameterVector{Xe, Ze});
+    auto then_body =
+        make_shared<ngraph::Function>(OutputVector{then_op_result1, then_op_result2}, ParameterVector{Xt, Yt});
+    auto else_body =
+        make_shared<ngraph::Function>(OutputVector{else_op_result1, else_op_result2}, ParameterVector{Xe, Ze});
     auto if_op = make_shared<op::v8::If>(cond);
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
@@ -227,22 +217,17 @@ TEST(op_eval, if_dynamism)
     if_op->validate_and_infer_types();
     std::vector<float> X_v{1.0, 2.0, 3.0, 4.0};
     std::vector<float> Y_v, Z_v;
-    for (auto c_ind = 0; c_ind < 4; ++c_ind)
-    {
-        for (auto d_ind = 0; d_ind < 4; ++d_ind)
-        {
+    for (auto c_ind = 0; c_ind < 4; ++c_ind) {
+        for (auto d_ind = 0; d_ind < 4; ++d_ind) {
             Y_v.push_back(static_cast<float>(c_ind * d_ind));
         }
     }
-    for (auto c_ind = 0; c_ind < 8; ++c_ind)
-    {
-        for (auto d_ind = 0; d_ind < 64; ++d_ind)
-        {
+    for (auto c_ind = 0; c_ind < 8; ++c_ind) {
+        for (auto d_ind = 0; d_ind < 64; ++d_ind) {
             Z_v.push_back(static_cast<float>(c_ind * d_ind));
         }
     }
-    auto fun =
-        make_shared<Function>(OutputVector{result_if1, result_if2}, ParameterVector{cond, X, Y, Z});
+    auto fun = make_shared<Function>(OutputVector{result_if1, result_if2}, ParameterVector{cond, X, Y, Z});
     auto result1 = make_shared<HostTensor>();
     auto result2 = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result1, result2},
@@ -281,8 +266,7 @@ TEST(op_eval, if_dynamism)
         EXPECT_NEAR(result4_data[i], Z_v[i], 0.000001);
 }
 
-TEST(op_eval, if_condition_non_const_scalar)
-{
+TEST(op_eval, if_condition_non_const_scalar) {
     auto X = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
     auto Y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
     auto cond = make_shared<op::Parameter>(element::boolean, Shape{});
@@ -297,10 +281,8 @@ TEST(op_eval, if_condition_non_const_scalar)
     auto else_op = std::make_shared<op::v1::Add>(Xe, Ye);
     auto then_op_result = make_shared<op::Result>(then_op);
     auto else_op_result = make_shared<op::Result>(else_op);
-    auto then_body =
-        make_shared<ngraph::Function>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
-    auto else_body =
-        make_shared<ngraph::Function>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
+    auto then_body = make_shared<ngraph::Function>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
+    auto else_body = make_shared<ngraph::Function>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
     auto if_op = make_shared<op::v8::If>(cond);
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
@@ -334,8 +316,7 @@ TEST(op_eval, if_condition_non_const_scalar)
     for (auto i = 0; i < expected_results.size(); i++)
         EXPECT_NEAR(result_data[i], expected_results[i], 0.000001);
 }
-TEST(op_eval, if_condition_is_dynamic)
-{
+TEST(op_eval, if_condition_is_dynamic) {
     auto X = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
     auto Y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
     auto cond = make_shared<op::Parameter>(element::boolean, PartialShape{Dimension::dynamic()});
@@ -350,10 +331,8 @@ TEST(op_eval, if_condition_is_dynamic)
     auto else_op = std::make_shared<op::v1::Add>(Xe, Ye);
     auto then_op_result = make_shared<op::Result>(then_op);
     auto else_op_result = make_shared<op::Result>(else_op);
-    auto then_body =
-        make_shared<ngraph::Function>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
-    auto else_body =
-        make_shared<ngraph::Function>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
+    auto then_body = make_shared<ngraph::Function>(OutputVector{then_op_result}, ParameterVector{Xt, Yt});
+    auto else_body = make_shared<ngraph::Function>(OutputVector{else_op_result}, ParameterVector{Xe, Ye});
     auto if_op = make_shared<op::v8::If>(cond);
     if_op->set_then_body(then_body);
     if_op->set_else_body(else_body);
