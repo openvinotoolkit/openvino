@@ -46,10 +46,10 @@ public:
         LINEAR,
         CUBIC,
         AREA,
-        NGRAPH_ENUM_DEPRECATED(nearest, "Please use NEAREST instead") = NEAREST,
-        NGRAPH_ENUM_DEPRECATED(linear, "Please use LINEAR instead") = LINEAR,
-        NGRAPH_ENUM_DEPRECATED(cubic, "Please use CUBIC instead") = CUBIC,
-        NGRAPH_ENUM_DEPRECATED(area, "Please use AREA instead") = AREA
+        nearest NGRAPH_ENUM_DEPRECATED("Please use NEAREST instead") = NEAREST,
+        linear NGRAPH_ENUM_DEPRECATED("Please use LINEAR instead") = LINEAR,
+        cubic NGRAPH_ENUM_DEPRECATED("Please use CUBIC instead") = CUBIC,
+        area NGRAPH_ENUM_DEPRECATED("Please use AREA instead") = AREA
     };
 
     Interpolate() = default;
@@ -86,8 +86,8 @@ public:
     enum class ShapeCalcMode {
         SIZES,
         SCALES,
-        NGRAPH_ENUM_DEPRECATED(sizes, "Please use SIZES instead") = SIZES,
-        NGRAPH_ENUM_DEPRECATED(scales, "Please use SCALES instead") = SCALES
+        sizes NGRAPH_ENUM_DEPRECATED("Please use SIZES instead") = SIZES,
+        scales NGRAPH_ENUM_DEPRECATED("Please use SCALES instead") = SCALES
     };
 
     /// \brief Interpolation mode
@@ -101,10 +101,10 @@ public:
         LINEAR,
         LINEAR_ONNX,
         CUBIC,
-        NGRAPH_ENUM_DEPRECATED(nearest, "Please use NEAREST instead") = NEAREST,
-        NGRAPH_ENUM_DEPRECATED(linear, "Please use LINEAR instead") = LINEAR,
-        NGRAPH_ENUM_DEPRECATED(linear_onnx, "Please use LINEAR_ONNX instead") = LINEAR_ONNX,
-        NGRAPH_ENUM_DEPRECATED(cubic, "Please use CUBIC instead") = CUBIC
+        nearest NGRAPH_ENUM_DEPRECATED("Please use NEAREST instead") = NEAREST,
+        linear NGRAPH_ENUM_DEPRECATED("Please use LINEAR instead") = LINEAR,
+        linear_onnx NGRAPH_ENUM_DEPRECATED("Please use LINEAR_ONNX instead") = LINEAR_ONNX,
+        cubic NGRAPH_ENUM_DEPRECATED("Please use CUBIC instead") = CUBIC
     };
 
     /// \brief Mode of the calculation of the source coordinate from resized one
@@ -116,11 +116,11 @@ public:
         ASYMMETRIC,
         TF_HALF_PIXEL_FOR_NN,
         ALIGN_CORNERS,
-        NGRAPH_ENUM_DEPRECATED(half_pixel, "Please use HALF_PIXEL instead") = HALF_PIXEL,
-        NGRAPH_ENUM_DEPRECATED(pytorch_half_pixel, "Please use PYTORCH_HALF_PIXEL instead") = PYTORCH_HALF_PIXEL,
-        NGRAPH_ENUM_DEPRECATED(asymmetric, "Please use ASYMMETRIC instead") = ASYMMETRIC,
-        NGRAPH_ENUM_DEPRECATED(tf_half_pixel_for_nn, "Please use TF_HALF_PIXEL_FOR_NN instead") = TF_HALF_PIXEL_FOR_NN,
-        NGRAPH_ENUM_DEPRECATED(align_corners, "Please use ALIGN_CORNERS instead") = ALIGN_CORNERS
+        half_pixel NGRAPH_ENUM_DEPRECATED("Please use HALF_PIXEL instead") = HALF_PIXEL,
+        pytorch_half_pixel NGRAPH_ENUM_DEPRECATED("Please use PYTORCH_HALF_PIXEL instead") = PYTORCH_HALF_PIXEL,
+        asymmetric NGRAPH_ENUM_DEPRECATED("Please use ASYMMETRIC instead") = ASYMMETRIC,
+        tf_half_pixel_for_nn NGRAPH_ENUM_DEPRECATED("Please use TF_HALF_PIXEL_FOR_NN instead") = TF_HALF_PIXEL_FOR_NN,
+        align_corners NGRAPH_ENUM_DEPRECATED("Please use ALIGN_CORNERS instead") = ALIGN_CORNERS
     };
 
     /// \brief Round modes for the nearest interpolation.
@@ -130,11 +130,11 @@ public:
         FLOOR,
         CEIL,
         SIMPLE,
-        NGRAPH_ENUM_DEPRECATED(round_prefer_floor, "Please use ROUND_PREFER_FLOOR instead") = ROUND_PREFER_FLOOR,
-        NGRAPH_ENUM_DEPRECATED(round_prefer_ceil, "Please use ROUND_PREFER_CEIL instead") = ROUND_PREFER_CEIL,
-        NGRAPH_ENUM_DEPRECATED(floor, "Please use FLOOR instead") = FLOOR,
-        NGRAPH_ENUM_DEPRECATED(ceil, "Please use CEIL instead") = CEIL,
-        NGRAPH_ENUM_DEPRECATED(simple, "Please use SIMPLE instead") = SIMPLE
+        round_prefer_floor NGRAPH_ENUM_DEPRECATED("Please use ROUND_PREFER_FLOOR instead") = ROUND_PREFER_FLOOR,
+        round_prefer_ceil NGRAPH_ENUM_DEPRECATED("Please use ROUND_PREFER_CEIL instead") = ROUND_PREFER_CEIL,
+        floor NGRAPH_ENUM_DEPRECATED("Please use FLOOR instead") = FLOOR,
+        ceil NGRAPH_ENUM_DEPRECATED("Please use CEIL instead") = CEIL,
+        simple NGRAPH_ENUM_DEPRECATED("Please use SIMPLE instead") = SIMPLE
     };
 
     struct InterpolateAttrs {
