@@ -103,7 +103,7 @@ def test_load_by_model():
 
     fe = fem.load_by_model(onnx_model_filename)
     assert fe
-    assert fe.get_name() == "onnx_experimental"
+    assert fe.get_name() == "onnx"
     model = fe.load(onnx_model_filename)
     assert model
     decoded_function = fe.decode(model)
