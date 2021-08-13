@@ -14,8 +14,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(op_eval, bucketize_empty_buckets)
-{
+NGRAPH_TEST(op_eval, bucketize_empty_buckets) {
     Shape data_shape{1, 1, 3};
     Shape bucket_shape{0};
 

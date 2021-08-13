@@ -4,10 +4,8 @@
 
 #include "ngraph/opsets/opset7.hpp"
 
-namespace ngraph
-{
-    namespace onnx_import
-    {
-        namespace default_opset = ngraph::opset7;
-    }
-} // namespace ngraph
+namespace ngraph {
+namespace onnx_import {
+namespace default_opset = ngraph::opset7;
+}
+}  // namespace ngraph

@@ -6,7 +6,4 @@
 
 using Type = ::testing::Types<UnaryOperatorType<ngraph::op::v4::Swish, ngraph::element::f32>>;
 
-INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_atrribute,
-                               UnaryOperatorVisitor,
-                               Type,
-                               UnaryOperatorTypeName);
+INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_atrribute, UnaryOperatorVisitor, Type, UnaryOperatorTypeName);
