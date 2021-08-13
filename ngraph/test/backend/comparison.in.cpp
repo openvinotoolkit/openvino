@@ -8,8 +8,8 @@
 #include <cstdlib>
 #include <random>
 #include <string>
-#include "gtest/gtest.h"
 
+#include "gtest/gtest.h"
 #include "ngraph/log.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
@@ -26,8 +26,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, notequal)
-{
+NGRAPH_TEST(${BACKEND_NAME}, notequal) {
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);

@@ -8,91 +8,105 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        namespace v1
-        {
-            /// \brief Batched convolution operation, with optional window dilation and stride.
-            ///
-            class NGRAPH_API Convolution : public Op
-            {
-            public:
-                NGRAPH_RTTI_DECLARATION;
+namespace ngraph {
+namespace op {
+namespace v1 {
+/// \brief Batched convolution operation, with optional window dilation and stride.
+///
+class NGRAPH_API Convolution : public Op {
+public:
+    NGRAPH_RTTI_DECLARATION;
 
-                /// \brief Constructs a batched convolution operation.
-                Convolution() = default;
-                /// \brief Constructs a batched convolution operation.
-                ///
-                /// \param data_batch The node producing the input data batch tensor.<br>
-                /// `[N, C_IN, D1, ... Df]`
-                /// \param filters The node producing the filters tensor.<br>
-                /// `[C_OUT, C_IN, F1, ... Ff]`
-                /// \param strides The strides.<br>
-                /// `[f]`
-                /// \param dilations The dilations.<br>
-                /// `[f]`
-                /// \param pads_begin The beginning of padding shape.<br>
-                /// `[f]`
-                /// \param pads_end The end of padding shape.<br>
-                /// `[f]`
-                /// \param auto_pad The pad type for automatically computing padding sizes.<br>
-                /// `[f]`
-                ///
-                /// Output `[N, C_OUT, R1, ... Rf]`
-                ///
-                Convolution(const Output<Node>& data_batch,
-                            const Output<Node>& filters,
-                            const Strides& strides,
-                            const CoordinateDiff& pads_begin,
-                            const CoordinateDiff& pads_end,
-                            const Strides& dilations,
-                            const PadType& auto_pad = PadType::EXPLICIT);
+    /// \brief Constructs a batched convolution operation.
+    Convolution() = default;
+    /// \brief Constructs a batched convolution operation.
+    ///
+    /// \param data_batch The node producing the input data batch tensor.<br>
+    /// `[N, C_IN, D1, ... Df]`
+    /// \param filters The node producing the filters tensor.<br>
+    /// `[C_OUT, C_IN, F1, ... Ff]`
+    /// \param strides The strides.<br>
+    /// `[f]`
+    /// \param dilations The dilations.<br>
+    /// `[f]`
+    /// \param pads_begin The beginning of padding shape.<br>
+    /// `[f]`
+    /// \param pads_end The end of padding shape.<br>
+    /// `[f]`
+    /// \param auto_pad The pad type for automatically computing padding sizes.<br>
+    /// `[f]`
+    ///
+    /// Output `[N, C_OUT, R1, ... Rf]`
+    ///
+    Convolution(const Output<Node>& data_batch,
+                const Output<Node>& filters,
+                const Strides& strides,
+                const CoordinateDiff& pads_begin,
+                const CoordinateDiff& pads_end,
+                const Strides& dilations,
+                const PadType& auto_pad = PadType::EXPLICIT);
 
-                void validate_and_infer_types() override;
-                bool visit_attributes(AttributeVisitor& visitor) override;
+    void validate_and_infer_types() override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
+    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                /// \return The strides.
-                const Strides& get_strides() const { return m_strides; }
-                void set_strides(const Strides& strides) { m_strides = strides; }
-                /// \return The dilations.
-                const Strides& get_dilations() const { return m_dilations; }
-                void set_dilations(const Strides& dilations) { m_dilations = dilations; }
-                /// \return The padding-below sizes (possibly negative).
-                const CoordinateDiff& get_pads_begin() const { return m_pads_begin; }
-                void set_pads_begin(const CoordinateDiff& pads_begin) { m_pads_begin = pads_begin; }
-                /// \return The padding-above sizes (possibly negative).
-                const CoordinateDiff& get_pads_end() const { return m_pads_end; }
-                void set_adding_above(const CoordinateDiff& pads_end) { m_pads_end = pads_end; }
-                /// \return The pad type for convolution.
-                const PadType& get_auto_pad() const { return m_auto_pad; }
-                void set_auto_pad(const PadType& auto_pad) { m_auto_pad = auto_pad; }
-                /// \return The default value for Convolution.
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                virtual std::shared_ptr<Node> get_default_value() const override;
-                NGRAPH_SUPPRESS_DEPRECATED_END
+    /// \return The strides.
+    const Strides& get_strides() const {
+        return m_strides;
+    }
+    void set_strides(const Strides& strides) {
+        m_strides = strides;
+    }
+    /// \return The dilations.
+    const Strides& get_dilations() const {
+        return m_dilations;
+    }
+    void set_dilations(const Strides& dilations) {
+        m_dilations = dilations;
+    }
+    /// \return The padding-below sizes (possibly negative).
+    const CoordinateDiff& get_pads_begin() const {
+        return m_pads_begin;
+    }
+    void set_pads_begin(const CoordinateDiff& pads_begin) {
+        m_pads_begin = pads_begin;
+    }
+    /// \return The padding-above sizes (possibly negative).
+    const CoordinateDiff& get_pads_end() const {
+        return m_pads_end;
+    }
+    void set_adding_above(const CoordinateDiff& pads_end) {
+        m_pads_end = pads_end;
+    }
+    /// \return The pad type for convolution.
+    const PadType& get_auto_pad() const {
+        return m_auto_pad;
+    }
+    void set_auto_pad(const PadType& auto_pad) {
+        m_auto_pad = auto_pad;
+    }
+    /// \return The default value for Convolution.
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    virtual std::shared_ptr<Node> get_default_value() const override;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
-            protected:
-                Strides m_strides;
-                Strides m_dilations;
-                CoordinateDiff m_pads_begin;
-                CoordinateDiff m_pads_end;
-                PadType m_auto_pad;
-            };
+protected:
+    Strides m_strides;
+    Strides m_dilations;
+    CoordinateDiff m_pads_begin;
+    CoordinateDiff m_pads_end;
+    PadType m_auto_pad;
+};
 
-            /// \brief Data batch backprop for batched convolution operation.
-            class NGRAPH_API ConvolutionBackpropData : public Op
-            {
-            public:
-                NGRAPH_RTTI_DECLARATION;
+/// \brief Data batch backprop for batched convolution operation.
+class NGRAPH_API ConvolutionBackpropData : public Op {
+public:
+    NGRAPH_RTTI_DECLARATION;
 
-                /// \brief Constructs a batched-convolution data batch-backprop operation.
-                ConvolutionBackpropData() = default;
-                // clang-format off
+    /// \brief Constructs a batched-convolution data batch-backprop operation.
+    ConvolutionBackpropData() = default;
+    // clang-format off
                 //
                 // \brief      Constructs a batched-convolution data batch-backprop operation.
                 //
