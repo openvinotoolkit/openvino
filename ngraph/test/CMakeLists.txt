@@ -115,6 +115,7 @@ set(SRC
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
+    type_prop/cum_sum.cpp
     type_prop/deformable_convolution.cpp
     type_prop/deformable_convolution_opset8.cpp
     type_prop/deformable_psroi_pooling.cpp
@@ -560,9 +561,16 @@ endif()
 
 # SOURCE FOR FRONTEND TESTING
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
-set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
-add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
+foreach(src IN LISTS SRC MULTI_TEST_SRC)
+    if(IS_ABSOLUTE "${src}")
+        list(APPEND full_src_names ${src})
+    else()
+        list(APPEND full_src_names "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+    endif()
+endforeach()
+add_clang_format_target(unit-test_clang FOR_SOURCES ${full_src_names})
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
