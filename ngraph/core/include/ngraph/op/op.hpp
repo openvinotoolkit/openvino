@@ -8,19 +8,13 @@
 
 #include "ngraph/node.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        /// Root of all actual ops
-        class NGRAPH_API Op : public Node
-        {
-        protected:
-            Op()
-                : Node()
-            {
-            }
-            Op(const OutputVector& arguments);
-        };
-    } // namespace op
-} // namespace ngraph
+namespace ngraph {
+namespace op {
+/// Root of all actual ops
+class NGRAPH_API Op : public Node {
+protected:
+    Op() : Node() {}
+    Op(const OutputVector& arguments);
+};
+}  // namespace op
+}  // namespace ngraph

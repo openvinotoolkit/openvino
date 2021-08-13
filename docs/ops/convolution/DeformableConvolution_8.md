@@ -14,7 +14,7 @@ Output is calculated using the following formula:
 
   \f[
 
-  y(p) = \sum_{k = 1}^{K}w_{k}x(p + p_{k} + {\Delta}p_{k}) * {\Delta}m_{k}
+  y(p) = \displaystyle{\sum_{k = 1}^{K}}w_{k}x(p + p_{k} + {\Delta}p_{k}) \cdot {\Delta}m_{k}
 
   \f]
 Where
