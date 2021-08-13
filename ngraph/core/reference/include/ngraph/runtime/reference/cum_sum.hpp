@@ -33,20 +33,29 @@ void cumsum(const T* arg,
 
     const auto axis_dim = tensor_shape[axis];
     for (auto i = 0; i < slices_count; ++i) {
-        auto shift = exclusive ? offset : 0;
+        auto exclusive_shift = exclusive ? offset : 0;
 
         for (auto o = 0; o < offset; ++o) {
-            auto sequence_start_idx = i * axis_dim * offset + o;
-            out[sequence_start_idx] = exclusive ? static_cast<T>(0) : arg[sequence_start_idx];
-            for (auto j = 1; j < axis_dim; ++j) {
-                auto element_idx = sequence_start_idx + j * offset;
-                auto in_idx = element_idx - shift;
-                out[element_idx] = out[element_idx - offset] + arg[in_idx];
+            if (reverse) {
+                auto sequence_start_idx = i * axis_dim * offset + o + (axis_dim - 1) * offset;
+                out[sequence_start_idx] = exclusive ? static_cast<T>(0) : arg[sequence_start_idx];
+                for (auto j = 1; j < axis_dim; ++j) {
+                    auto element_idx = sequence_start_idx - j * offset;
+                    auto in_idx = element_idx + exclusive_shift;
+                    out[element_idx] = out[element_idx + offset] + arg[in_idx];
+                }
+            } else {
+                auto sequence_start_idx = i * axis_dim * offset + o;
+                out[sequence_start_idx] = exclusive ? static_cast<T>(0) : arg[sequence_start_idx];
+                for (auto j = 1; j < axis_dim; ++j) {
+                    auto element_idx = sequence_start_idx + j * offset;
+                    auto in_idx = element_idx - exclusive_shift;
+                    out[element_idx] = out[element_idx - offset] + arg[in_idx];
+                }
             }
         }
     }
 }
-
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
