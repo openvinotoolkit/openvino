@@ -19,7 +19,7 @@
 #    if __cplusplus >= 201402L
 #        define NGRAPH_ENUM_DEPRECATED(msg) [[deprecated(msg)]]
 #    else
-#        define NGRAPH_ENUM_DEPRECATED(msg) val
+#        define NGRAPH_ENUM_DEPRECATED(msg)
 #    endif
 #elif defined(__INTEL_COMPILER)
 #    define NGRAPH_DEPRECATED(msg)      __attribute__((deprecated(msg)))
