@@ -3,12 +3,11 @@
 //
 
 #include <string>
+
 #include "frontend_manager/frontend_manager_defs.hpp"
 
-namespace ngraph
-{
-    namespace frontend
-    {
-        FRONTEND_API std::string get_frontend_library_path();
-    } // namespace frontend
-} // namespace ngraph
+namespace ngraph {
+namespace frontend {
+FRONTEND_API std::string get_frontend_library_path();
+}  // namespace frontend
+}  // namespace ngraph

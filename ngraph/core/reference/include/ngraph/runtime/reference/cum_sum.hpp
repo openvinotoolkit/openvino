@@ -148,6 +148,7 @@ namespace ngraph
                         output_data.data(), out, axis, tensor_shape, transposed_shape);
                 }
             }
-        } // namespace reference
-    }     // namespace runtime
-} // namespace ngraph
+
+}  // namespace reference
+}  // namespace runtime
+}  // namespace ngraph

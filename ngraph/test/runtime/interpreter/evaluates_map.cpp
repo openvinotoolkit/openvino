@@ -2439,19 +2439,19 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::v0::fake_quantize<T>(inputs[0]->get_data_ptr<const T>(),
-                                                 inputs[1]->get_data_ptr<const T>(),
-                                                 inputs[2]->get_data_ptr<const T>(),
-                                                 inputs[3]->get_data_ptr<const T>(),
-                                                 inputs[4]->get_data_ptr<const T>(),
-                                                 outputs[0]->get_data_ptr<T>(),
-                                                 op->get_input_shape(0),
-                                                 op->get_input_shape(1),
-                                                 op->get_input_shape(2),
-                                                 op->get_input_shape(3),
-                                                 op->get_input_shape(4),
-                                                 op->get_levels(),
-                                                 op->get_auto_broadcast());
+        runtime::reference::fake_quantize<T>(inputs[0]->get_data_ptr<const T>(),
+                                             inputs[1]->get_data_ptr<const T>(),
+                                             inputs[2]->get_data_ptr<const T>(),
+                                             inputs[3]->get_data_ptr<const T>(),
+                                             inputs[4]->get_data_ptr<const T>(),
+                                             outputs[0]->get_data_ptr<T>(),
+                                             op->get_input_shape(0),
+                                             op->get_input_shape(1),
+                                             op->get_input_shape(2),
+                                             op->get_input_shape(3),
+                                             op->get_input_shape(4),
+                                             op->get_levels(),
+                                             op->get_auto_broadcast());
         return true;
     }
 
