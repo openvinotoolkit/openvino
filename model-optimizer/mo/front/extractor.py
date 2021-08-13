@@ -950,7 +950,7 @@ def add_input_ops_helper_after_infer_output_port(graph: Graph, smart_node: Node,
         raise Error('Shape for tensor "{}" is not defined. Can not proceed.' + refer_to_faq_msg(41),
                     out_node.soft_get('name'))
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=True,
-                                shape=shape.copy(), data_type=out_node.soft_get('data_type', None), is_out_port=True))
+                               shape=shape.copy(), data_type=out_node.soft_get('data_type', None), is_out_port=True))
     edges_to_remove.append((node_id, out_node.id))
 
 
@@ -986,6 +986,8 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
 
                 is_out_port = 'out' in port_and_shape_info  # by default we assume input port or input node without port
                 shape = port_and_shape_info['shape'] if 'shape' in port_and_shape_info else None
+                if shape is not None:
+                    shape = shape_array([dim if dim >= 0 else dynamic_dimension_value for dim in shape])
                 data_type = port_and_shape_info['data_type'] if 'data_type' in port_and_shape_info else None
                 smart_node = Node(graph, node_id)
 
@@ -1012,8 +1014,7 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                             'Parameter node "{}" doesn\'t have input port, but input port {} was provided. ' +
                             refer_to_faq_msg(28), node_id, port)
                     if shape is not None:
-                        smart_node['shape'] = shape_array([dim if dim >= 0 else dynamic_dimension_value
-                                                           for dim in shape])
+                        smart_node['shape'] = shape
                     if data_type is not None:
                         smart_node['data_type'] = data_type
                     inputs.append(node_id)
