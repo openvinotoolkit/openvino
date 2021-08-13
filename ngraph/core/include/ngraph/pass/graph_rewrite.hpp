@@ -11,7 +11,6 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pattern/matcher.hpp"
 
-<<<<<<< HEAD
 namespace ngraph {
 using matcher_pass_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
 using graph_rewrite_callback = std::function<bool(ngraph::pattern::Matcher& m)>;

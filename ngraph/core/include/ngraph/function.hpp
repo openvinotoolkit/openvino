@@ -20,7 +20,6 @@
 #include "ngraph/op/sink.hpp"
 #include "ngraph/op/util/variable.hpp"
 
-<<<<<<< HEAD
 namespace ngraph {
 /// A user-defined function.
 class NGRAPH_API Function {
