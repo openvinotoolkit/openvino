@@ -41,9 +41,7 @@ static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-
-NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
-{
+NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid) {
     const Shape shape{2, 7};
     const float alpha_f = 0.125f;
     const float beta_f = 0.642f;
@@ -68,7 +66,9 @@ NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
                         -numeric_limits<float>::min() / 16.f};
 
     // Prepare expected output data
-    auto impl = [alpha_f, beta_f](float val) { return min(max(alpha_f * val + beta_f, 0.f), 1.f); };
+    auto impl = [alpha_f, beta_f](float val) {
+        return min(max(alpha_f * val + beta_f, 0.f), 1.f);
+    };
     vector<float> expected_output;
     transform(begin(input), end(input), back_inserter(expected_output), impl);
 
@@ -78,8 +78,7 @@ NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_normalization)
-{
+NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_normalization) {
     Shape data_shape{1, 2, 5};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -92,14 +91,13 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_normalization)
     test_case.add_input<float>(data_vector);
 
     // expected result
-    test_case.add_expected_output<float>(
-        data_shape, vector<float>{-4.5, -3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5, 4.5});
+    test_case.add_expected_output<float>(data_shape,
+                                         vector<float>{-4.5, -3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5, 4.5});
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_normalization_split_channels)
-{
+NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_normalization_split_channels) {
     Shape data_shape{1, 2, 5, 1};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -112,14 +110,12 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_normalization_split_channels)
     test_case.add_input<float>(data_vector);
 
     // expected result
-    test_case.add_expected_output<float>({1, 2, 5, 1},
-                                         vector<float>{-2, -1, 0, 1, 2, -2, -1, 0, 1, 2});
+    test_case.add_expected_output<float>({1, 2, 5, 1}, vector<float>{-2, -1, 0, 1, 2, -2, -1, 0, 1, 2});
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization)
-{
+NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization) {
     Shape data_shape{1, 2, 5};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -147,8 +143,7 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_split_channels)
-{
+NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_split_channels) {
     Shape data_shape{1, 2, 5};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -175,8 +170,7 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_split_channels)
 
     test_case.run();
 }
-NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_shared_across_channel_batch_size_2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_shared_across_channel_batch_size_2) {
     Shape data_shape{2, 2, 5};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -189,17 +183,15 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_shared_across_chann
     test_case.add_input<float>(data_vector);
 
     // expected result
-    test_case.add_expected_output<float>(
-        data_shape,
-        {-1.5666989f, -1.2185436f, -0.8703883f, -0.5222329f, -0.1740777f, 0.1740777f,  0.5222329f,
-         0.8703883f,  1.2185436f,  1.5666989f,  -1.5666989f, -1.2185436f, -0.8703883f, -0.5222329f,
-         -0.1740777f, 0.1740777f,  0.5222329f,  0.8703883f,  1.2185436f,  1.5666989f});
+    test_case.add_expected_output<float>(data_shape, {-1.5666989f, -1.2185436f, -0.8703883f, -0.5222329f, -0.1740777f,
+                                                      0.1740777f,  0.5222329f,  0.8703883f,  1.2185436f,  1.5666989f,
+                                                      -1.5666989f, -1.2185436f, -0.8703883f, -0.5222329f, -0.1740777f,
+                                                      0.1740777f,  0.5222329f,  0.8703883f,  1.2185436f,  1.5666989f});
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_not_shared_across_channel_batch_size_2)
-{
+NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_not_shared_across_channel_batch_size_2) {
     Shape data_shape{2, 2, 5};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
 
@@ -212,18 +204,16 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_not_shared_across_c
     test_case.add_input<float>(data_vector);
 
     // expected result
-    test_case.add_expected_output<float>(
-        data_shape,
-        {-1.4142135f, -0.7071068f, 0.0000000f,  0.7071068f,  1.4142135f,  -1.4142135f, -0.7071068f,
-         0.0000000f,  0.7071068f,  1.4142135f,  -1.4142135f, -0.7071068f, 0.0000000f,  0.7071068f,
-         1.4142135f,  -1.4142135f, -0.7071068f, 0.0000000f,  0.7071068f,  1.4142135f});
+    test_case.add_expected_output<float>(data_shape, {-1.4142135f, -0.7071068f, 0.0000000f, 0.7071068f, 1.4142135f,
+                                                      -1.4142135f, -0.7071068f, 0.0000000f, 0.7071068f, 1.4142135f,
+                                                      -1.4142135f, -0.7071068f, 0.0000000f, 0.7071068f, 1.4142135f,
+                                                      -1.4142135f, -0.7071068f, 0.0000000f, 0.7071068f, 1.4142135f});
 
     test_case.run();
 }
 
 // TODO: Issue: 37534
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference)
-{
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference) {
     const auto x1 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
     const auto x2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
 
@@ -238,8 +228,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference_broadcast)
-{
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference_broadcast) {
     const auto x1 = make_shared<op::Parameter>(element::i32, Shape{2, 2});
     const auto x2 = make_shared<op::Parameter>(element::i32, Shape{});
 
@@ -254,15 +243,14 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference_broadcast)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_space_to_depth_block_first)
-{
+NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_space_to_depth_block_first) {
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     Shape dts_input_shape{2, 32, 2, 4, 2, 4};
     size_t block_size = 2;
 
     auto dts_input = make_shared<op::Parameter>(element::f32, dts_input_shape);
-    auto depth_to_space = make_shared<op::DepthToSpace>(
-        dts_input, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, block_size);
+    auto depth_to_space =
+        make_shared<op::DepthToSpace>(dts_input, op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, block_size);
     auto dts_func = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{dts_input});
 
     auto dts_input_tensor = backend->create_tensor(element::f32, dts_input_shape);
@@ -278,8 +266,8 @@ NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_space_to_depth_block_first)
 
     // use depth_to_space output as space_to_depth input
     auto std_input = make_shared<op::Parameter>(element::f32, dts_output_shape);
-    auto space_to_depth = make_shared<op::SpaceToDepth>(
-        std_input, op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, block_size);
+    auto space_to_depth =
+        make_shared<op::SpaceToDepth>(std_input, op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, block_size);
     auto std_func = make_shared<Function>(NodeVector{space_to_depth}, ParameterVector{std_input});
 
     auto std_input_tensor = backend->create_tensor(element::f32, dts_output_shape);
@@ -294,15 +282,14 @@ NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_space_to_depth_block_first)
     EXPECT_TRUE(test::all_close_f(std_result, data, data_size));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_space_to_depth_depth_first)
-{
+NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_space_to_depth_depth_first) {
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     Shape dts_input_shape{2, 32, 2, 4, 2, 4};
     size_t block_size = 2;
 
     auto dts_input = make_shared<op::Parameter>(element::f32, dts_input_shape);
-    auto depth_to_space = make_shared<op::DepthToSpace>(
-        dts_input, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, block_size);
+    auto depth_to_space =
+        make_shared<op::DepthToSpace>(dts_input, op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, block_size);
     auto dts_func = make_shared<Function>(NodeVector{depth_to_space}, ParameterVector{dts_input});
 
     auto dts_input_tensor = backend->create_tensor(element::f32, dts_input_shape);
@@ -318,8 +305,8 @@ NGRAPH_TEST(${BACKEND_NAME}, depth_to_space_space_to_depth_depth_first)
 
     // use depth_to_space output as space_to_depth input
     auto std_input = make_shared<op::Parameter>(element::f32, dts_output_shape);
-    auto space_to_depth = make_shared<op::SpaceToDepth>(
-        std_input, op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, block_size);
+    auto space_to_depth =
+        make_shared<op::SpaceToDepth>(std_input, op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, block_size);
     auto std_func = make_shared<Function>(NodeVector{space_to_depth}, ParameterVector{std_input});
 
     auto std_input_tensor = backend->create_tensor(element::f32, dts_output_shape);

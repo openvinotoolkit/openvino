@@ -10,7 +10,7 @@
 As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *Mod* operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
 
 \f[
-o_{i} = a_{i} % b_{i}
+o_{i} = a_{i} \mod b_{i}
 \f]
 
 *Mod* operation computes a reminder of a truncated division. It is the same behaviour like in C programming language: `truncated(x / y) * y + truncated_mod(x, y) = x`. The sign of the result is equal to a sign of a dividend. The result of division by zero is undefined.

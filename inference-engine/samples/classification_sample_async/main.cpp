@@ -100,7 +100,8 @@ int main(int argc, char* argv[]) {
             // Config for device plugin custom extension is loaded from an .xml
             // description
             ie.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, FLAGS_d);
-            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c << slog::endl;
+            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c
+                       << slog::endl;
         }
         // -----------------------------------------------------------------------------------------------------
 
@@ -142,8 +143,8 @@ int main(int argc, char* argv[]) {
                 continue;
             }
             /** Store image data **/
-            std::shared_ptr<unsigned char> data(
-                reader->getData(inputInfoItem.second->getTensorDesc().getDims()[3], inputInfoItem.second->getTensorDesc().getDims()[2]));
+            std::shared_ptr<unsigned char> data(reader->getData(inputInfoItem.second->getTensorDesc().getDims()[3],
+                                                                inputInfoItem.second->getTensorDesc().getDims()[2]));
             if (data != nullptr) {
                 imagesData.push_back(data);
                 validImageNames.push_back(i);
@@ -203,7 +204,8 @@ int main(int argc, char* argv[]) {
                     for (size_t ch = 0; ch < num_channels; ++ch) {
                         /**          [images stride + channels stride + pixel id ] all in
                          * bytes            **/
-                        data[image_id * image_size * num_channels + ch * image_size + pid] = imagesData.at(image_id).get()[pid * num_channels + ch];
+                        data[image_id * image_size * num_channels + ch * image_size + pid] =
+                            imagesData.at(image_id).get()[pid * num_channels + ch];
                     }
                 }
             }
@@ -255,8 +257,9 @@ int main(int argc, char* argv[]) {
         /** Validating -nt value **/
         const size_t resultsCnt = outputBlob->size() / batchSize;
         if (FLAGS_nt > resultsCnt || FLAGS_nt < 1) {
-            slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than " << resultsCnt + 1
-                       << " and more than 0)\n            Maximal value " << resultsCnt << " will be used." << slog::endl;
+            slog::warn << "-nt " << FLAGS_nt << " is not available for this network (-nt should be less than "
+                       << resultsCnt + 1 << " and more than 0)\n            Maximal value " << resultsCnt
+                       << " will be used." << slog::endl;
             FLAGS_nt = resultsCnt;
         }
 

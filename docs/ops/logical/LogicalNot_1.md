@@ -26,6 +26,11 @@ a_{i} = \lnot a_{i}
 
 * *T_BOOL*: `boolean`.
 
+\f[
+a_{i} = \lnot a_{i}
+\f]
+>>>>>>> upstream/master
+
 
 **Example**
 
