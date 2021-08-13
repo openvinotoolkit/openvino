@@ -72,7 +72,7 @@ bool InterpolateTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer
     std::shared_ptr<opset4::Interpolate> interpolate4 = as_type_ptr<opset4::Interpolate>(layer);
     if (interpolate4) {
         const auto attrs = interpolate4->get_attrs();
-        return attrs.mode == op::v4::Interpolate::InterpolateMode::nearest;
+        return attrs.mode == op::v4::Interpolate::InterpolateMode::NEAREST;
     }
 
     return false;
@@ -108,7 +108,7 @@ bool InterpolateTransformation::canBeTransformed(const TransformationContext& co
     if (interpolate4) {
         const auto interpAttrs = interpolate4->get_attrs();
 
-        if (interpAttrs.mode != op::v4::Interpolate::InterpolateMode::nearest) {
+        if (interpAttrs.mode != op::v4::Interpolate::InterpolateMode::NEAREST) {
             return false;
         }
 
@@ -126,7 +126,7 @@ bool InterpolateTransformation::canBeTransformed(const TransformationContext& co
             }
         }
 
-        if (interpAttrs.coordinate_transformation_mode == op::v4::Interpolate::CoordinateTransformMode::align_corners) {
+        if (interpAttrs.coordinate_transformation_mode == op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS) {
             return false;
         }
     }

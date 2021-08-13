@@ -41,7 +41,18 @@ class NGRAPH_API Interpolate : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
-    enum class InterpolateMode { nearest, linear, cubic, area };
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    enum class InterpolateMode {
+        NGRAPH_ENUM_DEPRECATED(nearest, "Please use NEAREST instead"),
+        NGRAPH_ENUM_DEPRECATED(linear, "Please use LINEAR instead"),
+        NGRAPH_ENUM_DEPRECATED(cubic, "Please use CUBIC instead"),
+        NGRAPH_ENUM_DEPRECATED(area, "Please use AREA instead"),
+        NEAREST = nearest,
+        LINEAR = linear,
+        CUBIC = cubic,
+        AREA = area
+    };
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
     Interpolate() = default;
     /// \brief Constructs a Interpolate operation
@@ -54,7 +65,7 @@ public:
 
     void validate_and_infer_types() override;
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     const InterpolateAttrs& get_attrs() const {
         return m_attrs;
@@ -74,7 +85,14 @@ public:
     ///
     /// sizes  - output shape for interpolated axes is calculated using input `sizes`
     /// scales - output shape for interpolated axes is calculated using input `scales`
-    enum class ShapeCalcMode { sizes, scales };
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    enum class ShapeCalcMode {
+        NGRAPH_ENUM_DEPRECATED(sizes, "Please use SIZES instead"),
+        NGRAPH_ENUM_DEPRECATED(scales, "Please use SCALES instead"),
+        SIZES = sizes,
+        SCALES = scales
+    };
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
     /// \brief Interpolation mode
     ///
@@ -82,29 +100,60 @@ public:
     /// linear      - linear interpolation as in TensorFlow
     /// linear_onnx - linear interpolation as in ONNX
     /// cubic       - cubic interpolation
-    enum class InterpolateMode { nearest, linear, linear_onnx, cubic };
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    enum class InterpolateMode {
+        NGRAPH_ENUM_DEPRECATED(nearest, "Please use NEAREST instead"),
+        NGRAPH_ENUM_DEPRECATED(linear, "Please use LINEAR instead"),
+        NGRAPH_ENUM_DEPRECATED(linear_onnx, "Please use LINEAR_ONNX instead"),
+        NGRAPH_ENUM_DEPRECATED(cubic, "Please use CUBIC instead"),
+        NEAREST = nearest,
+        LINEAR = linear,
+        LINEAR_ONNX = linear_onnx,
+        CUBIC = cubic
+    };
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
     /// \brief Mode of the calculation of the source coordinate from resized one
     ///
     /// These modes are modes from ONNX runtime.
+    NGRAPH_SUPPRESS_DEPRECATED_START
     enum class CoordinateTransformMode {
-        half_pixel,
-        pytorch_half_pixel,
-        asymmetric,
-        tf_half_pixel_for_nn,
-        align_corners
+        NGRAPH_ENUM_DEPRECATED(half_pixel, "Please use HALF_PIXEL instead"),
+        NGRAPH_ENUM_DEPRECATED(pytorch_half_pixel, "Please use PYTORCH_HALF_PIXEL instead"),
+        NGRAPH_ENUM_DEPRECATED(asymmetric, "Please use ASYMMETRIC instead"),
+        NGRAPH_ENUM_DEPRECATED(tf_half_pixel_for_nn, "Please use TF_HALF_PIXEL_FOR_NN instead"),
+        NGRAPH_ENUM_DEPRECATED(align_corners, "Please use ALIGN_CORNERS instead"),
+        HALF_PIXEL = half_pixel,
+        PYTORCH_HALF_PIXEL = pytorch_half_pixel,
+        ASYMMETRIC = asymmetric,
+        TF_HALF_PIXEL_FOR_NN = tf_half_pixel_for_nn,
+        ALIGN_CORNERS = align_corners
     };
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
     /// \brief Round modes for the nearest interpolation.
-    enum class NearestMode { round_prefer_floor, round_prefer_ceil, floor, ceil, simple };
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    enum class NearestMode {
+        NGRAPH_ENUM_DEPRECATED(round_prefer_floor, "Please use ROUND_PREFER_FLOOR instead"),
+        NGRAPH_ENUM_DEPRECATED(round_prefer_ceil, "Please use ROUND_PREFER_CEIL instead"),
+        NGRAPH_ENUM_DEPRECATED(floor, "Please use FLOOR instead"),
+        NGRAPH_ENUM_DEPRECATED(ceil, "Please use CEIL instead"),
+        NGRAPH_ENUM_DEPRECATED(simple, "Please use SIMPLE instead"),
+        ROUND_PREFER_FLOOR = round_prefer_floor,
+        ROUND_PREFER_CEIL = round_prefer_ceil,
+        FLOOR = floor,
+        CEIL = ceil,
+        SIMPLE = simple
+    };
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
     struct InterpolateAttrs {
         // specifies type of interpolation
         // one of `nearest`, `linear`, `linear_onnx`, `cubic` Required.
-        InterpolateMode mode = InterpolateMode::nearest;
+        InterpolateMode mode = InterpolateMode::NEAREST;
         // specifies shape calculation mode
         // one of `sizes`, `scales` Required
-        ShapeCalcMode shape_calculation_mode = ShapeCalcMode::sizes;
+        ShapeCalcMode shape_calculation_mode = ShapeCalcMode::SIZES;
         // specify the number of pixels to add to the beginning of the image being
         // interpolated. This addition of pixels is done before interpolation
         // calculation.
@@ -116,11 +165,11 @@ public:
         // specifies how to transform the coordinate in the resized tensor to the
         // coordinate in the original tensor. one of `half_pixel`, `pytorch_half_pixel`,
         // `asymmetric`, `tf_half_pixel_for_nn`, `align_corners`
-        CoordinateTransformMode coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
+        CoordinateTransformMode coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
         // specifies round mode when `mode == nearest` and is used only when `mode ==
         // nearest`. one of `round_prefer_floor`, `round_prefer_ceil`, `floor`, `ceil`,
         // `simple`
-        NearestMode nearest_mode = NearestMode::round_prefer_floor;
+        NearestMode nearest_mode = NearestMode::ROUND_PREFER_FLOOR;
         // a flag that specifies whether to perform anti-aliasing. default is `false`
         bool antialias = false;
         // specifies the parameter *a* for cubic interpolation (see, e.g.
@@ -132,10 +181,10 @@ public:
 
         InterpolateAttrs(InterpolateMode mode,
                          ShapeCalcMode shape_calculation_mode,
-                         std::vector<size_t> pads_begin,
-                         std::vector<size_t> pads_end,
-                         CoordinateTransformMode coordinate_transformation_mode = CoordinateTransformMode::half_pixel,
-                         NearestMode nearest_mode = NearestMode::round_prefer_floor,
+                         const std::vector<size_t>& pads_begin,
+                         const std::vector<size_t>& pads_end,
+                         CoordinateTransformMode coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL,
+                         NearestMode nearest_mode = NearestMode::ROUND_PREFER_FLOOR,
                          bool antialias = false,
                          double cube_coeff = -0.75)
             : mode(mode),
@@ -176,7 +225,7 @@ public:
 
     void validate_and_infer_types() override;
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     bool has_evaluate() const override;
 
