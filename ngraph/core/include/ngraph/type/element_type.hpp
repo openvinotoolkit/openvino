@@ -47,4 +47,3 @@ Type from() {
 NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 size_t compiler_byte_size(element::Type_t et);
 }  // namespace ngraph
-
