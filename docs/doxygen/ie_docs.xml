@@ -326,6 +326,7 @@ limitations under the License.
                     </tab>
                     <tab type="user" title="Heterogeneous Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_HETERO"/>
                     <tab type="user" title="Multi-Device Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_MULTI"/>
+                    <tab type="user" title="Auto-Device Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_AUTO"/>
                     <tab type="user" title="GNA Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GNA"/>
                 </tab>
                 <tab type="user" title="Known Issues" url="@ref openvino_docs_IE_DG_Known_Issues_Limitations"/>
