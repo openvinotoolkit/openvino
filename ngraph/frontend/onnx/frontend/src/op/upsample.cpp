@@ -37,19 +37,19 @@ void check_mode_support(const onnx_import::Node& node, const std::string& mode, 
     }
 }
 
-default_opset::Interpolate::InterpolateAttrs get_attributes(std::string mode) {
+default_opset::Interpolate::InterpolateAttrs get_attributes(const std::string& mode) {
     using InterpolateMode = default_opset::Interpolate::InterpolateMode;
     using Transform_mode = default_opset::Interpolate::CoordinateTransformMode;
     using ShapeCalcMode = default_opset::Interpolate::ShapeCalcMode;
 
     const auto interpolate_mode =
-        (mode == "linear" || mode == "bilinear" ? InterpolateMode::linear_onnx : InterpolateMode::nearest);
+        (mode == "linear" || mode == "bilinear" ? InterpolateMode::LINEAR_ONNX : InterpolateMode::NEAREST);
 
     std::vector<size_t> pad{0};
-    auto attrs = default_opset::Interpolate::InterpolateAttrs(interpolate_mode, ShapeCalcMode::scales, pad, pad);
+    auto attrs = default_opset::Interpolate::InterpolateAttrs(interpolate_mode, ShapeCalcMode::SCALES, pad, pad);
 
-    if (attrs.mode == InterpolateMode::linear_onnx)
-        attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
+    if (attrs.mode == InterpolateMode::LINEAR_ONNX)
+        attrs.coordinate_transformation_mode = Transform_mode::ASYMMETRIC;
 
     return attrs;
 }
@@ -134,9 +134,6 @@ OutputVector upsample(const onnx_import::Node& node) {
 }
 
 }  // namespace set_9
-
 }  // namespace op
-
 }  // namespace onnx_import
-
 }  // namespace ngraph

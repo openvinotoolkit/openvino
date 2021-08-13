@@ -41,45 +41,45 @@ TEST(op_eval, interpolate_v4_cubic) {
                                                     ShapesAndAttrs{{3, 3},
                                                                    Shape{1, 1, 3, 3},
                                                                    {0.8f, 0.8f},
-                                                                   CoordinateTransformMode::half_pixel,
-                                                                   ShapeCalcMode::scales},
+                                                                   CoordinateTransformMode::HALF_PIXEL,
+                                                                   ShapeCalcMode::SCALES},
                                                     // resize_downsample_sizes_cubic:
                                                     ShapesAndAttrs{{3, 3},
                                                                    Shape{1, 1, 3, 3},
                                                                    {0.75f, 0.75f},
-                                                                   CoordinateTransformMode::half_pixel,
-                                                                   ShapeCalcMode::sizes},
+                                                                   CoordinateTransformMode::HALF_PIXEL,
+                                                                   ShapeCalcMode::SIZES},
                                                     // resize_upsample_scales_cubic:
                                                     ShapesAndAttrs{{8, 8},
                                                                    Shape{1, 1, 8, 8},
                                                                    {2.0f, 2.0f},
-                                                                   CoordinateTransformMode::half_pixel,
-                                                                   ShapeCalcMode::scales},
+                                                                   CoordinateTransformMode::HALF_PIXEL,
+                                                                   ShapeCalcMode::SCALES},
                                                     // resize_upsample_scales_cubic_asymmetric:
                                                     ShapesAndAttrs{{8, 8},
                                                                    Shape{1, 1, 8, 8},
                                                                    {2.0f, 2.0f},
-                                                                   CoordinateTransformMode::asymmetric,
-                                                                   ShapeCalcMode::scales},
+                                                                   CoordinateTransformMode::ASYMMETRIC,
+                                                                   ShapeCalcMode::SCALES},
                                                     // resize_upsample_sizes_cubic:
                                                     ShapesAndAttrs{{9, 10},
                                                                    Shape{1, 1, 9, 10},
                                                                    {2.25f, 2.5f},
-                                                                   CoordinateTransformMode::half_pixel,
-                                                                   ShapeCalcMode::sizes},
+                                                                   CoordinateTransformMode::HALF_PIXEL,
+                                                                   ShapeCalcMode::SIZES},
                                                     // resize_downsample_scales_cubic_align_corners:
                                                     // (expected values from ONNX documentation are incorrect!)
                                                     ShapesAndAttrs{{3, 3},
                                                                    Shape{1, 1, 3, 3},
                                                                    {0.8f, 0.8f},
-                                                                   CoordinateTransformMode::align_corners,
-                                                                   ShapeCalcMode::scales},
+                                                                   CoordinateTransformMode::ALIGN_CORNERS,
+                                                                   ShapeCalcMode::SCALES},
                                                     // resize_upsample_scales_cubic_align_corners:
                                                     ShapesAndAttrs{{8, 8},
                                                                    Shape{1, 1, 8, 8},
                                                                    {2.0f, 2.0f},
-                                                                   CoordinateTransformMode::align_corners,
-                                                                   ShapeCalcMode::scales}};
+                                                                   CoordinateTransformMode::ALIGN_CORNERS,
+                                                                   ShapeCalcMode::SCALES}};
 
     std::vector<float> input_data =
         {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0};
@@ -140,10 +140,10 @@ TEST(op_eval, interpolate_v4_cubic) {
         auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
         InterpolateAttrs attrs;
-        attrs.mode = InterpolateMode::cubic;
+        attrs.mode = InterpolateMode::CUBIC;
         attrs.shape_calculation_mode = s.shape_calculation_mode;
         attrs.coordinate_transformation_mode = s.transform_mode;
-        attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+        attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
         attrs.antialias = false;
         attrs.pads_begin = {0, 0, 0, 0};
         attrs.pads_end = {0, 0, 0, 0};
@@ -180,65 +180,65 @@ TEST(op_eval, interpolate_v4_nearest) {
                                                                    {1, 2},
                                                                    Shape{1, 1, 1, 2},
                                                                    {0.6f, 0.6f},
-                                                                   CoordinateTransformMode::half_pixel,
-                                                                   ShapeCalcMode::scales,
-                                                                   Nearest_mode::round_prefer_floor},
+                                                                   CoordinateTransformMode::HALF_PIXEL,
+                                                                   ShapeCalcMode::SCALES,
+                                                                   Nearest_mode::ROUND_PREFER_FLOOR},
                                                     // resize_downsample_sizes_nearest:
                                                     ShapesAndAttrs{Shape{1, 1, 2, 4},
                                                                    {1, 2},
                                                                    Shape{1, 1, 1, 2},
                                                                    {0.5f, 0.5f},
-                                                                   CoordinateTransformMode::half_pixel,
-                                                                   ShapeCalcMode::sizes,
-                                                                   Nearest_mode::round_prefer_floor},
+                                                                   CoordinateTransformMode::HALF_PIXEL,
+                                                                   ShapeCalcMode::SIZES,
+                                                                   Nearest_mode::ROUND_PREFER_FLOOR},
                                                     // resize_downsample_sizes_nearest_tf_half_pixel_for_nn:
                                                     ShapesAndAttrs{Shape{1, 1, 4, 4},
                                                                    {3, 2},
                                                                    Shape{1, 1, 3, 2},
                                                                    {0.75, 0.5},
-                                                                   CoordinateTransformMode::tf_half_pixel_for_nn,
-                                                                   ShapeCalcMode::sizes,
-                                                                   Nearest_mode::round_prefer_floor},
+                                                                   CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
+                                                                   ShapeCalcMode::SIZES,
+                                                                   Nearest_mode::ROUND_PREFER_FLOOR},
                                                     // resize_upsample_scales_nearest:
                                                     ShapesAndAttrs{Shape{1, 1, 2, 2},
                                                                    {4, 6},
                                                                    Shape{1, 1, 4, 6},
                                                                    {2.0f, 3.0f},
-                                                                   CoordinateTransformMode::half_pixel,
-                                                                   ShapeCalcMode::scales,
-                                                                   Nearest_mode::round_prefer_floor},
+                                                                   CoordinateTransformMode::HALF_PIXEL,
+                                                                   ShapeCalcMode::SCALES,
+                                                                   Nearest_mode::ROUND_PREFER_FLOOR},
                                                     // resize_upsample_sizes_nearest:
                                                     ShapesAndAttrs{Shape{1, 1, 2, 2},
                                                                    {7, 8},
                                                                    Shape{1, 1, 7, 8},
                                                                    {3.5f, 4.0f},
-                                                                   CoordinateTransformMode::half_pixel,
-                                                                   ShapeCalcMode::sizes,
-                                                                   Nearest_mode::round_prefer_floor},
+                                                                   CoordinateTransformMode::HALF_PIXEL,
+                                                                   ShapeCalcMode::SIZES,
+                                                                   Nearest_mode::ROUND_PREFER_FLOOR},
                                                     // resize_upsample_sizes_nearest_ceil_half_pixel:
                                                     ShapesAndAttrs{Shape{1, 1, 4, 4},
                                                                    {8, 8},
                                                                    Shape{1, 1, 8, 8},
                                                                    {2.0f, 2.0f},
-                                                                   CoordinateTransformMode::half_pixel,
-                                                                   ShapeCalcMode::sizes,
-                                                                   Nearest_mode::ceil},
+                                                                   CoordinateTransformMode::HALF_PIXEL,
+                                                                   ShapeCalcMode::SIZES,
+                                                                   Nearest_mode::CEIL},
                                                     // resize_upsample_sizes_nearest_floor_align_corners:
                                                     ShapesAndAttrs{Shape{1, 1, 4, 4},
                                                                    {8, 8},
                                                                    Shape{1, 1, 8, 8},
                                                                    {2.0f, 2.0f},
-                                                                   CoordinateTransformMode::align_corners,
-                                                                   ShapeCalcMode::sizes,
-                                                                   Nearest_mode::floor},
+                                                                   CoordinateTransformMode::ALIGN_CORNERS,
+                                                                   ShapeCalcMode::SIZES,
+                                                                   Nearest_mode::FLOOR},
                                                     // resize_upsample_sizes_nearest_round_prefer_ceil_asymmetric:
                                                     ShapesAndAttrs{Shape{1, 1, 4, 4},
                                                                    {8, 8},
                                                                    Shape{1, 1, 8, 8},
                                                                    {2.0f, 2.0f},
-                                                                   CoordinateTransformMode::asymmetric,
-                                                                   ShapeCalcMode::sizes,
-                                                                   Nearest_mode::round_prefer_ceil}};
+                                                                   CoordinateTransformMode::ASYMMETRIC,
+                                                                   ShapeCalcMode::SIZES,
+                                                                   Nearest_mode::ROUND_PREFER_CEIL}};
 
     std::vector<std::vector<float>> input_data_list = {
         {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
@@ -282,7 +282,7 @@ TEST(op_eval, interpolate_v4_nearest) {
         auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
         InterpolateAttrs attrs;
-        attrs.mode = InterpolateMode::nearest;
+        attrs.mode = InterpolateMode::NEAREST;
         attrs.shape_calculation_mode = s.shape_calculation_mode;
         attrs.coordinate_transformation_mode = s.transform_mode;
         attrs.nearest_mode = s.nearest_mode;
@@ -322,37 +322,37 @@ TEST(op_eval, interpolate_v4_linear_onnx) {
                                                                    {1, 2},
                                                                    Shape{1, 1, 1, 2},
                                                                    {0.6f, 0.6f},
-                                                                   CoordinateTransformMode::half_pixel,
-                                                                   ShapeCalcMode::scales},
+                                                                   CoordinateTransformMode::HALF_PIXEL,
+                                                                   ShapeCalcMode::SCALES},
                                                     // resize_downsample_sizes_linear_pytorch_half_pixel
                                                     ShapesAndAttrs{Shape{1, 1, 4, 4},
                                                                    {3, 1},
                                                                    Shape{1, 1, 3, 1},
                                                                    {0.75f, 0.25f},
-                                                                   CoordinateTransformMode::pytorch_half_pixel,
-                                                                   ShapeCalcMode::sizes},
+                                                                   CoordinateTransformMode::PYTORCH_HALF_PIXEL,
+                                                                   ShapeCalcMode::SIZES},
                                                     // resize_upsample_scales_linear
                                                     ShapesAndAttrs{Shape{1, 1, 2, 2},
                                                                    {4, 4},
                                                                    Shape{1, 1, 4, 4},
                                                                    {2.0f, 2.0f},
-                                                                   CoordinateTransformMode::half_pixel,
-                                                                   ShapeCalcMode::scales},
+                                                                   CoordinateTransformMode::HALF_PIXEL,
+                                                                   ShapeCalcMode::SCALES},
                                                     // resize_upsample_scales_linear_align_corners
                                                     ShapesAndAttrs{Shape{1, 1, 2, 2},
                                                                    {4, 4},
                                                                    Shape{1, 1, 4, 4},
                                                                    {2.0f, 2.0f},
-                                                                   CoordinateTransformMode::align_corners,
-                                                                   ShapeCalcMode::scales},
+                                                                   CoordinateTransformMode::ALIGN_CORNERS,
+                                                                   ShapeCalcMode::SCALES},
                                                     // resize_downsample_scales_linear_align_corners:
                                                     // (expected values from ONNX documentation are not correct!)
                                                     ShapesAndAttrs{Shape{1, 1, 2, 4},
                                                                    {1, 2},
                                                                    Shape{1, 1, 1, 2},
                                                                    {0.6f, 0.6f},
-                                                                   CoordinateTransformMode::align_corners,
-                                                                   ShapeCalcMode::scales}};
+                                                                   CoordinateTransformMode::ALIGN_CORNERS,
+                                                                   ShapeCalcMode::SCALES}};
 
     std::vector<std::vector<float>> input_data_list = {
         {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
@@ -391,10 +391,10 @@ TEST(op_eval, interpolate_v4_linear_onnx) {
         auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
         InterpolateAttrs attrs;
-        attrs.mode = InterpolateMode::linear_onnx;
+        attrs.mode = InterpolateMode::LINEAR_ONNX;
         attrs.shape_calculation_mode = s.shape_calculation_mode;
         attrs.coordinate_transformation_mode = s.transform_mode;
-        attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+        attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
         attrs.antialias = false;
         attrs.pads_begin = {0, 0, 0, 0};
         attrs.pads_end = {0, 0, 0, 0};
@@ -431,36 +431,36 @@ TEST(op_eval, interpolate_v4_linear_onnx5d) {
                                                      {2, 1, 2},
                                                      Shape{1, 1, 2, 1, 2},
                                                      {0.8f, 0.6f, 0.6f},
-                                                     CoordinateTransformMode::half_pixel,
-                                                     ShapeCalcMode::scales},
+                                                     CoordinateTransformMode::HALF_PIXEL,
+                                                     ShapeCalcMode::SCALES},
                                                     // resize_downsample_scales_linear_align_corners
                                                     {Shape{1, 1, 3, 2, 4},
                                                      {2, 1, 2},
                                                      Shape{1, 1, 2, 1, 2},
                                                      {0.8f, 0.6f, 0.6f},
-                                                     CoordinateTransformMode::align_corners,
-                                                     ShapeCalcMode::scales},
+                                                     CoordinateTransformMode::ALIGN_CORNERS,
+                                                     ShapeCalcMode::SCALES},
                                                     // resize_upsample_scales_linear
                                                     {Shape{1, 1, 2, 2, 2},
                                                      {4, 4, 4},
                                                      Shape{1, 1, 4, 4, 4},
                                                      {2.0, 2.0, 2.0},
-                                                     CoordinateTransformMode::half_pixel,
-                                                     ShapeCalcMode::scales},
+                                                     CoordinateTransformMode::HALF_PIXEL,
+                                                     ShapeCalcMode::SCALES},
                                                     // resize_upsample_scales_linear_align_corners
                                                     {Shape{1, 1, 2, 2, 2},
                                                      {4, 4, 4},
                                                      Shape{1, 1, 4, 4, 4},
                                                      {2.0, 2.0, 2.0},
-                                                     CoordinateTransformMode::align_corners,
-                                                     ShapeCalcMode::scales},
+                                                     CoordinateTransformMode::ALIGN_CORNERS,
+                                                     ShapeCalcMode::SCALES},
                                                     // resize_downsample_sizes_linear_pytorch_half_pixel
                                                     {Shape{1, 1, 2, 4, 4},
                                                      {1, 3, 1},
                                                      Shape{1, 1, 1, 3, 1},
                                                      {0.5, 0.75, 0.25},
-                                                     CoordinateTransformMode::pytorch_half_pixel,
-                                                     ShapeCalcMode::sizes}};
+                                                     CoordinateTransformMode::PYTORCH_HALF_PIXEL,
+                                                     ShapeCalcMode::SIZES}};
 
     std::vector<std::vector<float>> input_data_list = {
         // resize_downsample_scales_linear
@@ -507,10 +507,10 @@ TEST(op_eval, interpolate_v4_linear_onnx5d) {
         auto axes = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 4});
 
         InterpolateAttrs attrs;
-        attrs.mode = InterpolateMode::linear_onnx;
+        attrs.mode = InterpolateMode::LINEAR_ONNX;
         attrs.shape_calculation_mode = s.shape_calculation_mode;
         attrs.coordinate_transformation_mode = s.transform_mode;
-        attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+        attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
         attrs.antialias = false;
         attrs.pads_begin = {0, 0, 0, 0, 0};
         attrs.pads_end = {0, 0, 0, 0, 0};
