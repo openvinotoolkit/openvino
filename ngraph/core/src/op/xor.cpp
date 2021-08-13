@@ -55,8 +55,6 @@ bool evaluate_logxor(const HostTensorPtr& arg0,
         break;
     }
     return rc;
-}
-return rc;
 }  // namespace logxor
 }  // namespace logxor
 
