@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(TARGET_NAME "template_extension")
 
-find_package(ngraph REQUIRED OPTIONAL_COMPONENTS onnx_importer)
+find_package(ngraph REQUIRED OPTIONAL_COMPONENTS onnx_ngraph_frontend)
 find_package(InferenceEngine REQUIRED)
 find_package(OpenCV QUIET COMPONENTS core)
 
@@ -28,9 +28,9 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_
 target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine
                                              ${NGRAPH_LIBRARIES})
 
-if (ngraph_onnx_importer_FOUND)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${ONNX_IMPORTER_LIBRARIES})
-    target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_ONNX_IMPORT_ENABLED)
+if (ngraph_onnx_ngraph_frontend_FOUND)
+    target_link_libraries(${TARGET_NAME} PRIVATE ngraph::onnx_ngraph_frontend)
+    target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_ONNX_FRONTEND_ENABLED)
 endif()
 # [cmake:extension]
 
