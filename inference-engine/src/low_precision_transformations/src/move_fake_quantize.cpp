@@ -90,6 +90,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     fq2->set_friendly_name("concat_fq2");
 
     auto new_concat = concat->clone_with_new_inputs({ fq1->output(0), fq2->output(0) });
+    new_concat->set_friendly_name(concat->get_friendly_name());
     replace_node(concat, new_concat);
     replace_node(fq, new_concat);
     updateOutput(context, new_concat, fq);
