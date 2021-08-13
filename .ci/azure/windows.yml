@@ -13,7 +13,7 @@ resources:
 jobs:
 - job: Win
   # About 150% of total time
-  timeoutInMinutes: 120
+  timeoutInMinutes: 180
 
   pool:
     name: WIN_VMSS_VENV_F8S_WU2
@@ -111,7 +111,8 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja"
+      rem call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja"
+      call "$(MSVS_VARS_PATH)" && ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
 
