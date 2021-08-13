@@ -10,9 +10,10 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp>
+#include <transformations/op_conversions/convert_gather_upgrade.hpp>
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -45,6 +46,39 @@ TEST(TransformationTests, ConvertGather1toGather7) {
         auto gather_v7 = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, 0);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v7}, ngraph::ParameterVector{data, indices});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, ConvertGather7toGather8) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
+        auto indices = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{2, 2});
+        auto axis = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
+        int64_t batch_dims = 1;
+        auto gather_v7 = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, batch_dims);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v7}, ngraph::ParameterVector{data, indices});
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertGather7ToGather8>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
+        auto indices = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{2, 2});
+        auto axis = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
+        int64_t batch_dims = 1;
+
+        auto gather_v8 = std::make_shared<ngraph::opset8::Gather>(data, indices, axis, batch_dims);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v8}, ngraph::ParameterVector{data, indices});
     }
 
     auto res = compare_functions(f, f_ref);

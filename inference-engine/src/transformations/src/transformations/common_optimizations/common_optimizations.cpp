@@ -47,8 +47,8 @@
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
-#include "transformations/op_conversions/convert_gather_v7_to_gather_v1.hpp"
-#include "transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp"
+#include "transformations/op_conversions/convert_gather_downgrade.hpp"
+#include "transformations/op_conversions/convert_gather_upgrade.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_negative.hpp"
@@ -179,8 +179,10 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     conv_fusions->set_name("ngraph::pass::ConvFusions");
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
+    manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();  // not plugins implemented gather8
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();  // not plugins implemented gather7
     manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
     manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();

@@ -60,6 +60,7 @@
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
@@ -362,6 +363,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::ConvertBroadcast3>();
             pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
             pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+            pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
             if (!config.enable_loop_unrolling) {
                 pass_config->disable<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
