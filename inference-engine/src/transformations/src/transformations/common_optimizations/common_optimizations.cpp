@@ -49,6 +49,7 @@
 #include "transformations/common_optimizations/strides_optimization.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
+#include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -106,6 +107,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
+
+    manager.register_pass<ngraph::pass::ConcatReduceFusion>();
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();

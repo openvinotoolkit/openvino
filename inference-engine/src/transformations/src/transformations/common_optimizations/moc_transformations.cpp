@@ -48,6 +48,7 @@
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
 #include <transformations/common_optimizations/batch_to_space_fusion.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
+#include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -121,6 +122,8 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
     common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
+
+    manager.register_pass<ngraph::pass::ConcatReduceFusion>();
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
     manager.register_pass<ngraph::pass::ConvToBinaryConv>();
