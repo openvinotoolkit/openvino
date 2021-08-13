@@ -3,7 +3,6 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/op/result.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
@@ -14,8 +13,7 @@ using namespace ngraph;
 static std::string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, result)
-{
+NGRAPH_TEST(${BACKEND_NAME}, result) {
     Shape shape_a{2, 2};
     auto a = std::make_shared<op::Parameter>(element::f32, shape_a);
     auto f = std::make_shared<Function>(std::make_shared<op::v0::Result>(a), ParameterVector{a});

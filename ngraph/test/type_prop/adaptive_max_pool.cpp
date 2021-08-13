@@ -9,8 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, adaptive_max_pool)
-{
+TEST(type_prop, adaptive_max_pool) {
     const PartialShape arg_shape{1, 6, 8, 9};
     const vector<int64_t> output_shape{5, 7};
 
@@ -22,8 +21,7 @@ TEST(type_prop, adaptive_max_pool)
     ASSERT_TRUE(adaptive_pool->get_output_partial_shape(1).same_scheme({1, 6, 5, 7}));
 }
 
-TEST(type_prop, adaptive_max_pool_i32_indices)
-{
+TEST(type_prop, adaptive_max_pool_i32_indices) {
     const PartialShape arg_shape{1, 6, 8, 9};
     const vector<int64_t> output_shape{5, 7};
 
@@ -36,8 +34,7 @@ TEST(type_prop, adaptive_max_pool_i32_indices)
     ASSERT_TRUE(adaptive_pool->get_output_partial_shape(1).same_scheme({1, 6, 5, 7}));
 }
 
-TEST(type_prop, adaptive_max_pool_dyn_batch)
-{
+TEST(type_prop, adaptive_max_pool_dyn_batch) {
     const PartialShape arg_shape{Dimension::dynamic(), 6, 8, 9};
     const vector<int64_t> output_shape{5, 7};
 
@@ -45,14 +42,11 @@ TEST(type_prop, adaptive_max_pool_dyn_batch)
     auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, output_shape);
     auto adaptive_pool = make_shared<op::v8::AdaptiveMaxPool>(data, out_shape);
 
-    ASSERT_TRUE(
-        adaptive_pool->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), 6, 5, 7}));
-    ASSERT_TRUE(
-        adaptive_pool->get_output_partial_shape(1).same_scheme({Dimension::dynamic(), 6, 5, 7}));
+    ASSERT_TRUE(adaptive_pool->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), 6, 5, 7}));
+    ASSERT_TRUE(adaptive_pool->get_output_partial_shape(1).same_scheme({Dimension::dynamic(), 6, 5, 7}));
 }
 
-TEST(type_prop, adaptive_max_pool_dyn_channels)
-{
+TEST(type_prop, adaptive_max_pool_dyn_channels) {
     const PartialShape arg_shape{1, Dimension::dynamic(), 8, 9};
     const vector<int64_t> output_shape{5, 7};
 
@@ -60,14 +54,11 @@ TEST(type_prop, adaptive_max_pool_dyn_channels)
     auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, output_shape);
     auto adaptive_pool = make_shared<op::v8::AdaptiveMaxPool>(data, out_shape);
 
-    ASSERT_TRUE(
-        adaptive_pool->get_output_partial_shape(0).same_scheme({1, Dimension::dynamic(), 5, 7}));
-    ASSERT_TRUE(
-        adaptive_pool->get_output_partial_shape(1).same_scheme({1, Dimension::dynamic(), 5, 7}));
+    ASSERT_TRUE(adaptive_pool->get_output_partial_shape(0).same_scheme({1, Dimension::dynamic(), 5, 7}));
+    ASSERT_TRUE(adaptive_pool->get_output_partial_shape(1).same_scheme({1, Dimension::dynamic(), 5, 7}));
 }
 
-TEST(type_prop, adaptive_max_pool_dyn_spatial)
-{
+TEST(type_prop, adaptive_max_pool_dyn_spatial) {
     const PartialShape arg_shape{1, 6, Dimension::dynamic(), Dimension::dynamic()};
     const vector<int64_t> output_shape{5, 7};
 
@@ -79,22 +70,20 @@ TEST(type_prop, adaptive_max_pool_dyn_spatial)
     ASSERT_TRUE(adaptive_pool->get_output_partial_shape(1).same_scheme({1, 6, 5, 7}));
 }
 
-TEST(type_prop, adaptive_max_pool_dyn_output_shape)
-{
+TEST(type_prop, adaptive_max_pool_dyn_output_shape) {
     const PartialShape arg_shape{1, 6, 8, 9};
 
     auto data = make_shared<op::Parameter>(element::f32, arg_shape);
     auto out_shape = make_shared<op::Parameter>(element::i64, Shape{2});
     auto adaptive_pool = make_shared<op::v8::AdaptiveMaxPool>(data, out_shape);
 
-    ASSERT_TRUE(adaptive_pool->get_output_partial_shape(0).same_scheme(
-        {1, 6, Dimension::dynamic(), Dimension::dynamic()}));
-    ASSERT_TRUE(adaptive_pool->get_output_partial_shape(1).same_scheme(
-        {1, 6, Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_TRUE(
+        adaptive_pool->get_output_partial_shape(0).same_scheme({1, 6, Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_TRUE(
+        adaptive_pool->get_output_partial_shape(1).same_scheme({1, 6, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
-TEST(type_prop, adaptive_max_pool_dyn_rank)
-{
+TEST(type_prop, adaptive_max_pool_dyn_rank) {
     const PartialShape arg_shape = PartialShape::dynamic();
 
     auto data = make_shared<op::Parameter>(element::f32, arg_shape);
@@ -105,8 +94,7 @@ TEST(type_prop, adaptive_max_pool_dyn_rank)
     ASSERT_TRUE(adaptive_pool->get_output_partial_shape(1).same_scheme(PartialShape::dynamic()));
 }
 
-TEST(type_prop, adaptive_max_pool_unsupported_input_shape)
-{
+TEST(type_prop, adaptive_max_pool_unsupported_input_shape) {
     const PartialShape arg_shape{1, 6};
     const vector<int64_t> output_shape{1};
 
@@ -116,8 +104,7 @@ TEST(type_prop, adaptive_max_pool_unsupported_input_shape)
     EXPECT_THROW(make_shared<op::v8::AdaptiveMaxPool>(data, out_shape), NodeValidationFailure);
 }
 
-TEST(type_prop, adaptive_max_pool_wrong_out_shape)
-{
+TEST(type_prop, adaptive_max_pool_wrong_out_shape) {
     const PartialShape arg_shape{1, 6, 8, 9};
     const vector<int64_t> output_shape{5, 7, 8};
 

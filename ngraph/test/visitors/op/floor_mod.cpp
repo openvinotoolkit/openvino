@@ -7,7 +7,4 @@
 
 using Type = ::testing::Types<BinaryOperatorType<ngraph::opset1::FloorMod, ngraph::element::f32>>;
 
-INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast,
-                               BinaryOperatorVisitor,
-                               Type,
-                               BinaryOperatorTypeName);
+INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast, BinaryOperatorVisitor, Type, BinaryOperatorTypeName);
