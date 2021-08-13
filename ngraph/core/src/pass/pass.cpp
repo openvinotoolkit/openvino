@@ -4,7 +4,7 @@
 
 #ifdef _WIN32
 #else
-#include <cxxabi.h>
+#    include <cxxabi.h>
 #endif
 
 #include "ngraph/pass/manager.hpp"
@@ -15,33 +15,22 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::FunctionPass, "ngraph::pass::FunctionPass", 0);
 
-pass::PassBase::PassBase()
-    : m_property{all_pass_property_off}
-    , m_pass_config(std::make_shared<PassConfig>())
-{
-}
+pass::PassBase::PassBase() : m_property{all_pass_property_off}, m_pass_config(std::make_shared<PassConfig>()) {}
 
-bool pass::PassBase::get_property(const PassPropertyMask& prop) const
-{
+bool pass::PassBase::get_property(const PassPropertyMask& prop) const {
     return m_property.is_set(prop);
 }
 
-void pass::PassBase::set_property(const PassPropertyMask& prop, bool value)
-{
-    if (value)
-    {
+void pass::PassBase::set_property(const PassPropertyMask& prop, bool value) {
+    if (value) {
         m_property.set(prop);
-    }
-    else
-    {
+    } else {
         m_property.clear(prop);
     }
 }
 
-std::string pass::PassBase::get_name() const
-{
-    if (m_name.empty())
-    {
+std::string pass::PassBase::get_name() const {
+    if (m_name.empty()) {
         const PassBase* p = this;
         std::string pass_name = typeid(*p).name();
 #ifndef _WIN32
@@ -49,15 +38,12 @@ std::string pass::PassBase::get_name() const
         pass_name = abi::__cxa_demangle(pass_name.c_str(), nullptr, nullptr, &status);
 #endif
         return pass_name;
-    }
-    else
-    {
+    } else {
         return m_name;
     }
 }
 
-void pass::PassBase::set_callback(const param_callback& callback)
-{
+void pass::PassBase::set_callback(const param_callback& callback) {
     m_pass_config->set_callback(callback);
 }
 

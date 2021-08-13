@@ -27,8 +27,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, cum_sum_default)
-{
+NGRAPH_TEST(${BACKEND_NAME}, cum_sum_default) {
     Shape shape{1, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axis = make_shared<op::Parameter>(element::i32, Shape{1});
@@ -48,8 +47,7 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_default)
     EXPECT_TRUE(test::all_close_f((vector<float>{1, 3, 6, 10}), read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim)
-{
+NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim) {
     Shape shape{2, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axis = make_shared<op::Parameter>(element::i64, Shape{1});
@@ -66,12 +64,10 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, axis_tensor});
-    EXPECT_TRUE(
-        test::all_close_f((vector<float>{0, 1, 2, 3, 4, 6, 8, 10}), read_vector<float>(result)));
+    EXPECT_TRUE(test::all_close_f((vector<float>{0, 1, 2, 3, 4, 6, 8, 10}), read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim_default_axis)
-{
+NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim_default_axis) {
     Shape shape{2, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::CumSum>(A), ParameterVector{A});
@@ -85,12 +81,10 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim_default_axis)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(
-        test::all_close_f((vector<float>{0, 1, 2, 3, 4, 6, 8, 10}), read_vector<float>(result)));
+    EXPECT_TRUE(test::all_close_f((vector<float>{0, 1, 2, 3, 4, 6, 8, 10}), read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, cum_sum_3d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, cum_sum_3d) {
     auto test_cumsum_3d = [](const int32_t axis_val) -> void {
         Shape shape{3, 2, 4};
         auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -101,8 +95,8 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_3d)
 
         // Create some tensors for input/output
         auto a = backend->create_tensor(element::f32, shape);
-        copy_data(a, vector<float>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
-                                   12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23});
+        copy_data(a,
+                  vector<float>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23});
         auto axis_tensor = backend->create_tensor(axis->get_element_type(), axis->get_shape());
         copy_data(axis_tensor, vector<int32_t>{axis_val});
         auto result = backend->create_tensor(element::f32, shape);
@@ -110,26 +104,18 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_3d)
         auto handle = backend->compile(f);
         handle->call_with_validate({result}, {a, axis_tensor});
 
-        if (axis_val == 0)
-        {
-            EXPECT_TRUE(
-                test::all_close_f((vector<float>{0,  1,  2,  3,  4,  5,  6,  7,  8,  10, 12, 14,
-                                                 16, 18, 20, 22, 24, 27, 30, 33, 36, 39, 42, 45}),
-                                  read_vector<float>(result)));
-        }
-        else if (axis_val == 1)
-        {
-            EXPECT_TRUE(
-                test::all_close_f((vector<float>{0,  1,  2,  3,  4,  6,  8,  10, 8,  9,  10, 11,
-                                                 20, 22, 24, 26, 16, 17, 18, 19, 36, 38, 40, 42}),
-                                  read_vector<float>(result)));
-        }
-        else if (axis_val == 2)
-        {
-            EXPECT_TRUE(
-                test::all_close_f((vector<float>{0,  1,  3,  6,  4,  9,  15, 22, 8,  17, 27, 38,
-                                                 12, 25, 39, 54, 16, 33, 51, 70, 20, 41, 63, 86}),
-                                  read_vector<float>(result)));
+        if (axis_val == 0) {
+            EXPECT_TRUE(test::all_close_f(
+                (vector<float>{0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 18, 20, 22, 24, 27, 30, 33, 36, 39, 42, 45}),
+                read_vector<float>(result)));
+        } else if (axis_val == 1) {
+            EXPECT_TRUE(test::all_close_f(
+                (vector<float>{0, 1, 2, 3, 4, 6, 8, 10, 8, 9, 10, 11, 20, 22, 24, 26, 16, 17, 18, 19, 36, 38, 40, 42}),
+                read_vector<float>(result)));
+        } else if (axis_val == 2) {
+            EXPECT_TRUE(test::all_close_f((vector<float>{0,  1,  3,  6,  4,  9,  15, 22, 8,  17, 27, 38,
+                                                         12, 25, 39, 54, 16, 33, 51, 70, 20, 41, 63, 86}),
+                                          read_vector<float>(result)));
         }
     };
     test_cumsum_3d(0);
@@ -137,14 +123,12 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_3d)
     test_cumsum_3d(2);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim_allmodes)
-{
+NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim_allmodes) {
     auto test_cum_sum_allmodes = [](const int64_t axis_val, int exclusive, int reverse) {
         Shape shape{2, 4};
         auto A = make_shared<op::Parameter>(element::f32, shape);
         auto axis = make_shared<op::Parameter>(element::i64, Shape{1});
-        auto f = make_shared<Function>(make_shared<op::CumSum>(A, axis, exclusive, reverse),
-                                       ParameterVector{A, axis});
+        auto f = make_shared<Function>(make_shared<op::CumSum>(A, axis, exclusive, reverse), ParameterVector{A, axis});
 
         auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -157,35 +141,18 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim_allmodes)
 
         auto handle = backend->compile(f);
         handle->call_with_validate({result}, {a, axis_tensor});
-        if (axis_val == 1 && exclusive == 1 && reverse == 0)
-        {
-            EXPECT_TRUE(test::all_close_f((vector<float>{0, 0, 1, 3, 0, 4, 9, 15}),
-                                          read_vector<float>(result)));
-        }
-        else if (axis_val == 1 && exclusive == 0 && reverse == 1)
-        {
-            EXPECT_TRUE(test::all_close_f((vector<float>{6, 6, 5, 3, 22, 18, 13, 7}),
-                                          read_vector<float>(result)));
-        }
-        else if (axis_val == 1 && exclusive == 1 && reverse == 1)
-        {
-            EXPECT_TRUE(test::all_close_f((vector<float>{6, 5, 3, 0, 18, 13, 7, 0}),
-                                          read_vector<float>(result)));
-        }
-        else if (axis_val == 0 && exclusive == 0 && reverse == 0)
-        {
-            EXPECT_TRUE(test::all_close_f((vector<float>{0, 1, 2, 3, 4, 6, 8, 10}),
-                                          read_vector<float>(result)));
-        }
-        else if (axis_val == 0 && exclusive == 1 && reverse == 1)
-        {
-            EXPECT_TRUE(test::all_close_f((vector<float>{4, 5, 6, 7, 0, 0, 0, 0}),
-                                          read_vector<float>(result)));
-        }
-        else if (axis_val == 0 && exclusive == 0 && reverse == 1)
-        {
-            EXPECT_TRUE(test::all_close_f((vector<float>{4, 6, 8, 10, 4, 5, 6, 7}),
-                                          read_vector<float>(result)));
+        if (axis_val == 1 && exclusive == 1 && reverse == 0) {
+            EXPECT_TRUE(test::all_close_f((vector<float>{0, 0, 1, 3, 0, 4, 9, 15}), read_vector<float>(result)));
+        } else if (axis_val == 1 && exclusive == 0 && reverse == 1) {
+            EXPECT_TRUE(test::all_close_f((vector<float>{6, 6, 5, 3, 22, 18, 13, 7}), read_vector<float>(result)));
+        } else if (axis_val == 1 && exclusive == 1 && reverse == 1) {
+            EXPECT_TRUE(test::all_close_f((vector<float>{6, 5, 3, 0, 18, 13, 7, 0}), read_vector<float>(result)));
+        } else if (axis_val == 0 && exclusive == 0 && reverse == 0) {
+            EXPECT_TRUE(test::all_close_f((vector<float>{0, 1, 2, 3, 4, 6, 8, 10}), read_vector<float>(result)));
+        } else if (axis_val == 0 && exclusive == 1 && reverse == 1) {
+            EXPECT_TRUE(test::all_close_f((vector<float>{4, 5, 6, 7, 0, 0, 0, 0}), read_vector<float>(result)));
+        } else if (axis_val == 0 && exclusive == 0 && reverse == 1) {
+            EXPECT_TRUE(test::all_close_f((vector<float>{4, 6, 8, 10, 4, 5, 6, 7}), read_vector<float>(result)));
         }
     };
 

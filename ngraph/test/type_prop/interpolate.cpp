@@ -14,8 +14,7 @@ using Nearest_mode = op::v4::Interpolate::NearestMode;
 using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
 using ShapeCalcMode = op::v4::Interpolate::ShapeCalcMode;
 
-TEST(type_prop, interpolate_v4)
-{
+TEST(type_prop, interpolate_v4) {
     auto image = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 30, 60});
     auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{15, 30});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
@@ -36,8 +35,7 @@ TEST(type_prop, interpolate_v4)
     EXPECT_EQ(interp->get_shape(), (Shape{2, 2, 15, 30}));
 }
 
-TEST(type_prop, interpolate_v4_non_constant_axes_scales)
-{
+TEST(type_prop, interpolate_v4_non_constant_axes_scales) {
     auto image = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 30, 60});
     auto target_shape = std::make_shared<op::Parameter>(element::i64, Shape{15, 30});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
@@ -61,8 +59,7 @@ TEST(type_prop, interpolate_v4_non_constant_axes_scales)
     ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(expected_shape));
 }
 
-TEST(type_prop, interpolate_v4_non_constant_axes_sizes)
-{
+TEST(type_prop, interpolate_v4_non_constant_axes_sizes) {
     auto image = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 30, 60});
     auto target_shape = std::make_shared<op::Parameter>(element::i64, Shape{15, 30});
     auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
@@ -86,8 +83,7 @@ TEST(type_prop, interpolate_v4_non_constant_axes_sizes)
     ASSERT_TRUE(interp->get_output_partial_shape(0).same_scheme(expected_shape));
 }
 
-TEST(type_prop, interpolate_v4_partial)
-{
+TEST(type_prop, interpolate_v4_partial) {
     auto partial_shape = PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()};
 
     auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
@@ -111,13 +107,11 @@ TEST(type_prop, interpolate_v4_partial)
 
     // rank unknown
     auto partial_param = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto interp_part =
-        std::make_shared<op::v4::Interpolate>(partial_param, target_shape, scales, axes, attrs);
+    auto interp_part = std::make_shared<op::v4::Interpolate>(partial_param, target_shape, scales, axes, attrs);
     ASSERT_TRUE(interp_part->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
-TEST(type_prop, interpolate_v4_partial_static_rank)
-{
+TEST(type_prop, interpolate_v4_partial_static_rank) {
     auto partial_shape = PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()};
 
     auto image = std::make_shared<op::Parameter>(element::f32, partial_shape);
@@ -141,8 +135,7 @@ TEST(type_prop, interpolate_v4_partial_static_rank)
     ASSERT_TRUE(interp->get_output_partial_shape(0).rank().is_static());
 }
 
-TEST(type_prop, interpolate_v4_partial_static_rank2)
-{
+TEST(type_prop, interpolate_v4_partial_static_rank2) {
     auto partial_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 10, 20};
     auto out_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 5, 10};
 
@@ -167,8 +160,7 @@ TEST(type_prop, interpolate_v4_partial_static_rank2)
     ASSERT_TRUE(interp->get_output_partial_shape(0).rank().is_static());
 }
 
-TEST(type_prop, interpolate_v4_partial_static_rank3)
-{
+TEST(type_prop, interpolate_v4_partial_static_rank3) {
     auto partial_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3};
     auto out_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), 1, 1};
 
@@ -193,10 +185,10 @@ TEST(type_prop, interpolate_v4_partial_static_rank3)
     ASSERT_TRUE(interp->get_output_partial_shape(0).rank().is_static());
 }
 
-TEST(type_prop, interpolate_v4_interval_logic)
-{
-    auto image = std::make_shared<op::Parameter>(
-        element::f32, PartialShape{2, 2, Dimension(12, 800), Dimension(0, -1), Dimension(24, -1)});
+TEST(type_prop, interpolate_v4_interval_logic) {
+    auto image =
+        std::make_shared<op::Parameter>(element::f32,
+                                        PartialShape{2, 2, Dimension(12, 800), Dimension(0, -1), Dimension(24, -1)});
     auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{3});
     auto scales = op::Constant::create<float>(element::f32, Shape{3}, {0.5f, 0.25f, 0.125f});
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 4});

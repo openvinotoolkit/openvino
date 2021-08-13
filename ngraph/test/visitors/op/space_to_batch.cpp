@@ -3,22 +3,18 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset2.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
-
-TEST(attributes, space_to_batch_op)
-{
+TEST(attributes, space_to_batch_op) {
     using namespace opset2;
-    
+
     NodeBuilder::get_ops().register_factory<SpaceToBatch>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 128});
     auto block_shape = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 5});

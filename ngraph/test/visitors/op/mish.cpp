@@ -3,7 +3,6 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset4.hpp"
@@ -13,8 +12,7 @@ using namespace std;
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
-TEST(attributes, mish_op)
-{
+TEST(attributes, mish_op) {
     NodeBuilder::get_ops().register_factory<opset4::Mish>();
     const auto A = make_shared<op::Parameter>(element::f32, Shape{5, 2});
 

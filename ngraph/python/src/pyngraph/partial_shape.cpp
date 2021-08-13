@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/partial_shape.hpp"  // ngraph::PartialShape
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -9,22 +11,18 @@
 #include <sstream>
 #include <string>
 
-#include "ngraph/dimension.hpp"     // ngraph::Dimension
-#include "ngraph/partial_shape.hpp" // ngraph::PartialShape
-#include "ngraph/shape.hpp"         // ngraph::Shape
+#include "ngraph/dimension.hpp"  // ngraph::Dimension
+#include "ngraph/shape.hpp"      // ngraph::Shape
 #include "pyngraph/partial_shape.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_PartialShape(py::module m)
-{
-    py::class_<ngraph::PartialShape, std::shared_ptr<ngraph::PartialShape>> shape(m,
-                                                                                  "PartialShape");
+void regclass_pyngraph_PartialShape(py::module m) {
+    py::class_<ngraph::PartialShape, std::shared_ptr<ngraph::PartialShape>> shape(m, "PartialShape");
     shape.doc() = "ngraph.impl.PartialShape wraps ngraph::PartialShape";
 
     shape.def(py::init([](const std::vector<int64_t>& dimensions) {
-        return ngraph::PartialShape(
-            std::vector<ngraph::Dimension>(dimensions.begin(), dimensions.end()));
+        return ngraph::PartialShape(std::vector<ngraph::Dimension>(dimensions.begin(), dimensions.end()));
     }));
     shape.def(py::init<const std::initializer_list<size_t>&>());
     shape.def(py::init<const std::vector<size_t>&>());
@@ -181,11 +179,15 @@ void regclass_pyngraph_PartialShape(py::module m)
 
     shape.def(
         "__eq__",
-        [](const ngraph::PartialShape& a, const ngraph::PartialShape& b) { return a == b; },
+        [](const ngraph::PartialShape& a, const ngraph::PartialShape& b) {
+            return a == b;
+        },
         py::is_operator());
     shape.def(
         "__eq__",
-        [](const ngraph::PartialShape& a, const ngraph::Shape& b) { return a == b; },
+        [](const ngraph::PartialShape& a, const ngraph::Shape& b) {
+            return a == b;
+        },
         py::is_operator());
 
     shape.def("__str__", [](const ngraph::PartialShape& self) -> std::string {

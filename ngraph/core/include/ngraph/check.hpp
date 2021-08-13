@@ -10,39 +10,33 @@
 
 #include "ngraph/except.hpp"
 
-namespace ngraph
-{
-    static inline std::ostream& write_all_to_stream(std::ostream& str) { return str; }
-    template <typename T, typename... TS>
-    static inline std::ostream& write_all_to_stream(std::ostream& str, const T& arg, TS&&... args)
-    {
-        return write_all_to_stream(str << arg, args...);
-    }
+namespace ngraph {
+static inline std::ostream& write_all_to_stream(std::ostream& str) {
+    return str;
+}
+template <typename T, typename... TS>
+static inline std::ostream& write_all_to_stream(std::ostream& str, const T& arg, TS&&... args) {
+    return write_all_to_stream(str << arg, args...);
+}
 
-    struct CheckLocInfo
-    {
-        const char* file;
-        int line;
-        const char* check_string;
-    };
+struct CheckLocInfo {
+    const char* file;
+    int line;
+    const char* check_string;
+};
 
-    /// Base class for check failure exceptions.
-    class NGRAPH_API CheckFailure : public ngraph_error
-    {
-    public:
-        CheckFailure(const CheckLocInfo& check_loc_info,
-                     const std::string& context_info,
-                     const std::string& explanation)
-            : ngraph_error(make_what(check_loc_info, context_info, explanation))
-        {
-        }
+/// Base class for check failure exceptions.
+class NGRAPH_API CheckFailure : public ngraph_error {
+public:
+    CheckFailure(const CheckLocInfo& check_loc_info, const std::string& context_info, const std::string& explanation)
+        : ngraph_error(make_what(check_loc_info, context_info, explanation)) {}
 
-    private:
-        static std::string make_what(const CheckLocInfo& check_loc_info,
-                                     const std::string& context_info,
-                                     const std::string& explanation);
-    };
-} // namespace ngraph
+private:
+    static std::string make_what(const CheckLocInfo& check_loc_info,
+                                 const std::string& context_info,
+                                 const std::string& explanation);
+};
+}  // namespace ngraph
 
 //
 // Helper macro for defining custom check macros, which throw custom exception classes and provide
@@ -109,25 +103,20 @@ namespace ngraph
 // TODO(amprocte): refactor NGRAPH_CHECK_HELPER so we don't have to introduce a locally-scoped
 // variable (ss___) and risk shadowing.
 //
-#define NGRAPH_CHECK_HELPER2(exc_class, ctx, check, ...)                                           \
-    do                                                                                             \
-    {                                                                                              \
-        if (!(check))                                                                              \
-        {                                                                                          \
-            ::std::stringstream ss___;                                                             \
-            ::ngraph::write_all_to_stream(ss___, __VA_ARGS__);                                     \
-            throw exc_class(                                                                       \
-                (::ngraph::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ss___.str());         \
-        }                                                                                          \
+#define NGRAPH_CHECK_HELPER2(exc_class, ctx, check, ...)                                               \
+    do {                                                                                               \
+        if (!(check)) {                                                                                \
+            ::std::stringstream ss___;                                                                 \
+            ::ngraph::write_all_to_stream(ss___, __VA_ARGS__);                                         \
+            throw exc_class((::ngraph::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ss___.str()); \
+        }                                                                                              \
     } while (0)
 
-#define NGRAPH_CHECK_HELPER1(exc_class, ctx, check)                                                \
-    do                                                                                             \
-    {                                                                                              \
-        if (!(check))                                                                              \
-        {                                                                                          \
-            throw exc_class((::ngraph::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), "");      \
-        }                                                                                          \
+#define NGRAPH_CHECK_HELPER1(exc_class, ctx, check)                                           \
+    do {                                                                                      \
+        if (!(check)) {                                                                       \
+            throw exc_class((::ngraph::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ""); \
+        }                                                                                     \
     } while (0)
 
 /// \brief Macro to check whether a boolean condition holds.
@@ -142,73 +131,46 @@ namespace ngraph
 /// implemented with NGRAPH_CHECK macro.
 /// \param ... Additional error message that should describe why that execution path is unreachable.
 /// \throws ::ngraph::CheckFailure if the macro is executed.
-#define NGRAPH_UNREACHABLE(...) NGRAPH_CHECK(false, "Unreachable: ", __VA_ARGS__)
-#define NGRAPH_CHECK_HELPER(exc_class, ctx, ...)                                                   \
-    CALL_OVERLOAD(NGRAPH_CHECK_HELPER, exc_class, ctx, __VA_ARGS__)
+#define NGRAPH_UNREACHABLE(...)                  NGRAPH_CHECK(false, "Unreachable: ", __VA_ARGS__)
+#define NGRAPH_CHECK_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(NGRAPH_CHECK_HELPER, exc_class, ctx, __VA_ARGS__)
 
 #define GLUE(x, y) x y
 
-#define RETURN_ARG_COUNT(_1_,                                                                      \
-                         _2_,                                                                      \
-                         _3_,                                                                      \
-                         _4_,                                                                      \
-                         _5_,                                                                      \
-                         _6,                                                                       \
-                         _7,                                                                       \
-                         _8,                                                                       \
-                         _9,                                                                       \
-                         _10,                                                                      \
-                         _11,                                                                      \
-                         _12,                                                                      \
-                         _13,                                                                      \
-                         _14,                                                                      \
-                         _15,                                                                      \
-                         _16,                                                                      \
-                         _17,                                                                      \
-                         _18,                                                                      \
-                         _19,                                                                      \
-                         _20,                                                                      \
-                         _21,                                                                      \
-                         _22,                                                                      \
-                         _23,                                                                      \
-                         _24,                                                                      \
-                         _25,                                                                      \
-                         count,                                                                    \
-                         ...)                                                                      \
+#define RETURN_ARG_COUNT(_1_,   \
+                         _2_,   \
+                         _3_,   \
+                         _4_,   \
+                         _5_,   \
+                         _6,    \
+                         _7,    \
+                         _8,    \
+                         _9,    \
+                         _10,   \
+                         _11,   \
+                         _12,   \
+                         _13,   \
+                         _14,   \
+                         _15,   \
+                         _16,   \
+                         _17,   \
+                         _18,   \
+                         _19,   \
+                         _20,   \
+                         _21,   \
+                         _22,   \
+                         _23,   \
+                         _24,   \
+                         _25,   \
+                         count, \
+                         ...)   \
     count
 #define EXPAND_ARGS(args) RETURN_ARG_COUNT args
-#define COUNT_ARGS_MAXN(...)                                                                       \
-    EXPAND_ARGS((__VA_ARGS__,                                                                      \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 2,                                                                                \
-                 1,                                                                                \
-                 0))
+#define COUNT_ARGS_MAXN(...) \
+    EXPAND_ARGS((__VA_ARGS__, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0))
 
 #define OVERLOAD_MACRO2(name, count) name##count
 #define OVERLOAD_MACRO1(name, count) OVERLOAD_MACRO2(name, count)
-#define OVERLOAD_MACRO(name, count) OVERLOAD_MACRO1(name, count)
+#define OVERLOAD_MACRO(name, count)  OVERLOAD_MACRO1(name, count)
 
-#define CALL_OVERLOAD(name, exc_class, ctx, ...)                                                   \
+#define CALL_OVERLOAD(name, exc_class, ctx, ...) \
     GLUE(OVERLOAD_MACRO(name, COUNT_ARGS_MAXN(__VA_ARGS__)), (exc_class, ctx, __VA_ARGS__))

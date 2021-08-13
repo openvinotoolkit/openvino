@@ -5,31 +5,28 @@
 #include <memory>
 #include <sstream>
 #include <string>
-#include <vector>
 #include <thread>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/variant.hpp"
 #include "ngraph/opsets/opset.hpp"
+#include "ngraph/variant.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
 
-TEST(op, is_op)
-{
+TEST(op, is_op) {
     auto arg0 = make_shared<op::Parameter>(element::f32, Shape{1});
     ASSERT_NE(nullptr, arg0);
     EXPECT_TRUE(op::is_parameter(arg0));
 }
 
-TEST(op, is_parameter)
-{
+TEST(op, is_parameter) {
     auto arg0 = make_shared<op::Parameter>(element::f32, Shape{1});
     ASSERT_NE(nullptr, arg0);
     auto t0 = make_shared<op::v1::Add>(arg0, arg0);
@@ -37,8 +34,7 @@ TEST(op, is_parameter)
     EXPECT_FALSE(op::is_parameter(t0));
 }
 
-TEST(op, provenance_tag)
-{
+TEST(op, provenance_tag) {
     auto node = make_shared<op::Parameter>(element::f32, Shape{1});
     auto tag1 = "parameter node";
     auto tag2 = "f32 node";
@@ -54,9 +50,9 @@ TEST(op, provenance_tag)
 
 TEST(op, opset_multi_thread) {
     auto doTest = [&](std::function<const ngraph::OpSet&()> fun) {
-        std::atomic<const ngraph::OpSet*> opset {nullptr};
-        std::atomic_bool failed {false};
-        auto threadFun = [&] () {
+        std::atomic<const ngraph::OpSet*> opset{nullptr};
+        std::atomic_bool failed{false};
+        auto threadFun = [&]() {
             const ngraph::OpSet* op = &fun();
             const ngraph::OpSet* current = opset;
             do {
@@ -66,8 +62,8 @@ TEST(op, opset_multi_thread) {
                 }
             } while (opset.compare_exchange_strong(op, current));
         };
-        std::thread t1 {threadFun};
-        std::thread t2 {threadFun};
+        std::thread t1{threadFun};
+        std::thread t2{threadFun};
         t1.join();
         t2.join();
         ASSERT_FALSE(failed);
@@ -81,32 +77,27 @@ TEST(op, opset_multi_thread) {
     doTest(ngraph::get_opset7);
 }
 
-struct Ship
-{
+struct Ship {
     std::string name;
     int16_t x;
     int16_t y;
 };
 
-namespace ngraph
-{
-    template <>
-    class VariantWrapper<Ship> : public VariantImpl<Ship>
-    {
-    public:
-        static constexpr VariantTypeInfo type_info{"Variant::Ship", 0};
-        const VariantTypeInfo& get_type_info() const override { return type_info; }
-        VariantWrapper(const value_type& value)
-            : VariantImpl<value_type>(value)
-        {
-        }
-    };
+namespace ngraph {
+template <>
+class VariantWrapper<Ship> : public VariantImpl<Ship> {
+public:
+    static constexpr VariantTypeInfo type_info{"Variant::Ship", 0};
+    const VariantTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
+};
 
-    constexpr VariantTypeInfo VariantWrapper<Ship>::type_info;
-}
+constexpr VariantTypeInfo VariantWrapper<Ship>::type_info;
+}  // namespace ngraph
 
-TEST(op, variant)
-{
+TEST(op, variant) {
     shared_ptr<Variant> var_std_string = make_variant<std::string>("My string");
     ASSERT_TRUE((is_type<VariantWrapper<std::string>>(var_std_string)));
     EXPECT_EQ((as_type_ptr<VariantWrapper<std::string>>(var_std_string)->get()), "My string");

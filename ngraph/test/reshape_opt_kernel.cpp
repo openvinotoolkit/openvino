@@ -6,50 +6,40 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/shape.hpp"
-
 #include "util/ndarray.hpp"
 
 using namespace ngraph;
 
-namespace
-{
-    using ElementValue = int32_t;
-    enum class AxisOrder
-    {
-        straight,
-        reverse,
-    };
+namespace {
+using ElementValue = int32_t;
+enum class AxisOrder {
+    straight,
+    reverse,
+};
 
-    AxisVector get_axis_order(AxisOrder order, size_t size)
-    {
-        AxisVector v(size);
-        std::iota(begin(v), end(v), 0);
-        if (order == AxisOrder::reverse)
-        {
-            std::reverse(begin(v), end(v));
-        }
-        return v;
+AxisVector get_axis_order(AxisOrder order, size_t size) {
+    AxisVector v(size);
+    std::iota(begin(v), end(v), 0);
+    if (order == AxisOrder::reverse) {
+        std::reverse(begin(v), end(v));
     }
+    return v;
+}
 
-    struct TestParams
-    {
-        AxisOrder order;
-        test::NDArrayBase<ElementValue> input;
-        test::NDArrayBase<ElementValue> output;
-    };
+struct TestParams {
+    AxisOrder order;
+    test::NDArrayBase<ElementValue> input;
+    test::NDArrayBase<ElementValue> output;
+};
 
-    struct ReshapeOptKernel : ::testing::TestWithParam<TestParams>
-    {
-    };
+struct ReshapeOptKernel : ::testing::TestWithParam<TestParams> {};
 
-} // namespace
+}  // namespace
 
-TEST_P(ReshapeOptKernel, reshape_opt_kernel)
-{
+TEST_P(ReshapeOptKernel, reshape_opt_kernel) {
     const TestParams& p = GetParam();
 
     const AxisVector axis_order = get_axis_order(p.order, p.input.get_shape().size());

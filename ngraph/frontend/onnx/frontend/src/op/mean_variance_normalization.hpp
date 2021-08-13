@@ -7,24 +7,19 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
-{
-    namespace onnx_import
-    {
-        namespace op
-        {
-            namespace set_1
-            {
-                OutputVector mean_variance_normalization(const Node& node);
-            } // namespace set_1
+namespace ngraph {
+namespace onnx_import {
+namespace op {
+namespace set_1 {
+OutputVector mean_variance_normalization(const Node& node);
+}  // namespace set_1
 
-            namespace set_9
-            {
-                OutputVector mean_variance_normalization(const Node& node);
-            } // namespace set_9
+namespace set_9 {
+OutputVector mean_variance_normalization(const Node& node);
+}  // namespace set_9
 
-        } // namespace op
+}  // namespace op
 
-    } // namespace onnx_import
+}  // namespace onnx_import
 
-} // namespace ngraph
+}  // namespace ngraph

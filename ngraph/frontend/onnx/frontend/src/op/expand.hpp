@@ -7,22 +7,19 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
+namespace ngraph {
+namespace onnx_import {
+namespace op {
+namespace set_1
+// Expand operator has been available since version 8 of the default ONNX operator set.
+// Currently, Expand is assigned to version 1 due to temporary reason.
 {
-    namespace onnx_import
-    {
-        namespace op
-        {
-            namespace set_1
-            // Expand operator has been available since version 8 of the default ONNX operator set.
-            // Currently, Expand is assigned to version 1 due to temporary reason.
-            {
-                OutputVector expand(const Node& node);
+OutputVector expand(const Node& node);
 
-            } // namespace set_1
+}  // namespace set_1
 
-        } // namespace op
+}  // namespace op
 
-    } // namespace onnx_import
+}  // namespace onnx_import
 
-} // namespace ngraph
+}  // namespace ngraph

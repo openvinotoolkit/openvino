@@ -11,13 +11,10 @@ using namespace ngraph;
 
 // Since v3::TopK is backward compatible with v1::TopK all of these tests should pass
 template <typename T>
-class topk_type_prop : public ::testing::Test
-{
-};
+class topk_type_prop : public ::testing::Test {};
 TYPED_TEST_SUITE_P(topk_type_prop);
 
-TYPED_TEST_P(topk_type_prop, topk_negative_axis_support)
-{
+TYPED_TEST_P(topk_type_prop, topk_negative_axis_support) {
     const auto data_shape = Shape{1, 2, 3, 4};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
     const auto k = op::Constant::create(element::i64, Shape{}, {2});
@@ -31,8 +28,7 @@ TYPED_TEST_P(topk_type_prop, topk_negative_axis_support)
     ASSERT_EQ(topk->get_output_shape(1), expect_shape);
 }
 
-TYPED_TEST_P(topk_type_prop, topk_default_index_element_type)
-{
+TYPED_TEST_P(topk_type_prop, topk_default_index_element_type) {
     const auto data_shape = Shape{1, 2, 3, 4};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
     const auto k = op::Constant::create(element::i64, Shape{}, {2});
@@ -42,30 +38,23 @@ TYPED_TEST_P(topk_type_prop, topk_default_index_element_type)
     ASSERT_EQ(op->get_index_element_type(), element::i32);
 }
 
-TYPED_TEST_P(topk_type_prop, topk_negative_axis_dynamic_rank)
-{
+TYPED_TEST_P(topk_type_prop, topk_negative_axis_dynamic_rank) {
     const auto data_shape = PartialShape::dynamic();
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);
     const auto k = op::Constant::create(element::i64, Shape{}, {2});
     const int64_t axis = -2;
     const auto topk = make_shared<TypeParam>(data, k, axis, "max", "value");
 
-    try
-    {
+    try {
         topk->get_axis();
-    }
-    catch (const NodeValidationFailure& error)
-    {
+    } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Normalized axis of TopK is unknown"));
-    }
-    catch (...)
-    {
+    } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
 
-TYPED_TEST_P(topk_type_prop, topk_v1_partial_ouptut)
-{
+TYPED_TEST_P(topk_type_prop, topk_v1_partial_ouptut) {
     auto data_shape = PartialShape{2, 10};
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
     {
@@ -81,8 +70,7 @@ TYPED_TEST_P(topk_type_prop, topk_v1_partial_ouptut)
     }
 }
 
-TYPED_TEST_P(topk_type_prop, topk_rank_static_k_unknown)
-{
+TYPED_TEST_P(topk_type_prop, topk_rank_static_k_unknown) {
     const int64_t axis = 1;
     const auto data_shape = Shape{1, 10, 100};
     const auto data = make_shared<op::Parameter>(element::f32, data_shape);

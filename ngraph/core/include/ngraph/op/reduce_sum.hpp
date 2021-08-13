@@ -7,13 +7,10 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/util/arithmetic_reductions_keep_dims.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        namespace v1
-        {
-            // clang-format off
+namespace ngraph {
+namespace op {
+namespace v1 {
+// clang-format off
             /// \brief Tensor sum operation.
             ///
             /// Element-wise sums the input tensor, eliminating the specified reduction axes.

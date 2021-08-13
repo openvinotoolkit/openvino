@@ -14,8 +14,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, reduce_l1_one_axis_keep_dims)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reduce_l1_one_axis_keep_dims) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{3, 2, 2});
     auto axes = op::Constant::create(element::i32, Shape{1}, {2});
     auto reduce_l1 = make_shared<op::v4::ReduceL1>(data, axes, true);
@@ -37,8 +36,7 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_l1_one_axis_keep_dims)
     EXPECT_TRUE(test::all_close_f((expected_result), read_vector<float>(result_tensor)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, reduce_l1_one_axis_do_not_keep_dims)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reduce_l1_one_axis_do_not_keep_dims) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{3, 2, 2});
     auto axes = op::Constant::create(element::i32, Shape{1}, {2});
     auto reduce_l1 = make_shared<op::v4::ReduceL1>(data, axes, false);

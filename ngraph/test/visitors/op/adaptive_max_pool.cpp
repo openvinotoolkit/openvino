@@ -3,7 +3,6 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset8.hpp"
@@ -13,8 +12,7 @@ using namespace std;
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
-TEST(attributes, adaptive_max_pool_op)
-{
+TEST(attributes, adaptive_max_pool_op) {
     NodeBuilder::get_ops().register_factory<opset8::AdaptiveMaxPool>();
     const auto A = make_shared<op::Parameter>(element::f32, Shape{1, 3, 5, 4});
     const auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {4, 3});

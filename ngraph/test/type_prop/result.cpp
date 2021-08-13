@@ -10,9 +10,8 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, result)
-{
-    const auto arg_shape =Shape{1, 2, 3, 4, 5};
+TEST(type_prop, result) {
+    const auto arg_shape = Shape{1, 2, 3, 4, 5};
     auto arg = make_shared<opset1::Constant>(element::f32, arg_shape);
 
     auto result = make_shared<opset1::Result>(arg);
@@ -21,8 +20,7 @@ TEST(type_prop, result)
     EXPECT_EQ(result->get_output_shape(0), arg_shape);
 }
 
-TEST(type_prop, result_dynamic_shape)
-{
+TEST(type_prop, result_dynamic_shape) {
     auto arg = make_shared<opset1::Parameter>(element::f32, PartialShape::dynamic());
 
     auto result = make_shared<opset1::Result>(arg);

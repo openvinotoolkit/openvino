@@ -6,20 +6,16 @@
 
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
-{
-    namespace onnx_import
-    {
-        namespace op
-        {
-            namespace set_1
-            {
-                OutputVector pow(const Node& node);
+namespace ngraph {
+namespace onnx_import {
+namespace op {
+namespace set_1 {
+OutputVector pow(const Node& node);
 
-            } // namespace set_1
+}  // namespace set_1
 
-        } // namespace op
+}  // namespace op
 
-    } // namespace onnx_import
+}  // namespace onnx_import
 
-} // namespace ngraph
+}  // namespace ngraph

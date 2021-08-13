@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/type/element_type.hpp"
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
 #include "ngraph/op/parameter.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "pyngraph/types/element_type.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Type(py::module m)
-{
+void regclass_pyngraph_Type(py::module m) {
     py::class_<ngraph::element::Type, std::shared_ptr<ngraph::element::Type>> type(m, "Type");
     type.doc() = "ngraph.impl.Type wraps ngraph::element::Type";
     type.attr("boolean") = ngraph::element::boolean;
@@ -32,8 +32,7 @@ void regclass_pyngraph_Type(py::module m)
 
     type.def("__repr__", [](const ngraph::element::Type& self) {
         std::string bitwidth = std::to_string(self.bitwidth());
-        if (self.is_signed())
-        {
+        if (self.is_signed()) {
             return "<Type: '" + self.c_type_string() + bitwidth + "'>";
         }
         return "<Type: 'u" + self.c_type_string() + bitwidth + "'>";
@@ -41,7 +40,9 @@ void regclass_pyngraph_Type(py::module m)
 
     type.def(
         "__eq__",
-        [](const ngraph::element::Type& a, const ngraph::element::Type& b) { return a == b; },
+        [](const ngraph::element::Type& a, const ngraph::element::Type& b) {
+            return a == b;
+        },
         py::is_operator());
 
     type.def_property_readonly("bitwidth", &ngraph::element::Type::bitwidth);

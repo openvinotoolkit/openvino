@@ -3,6 +3,7 @@
 //
 
 #include "load_from.hpp"
+
 #include "paddle_utils.hpp"
 
 using namespace ngraph;
@@ -10,8 +11,7 @@ using namespace ngraph::frontend;
 
 using PDPDCutTest = FrontEndLoadFromTest;
 
-static LoadFromFEParam getTestData()
-{
+static LoadFromFEParam getTestData() {
     LoadFromFEParam res;
     res.m_frontEndName = PADDLE_FE;
     res.m_modelsPath = std::string(TEST_PADDLE_MODELS_DIRNAME);
