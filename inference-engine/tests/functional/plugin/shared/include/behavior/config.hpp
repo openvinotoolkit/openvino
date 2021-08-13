@@ -19,6 +19,7 @@
 #include <ie_core.hpp>
 #include "ie_common.h"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include <threading/ie_executor_manager.hpp>
@@ -80,6 +81,17 @@ namespace BehaviorTestsDefinitions {
         // Create CNNNetwork from ngrpah::Function
         InferenceEngine::CNNNetwork cnnNet(function);
         ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+    }
+
+    TEST_P(CorrectConfigTests, CanUseCache) {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        // Create CNNNetwork from ngrpah::Function
+        InferenceEngine::CNNNetwork cnnNet(function);
+        ie->SetConfig({ { CONFIG_KEY(CACHE_DIR), "./test_cache" } });
+        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        CommonTestUtils::removeDir("./test_cache");
     }
 
     using CorrectSingleOptionCustomValueConfigTests = BehaviorTestsUtils::BehaviorTestsSingleOptionCustom;
