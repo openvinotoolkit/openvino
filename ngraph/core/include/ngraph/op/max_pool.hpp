@@ -129,11 +129,16 @@ public:
         m_pads_value = pads_value;
     }
 
+    bool has_evaluate() const override;
+    bool evaluate(const HostTensorVector&, const HostTensorVector&) const override;
+
 private:
     Strides m_dilations;
     element::Type m_index_element_type{element::i32};
     int64_t m_axis{0};
     float m_pads_value{-std::numeric_limits<float>::infinity()};
+
+    bool evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
 }  // namespace v8
 }  // namespace op

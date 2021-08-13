@@ -110,6 +110,87 @@ void max_pool(const T* arg,
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
+
+namespace {
+template <typename Values_t, typename Indices_t>
+void max_pool_1d(const Values_t* data,
+                 Values_t* values,
+                 Indices_t* indices,
+                 const size_t data_elems,
+                 const size_t out_elems,
+                 const size_t kernel_size,
+                 const size_t kernel_stride,
+                 const size_t kernel_dilation,
+                 const size_t pads_begin,
+                 const size_t pads_end) {
+    int kernel_position = 0 - pads_begin;
+    // select max elem and its index for each "placeholder" in the out buffer
+    for (size_t out_idx = 0; out_idx < out_elems; ++out_idx) {
+        Values_t max_elem = std::numeric_limits<Values_t>::lowest();
+        Indices_t max_elem_idx = Indices_t{0};
+        for (size_t kernel_elem = 0; kernel_elem < kernel_size; ++kernel_elem) {
+            const size_t kernel_elem_offset = kernel_elem * kernel_dilation;
+            if (kernel_position + kernel_elem_offset < 0 || kernel_position + kernel_elem_offset >= data_elems) {
+                // don't process the padding elements
+                continue;
+            } else {
+                if (data[kernel_position + kernel_elem_offset] > max_elem) {
+                    max_elem = data[kernel_position + kernel_elem_offset];
+                    max_elem_idx = kernel_position + kernel_elem_offset;
+                }
+            }
+        }
+        values[out_idx] = max_elem;
+        indices[out_idx] = max_elem_idx;
+        kernel_position += kernel_stride;
+    }
+}
+}  // namespace
+
+template <typename Values_t, typename Indices_t>
+void max_pool(const Values_t* data,
+              Values_t* values,
+              Indices_t* indices,
+              const Shape& data_shape,
+              const Shape& out_shape,
+              const Shape& kernel,
+              const Strides& strides,
+              const Strides& dilations,
+              const Shape& pads_begin,
+              const Shape& pads_end,
+              const int64_t axis = 0) {
+    const auto data_batch_elems = shape_size(std::begin(data_shape) + 1, std::end(data_shape));
+    const auto data_channel_elems = shape_size(std::begin(data_shape) + 2, std::end(data_shape));
+
+    const auto out_batch_elems = shape_size(std::begin(out_shape) + 1, std::end(out_shape));
+    const auto out_channel_elems = shape_size(std::begin(out_shape) + 2, std::end(out_shape));
+
+    for (size_t b = 0; b < data_shape[0]; ++b) {
+        for (size_t c = 0; c < data_shape[1]; ++c) {
+            // calculate the buffer ofsets for a given channel "c"
+            // then execute an appropriate implementation
+            // for all data elements in that channel
+            const Values_t* data_channel_first_elem = data + b * data_batch_elems + c * data_channel_elems;
+            Values_t* out_channel_first_elem = values + b * out_batch_elems + c * out_channel_elems;
+            Indices_t* indices_channel_first_elem = indices + b * out_batch_elems + c * out_channel_elems;
+
+            if (data_shape.size() == 3) {
+                max_pool_1d<Values_t, Indices_t>(data_channel_first_elem,
+                                                 out_channel_first_elem,
+                                                 indices_channel_first_elem,
+                                                 data_shape[2],
+                                                 out_shape[2],
+                                                 kernel[0],
+                                                 strides[0],
+                                                 dilations[0],
+                                                 pads_begin[0],
+                                                 pads_end[0]);
+            } else {
+                throw std::runtime_error("Not ready yet");
+            }
+        }
+    }
+}
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph

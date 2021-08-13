@@ -57,6 +57,17 @@ size_t shape_size(const SHAPE_TYPE& shape) {
     return size;
 }
 
+template <typename ForwardIt>
+size_t shape_size(ForwardIt start_dim, const ForwardIt end_dim) {
+    static_assert(std::is_arithmetic<typename std::iterator_traits<ForwardIt>::value_type>::value);
+
+    size_t size = 1;
+    while (start_dim != end_dim) {
+        size *= *start_dim++;
+    }
+    return size;
+}
+
 /// Row-major strides for a shape
 template <typename SHAPE_TYPE>
 std::vector<size_t> row_major_strides(const SHAPE_TYPE& shape) {

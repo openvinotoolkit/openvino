@@ -1,0 +1,115 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <gtest/gtest.h>
+
+#include <ie_core.hpp>
+#include <ie_ngraph_utils.hpp>
+#include <ngraph/ngraph.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
+#include <tuple>
+
+#include "base_reference_test.hpp"
+
+using namespace ngraph;
+using namespace reference_tests;
+using namespace InferenceEngine;
+
+struct MaxPoolParams {
+    template <class Input_t, class Indices_t>
+    MaxPoolParams(const PartialShape& input_shape, const element::Type& input_type, const std::vector<Input_t>& input_data,
+                  const std::vector<Input_t>& expected_values, const element::Type& indices_type, const std::vector<Indices_t>& expected_indices,
+                  const Strides& strides, const Strides& dilations, const Shape& pads_begin, const Shape& pads_end, const Shape& kernel,
+                  const op::PadType pad_type = op::PadType::EXPLICIT, const int64_t axis = 0)
+        : m_input_shape(input_shape),
+          m_input_type(input_type),
+          m_indices_type(indices_type),
+          m_input_data(CreateBlob(input_type, input_data)),
+          m_expected_values(CreateBlob(input_type, expected_values)),
+          m_expected_indices(CreateBlob(indices_type, expected_indices)),
+          m_strides(strides),
+          m_dilations(dilations),
+          m_pads_begin(pads_begin),
+          m_pads_end(pads_end),
+          m_kernel(kernel),
+          m_pad_type(pad_type),
+          m_axis(axis) {}
+    PartialShape m_input_shape;
+    element::Type m_input_type;
+    element::Type m_indices_type;
+    InferenceEngine::Blob::Ptr m_input_data;
+    InferenceEngine::Blob::Ptr m_expected_values;
+    InferenceEngine::Blob::Ptr m_expected_indices;
+    Strides m_strides;
+    Strides m_dilations;
+    Shape m_pads_begin;
+    Shape m_pads_end;
+    Shape m_kernel;
+    op::PadType m_pad_type;
+    int64_t m_axis;
+};
+
+class ReferenceMaxPoolLayerTest : public testing::TestWithParam<MaxPoolParams>, public CommonReferenceTest {
+public:
+    void SetUp() override {
+        const auto params = GetParam();
+        function = CreateFunction(params);
+        inputData = {params.m_input_data};
+        refOutData = {params.m_expected_values, params.m_expected_indices};
+    }
+    static std::string getTestCaseName(const testing::TestParamInfo<MaxPoolParams>& obj) {
+        const auto p = obj.param;
+        std::ostringstream result;
+        result << "input_shape=" << p.m_input_shape << ";";
+        result << "input_type=" << p.m_input_type << ";";
+        result << "indices_type=" << p.m_indices_type << ";";
+        result << "strides=" << p.m_strides << ";";
+        result << "dilations=" << p.m_dilations << ";";
+        result << "pads_begin=" << p.m_pads_begin << ";";
+        result << "pads_end=" << p.m_pads_end << ";";
+        result << "kernel=" << p.m_kernel << ";";
+        result << "pad_type=" << p.m_pad_type << ";";
+        result << "axis=" << p.m_axis;
+        return result.str();
+    }
+
+private:
+    static std::shared_ptr<Function> CreateFunction(const MaxPoolParams& params) {
+        const auto in = std::make_shared<op::Parameter>(params.m_input_type, params.m_input_shape);
+        const auto max_pool =
+            std::make_shared<op::v8::MaxPool>(in, params.m_strides, params.m_dilations, params.m_pads_begin, params.m_pads_end, params.m_kernel,
+                                              op::RoundingType::FLOOR, params.m_pad_type, params.m_indices_type, params.m_axis);
+        return std::make_shared<Function>(max_pool, ParameterVector {in});
+    }
+};
+
+TEST_P(ReferenceMaxPoolLayerTest, CompareWithHardcodedRefs) {
+    Exec();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MaxPool_With_Hardcoded_Refs, ReferenceMaxPoolLayerTest,
+    ::testing::Values(MaxPoolParams(PartialShape {1, 1, 9}, element::i32, std::vector<int32_t> {1, 2, 3, 4, 5, 6, 7, 8, 9},
+                                    std::vector<int32_t> {2, 3, 4, 5, 6, 7, 8, 9}, element::i64, std::vector<int64_t> {1, 2, 3, 4, 5, 6, 7, 8}, Strides {1},
+                                    Strides {1}, Shape {}, Shape {}, Shape {2}),
+                      MaxPoolParams(PartialShape {1, 1, 9}, element::i32, std::vector<int32_t> {1, 2, 3, 4, 5, 6, 7, 8, 9}, std::vector<int32_t> {2, 4, 6, 8},
+                                    element::i64, std::vector<int64_t> {1, 3, 5, 7}, Strides {2}, Strides {1}, Shape {}, Shape {}, Shape {2}),
+                      MaxPoolParams(PartialShape {1, 1, 9}, element::i32, std::vector<int32_t> {1, 2, 3, 4, 5, 6, 7, 8, 9},
+                                    std::vector<int32_t> {1, 3, 5, 7, 9}, element::i64, std::vector<int64_t> {0, 2, 4, 6, 8}, Strides {2}, Strides {1},
+                                    Shape {}, Shape {}, Shape {2}, op::PadType::SAME_LOWER),
+                      MaxPoolParams(PartialShape {1, 1, 9}, element::i32, std::vector<int32_t> {1, 2, 3, 4, 5, 6, 7, 8, 9},
+                                    std::vector<int32_t> {2, 4, 6, 8, 9}, element::i64, std::vector<int64_t> {1, 3, 5, 7, 8}, Strides {2}, Strides {1},
+                                    Shape {}, Shape {}, Shape {2}, op::PadType::SAME_UPPER),
+                      MaxPoolParams(PartialShape {1, 1, 9}, element::i32, std::vector<int32_t> {1, 2, 3, 4, 5, 6, 7, 8, 9}, std::vector<int32_t> {3, 5, 7, 9},
+                                    element::i32, std::vector<int32_t> {2, 4, 6, 8}, Strides {2}, Strides {2}, Shape {}, Shape {}, Shape {2}),
+                      MaxPoolParams(PartialShape {1, 2, 4}, element::f32, std::vector<float> {1.0f, 2.0f, 3.0f, 4.0f, 0.0f, -3.14f, -2.71f, 5.0f},
+                                    std::vector<float> {3.0f, 4.0f, 0.0f, 5.0f}, element::i32, std::vector<int32_t> {2, 3, 4, 7}, Strides {1}, Strides {1},
+                                    Shape {}, Shape {}, Shape {3}),
+                      MaxPoolParams(PartialShape {1, 2, 4}, element::f32, std::vector<float> {1.0f, 2.0f, 3.0f, 4.0f, 0.0f, -3.14f, -2.71f, 5.0f},
+                                    std::vector<float> {3.0f, 4.0f, 0.0f, 5.0f}, element::i32, std::vector<int32_t> {2, 3, 0, 3}, Strides {1}, Strides {1},
+                                    Shape {}, Shape {}, Shape {3}, op::PadType::EXPLICIT, 2),
+                        MaxPoolParams(PartialShape {1, 1, 9}, element::i32, std::vector<int32_t> {1, 9, 3, 8, 5, 2, 6, 4, 7},
+                                    std::vector<int32_t> {1, 9, 6, 7}, element::i32, std::vector<int32_t> {0, 1, 6, 8}, Strides {3}, Strides {1},
+                                    Shape {2}, Shape {2}, Shape {3})),
+    ReferenceMaxPoolLayerTest::getTestCaseName);
