@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/node_output.hpp"
+
 #include <pybind11/stl.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "ngraph/node_output.hpp"
 #include "pyngraph/node_output.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Output(py::module m)
-{
-    py::class_<ngraph::Output<ngraph::Node>, std::shared_ptr<ngraph::Output<ngraph::Node>>> output(
-        m, "Output", py::dynamic_attr());
+void regclass_pyngraph_Output(py::module m) {
+    py::class_<ngraph::Output<ngraph::Node>, std::shared_ptr<ngraph::Output<ngraph::Node>>> output(m,
+                                                                                                   "Output",
+                                                                                                   py::dynamic_attr());
     output.doc() = "ngraph.impl.Output wraps ngraph::Output<Node>";
 
     output.def("get_node",
