@@ -681,6 +681,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         InitGNADevice();
     }
 
+    bool isNgraphPassesUsed = false;
+
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
@@ -734,6 +736,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::TransposeReduction>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
+
+        isNgraphPassesUsed = true;
     }
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
@@ -759,12 +763,13 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // network optimisation phases
     int passIdx = 0;
-    auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision) {
+    auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision, bool isNgraphPassesUsed) {
         auto passes = make_shared<PassManager>(PassManagerSettings{runBeforeCopy, lowPrecision}, network);
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
-        passes->registerPass<UnrollLSTMCellPass>();
+        if (!isNgraphPassesUsed)
+            passes->registerPass<UnrollLSTMCellPass>();
         passes->registerPass<RemoveSingleInputConcatPass>();
 
         // fake quantisation aware passes
@@ -808,36 +813,44 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         };
         newNet = InferenceEngine::CNNNetCopy(network, visitor);
         // to run all passes need to have two calls to pass manager
-        run_passes(newNet, true, gnaFlags->input_low_precision);
-        run_passes(newNet, false, gnaFlags->input_low_precision);
+        run_passes(newNet, true, gnaFlags->input_low_precision, isNgraphPassesUsed);
+        run_passes(newNet, false, gnaFlags->input_low_precision, isNgraphPassesUsed);
     } else if (gnaFlags->fake_quantized) {
         switch (config.gnaPrecision) {
             case Precision::I16:
-                ModelQuantizer<FakeQuantI16> q16;
+            {
+                ModelQuantizer<FakeQuantI16> q16(isNgraphPassesUsed);
                 newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
+            }
             case Precision::I8:
-                ModelQuantizer<FakeQuantI8> q8;
+            {
+                ModelQuantizer<FakeQuantI8> q8(isNgraphPassesUsed);
                 newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
+            }
             default:
                 THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
         }
     } else {
         switch (config.gnaPrecision) {
             case Precision::I16:
-                ModelQuantizer<QuantI16> q16;
+            {
+                ModelQuantizer<QuantI16> q16(isNgraphPassesUsed);
                 newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
+            }
             case Precision::I8:
+            {
                 if (gnaFlags->input_low_precision == false) {
-                    ModelQuantizer<QuantI8> q8;
+                    ModelQuantizer<QuantI8> q8(isNgraphPassesUsed);
                     newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 } else {
-                    ModelQuantizer<QuantI8_I8> q8_8;
+                    ModelQuantizer<QuantI8_I8> q8_8(isNgraphPassesUsed);
                     newNet = q8_8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 }
                 break;
+            }
             default:
                 THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
         }
