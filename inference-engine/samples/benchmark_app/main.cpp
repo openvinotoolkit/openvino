@@ -473,21 +473,6 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
-            if (!ov_perf_hint.empty()) {
-                // output of the actual settings that the device selected based on the hint
-                for (const auto& device : devices) {
-                    std::vector<std::string> supported_config_keys =
-                        ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                    slog::info << "Device: " << device << slog::endl;
-                    for (const auto& cfg : supported_config_keys) {
-                        try {
-                            slog::info << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>();
-                        } catch (...) {
-                        };
-                        slog::info << " }" << slog::endl;
-                    }
-                }
-            }
         } else {
             next_step();
             slog::info << "Skipping the step for compiled network" << slog::endl;
@@ -515,9 +500,24 @@ int main(int argc, char* argv[]) {
                 batchSize = 1;
             }
         }
-        // ----------------- 8. Setting optimal runtime parameters
+        // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
+        // output of the actual settings that the device selected based on the hint
+        if (!ov_perf_hint.empty()) {
+            for (const auto& device : devices) {
+                std::vector<std::string> supported_config_keys =
+                        ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                slog::info << "Device: " << device << slog::endl;
+                for (const auto& cfg : supported_config_keys) {
+                    try {
+                        slog::info << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>();
+                    } catch (...) {
+                    };
+                    slog::info << " }" << slog::endl;
+                }
+            }
+        }
 
         // Update number of streams
         for (auto&& ds : device_nstreams) {
