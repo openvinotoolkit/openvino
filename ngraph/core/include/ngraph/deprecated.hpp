@@ -16,21 +16,24 @@
 
 #if defined(_WIN32)
 #    define NGRAPH_DEPRECATED(msg) __declspec(deprecated(msg))
-// TODO: enable warning for Windows
-#    define NGRAPH_ENUM_DEPRECATED(val, msg) val
+#    if __cplusplus >= 201402L
+#        define NGRAPH_ENUM_DEPRECATED(msg) [[deprecated(msg)]]
+#    else
+#        define NGRAPH_ENUM_DEPRECATED(msg)
+#    endif
 #elif defined(__INTEL_COMPILER)
-#    define NGRAPH_DEPRECATED(msg)           __attribute__((deprecated(msg)))
-#    define NGRAPH_ENUM_DEPRECATED(val, msg) val NGRAPH_DEPRECATED(msg)
+#    define NGRAPH_DEPRECATED(msg)      __attribute__((deprecated(msg)))
+#    define NGRAPH_ENUM_DEPRECATED(msg) NGRAPH_DEPRECATED(msg)
 #elif defined(__GNUC__)
 #    define NGRAPH_DEPRECATED(msg) __attribute__((deprecated((msg))))
 #    if __GNUC__ < 6 && !defined(__clang__)
-#        define NGRAPH_ENUM_DEPRECATED(val, msg) val
+#        define NGRAPH_ENUM_DEPRECATED(msg)
 #    else
-#        define NGRAPH_ENUM_DEPRECATED(val, msg) val NGRAPH_DEPRECATED(msg)
+#        define NGRAPH_ENUM_DEPRECATED(msg) NGRAPH_DEPRECATED(msg)
 #    endif
 #else
 #    define NGRAPH_DEPRECATED(msg)
-#    define NGRAPH_ENUM_DEPRECATED(val, msg) val
+#    define NGRAPH_ENUM_DEPRECATED(msg)
 #endif
 
 // Suppress warning "-Wdeprecated-declarations" / C4996
