@@ -818,30 +818,23 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     } else if (gnaFlags->fake_quantized) {
         switch (config.gnaPrecision) {
             case Precision::I16:
-            {
                 ModelQuantizer<FakeQuantI16> q16;
                 newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
-            }
             case Precision::I8:
-            {
                 ModelQuantizer<FakeQuantI8> q8;
                 newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
-            }
             default:
                 THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
         }
     } else {
         switch (config.gnaPrecision) {
             case Precision::I16:
-            {
                 ModelQuantizer<QuantI16> q16;
                 newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
-            }
             case Precision::I8:
-            {
                 if (gnaFlags->input_low_precision == false) {
                     ModelQuantizer<QuantI8> q8;
                     newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
@@ -850,7 +843,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
                     newNet = q8_8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 }
                 break;
-            }
             default:
                 THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
         }
