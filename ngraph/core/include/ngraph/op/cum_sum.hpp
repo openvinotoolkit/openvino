@@ -14,46 +14,6 @@ namespace v0 {
 ///
 /// Compute the cumulative sum of the input tensor along the axis specified.
 ///
-/// ## Parameters
-///
-/// |                      | Description |
-/// | -------------------- |
-/// --------------------------------------------------------------------------------------------------|
-/// | `exclusive`          | If set to 1 will return exclusive sum in which the top
-/// element
-/// is not included. 		      |
-/// |		          | In other terms, if set to 1, the j-th output element
-/// would be
-/// the
-/// sum of the first (j-1) elements.|
-/// |		          | Otherwise, it would be the sum of the first j elements.
-/// |
-///
-/// |                      | Description                                        |
-/// | -------------------- | -------------------------------------------------- |
-/// | `reverse`            | if set to 1, performs the sum in reverse direction |
-///
-/// ## Inputs
-///
-/// |       | Description                                            |
-/// | ----- | ------------------------------------------------------ |
-/// | `arg` | An input tensor of any shape and numeric element type. |
-///
-/// |       | Description |
-/// | ----- |
-/// ------------------------------------------------------------------------------------------------|
-/// | `axis`| zero dimension tensor specifying axis position along which cumulative sum
-/// must
-/// be performed.    |
-///
-/// ## Output
-///
-/// | Description |
-/// |
-/// ------------------------------------------------------------------------------------|
-/// | Output tensor of the same type as `arg` with cumulative sums of the arg's elements
-/// |
-
 class NGRAPH_API CumSum : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -92,8 +52,8 @@ public:
     }
 
 private:
-    bool m_exclusive;
-    bool m_reverse;
+    bool m_exclusive = false;
+    bool m_reverse = false;
 };
 }  // namespace v0
 using v0::CumSum;
