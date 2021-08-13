@@ -59,7 +59,10 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
-
+    if (FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency") {
+        throw std::logic_error("Incorrect performance hint. Please set -hint option to"
+                               "either `throughput`(tput) or `latency' value.");
+    }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
         FLAGS_report_type != detailedCntReport) {
         std::string err = "only " + std::string(noCntReport) + "/" + std::string(averageCntReport) + "/" +
@@ -209,12 +212,10 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------------
         next_step();
         std::string ov_perf_hint;
-        if (FLAGS_hint == "throughput" || FLAGS_hint == "THROUGHPUT" || FLAGS_hint == "tput")
+        if (FLAGS_hint == "throughput" || FLAGS_hint == "tput")
             ov_perf_hint = CONFIG_VALUE(THROUGHPUT);
-        else if (FLAGS_hint == "latency" || FLAGS_hint == "LATENCY")
+        else if (FLAGS_hint == "latency")
             ov_perf_hint = CONFIG_VALUE(LATENCY);
-        else if (!FLAGS_hint.empty())
-            throw std::logic_error("Performance hint " + ov_perf_hint + " is not recognized!");
 
         bool perf_counts = false;
         // Update config per device according to command line parameters
@@ -473,18 +474,17 @@ int main(int argc, char* argv[]) {
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
             if (!ov_perf_hint.empty()) {
-                std::cout << "PERFORMANCE_HINT: " << ov_perf_hint << std::endl;
-                // output of the actual settings that the hint produced
+                // output of the actual settings that the device selected based on the hint
                 for (const auto& device : devices) {
                     std::vector<std::string> supported_config_keys =
                         ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                    std::cout << "Device: " << device << std::endl;
+                    slog::info << "Device: " << device << slog::endl;
                     for (const auto& cfg : supported_config_keys) {
                         try {
-                            std::cout << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>();
+                            slog::info << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>();
                         } catch (...) {
                         };
-                        std::cout << " }" << std::endl;
+                        slog::info << " }" << slog::endl;
                     }
                 }
             }

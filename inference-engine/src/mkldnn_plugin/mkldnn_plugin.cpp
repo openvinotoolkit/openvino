@@ -421,7 +421,6 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
     float worst_case_all = NetworkPerfStats::memThresholdUnknown;
     // Traverse nGraph Function in topological order
     for (auto & node : nGraphFunc->get_ordered_ops()) {
-        // todo : bias data size (always fp)
         const auto node_name = node->get_type_info().name;
         if (std::strcmp("MatMul", node_name) && std::strcmp("Convolution", node_name)
             && std::strcmp("ConvolutionBackpropData", node_name)) {
@@ -434,8 +433,8 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                 }
                 for (int i = 0; i < node->get_input_size(); i++) {
                     auto type = node->input_value(i).get_element_type();
-                    const bool isINT8 = isLowPrecision(type); // bf16 tbd
-                    const bool isBF16 = isHalfPrecision(type); // bf16 tbd
+                    const bool isINT8 = isLowPrecision(type);
+                    const bool isBF16 = isHalfPrecision(type);
                     const int data_type_size = isINT8 ? 1 : isBF16 ? 2 : 4;
                     ngraph::Input<ngraph::Node> input = node->input(i);
                     const auto shapeInput = input.get_shape();
@@ -613,23 +612,29 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
                 Engine::NetworkPerfStats NetworkToleranceForLowCache = NetworkMemBandwidthTolerance(clonedNetwork,
                         L2_cache_size, L3_cache_size, memThresholdAssumeLimitedForISA);
+                // num of phys CPU cores (most aggressive value for #streams)
                 const auto num_cores = getNumberOfCPUCores();
-                const auto num_streams_default_not_ht = num_cores / 2;
+                // less aggressive
+                const auto num_streams_less_aggressive = num_cores / 2;
+                // default #streams value (most conservative)
                 const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
                 int num_streams;
                 if (NetworkToleranceForLowCache.maxMemTolerance == NetworkPerfStats::memThresholdUnknown) {
                     if ((NetworkToleranceForLowCache.ratio_compute_convs == NetworkPerfStats::ALL)
                         || (NetworkToleranceForLowCache.ratio_compute_deconvs == NetworkPerfStats::ALL)) {
+                        // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
                         num_streams = num_cores;
                     } else {
+                        // no recognized layers, falling back to the default value
                         num_streams = default_num_streams;
                     }
                 } else if (NetworkToleranceForLowCache.maxMemTolerance > memThresholdAssumeLimitedForISA) {
+                    // network is rather mem-limited, but below the ISA-specific heuristic value
                     num_streams = num_cores;
                 } else if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimited) {
-                    num_streams = std::max(default_num_streams, num_streams_default_not_ht);
+                    num_streams = std::max(default_num_streams, num_streams_less_aggressive);
                 } else {
-                    num_streams = std::min(default_num_streams, num_streams_default_not_ht);
+                    num_streams = std::min(default_num_streams, num_streams_less_aggressive);
                 }
                 auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
                 if (num_requests != config.end())
