@@ -34,8 +34,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, tanh_f32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, tanh_f32) {
     Shape shape{8};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Tanh>(A), ParameterVector{A});
@@ -45,9 +44,11 @@ NGRAPH_TEST(${BACKEND_NAME}, tanh_f32)
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::f32, shape);
     const vector<float> input{2.f, 1.f, 0.5f, 0.f, -0.f, -0.5f, -1.f, -2.f};
-    const auto expected = [&]{
-        vector<float> e(input.size(),0);
-        std::transform(begin(input), end(input), begin(e), [](float v){return std::tanh(v);});
+    const auto expected = [&] {
+        vector<float> e(input.size(), 0);
+        std::transform(begin(input), end(input), begin(e), [](float v) {
+            return std::tanh(v);
+        });
         return e;
     }();
     copy_data(a, input);
@@ -58,8 +59,7 @@ NGRAPH_TEST(${BACKEND_NAME}, tanh_f32)
     EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, tanh_int32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, tanh_int32) {
     Shape shape{5};
     auto A = make_shared<op::Parameter>(element::i32, shape);
     auto f = make_shared<Function>(make_shared<op::Tanh>(A), ParameterVector{A});

@@ -6,13 +6,10 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        namespace util
-        {
-            // clang-format off
+namespace ngraph {
+namespace op {
+namespace util {
+// clang-format off
             /// \brief Abstract base class for elementwise unary arithmetic operations, i.e.,
             ///        operations where the same scalar arithmetic operation is applied to each
             ///        element.
@@ -32,26 +29,25 @@ namespace ngraph
             /// | Type                   | Description                                                                                                                                                             |
             /// | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
             /// | \f$N[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \mathit{op}(\texttt{arg}[i_1,\dots,i_n])\f$. This will always have the same shape and element type as the input tensor. |
-            // clang-format on
-            class NGRAPH_API UnaryElementwiseArithmetic : public Op
-            {
-            protected:
-                /// \brief Constructs a unary elementwise arithmetic operation.
-                UnaryElementwiseArithmetic();
-                /// \brief Constructs a unary elementwise arithmetic operation.
-                ///
-                /// \param arg Output that produces the input tensor.
-                UnaryElementwiseArithmetic(const Output<Node>& arg);
+// clang-format on
+class NGRAPH_API UnaryElementwiseArithmetic : public Op {
+protected:
+    /// \brief Constructs a unary elementwise arithmetic operation.
+    UnaryElementwiseArithmetic();
+    /// \brief Constructs a unary elementwise arithmetic operation.
+    ///
+    /// \param arg Output that produces the input tensor.
+    UnaryElementwiseArithmetic(const Output<Node>& arg);
 
-            public:
-                NGRAPH_RTTI_DECLARATION;
+public:
+    NGRAPH_RTTI_DECLARATION;
 
-                void validate_and_infer_types() override;
-                bool visit_attributes(AttributeVisitor& visitor) override;
+    void validate_and_infer_types() override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
-            private:
-                void validate_and_infer_elementwise_arithmetic();
-            };
-        } // namespace util
-    }     // namespace op
-} // namespace ngraph
+private:
+    void validate_and_infer_elementwise_arithmetic();
+};
+}  // namespace util
+}  // namespace op
+}  // namespace ngraph

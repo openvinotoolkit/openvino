@@ -14,17 +14,10 @@
 #include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/slice_plan.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        namespace reference
-        {
-            void strided_slice(const char* arg,
-                               char* out,
-                               const Shape& arg_shape,
-                               const SlicePlan& sp,
-                               size_t elem_type);
-        }
-    } // namespace runtime
-} // namespace ngraph
+namespace ngraph {
+namespace runtime {
+namespace reference {
+void strided_slice(const char* arg, char* out, const Shape& arg_shape, const SlicePlan& sp, size_t elem_type);
+}
+}  // namespace runtime
+}  // namespace ngraph

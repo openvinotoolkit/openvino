@@ -25,10 +25,8 @@ static std::string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 // ############################################################################ CORE TESTS
-NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_0)
-{
-    onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/compress_0.onnx")};
+NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_0) {
+    onnx_editor::ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/compress_0.onnx")};
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
@@ -43,10 +41,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_0)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_1)
-{
-    onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/compress_1.onnx")};
+NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_1) {
+    onnx_editor::ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/compress_1.onnx")};
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
@@ -61,10 +57,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_1)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_default_axis)
-{
-    onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/compress_default_axis.onnx")};
+NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_default_axis) {
+    onnx_editor::ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/compress_default_axis.onnx")};
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
@@ -79,10 +73,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_default_axis)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_negative_axis)
-{
-    onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/compress_negative_axis.onnx")};
+NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_negative_axis) {
+    onnx_editor::ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/compress_negative_axis.onnx")};
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
