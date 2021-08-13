@@ -23,95 +23,79 @@
 #include <ngraph_ops/framework_node.hpp>
 #include <onnx_import/core/node.hpp>
 
-namespace ONNX_NAMESPACE
-{
-    // forward declaration
-    class ModelProto;
-} // namespace ONNX_NAMESPACE
+namespace ONNX_NAMESPACE {
+// forward declaration
+class ModelProto;
+}  // namespace ONNX_NAMESPACE
 
-namespace ngraph
-{
-    namespace onnx_import
-    {
-        class Model;
+namespace ngraph {
+namespace onnx_import {
+class Model;
+}
+
+namespace frontend {
+class ONNXFrameworkNode : public op::FrameworkNode {
+public:
+    NGRAPH_RTTI_DECLARATION;
+
+    ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph, const onnx_import::Node& node)
+        : FrameworkNode(node.get_ng_inputs(), node.get_outputs_size()),
+          m_node(node),
+          m_graph(graph) {}
+
+    ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
+                      const onnx_import::Node& node,
+                      const OutputVector& inputs)
+        : FrameworkNode(inputs, node.get_outputs_size()),
+          m_node(node),
+          m_graph(graph) {}
+
+    OutputVector get_ng_nodes() const {
+        OutputVector ng_nodes{m_graph->make_ng_nodes(m_node)};
+        if (ng_nodes.size() > get_output_size()) {
+            ng_nodes.resize(get_output_size());
+        }
+        return ng_nodes;
     }
 
-    namespace frontend
-    {
-        class ONNXFrameworkNode : public op::FrameworkNode
-        {
-        public:
-            NGRAPH_RTTI_DECLARATION;
+    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-            ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
-                              const onnx_import::Node& node)
-                : FrameworkNode(node.get_ng_inputs(), node.get_outputs_size())
-                , m_node(node)
-                , m_graph(graph)
-            {
-            }
+    virtual bool visit_attributes(AttributeVisitor& visitor) override {
+        // TODO: implement reading as well, now it work for serialization only
+        std::string domain = m_node.domain();
+        std::string op_type = m_node.op_type();
+        visitor.on_attribute("ONNX_META_domain", domain);
+        visitor.on_attribute("ONNX_META_type", op_type);
+        return true;
+    }
 
-            ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
+protected:
+    onnx_import::Node m_node;
+
+private:
+    std::shared_ptr<onnx_import::Graph> m_graph;
+};
+
+class ONNXSubgraphFrameworkNode : public ONNXFrameworkNode {
+public:
+    NGRAPH_RTTI_DECLARATION;
+
+    ONNXSubgraphFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
                               const onnx_import::Node& node,
                               const OutputVector& inputs)
-                : FrameworkNode(inputs, node.get_outputs_size())
-                , m_node(node)
-                , m_graph(graph)
-            {
-            }
+        : ONNXFrameworkNode(graph, node, inputs) {}
 
-            OutputVector get_ng_nodes() const
-            {
-                OutputVector ng_nodes{m_graph->make_ng_nodes(m_node)};
-                if (ng_nodes.size() > get_output_size())
-                {
-                    ng_nodes.resize(get_output_size());
-                }
-                return ng_nodes;
-            }
+    void infer_inputs_from_parent() {
+        m_node.get_subgraph()->infer_inputs_from_parent();
+    }
 
-            virtual std::shared_ptr<Node>
-                clone_with_new_inputs(const OutputVector& inputs) const override;
+    std::shared_ptr<Function> get_subgraph_body() const {
+        auto subgraph = m_node.get_subgraph();
+        return std::make_shared<Function>(subgraph->get_ng_outputs(),
+                                          subgraph->get_ng_parameters(),
+                                          subgraph->get_name());
+    }
+};
 
-            virtual bool visit_attributes(AttributeVisitor& visitor) override
-            {
-                // TODO: implement reading as well, now it work for serialization only
-                std::string domain = m_node.domain();
-                std::string op_type = m_node.op_type();
-                visitor.on_attribute("ONNX_META_domain", domain);
-                visitor.on_attribute("ONNX_META_type", op_type);
-                return true;
-            }
-
-        protected:
-            onnx_import::Node m_node;
-
-        private:
-            std::shared_ptr<onnx_import::Graph> m_graph;
-        };
-
-        class ONNXSubgraphFrameworkNode : public ONNXFrameworkNode
-        {
-        public:
-            NGRAPH_RTTI_DECLARATION;
-
-            ONNXSubgraphFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
-                                      const onnx_import::Node& node,
-                                      const OutputVector& inputs)
-                : ONNXFrameworkNode(graph, node, inputs)
-            {
-            }
-
-            void infer_inputs_from_parent() { m_node.get_subgraph()->infer_inputs_from_parent(); }
-
-            std::shared_ptr<Function> get_subgraph_body() const
-            {
-                auto subgraph = m_node.get_subgraph();
-                return std::make_shared<Function>(subgraph->get_ng_outputs(),
-                                                  subgraph->get_ng_parameters(),
-                                                  subgraph->get_name());
-            }
-        };
-
-    } // namespace frontend
-} // namespace ngraph
+}  // namespace frontend
+}  // namespace ngraph
