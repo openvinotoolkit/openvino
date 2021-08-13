@@ -24,24 +24,24 @@ static const std::unordered_set<std::string> supported_transforms = {"half_pixel
                                                                      "tf_half_pixel_for_nn"};
 
 using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
-static const std::map<std::string, int> interp_mode_map = {{"nearest", static_cast<int>(InterpolateMode::nearest)},
-                                                           {"linear", static_cast<int>(InterpolateMode::linear_onnx)},
-                                                           {"cubic", static_cast<int>(InterpolateMode::cubic)}};
+static const std::map<std::string, int> interp_mode_map = {{"nearest", static_cast<int>(InterpolateMode::NEAREST)},
+                                                           {"linear", static_cast<int>(InterpolateMode::LINEAR_ONNX)},
+                                                           {"cubic", static_cast<int>(InterpolateMode::CUBIC)}};
 
 using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
 static const std::map<std::string, int> transform_mode_map = {
-    {"half_pixel", static_cast<int>(Transform_mode::half_pixel)},
-    {"pytorch_half_pixel", static_cast<int>(Transform_mode::pytorch_half_pixel)},
-    {"align_corners", static_cast<int>(Transform_mode::align_corners)},
-    {"asymmetric", static_cast<int>(Transform_mode::asymmetric)},
-    {"tf_half_pixel_for_nn", static_cast<int>(Transform_mode::tf_half_pixel_for_nn)}};
+    {"half_pixel", static_cast<int>(Transform_mode::HALF_PIXEL)},
+    {"pytorch_half_pixel", static_cast<int>(Transform_mode::PYTORCH_HALF_PIXEL)},
+    {"align_corners", static_cast<int>(Transform_mode::ALIGN_CORNERS)},
+    {"asymmetric", static_cast<int>(Transform_mode::ASYMMETRIC)},
+    {"tf_half_pixel_for_nn", static_cast<int>(Transform_mode::TF_HALF_PIXEL_FOR_NN)}};
 
 using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
 static const std::map<std::string, int> nearest_mode_map = {
-    {"round_prefer_floor", static_cast<int>(Nearest_mode::round_prefer_floor)},
-    {"round_prefer_ceil", static_cast<int>(Nearest_mode::round_prefer_ceil)},
-    {"floor", static_cast<int>(Nearest_mode::floor)},
-    {"ceil", static_cast<int>(Nearest_mode::ceil)}};
+    {"round_prefer_floor", static_cast<int>(Nearest_mode::ROUND_PREFER_FLOOR)},
+    {"round_prefer_ceil", static_cast<int>(Nearest_mode::ROUND_PREFER_CEIL)},
+    {"floor", static_cast<int>(Nearest_mode::FLOOR)},
+    {"ceil", static_cast<int>(Nearest_mode::CEIL)}};
 
 static bool is_supported_str_value(const std::unordered_set<std::string>& modes, const std::string& checked_mode) {
     return std::find(modes.begin(), modes.end(), checked_mode) != modes.end();
@@ -148,7 +148,7 @@ OutputVector resize(const onnx_import::Node& node) {
 
     if (inputs.size() == 4)  // sizes input is provided
     {
-        attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::sizes;
+        attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SIZES;
         const auto& sizes = inputs.at(3);
         const auto& sizes_shape = sizes.get_partial_shape();
 
@@ -161,7 +161,7 @@ OutputVector resize(const onnx_import::Node& node) {
         return {std::make_shared<default_opset::Interpolate>(data, sizes, scales, attrs)};
     }
 
-    attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::scales;
+    attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SCALES;
 
     const auto& scales = inputs.at(2);
     const auto& scales_shape = scales.get_partial_shape();
@@ -186,11 +186,11 @@ OutputVector resize(const onnx_import::Node& node) {
 
     auto attrs = get_resize_attrs(node);
 
-    if (attrs.mode == InterpolateMode::nearest) {
-        attrs.nearest_mode = Nearest_mode::floor;
-        attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
-    } else if (attrs.mode == InterpolateMode::linear_onnx) {
-        attrs.coordinate_transformation_mode = Transform_mode::asymmetric;
+    if (attrs.mode == InterpolateMode::NEAREST) {
+        attrs.nearest_mode = Nearest_mode::FLOOR;
+        attrs.coordinate_transformation_mode = Transform_mode::ASYMMETRIC;
+    } else if (attrs.mode == InterpolateMode::LINEAR_ONNX) {
+        attrs.coordinate_transformation_mode = Transform_mode::ASYMMETRIC;
     }
 
     CHECK_VALID_NODE(node,
@@ -202,9 +202,6 @@ OutputVector resize(const onnx_import::Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
 }  // namespace onnx_import
-
 }  // namespace ngraph

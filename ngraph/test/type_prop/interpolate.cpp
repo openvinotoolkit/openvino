@@ -21,10 +21,10 @@ TEST(type_prop, interpolate_v4) {
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
-    attrs.mode = InterpolateMode::nearest;
-    attrs.shape_calculation_mode = ShapeCalcMode::scales;
-    attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
-    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+    attrs.mode = InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = ShapeCalcMode::SCALES;
+    attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
+    attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
@@ -43,10 +43,10 @@ TEST(type_prop, interpolate_v4_non_constant_axes_scales) {
     auto axes = std::make_shared<op::Parameter>(element::i32, PartialShape{2});
 
     InterpolateAttrs attrs;
-    attrs.mode = InterpolateMode::nearest;
-    attrs.shape_calculation_mode = ShapeCalcMode::scales;
-    attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
-    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+    attrs.mode = InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = ShapeCalcMode::SCALES;
+    attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
+    attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
@@ -67,10 +67,10 @@ TEST(type_prop, interpolate_v4_non_constant_axes_sizes) {
     auto axes = std::make_shared<op::Parameter>(element::i32, PartialShape{2});
 
     InterpolateAttrs attrs;
-    attrs.mode = InterpolateMode::nearest;
-    attrs.shape_calculation_mode = ShapeCalcMode::sizes;
-    attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
-    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+    attrs.mode = InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = ShapeCalcMode::SIZES;
+    attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
+    attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
@@ -92,10 +92,10 @@ TEST(type_prop, interpolate_v4_partial) {
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
-    attrs.mode = InterpolateMode::nearest;
-    attrs.shape_calculation_mode = ShapeCalcMode::scales;
-    attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
-    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+    attrs.mode = InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = ShapeCalcMode::SCALES;
+    attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
+    attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
@@ -120,10 +120,10 @@ TEST(type_prop, interpolate_v4_partial_static_rank) {
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
-    attrs.mode = InterpolateMode::nearest;
-    attrs.shape_calculation_mode = ShapeCalcMode::scales;
-    attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
-    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+    attrs.mode = InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = ShapeCalcMode::SCALES;
+    attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
+    attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
@@ -145,10 +145,10 @@ TEST(type_prop, interpolate_v4_partial_static_rank2) {
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
-    attrs.mode = InterpolateMode::nearest;
-    attrs.shape_calculation_mode = ShapeCalcMode::scales;
-    attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
-    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+    attrs.mode = InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = ShapeCalcMode::SCALES;
+    attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
+    attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
@@ -170,10 +170,10 @@ TEST(type_prop, interpolate_v4_partial_static_rank3) {
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
-    attrs.mode = InterpolateMode::nearest;
-    attrs.shape_calculation_mode = ShapeCalcMode::scales;
-    attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
-    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+    attrs.mode = InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = ShapeCalcMode::SCALES;
+    attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
+    attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
@@ -196,10 +196,10 @@ TEST(type_prop, interpolate_v4_interval_logic) {
     const auto out_shape = PartialShape{2, 2, Dimension(6, 400), Dimension(0, -1), Dimension(3, -1)};
 
     InterpolateAttrs attrs;
-    attrs.mode = InterpolateMode::nearest;
-    attrs.shape_calculation_mode = ShapeCalcMode::scales;
-    attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
-    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+    attrs.mode = InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = ShapeCalcMode::SCALES;
+    attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
+    attrs.nearest_mode = Nearest_mode::ROUND_PREFER_FLOOR;
     attrs.antialias = false;
     attrs.pads_begin = {0, 0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0, 0};
