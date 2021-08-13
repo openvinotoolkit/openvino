@@ -1030,8 +1030,8 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                 }
 
                 quantDataForConCatInput->_dst_quant.SetScale(newScaleFactor);
-            } else if (restarLayerInfo.isConst()) {
-                gnalog() << "... warning const layer will be requantized\n";
+            } else if (restarLayerInfo.isConst() || restarLayerInfo.isMemory()) {
+                gnalog() << "... warning " << restartedLayer->type << " layer will be requantized\n";
                 quantDataForConCatInput->_src_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
                 quantDataForConCatInput->_dst_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
             } else {
