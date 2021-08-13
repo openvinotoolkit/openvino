@@ -26,7 +26,7 @@
  */
 #define VPU_MYRIAD_CONFIG_VALUE(name) InferenceEngine::VPUConfigParams::VPU_MYRIAD_##name
 
-#define DECLARE_VPU_MYRIAD_CONFIG_KEY(name) DECLARE_CONFIG_KEY(VPU_MYRIAD_##name)
+#define DECLARE_VPU_MYRIAD_CONFIG_KEY(name)   DECLARE_CONFIG_KEY(VPU_MYRIAD_##name)
 #define DECLARE_VPU_MYRIAD_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(VPU_MYRIAD_##name)
 
 namespace InferenceEngine {
