@@ -4,7 +4,7 @@
 
 /**
  * @brief A header file for the BlobIterator class
- * 
+ *
  * @file ie_blob_iterator.hpp
  */
 
@@ -31,7 +31,7 @@ public:
      * @param lk Rvalue of the memory instance to move from
      * @param offset Size of offset in memory
      */
-    explicit BlobIterator(LockedMemory<T>&& lk, size_t offset = 0): _mem(std::move(lk)), _offset(offset) {}
+    explicit BlobIterator(LockedMemory<T>&& lk, size_t offset = 0) : _mem(std::move(lk)), _offset(offset) {}
 
     /**
      * @brief Increments an offset of the current BlobIterator instance

@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
-
 #include <gtest/gtest.h>
 
-struct CutModelParam
-{
+#include <frontend_manager/frontend_manager.hpp>
+
+struct CutModelParam {
     std::string m_frontEndName;
     std::string m_modelsPath;
     std::string m_modelName;
@@ -22,8 +21,7 @@ struct CutModelParam
     std::string m_op_before_name;
 };
 
-class FrontEndCutModelTest : public ::testing::TestWithParam<CutModelParam>
-{
+class FrontEndCutModelTest : public ::testing::TestWithParam<CutModelParam> {
 public:
     CutModelParam m_param;
     ngraph::frontend::FrontEndManager m_fem;

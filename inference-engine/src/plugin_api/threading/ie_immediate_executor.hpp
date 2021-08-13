@@ -20,11 +20,11 @@ namespace InferenceEngine {
  * @brief Task executor implementation that just run tasks in current thread during calling of run() method
  * @ingroup ie_dev_api_threading
  */
-class ImmediateExecutor: public ITaskExecutor {
+class ImmediateExecutor : public ITaskExecutor {
 public:
-	/**
-	 * @brief A shared pointer to a ImmediateExecutor object
-	 */
+    /**
+     * @brief A shared pointer to a ImmediateExecutor object
+     */
     using Ptr = std::shared_ptr<ImmediateExecutor>;
 
     /**
