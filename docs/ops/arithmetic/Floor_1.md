@@ -10,7 +10,7 @@
 element in the output tensor with the following formula:
 
 \f[
-a_{i} = floor(a_{i})
+a_{i} = \lfloor a_{i} \rfloor
 \f]
 
 **Attributes**: *Floor* operation has no attributes.

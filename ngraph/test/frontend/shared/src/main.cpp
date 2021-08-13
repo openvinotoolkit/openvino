@@ -6,12 +6,10 @@
 
 using namespace std;
 
-namespace FrontEndTestUtils
-{
-    int run_tests(int argc, char** argv)
-    {
-        ::testing::InitGoogleTest(&argc, argv);
-        int rc = RUN_ALL_TESTS();
-        return rc;
-    }
-} // namespace FrontEndTestUtils
+namespace FrontEndTestUtils {
+int run_tests(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    int rc = RUN_ALL_TESTS();
+    return rc;
+}
+}  // namespace FrontEndTestUtils

@@ -6,7 +6,6 @@
 
 #include "openvino/core/function.hpp"
 
-namespace ngraph
-{
-    using ov::Function;
-} // namespace ngraph
+namespace ngraph {
+using ov::Function;
+}  // namespace ngraph
