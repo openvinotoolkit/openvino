@@ -133,7 +133,7 @@ ngraph::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
     add_matcher<RelaxNode<opset1::Subtract>>();
     add_matcher<RelaxNode<opset1::Interpolate>>();
     add_matcher<RelaxNode<opset1::Multiply>>();
-    add_matcher<RelaxNode<op::MVN>>();
+    add_matcher<RelaxNode<opset3::MVN>>();
     add_matcher<RelaxNode<opset6::MVN>>();
     add_matcher<RelaxNode<opset1::NormalizeL2>>();
     add_matcher<RelaxNode<opset4::Interpolate>>();

@@ -19,8 +19,8 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::low_precision::AlignQuantizationParameters : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::AlignQuantizationParameters : public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    AlignQuantizationParameters();
 };

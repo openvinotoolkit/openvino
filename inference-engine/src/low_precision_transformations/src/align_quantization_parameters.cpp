@@ -15,13 +15,8 @@ using namespace ngraph::pass::low_precision;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::AlignQuantizationParameters, "AlignQuantizationParameters", 0);
 
-bool ngraph::pass::low_precision::AlignQuantizationParameters::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    ngraph::pass::Manager manager;
-    manager.set_per_pass_validation(false);
-    std::shared_ptr<ngraph::pass::GraphRewrite> propagation = manager.register_pass<ngraph::pass::GraphRewrite>();
-    propagation->add_matcher<low_precision::CreateAttribute<QuantizationAlignmentAttributePtr>>();
-    propagation->add_matcher<low_precision::PropagateThroughPrecisionPreserved<QuantizationAlignmentAttribute>>();
-    propagation->add_matcher<low_precision::UpdateSharedPrecisionPreserved<QuantizationAlignmentAttributePtr, PerTensorQuantizationAttribute>>();
-    manager.run_passes(f);
-    return false;
+ngraph::pass::low_precision::AlignQuantizationParameters::AlignQuantizationParameters() {
+    add_matcher<low_precision::CreateAttribute<QuantizationAlignmentAttributePtr>>();
+    add_matcher<low_precision::PropagateThroughPrecisionPreserved<QuantizationAlignmentAttribute>>();
+    add_matcher<low_precision::UpdateSharedPrecisionPreserved<QuantizationAlignmentAttributePtr, PerTensorQuantizationAttribute>>();
 }

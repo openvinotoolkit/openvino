@@ -364,17 +364,20 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         });
 
         ngraph::pass::Manager lptManager;
+        auto lpt_pass_config = lptManager.get_pass_config();
+
         lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization);
-        lptManager.get_pass_config()->set_callback<MarkupPrecisions>([](const_node_ptr& node) -> bool {
+
+        lpt_pass_config->set_callback<MarkupPrecisions>([](const_node_ptr& node) -> bool {
             if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
                 return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
             }
             return false;
         });
-        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
+        lpt_pass_config->set_callback<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
             return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
         });
-        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>([](const_node_ptr& node) -> bool {
+        lpt_pass_config->set_callback<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>([](const_node_ptr& node) -> bool {
             return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
         });
         lptManager.run_passes(nGraphFunc);
