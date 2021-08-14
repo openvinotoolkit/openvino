@@ -50,6 +50,7 @@
 #include "low_precision/multiply.hpp"
 #include "low_precision/mvn.hpp"
 #include "low_precision/normalize_l2.hpp"
+#include "low_precision/pad.hpp"
 #include "low_precision/prelu.hpp"
 #include "low_precision/reduce_max.hpp"
 #include "low_precision/reduce_mean.hpp"
@@ -219,6 +220,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     common->add_matcher<ngraph::pass::low_precision::MultiplyTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::MVNTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::NormalizeL2Transformation>(params);
+    common->add_matcher<ngraph::pass::low_precision::PadTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::PReluTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ReduceMaxTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ReduceMeanTransformation>(params);
