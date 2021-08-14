@@ -30,6 +30,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         automake \
         build-essential \
         cmake \
+        ccache \
         curl \
         git \
         libtool \

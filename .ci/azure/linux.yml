@@ -46,6 +46,7 @@ jobs:
       echo clang-11 info ; which clang-11 ; clang-11 --version
       echo clang++-11 info ; which clang++-11 ; clang++-11 --version
       echo cmake info ; which cmake ; cmake --version
+      echo ccache show-stats ; which ccache ; ccache --show-stats
       lsb_release
       env
       cat /proc/cpuinfo
@@ -125,6 +126,8 @@ jobs:
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DENABLE_REQUIREMENTS_INSTALL=OFF
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
