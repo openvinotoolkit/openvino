@@ -134,7 +134,9 @@ jobs:
   - script: ls -alR $(REPO_DIR)/inference-engine/temp/
     displayName: 'List temp SDKs'
 
-  - script: ccache --zero-stats
+  - script: |
+      ccache --zero-stats
+      ccache --show-stats
     displayName: 'Clean ccache stats'
 
   - script: ninja

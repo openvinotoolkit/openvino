@@ -92,7 +92,9 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
-  - script: ccache --zero-stats
+  - script: |
+      ccache --zero-stats
+      ccache --show-stats
     displayName: 'Clean ccache stats'
 
   - script: ninja
