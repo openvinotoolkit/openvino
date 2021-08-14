@@ -43,8 +43,8 @@ jobs:
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
-      echo clang-11 info ; which clang-11 ; clang-11 --version
-      echo clang++-11 info ; which clang++-11 ; clang++-11 --version
+      echo clang-9 info ; which clang-9 ; clang-9 --version
+      echo clang++-9 info ; which clang++-9 ; clang++-9 --version
       echo cmake info ; which cmake ; cmake --version
       echo ccache show-stats ; which ccache ; ccache --show-stats
       lsb_release
@@ -165,7 +165,7 @@ jobs:
     displayName: 'Build cpp samples'
 
   - script: |
-      CC=clang-11 CXX=clang++-11 $(INSTALL_DIR)/deployment_tools/inference_engine/samples/cpp/build_samples.sh
+      CC=clang-9 CXX=clang++-9 $(INSTALL_DIR)/deployment_tools/inference_engine/samples/cpp/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_CLANG_DIR)
     displayName: 'Build cpp samples with clang'
 
@@ -174,7 +174,7 @@ jobs:
     displayName: 'Build c samples'
 
   - script: |
-      CC=clang-11 CXX=clang++-11 $(INSTALL_DIR)/deployment_tools/inference_engine/samples/c/build_samples.sh
+      CC=clang-9 CXX=clang++-9 $(INSTALL_DIR)/deployment_tools/inference_engine/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_CLANG_DIR)
     displayName: 'Build c samples with clang'
 
