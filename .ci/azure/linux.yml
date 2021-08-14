@@ -29,6 +29,7 @@ jobs:
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
+    BUILD_SAMPLES_CLANG_DIR: $(WORK_DIR)/build_samples_clang
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
@@ -42,6 +43,8 @@ jobs:
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
+      echo clang-11 info ; which clang-11 ; clang-11 --version
+      echo clang++-11 info ; which clang++-11 ; clang++-11 --version
       echo cmake info ; which cmake ; cmake --version
       lsb_release
       env
@@ -58,6 +61,7 @@ jobs:
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
+      rm -rf $(BUILD_SAMPLES_CLANG_DIR) ; mkdir $(BUILD_SAMPLES_CLANG_DIR)
       echo TargetBranch: $(System.PullRequest.TargetBranch)
       echo SourceBranch: $(Build.SourceBranch)
     displayName: 'Make dir'
@@ -157,9 +161,19 @@ jobs:
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
 
+  - script: |
+      CC=clang-11 CXX=clang++-11 $(INSTALL_DIR)/deployment_tools/inference_engine/samples/cpp/build_samples.sh
+    workingDirectory: $(BUILD_SAMPLES_CLANG_DIR)
+    displayName: 'Build cpp samples with clang'
+
   - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
+
+  - script: |
+      CC=clang-11 CXX=clang++-11 $(INSTALL_DIR)/deployment_tools/inference_engine/samples/c/build_samples.sh
+    workingDirectory: $(BUILD_SAMPLES_CLANG_DIR)
+    displayName: 'Build c samples with clang'
 
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
