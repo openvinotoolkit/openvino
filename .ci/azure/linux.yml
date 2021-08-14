@@ -43,6 +43,7 @@ jobs:
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
       echo cmake info ; which cmake ; cmake --version
+      echo ccache show-stats ; which ccache ; ccache --show-stats
       lsb_release
       env
       cat /proc/cpuinfo
