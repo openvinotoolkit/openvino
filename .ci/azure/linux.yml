@@ -44,7 +44,6 @@ jobs:
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
       echo cmake info ; which cmake ; cmake --version
-      echo ccache show-stats ; which ccache ; ccache --show-stats
       lsb_release
       env
       cat /proc/cpuinfo
@@ -135,9 +134,15 @@ jobs:
   - script: ls -alR $(REPO_DIR)/inference-engine/temp/
     displayName: 'List temp SDKs'
 
+  - script: ccache --zero-stats
+    displayName: 'Clean ccache stats'
+
   - script: ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Lin'
+
+  - script: ccache --show-stats
+    displayName: 'Show ccache stats'
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
