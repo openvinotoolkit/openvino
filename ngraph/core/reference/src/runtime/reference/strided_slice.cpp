@@ -9,6 +9,7 @@
 #include <cmath>
 
 #include "ngraph/check.hpp"
+#include "ngraph/util.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 
 using namespace ngraph;

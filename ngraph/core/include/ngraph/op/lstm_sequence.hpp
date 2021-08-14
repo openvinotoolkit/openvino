@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/lstm_cell.hpp"
 #include "ngraph/op/util/attr_types.hpp"

@@ -7,9 +7,11 @@
 #include <memory>
 
 #include "ngraph/ngraph_visibility.hpp"
-#include "ngraph/node.hpp"
 
 namespace ngraph {
+
+class Node;
+
 namespace op {
 NGRAPH_API
 bool is_unary_elementwise_arithmetic(const ngraph::Node* node);

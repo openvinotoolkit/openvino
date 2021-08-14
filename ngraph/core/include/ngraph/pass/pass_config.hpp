@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include <list>
 #include <memory>
-#include <vector>
+#include <map>
+#include <unordered_set>
+#include <functional>
 
 #include "ngraph/deprecated.hpp"
 #include "ngraph/function.hpp"

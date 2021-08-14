@@ -6,7 +6,8 @@
 
 #include <cmath>
 
-#include "ngraph/coordinate_transform.hpp"
+#include "ngraph/axis_set.hpp"
+#include "ngraph/shape.hpp"
 
 namespace ngraph {
 namespace runtime {

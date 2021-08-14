@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pass/pass.hpp>
 #include <vector>
 
 namespace ngraph {

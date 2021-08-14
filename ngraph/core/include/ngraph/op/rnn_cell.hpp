@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/node.hpp"
 #include "ngraph/op/util/activation_functions.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"

@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+#include <memory>
 
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/output_vector.hpp"
@@ -24,7 +25,7 @@ public:
     virtual std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes);
     virtual bool is_copyable() const;
     virtual std::string to_string() {
-        return "";
+        return {};
     }
 };
 

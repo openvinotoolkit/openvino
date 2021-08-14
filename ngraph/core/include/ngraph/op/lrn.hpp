@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ngraph/op/op.hpp"
+#include "ngraph/axis_set.hpp"
 
 namespace ngraph {
 namespace op {

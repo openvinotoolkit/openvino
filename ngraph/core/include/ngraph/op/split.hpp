@@ -7,8 +7,8 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/fused_op.hpp"
+#include "ngraph/op/op.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 
 namespace ngraph {
 namespace op {

@@ -5,9 +5,7 @@
 #pragma once
 
 #include "ngraph/axis_vector.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
 namespace ngraph {

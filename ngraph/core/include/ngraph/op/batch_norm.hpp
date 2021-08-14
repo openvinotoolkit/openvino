@@ -6,8 +6,6 @@
 
 #include <memory>
 
-#include "ngraph/deprecated.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {

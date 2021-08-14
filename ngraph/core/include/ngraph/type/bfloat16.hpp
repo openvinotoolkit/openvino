@@ -5,9 +5,8 @@
 #pragma once
 
 #include <cmath>
-#include <iostream>
+#include <ostream>
 #include <limits>
-#include <memory>
 #include <string>
 #include <vector>
 

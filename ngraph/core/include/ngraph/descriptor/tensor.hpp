@@ -9,6 +9,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_set>
+#include <ostream>
 
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"

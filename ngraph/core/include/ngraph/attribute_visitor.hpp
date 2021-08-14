@@ -5,11 +5,11 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <unordered_map>
 #include <utility>
+#include <memory>
 
-#include "ngraph/partial_shape.hpp"
-#include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
 
 namespace ngraph {

@@ -7,10 +7,13 @@
 #include <string>
 
 #include "ngraph/ngraph_visibility.hpp"
-#include "ngraph/node.hpp"
+#include "ngraph/output_vector.hpp"
 #include "ngraph/type.hpp"
 
 namespace ngraph {
+
+class Node;
+
 NGRAPH_API
 void copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to);
 

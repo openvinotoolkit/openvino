@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iterator>
 
+#include "ngraph/axis_set.hpp"
 #include "ngraph/coordinate.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"

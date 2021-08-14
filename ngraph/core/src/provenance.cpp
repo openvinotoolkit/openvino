@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/provenance.hpp"
+#include "ngraph/env_util.hpp"
 
 #include <cstdlib>
 

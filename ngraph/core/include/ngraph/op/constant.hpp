@@ -6,9 +6,11 @@
 
 #include <cmath>
 #include <cstring>
+#include <vector>
 
+#include "ngraph/axis_set.hpp"
 #include "ngraph/coordinate_diff.hpp"
-#include "ngraph/node.hpp"
+#include "ngraph/op/op.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"

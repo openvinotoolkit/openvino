@@ -8,7 +8,6 @@
 #include <string>
 
 #include "ngraph/except.hpp"
-#include "ngraph/node.hpp"
 
 #ifdef _WIN32
 #    pragma warning(push)
@@ -28,6 +27,9 @@
 #define UNUSED_PARAMETER NG_ATTRIBUTE_UNUSED = 0
 
 namespace ngraph {
+
+class Node;
+
 namespace op {
 namespace util {
 namespace error {

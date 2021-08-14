@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
 #include "ngraph/pattern/op/pattern.hpp"
 
 namespace ngraph {

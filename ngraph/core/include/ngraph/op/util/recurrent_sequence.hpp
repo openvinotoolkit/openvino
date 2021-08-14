@@ -6,7 +6,7 @@
 
 #include <vector>
 
-#include "ngraph/node.hpp"
+#include "ngraph/partial_shape.hpp"
 
 namespace ngraph {
 namespace op {

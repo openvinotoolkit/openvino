@@ -8,14 +8,13 @@
 
 #pragma once
 
-#include <iostream>
+#include <ostream>
 #include <limits>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "ngraph/attribute_adapter.hpp"
-#include "ngraph/deprecated.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/type/bfloat16.hpp"

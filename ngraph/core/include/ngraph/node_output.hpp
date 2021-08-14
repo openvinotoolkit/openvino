@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <set>
 #include <cstring>
 #include <map>
 #include <unordered_set>

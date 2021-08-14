@@ -4,9 +4,14 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
+#include "ngraph/partial_shape.hpp"
+#include "ngraph/type/element_type.hpp"
+#include "ngraph/op/util/attr_types.hpp"
 
 namespace ngraph {
+
+class Node;
+
 namespace op {
 namespace util {
 std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(

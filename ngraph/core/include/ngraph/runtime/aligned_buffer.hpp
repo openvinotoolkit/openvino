@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <cstddef>
+#include <memory>
 
-#include "ngraph/util.hpp"
+#include "ngraph/attribute_adapter.hpp"
 
 namespace ngraph {
 namespace runtime {

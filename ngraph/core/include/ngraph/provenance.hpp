@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <cstdlib>
-
-#include "ngraph/env_util.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
 namespace ngraph {

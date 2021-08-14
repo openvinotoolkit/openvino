@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "ngraph/axis_set.hpp"
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"

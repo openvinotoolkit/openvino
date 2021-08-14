@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "ngraph/op/op.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/util/index_reduction.hpp"
 

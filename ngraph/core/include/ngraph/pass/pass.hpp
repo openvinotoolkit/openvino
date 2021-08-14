@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <list>
 #include <memory>
-#include <vector>
+#include <string>
 
 #include "ngraph/deprecated.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/pass/pass_config.hpp"
 #include "ngraph/util.hpp"
 

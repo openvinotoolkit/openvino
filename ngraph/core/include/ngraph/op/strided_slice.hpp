@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/node.hpp"
+#include "ngraph/axis_set.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 

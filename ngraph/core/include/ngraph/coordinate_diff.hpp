@@ -8,6 +8,7 @@
 #include <ostream>
 #include <vector>
 
+#include "ngraph/type.hpp"
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
