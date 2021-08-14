@@ -48,19 +48,6 @@ typedef std::tuple<
     ngraph::PartialShape,
     FuseConvertTransformationTestValues> FuseConvertTransformationParams;
 
-template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
-
 class FuseConvertTransformation : public LayerTransformation, public testing::WithParamInterface<FuseConvertTransformationParams> {
 public:
     void SetUp() override {
