@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "unary_ops.hpp"
-
 #include "ngraph/op/floor.hpp"
+
+#include "unary_ops.hpp"
 
 using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v0::Floor, ngraph::element::f32>,
                                UnaryOperatorType<ngraph::op::v0::Floor, ngraph::element::f16>>;

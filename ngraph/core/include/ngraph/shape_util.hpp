@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <vector>
 #include <utility>
+#include <vector>
 
-#include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/axis_set.hpp"
+#include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/partial_shape.hpp"
 
 namespace ngraph {

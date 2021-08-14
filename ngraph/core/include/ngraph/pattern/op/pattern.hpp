@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <vector>
-#include <map>
 #include <functional>
+#include <map>
+#include <vector>
 
 #include "ngraph/dimension.hpp"
-#include "ngraph/type/element_type.hpp"
 #include "ngraph/ngraph_visibility.hpp"
-#include "ngraph/output_vector.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/output_vector.hpp"
+#include "ngraph/type/element_type.hpp"
 
 namespace ngraph {
 namespace pattern {

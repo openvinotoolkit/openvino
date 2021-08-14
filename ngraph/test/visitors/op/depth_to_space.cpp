@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
 #include "ngraph/op/depth_to_space.hpp"
+
+#include "gtest/gtest.h"
 #include "util/visitor.hpp"
 
 using namespace ngraph;

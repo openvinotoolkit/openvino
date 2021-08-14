@@ -3,8 +3,8 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/op/parameter.hpp"
 #include "ngraph/op/negative.hpp"
+#include "ngraph/op/parameter.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

@@ -7,9 +7,9 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <ostream>
 #include <string>
 #include <unordered_set>
-#include <ostream>
 
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"

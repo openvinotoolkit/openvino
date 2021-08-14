@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/multiply.hpp"
 #include "ngraph/op/loop.hpp"
-#include "ngraph/op/tensor_iterator.hpp"
+
+#include "gtest/gtest.h"
+#include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/result.hpp"
 #include "ngraph/op/greater.hpp"
+#include "ngraph/op/multiply.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/result.hpp"
+#include "ngraph/op/tensor_iterator.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

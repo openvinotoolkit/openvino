@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/strided_slice.hpp"
+
 #include <memory>
 
 #include "gtest/gtest.h"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/op/strided_slice.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/parameter.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

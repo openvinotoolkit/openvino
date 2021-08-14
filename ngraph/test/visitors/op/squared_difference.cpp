@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "binary_ops.hpp"
-
 #include "ngraph/op/squared_difference.hpp"
+
+#include "binary_ops.hpp"
 
 using Type = ::testing::Types<BinaryOperatorType<ngraph::op::v0::SquaredDifference, ngraph::element::f32>>;
 

@@ -5,8 +5,8 @@
 #pragma once
 
 #include <map>
-#include <string>
 #include <memory>
+#include <string>
 
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/output_vector.hpp"

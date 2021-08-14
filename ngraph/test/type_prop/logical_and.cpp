@@ -3,9 +3,8 @@
 //
 
 #include "logical_ops.hpp"
-#include "util/type_prop.hpp"
-
 #include "ngraph/op/and.hpp"
+#include "util/type_prop.hpp"
 
 using Type = ::testing::Types<LogicalOperatorType<ngraph::op::v1::LogicalAnd, ngraph::element::boolean>>;
 

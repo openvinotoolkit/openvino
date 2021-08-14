@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/shape_of.hpp"
 #include "ngraph/op/reshape.hpp"
-#include "ngraph/op/gather.hpp"
-#include "ngraph/op/unsqueeze.hpp"
+
+#include "gtest/gtest.h"
 #include "ngraph/op/concat.hpp"
-#include "ngraph/op/reduce_prod.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/divide.hpp"
+#include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
+#include "ngraph/op/divide.hpp"
+#include "ngraph/op/gather.hpp"
+#include "ngraph/op/multiply.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/reduce_prod.hpp"
+#include "ngraph/op/shape_of.hpp"
 #include "ngraph/op/squeeze.hpp"
+#include "ngraph/op/unsqueeze.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "binary_ops.hpp"
-
 #include "ngraph/op/less.hpp"
+
+#include "binary_ops.hpp"
 
 using Type = ::testing::Types<BinaryOperatorType<ngraph::op::v1::Less, ngraph::element::f32>>;
 

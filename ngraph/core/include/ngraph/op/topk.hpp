@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "ngraph/partial_shape.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/output_vector.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/op.hpp"
+#include "ngraph/output_vector.hpp"
+#include "ngraph/partial_shape.hpp"
+#include "ngraph/type/element_type.hpp"
 
 namespace ngraph {
 namespace op {

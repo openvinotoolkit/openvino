@@ -4,11 +4,11 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/result.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/lstm_cell.hpp"
+#include "ngraph/op/multiply.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/result.hpp"
 #include "ngraph/op/tensor_iterator.hpp"
 #include "util/type_prop.hpp"
 

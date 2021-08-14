@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "arithmetic_ops.hpp"
-
 #include "ngraph/op/floor_mod.hpp"
+
+#include "arithmetic_ops.hpp"
 
 using Type = ::testing::Types<ngraph::op::FloorMod>;
 

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "binary_ops.hpp"
-
 #include "ngraph/op/mod.hpp"
+
+#include "binary_ops.hpp"
 
 using Type = ::testing::Types<BinaryOperatorType<ngraph::op::v1::Mod, ngraph::element::f32>>;
 

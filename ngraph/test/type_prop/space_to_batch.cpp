@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/op/parameter.hpp"
 #include "ngraph/op/space_to_batch.hpp"
+
+#include "gtest/gtest.h"
 #include "ngraph/op/batch_to_space.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/parameter.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

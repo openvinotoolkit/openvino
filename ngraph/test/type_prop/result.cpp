@@ -3,10 +3,8 @@
 //
 
 #include "gtest/gtest.h"
-
-#include "ngraph/partial_shape.hpp"
 #include "ngraph/op/constant.hpp"
-
+#include "ngraph/partial_shape.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

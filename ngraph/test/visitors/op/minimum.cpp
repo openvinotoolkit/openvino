@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "binary_ops.hpp"
-
-#include "ngraph/type/element_type.hpp"
 #include "ngraph/op/minimum.hpp"
+
+#include "binary_ops.hpp"
+#include "ngraph/type/element_type.hpp"
 
 using Type = ::testing::Types<BinaryOperatorType<ngraph::op::v1::Minimum, ngraph::element::f32>>;
 

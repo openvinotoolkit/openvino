@@ -5,13 +5,13 @@
 #pragma once
 
 #include <algorithm>
-#include <vector>
 #include <initializer_list>
+#include <vector>
 
-#include "ngraph/type.hpp"
-#include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/attribute_adapter.hpp"
+#include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/shape.hpp"
+#include "ngraph/type.hpp"
 
 namespace ngraph {
 /// \brief Coordinates for a tensor element

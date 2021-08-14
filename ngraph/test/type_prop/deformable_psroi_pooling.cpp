@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/deformable_psroi_pooling.hpp"
+
 #include "gtest/gtest.h"
 #include "ngraph/op/parameter.hpp"
-#include "ngraph/op/deformable_psroi_pooling.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

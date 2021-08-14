@@ -5,8 +5,8 @@
 #pragma once
 
 #include <cmath>
-#include <ostream>
 #include <limits>
+#include <ostream>
 #include <string>
 #include <vector>
 

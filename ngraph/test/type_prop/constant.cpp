@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
 #include "ngraph/op/constant.hpp"
+
+#include "gtest/gtest.h"
 #include "util/type_prop.hpp"
 
 using namespace std;

@@ -7,8 +7,8 @@
 #include <memory>
 
 #include "gtest/gtest.h"
-#include "ngraph/op/parameter.hpp"
 #include "ngraph/op/detection_output.hpp"
+#include "ngraph/op/parameter.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

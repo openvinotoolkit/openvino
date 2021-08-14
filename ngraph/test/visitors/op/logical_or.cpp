@@ -3,7 +3,6 @@
 //
 
 #include "binary_ops.hpp"
-
 #include "ngraph/op/or.hpp"
 
 using Type = ::testing::Types<BinaryOperatorType<ngraph::op::v1::LogicalOr, ngraph::element::boolean>>;

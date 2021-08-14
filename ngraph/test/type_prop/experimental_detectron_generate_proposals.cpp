@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/experimental_detectron_generate_proposals.hpp"
+
 #include <vector>
 
 #include "gtest/gtest.h"
 #include "ngraph/op/parameter.hpp"
-#include "ngraph/op/experimental_detectron_generate_proposals.hpp"
 #include "util/type_prop.hpp"
 
 using namespace ngraph;

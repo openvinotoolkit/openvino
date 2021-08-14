@@ -3,7 +3,6 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "util/visitor.hpp"
 
 using namespace std;

@@ -13,12 +13,11 @@
 #include <utility>
 #include <vector>
 
+#include "framework.pb.h"
 #include "ngraph/type/element_type.hpp"
+#include "node_context.hpp"
 #include "paddlepaddle_frontend/frontend.hpp"
 #include "paddlepaddle_frontend/place.hpp"
-
-#include "framework.pb.h"
-#include "node_context.hpp"
 
 namespace ngraph {
 namespace frontend {

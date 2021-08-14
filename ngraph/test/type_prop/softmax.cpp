@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/softmax.hpp"
+
 #include "gtest/gtest.h"
 #include "ngraph/op/parameter.hpp"
-#include "ngraph/op/softmax.hpp"
 
 using namespace std;
 using namespace ngraph;

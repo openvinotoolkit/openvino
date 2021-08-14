@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reduce_ops.hpp"
-
 #include "ngraph/op/max.hpp"
+#include "reduce_ops.hpp"
 
 using Type = ::testing::Types<op::v1::ReduceMax>;
 

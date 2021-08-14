@@ -7,8 +7,8 @@
 #include <set>
 #include <vector>
 
-#include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/axis_set.hpp"
+#include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph {

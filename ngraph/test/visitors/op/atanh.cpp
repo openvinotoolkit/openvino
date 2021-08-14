@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "unary_ops.hpp"
-
 #include "ngraph/op/atanh.hpp"
+
+#include "unary_ops.hpp"
 
 using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v3::Atanh, ngraph::element::f32>>;
 

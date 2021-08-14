@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "ngraph/op/op.hpp"
 #include "ngraph/axis_set.hpp"
+#include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 
 namespace ngraph {

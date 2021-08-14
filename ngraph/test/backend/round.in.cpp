@@ -3,8 +3,8 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/op/round.hpp"
 #include "ngraph/op/parameter.hpp"
+#include "ngraph/op/round.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"

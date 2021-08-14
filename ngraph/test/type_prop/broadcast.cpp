@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/op/parameter.hpp"
 #include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/shape_of.hpp"
+
+#include "gtest/gtest.h"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/shape_of.hpp"
 #include "util/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START

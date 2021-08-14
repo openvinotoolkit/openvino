@@ -9,8 +9,8 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/log.hpp"
-#include "ngraph/util.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
+#include "ngraph/util.hpp"
 #include "util/float_util.hpp"
 
 using namespace std;

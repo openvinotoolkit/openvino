@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/shape.hpp"
+
 #include <memory>
 
 #include "gtest/gtest.h"
-#include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
 
 using namespace std;

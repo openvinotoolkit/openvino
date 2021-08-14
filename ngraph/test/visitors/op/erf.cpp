@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "unary_ops.hpp"
-
 #include "ngraph/op/erf.hpp"
+
+#include "unary_ops.hpp"
 
 using Type = ::testing::Types<UnaryOperatorType<ngraph::op::v0::Erf, ngraph::element::f32>>;
 

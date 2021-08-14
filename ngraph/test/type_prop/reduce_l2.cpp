@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reduce_ops.hpp"
-
 #include "ngraph/op/reduce_l2.hpp"
+
+#include "reduce_ops.hpp"
 
 using Type = ::testing::Types<op::v4::ReduceL2>;
 

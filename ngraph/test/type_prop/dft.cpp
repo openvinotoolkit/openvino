@@ -14,10 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "gtest/gtest.h"
-#include "ngraph/op/parameter.hpp"
 #include "ngraph/op/dft.hpp"
+
+#include "gtest/gtest.h"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/parameter.hpp"
 #include "util/type_prop.hpp"
 
 using namespace ngraph;

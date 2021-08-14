@@ -9,8 +9,8 @@
 #include <cmath>
 
 #include "ngraph/check.hpp"
-#include "ngraph/util.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
+#include "ngraph/util.hpp"
 
 using namespace ngraph;
 

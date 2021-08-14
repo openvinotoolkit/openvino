@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
-#include <vector>
 #include <unordered_map>
 #include <utility>
-#include <memory>
+#include <vector>
 
 #include "ngraph/type/element_type.hpp"
 

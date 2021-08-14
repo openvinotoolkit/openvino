@@ -3,9 +3,10 @@
 //
 
 #include "ngraph/provenance.hpp"
-#include "ngraph/env_util.hpp"
 
 #include <cstdlib>
+
+#include "ngraph/env_util.hpp"
 
 namespace ngraph {
 static bool s_provenance_enabled = getenv_bool("NGRAPH_PROVENANCE_ENABLE");

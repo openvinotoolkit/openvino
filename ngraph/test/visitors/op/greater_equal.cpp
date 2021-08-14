@@ -3,7 +3,6 @@
 //
 
 #include "binary_ops.hpp"
-
 #include "ngraph/op/greater_eq.hpp"
 
 using Type = ::testing::Types<BinaryOperatorType<ngraph::op::v1::GreaterEqual, ngraph::element::f32>>;

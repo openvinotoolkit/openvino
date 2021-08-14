@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
 #include "ngraph/axis_set.hpp"
+#include "ngraph/op/op.hpp"
 
 namespace ngraph {
 namespace op {

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/read_value.hpp"
+
 #include "gtest/gtest.h"
 #include "ngraph/op/parameter.hpp"
-#include "ngraph/op/read_value.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

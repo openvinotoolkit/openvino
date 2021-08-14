@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/roi_align.hpp"
+
 #include "gtest/gtest.h"
 #include "ngraph/op/parameter.hpp"
-#include "ngraph/op/roi_align.hpp"
 
 using namespace std;
 using namespace ngraph;

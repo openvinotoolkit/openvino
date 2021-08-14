@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "arithmetic_ops.hpp"
-
 #include "ngraph/op/squared_difference.hpp"
+
+#include "arithmetic_ops.hpp"
 
 using Type = ::testing::Types<ngraph::op::SquaredDifference>;
 
