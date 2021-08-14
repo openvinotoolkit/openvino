@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/acosh.hpp"
+
 using Type = ::testing::Types<ngraph::op::Acosh>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_acosh, UnaryOperator, Type);

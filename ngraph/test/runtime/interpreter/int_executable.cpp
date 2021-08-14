@@ -7,7 +7,6 @@
 #include "backend_manager.hpp"
 #include "evaluates_map.hpp"
 #include "ngraph/except.hpp"
-#include "ngraph/ops.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"

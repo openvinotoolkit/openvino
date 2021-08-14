@@ -3,9 +3,9 @@
 //
 
 #include "ngraph/op/prior_box_clustered.hpp"
+#include "ngraph/op/constant.hpp"
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
 using namespace ngraph;

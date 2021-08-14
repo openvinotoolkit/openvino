@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/atan.hpp"
+
 using Type = ::testing::Types<ngraph::op::Atan>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_atan, UnaryOperator, Type);

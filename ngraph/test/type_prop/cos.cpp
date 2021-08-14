@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/cos.hpp"
+
 using Type = ::testing::Types<ngraph::op::Cos>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_cos, UnaryOperator, Type);

@@ -3,10 +3,11 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/assign.hpp"
+#include "ngraph/op/read_value.hpp"
+#include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/variable.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "ngraph/opsets/opset6.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
@@ -15,7 +16,7 @@ using namespace ngraph;
 TEST(type_prop, assign_variable_not_found) {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2, 64, 64});
     try {
-        auto space_to_depth = make_shared<opset5::Assign>(A, "variable_id");
+        auto space_to_depth = make_shared<op::v3::Assign>(A, "variable_id");
         // Should have thrown, so fail if it didn't
         FAIL() << "Should not find variable with variable_id";
     } catch (const NodeValidationFailure& error) {
@@ -27,8 +28,8 @@ TEST(type_prop, assign_variable_not_found) {
 
 TEST(type_prop, assign_deduce) {
     auto input = make_shared<op::Parameter>(element::f32, Shape{1, 2, 64, 64});
-    auto read_value = make_shared<opset5::ReadValue>(input, "variable_id");
-    auto assign = make_shared<opset5::Assign>(read_value, "variable_id");
+    auto read_value = make_shared<op::v3::ReadValue>(input, "variable_id");
+    auto assign = make_shared<op::v3::Assign>(read_value, "variable_id");
 
     ASSERT_EQ(assign->get_element_type(), element::f32);
     ASSERT_EQ(assign->get_shape(), (Shape{1, 2, 64, 64}));
@@ -38,8 +39,8 @@ TEST(type_prop, assign_read_value_new_shape) {
     auto input = make_shared<op::Parameter>(element::f16, Shape{4, 3, 2, 1});
 
     auto variable = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "ID"});
-    auto read_value = make_shared<opset6::ReadValue>(input, variable);
-    auto assign = make_shared<opset6::Assign>(read_value, variable);
+    auto read_value = make_shared<op::v6::ReadValue>(input, variable);
+    auto assign = make_shared<op::v6::Assign>(read_value, variable);
 
     ASSERT_EQ(assign->get_element_type(), element::f16);
     ASSERT_EQ(assign->get_shape(), (Shape{4, 3, 2, 1}));

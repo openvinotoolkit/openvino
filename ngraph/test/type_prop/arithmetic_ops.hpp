@@ -15,7 +15,8 @@
 
 #include <vector>
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+
+#include "ngraph/op/parameter.hpp"
 
 using namespace ngraph;
 

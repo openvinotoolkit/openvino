@@ -3,7 +3,9 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/split.hpp"
+#include "ngraph/op/constant.hpp"
 #include "util/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START

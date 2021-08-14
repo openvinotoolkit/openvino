@@ -4,6 +4,9 @@
 
 #include "reduce_ops.hpp"
 
+#include "ngraph/op/max.hpp"
+
 using Type = ::testing::Types<op::v1::ReduceMax>;
+
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_reduce_max, ReduceTest, Type);
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_reduce_max_et, ReduceArithmeticTest, Type);

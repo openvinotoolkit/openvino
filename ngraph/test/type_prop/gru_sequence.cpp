@@ -3,8 +3,9 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/gru_sequence.hpp"
+#include "ngraph/op/constant.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
@@ -17,18 +18,18 @@ TEST(type_prop, gru_sequence_forward) {
     const size_t input_size = 4;
     const size_t hidden_size = 128;
 
-    const auto X = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
+    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
-        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+        make_shared<op::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
     const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
-    const auto W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, input_size});
-    const auto R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, hidden_size});
-    const auto B = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size});
+    const auto W = make_shared<op::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size, hidden_size});
+    const auto B = make_shared<op::Parameter>(element::f32, Shape{num_directions, 3 * hidden_size});
 
     const auto direction = op::RecurrentSequenceDirection::FORWARD;
 
     const auto sequence =
-        make_shared<opset5::GRUSequence>(X, initial_hidden_state, sequence_lengths, W, R, B, hidden_size, direction);
+        make_shared<op::v5::GRUSequence>(X, initial_hidden_state, sequence_lengths, W, R, B, hidden_size, direction);
 
     EXPECT_EQ(sequence->get_hidden_size(), hidden_size);
     EXPECT_EQ(sequence->get_direction(), op::RecurrentSequenceDirection::FORWARD);

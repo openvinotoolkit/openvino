@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/sqrt.hpp"
+
 using Type = ::testing::Types<ngraph::op::Sqrt>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_sqrt, UnaryOperator, Type);

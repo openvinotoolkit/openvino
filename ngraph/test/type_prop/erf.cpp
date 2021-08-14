@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/erf.hpp"
+
 using Type = ::testing::Types<ngraph::op::Erf>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_erf, UnaryOperator, Type);

@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/sin.hpp"
+
 using Type = ::testing::Types<ngraph::op::Sin>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_sin, UnaryOperator, Type);

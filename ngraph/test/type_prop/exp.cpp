@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/exp.hpp"
+
 using Type = ::testing::Types<ngraph::op::Exp>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_exp, UnaryOperator, Type);

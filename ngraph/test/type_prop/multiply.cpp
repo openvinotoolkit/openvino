@@ -16,6 +16,8 @@
 
 #include "arithmetic_ops.hpp"
 
+#include "ngraph/op/multiply.hpp"
+
 using Type = ::testing::Types<ngraph::op::v1::Multiply>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_multiply, ArithmeticOperator, Type);

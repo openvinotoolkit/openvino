@@ -3,9 +3,9 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/embedding_segments_sum.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/opsets/opset3.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
@@ -410,7 +410,7 @@ TEST(type_prop, ess_num_segment_const) {
     auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
     auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
     auto segment_ids = make_shared<op::Parameter>(element::i64, Shape{4});
-    auto num_segments = opset3::Constant::create(element::i64, Shape{}, {3});
+    auto num_segments = op::Constant::create(element::i64, Shape{}, {3});
 
     auto ess = make_shared<op::v3::EmbeddingSegmentsSum>(emb_table, indices, segment_ids, num_segments);
     EXPECT_TRUE(ess->get_output_partial_shape(0).same_scheme(PartialShape{3, 2}));

@@ -3,7 +3,9 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/adaptive_avg_pool.hpp"
+#include "ngraph/op/constant.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

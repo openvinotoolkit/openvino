@@ -5,7 +5,10 @@
 #pragma once
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/shape.hpp"
+#include "ngraph/except.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/type/element_type.hpp"
 #include "util/type_prop.hpp"
 
 template <typename T, ngraph::element::Type_t ELEMENT_TYPE>

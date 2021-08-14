@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/ceiling.hpp"
+
 using Type = ::testing::Types<ngraph::op::Ceiling>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_ceiling, UnaryOperator, Type);

@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/negative.hpp"
+
 using Type = ::testing::Types<ngraph::op::Negative>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_negative, UnaryOperator, Type);

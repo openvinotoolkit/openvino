@@ -5,7 +5,10 @@
 #include <array>
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/batch_to_space.hpp"
+#include "ngraph/op/space_to_batch.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

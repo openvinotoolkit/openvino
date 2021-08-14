@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/sign.hpp"
+
 using Type = ::testing::Types<ngraph::op::Sign>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_sign, UnaryOperator, Type);

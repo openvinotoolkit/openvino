@@ -4,6 +4,9 @@
 
 #include "reduce_ops.hpp"
 
+#include "ngraph/op/reduce_l2.hpp"
+
 using Type = ::testing::Types<op::v4::ReduceL2>;
+
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_reduce_l2, ReduceTest, Type);
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_reduce_l2_et, ReduceArithmeticTest, Type);

@@ -3,8 +3,10 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
+
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/constant.hpp"
 
 using namespace std;
 using namespace ngraph;

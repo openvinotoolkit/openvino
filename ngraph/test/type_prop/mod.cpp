@@ -4,6 +4,8 @@
 
 #include "arithmetic_ops.hpp"
 
+#include "ngraph/op/mod.hpp"
+
 using Type = ::testing::Types<ngraph::op::v1::Mod>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_mod, ArithmeticOperator, Type);

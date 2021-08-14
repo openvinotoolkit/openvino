@@ -5,7 +5,6 @@
 #include "evaluates_map.hpp"
 
 #include "backend.hpp"
-#include "ngraph/ops.hpp"
 
 #include <ngraph/runtime/reference/abs.hpp>
 #include <ngraph/runtime/reference/adaptive_avg_pool.hpp>

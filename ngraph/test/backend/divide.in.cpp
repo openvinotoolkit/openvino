@@ -23,7 +23,7 @@
 #include "util/type_prop.hpp"
 #include "runtime/backend.hpp"
 #include "ngraph/runtime/tensor.hpp"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/op/divide.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"

@@ -6,7 +6,7 @@
 
 #include <vector>
 
-#include "ngraph/ngraph.hpp"
+#include "ngraph/type/element_type.hpp"
 
 static const std::vector<ngraph::element::Type> s_known_element_types = {
     ngraph::element::from<float>(),

@@ -13,8 +13,7 @@
 #include "gtest/gtest.h"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/op/relu.hpp"
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/manager.hpp"
 
@@ -24,15 +23,15 @@ using namespace std;
 class TestMatcherPass : public pass::MatcherPass {
 public:
     TestMatcherPass() {
-        auto m_relu1 = ngraph::pattern::wrap_type<ngraph::opset3::Relu>(pattern::consumers_count(1));
-        auto m_relu2 = ngraph::pattern::wrap_type<ngraph::opset3::Relu>({m_relu1});
+        auto m_relu1 = ngraph::pattern::wrap_type<ngraph::op::Relu>(pattern::consumers_count(1));
+        auto m_relu2 = ngraph::pattern::wrap_type<ngraph::op::Relu>({m_relu1});
 
         ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
             // Map that helps to connect labels with matched outputs
             auto& node_to_output = m.get_pattern_value_map();
 
             // Create new Relu operation and add register it for additional execution
-            auto new_relu = register_new_node<ngraph::opset3::Relu>(
+            auto new_relu = register_new_node<ngraph::op::Relu>(
                 node_to_output.at(m_relu1).get_node_shared_ptr()->input_value(0));
 
             // Copy runtime info attributes to newly created operation
@@ -58,9 +57,9 @@ public:
 TEST(pattern, matcher_pass) {
     {
         TestMatcherPass test_matcher;
-        auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
-        auto b = make_shared<opset3::Relu>(a);
-        auto c = make_shared<opset3::Relu>(b);
+        auto a = make_shared<op::Parameter>(element::f32, Shape{1});
+        auto b = make_shared<op::Relu>(a);
+        auto c = make_shared<op::Relu>(b);
         auto f = std::make_shared<Function>(ngraph::NodeVector{c}, ParameterVector{a});
 
         ASSERT_TRUE(test_matcher.get_matcher()->match(c->output(0)));
@@ -76,9 +75,9 @@ TEST(pattern, matcher_pass) {
 
     {
         TestMatcherPass test_matcher;
-        auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
-        auto b = make_shared<opset3::Relu>(a);
-        auto c = make_shared<opset3::Relu>(b);
+        auto a = make_shared<op::Parameter>(element::f32, Shape{1});
+        auto b = make_shared<op::Relu>(a);
+        auto c = make_shared<op::Relu>(b);
         auto f = std::make_shared<Function>(ngraph::NodeVector{b, c}, ParameterVector{a});
 
         ASSERT_FALSE(test_matcher.get_matcher()->match(c->output(0)));
@@ -87,10 +86,10 @@ TEST(pattern, matcher_pass) {
     {
         std::shared_ptr<Function> f;
         {
-            auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
-            auto b = make_shared<opset3::Relu>(a);
-            auto c = make_shared<opset3::Relu>(b);
-            auto d = make_shared<opset3::Relu>(c);
+            auto a = make_shared<op::Parameter>(element::f32, Shape{1});
+            auto b = make_shared<op::Relu>(a);
+            auto c = make_shared<op::Relu>(b);
+            auto d = make_shared<op::Relu>(c);
             f = std::make_shared<Function>(ngraph::NodeVector{d}, ParameterVector{a});
         }
 

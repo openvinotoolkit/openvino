@@ -4,8 +4,12 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/multiply.hpp"
+#include "ngraph/op/result.hpp"
+#include "ngraph/op/add.hpp"
+#include "ngraph/op/lstm_cell.hpp"
+#include "ngraph/op/tensor_iterator.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
@@ -31,7 +35,7 @@ TEST(type_prop, tensor_iterator_lstm) {
     auto X = make_shared<op::Parameter>(element::f32, Shape{N, 1, I});
     auto W_body = make_shared<op::Parameter>(element::f32, Shape{4 * H, I});
     auto R_body = make_shared<op::Parameter>(element::f32, Shape{4 * H, H});
-    auto LSTM_cell = make_shared<opset5::LSTMCell>(builder::opset1::reshape(X, Shape{N, I}),
+    auto LSTM_cell = make_shared<op::v4::LSTMCell>(builder::opset1::reshape(X, Shape{N, I}),
                                                    builder::opset1::reshape(H_t, Shape{N, H}),
                                                    builder::opset1::reshape(C_t, Shape{N, H}),
                                                    W_body,

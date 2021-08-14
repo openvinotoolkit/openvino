@@ -4,6 +4,9 @@
 
 #include "reduce_ops.hpp"
 
+#include "ngraph/op/reduce_logical_or.hpp"
+
 using Type = ::testing::Types<op::v1::ReduceLogicalOr>;
+
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_reduce_logical_or, ReduceTest, Type);
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_reduce_logical_or_et, ReduceLogicalTest, Type);

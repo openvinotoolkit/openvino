@@ -3,8 +3,14 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/add.hpp"
+#include "ngraph/op/multiply.hpp"
+#include "ngraph/op/loop.hpp"
+#include "ngraph/op/tensor_iterator.hpp"
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/result.hpp"
+#include "ngraph/op/greater.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
@@ -16,46 +22,46 @@ using namespace ngraph;
 // all shapes are static, 10 iterations will be executed
 TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto Y = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto M = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
+    auto X = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
+    auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
+    auto M = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{1});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto body_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto current_iteration = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto body_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
 
-    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
-    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto trip_count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
+    auto exec_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
     // Body
-    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
-    auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
+    auto sum = make_shared<ngraph::op::v1::Add>(Xi, Yi);
+    auto Zo = make_shared<ngraph::op::v1::Multiply>(sum, M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{body_condition, Zo},
                                               ParameterVector{current_iteration, Xi, Yi, M_body});
 
-    auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
+    auto loop = make_shared<op::v5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
 
     loop->set_invariant_input(Xi, X);
     loop->set_invariant_input(Yi, Y);
     loop->set_merged_input(M_body, M, Zo);
 
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
+    loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
     // check input descriptors
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -71,16 +77,16 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes) {
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
-    auto result2 = make_shared<opset5::Result>(out2);
+    auto result0 = make_shared<op::Result>(out0);
+    auto result1 = make_shared<op::Result>(out1);
+    auto result2 = make_shared<op::Result>(out2);
     Shape out0_shape{1};
     Shape out1_shape{32, 1, 10};
     Shape out2_shape{32, 10, 10};
@@ -102,29 +108,29 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes) {
 // will be executed only 1 iteration, all shapes are static
 TEST(type_prop, loop_operation_dowhile_mode_1_iter_static_shapes) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto Y = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto M = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
+    auto X = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
+    auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
+    auto M = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{1});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto body_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, false);
+    auto current_iteration = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto body_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, false);
 
-    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
-    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto trip_count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
+    auto exec_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
     // Body
-    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
-    auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
+    auto sum = make_shared<ngraph::op::v1::Add>(Xi, Yi);
+    auto Zo = make_shared<ngraph::op::v1::Multiply>(sum, M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{body_condition, Zo},
                                               ParameterVector{current_iteration, Xi, Yi, M_body});
 
-    auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
+    auto loop = make_shared<op::v5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
+    loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
     loop->set_invariant_input(Xi, X);
     loop->set_invariant_input(Yi, Y);
@@ -134,13 +140,13 @@ TEST(type_prop, loop_operation_dowhile_mode_1_iter_static_shapes) {
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -156,16 +162,16 @@ TEST(type_prop, loop_operation_dowhile_mode_1_iter_static_shapes) {
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
-    auto result2 = make_shared<opset5::Result>(out2);
+    auto result0 = make_shared<op::Result>(out0);
+    auto result1 = make_shared<op::Result>(out1);
+    auto result2 = make_shared<op::Result>(out2);
     Shape out0_shape{1};
     Shape out1_shape{32, 1, 10};
     Shape out2_shape{32, 1, 10};
@@ -187,29 +193,29 @@ TEST(type_prop, loop_operation_dowhile_mode_1_iter_static_shapes) {
 // concat output is not provided, another outputs will be static
 TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_static_shapes) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, Shape{1});
-    auto Y = make_shared<opset5::Parameter>(element::f32, Shape{1});
-    auto M = make_shared<opset5::Parameter>(element::f32, Shape{1});
+    auto X = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto Y = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto M = make_shared<op::Parameter>(element::f32, Shape{1});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{1});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{1}, 10);
-    auto body_condition = std::make_shared<ngraph::opset5::Greater>(M_body, condition_const);
+    auto current_iteration = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto condition_const = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape{1}, 10);
+    auto body_condition = std::make_shared<ngraph::op::v1::Greater>(M_body, condition_const);
 
-    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
-    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto trip_count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
+    auto exec_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
     // Body
-    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
-    auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
+    auto sum = make_shared<ngraph::op::v1::Add>(Xi, Yi);
+    auto Zo = make_shared<ngraph::op::v1::Multiply>(sum, M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{body_condition, Zo}, ParameterVector{Xi, Yi, M_body});
 
-    auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
+    auto loop = make_shared<op::v5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
+    loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
     loop->set_invariant_input(Xi, X);
     loop->set_invariant_input(Yi, Y);
@@ -219,13 +225,13 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_static_shapes
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -238,15 +244,15 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_static_shapes
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
+    auto result0 = make_shared<op::Result>(out0);
+    auto result1 = make_shared<op::Result>(out1);
     Shape out0_shape{1};
     Shape out1_shape{1};
 
@@ -265,30 +271,30 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_static_shapes
 // concat output has only dynamic rank, another outputs are static
 TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_dynamic_shapes) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, Shape{1});
-    auto Y = make_shared<opset5::Parameter>(element::f32, Shape{1});
-    auto M = make_shared<opset5::Parameter>(element::f32, Shape{1});
+    auto X = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto Y = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto M = make_shared<op::Parameter>(element::f32, Shape{1});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{1});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{1}, 10);
-    auto body_condition = std::make_shared<ngraph::opset5::Greater>(M_body, condition_const);
+    auto current_iteration = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto condition_const = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape{1}, 10);
+    auto body_condition = std::make_shared<ngraph::op::v1::Greater>(M_body, condition_const);
 
-    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
-    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto trip_count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
+    auto exec_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
     // Body
-    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
-    auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
+    auto sum = make_shared<ngraph::op::v1::Add>(Xi, Yi);
+    auto Zo = make_shared<ngraph::op::v1::Multiply>(sum, M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{body_condition, Zo},
                                               ParameterVector{current_iteration, Xi, Yi, M_body});
 
-    auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
+    auto loop = make_shared<op::v5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
+    loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
     loop->set_invariant_input(Xi, X);
     loop->set_invariant_input(Yi, Y);
@@ -298,13 +304,13 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_dynamic_shape
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -318,16 +324,16 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_dynamic_shape
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
-    auto result2 = make_shared<opset5::Result>(out2);
+    auto result0 = make_shared<op::Result>(out0);
+    auto result1 = make_shared<op::Result>(out1);
+    auto result2 = make_shared<op::Result>(out2);
     Shape out0_shape{1};
     Shape out1_shape{1};
     PartialShape out2_shape{PartialShape::dynamic(1)};
@@ -350,30 +356,30 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_dynamic_shape
 // concat output has dynamic dimension on axis position, another outputs are static
 TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_partially_dynamic_shapes) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{1, 2, 3, Dimension::dynamic()});
-    auto Y = make_shared<opset5::Parameter>(element::f32, PartialShape{1, 2, 3, Dimension::dynamic()});
-    auto M = make_shared<opset5::Parameter>(element::f32, Shape{1});
+    auto X = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, Dimension::dynamic()});
+    auto Y = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, Dimension::dynamic()});
+    auto M = make_shared<op::Parameter>(element::f32, Shape{1});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{1});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{1}, 10);
-    auto body_condition = std::make_shared<ngraph::opset5::Greater>(M_body, condition_const);
+    auto current_iteration = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto condition_const = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape{1}, 10);
+    auto body_condition = std::make_shared<ngraph::op::v1::Greater>(M_body, condition_const);
 
-    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
-    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto trip_count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
+    auto exec_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
     // Body
-    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
-    auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
+    auto sum = make_shared<ngraph::op::v1::Add>(Xi, Yi);
+    auto Zo = make_shared<ngraph::op::v1::Multiply>(sum, M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{body_condition, Zo},
                                               ParameterVector{current_iteration, Xi, Yi, M_body});
 
-    auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
+    auto loop = make_shared<op::v5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
+    loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
     loop->set_invariant_input(Xi, X);
     loop->set_invariant_input(Yi, Y);
@@ -383,13 +389,13 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_partially_dyn
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -404,16 +410,16 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_partially_dyn
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
-    auto result2 = make_shared<opset5::Result>(out2);
+    auto result0 = make_shared<op::Result>(out0);
+    auto result1 = make_shared<op::Result>(out1);
+    auto result2 = make_shared<op::Result>(out2);
     Shape out0_shape{1};
     PartialShape out1_shape{1, 2, 3, Dimension::dynamic()};
     PartialShape out2_shape{1, Dimension::dynamic(), 3, Dimension::dynamic()};
@@ -436,30 +442,30 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_partially_dyn
 // Axis of silced output is set as incorrect
 TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_incorrect_sliced_output_axis) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{1, 2, 3, Dimension::dynamic()});
-    auto Y = make_shared<opset5::Parameter>(element::f32, PartialShape{1, 2, 3, Dimension::dynamic()});
-    auto M = make_shared<opset5::Parameter>(element::f32, Shape{1});
+    auto X = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, Dimension::dynamic()});
+    auto Y = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, Dimension::dynamic()});
+    auto M = make_shared<op::Parameter>(element::f32, Shape{1});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{1});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto condition_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{1}, 10);
-    auto body_condition = std::make_shared<ngraph::opset5::Greater>(M_body, condition_const);
+    auto current_iteration = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto condition_const = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape{1}, 10);
+    auto body_condition = std::make_shared<ngraph::op::v1::Greater>(M_body, condition_const);
 
-    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
-    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto trip_count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
+    auto exec_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
     // Body
-    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
-    auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
+    auto sum = make_shared<ngraph::op::v1::Add>(Xi, Yi);
+    auto Zo = make_shared<ngraph::op::v1::Multiply>(sum, M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{body_condition, Zo},
                                               ParameterVector{current_iteration, Xi, Yi, M_body});
 
-    auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
+    auto loop = make_shared<op::v5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
+    loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
     loop->set_invariant_input(Xi, X);
     loop->set_invariant_input(Yi, Y);
@@ -482,29 +488,29 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_incorrect_sli
 // concat output will be dynamic, another outputs are static
 TEST(type_prop, loop_operation_infinite_loop_mode_dynamic_iter_dynamic_shapes) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto Y = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto M = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
+    auto X = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
+    auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
+    auto M = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{1});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto body_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto current_iteration = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto body_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
 
-    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, -1);
-    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto trip_count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, -1);
+    auto exec_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
     // Body
-    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
-    auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
+    auto sum = make_shared<ngraph::op::v1::Add>(Xi, Yi);
+    auto Zo = make_shared<ngraph::op::v1::Multiply>(sum, M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{body_condition, Zo},
                                               ParameterVector{current_iteration, Xi, Yi, M_body});
 
-    auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
+    auto loop = make_shared<op::v5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
+    loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
     loop->set_invariant_input(Xi, X);
     loop->set_invariant_input(Yi, Y);
@@ -514,13 +520,13 @@ TEST(type_prop, loop_operation_infinite_loop_mode_dynamic_iter_dynamic_shapes) {
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -536,16 +542,16 @@ TEST(type_prop, loop_operation_infinite_loop_mode_dynamic_iter_dynamic_shapes) {
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
-    auto result2 = make_shared<opset5::Result>(out2);
+    auto result0 = make_shared<op::Result>(out0);
+    auto result1 = make_shared<op::Result>(out1);
+    auto result2 = make_shared<op::Result>(out2);
     Shape out0_shape{1};
     Shape out1_shape{32, 1, 10};
     PartialShape out2_shape{32, Dimension::dynamic(), 10};
@@ -568,29 +574,29 @@ TEST(type_prop, loop_operation_infinite_loop_mode_dynamic_iter_dynamic_shapes) {
 // all shapes are static, 10 iterations will be executed
 TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto Y = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto M = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
+    auto X = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
+    auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
+    auto M = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{1});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto body_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto current_iteration = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto body_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
 
-    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
-    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto trip_count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, 10);
+    auto exec_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
     // Body
-    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
-    auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
+    auto sum = make_shared<ngraph::op::v1::Add>(Xi, Yi);
+    auto Zo = make_shared<ngraph::op::v1::Multiply>(sum, M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{Zo, body_condition},
                                               ParameterVector{Xi, current_iteration, Yi, M_body});
 
-    auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
+    auto loop = make_shared<op::v5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
+    loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{1, 1});
 
     loop->set_invariant_input(Xi, X);
     loop->set_invariant_input(Yi, Y);
@@ -600,13 +606,13 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -622,16 +628,16 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
-    auto result2 = make_shared<opset5::Result>(out2);
+    auto result0 = make_shared<op::Result>(out0);
+    auto result1 = make_shared<op::Result>(out1);
+    auto result2 = make_shared<op::Result>(out2);
     Shape out0_shape{1};
     Shape out1_shape{32, 1, 10};
     Shape out2_shape{32, 10, 10};
@@ -654,29 +660,29 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
 // all shapes are static, 10 iterations will be executed
 TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports_scalars) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto Y = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto M = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
+    auto X = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
+    auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
+    auto M = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto body_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+    auto current_iteration = make_shared<op::Parameter>(element::i64, Shape{});
+    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto body_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
-    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
-    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+    auto trip_count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
+    auto exec_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
     // Body
-    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
-    auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
+    auto sum = make_shared<ngraph::op::v1::Add>(Xi, Yi);
+    auto Zo = make_shared<ngraph::op::v1::Multiply>(sum, M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{Zo, body_condition},
                                               ParameterVector{Xi, current_iteration, Yi, M_body});
 
-    auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
+    auto loop = make_shared<op::v5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
+    loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{1, 1});
 
     loop->set_invariant_input(Xi, X);
     loop->set_invariant_input(Yi, Y);
@@ -686,13 +692,13 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -708,16 +714,16 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
-    auto result2 = make_shared<opset5::Result>(out2);
+    auto result0 = make_shared<op::Result>(out0);
+    auto result1 = make_shared<op::Result>(out1);
+    auto result2 = make_shared<op::Result>(out2);
     Shape out0_shape{};
     Shape out1_shape{32, 1, 10};
     Shape out2_shape{32, 10, 10};
@@ -740,29 +746,29 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
 // all shapes are static, 10 iterations will be executed
 TEST(type_prop, loop_operation_10_iter_static_shapes_sliced_inputs) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto Y = make_shared<opset5::Parameter>(element::f32, Shape{32, 10, 1});
-    auto M = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
+    auto X = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
+    auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 10, 1});
+    auto M = make_shared<op::Parameter>(element::f32, Shape{32, 1, 10});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto body_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+    auto current_iteration = make_shared<op::Parameter>(element::i64, Shape{});
+    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto body_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
-    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
-    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+    auto trip_count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
+    auto exec_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
     // Body
-    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
-    auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
+    auto sum = make_shared<ngraph::op::v1::Add>(Xi, Yi);
+    auto Zo = make_shared<ngraph::op::v1::Multiply>(sum, M_body);
     auto body = make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
                                               ParameterVector{Xi, current_iteration, Yi, M_body});
 
-    auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
+    auto loop = make_shared<op::v5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
+    loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{1, 1});
 
     loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 2);
     loop->set_sliced_input(Yi, Y, -1, -1, 1, 0, 1);
@@ -772,13 +778,13 @@ TEST(type_prop, loop_operation_10_iter_static_shapes_sliced_inputs) {
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -795,17 +801,17 @@ TEST(type_prop, loop_operation_10_iter_static_shapes_sliced_inputs) {
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
-    auto result2 = make_shared<opset5::Result>(out2);
-    auto result3 = make_shared<opset5::Result>(out3);
+    auto result0 = make_shared<op::Result>(out0);
+    auto result1 = make_shared<op::Result>(out1);
+    auto result2 = make_shared<op::Result>(out2);
+    auto result3 = make_shared<op::Result>(out3);
     Shape out0_shape{};
     Shape out1_shape{32, 1, 10};
     Shape out2_shape{32, 10, 10};
@@ -832,30 +838,30 @@ TEST(type_prop, loop_operation_10_iter_static_shapes_sliced_inputs) {
 // count will be executed
 TEST(type_prop, loop_operation_dynamic_iter_dynamic_batch_shapes_sliced_inputs_concatenated_outputs) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 1, 10});
-    auto Y = make_shared<opset5::Parameter>(element::f32, PartialShape{32, Dimension::dynamic(), 10});
-    auto M = make_shared<opset5::Parameter>(element::f32, PartialShape{32, 1, 10});
-    auto T = make_shared<opset5::Parameter>(element::i64, Shape{});
+    auto X = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 1, 10});
+    auto Y = make_shared<op::Parameter>(element::f32, PartialShape{32, Dimension::dynamic(), 10});
+    auto M = make_shared<op::Parameter>(element::f32, PartialShape{32, 1, 10});
+    auto T = make_shared<op::Parameter>(element::i64, Shape{});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+    auto current_iteration = make_shared<op::Parameter>(element::i64, Shape{});
+    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
 
-    auto body_condition = make_shared<opset5::Constant>(element::boolean, Shape{}, true);
-    auto exec_condition = make_shared<opset5::Constant>(element::boolean, Shape{}, true);
+    auto body_condition = make_shared<op::Constant>(element::boolean, Shape{}, true);
+    auto exec_condition = make_shared<op::Constant>(element::boolean, Shape{}, true);
 
     // Body
-    auto sum = make_shared<opset5::Add>(Xi, Yi);
-    auto Zo = make_shared<opset5::Multiply>(sum, M_body);
+    auto sum = make_shared<op::v1::Add>(Xi, Yi);
+    auto Zo = make_shared<op::v1::Multiply>(sum, M_body);
     auto body = make_shared<Function>(OutputVector{Zo, body_condition, sum},
                                       ParameterVector{Xi, Yi, current_iteration, M_body});
 
-    auto loop = make_shared<opset5::Loop>(T, exec_condition);
+    auto loop = make_shared<op::v5::Loop>(T, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(opset5::Loop::SpecialBodyPorts{2, 1});
+    loop->set_special_body_ports(op::v5::Loop::SpecialBodyPorts{2, 1});
 
     loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
     loop->set_sliced_input(Yi, Y, -1, -1, 1, 0, 1);
@@ -865,13 +871,13 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_batch_shapes_sliced_inputs_c
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -888,17 +894,17 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_batch_shapes_sliced_inputs_c
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
-    auto result2 = make_shared<opset5::Result>(out2);
-    auto result3 = make_shared<opset5::Result>(out3);
+    auto result0 = make_shared<op::Result>(out0);
+    auto result1 = make_shared<op::Result>(out1);
+    auto result2 = make_shared<op::Result>(out2);
+    auto result3 = make_shared<op::Result>(out3);
     Shape out0_shape{};
     Shape out1_shape{32, 1, 10};
     PartialShape out2_shape{32, Dimension::dynamic(), 10};
@@ -937,24 +943,24 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_batch_shapes_sliced_inputs_c
 // count will be executed
 TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_sliced_inputs_concatenated_outputs) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 10});
-    auto T = make_shared<opset5::Parameter>(element::i64, Shape{});
+    auto X = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 10});
+    auto T = make_shared<op::Parameter>(element::i64, Shape{});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+    auto current_iteration = make_shared<op::Parameter>(element::i64, Shape{});
+    auto Xi = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
 
-    auto body_condition = make_shared<opset5::Constant>(element::boolean, Shape{}, true);
-    auto exec_condition = make_shared<opset5::Constant>(element::boolean, Shape{}, true);
+    auto body_condition = make_shared<op::Constant>(element::boolean, Shape{}, true);
+    auto exec_condition = make_shared<op::Constant>(element::boolean, Shape{}, true);
 
     // Body
-    auto Zo = make_shared<opset5::Multiply>(Xi, Xi);
+    auto Zo = make_shared<op::v1::Multiply>(Xi, Xi);
     auto body = make_shared<Function>(OutputVector{Zo, body_condition}, ParameterVector{Xi, current_iteration});
 
-    auto loop = make_shared<opset5::Loop>(T, exec_condition);
+    auto loop = make_shared<op::v5::Loop>(T, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(opset5::Loop::SpecialBodyPorts{1, 1});
+    loop->set_special_body_ports(op::v5::Loop::SpecialBodyPorts{1, 1});
 
     loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
 
@@ -962,13 +968,13 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_sliced_inputs_concate
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::opset5::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -984,16 +990,16 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_sliced_inputs_concate
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::opset5::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
-    auto result2 = make_shared<opset5::Result>(out2);
+    auto result0 = make_shared<op::Result>(out0);
+    auto result1 = make_shared<op::Result>(out1);
+    auto result2 = make_shared<op::Result>(out2);
     Shape out0_shape{};
     PartialShape out1_shape{1, Dimension::dynamic(), 10};
     PartialShape out2_shape{Dimension::dynamic(), Dimension::dynamic(), 10};

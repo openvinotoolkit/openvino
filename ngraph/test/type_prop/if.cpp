@@ -4,8 +4,12 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/if.hpp"
+#include "ngraph/op/add.hpp"
+#include "ngraph/op/maximum.hpp"
+#include "ngraph/output_vector.hpp"
+#include "ngraph/op/constant.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
@@ -15,7 +19,7 @@ TEST(type_prop, if_simple_test) {
     // That which we iterate over
     auto X = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
     auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
-    auto cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto cond = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
@@ -132,7 +136,7 @@ TEST(type_prop, if_multiple_outputs) {
     auto then_body =
         make_shared<ngraph::Function>(OutputVector{then_body_res_1, then_body_res_2}, ParameterVector{Xt, Yt});
     auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
-    auto else_const = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32,
+    auto else_const = std::make_shared<ngraph::op::Constant>(ngraph::element::f32,
                                                                  ngraph::Shape{1, 1, 1},
                                                                  std::vector<float>{0.5f});
     auto else_body_res_1 = make_shared<op::Result>(else_op);

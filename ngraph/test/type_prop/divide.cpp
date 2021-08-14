@@ -16,6 +16,8 @@
 
 #include "arithmetic_ops.hpp"
 
+#include "ngraph/op/divide.hpp"
+
 using Type = ::testing::Types<ngraph::op::v1::Divide>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_divide, ArithmeticOperator, Type);

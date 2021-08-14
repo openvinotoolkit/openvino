@@ -3,9 +3,9 @@
 //
 
 #include "ngraph/op/prior_box.hpp"
+#include "ngraph/op/constant.hpp"
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
 
 using namespace ngraph;
 

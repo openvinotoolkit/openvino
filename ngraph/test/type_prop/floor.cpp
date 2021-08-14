@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/floor.hpp"
+
 using Type = ::testing::Types<ngraph::op::Floor>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_floor, UnaryOperator, Type);

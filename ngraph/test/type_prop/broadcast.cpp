@@ -3,8 +3,11 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset6.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/broadcast.hpp"
+#include "ngraph/op/shape_of.hpp"
+#include "ngraph/op/concat.hpp"
+#include "ngraph/op/constant.hpp"
 #include "util/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -170,7 +173,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fully_dynamic_target_shape) {
 TYPED_TEST_P(BroadcastTests, broadcast_dynamic_values_of_target_shape) {
     const auto data = make_shared<op::Parameter>(element::f32, Shape{2});
     const auto target = make_shared<op::Parameter>(element::i32, PartialShape::dynamic(4));
-    const auto target_shape = std::make_shared<ngraph::opset6::ShapeOf>(target);
+    const auto target_shape = std::make_shared<ngraph::op::v3::ShapeOf>(target);
     const auto axes_mapping = op::Constant::create(element::i64, Shape{1}, {1});
 
     auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping);

@@ -3,7 +3,8 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/deformable_psroi_pooling.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

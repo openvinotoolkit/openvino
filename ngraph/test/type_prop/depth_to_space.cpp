@@ -3,7 +3,8 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/depth_to_space.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

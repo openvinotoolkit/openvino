@@ -5,7 +5,9 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/experimental_detectron_topkrois.hpp"
+#include "ngraph/op/experimental_detectron_roi_feature.hpp"
 #include "util/type_prop.hpp"
 
 using namespace ngraph;
