@@ -92,9 +92,15 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
+  - script: ccache --zero-stats
+    displayName: 'Clean ccache stats'
+
   - script: ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Mac'
+
+  - script: ccache --show-stats
+    displayName: 'Show ccache stats'
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List files'
