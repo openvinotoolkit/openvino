@@ -77,6 +77,7 @@ jobs:
       brew install automake
       python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test_onnx.txt
       # Speed up build
+      brew install ccache
       brew install ninja
       # Speed up tests
       git clone https://github.com/google/gtest-parallel.git
