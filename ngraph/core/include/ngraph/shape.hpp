@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <cstdio>
+#include <ostream>
 #include <vector>
+#include <initializer_list>
 
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/ngraph_visibility.hpp"

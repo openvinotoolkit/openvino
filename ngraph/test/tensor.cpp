@@ -10,9 +10,8 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/function.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset6.hpp"
-#include "ngraph/pass/manager.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/relu.hpp"
 #include "util/test_tools.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -21,11 +20,11 @@ using namespace std;
 using namespace ngraph;
 
 TEST(tensor, tensor_names) {
-    auto arg0 = make_shared<opset6::Parameter>(element::f32, Shape{1});
+    auto arg0 = make_shared<op::v0::Parameter>(element::f32, Shape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
-    auto relu = make_shared<opset6::Relu>(arg0);
+    auto relu = make_shared<op::v0::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
     auto f0 = make_shared<Function>(relu, ParameterVector{arg0});

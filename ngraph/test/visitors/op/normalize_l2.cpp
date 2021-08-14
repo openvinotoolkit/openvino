@@ -3,9 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/op/normalize_l2.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -13,13 +11,13 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 void static test_normalize_l2_attributes(float eps, op::EpsMode eps_mode) {
-    NodeBuilder::get_ops().register_factory<opset1::NormalizeL2>();
+    NodeBuilder::get_ops().register_factory<op::v0::NormalizeL2>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4});
     const auto axes = make_shared<op::Constant>(element::i32, Shape{}, vector<int32_t>{1});
 
-    auto normalize_l2 = make_shared<opset1::NormalizeL2>(data, axes, eps, eps_mode);
+    auto normalize_l2 = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode);
     NodeBuilder builder(normalize_l2);
-    auto g_normalize_l2 = as_type_ptr<opset1::NormalizeL2>(builder.create());
+    auto g_normalize_l2 = as_type_ptr<op::v0::NormalizeL2>(builder.create());
 
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

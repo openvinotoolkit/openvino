@@ -4,8 +4,7 @@
 
 #include <fstream>
 #include <map>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset7.hpp>
+#include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 #include <paddlepaddle_frontend/frontend.hpp>
@@ -21,7 +20,6 @@
 #include "pdpd_fw_node.hpp"
 #include "pdpd_utils.hpp"
 
-using namespace ngraph::opset7;
 using namespace ngraph;
 using namespace ngraph::frontend;
 
@@ -139,7 +137,7 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
         const auto& var = inp_place->get_desc();
         const auto& shape = inp_place->get_partial_shape();
         const auto& type = inp_place->get_element_type();
-        auto param = std::make_shared<Parameter>(type, shape);
+        auto param = std::make_shared<op::Parameter>(type, shape);
         param->set_friendly_name(var.name());
         param->output(0).get_tensor().add_names({var.name()});
         nodes_dict[var.name()] = param;
@@ -187,7 +185,7 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
         const auto& outp_place = std::dynamic_pointer_cast<TensorPlacePDPD>(_outp_place);
         auto var = outp_place->get_desc();
         auto input_var_name = var.name();
-        auto result = std::make_shared<Result>(nodes_dict.at(input_var_name));
+        auto result = std::make_shared<op::Result>(nodes_dict.at(input_var_name));
         result->set_friendly_name(input_var_name + "/Result");
         result_nodes.push_back(result);
     }

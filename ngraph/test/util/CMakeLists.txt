@@ -11,6 +11,7 @@ set (SRC
     test_tools.cpp
     test_case.cpp
     test_control.cpp
+    visitor.cpp
     visitor.hpp
     provenance_enabler.hpp
 )

@@ -3,9 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/op/deformable_psroi_pooling.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -14,7 +12,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, deformable_psroi_pooling_op) {
-    NodeBuilder::get_ops().register_factory<opset1::DeformablePSROIPooling>();
+    NodeBuilder::get_ops().register_factory<op::v1::DeformablePSROIPooling>();
     auto input = make_shared<op::Parameter>(element::f32, Shape{2, 16, 67, 32});
     auto coords = make_shared<op::Parameter>(element::f32, Shape{300, 5});
 
@@ -27,7 +25,7 @@ TEST(attributes, deformable_psroi_pooling_op) {
     const float trans_std = 0.1;
     const int part_size = 3;
 
-    auto op = make_shared<opset1::DeformablePSROIPooling>(input,
+    auto op = make_shared<op::v1::DeformablePSROIPooling>(input,
                                                           coords,
                                                           output_dim,
                                                           spatial_scale,
@@ -38,7 +36,7 @@ TEST(attributes, deformable_psroi_pooling_op) {
                                                           trans_std,
                                                           part_size);
     NodeBuilder builder(op);
-    auto g_op = as_type_ptr<opset1::DeformablePSROIPooling>(builder.create());
+    auto g_op = as_type_ptr<op::v1::DeformablePSROIPooling>(builder.create());
 
     EXPECT_EQ(g_op->get_output_dim(), op->get_output_dim());
     EXPECT_EQ(g_op->get_spatial_scale(), op->get_spatial_scale());

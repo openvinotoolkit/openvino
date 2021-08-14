@@ -3,7 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/op/constant.hpp"
 #include "util/all_close_f.hpp"
 #include "util/test_tools.hpp"
 

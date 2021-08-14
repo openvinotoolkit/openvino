@@ -12,14 +12,12 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, variadic_split_op) {
-    using namespace opset1;
-
     NodeBuilder::get_ops().register_factory<op::v1::VariadicSplit>();
-    auto data = make_shared<Parameter>(element::i32, Shape{200});
-    auto axis = make_shared<Parameter>(element::i32, Shape{1});
-    auto split_lengths = make_shared<Parameter>(element::i32, Shape{1});
+    auto data = make_shared<op::Parameter>(element::i32, Shape{200});
+    auto axis = make_shared<op::Parameter>(element::i32, Shape{1});
+    auto split_lengths = make_shared<op::Parameter>(element::i32, Shape{1});
 
-    auto split = make_shared<VariadicSplit>(data, axis, split_lengths);
+    auto split = make_shared<op::v1::VariadicSplit>(data, axis, split_lengths);
     NodeBuilder builder(split);
     const auto expected_attr_count = 0;
 

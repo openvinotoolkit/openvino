@@ -3,12 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/op/region_yolo.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -17,7 +12,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, region_yolo_op) {
-    NodeBuilder::get_ops().register_factory<opset1::RegionYolo>();
+    NodeBuilder::get_ops().register_factory<op::v0::RegionYolo>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 255, 26, 26});
 
     size_t num_coords = 4;
@@ -29,7 +24,7 @@ TEST(attributes, region_yolo_op) {
     auto end_axis = 3;
     auto anchors = std::vector<float>{10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319};
 
-    auto region_yolo = make_shared<opset1::RegionYolo>(data,
+    auto region_yolo = make_shared<op::v0::RegionYolo>(data,
                                                        num_coords,
                                                        num_classes,
                                                        num_regions,
@@ -39,7 +34,7 @@ TEST(attributes, region_yolo_op) {
                                                        end_axis,
                                                        anchors);
     NodeBuilder builder(region_yolo);
-    auto g_region_yolo = as_type_ptr<opset1::RegionYolo>(builder.create());
+    auto g_region_yolo = as_type_ptr<op::v0::RegionYolo>(builder.create());
 
     EXPECT_EQ(g_region_yolo->get_num_coords(), region_yolo->get_num_coords());
     EXPECT_EQ(g_region_yolo->get_num_classes(), region_yolo->get_num_classes());

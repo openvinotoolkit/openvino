@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <bitset>
+
+#include "ngraph/except.hpp"
 #include "util/float_util.hpp"
 
 std::string ngraph::test::bfloat16_to_bits(bfloat16 f)

@@ -5,6 +5,9 @@
 #pragma once
 
 #include "gtest/gtest.h"
+
+#include "ngraph/type/element_type.hpp"
+
 #include "util/visitor.hpp"
 
 template <typename T, ngraph::element::Type_t ELEMENT_TYPE>

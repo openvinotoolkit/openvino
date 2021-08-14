@@ -3,12 +3,13 @@
 //
 
 #include <algorithm>
-#include <bitset>
 #include <cmath>
 #include <limits>
+#include <string>
 #include <sstream>
 
-#include "ngraph/ngraph.hpp"
+#include "ngraph/type/float16.hpp"
+#include "ngraph/type/bfloat16.hpp"
 
 namespace ngraph
 {

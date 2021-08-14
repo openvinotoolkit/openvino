@@ -9,12 +9,13 @@
 #include <fstream>
 #include <map>
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <paddlepaddle_frontend/frontend.hpp>
-#include <paddlepaddle_frontend/place.hpp>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "ngraph/type/element_type.hpp"
+#include "paddlepaddle_frontend/frontend.hpp"
+#include "paddlepaddle_frontend/place.hpp"
 
 #include "framework.pb.h"
 #include "node_context.hpp"

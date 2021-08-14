@@ -3,12 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/op/depth_to_space.hpp"
 #include "util/visitor.hpp"
 
 using namespace ngraph;
@@ -16,15 +11,15 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, depth_to_space) {
-    NodeBuilder::get_ops().register_factory<opset1::DepthToSpace>();
+    NodeBuilder::get_ops().register_factory<op::v0::DepthToSpace>();
     auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 8, 2, 2});
 
     const auto block_size = 2;
     const auto mode = "blocks_first";
 
-    const auto dts = std::make_shared<opset1::DepthToSpace>(data, mode, block_size);
+    const auto dts = std::make_shared<op::v0::DepthToSpace>(data, mode, block_size);
     NodeBuilder builder(dts);
-    auto g_dts = as_type_ptr<opset1::DepthToSpace>(builder.create());
+    auto g_dts = as_type_ptr<op::v0::DepthToSpace>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 2;

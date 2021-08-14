@@ -4,8 +4,8 @@
 
 #include "gtest/gtest.h"
 
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/shape.hpp"
+#include "ngraph/type/element_type.hpp"
 
 #include "util/visitor.hpp"
 

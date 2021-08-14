@@ -3,12 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/op/lstm_sequence.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -17,7 +12,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, lstm_sequence_op) {
-    NodeBuilder::get_ops().register_factory<opset5::LSTMSequence>();
+    NodeBuilder::get_ops().register_factory<op::v5::LSTMSequence>();
 
     const size_t batch_size = 4;
     const size_t num_directions = 2;
@@ -41,7 +36,7 @@ TEST(attributes, lstm_sequence_op) {
     const std::vector<std::string> activations = {"tanh", "sigmoid", "tanh"};
     const float clip_threshold = 0.5f;
 
-    const auto lstm_sequence = make_shared<opset5::LSTMSequence>(X,
+    const auto lstm_sequence = make_shared<op::v5::LSTMSequence>(X,
                                                                  initial_hidden_state,
                                                                  initial_cell_state,
                                                                  sequence_lengths,
@@ -55,7 +50,7 @@ TEST(attributes, lstm_sequence_op) {
                                                                  activations,
                                                                  clip_threshold);
     NodeBuilder builder(lstm_sequence);
-    auto g_lstm_sequence = as_type_ptr<opset5::LSTMSequence>(builder.create());
+    auto g_lstm_sequence = as_type_ptr<op::v5::LSTMSequence>(builder.create());
 
     EXPECT_EQ(g_lstm_sequence->get_hidden_size(), lstm_sequence->get_hidden_size());
     EXPECT_EQ(g_lstm_sequence->get_activations(), lstm_sequence->get_activations());

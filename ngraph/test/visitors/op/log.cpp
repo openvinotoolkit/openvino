@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/log.hpp"
+
 using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v0::Log, ngraph::element::f32>,
                                UnaryOperatorType<ngraph::op::v0::Log, ngraph::element::f16>>;
 

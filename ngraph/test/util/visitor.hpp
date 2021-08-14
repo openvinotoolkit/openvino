@@ -11,8 +11,10 @@
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/factory.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/runtime/tensor.hpp"
+#include "ngraph/runtime/aligned_buffer.hpp"
 
 namespace ngraph
 {
@@ -391,17 +393,7 @@ namespace ngraph
             }
             AttributeVisitor& get_node_saver() { return m_serializer; }
             AttributeVisitor& get_node_loader() { return *this; }
-            static FactoryRegistry<Node>& get_ops()
-            {
-                static FactoryRegistry<Node> registry = [] {
-                    FactoryRegistry<Node> registry;
-#define NGRAPH_OP(NAME, NAMESPACE, VERSION) registry.register_factory<NAMESPACE::NAME>();
-#include "op_version_tbl.hpp"
-#undef NGRAPH_OP
-                    return registry;
-                }();
-                return registry;
-            }
+            static FactoryRegistry<Node>& get_ops();
 
         protected:
             Node::type_info_t m_node_type_info;

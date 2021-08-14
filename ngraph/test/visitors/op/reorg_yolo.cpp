@@ -3,12 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/op/reorg_yolo.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -17,7 +12,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, reorg_yolo_op_stride) {
-    NodeBuilder::get_ops().register_factory<opset3::ReorgYolo>();
+    NodeBuilder::get_ops().register_factory<op::v0::ReorgYolo>();
     const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 64, 26, 26});
 
     const auto op = make_shared<op::v0::ReorgYolo>(data, 2);
@@ -28,7 +23,7 @@ TEST(attributes, reorg_yolo_op_stride) {
 }
 
 TEST(attributes, reorg_yolo_op_strides) {
-    NodeBuilder::get_ops().register_factory<opset3::ReorgYolo>();
+    NodeBuilder::get_ops().register_factory<op::v0::ReorgYolo>();
     const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 64, 26, 26});
 
     const auto op = make_shared<op::v0::ReorgYolo>(data, Strides{2});

@@ -3,12 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/op/convolution.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -17,14 +12,14 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, convolution_backprop_op) {
-    NodeBuilder::get_ops().register_factory<opset1::ConvolutionBackpropData>();
+    NodeBuilder::get_ops().register_factory<op::v1::ConvolutionBackpropData>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 124, 124});
     auto filters = make_shared<op::Parameter>(element::f32, Shape{16, 2, 3, 3});
     auto strides = Strides{1, 1};
     auto pads_begin = CoordinateDiff{1, 2};
     auto pads_end = CoordinateDiff{1, 2};
     auto dilations = Strides{1, 1};
-    auto convolution = make_shared<opset1::ConvolutionBackpropData>(data,
+    auto convolution = make_shared<op::v1::ConvolutionBackpropData>(data,
                                                                     filters,
                                                                     strides,
                                                                     pads_begin,
@@ -32,7 +27,7 @@ TEST(attributes, convolution_backprop_op) {
                                                                     dilations,
                                                                     op::PadType::VALID);
     NodeBuilder builder(convolution);
-    auto g_convolution = as_type_ptr<opset1::ConvolutionBackpropData>(builder.create());
+    auto g_convolution = as_type_ptr<op::v1::ConvolutionBackpropData>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 6;
@@ -46,7 +41,7 @@ TEST(attributes, convolution_backprop_op) {
 }
 
 TEST(attributes, convolution_backprop_output_shape_output_padding) {
-    NodeBuilder::get_ops().register_factory<opset1::ConvolutionBackpropData>();
+    NodeBuilder::get_ops().register_factory<op::v1::ConvolutionBackpropData>();
     const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 124, 124});
     const auto filter = make_shared<op::Parameter>(element::f32, Shape{16, 2, 3, 3});
     const auto output_shape = make_shared<op::Parameter>(element::i32, Shape{1});
@@ -65,7 +60,7 @@ TEST(attributes, convolution_backprop_output_shape_output_padding) {
                                                             op::PadType::NOTSET};
 
     for (auto padType : allPadTypes) {
-        const auto convolution = make_shared<opset1::ConvolutionBackpropData>(data,
+        const auto convolution = make_shared<op::v1::ConvolutionBackpropData>(data,
                                                                               filter,
                                                                               output_shape,
                                                                               strides,
@@ -75,7 +70,7 @@ TEST(attributes, convolution_backprop_output_shape_output_padding) {
                                                                               padType,
                                                                               output_padding);
         NodeBuilder builder(convolution);
-        const auto g_convolution = as_type_ptr<opset1::ConvolutionBackpropData>(builder.create());
+        const auto g_convolution = as_type_ptr<op::v1::ConvolutionBackpropData>(builder.create());
 
         // attribute count
         const auto expected_attr_count = 6;

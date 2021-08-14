@@ -3,9 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset3.hpp"
+#include "ngraph//op/cum_sum.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -13,14 +11,14 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, cum_sum_op_default_attributes_no_axis_input) {
-    NodeBuilder::get_ops().register_factory<opset3::CumSum>();
+    NodeBuilder::get_ops().register_factory<op::v0::CumSum>();
 
     Shape shape{1, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto cs = make_shared<op::CumSum>(A);
 
     NodeBuilder builder(cs);
-    auto g_cs = as_type_ptr<opset3::CumSum>(builder.create());
+    auto g_cs = as_type_ptr<op::v0::CumSum>(builder.create());
 
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -30,7 +28,7 @@ TEST(attributes, cum_sum_op_default_attributes_no_axis_input) {
 }
 
 TEST(attributes, cum_sum_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset3::CumSum>();
+    NodeBuilder::get_ops().register_factory<op::v0::CumSum>();
 
     Shape shape{1, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -38,7 +36,7 @@ TEST(attributes, cum_sum_op_default_attributes) {
     auto cs = make_shared<op::CumSum>(A, axis);
 
     NodeBuilder builder(cs);
-    auto g_cs = as_type_ptr<opset3::CumSum>(builder.create());
+    auto g_cs = as_type_ptr<op::v0::CumSum>(builder.create());
 
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -48,7 +46,7 @@ TEST(attributes, cum_sum_op_default_attributes) {
 }
 
 TEST(attributes, cum_sum_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<opset3::CumSum>();
+    NodeBuilder::get_ops().register_factory<op::v0::CumSum>();
 
     Shape shape{1, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -58,7 +56,7 @@ TEST(attributes, cum_sum_op_custom_attributes) {
     auto cs = make_shared<op::CumSum>(A, axis, exclusive, reverse);
 
     NodeBuilder builder(cs);
-    auto g_cs = as_type_ptr<opset3::CumSum>(builder.create());
+    auto g_cs = as_type_ptr<op::v0::CumSum>(builder.create());
 
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

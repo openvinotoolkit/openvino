@@ -3,7 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/op/convert.hpp"
 #include "util/visitor.hpp"
 
 using namespace ngraph;
@@ -13,11 +13,11 @@ using ngraph::test::ValueMap;
 TEST(attributes, convert_op_v0) {
     using Convert = op::v0::Convert;
 
-    NodeBuilder::get_ops().register_factory<Convert>();
+    NodeBuilder::get_ops().register_factory<op::Convert>();
     auto data = std::make_shared<op::Parameter>(element::f32, Shape{2, 4});
     const element::Type destination_type = element::Type_t::i32;
 
-    const auto convert = std::make_shared<Convert>(data, destination_type);
+    const auto convert = std::make_shared<op::Convert>(data, destination_type);
     NodeBuilder builder(convert);
 
     // attribute count
@@ -25,6 +25,6 @@ TEST(attributes, convert_op_v0) {
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
     // destination_type attribute
-    const auto g_convert = as_type_ptr<Convert>(builder.create());
+    const auto g_convert = as_type_ptr<op::Convert>(builder.create());
     EXPECT_EQ(g_convert->get_destination_type(), convert->get_destination_type());
 }

@@ -3,13 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "ngraph/opsets/opset8.hpp"
+#include "ngraph/op/matrix_nms.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -18,26 +12,26 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, matrix_nms_v8_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<opset8::MatrixNms>();
+    NodeBuilder::get_ops().register_factory<op::v8::MatrixNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    opset8::MatrixNms::Attributes attrs;
-    attrs.sort_result_type = opset8::MatrixNms::SortResultType::SCORE;
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.sort_result_type = op::v8::MatrixNms::SortResultType::SCORE;
     attrs.output_type = ngraph::element::i32;
     attrs.nms_top_k = 100;
     attrs.keep_top_k = 10;
     attrs.sort_result_across_batch = true;
     attrs.score_threshold = 0.1f;
     attrs.background_class = 2;
-    attrs.decay_function = opset8::MatrixNms::DecayFunction::GAUSSIAN;
+    attrs.decay_function = op::v8::MatrixNms::DecayFunction::GAUSSIAN;
     attrs.gaussian_sigma = 0.2f;
     attrs.post_threshold = 0.3f;
     attrs.normalized = false;
 
-    auto nms = make_shared<opset8::MatrixNms>(boxes, scores, attrs);
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset8::MatrixNms>(builder.create());
+    auto g_nms = as_type_ptr<op::v8::MatrixNms>(builder.create());
     const auto expected_attr_count = 11;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
@@ -70,13 +64,13 @@ TEST(attributes, matrix_nms_v8_op_custom_attributes) {
 }
 
 TEST(attributes, matrix_nms_v8_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset8::MatrixNms>();
+    NodeBuilder::get_ops().register_factory<op::v8::MatrixNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    auto nms = make_shared<opset8::MatrixNms>(boxes, scores, opset8::MatrixNms::Attributes());
+    auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset8::MatrixNms>(builder.create());
+    auto g_nms = as_type_ptr<op::v8::MatrixNms>(builder.create());
     const auto expected_attr_count = 11;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 

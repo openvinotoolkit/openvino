@@ -3,13 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "ngraph/opsets/opset8.hpp"
+#include "ngraph/op/multiclass_nms.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -18,12 +12,12 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, multiclass_nms_v8_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<opset8::MulticlassNms>();
+    NodeBuilder::get_ops().register_factory<op::v8::MulticlassNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    opset8::MulticlassNms::Attributes attrs;
-    attrs.sort_result_type = opset8::MulticlassNms::SortResultType::SCORE;
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.sort_result_type = op::v8::MulticlassNms::SortResultType::SCORE;
     attrs.sort_result_across_batch = true;
     attrs.output_type = ngraph::element::i32;
     attrs.nms_top_k = 100;
@@ -34,9 +28,9 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes) {
     attrs.nms_eta = 0.3f;
     attrs.normalized = false;
 
-    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, attrs);
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset8::MulticlassNms>(builder.create());
+    auto g_nms = as_type_ptr<op::v8::MulticlassNms>(builder.create());
     const auto expected_attr_count = 10;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
@@ -67,13 +61,13 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes) {
 }
 
 TEST(attributes, multiclass_nms_v8_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset8::MulticlassNms>();
+    NodeBuilder::get_ops().register_factory<op::v8::MulticlassNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, opset8::MulticlassNms::Attributes());
+    auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset8::MulticlassNms>(builder.create());
+    auto g_nms = as_type_ptr<op::v8::MulticlassNms>(builder.create());
     const auto expected_attr_count = 10;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 

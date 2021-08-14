@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/atanh.hpp"
+
 using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v3::Atanh, ngraph::element::f32>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_attribute, UnaryOperatorVisitor, Types, UnaryOperatorTypeName);

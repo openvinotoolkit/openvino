@@ -3,9 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset4.hpp"
+#include "ngraph/op/mish.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -13,10 +11,10 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, mish_op) {
-    NodeBuilder::get_ops().register_factory<opset4::Mish>();
+    NodeBuilder::get_ops().register_factory<op::v4::Mish>();
     const auto A = make_shared<op::Parameter>(element::f32, Shape{5, 2});
 
-    const auto mish = make_shared<opset4::Mish>(A);
+    const auto mish = make_shared<op::v4::Mish>(A);
     NodeBuilder builder(mish);
 
     const auto expected_attr_count = 0;

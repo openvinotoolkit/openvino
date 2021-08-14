@@ -4,6 +4,8 @@
 
 #include "unary_ops.hpp"
 
+#include "ngraph/op/squeeze.hpp"
+
 using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v0::Squeeze, ngraph::element::f32>,
                                UnaryOperatorType<ngraph::op::v0::Squeeze, ngraph::element::f16>>;
 

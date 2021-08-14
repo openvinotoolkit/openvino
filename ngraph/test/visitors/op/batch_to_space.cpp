@@ -3,8 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/op/batch_to_space.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;

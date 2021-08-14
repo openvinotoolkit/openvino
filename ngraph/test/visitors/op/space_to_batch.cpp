@@ -3,9 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset2.hpp"
+#include "ngraph/op/space_to_batch.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -13,14 +11,12 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
 TEST(attributes, space_to_batch_op) {
-    using namespace opset2;
-
-    NodeBuilder::get_ops().register_factory<SpaceToBatch>();
+    NodeBuilder::get_ops().register_factory<op::v1::SpaceToBatch>();
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 128});
     auto block_shape = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 5});
     auto pads_begin = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});
     auto pads_end = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 0});
-    auto op = make_shared<SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+    auto op = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
     NodeBuilder builder(op);
     const auto expected_attr_count = 0;

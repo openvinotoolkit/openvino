@@ -3,8 +3,9 @@
 //
 
 #include "binary_ops.hpp"
-#include "ngraph/opsets/opset1.hpp"
 
-using Type = ::testing::Types<BinaryOperatorType<ngraph::opset1::LessEqual, ngraph::element::f32>>;
+#include "ngraph/op/less_eq.hpp"
+
+using Type = ::testing::Types<BinaryOperatorType<ngraph::op::v1::LessEqual, ngraph::element::f32>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast, BinaryOperatorVisitor, Type, BinaryOperatorTypeName);

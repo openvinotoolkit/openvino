@@ -5,7 +5,8 @@
 #include <memory>
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/shape.hpp"
+#include "ngraph/strides.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -3,12 +3,7 @@
 //
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/op/interpolate.hpp"
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -17,7 +12,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, interpolate_op) {
-    NodeBuilder::get_ops().register_factory<opset1::Interpolate>();
+    NodeBuilder::get_ops().register_factory<op::v0::Interpolate>();
     auto img = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
     auto out_shape = make_shared<op::Parameter>(element::i32, Shape{2});
 
@@ -29,9 +24,9 @@ TEST(attributes, interpolate_op) {
     interp_atrs.pads_begin = vector<size_t>{0, 0};
     interp_atrs.pads_end = vector<size_t>{0, 0};
 
-    auto interpolate = make_shared<opset1::Interpolate>(img, out_shape, interp_atrs);
+    auto interpolate = make_shared<op::v0::Interpolate>(img, out_shape, interp_atrs);
     NodeBuilder builder(interpolate);
-    auto g_interpolate = as_type_ptr<opset1::Interpolate>(builder.create());
+    auto g_interpolate = as_type_ptr<op::v0::Interpolate>(builder.create());
 
     const auto i_attrs = interpolate->get_attrs();
     const auto g_i_attrs = g_interpolate->get_attrs();
