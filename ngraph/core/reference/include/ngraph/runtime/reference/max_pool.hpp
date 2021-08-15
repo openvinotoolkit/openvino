@@ -112,6 +112,28 @@ void max_pool(const T* arg,
 }
 
 namespace {
+void validate_max_pool_kernel_params(const size_t dims,
+                                     const Shape& kernel,
+                                     const Strides& kernel_strides,
+                                     const Strides& kernel_dilations,
+                                     const Shape& pads_begin,
+                                     const Shape& pads_end) {
+    NGRAPH_CHECK(kernel.size() == dims && kernel_strides.size() == dims && kernel_dilations.size() == dims &&
+                     pads_begin.size() == dims && pads_end.size() == dims,
+                 "One of the MaxPool params does not match the ",
+                 dims,
+                 "D implementation.\nkernel=",
+                 kernel,
+                 "\nkernel_strides=",
+                 kernel_strides,
+                 "\nkernel_dilations=",
+                 kernel_dilations,
+                 "\npads_begin=",
+                 pads_begin,
+                 "\npads_end=",
+                 pads_end);
+}
+
 template <typename Values_t, typename Indices_t>
 void max_pool_1d(const Values_t* data,
                  Values_t* values,
@@ -147,30 +169,69 @@ void max_pool_1d(const Values_t* data,
     }
 }
 
-void validate_max_pool_kernel_params(const size_t dims,
-                                     const Shape& kernel,
-                                     const Strides& kernel_strides,
-                                     const Strides& kernel_dilations,
-                                     const Shape& pads_begin,
-                                     const Shape& pads_end) {
-    NGRAPH_CHECK(kernel.size() == dims && kernel_strides.size() == dims && kernel_dilations.size() == dims &&
-                     pads_begin.size() == dims && pads_end.size() == dims,
-                 "One of the MaxPool params does not match the ",
-                 dims,
-                 "D implementation.\nkernel=",
-                 kernel,
-                 "\nkernel_strides=",
-                 kernel_strides,
-                 "\nkernel_dilations=",
-                 kernel_dilations,
-                 "\npads_begin=",
-                 pads_begin,
-                 "\npads_end=",
-                 pads_end);
-}
+// TODO:
+// bool elem_in_padding_area(Coordinate kernel_pos)
 
 template <typename Values_t, typename Indices_t>
 void max_pool_2d(const Values_t* data,
+                 Values_t* values,
+                 Indices_t* indices,
+                 const Shape& data_shape,
+                 const Shape& out_shape,
+                 const Shape kernel,
+                 const Strides& kernel_strides,
+                 const Strides& kernel_dilations,
+                 const Shape& pads_begin,
+                 const Shape& pads_end,
+                 const size_t indices_offset) {
+    validate_max_pool_kernel_params(2, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
+
+    int kernel_y_position = 0 - pads_begin[0];
+    int kernel_x_position = 0 - pads_begin[1];
+
+    // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
+    for (size_t out_idx = 0; out_idx < out_shape[2] * out_shape[3]; ++out_idx) {
+        Values_t max_elem = std::numeric_limits<Values_t>::lowest();
+        Indices_t max_elem_idx = Indices_t{0};
+
+        // find the max element in the area covered by a current position of the kernel
+        for (size_t kernel_row = 0; kernel_row < kernel[0]; ++kernel_row) {
+            for (size_t kernel_col = 0; kernel_col < kernel[1]; ++kernel_col) {
+                const size_t kernel_y_offset = kernel_row * kernel_dilations[0];
+                const size_t kernel_x_offset = kernel_col * kernel_dilations[1];
+                // ignore elements in pads_begin area
+                if (kernel_y_position + kernel_y_offset < 0 || kernel_x_position + kernel_x_offset < 0) {
+                    continue;
+                }
+                // ignore elements in pads_end area
+                if (kernel_y_position + kernel_y_offset >= data_shape[2] ||
+                    kernel_x_position + kernel_x_offset >= data_shape[3]) {
+                    continue;
+                }
+
+                const size_t data_elem_offset =
+                    data_shape[2] * (kernel_row + kernel_y_position) + kernel_x_offset + kernel_x_position;
+
+                if (data[data_elem_offset] > max_elem) {
+                    max_elem = data[data_elem_offset];
+                    max_elem_idx = data_elem_offset;
+                }
+            }
+        }
+
+        values[out_idx] = max_elem;
+        indices[out_idx] = max_elem_idx + indices_offset;
+
+        kernel_x_position += kernel_strides[1];
+        if (kernel_x_position >= out_shape[3]) {
+            kernel_x_position = 0 - pads_begin[1];
+            kernel_y_position += kernel_strides[0];
+        }
+    }
+}
+
+template <typename Values_t, typename Indices_t>
+void max_pool_3d(const Values_t* data,
                  Values_t* values,
                  Indices_t* indices,
                  const size_t data_elems,
@@ -181,29 +242,8 @@ void max_pool_2d(const Values_t* data,
                  const Shape& pads_begin,
                  const Shape& pads_end,
                  const size_t indices_offset) {
-    validate_max_pool_kernel_params(2, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
-
-    // int kernel_position = 0 - pads_begin;
-    // // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
-    // for (size_t out_idx = 0; out_idx < out_elems; ++out_idx) {
-    //     Values_t max_elem = std::numeric_limits<Values_t>::lowest();
-    //     Indices_t max_elem_idx = Indices_t{0};
-    //     for (size_t kernel_elem = 0; kernel_elem < kernel_size; ++kernel_elem) {
-    //         const size_t kernel_elem_offset = kernel_elem * kernel_dilation;
-    //         if (kernel_position + kernel_elem_offset < 0 || kernel_position + kernel_elem_offset >= data_elems) {
-    //             // don't process the padding elements
-    //             continue;
-    //         } else {
-    //             if (data[kernel_position + kernel_elem_offset] > max_elem) {
-    //                 max_elem = data[kernel_position + kernel_elem_offset];
-    //                 max_elem_idx = kernel_position + kernel_elem_offset;
-    //             }
-    //         }
-    //     }
-    //     values[out_idx] = max_elem;
-    //     indices[out_idx] = max_elem_idx + indices_offset;
-    //     kernel_position += kernel_stride;
-    // }
+    validate_max_pool_kernel_params(3, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
+    throw std::runtime_error("Not implemented yet");
 }
 }  // namespace
 
@@ -254,6 +294,18 @@ void max_pool(const Values_t* data,
                 max_pool_2d<Values_t, Indices_t>(data_channel_first_elem,
                                                  out_channel_first_elem,
                                                  indices_channel_first_elem,
+                                                 data_shape,
+                                                 out_shape,
+                                                 kernel,
+                                                 strides,
+                                                 dilations,
+                                                 pads_begin,
+                                                 pads_end,
+                                                 indices_offset);
+            } else if (data_shape.size() == 5) {
+                max_pool_3d<Values_t, Indices_t>(data_channel_first_elem,
+                                                 out_channel_first_elem,
+                                                 indices_channel_first_elem,
                                                  data_channel_elems,
                                                  out_channel_elems,
                                                  kernel,
@@ -263,7 +315,10 @@ void max_pool(const Values_t* data,
                                                  pads_end,
                                                  indices_offset);
             } else {
-                throw std::runtime_error("Not ready yet");
+                NGRAPH_CHECK(false,
+                             "Unsupported input shape ",
+                             data_shape,
+                             " passed to the MaxPool reference implementation. Supported shapes: 3D, 4D and 5D.");
             }
         }
     }
