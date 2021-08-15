@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/check.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include "ngraph/op/multiply.hpp"
+#include "ngraph/op/convert.hpp"
+#include "ngraph/op/subtract.hpp"
+#include "ngraph/op/add.hpp"
 
 #include "low_precision/lpt_visibility.hpp"
 #include "transformations/rt_info/dequantization_attribute.hpp"
@@ -43,9 +43,9 @@ namespace low_precision {
 //    }
 // };
 //
-// using DequantizationConvert = DequantizationOp<ngraph::opset1::Convert>;
-// using DequantizationSubtract = DequantizationOp<ngraph::opset1::Subtract>;
-// using DequantizationMultiply = DequantizationOp<ngraph::opset1::Multiply>;
+// using DequantizationConvert = DequantizationOp<ngraph::op::v0::Convert>;
+// using DequantizationSubtract = DequantizationOp<ngraph::op::v1::Subtract>;
+// using DequantizationMultiply = DequantizationOp<ngraph::op::v1::Multiply>;
 
 namespace {
 void initRuntimeInfo(ngraph::Node& operation) {
@@ -63,71 +63,71 @@ void copyRuntimeInfo(const ngraph::Node& from, ngraph::Node& to) {
 
 } // namespace
 
-class LP_TRANSFORMATIONS_API DequantizationConvert : public ngraph::opset1::Convert {
+class LP_TRANSFORMATIONS_API DequantizationConvert : public ngraph::op::v0::Convert {
 public:
     DequantizationConvert(const ngraph::Output<Node>& arg, const ngraph::element::Type& destination_type) :
-        ngraph::opset1::Convert(arg, destination_type) {
+        ngraph::op::v0::Convert(arg, destination_type) {
         initRuntimeInfo(*this);
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        std::shared_ptr<Node> cloned = ngraph::opset1::Convert::clone_with_new_inputs(inputs);
+        std::shared_ptr<Node> cloned = ngraph::op::v0::Convert::clone_with_new_inputs(inputs);
         copyRuntimeInfo(*this, *cloned);
         return cloned;
     }
 };
 
-class LP_TRANSFORMATIONS_API DequantizationSubtract : public ngraph::opset1::Subtract {
+class LP_TRANSFORMATIONS_API DequantizationSubtract : public ngraph::op::v1::Subtract {
 public:
     DequantizationSubtract(
         const ngraph::Output<Node>& arg0,
         const ngraph::Output<Node>& arg1,
         const ngraph::op::AutoBroadcastSpec& auto_broadcast = ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY)) :
-        ngraph::opset1::Subtract(arg0, arg1, auto_broadcast) {
+        ngraph::op::v1::Subtract(arg0, arg1, auto_broadcast) {
         initRuntimeInfo(*this);
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        std::shared_ptr<Node> cloned = ngraph::opset1::Subtract::clone_with_new_inputs(inputs);
+        std::shared_ptr<Node> cloned = ngraph::op::v1::Subtract::clone_with_new_inputs(inputs);
         copyRuntimeInfo(*this, *cloned);
         return cloned;
     }
 };
 
-class LP_TRANSFORMATIONS_API DequantizationMultiply : public ngraph::opset1::Multiply {
+class LP_TRANSFORMATIONS_API DequantizationMultiply : public ngraph::op::v1::Multiply {
 public:
     DequantizationMultiply(
         const Output<Node>& arg0,
         const Output<Node>& arg1,
         const ngraph::op::AutoBroadcastSpec& auto_broadcast = ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY)) :
-        ngraph::opset1::Multiply(arg0, arg1, auto_broadcast) {
+        ngraph::op::v1::Multiply(arg0, arg1, auto_broadcast) {
         initRuntimeInfo(*this);
     }
 
-    DequantizationMultiply(const ngraph::opset1::Multiply& multiply) :
-        ngraph::opset1::Multiply(multiply) {
+    DequantizationMultiply(const ngraph::op::v1::Multiply& multiply) :
+        ngraph::op::v1::Multiply(multiply) {
         initRuntimeInfo(*this);
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        std::shared_ptr<Node> cloned = ngraph::opset1::Multiply::clone_with_new_inputs(inputs);
+        std::shared_ptr<Node> cloned = ngraph::op::v1::Multiply::clone_with_new_inputs(inputs);
         copyRuntimeInfo(*this, *cloned);
         return cloned;
     }
 };
 
-class LP_TRANSFORMATIONS_API DequantizationAdd : public ngraph::opset1::Add {
+class LP_TRANSFORMATIONS_API DequantizationAdd : public ngraph::op::v1::Add {
 public:
     DequantizationAdd(
         const ngraph::Output<Node>& arg0,
         const ngraph::Output<Node>& arg1,
         const ngraph::op::AutoBroadcastSpec& auto_broadcast = ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY)) :
-        ngraph::opset1::Add(arg0, arg1, auto_broadcast) {
+        ngraph::op::v1::Add(arg0, arg1, auto_broadcast) {
         initRuntimeInfo(*this);
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        std::shared_ptr<Node> cloned = ngraph::opset1::Add::clone_with_new_inputs(inputs);
+        std::shared_ptr<Node> cloned = ngraph::op::v1::Add::clone_with_new_inputs(inputs);
         copyRuntimeInfo(*this, *cloned);
         return cloned;
     }

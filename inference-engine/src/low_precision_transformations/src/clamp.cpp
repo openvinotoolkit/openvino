@@ -4,10 +4,7 @@
 
 #include "low_precision/clamp.hpp"
 #include <algorithm>
-#include <memory>
-#include <ngraph/ngraph.hpp>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -17,7 +14,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ClampTransformation, "ClampTransformation", 0);
 
 ClampTransformation::ClampTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::Clamp>({ pattern::wrap_type<opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<op::v0::Clamp>({ pattern::wrap_type<op::v1::Multiply>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -32,18 +29,18 @@ ClampTransformation::ClampTransformation(const Params& params) : LayerTransforma
 }
 
 bool ClampTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
-    auto subWithTheSameValues = [](std::shared_ptr<ngraph::opset1::Subtract> sub) {
+    auto subWithTheSameValues = [](std::shared_ptr<ngraph::op::v1::Subtract> sub) {
         if (sub == nullptr) {
             return false;
         }
 
-        auto constant = as_type_ptr<ngraph::opset1::Constant>(sub->get_input_node_shared_ptr(1));
+        auto constant = as_type_ptr<ngraph::op::Constant>(sub->get_input_node_shared_ptr(1));
         if (constant == nullptr) {
             const auto convert = sub->get_input_node_shared_ptr(1);
-            if (!is_type<ngraph::opset1::Convert>(convert)) {
+            if (!is_type<ngraph::op::v0::Convert>(convert)) {
                 return false;
             }
-            constant = as_type_ptr<ngraph::opset1::Constant>(convert->get_input_node_shared_ptr(0));
+            constant = as_type_ptr<ngraph::op::Constant>(convert->get_input_node_shared_ptr(0));
         }
 
         if (constant == nullptr) {
@@ -66,15 +63,15 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    const auto newClamp = as_type_ptr<opset1::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));
+    const auto newClamp = as_type_ptr<op::v0::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));
 
-    std::shared_ptr<ngraph::opset1::Clamp> replacement;
+    std::shared_ptr<ngraph::op::v0::Clamp> replacement;
     {
         double min = newClamp->get_min();
         double max = newClamp->get_max();
 
         if (dequantization.multiply != nullptr) {
-            double scale = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<double>()[0];
+            double scale = as_type_ptr<op::Constant>(dequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<double>()[0];
             if (scale < 0.0) {
                 std::swap(min, max);
             }
@@ -83,12 +80,12 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         }
 
         if (dequantization.subtract != nullptr && moveSubtract) {
-            double shift = as_type_ptr<opset1::Constant>(dequantization.subtractConstant)->cast_vector<double>()[0];
+            double shift = as_type_ptr<op::Constant>(dequantization.subtractConstant)->cast_vector<double>()[0];
             min += shift;
             max += shift;
         }
 
-        replacement = std::make_shared<ngraph::opset1::Clamp>(newClamp->get_input_source_output(0), min, max);
+        replacement = std::make_shared<ngraph::op::v0::Clamp>(newClamp->get_input_source_output(0), min, max);
     }
     replace_node(newClamp, replacement);
 

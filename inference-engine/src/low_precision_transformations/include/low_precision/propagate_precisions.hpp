@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include <memory>
 #include <vector>
 
-#include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <ngraph/pass/pass.hpp>
 #include <low_precision/lpt_visibility.hpp>
 
 namespace ngraph {

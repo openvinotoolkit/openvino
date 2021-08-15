@@ -3,14 +3,8 @@
 //
 
 #include "low_precision/shuffle_channels.hpp"
-
-#include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
-
-#include <ngraph/pattern/op/wrap_type.hpp>
-
 #include "low_precision/network_helper.hpp"
+#include "ngraph/validation_util.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -19,7 +13,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ShuffleChannelsTransformation, "ShuffleChannelsTransformation", 0);
 
 ShuffleChannelsTransformation::ShuffleChannelsTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::ShuffleChannels>({ pattern::wrap_type<opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<op::v0::ShuffleChannels>({ pattern::wrap_type<op::v1::Multiply>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -38,7 +32,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
         return false;
     }
 
-    const auto shuffleChannels = as_type_ptr<opset1::ShuffleChannels>(NetworkHelper::separateInStandaloneBranch(m.get_match_root()));
+    const auto shuffleChannels = as_type_ptr<op::v0::ShuffleChannels>(NetworkHelper::separateInStandaloneBranch(m.get_match_root()));
     auto dequantization = NetworkHelper::getDequantization(shuffleChannels);
 
     const auto shuffleDequantizationConstant = [&](const std::shared_ptr<Node>& eltwise) {
@@ -57,8 +51,8 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
                 return normalizedConst;
             } else {
                 const auto group = shuffleChannels->get_group();
-                const auto shuffledConst = fold<ngraph::opset1::ShuffleChannels>(normalizedConst, normalizedAxis, group);
-                return as_type_ptr<opset1::Constant>(shuffledConst);
+                const auto shuffledConst = fold<ngraph::op::v0::ShuffleChannels>(normalizedConst, normalizedAxis, group);
+                return as_type_ptr<op::Constant>(shuffledConst);
             }
         }
     };
@@ -82,7 +76,7 @@ bool ShuffleChannelsTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
-    const auto shuffleChannels = as_type_ptr<opset1::ShuffleChannels>(op);
+    const auto shuffleChannels = as_type_ptr<op::v0::ShuffleChannels>(op);
     if (shuffleChannels == nullptr) {
         return false;
     }

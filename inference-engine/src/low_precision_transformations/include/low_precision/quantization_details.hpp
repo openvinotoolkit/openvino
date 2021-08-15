@@ -11,7 +11,7 @@
 #include <low_precision/lpt_visibility.hpp>
 
 #include <ngraph/node.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/op/fake_quantize.hpp>
 #include <ngraph/type.hpp>
 
 namespace ngraph {
@@ -29,19 +29,19 @@ public:
             const std::vector<float>& outputLowValues,
             const std::vector<float>& outputHighValues);
 
-    static bool outputLayoutIsSupported(std::shared_ptr<opset1::FakeQuantize> quantize);
+    static bool outputLayoutIsSupported(std::shared_ptr<op::FakeQuantize> quantize);
 
     static void getInputIntervals(
-            std::shared_ptr<opset1::FakeQuantize> quantize,
+            std::shared_ptr<op::FakeQuantize> quantize,
             std::vector<float>& inputLowValues,
             std::vector<float>& inputHighValues);
 
     static void getOutputIntervals(
-            std::shared_ptr<opset1::FakeQuantize> quantize,
+            std::shared_ptr<op::FakeQuantize> quantize,
             std::vector<float>& outputLowValues,
             std::vector<float>& outputHighValues);
 
-    static QuantizationDetails getDetails(std::shared_ptr<opset1::FakeQuantize>);
+    static QuantizationDetails getDetails(std::shared_ptr<op::FakeQuantize>);
     bool hasNegativeOutput() const;
     float maxOutput(const size_t channel) const;
     float maxInput(const size_t channel) const;

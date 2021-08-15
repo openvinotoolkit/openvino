@@ -3,12 +3,6 @@
 //
 
 #include "low_precision/transpose.hpp"
-
-#include <memory>
-#include <ngraph/ngraph.hpp>
-
-#include <ngraph/pattern/op/wrap_type.hpp>
-
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -19,7 +13,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::TransposeTransformation, "TransposeTransformation", 0);
 
 TransposeTransformation::TransposeTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::Transpose>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<op::v1::Transpose>({ pattern::wrap_type<op::v1::Multiply>(), pattern::wrap_type<op::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -53,11 +47,11 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
             }
 
             if (dequantizationShape.size() != static_cast<size_t>(transposeOutputShape.rank().get_length())) {
-                dequantizationConstant = fold<opset1::Unsqueeze>(
+                dequantizationConstant = fold<op::v0::Unsqueeze>(
                     dequantizationConstant,
-                    std::make_shared<opset1::Constant>(element::i32, Shape{ 1 }, std::vector<size_t>{0}));
+                    std::make_shared<op::Constant>(element::i32, Shape{ 1 }, std::vector<size_t>{0}));
             }
-            return fold<opset1::Transpose>(dequantizationConstant, transposeConstant);
+            return fold<op::v1::Transpose>(dequantizationConstant, transposeConstant);
         };
 
         if (dequantization.subtract != nullptr) {
@@ -107,7 +101,7 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
         return false;
     }
 
-    const std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(1));
+    const std::shared_ptr<op::Constant> constant = as_type_ptr<op::Constant>(op->get_input_node_shared_ptr(1));
     if (constant == nullptr) {
         return false;
     }
@@ -135,7 +129,7 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
         }
     }
 
-    auto checkShape = [](const std::shared_ptr<opset1::Constant>& dequantizationConstant, const PartialShape& transposeOutputShape) -> bool {
+    auto checkShape = [](const std::shared_ptr<op::Constant>& dequantizationConstant, const PartialShape& transposeOutputShape) -> bool {
         const auto dequantizationShape = dequantizationConstant->get_shape();
         const auto rank = transposeOutputShape.rank();
         if (rank.is_dynamic()) {

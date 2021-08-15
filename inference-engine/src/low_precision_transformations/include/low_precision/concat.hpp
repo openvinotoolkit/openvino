@@ -10,8 +10,6 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
-
 #include "layer_transformation.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 

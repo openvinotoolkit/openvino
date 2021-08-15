@@ -23,35 +23,35 @@ namespace low_precision {
 
 NGRAPH_RTTI_DEFINITION(AddTransformation, "AddTransformation", 0);
 
-std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>& op) {
+std::shared_ptr<op::v1::Subtract> replaceToSubtract(const std::shared_ptr<Node>& op) {
     // TODO: separate this part to standalone transformation: AddToSubtractTransformation
     // motivation:
     //    - single responsibility
     //    - keep AddTransformation and AddToSubtractTransformation transformations independent and optional
-    const auto add = as_type_ptr<opset1::Add>(op);
+    const auto add = as_type_ptr<op::v1::Add>(op);
     if (add == nullptr) {
         return nullptr;
     }
 
     // TODO: use general way from getDequantization: is eltwise with Constant
-    const int constBranchIndex = is_type<opset1::Constant>(add->get_input_node_ptr(0)) ?
+    const int constBranchIndex = is_type<op::Constant>(add->get_input_node_ptr(0)) ?
         0 :
-        (is_type<opset1::Constant>(add->get_input_node_ptr(1)) ? 1 : -1);
+        (is_type<op::Constant>(add->get_input_node_ptr(1)) ? 1 : -1);
     if (constBranchIndex == -1) {
         return nullptr;
     }
     const size_t dataBranchIndex = constBranchIndex == 0 ? 1ul : 0;
 
     const auto parent = add->get_input_node_shared_ptr(dataBranchIndex);
-    if (is_type<opset1::Convolution>(parent) ||
-        is_type<opset1::GroupConvolution>(parent) ||
-        is_type<opset1::ConvolutionBackpropData>(parent) ||
-        (is_type<opset1::MatMul>(parent) &&
-        (is_type<opset1::Constant>(parent->get_input_node_ptr(0)) || is_type<opset1::Constant>(parent->get_input_node_ptr(1))))) {
+    if (is_type<op::v1::Convolution>(parent) ||
+        is_type<op::v1::GroupConvolution>(parent) ||
+        is_type<op::v1::ConvolutionBackpropData>(parent) ||
+        (is_type<op::v0::MatMul>(parent) &&
+        (is_type<op::Constant>(parent->get_input_node_ptr(0)) || is_type<op::Constant>(parent->get_input_node_ptr(1))))) {
         return nullptr;
     }
 
-    auto constant = fold<opset1::Negative>(add->input_value(constBranchIndex));
+    auto constant = fold<op::v0::Negative>(add->input_value(constBranchIndex));
     auto constOutput = constant->output(0);
 
     const auto subtract = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
@@ -67,16 +67,16 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
     return subtract;
 }
 
-std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& op) {
-    const auto add = as_type_ptr<opset1::Add>(op);
+std::shared_ptr<op::v1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& op) {
+    const auto add = as_type_ptr<op::v1::Add>(op);
     if ((add == nullptr) ||
-        !is_type<opset1::Subtract>(add->get_input_node_shared_ptr(0)) ||
+        !is_type<op::v1::Subtract>(add->get_input_node_shared_ptr(0)) ||
         // TODO: use general way from getDequantization: is eltwise with Constant
-        !is_type<opset1::Constant>(add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1))) {
+        !is_type<op::Constant>(add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1))) {
         return nullptr;
     }
 
-    const auto newSubConst = fold<opset1::Subtract>(
+    const auto newSubConst = fold<op::v1::Subtract>(
         add->get_input_node_shared_ptr(0)->input_value(1),
         add->input_value(1));
 
@@ -92,7 +92,7 @@ std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& 
 }
 
 AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransformation(params) {
-    auto matcher = ngraph::pattern::wrap_type<opset1::Add>();
+    auto matcher = ngraph::pattern::wrap_type<op::v1::Add>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -107,7 +107,7 @@ AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransfor
 }
 
 bool AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::Add> op = as_type_ptr<opset1::Add>(m.get_match_root());
+    std::shared_ptr<op::v1::Add> op = as_type_ptr<op::v1::Add>(m.get_match_root());
     if ((op == nullptr) || (!canBeTransformed(context, op))) {
         return false;
     }
@@ -116,7 +116,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
     NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, 1));
 
     std::shared_ptr<Node> addNode = NetworkHelper::separateInStandaloneBranch(op);
-    std::shared_ptr<opset1::Add> add = as_type_ptr<opset1::Add>(addNode);
+    std::shared_ptr<op::v1::Add> add = as_type_ptr<op::v1::Add>(addNode);
 
     const int fullPathIndex = getNotEmpty(add);
     std::shared_ptr<Node> newMultiply;
@@ -136,7 +136,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
 
         newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
         ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
-        if (is_type<opset1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
+        if (is_type<op::v1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
             newAddOrSubtract = newMultiply->get_input_node_shared_ptr(0);
 
             auto subtract = fuseWithSubtract(newAddOrSubtract);
@@ -177,13 +177,13 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         // after : Y = SC2 * ( SC1' * (X1 - SH1') + X2 ) , where :
         //         SC1' = SC1 / SC2
         //         SH1' = SH1 + SC2 * SH2 / SC1
-        std::shared_ptr<Node> newSubtractFullPathValues = fold<opset1::Add>(
+        std::shared_ptr<Node> newSubtractFullPathValues = fold<op::v1::Add>(
             subtractFullPathValues,
-            fold<opset1::Divide>(
-                fold<opset1::Multiply>(subtractEmptyPathValues, multiplyEmptyPathValues),
+            fold<op::v1::Divide>(
+                fold<op::v1::Multiply>(subtractEmptyPathValues, multiplyEmptyPathValues),
                 multiplyFullPathValues));
 
-        std::shared_ptr<Node> newMultiplyFullPathValues = fold<opset1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
+        std::shared_ptr<Node> newMultiplyFullPathValues = fold<op::v1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
 
         if (NetworkHelper::isZeroConst(newSubtractFullPathValues)) {
             newSubtractFullPathValues = nullptr;
@@ -208,12 +208,12 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
                     // precision on branch with dequantization operations can be different with dequantization precision,
                     // for example: FP16 model with FP32 dequantization
                     fullPathInput.get_element_type() != newSubtractFullPathValues->get_element_type() ?
-                        std::make_shared<opset1::Convert>(fullPathInput, newSubtractFullPathValues->get_element_type()) :
+                        std::make_shared<op::v0::Convert>(fullPathInput, newSubtractFullPathValues->get_element_type()) :
                         fullPathInput,
                     newSubtractFullPathValues),
             newMultiplyFullPathValues);
 
-        newAddOrSubtract = std::make_shared<op::TypeRelaxed<opset1::Add>>(
+        newAddOrSubtract = std::make_shared<op::TypeRelaxed<op::v1::Add>>(
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());

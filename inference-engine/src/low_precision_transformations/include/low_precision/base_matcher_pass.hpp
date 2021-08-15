@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include <ngraph/node.hpp>
+
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "rt_info/attribute_parameters.hpp"
 

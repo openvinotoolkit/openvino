@@ -16,10 +16,10 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::VariadicSplitTransformation, "VariadicSplitTransformation", 0);
 
 VariadicSplitTransformation::VariadicSplitTransformation(const Params& params) : SplitTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::VariadicSplit>({
-        pattern::wrap_type<opset1::Multiply>(),
-        pattern::wrap_type<opset1::Constant>(),
-        pattern::wrap_type<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<op::v1::VariadicSplit>({
+        pattern::wrap_type<op::v1::Multiply>(),
+        pattern::wrap_type<op::Constant>(),
+        pattern::wrap_type<op::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

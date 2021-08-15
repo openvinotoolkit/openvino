@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
-#include "convolution.hpp"
+#include "low_precision/convolution.hpp"
 
 namespace ngraph {
 namespace pass {

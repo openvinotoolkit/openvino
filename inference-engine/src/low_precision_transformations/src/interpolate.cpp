@@ -20,22 +20,22 @@ using namespace ngraph::pass::low_precision;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::InterpolateTransformation, "InterpolateTransformation", 0);
 
 InterpolateTransformation::InterpolateTransformation(const Params& params) : LayerTransformation(params) {
-    auto mul = pattern::wrap_type<opset1::Multiply>();
+    auto mul = pattern::wrap_type<op::v1::Multiply>();
 
-    auto interpolate1 = pattern::wrap_type<opset1::Interpolate>({
+    auto interpolate1 = pattern::wrap_type<op::v0::Interpolate>({
         mul,
-        pattern::wrap_type<opset1::Constant>() });
+        pattern::wrap_type<op::Constant>() });
 
     auto interpolate4 = pattern::wrap_type<opset4::Interpolate>({
         mul,
-        pattern::wrap_type<opset1::Constant>(),
-        pattern::wrap_type<opset1::Constant>() });
+        pattern::wrap_type<op::Constant>(),
+        pattern::wrap_type<op::Constant>() });
 
     auto interpolate4_2 = pattern::wrap_type<opset4::Interpolate>({
         mul,
-        pattern::wrap_type<opset1::Constant>(),
-        pattern::wrap_type<opset1::Constant>(),
-        pattern::wrap_type<opset1::Constant>() });
+        pattern::wrap_type<op::Constant>(),
+        pattern::wrap_type<op::Constant>(),
+        pattern::wrap_type<op::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -63,7 +63,7 @@ bool InterpolateTransformation::transform(TransformationContext &context, ngraph
 }
 
 bool InterpolateTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
-    std::shared_ptr<opset1::Interpolate> interpolate1 = as_type_ptr<opset1::Interpolate>(layer);
+    std::shared_ptr<op::v0::Interpolate> interpolate1 = as_type_ptr<op::v0::Interpolate>(layer);
     if (interpolate1) {
         const auto attrs = interpolate1->get_attrs();
         return attrs.mode == "nearest";
@@ -90,7 +90,7 @@ bool InterpolateTransformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    const auto interpolate1 = as_type_ptr<opset1::Interpolate>(layer);
+    const auto interpolate1 = as_type_ptr<op::v0::Interpolate>(layer);
     if (interpolate1) {
         const auto interpAttrs = interpolate1->get_attrs();
         if (interpAttrs.axes.count(0) || interpAttrs.axes.count(1)) {

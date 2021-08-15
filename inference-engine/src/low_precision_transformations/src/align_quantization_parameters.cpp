@@ -4,6 +4,7 @@
 
 #include "low_precision/align_quantization_parameters.hpp"
 #include <memory>
+#include <ngraph/pass/manager.hpp>
 #include "low_precision/create_attribute.hpp"
 #include "low_precision/propagate_through_precision_preserved.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"

@@ -25,7 +25,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MultiplyTransformation, "MultiplyTransformation", 0);
 
 MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBaseTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::Multiply>();
+    auto matcher = pattern::wrap_type<op::v1::Multiply>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -52,10 +52,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     auto newMultiply = multiply;
 
     auto fold_fake_quantizes = [](std::shared_ptr<Node>& multiply, const size_t index) {
-        auto fakeQuantizeOnWeights = as_type_ptr<opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(index));
+        auto fakeQuantizeOnWeights = as_type_ptr<op::v0::FakeQuantize>(multiply->get_input_node_shared_ptr(index));
         if (fakeQuantizeOnWeights != nullptr) {
             auto result = NetworkHelper::fold_fake_quantize(fakeQuantizeOnWeights);
-            if (is_type<opset1::Constant>(result)) {
+            if (is_type<op::Constant>(result)) {
                 replace_node(fakeQuantizeOnWeights, result);
             }
         }
@@ -83,12 +83,12 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         auto multiplyParentParent = multiplyParent.get_node_shared_ptr()->get_input_source_output(multiplyBranch.second);
         auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->get_input_source_output(multiplyBranch.second == 0 ? 1 : 0);
 
-        newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        newMultiply = std::make_shared<op::TypeRelaxed<op::v1::Multiply>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 },
             std::vector<ngraph::element::Type>{ multiply->get_output_element_type(0) },
             ngraph::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(
-                fold<opset1::Multiply>(
+                fold<op::v1::Multiply>(
                     foldConvert(multiplyParentConst, element::f32),
                     foldConvert(constParent, element::f32)),
                 element::f32).get());
@@ -132,7 +132,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         // before: Y = (SC1 * (X1 - SH1)) * (SC2 * X2)
         // after : Y = (SC1' * (X1 - SH1)) * (X2) , where :
         //         SC1' = SC1 * SC2
-        std::shared_ptr<Node> newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
+        std::shared_ptr<Node> newMultiplyValuesFullPath = fold<op::v1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         OutputVector inputs{ {}, {} };
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
         inputs[fullPathIndex] = std::make_shared<DequantizationMultiply>(
@@ -142,7 +142,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
                 dequantizationFullPath.subtract,
             newMultiplyValuesFullPath);
 
-        newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        newMultiply = std::make_shared<op::TypeRelaxed<op::v1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},
                 std::vector<element::Type>{ multiply->get_output_element_type(0) },
                 ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
@@ -165,14 +165,14 @@ bool MultiplyTransformation::canBeTransformed(const TransformationContext& conte
     FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, 1ul);
 
     if ((dequantization1.data.get_node() == nullptr) ||
-        (dequantization1.empty() && !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
-                                    !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()))) {
+        (dequantization1.empty() && !is_type<op::Constant>(dequantization1.data.get_node_shared_ptr()) &&
+                                    !is_type<op::Constant>(dequantization2.data.get_node_shared_ptr()))) {
         return false;
     }
 
     if ((dequantization2.data.get_node() == nullptr) ||
-        (dequantization2.empty() && !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()) &&
-                                    !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()))) {
+        (dequantization2.empty() && !is_type<op::Constant>(dequantization2.data.get_node_shared_ptr()) &&
+                                    !is_type<op::Constant>(dequantization1.data.get_node_shared_ptr()))) {
         return false;
     }
     return EltwiseBaseTransformation::canBeTransformed(context, layer);

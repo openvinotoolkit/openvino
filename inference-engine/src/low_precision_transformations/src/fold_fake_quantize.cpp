@@ -18,7 +18,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FoldFakeQuantizeTransformation, "FoldFakeQuantizeTransformation", 0);
 
 FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
-    auto fakeQuantize = pattern::wrap_type<opset1::FakeQuantize>();
+    auto fakeQuantize = pattern::wrap_type<op::v0::FakeQuantize>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -33,7 +33,7 @@ FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& par
 }
 
 bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    const auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
+    const auto fakeQuantize = as_type_ptr<op::v0::FakeQuantize>(m.get_match_root());
     if (fakeQuantize == nullptr) {
         return false;
     }
@@ -51,7 +51,7 @@ bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, n
         fakeQuantize,
         false,
         (constantShape.rank().get_length() < 2) || constantShape[1] != 1ul ? 1ul : 0ul);
-    if (is_type<opset1::Constant>(resultConstant)) {
+    if (is_type<op::Constant>(resultConstant)) {
         replace_node(fakeQuantize, resultConstant);
         return true;
     }

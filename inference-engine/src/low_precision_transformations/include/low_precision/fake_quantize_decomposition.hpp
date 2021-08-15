@@ -4,10 +4,7 @@
 
 #pragma once
 
-#include <memory>
-#include <ngraph/ngraph.hpp>
 #include "layer_transformation.hpp"
-#include "low_precision/fuse_fake_quantize.hpp"
 
 namespace ngraph {
 namespace pass {

@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <memory>
-#include <ngraph/ngraph.hpp>
 #include "transformation_context.hpp"
 #include "layer_transformation.hpp"
 
@@ -34,7 +32,7 @@ protected:
     static bool isDepthwise(const std::shared_ptr<Node>& node);
 
 public:
-    static std::shared_ptr<opset1::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node);
+    static std::shared_ptr<op::v0::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node);
     static DataPrecision getDataPrecisionOnWeights(const std::shared_ptr<Node>& node);
     static bool isAsymmetricOnWeights(const std::shared_ptr<const Node>& node);
 };

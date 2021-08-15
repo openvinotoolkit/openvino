@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include <ngraph/opsets/opset1.hpp>
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/group_convolution.hpp"
@@ -36,19 +35,19 @@ bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_function(std::sha
             continue;
         }
 
-        if (const auto convolution = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node)) {
+        if (const auto convolution = std::dynamic_pointer_cast<ngraph::op::v1::Convolution>(node)) {
             if (!ConvolutionTransformation::isQuantizedStatic(convolution)) {
                 setEmptyPrecisions(convolution);
             }
             continue;
         }
-        if (const auto convolutionBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
+        if (const auto convolutionBackpropData = std::dynamic_pointer_cast<ngraph::op::v1::ConvolutionBackpropData>(node)) {
             if (!ConvolutionBackpropDataTransformation::isQuantizedStatic(convolutionBackpropData)) {
                 setEmptyPrecisions(convolutionBackpropData);
             }
             continue;
         }
-        if (const auto groupConvolution = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node)) {
+        if (const auto groupConvolution = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(node)) {
             if (!GroupConvolutionTransformation::isQuantizedStatic(groupConvolution)) {
                 setEmptyPrecisions(groupConvolution);
             }

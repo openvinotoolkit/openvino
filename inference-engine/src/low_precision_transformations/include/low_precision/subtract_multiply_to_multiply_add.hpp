@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
 #include "low_precision/layer_transformation.hpp"
-#include "low_precision/eltwise_base_transformation.hpp"
 
 namespace ngraph {
 namespace pass {

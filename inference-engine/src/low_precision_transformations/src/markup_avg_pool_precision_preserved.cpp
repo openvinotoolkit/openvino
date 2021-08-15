@@ -4,7 +4,7 @@
 
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pass/manager.hpp>
 #include "low_precision/create_precisions_dependent_attribute.hpp"
 #include "low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp"
 #include "low_precision/propagate_through_precision_preserved.hpp"
@@ -18,7 +18,7 @@ bool ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved::run_on_functi
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     std::shared_ptr<ngraph::pass::GraphRewrite> markupAvgPoolPrecision = manager.register_pass<ngraph::pass::GraphRewrite>();
-    markupAvgPoolPrecision->add_matcher<low_precision::CreatePrecisionsDependentAttribute<AvgPoolPrecisionPreservedAttribute, opset1::AvgPool>>();
+    markupAvgPoolPrecision->add_matcher<low_precision::CreatePrecisionsDependentAttribute<AvgPoolPrecisionPreservedAttribute, op::v1::AvgPool>>();
     markupAvgPoolPrecision->add_matcher<low_precision::PropagateThroughPrecisionPreserved<AvgPoolPrecisionPreservedAttribute>>();
     markupAvgPoolPrecision->add_matcher<low_precision::UpdateSharedPrecisionPreserved<AvgPoolPrecisionPreservedAttributePtr>>();
     manager.run_passes(f);

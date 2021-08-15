@@ -3,10 +3,6 @@
 //
 
 #include "low_precision/reduce_mean.hpp"
-#include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -16,7 +12,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReduceMeanTransformation, "ReduceMeanTransformation", 0);
 
 ReduceMeanTransformation::ReduceMeanTransformation(const Params& params) : ReduceBaseTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::ReduceMean>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<op::v1::ReduceMean>({ pattern::wrap_type<op::v1::Multiply>(), pattern::wrap_type<op::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -31,7 +27,7 @@ ReduceMeanTransformation::ReduceMeanTransformation(const Params& params) : Reduc
 }
 
 bool ReduceMeanTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
-    return is_type<opset1::ReduceMean>(reduce) ? ReduceBaseTransformation::canBeTransformed(context, reduce) : false;
+    return is_type<op::v1::ReduceMean>(reduce) ? ReduceBaseTransformation::canBeTransformed(context, reduce) : false;
 }
 
 bool ReduceMeanTransformation::isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept {

@@ -9,7 +9,6 @@
 
 #pragma once
 
-
 #include <openvino/itt.hpp>
 
 namespace ngraph {

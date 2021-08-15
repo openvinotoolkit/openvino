@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
 #include "layer_transformation.hpp"
 
 namespace ngraph {

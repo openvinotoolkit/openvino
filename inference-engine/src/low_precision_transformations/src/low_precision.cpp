@@ -6,13 +6,10 @@
 
 #include <memory>
 
-#include <ngraph/ngraph.hpp>
+#include "ngraph/validation_util.hpp"
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset6.hpp>
 #include <transformations/utils/utils.hpp>
 #include <low_precision/markup_per_tensor_quantization.hpp>
 #include <low_precision/lpt_itt.hpp>
@@ -136,23 +133,23 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::TypeRelaxedReplacer, "TypeRelaxedReplacer", 0);
 
 ngraph::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
-    make_matcher_type_relaxed<opset1::Add>(this);
-    make_matcher_type_relaxed<opset1::AvgPool>(this);
-    make_matcher_type_relaxed<opset1::Clamp>(this);
-    make_matcher_type_relaxed<opset1::Convolution>(this);
-    make_matcher_type_relaxed<opset1::ConvolutionBackpropData>(this);
-    make_matcher_type_relaxed<opset1::DepthToSpace>(this);
-    make_matcher_type_relaxed<opset1::FakeQuantize>(this);
-    make_matcher_type_relaxed<opset1::GroupConvolution>(this);
-    make_matcher_type_relaxed<opset1::PRelu>(this);
-    make_matcher_type_relaxed<opset1::ReduceMean>(this);
-    make_matcher_type_relaxed<opset1::ReduceSum>(this);
-    make_matcher_type_relaxed<opset1::Subtract>(this);
-    make_matcher_type_relaxed<opset1::Interpolate>(this);
-    make_matcher_type_relaxed<opset1::Multiply>(this);
+    make_matcher_type_relaxed<op::v1::Add>(this);
+    make_matcher_type_relaxed<op::v1::AvgPool>(this);
+    make_matcher_type_relaxed<op::v0::Clamp>(this);
+    make_matcher_type_relaxed<op::v1::Convolution>(this);
+    make_matcher_type_relaxed<op::v1::ConvolutionBackpropData>(this);
+    make_matcher_type_relaxed<op::v0::DepthToSpace>(this);
+    make_matcher_type_relaxed<op::v0::FakeQuantize>(this);
+    make_matcher_type_relaxed<op::v1::GroupConvolution>(this);
+    make_matcher_type_relaxed<op::v0::PRelu>(this);
+    make_matcher_type_relaxed<op::v1::ReduceMean>(this);
+    make_matcher_type_relaxed<op::v1::ReduceSum>(this);
+    make_matcher_type_relaxed<op::v1::Subtract>(this);
+    make_matcher_type_relaxed<op::v0::Interpolate>(this);
+    make_matcher_type_relaxed<op::v1::Multiply>(this);
     make_matcher_type_relaxed<op::MVN>(this);
-    make_matcher_type_relaxed<opset6::MVN>(this);
-    make_matcher_type_relaxed<opset1::NormalizeL2>(this);
+    make_matcher_type_relaxed<op::v6::MVN>(this);
+    make_matcher_type_relaxed<op::v0::NormalizeL2>(this);
     make_matcher_type_relaxed<opset4::Interpolate>(this);
 }
 
@@ -174,11 +171,11 @@ bool ngraph::pass::low_precision::MarkupOptimizations::run_on_function(std::shar
     if (!quantizationRestrictions.empty()) {
         markup.register_pass<low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
     }
-    if (ngraph::op::util::has_op_with_type<ngraph::opset1::AvgPool>(f)) {
+    if (ngraph::op::util::has_op_with_type<ngraph::op::v1::AvgPool>(f)) {
         markup.register_pass<low_precision::MarkupAvgPoolPrecisionPreserved>();
     }
     markup.register_pass<low_precision::PropagatePrecisions>();
-    if (ngraph::op::util::has_op_with_type<ngraph::opset1::Concat>(f)) {
+    if (ngraph::op::util::has_op_with_type<ngraph::op::v0::Concat>(f)) {
         markup.register_pass<low_precision::AlignQuantizationIntervals>();
         markup.register_pass<low_precision::AlignQuantizationParameters>();
     }
@@ -242,7 +239,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     // WA: precision restrictions for groupConv must be propagated to MultiplyToGroupConvolution transformation
     cleanup->add_matcher<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>(
         params,
-        OperationPrecisionRestriction::getPrecisionsByOperationType<opset1::GroupConvolution>(precisionRestrictions));
+        OperationPrecisionRestriction::getPrecisionsByOperationType<op::v1::GroupConvolution>(precisionRestrictions));
     manager.register_pass<ngraph::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation>(params);
     manager.register_pass<ngraph::pass::low_precision::FoldFakeQuantizeTransformation>(params);
     manager.register_pass<ngraph::pass::ConstantFolding>();
@@ -268,7 +265,7 @@ bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::s
                 continue;
             }
 
-            const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
+            const std::shared_ptr<ngraph::op::v0::FakeQuantize> fakeQuantize = as_type_ptr<ngraph::op::v0::FakeQuantize>(parent);
             if ((fakeQuantize != nullptr) &&
                 QuantizationDetails::outputLayoutIsSupported(fakeQuantize) &&
                 QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {

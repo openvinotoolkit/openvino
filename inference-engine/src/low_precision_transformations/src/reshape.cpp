@@ -23,7 +23,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReshapeTransformation, "ReshapeTransformation", 0);
 
 ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::Reshape>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<op::v1::Reshape>({ pattern::wrap_type<op::v1::Multiply>(), pattern::wrap_type<op::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -37,14 +37,14 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
     this->register_matcher(m, callback);
 }
 
-void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape) {
+void reshapeDequantizationConstant(const std::shared_ptr<op::v1::Reshape>& reshape) {
     // Reshape dequantization operation Constant.
     //    1. Calculate result dequantization Constant shape for broadcast based on original dequantization Constant shape and Reshape output.
     //    For example: dequantization shape {1, 3, 1, 1}, output Reshape shape {1, 12, 3, 3}, result for broadcast: {1, 3, 4, 1},
     //    where '4' calculated for temporary broadcast before reshape.
     //    2. Broadcast dequantization Constant, if channels are changed
     //    3. Reshape and replace
-    auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<opset1::Constant>& originalConstant) {
+    auto replaceConstant = [](const std::shared_ptr<op::v1::Reshape>& reshape, const std::shared_ptr<op::Constant>& originalConstant) {
         // reshape for element-wise constant is not required
         auto constantShape = originalConstant->get_shape();
         if (shape_size(constantShape) == 1ul) {
@@ -82,21 +82,21 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
         } else {
             newOperationConstantBroadcastedShape[2] = dimensionsToBroadcast;
         }
-        const std::shared_ptr<Node> broadcastedConstant = fold<opset1::Broadcast>(
+        const std::shared_ptr<Node> broadcastedConstant = fold<op::v1::Broadcast>(
             originalConstant,
-            std::make_shared<opset1::Constant>(
+            std::make_shared<op::Constant>(
                 element::i32,
                 Shape({ newOperationConstantBroadcastedShape.size() }),
                 newOperationConstantBroadcastedShape));
 
         std::vector<int> newReshapeConstValues(reshapeOutputRank.get_length(), 1ul);
         newReshapeConstValues[1] = reshapeOutputPShape[1].get_length();
-        const std::shared_ptr<opset1::Constant> newReshapeConstant = std::make_shared<opset1::Constant>(
+        const std::shared_ptr<op::Constant> newReshapeConstant = std::make_shared<op::Constant>(
             element::i32,
             Shape({ newReshapeConstValues.size() }),
             newReshapeConstValues);
 
-        const std::shared_ptr<Node> resultConstant = fold<opset1::Reshape>(
+        const std::shared_ptr<Node> resultConstant = fold<op::v1::Reshape>(
             broadcastedConstant,
             newReshapeConstant,
             reshape->get_special_zero());
@@ -116,7 +116,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
 }
 
 bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::Reshape> reshape = as_type_ptr<opset1::Reshape>(m.get_match_root());
+    std::shared_ptr<op::v1::Reshape> reshape = as_type_ptr<op::v1::Reshape>(m.get_match_root());
     if (NetworkHelper::isConstantPath(reshape)) {
         return false;
     }
@@ -125,7 +125,7 @@ bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    reshape = as_type_ptr<opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape));
+    reshape = as_type_ptr<op::v1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape));
     reshapeDequantizationConstant(reshape);
     moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
     return true;

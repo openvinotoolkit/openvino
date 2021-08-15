@@ -6,8 +6,7 @@
 
 #include <vector>
 
-#include "split.hpp"
-#include "ngraph/node.hpp"
+#include "low_precision/split.hpp"
 
 namespace ngraph {
 namespace pass {

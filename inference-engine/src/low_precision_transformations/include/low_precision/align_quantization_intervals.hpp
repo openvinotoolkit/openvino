@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <memory>
-#include <ngraph/pass/pass.hpp>
+#include "ngraph/pass/pass.hpp"
 #include "low_precision/lpt_visibility.hpp"
 
 namespace ngraph {

@@ -7,7 +7,6 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 
@@ -36,12 +35,12 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ConvertSubtractConstant, "Co
 //          Multiply
 //
 ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(const std::vector<ngraph::element::Type>& constantPrecisions) {
-    auto weightsConstantWrapper = ngraph::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
-    auto weightsConvertWrapper = ngraph::pattern::wrap_type<opset1::Convert>({ weightsConstantWrapper }, pattern::consumers_count(1));
-    auto subtractConstantWrapper = ngraph::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
-    auto subtractWrapper = ngraph::pattern::wrap_type<opset1::Subtract>({ weightsConvertWrapper, subtractConstantWrapper }, pattern::consumers_count(1));
-    auto multiplyConstantWrapper = ngraph::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
-    auto multiplyWrapper = ngraph::pattern::wrap_type<opset1::Multiply>({ subtractWrapper, multiplyConstantWrapper }, pattern::consumers_count(1));
+    auto weightsConstantWrapper = ngraph::pattern::wrap_type<op::Constant>(pattern::consumers_count(1));
+    auto weightsConvertWrapper = ngraph::pattern::wrap_type<op::v0::Convert>({ weightsConstantWrapper }, pattern::consumers_count(1));
+    auto subtractConstantWrapper = ngraph::pattern::wrap_type<op::Constant>(pattern::consumers_count(1));
+    auto subtractWrapper = ngraph::pattern::wrap_type<op::v1::Subtract>({ weightsConvertWrapper, subtractConstantWrapper }, pattern::consumers_count(1));
+    auto multiplyConstantWrapper = ngraph::pattern::wrap_type<op::Constant>(pattern::consumers_count(1));
+    auto multiplyWrapper = ngraph::pattern::wrap_type<op::v1::Multiply>({ subtractWrapper, multiplyConstantWrapper }, pattern::consumers_count(1));
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
@@ -73,19 +72,19 @@ ngraph::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(co
 
         if (resultSubtractConstant == nullptr) {
             const auto multiply = opsMap.at(multiplyWrapper).get_node_shared_ptr();
-            const auto newMultiply = std::make_shared<opset1::Multiply>(weightsConvert, opsMap.at(multiplyConstantWrapper).get_node_shared_ptr());
+            const auto newMultiply = std::make_shared<op::v1::Multiply>(weightsConvert, opsMap.at(multiplyConstantWrapper).get_node_shared_ptr());
             NetworkHelper::copyInfo(multiply, newMultiply);
             replace_node(multiply, newMultiply);
         } else {
             NetworkHelper::copyInfo(subtractConstant, resultSubtractConstant);
-            const auto resultConvert = std::make_shared<opset1::Convert>(resultSubtractConstant, dequantizationPrecision);
+            const auto resultConvert = std::make_shared<op::v0::Convert>(resultSubtractConstant, dequantizationPrecision);
             NetworkHelper::copyInfo(subtractConstant, resultConvert);
             resultConvert->set_friendly_name(subtractConstant->get_friendly_name() + "/Convert");
 
             auto& rtInfo = resultConvert->get_rt_info();
             rtInfo["DISABLED_CONSTANT_FOLDING"] = std::make_shared<VariantWrapper<std::string>>("");
 
-            const auto newSubtract = std::make_shared<opset1::Subtract>(opsMap.at(weightsConvertWrapper).get_node_shared_ptr(), resultConvert);
+            const auto newSubtract = std::make_shared<op::v1::Subtract>(opsMap.at(weightsConvertWrapper).get_node_shared_ptr(), resultConvert);
             NetworkHelper::copyInfo(subtract, newSubtract);
             replace_node(subtract, newSubtract);
         }

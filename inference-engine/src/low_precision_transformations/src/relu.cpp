@@ -20,7 +20,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReluTransformation, "ReluTransformation", 0);
 
 ReluTransformation::ReluTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::Relu>({ pattern::wrap_type<opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<op::v0::Relu>({ pattern::wrap_type<op::v1::Multiply>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

@@ -5,6 +5,7 @@
 #include "low_precision/split.hpp"
 #include "ngraph/node.hpp"
 
+#include "ngraph/validation_util.hpp"
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
@@ -17,7 +18,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::SplitTransformation, "SplitTransformation", 0);
 
 SplitTransformation::SplitTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::Split>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<op::v1::Split>({ pattern::wrap_type<op::v1::Multiply>(), pattern::wrap_type<op::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -46,7 +47,7 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
     newSplit->set_friendly_name(split->get_friendly_name());
     ngraph::copy_runtime_info(split, newSplit);
 
-    const int64_t axis = as_type_ptr<opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
+    const int64_t axis = as_type_ptr<op::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
     const size_t normalizedAxis = normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
     const size_t outputSize = newSplit->get_output_size();
 
@@ -128,7 +129,7 @@ void SplitTransformation::updateOutputs(
             const auto lastNode = lastNodes[i];
             for (auto output : lastNodes[i]->outputs()) {
                 for (auto input : output.get_target_inputs()) {
-                    if (is_type<ngraph::opset1::Result>(input.get_node())) {
+                    if (is_type<ngraph::op::v0::Result>(input.get_node())) {
                         originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
                         lastNode->set_friendly_name(originalName + "." + std::to_string(i));
                         break;
@@ -149,7 +150,7 @@ bool SplitTransformation::canBeTransformed(const TransformationContext& context,
     }
 
     const auto consumers = NetworkHelper::consumers(layer);
-    const auto concat = as_type_ptr<opset1::Concat>(consumers[0]);
+    const auto concat = as_type_ptr<op::v0::Concat>(consumers[0]);
 
     // WA to avoid propagation of dequantization if after Split all consumers are the same unsupported Concat
     if (concat && concat->get_axis() != 1ul) {

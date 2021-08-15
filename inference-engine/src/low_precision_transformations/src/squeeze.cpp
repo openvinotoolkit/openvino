@@ -3,13 +3,6 @@
 //
 
 #include "low_precision/squeeze.hpp"
-
-#include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
-
-#include <ngraph/pattern/op/wrap_type.hpp>
-
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -19,7 +12,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::SqueezeTransformation, "SqueezeTransformation", 0);
 
 SqueezeTransformation::SqueezeTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::Squeeze>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<op::v0::Squeeze>({ pattern::wrap_type<op::v1::Multiply>(), pattern::wrap_type<op::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -39,7 +32,7 @@ bool SqueezeTransformation::transform(TransformationContext& context, ngraph::pa
     }
 
     auto squeezeOnConstant = [](const std::shared_ptr<ngraph::Node>& squeeze,
-                                const std::shared_ptr<ngraph::opset1::Constant>& dequantizationOpConstant,
+                                const std::shared_ptr<ngraph::op::Constant>& dequantizationOpConstant,
                                 const ngraph::PartialShape& inputShape) {
         const size_t inputRankValue = inputShape.rank().get_length();
         const auto constantShape = dequantizationOpConstant->get_shape();
@@ -47,7 +40,7 @@ bool SqueezeTransformation::transform(TransformationContext& context, ngraph::pa
             return NetworkHelper::toScalar(dequantizationOpConstant);
         }
         if (constantShape.size() == inputRankValue) {
-            return as_type_ptr<opset1::Constant>(fold<opset1::Squeeze>(dequantizationOpConstant, squeeze->get_input_node_shared_ptr(1)));
+            return as_type_ptr<op::Constant>(fold<op::v0::Squeeze>(dequantizationOpConstant, squeeze->get_input_node_shared_ptr(1)));
         }
 
         return dequantizationOpConstant;

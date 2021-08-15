@@ -3,9 +3,8 @@
 //
 
 #include "low_precision/reduce_base_transformation.hpp"
-#include <memory>
-#include <ngraph/ngraph.hpp>
 #include "low_precision/network_helper.hpp"
+#include "ngraph/validation_util.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -40,7 +39,7 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     }
 
-    const auto axesConstant = as_type_ptr<ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(1));
+    const auto axesConstant = as_type_ptr<ngraph::op::Constant>(reduce->get_input_node_shared_ptr(1));
     if (axesConstant == nullptr) {
         return false;
     }

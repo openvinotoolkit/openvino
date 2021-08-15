@@ -3,10 +3,6 @@
 //
 
 #include "low_precision/reduce_sum.hpp"
-#include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -16,7 +12,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReduceSumTransformation, "ReduceSumTransformation", 0);
 
 ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceBaseTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::ReduceSum>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<op::v1::ReduceSum>({ pattern::wrap_type<op::v1::Multiply>(), pattern::wrap_type<op::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -31,7 +27,7 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
 }
 
 bool ReduceSumTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
-    const auto reduceSum = as_type_ptr<opset1::ReduceSum>(reduce);
+    const auto reduceSum = as_type_ptr<op::v1::ReduceSum>(reduce);
     if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(context, reduceSum)) {
         return false;
     }
@@ -57,7 +53,7 @@ void ReduceSumTransformation::changeDequantizationValues(
     ReduceBaseTransformation::changeDequantizationValues(reduce, dequantization);
 
     if (dequantization.subtract) {
-        const auto reduceSum = as_type_ptr<opset1::ReduceSum>(reduce);
+        const auto reduceSum = as_type_ptr<op::v1::ReduceSum>(reduce);
         const auto reductionAxes = reduceSum->get_reduction_axes();
         const auto inputShape = reduceSum->get_input_partial_shape(0);
 
@@ -68,11 +64,11 @@ void ReduceSumTransformation::changeDequantizationValues(
         }
 
         // (a1 - s) + (a2 - s) + ... + (an - s) = (a1 + a2 + ... + an) - n * s
-        const auto reductionSizeConstant = opset1::Constant::create(deqPrecision, Shape{}, { static_cast<float>(reductionSize) });
-        const auto result = fold<opset1::Multiply>(dequantization.subtractConstant, reductionSizeConstant);
+        const auto reductionSizeConstant = op::Constant::create(deqPrecision, Shape{}, { static_cast<float>(reductionSize) });
+        const auto result = fold<op::v1::Multiply>(dequantization.subtractConstant, reductionSizeConstant);
 
         replace_node(dequantization.subtractConstant, result);
-        dequantization.subtractConstant = as_type_ptr<opset1::Constant>(result);
+        dequantization.subtractConstant = as_type_ptr<op::Constant>(result);
     }
 }
 

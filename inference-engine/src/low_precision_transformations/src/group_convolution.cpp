@@ -18,7 +18,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::GroupConvolutionTransformation, "GroupConvolutionTransformation", 0);
 
 GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& params) : ConvolutionTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::GroupConvolution>();
+    auto matcher = pattern::wrap_type<op::v1::GroupConvolution>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

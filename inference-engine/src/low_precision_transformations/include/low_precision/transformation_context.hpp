@@ -6,7 +6,7 @@
 
 #include <string>
 #include <unordered_set>
-#include <ngraph/ngraph.hpp>
+
 #include "low_precision/quantization_details.hpp"
 
 namespace ngraph {

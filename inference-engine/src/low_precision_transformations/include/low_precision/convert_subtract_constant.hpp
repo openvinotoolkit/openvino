@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <memory>
-#include <utility>
-
 #include <low_precision/lpt_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 

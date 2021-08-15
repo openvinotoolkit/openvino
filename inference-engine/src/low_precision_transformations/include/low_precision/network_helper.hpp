@@ -10,9 +10,11 @@
 #include <vector>
 #include <unordered_set>
 
-#include <ngraph/ngraph.hpp>
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/subtract.hpp"
+#include "ngraph/op/convert.hpp"
+#include "ngraph/op/reshape.hpp"
 #include <ngraph/pattern/matcher.hpp>
-#include <ngraph/opsets/opset1.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
 #include <ngraph/rt_info.hpp>
 
@@ -59,8 +61,8 @@ public:
     static std::shared_ptr<Node> setOutDataPrecision(std::shared_ptr<OperationType> operation, const element::Type& precision);
 
     // applies constant folding of operation to constant and returns the specified output
-    static std::shared_ptr<opset1::Constant> foldDequantizationConstant(
-        const std::shared_ptr<opset1::Constant>& foldingConstant,
+    static std::shared_ptr<op::Constant> foldDequantizationConstant(
+        const std::shared_ptr<op::Constant>& foldingConstant,
         const std::shared_ptr<Node>& operation,
         const size_t outIdx = 0);
 
@@ -78,7 +80,7 @@ public:
     // Remove node by connecting its 0th input with 0th output
     static void removeLayer(std::shared_ptr<Node> node);
 
-    static std::shared_ptr<Node> swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply, const int multiplyBranch);
+    static std::shared_ptr<Node> swapMultiplyAndAdd(std::shared_ptr<op::v1::Add> addAfterMultiply, const int multiplyBranch);
 
     static void copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::vector<std::shared_ptr<Node>>& targets);
 
@@ -88,11 +90,11 @@ public:
 
     static void cleanRunTimeInfo(const std::shared_ptr<Node>& layer);
 
-    static bool isScalarLike(std::shared_ptr<opset1::Constant> constant);
+    static bool isScalarLike(std::shared_ptr<op::Constant> constant);
 
-    static bool isZero(std::shared_ptr<opset1::Constant> constant);
+    static bool isZero(std::shared_ptr<op::Constant> constant);
 
-    static std::shared_ptr<opset1::Constant> toScalar(std::shared_ptr<opset1::Constant> constant);
+    static std::shared_ptr<op::Constant> toScalar(std::shared_ptr<op::Constant> constant);
 
     static std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
 
@@ -104,14 +106,14 @@ public:
         const std::vector<size_t>& reshapeValues);
 
     // Optimizes the series of multiplies after a given output port
-    static std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
+    static std::shared_ptr<ngraph::op::v1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
 
-    static std::shared_ptr<opset1::Constant> round(std::shared_ptr<Node> node, element::Type target_type);
+    static std::shared_ptr<op::Constant> round(std::shared_ptr<Node> node, element::Type target_type);
 
-    static std::shared_ptr<opset1::FakeQuantize> composeFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
+    static std::shared_ptr<op::v0::FakeQuantize> composeFakeQuantize(const std::shared_ptr<op::v0::FakeQuantize>& fq);
 
     static std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
-        std::shared_ptr<opset1::FakeQuantize> fq,
+        std::shared_ptr<op::v0::FakeQuantize> fq,
         const element::Type precision,
         const float min,
         const float max,
@@ -120,8 +122,8 @@ public:
         const element::Type deqPrecision = element::f32,
         const size_t outChannelsShapeIndex = 0);
 
-    static std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(
-        std::shared_ptr<opset1::FakeQuantize> fq,
+    static std::shared_ptr<op::v0::FakeQuantize> updateFakeQuantize(
+        std::shared_ptr<op::v0::FakeQuantize> fq,
         element::Type precision,
         float min,
         float max,
@@ -137,7 +139,7 @@ public:
         std::shared_ptr<ngraph::Node> input = nullptr);
 
     static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
-        std::shared_ptr<opset1::FakeQuantize> fq,
+        std::shared_ptr<op::v0::FakeQuantize> fq,
         element::Type precision,
         float min,
         float max,
@@ -149,7 +151,7 @@ public:
 
     static bool areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ngraph::Node>& node);
 
-    static bool isQuantizeSupported(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
+    static bool isQuantizeSupported(const std::shared_ptr<op::v0::FakeQuantize>& fakeQuantize);
 
     static FakeQuantizeDequantization getDequantization(const std::shared_ptr<const Node>& node, const size_t parentIndex = 0ul, const bool inPlace = false);
 
@@ -157,12 +159,12 @@ public:
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
 
-    static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise);
+    static std::shared_ptr<op::Constant> normalizeDequantizationShape(const std::shared_ptr<Node>& eltwise);
 
     // 1. remove Convert if possible
     // 2. optimize Constant if possible
     // 3. remove Subtract if Constant on the second branch is zero
-    static std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add);
+    static std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<op::v1::Subtract> add);
 
     class InsertDequantizationResult {
     public:
@@ -193,20 +195,20 @@ public:
 
     static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
 
-    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq);
-    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, int outChannelsShapeIndex = 0);
+    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<op::v0::FakeQuantize>& fq);
+    static std::shared_ptr<Node> fold_fake_quantize(const std::shared_ptr<op::v0::FakeQuantize>& fq, const bool roundValues, int outChannelsShapeIndex = 0);
 
     static FakeQuantizeDequantization foldDequantization(const std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace = false);
 
     static std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node);
 
-    static std::shared_ptr<opset1::FakeQuantize> fuseConvert(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
+    static std::shared_ptr<op::v0::FakeQuantize> fuseConvert(const std::shared_ptr<op::v0::FakeQuantize>& fakeQuantize);
 
     static std::vector<element::Type> precisionIntersection(
             const std::vector<element::Type>& v1,
             const std::vector<element::Type>& v2) noexcept;
 
-    static bool isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq);
+    static bool isFQByDynamicDimension(const std::shared_ptr<op::v0::FakeQuantize>& fq);
 
     static bool isDQByDynamicDimension(const std::shared_ptr<Node>& layer, size_t inputIdx = 0);
 
@@ -233,7 +235,7 @@ public:
             visited.insert(node);
 
             bool handleConnectedNodes = false;
-            if (NetworkHelper::isPrecisionPreserved(node) || is_type<opset1::FakeQuantize>(node)) {
+            if (NetworkHelper::isPrecisionPreserved(node) || is_type<op::v0::FakeQuantize>(node)) {
                 auto& rt = node->get_rt_info();
 
                 if (node == initialNode) {
@@ -255,13 +257,13 @@ public:
                 continue;
             }
 
-            if (!is_type<opset1::FakeQuantize>(node)) {
+            if (!is_type<op::v0::FakeQuantize>(node)) {
                 for (size_t index = 0ul; index < node->get_input_size(); ++index) {
                     auto getInput = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
                         const auto dequantization = NetworkHelper::getDequantization(node, index);
                         if (!dequantization.empty() &&
-                            (is_type<opset1::Convert>(dequantization.data.get_node())) &&
-                            is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+                            (is_type<op::v0::Convert>(dequantization.data.get_node())) &&
+                            is_type<op::v0::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
                             const auto input = dequantization.data.get_node()->input(0);
                             return input;
                         }
@@ -321,7 +323,7 @@ public:
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(
-            const std::shared_ptr<opset1::FakeQuantize>& fq,
+            const std::shared_ptr<op::v0::FakeQuantize>& fq,
             const bool roundValues,
             const bool roundValuesWasSet,
             int outChannelsShapeIndex = 0);
@@ -394,18 +396,18 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
     std::shared_ptr<Node> node = std::make_shared<T>(std::forward<Args>(args)...);
     if (node->get_output_size() == 1) {
         // issue #57985: remove fold_reshape & reuse nGraph implementation
-        const auto values = as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<int64_t>();
+        const auto values = as_type_ptr<op::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<int64_t>();
         if (std::any_of(values.begin(), values.end(), [](const int64_t value) { return (value == 0) || (value == -1); })) {
-            return fold<opset1::Reshape>(std::forward<Args>(args)...);
+            return fold<op::v1::Reshape>(std::forward<Args>(args)...);
         }
 
         OutputVector folded;
-        if (is_type<opset1::Constant>(node->input_value(0).get_node_shared_ptr()) &&
-            is_type<opset1::Constant>(node->input_value(1).get_node_shared_ptr())) {
-            return std::make_shared<opset1::Constant>(
+        if (is_type<op::Constant>(node->input_value(0).get_node_shared_ptr()) &&
+            is_type<op::Constant>(node->input_value(1).get_node_shared_ptr())) {
+            return std::make_shared<op::Constant>(
                     node->get_input_element_type(0),
-                    Shape(as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<size_t>()),
-                    as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr())->get_data_ptr());
+                    Shape(as_type_ptr<op::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<size_t>()),
+                    as_type_ptr<op::Constant>(node->input_value(0).get_node_shared_ptr())->get_data_ptr());
         }
     }
     return node;

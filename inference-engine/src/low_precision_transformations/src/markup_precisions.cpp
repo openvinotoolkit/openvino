@@ -9,8 +9,6 @@
 #include <set>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
@@ -83,7 +81,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
 
         // TODO: don't need to set restrictions for not supported operations
         // if don't set restrictions for not supported operations then accuracy drop appears, issue #59197
-        const bool supported = is_type<opset1::Result>(node) || isSupported(node);
+        const bool supported = is_type<op::v0::Result>(node) || isSupported(node);
         if (!supported || !LayerTransformation::canBeTransformedStatic(node)) {
             setRestriction(node, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>> { {0ul, {}}});
             continue;
@@ -134,21 +132,21 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
     // TODO: think how to handle conditions <= not mandatory for PoC
     // TODO: operation set version is not affected <= not mandatory for PoC
     static std::unordered_set<std::string> precisionPreservedOps = {
-        { name<opset1::Concat>() },
-        { name<opset1::DepthToSpace>() },
-        { name<opset1::MaxPool>() },
-        { name<opset1::ReduceMax>() },
-        { name<opset1::ReduceMin>() },
-        { name<opset1::Relu>() },
+        { name<op::v0::Concat>() },
+        { name<op::v0::DepthToSpace>() },
+        { name<op::v1::MaxPool>() },
+        { name<op::v1::ReduceMax>() },
+        { name<op::v1::ReduceMin>() },
+        { name<op::v0::Relu>() },
         // TODO: there are conditions
-        { name<opset1::Reshape>() },
-        { name<opset1::Squeeze>() },
-        { name<opset1::Split>() },
-        { name<opset1::StridedSlice>() },
-        { name<opset1::ShuffleChannels>() },
-        { name<opset1::Transpose>() },
-        { name<opset1::Unsqueeze>() },
-        { name<opset1::VariadicSplit>() }
+        { name<op::v1::Reshape>() },
+        { name<op::v0::Squeeze>() },
+        { name<op::v1::Split>() },
+        { name<op::v1::StridedSlice>() },
+        { name<op::v0::ShuffleChannels>() },
+        { name<op::v1::Transpose>() },
+        { name<op::v0::Unsqueeze>() },
+        { name<op::v1::VariadicSplit>() }
     };
 
     const bool precisionPreserved = precisionPreservedOps.find(node->get_type_name()) != precisionPreservedOps.end();
@@ -156,8 +154,8 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
         return precisionPreserved;
     }
 
-    if (is_type<opset1::Interpolate>(node)) {
-        std::shared_ptr<opset1::Interpolate> interpolate1 = as_type_ptr<opset1::Interpolate>(node);
+    if (is_type<op::v0::Interpolate>(node)) {
+        std::shared_ptr<op::v0::Interpolate> interpolate1 = as_type_ptr<op::v0::Interpolate>(node);
         if (interpolate1) {
             const auto attrs = interpolate1->get_attrs();
             return attrs.mode == "nearest";
@@ -175,42 +173,42 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
 
 bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::shared_ptr<Node>& node) {
     static std::unordered_set<std::string> supportedOps = {
-        { name<opset1::Add>() },
-        { name<opset1::AvgPool>() },
-        { name<opset1::Clamp>() },
-        { name<opset1::Concat>() },
+        { name<op::v1::Add>() },
+        { name<op::v1::AvgPool>() },
+        { name<op::v0::Clamp>() },
+        { name<op::v0::Concat>() },
         // ?
-        { name<opset1::Convert>() },
-        { name<opset1::Convolution>() },
-        { name<opset1::ConvolutionBackpropData>() },
-        { name<opset1::DepthToSpace>() },
-        { name<opset1::FakeQuantize>() },
-        { name<opset1::Interpolate>() },
+        { name<op::v0::Convert>() },
+        { name<op::v1::Convolution>() },
+        { name<op::v1::ConvolutionBackpropData>() },
+        { name<op::v0::DepthToSpace>() },
+        { name<op::v0::FakeQuantize>() },
+        { name<op::v0::Interpolate>() },
         { name<opset4::Interpolate>() },
-        { name<opset1::GroupConvolution>() },
-        { name<opset1::MatMul>() },
-        { name<opset1::MaxPool>() },
-        { name<opset1::Multiply>() },
+        { name<op::v1::GroupConvolution>() },
+        { name<op::v0::MatMul>() },
+        { name<op::v1::MaxPool>() },
+        { name<op::v1::Multiply>() },
         { name<ngraph::op::MVN>() },
-        { name<opset6::MVN>() },
-        { name<opset1::NormalizeL2>() },
-        { name<opset1::PRelu>() },
-        { name<opset1::ReduceMax>() },
-        { name<opset1::ReduceMean>() },
-        { name<opset1::ReduceMin>() },
-        { name<opset1::ReduceSum>() },
-        { name<opset1::Relu>() },
+        { name<op::v6::MVN>() },
+        { name<op::v0::NormalizeL2>() },
+        { name<op::v0::PRelu>() },
+        { name<op::v1::ReduceMax>() },
+        { name<op::v1::ReduceMean>() },
+        { name<op::v1::ReduceMin>() },
+        { name<op::v1::ReduceSum>() },
+        { name<op::v0::Relu>() },
         // TODO: there are conditions
-        { name<opset1::Reshape>() },
-        { name<opset1::Squeeze>() },
-        { name<opset1::ShuffleChannels>() },
-        { name<opset1::Split>() },
-        { name<opset1::StridedSlice>() },
+        { name<op::v1::Reshape>() },
+        { name<op::v0::Squeeze>() },
+        { name<op::v0::ShuffleChannels>() },
+        { name<op::v1::Split>() },
+        { name<op::v1::StridedSlice>() },
         // ?
-        { name<opset1::Subtract>() },
-        { name<opset1::Transpose>() },
-        { name<opset1::Unsqueeze>() },
-        { name<opset1::VariadicSplit>() }
+        { name<op::v1::Subtract>() },
+        { name<op::v1::Transpose>() },
+        { name<op::v0::Unsqueeze>() },
+        { name<op::v1::VariadicSplit>() }
     };
 
     return supportedOps.find(node->get_type_name()) != supportedOps.end();

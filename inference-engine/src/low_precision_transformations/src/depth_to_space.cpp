@@ -15,7 +15,7 @@ using namespace ngraph::pass::low_precision;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::DepthToSpaceTransformation, "DepthToSpaceTransformation", 0);
 
 DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : TransparentBaseTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::DepthToSpace>({ pattern::wrap_type<opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<op::v0::DepthToSpace>({ pattern::wrap_type<op::v1::Multiply>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -51,7 +51,7 @@ bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& c
 
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
     if (dequantization.multiply != nullptr) {
-        auto multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
+        auto multiplyConst = as_type_ptr<op::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
         if (!NetworkHelper::isScalarLike(multiplyConst)) {
             return false;
         }

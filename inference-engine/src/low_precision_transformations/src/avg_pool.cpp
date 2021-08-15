@@ -4,11 +4,6 @@
 
 #include "low_precision/avg_pool.hpp"
 
-#include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
@@ -19,7 +14,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::AvgPoolTransformation, "AvgPoolTransformation", 0);
 
 AvgPoolTransformation::AvgPoolTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::AvgPool>({ pattern::wrap_type<opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<op::v1::AvgPool>({ pattern::wrap_type<op::v1::Multiply>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

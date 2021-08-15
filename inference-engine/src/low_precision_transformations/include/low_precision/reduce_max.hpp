@@ -6,10 +6,6 @@
 
 #include "low_precision/reduce_base_transformation.hpp"
 
-#include <memory>
-#include <ngraph/ngraph.hpp>
-#include "layer_transformation.hpp"
-
 namespace ngraph {
 namespace pass {
 namespace low_precision {

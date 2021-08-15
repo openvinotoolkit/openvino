@@ -3,9 +3,6 @@
 //
 
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
-#include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
@@ -17,7 +14,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation, "FuseMultiplyToFakeQuantizeTransformation", 0);
 
 FuseMultiplyToFakeQuantizeTransformation::FuseMultiplyToFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::Multiply>();
+    auto matcher = pattern::wrap_type<op::v1::Multiply>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -38,11 +35,11 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     }
 
     const auto parent = multiply->get_input_node_shared_ptr(0);
-    auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(parent);
-    const auto convert = as_type_ptr<opset1::Convert>(parent);
+    auto fakeQuantize = as_type_ptr<op::v0::FakeQuantize>(parent);
+    const auto convert = as_type_ptr<op::v0::Convert>(parent);
 
     if (convert) {
-        fakeQuantize = as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fakeQuantize = as_type_ptr<op::v0::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
     const auto multiplyConstant = multiply->get_input_node_shared_ptr(1);
@@ -54,8 +51,8 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
         multiplyConstant :
         foldConvert(multiplyConstant, deqPrecision);
 
-    outputLowConst_f32 = fold<opset1::Multiply>(outputLowConst_f32, value);
-    outputHighConst_f32 = fold<opset1::Multiply>(outputHighConst_f32, value);
+    outputLowConst_f32 = fold<op::v1::Multiply>(outputLowConst_f32, value);
+    outputHighConst_f32 = fold<op::v1::Multiply>(outputHighConst_f32, value);
 
     const auto fakeQuantizeParent = fakeQuantize->get_input_node_shared_ptr(0);
     const size_t parentIndex = NetworkHelper::getParentOutputIndex(fakeQuantizeParent, fakeQuantize);
@@ -67,8 +64,8 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(3), outputLowConst_f32);
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHighConst_f32);
 
-    auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
-        opset1::FakeQuantize(
+    auto newFakeQuantize = std::make_shared<op::TypeRelaxed<op::v0::FakeQuantize>>(
+        op::v0::FakeQuantize(
             fakeQuantizeParent->output(parentIndex),
             inputLow,
             inputHigh,
@@ -90,7 +87,7 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
 }
 
 bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!is_type<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
+    if (!is_type<op::Constant>(operation->get_input_node_shared_ptr(1))) {
         return false;
     }
 
@@ -99,11 +96,11 @@ bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const Transforma
     }
 
     const auto parent = operation->get_input_node_shared_ptr(0);
-    auto fq = as_type_ptr<opset1::FakeQuantize>(parent);
-    const auto convert = as_type_ptr<opset1::Convert>(parent);
+    auto fq = as_type_ptr<op::v0::FakeQuantize>(parent);
+    const auto convert = as_type_ptr<op::v0::Convert>(parent);
 
     if (convert) {
-        fq = as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fq = as_type_ptr<op::v0::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
     if (!fq) {
