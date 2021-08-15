@@ -9,8 +9,7 @@
 #include <string>
 #include <map>
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include "ngraph/op/depth_to_space.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 namespace ngraph {

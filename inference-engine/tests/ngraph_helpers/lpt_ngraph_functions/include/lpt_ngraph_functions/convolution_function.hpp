@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include "ngraph/op/constant.hpp"
 
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"

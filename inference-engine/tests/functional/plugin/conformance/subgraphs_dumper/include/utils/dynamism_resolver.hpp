@@ -4,7 +4,11 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
+#include <memory>
+
+namespace ngraph {
+class Function;
+}
 
 namespace SubgraphsDumper {
 // Copy from serialization transformation pass

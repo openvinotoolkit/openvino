@@ -6,7 +6,6 @@
 
 #include <sstream>
 #include <vector>
-#include <ngraph/ngraph.hpp>
 #include <low_precision/common/fake_quantize_dequantization.hpp>
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"

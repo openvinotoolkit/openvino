@@ -11,8 +11,6 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-using namespace ngraph::pass;
-
 std::shared_ptr<ngraph::Function> FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::PartialShape& inputShape,

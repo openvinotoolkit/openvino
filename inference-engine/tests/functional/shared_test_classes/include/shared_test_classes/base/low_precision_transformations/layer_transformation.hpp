@@ -11,7 +11,6 @@
 #include <tuple>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 
 #include "low_precision/layer_transformation.hpp"

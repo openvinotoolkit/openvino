@@ -8,9 +8,12 @@
 #include <vector>
 #include <string>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include "matchers/matchers_manager.hpp"
 #include "functional_test_utils/include/functional_test_utils/layer_test_utils/op_info.hpp"
+
+namespace ngraph {
+class Node;
+}
 
 namespace SubgraphsDumper {
 

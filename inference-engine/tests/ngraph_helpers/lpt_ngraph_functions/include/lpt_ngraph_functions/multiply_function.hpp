@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <memory>
-#include <ngraph/ngraph.hpp>
-
 #include "lpt_ngraph_functions/common/constant.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 

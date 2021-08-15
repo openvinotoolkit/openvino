@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <string>
-#include <memory>
-#include <ngraph/ngraph.hpp>
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 class MatMulShapes {

@@ -4,6 +4,10 @@
 
 #include "utils/dynamism_resolver.hpp"
 
+#include "ngraph/graph_util.hpp"
+#include "ngraph/op/util/sub_graph_base.hpp"
+#include "ngraph/function.hpp"
+
 namespace SubgraphsDumper {
 
 bool has_dynamic_output(std::shared_ptr<ngraph::Node> n) {

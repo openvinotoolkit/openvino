@@ -3,7 +3,7 @@
 //
 #include <istream>
 #include "op_cloner.hpp"
-#include "ngraph/opsets/opset6.hpp"
+#include "ngraph/validation_util.hpp"
 #include "common_test_utils/data_utils.hpp"
 
 namespace SubgraphsDumper {

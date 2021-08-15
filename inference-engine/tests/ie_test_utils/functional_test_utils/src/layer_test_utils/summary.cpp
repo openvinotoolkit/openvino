@@ -4,6 +4,8 @@
 
 #include <pugixml.hpp>
 
+#include "ngraph/op/loop.hpp"
+
 #include "functional_test_utils/layer_test_utils/summary.hpp"
 #include "common_test_utils/file_utils.hpp"
 

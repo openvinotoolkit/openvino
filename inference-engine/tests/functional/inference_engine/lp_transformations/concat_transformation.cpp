@@ -9,6 +9,7 @@
 #include <vector>
 #include <gtest/gtest.h>
 
+#include "ngraph/pass/manager.hpp"
 #include <low_precision/rt_info/precision_preserved_attribute.hpp>
 #include <low_precision/rt_info/intervals_alignment_attribute.hpp>
 #include <low_precision/rt_info/quantization_alignment_attribute.hpp>

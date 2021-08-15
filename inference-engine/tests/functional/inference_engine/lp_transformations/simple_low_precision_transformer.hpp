@@ -6,8 +6,6 @@
 
 #include <map>
 
-#include <ngraph/ngraph.hpp>
-
 #include "layer_transformation.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "low_precision/layer_transformation.hpp"

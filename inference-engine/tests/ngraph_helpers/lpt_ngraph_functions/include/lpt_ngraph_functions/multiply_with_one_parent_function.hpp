@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <memory>
-#include <ngraph/ngraph.hpp>
+#include "ngraph/function.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 
 namespace ngraph {

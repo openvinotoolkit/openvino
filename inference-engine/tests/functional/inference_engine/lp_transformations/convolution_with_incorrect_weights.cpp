@@ -8,6 +8,7 @@
 #include <sstream>
 #include <gtest/gtest.h>
 
+#include "ngraph/pass/manager.hpp"
 #include <transformations/init_node_info.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>

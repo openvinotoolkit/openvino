@@ -5,8 +5,6 @@
 #pragma once
 
 #include <algorithm>
-#include <memory>
-#include <ngraph/ngraph.hpp>
 #include "low_precision/layer_transformation.hpp"
 #include "common/add.hpp"
 #include "common/fake_quantize_on_data.hpp"

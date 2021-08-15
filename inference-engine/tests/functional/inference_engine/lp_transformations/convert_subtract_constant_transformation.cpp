@@ -10,6 +10,7 @@
 
 #include <gtest/gtest.h>
 
+#include "ngraph/pass/manager.hpp"
 #include <transformations/utils/utils.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
 

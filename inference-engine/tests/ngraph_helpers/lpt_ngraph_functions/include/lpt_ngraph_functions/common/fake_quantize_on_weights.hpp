@@ -6,7 +6,10 @@
 
 #include <memory>
 #include <vector>
-#include <ngraph/ngraph.hpp>
+
+#include <ngraph/type/element_type.hpp>
+#include <ngraph/shape.hpp>
+
 #include "fake_quantize_on_data.hpp"
 
 namespace ngraph {

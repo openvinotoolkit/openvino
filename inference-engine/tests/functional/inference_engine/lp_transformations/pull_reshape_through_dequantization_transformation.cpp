@@ -10,6 +10,7 @@
 
 #include <gtest/gtest.h>
 
+#include "ngraph/pass/manager.hpp"
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>

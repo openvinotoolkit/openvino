@@ -7,7 +7,12 @@
 #include <map>
 #include <fstream>
 
-#include "ngraph/ngraph.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/opsets/opset.hpp"
+
+namespace ngraph {
+class Function;
+}
 
 #include "common_test_utils/test_constants.hpp"
 

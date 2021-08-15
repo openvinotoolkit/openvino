@@ -9,8 +9,6 @@
 #include <string>
 #include <map>
 
-#include <ngraph/ngraph.hpp>
-
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 namespace ngraph {

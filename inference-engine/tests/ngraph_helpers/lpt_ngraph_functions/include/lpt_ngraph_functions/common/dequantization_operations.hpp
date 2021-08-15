@@ -4,10 +4,14 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
 #include "fake_quantize_on_data.hpp"
 
+#include "ngraph/partial_shape.hpp"
+
 namespace ngraph {
+
+class Function;
+
 namespace builder {
 namespace subgraph {
 

@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include "ngraph/pass/manager.hpp"
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>

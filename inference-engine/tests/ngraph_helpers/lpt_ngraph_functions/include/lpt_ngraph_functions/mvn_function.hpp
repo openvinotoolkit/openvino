@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <memory>
-#include <ngraph/ngraph.hpp>
+#include "ngraph/axis_set.hpp"
+
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 namespace ngraph {

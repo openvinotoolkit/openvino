@@ -6,7 +6,9 @@
 
 #include <string>
 #include <memory>
-#include <ngraph/ngraph.hpp>
+
+#include "ngraph/node.hpp"
+#include "ngraph/function.hpp"
 
 namespace ngraph {
 namespace builder {
