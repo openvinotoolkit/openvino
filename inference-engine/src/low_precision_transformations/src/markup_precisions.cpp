@@ -139,6 +139,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
         { name<op::v1::ReduceMin>() },
         { name<op::v0::Relu>() },
         // TODO: there are conditions
+        { name<op::v1::Pad>() },
         { name<op::v1::Reshape>() },
         { name<op::v0::Squeeze>() },
         { name<op::v1::Split>() },
@@ -161,7 +162,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
             return attrs.mode == "nearest";
         }
 
-        std::shared_ptr<opset4::Interpolate> interpolate4 = as_type_ptr<opset4::Interpolate>(node);
+        std::shared_ptr<op::v4::Interpolate> interpolate4 = as_type_ptr<op::v4::Interpolate>(node);
         if (interpolate4) {
             const auto attrs = interpolate4->get_attrs();
             return attrs.mode == op::v4::Interpolate::InterpolateMode::NEAREST;
@@ -184,14 +185,15 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::share
         { name<op::v0::DepthToSpace>() },
         { name<op::v0::FakeQuantize>() },
         { name<op::v0::Interpolate>() },
-        { name<opset4::Interpolate>() },
+        { name<op::v4::Interpolate>() },
         { name<op::v1::GroupConvolution>() },
         { name<op::v0::MatMul>() },
         { name<op::v1::MaxPool>() },
         { name<op::v1::Multiply>() },
-        { name<ngraph::op::MVN>() },
+        { name<op::MVN>() },
         { name<op::v6::MVN>() },
         { name<op::v0::NormalizeL2>() },
+        { name<op::v1::Pad>() },
         { name<op::v0::PRelu>() },
         { name<op::v1::ReduceMax>() },
         { name<op::v1::ReduceMean>() },
