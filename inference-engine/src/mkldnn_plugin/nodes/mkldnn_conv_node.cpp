@@ -320,7 +320,8 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) const {
+void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false, bool initAsBinary = false) {
+    bool initBinaryMemory = initWeights;
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
@@ -329,16 +330,37 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            if (eltwiseNode->isSpecialConvolutionAddFusing())
+            if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0, MKLDNNExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
-            else
-                eltwiseNode->appendPostOps(ops);
+            } else {
+                eltwiseNode->appendPostOps(ops, initAsBinary, initBinaryMemory);
+                if (initBinaryMemory) {
+                    if (eltwiseNode->scalesMemory)
+                        binaryPostOpsArgs.push_back(eltwiseNode->scalesMemory->GetPrimitive());
+                    if (eltwiseNode->shiftsMemory)
+                        binaryPostOpsArgs.push_back(eltwiseNode->shiftsMemory->GetPrimitive());
+                }
+            }
             continue;
         }
 
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, initAsBinary, initBinaryMemory);
+            if (initBinaryMemory) {
+                if (fakeQuantizeNode->cropHighMemory)
+                    binaryPostOpsArgs.push_back(fakeQuantizeNode->cropHighMemory->GetPrimitive());
+                if (fakeQuantizeNode->cropLowMemory)
+                    binaryPostOpsArgs.push_back(fakeQuantizeNode->cropLowMemory->GetPrimitive());
+                if (fakeQuantizeNode->inputScaleMemory)
+                    binaryPostOpsArgs.push_back(fakeQuantizeNode->inputScaleMemory->GetPrimitive());
+                if (fakeQuantizeNode->inputShiftMemory)
+                    binaryPostOpsArgs.push_back(fakeQuantizeNode->inputShiftMemory->GetPrimitive());
+                if (fakeQuantizeNode->outputScaleMemory)
+                    binaryPostOpsArgs.push_back(fakeQuantizeNode->outputScaleMemory->GetPrimitive());
+                if (fakeQuantizeNode->outputShiftMemory)
+                    binaryPostOpsArgs.push_back(fakeQuantizeNode->outputShiftMemory->GetPrimitive());
+            }
             continue;
         }
 
@@ -378,78 +400,83 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    mkldnn::primitive_attr attr;
-    addZeroPoints(attr);
-    setPostOps(attr);
+    // attr[0] - depthwise, quantize
+    // attr[1] - binary
+    mkldnn::primitive_attr attrs[2];
+    setPostOps(attrs[0]);
+    setPostOps(attrs[1], false, true);
 
     bool containJitImpl = false;
 
     for (auto& desc : descs) {
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
-        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
-        while (static_cast<bool>(itpd)) {
-            NodeConfig config;
-            config.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(desc); i++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                auto srcDesc = getSrcMemDesc(itpd, i);
-                if (isGrouped || srcDesc->getFormatKind() != dnnl_format_kind_t::dnnl_blocked)
-                    dataConfig.desc = std::move(srcDesc);
-                else
-                    dataConfig.desc = MemoryDescUtils::applyUndefinedOffset(*srcDesc);
-
-                config.inConfs.push_back(dataConfig);
-            }
-
-            if (withDWConv) {
-                auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
-                auto biasPrc = memory::data_type::f32;
-
-                std::vector<size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                std::vector<size_t> dwBiasesDims({dw_conv_oc});
-
-                PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dwWeightsDims, weightsPrc, memory::format_tag::Goihw8g);
-                config.inConfs.push_back(dataConfig);
-
-                dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dwBiasesDims, biasPrc, memory::format_tag::x);
-                config.inConfs.push_back(dataConfig);
-            }
-
-            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
-                PortConfig dataConfig;
-                if (withSum) {
-                    dataConfig.inPlace = getParentEdges().size() - 1;
-                }
-
-                dataConfig.constant = false;
-
-                auto dstDesc = getDstMemDesc(itpd, i);
-                if (isGrouped || dstDesc->getFormatKind() != dnnl_format_kind_t::dnnl_blocked)
-                    dataConfig.desc = std::move(dstDesc);
-                else
-                    dataConfig.desc = MemoryDescUtils::applyUndefinedOffset(*dstDesc);
-
-                config.outConfs.push_back(dataConfig);
-
-                if (withSum) {
+        for (auto &attr : attrs) {
+            addZeroPoints(attr);
+            auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
+            while (static_cast<bool>(itpd)) {
+                NodeConfig config;
+                config.dynBatchSupport = true;
+                for (size_t i = 0; i < descInputNumbers(desc); i++) {
+                    PortConfig dataConfig;
                     dataConfig.inPlace = -1;
-                    dataConfig.desc->setPrecision(eltwisePrecision);
+                    dataConfig.constant = false;
+                    auto srcDesc = getSrcMemDesc(itpd, i);
+                    if (isGrouped || srcDesc->getFormatKind() != dnnl_format_kind_t::dnnl_blocked)
+                        dataConfig.desc = std::move(srcDesc);
+                    else
+                        dataConfig.desc = MemoryDescUtils::applyUndefinedOffset(*srcDesc);
+
                     config.inConfs.push_back(dataConfig);
                 }
-            }
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (impl_type & jit)
-                containJitImpl = true;
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
-            if (!itpd.next_impl())
-                break;
+                if (withDWConv) {
+                    auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
+                    auto biasPrc = memory::data_type::f32;
+
+                    std::vector<size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
+                    std::vector<size_t> dwBiasesDims({dw_conv_oc});
+
+                    PortConfig dataConfig;
+                    dataConfig.inPlace = -1;
+                    dataConfig.constant = false;
+                    dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dwWeightsDims, weightsPrc, memory::format_tag::Goihw8g);
+                    config.inConfs.push_back(dataConfig);
+
+                    dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dwBiasesDims, biasPrc, memory::format_tag::x);
+                    config.inConfs.push_back(dataConfig);
+                }
+
+                for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+                    PortConfig dataConfig;
+                    if (withSum) {
+                        dataConfig.inPlace = getParentEdges().size() - 1;
+                    }
+
+                    dataConfig.constant = false;
+
+                    auto dstDesc = getDstMemDesc(itpd, i);
+                    if (isGrouped || dstDesc->getFormatKind() != dnnl_format_kind_t::dnnl_blocked)
+                        dataConfig.desc = std::move(dstDesc);
+                    else
+                        dataConfig.desc = MemoryDescUtils::applyUndefinedOffset(*dstDesc);
+
+                    config.outConfs.push_back(dataConfig);
+
+                    if (withSum) {
+                        dataConfig.inPlace = -1;
+                        dataConfig.desc->setPrecision(eltwisePrecision);
+                        config.inConfs.push_back(dataConfig);
+                    }
+                }
+                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+                if (impl_type & jit)
+                    containJitImpl = true;
+
+                supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+                if (!itpd.next_impl())
+                    break;
+            }
         }
     }
 }
@@ -461,7 +488,11 @@ void MKLDNNConvolutionNode::createPrimitive() {
 
     mkldnn::primitive_attr attr;
     addZeroPoints(attr);
-    setPostOps(attr, true);
+    if (getSelectedPrimitiveDescriptor()->getImplementationType() == jit_gemm) {
+        setPostOps(attr, true, true);
+    } else {
+        setPostOps(attr, true);
+    }
 
     auto prim_desc = createPrimitiveDescriptor<convolution_forward::primitive_desc,
             convolution_forward::desc>(attr);
@@ -474,6 +505,14 @@ void MKLDNNConvolutionNode::createPrimitive() {
         primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_BIAS, getBias()}, {DNNL_ARG_DST, dst}};
     else
         primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_DST, dst}};
+
+    auto post_ops = attr.get_post_ops();
+    int idx = 0;
+    for (int i = 0; i < post_ops.len(); i++) {
+        if (post_ops.kind(i) == mkldnn::primitive::kind::binary) {
+            primArgs.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1, binaryPostOpsArgs[idx++]});
+        }
+    }
 }
 
 bool MKLDNNConvolutionNode::created() const {
@@ -543,7 +582,7 @@ void MKLDNNConvolutionNode::addZeroPoints(mkldnn::primitive_attr& attr) const {
 }
 
 void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
-    auto* selectedPD = getSelectedPrimitiveDescriptor();
+    auto *selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD) {
         return;
     }
@@ -564,10 +603,11 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
     if (isStridedBlobsSupported) {
         createDescriptor({config.inConfs[0].desc.get()}, {config.outConfs[0].desc.get()});
     }
-
-    mkldnn::primitive_attr attr;
-    addZeroPoints(attr);
-    setPostOps(attr);
+    // attr[0] - depthwise, quantize
+    // attr[1] - binary
+    mkldnn::primitive_attr attrs[2];
+    setPostOps(attrs[0]);
+    setPostOps(attrs[1], false, true);
 
     auto rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
@@ -575,70 +615,73 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
     bool containJitImpl = false;
 
     for (size_t i = 0; i < descs.size(); i++) {
-        auto& desc = descs[i];
+        auto &desc = descs[i];
         if (containJitImpl && isPossibleToSkipInitConfig(desc))
             continue;
-        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
-        while (static_cast<bool>(itpd)) {
-            NodeConfig cfg;
-            cfg.dynBatchSupport = true;
-            for (size_t j = 0; j < descInputNumbers(desc); j++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getSrcMemDesc(itpd, j);
-                cfg.inConfs.push_back(dataConfig);
-            }
-
-            if (withDWConv) {
-                auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
-                auto biasPrc = memory::data_type::f32;
-
-                std::vector<size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                std::vector<size_t> dwBiasesDims({dw_conv_oc});
-
-                PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dwWeightsDims, weightsPrc, memory::format_tag::Goihw8g);
-                cfg.inConfs.push_back(dataConfig);
-
-                dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dwBiasesDims, biasPrc, memory::format_tag::x);
-                cfg.inConfs.push_back(dataConfig);
-            }
-
-            for (size_t j = 0; j < descOutputNumbers(desc); j++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = getDstMemDesc(itpd, j);
-                if (withSum) {
-                    auto eltwiseConfig = dataConfig;
-                    eltwiseConfig.desc->setPrecision(eltwisePrecision);
-                    cfg.inConfs.push_back(eltwiseConfig);
-                    dataConfig.inPlace = getParentEdges().size() - 1;
+        for (auto &attr : attrs) {
+            addZeroPoints(attr);
+            auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
+            while (static_cast<bool>(itpd)) {
+                NodeConfig cfg;
+                cfg.dynBatchSupport = true;
+                for (size_t j = 0; j < descInputNumbers(desc); j++) {
+                    PortConfig dataConfig;
+                    dataConfig.inPlace = -1;
+                    dataConfig.constant = false;
+                    dataConfig.desc = getSrcMemDesc(itpd, j);
+                    cfg.inConfs.push_back(dataConfig);
                 }
 
-                cfg.outConfs.push_back(dataConfig);
-            }
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (impl_type & jit)
-                containJitImpl = true;
+                if (withDWConv) {
+                    auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
+                    auto biasPrc = memory::data_type::f32;
 
-            if (selected_count == selectedPrimitiveDescriptorIndex) {
-                if (impl_type != selectedPD->getImplementationType()) {
-                    IE_THROW() << "Cannot get the original layer configuration!";
+                    std::vector <size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
+                    std::vector <size_t> dwBiasesDims({dw_conv_oc});
+
+                    PortConfig dataConfig;
+                    dataConfig.inPlace = -1;
+                    dataConfig.constant = false;
+                    dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dwWeightsDims, weightsPrc, memory::format_tag::Goihw8g);
+                    cfg.inConfs.push_back(dataConfig);
+
+                    dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dwBiasesDims, biasPrc, memory::format_tag::x);
+                    cfg.inConfs.push_back(dataConfig);
                 }
-                rightConfig = cfg;
-            }
-            if (i == descs.size() - 1 && isStridedBlobsSupported) {
-                if (impl_type == selectedPD->getImplementationType()) {
-                    rightConfig = config;
+
+                for (size_t j = 0; j < descOutputNumbers(desc); j++) {
+                    PortConfig dataConfig;
+                    dataConfig.inPlace = -1;
+                    dataConfig.constant = false;
+                    dataConfig.desc = getDstMemDesc(itpd, j);
+                    if (withSum) {
+                        auto eltwiseConfig = dataConfig;
+                        eltwiseConfig.desc->setPrecision(eltwisePrecision);
+                        cfg.inConfs.push_back(eltwiseConfig);
+                        dataConfig.inPlace = getParentEdges().size() - 1;
+                    }
+
+                    cfg.outConfs.push_back(dataConfig);
                 }
+                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+                if (impl_type & jit)
+                    containJitImpl = true;
+
+                if (selected_count == selectedPrimitiveDescriptorIndex) {
+                    if (impl_type != selectedPD->getImplementationType()) {
+                        IE_THROW() << "Cannot get the original layer configuration!";
+                    }
+                    rightConfig = cfg;
+                }
+                if (i == descs.size() - 1 && isStridedBlobsSupported) {
+                    if (impl_type == selectedPD->getImplementationType()) {
+                        rightConfig = config;
+                    }
+                }
+                selected_count++;
+                if (!itpd.next_impl())
+                    break;
             }
-            selected_count++;
-            if (!itpd.next_impl())
-                break;
         }
     }
     selectedPD->setConfig(rightConfig);
