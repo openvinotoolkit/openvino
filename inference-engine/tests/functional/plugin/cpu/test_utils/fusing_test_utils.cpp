@@ -103,7 +103,7 @@ std::string postNodesMgr::getFusedOpsNames() const {
     const char* separator = "";
     for (const auto& item : _postNodes) {
         result << separator << item.name;
-        separator = ",";
+        separator = ":";
     }
     return result.str();
 }

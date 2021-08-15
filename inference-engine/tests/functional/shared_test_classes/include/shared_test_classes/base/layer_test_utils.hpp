@@ -90,6 +90,11 @@ public:
     template<class T_IE, class T_NGRAPH>
     static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold) {
         for (std::size_t i = 0; i < size; ++i) {
+            const T_NGRAPH &ref = static_cast<float>(expected[i]);
+            const auto &res = static_cast<float>(actual[i]);
+            std::cout << i << ". ref = " << ref << ", res = "<< res << std::endl;
+        }
+        for (std::size_t i = 0; i < size; ++i) {
             const T_NGRAPH &ref = expected[i];
             const auto &res = actual[i];
             const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);

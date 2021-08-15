@@ -17,7 +17,16 @@ std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type &type, ngraph::
     std::shared_ptr<ngraph::Node> input;
     switch (inputType) {
         case ngraph::helpers::InputLayerType::CONSTANT: {
-            input = ngraph::builder::makeConstant<float>(type, shape, {}, true);
+            int dataSize = 1;
+            for (int i = 0; i < shape.size(); i++)
+                dataSize *= shape[i];
+
+            std::vector<float> data(dataSize);
+            for (int i = 0; i < data.size(); i++) {
+                data[i] = (i % 2) ? i : -i;
+            }
+            input = ngraph::builder::makeConstant<float>(type, shape, data, false);
+//            input = ngraph::builder::makeConstant<float>(type, shape, {}, true);
             break;
         }
         case ngraph::helpers::InputLayerType::PARAMETER:

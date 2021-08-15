@@ -110,10 +110,13 @@ protected:
         auto deconvolutionNode = builder::makeConvolutionBackpropDataRelaxed(paramOuts.front(), weiPrc,
                 kernel, stride, padBegin, padEnd, dilation, padType, convOutChannels);
 
-        if (inPrc == Precision::U8 || inPrc == Precision::I8) {
+        if (outPrc == Precision::U8 || outPrc == Precision::I8) {
             threshold = 1.001f;
-            outElemType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
             quantizeInHigh = calculateQuantizeInHigh(kernel, inputShape[1]);
+        }
+
+        if (inPrc == Precision::U8 || inPrc == Precision::I8) {
+            outElemType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
             additionalPasses.push_back(std::make_shared<pass::ConvertPrecision<element::i8, element::f32>>());
             additionalPasses.push_back(std::make_shared<pass::ConvertPrecision<element::u8, element::f32>>());
         }
@@ -143,7 +146,7 @@ const std::vector<SizeVector> emptyOutputShape = { {} };
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = { {} };
 
 /* ============= Deconvolution params (planar layout) ============= */
-const SizeVector numOutChannels_Planar = { 6 };
+const SizeVector numOutChannels_Planar = { 6, 33, /*159*/ };
 
 /* ============= Deconvolution params (blocked layout) ============= */
 const SizeVector numOutChannels_Blocked = { 64 };
@@ -426,6 +429,7 @@ const std::vector<fusingSpecificParams> fusingParamsSetI8{
         fusingElu,
         fusingSigmoid,
         fusingPReluPerChannel,
+//        fusingReluScaleShift,
         fusingSwish,
         fusingMish,
 //        // other patterns
@@ -444,7 +448,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_I8, DeconvolutionLayerCPUTest,
                         deconvParams_2D_I8,
                         ::testing::Values(Precision::FP32),
                         ::testing::Values(Precision::U8, Precision::I8),
-                        ::testing::Values(Precision::FP32, Precision::U8, Precision::I8),
+                        ::testing::Values(Precision::FP32, Precision::U8, Precision::I8), // todo: U8 I8 avx512 fusingReluScaleShift check master
                         ::testing::Values(Layout::ANY),
                         ::testing::Values(Layout::ANY),
                         ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),

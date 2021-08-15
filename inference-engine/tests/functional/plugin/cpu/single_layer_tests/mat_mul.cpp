@@ -90,14 +90,30 @@ protected:
         }
 
         auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prec);
+        inPrc = prec;
         auto params = builder::makeParams(ngPrec, {isA});
         auto matrixB = builder::makeInputLayer(ngPrec, typeB, isB);
         if (typeB == helpers::InputLayerType::PARAMETER) {
             params.push_back(std::dynamic_pointer_cast<opset1::Parameter>(matrixB));
         }
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
-        auto matMul = builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);
-        function = makeNgraphFunction(ngPrec, params, matMul, cpuNodeType);
+
+
+        std::shared_ptr<Node> matMul;
+        if (prec == Precision::FP32) {
+            matMul = builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);
+        } else {
+            auto weiPrc = (ngPrec == element::u8) ? element::i8 : ngPrec;
+            matMul = builder::makeMatMulRelaxed(paramOuts[0], matrixB, weiPrc, transpA, transpB);
+        }
+
+        if (inPrc == Precision::U8 || inPrc == Precision::I8) {
+//            outElemType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
+            additionalPasses.push_back(std::make_shared<pass::ConvertPrecision<element::i8, element::f32>>());
+            additionalPasses.push_back(std::make_shared<pass::ConvertPrecision<element::u8, element::f32>>());
+        }
+
+        function = makeNgraphFunction(element::f32, params, matMul, cpuNodeType);
         checkFusingPosition = false;
     }
 };
@@ -113,7 +129,7 @@ namespace {
 
 /* ============= Common params ============= */
 const std::vector<bool> transpose = {
-    true, false
+    false
 };
 
 /* ============= FullyConnected ============= */
@@ -126,10 +142,12 @@ const auto fusingBiasFC = fusingSpecificParams{std::make_shared<postNodesMgr>(st
             }, "fusingBiasFC"}}), {"Add"}};
 
 const std::vector<std::pair<SizeVector, SizeVector>> IS2D = {
+        {{7, 3}, {3, 5}},
     {{59, 1}, {1, 120}},
     {{59, 120}, {120, 1}},
     {{1, 120}, {120, 59}},
-    {{71, 128}, {128, 20}}
+    {{71, 128}, {128, 20}},
+    {{71, 3}, {3, 20}},
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet2D {
@@ -137,7 +155,11 @@ std::vector<fusingSpecificParams> fusingParamsSet2D {
         fusingBiasFC,
         fusingRelu,
         fusingMultiplyPerChannel,
-        fusingPReluPerTensor
+        fusingScaleShift,
+        fusingPReluPerChannel,
+        fusingPReluPerTensor,
+        fusingFakeQuantizePerChannelRelu,
+        fusingFakeQuantizePerTensorRelu
 };
 
 const auto fullyConnectedParams2D = ::testing::Combine(::testing::ValuesIn(IS2D),
@@ -151,6 +173,30 @@ const auto testParams2D = ::testing::Combine(fullyConnectedParams2D,
                                              ::testing::ValuesIn(fusingParamsSet2D));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Check_2D, MatMulLayerCPUTest, testParams2D, MatMulLayerCPUTest::getTestCaseName);
+
+std::vector<fusingSpecificParams> fusingParamsSet2D_I8 {
+        emptyFusingSpec,
+        fusingBiasFC,
+        fusingRelu,
+        fusingMultiplyPerChannel,
+        fusingScaleShift,
+        fusingPReluPerChannel,
+        fusingPReluPerTensor,
+        fusingFakeQuantizePerChannelRelu,
+        fusingFakeQuantizePerTensorRelu
+};
+
+const auto fullyConnectedParams2D_I8 = ::testing::Combine(::testing::ValuesIn(IS2D),
+                                                       ::testing::Values(Precision::U8),
+                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::ValuesIn(transpose),
+                                                       ::testing::ValuesIn(transpose));
+
+const auto testParams2D_I8 = ::testing::Combine(fullyConnectedParams2D_I8,
+                                             ::testing::Values(MatMulNodeType::FullyConnected),
+                                             ::testing::ValuesIn(fusingParamsSet2D_I8));
+
+INSTANTIATE_TEST_SUITE_P(smoke_Check_2D_I8, MatMulLayerCPUTest, testParams2D_I8, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<std::pair<SizeVector, SizeVector>> IS3D = {
     {{1, 32, 120}, {120, 5}},

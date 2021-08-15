@@ -123,8 +123,11 @@ const auto fusingPReluPerChannel = fusingSpecificParams{std::make_shared<postNod
                     IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
                 ngraph::Shape newShape(shape.size(), 1);
                 newShape[1] = shape[1];
+                std::vector<float> data2(newShape[1]);
+                for (int i = 0; i < data2.size(); i++)
+                    data2[i] = i + 1;
                 auto data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(newShape));
-                return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::LeakyRelu, newShape, data);
+                return ngraph::builder::makeActivation(inpNode, ngPrc, ngraph::helpers::LeakyRelu, newShape, data2);
             }, "PRelu(PerChannel)"}}), {"PRelu"}};
 
 const auto fusingPReluPerTensor = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
@@ -183,6 +186,10 @@ const auto fusingReluScaleShift = fusingSpecificParams{std::make_shared<postNode
                      IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
                  ngraph::Shape newShape(shape.size(), 1);
                  newShape[1] = shape[1];
+                 std::vector<float> newData(shape[1]);
+                 for (int i = 0; i < newData.size(); i++) {
+                     newData[i] = (i + 1) * 2;
+                 }
                  auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
                  return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
             }, "Multiply(PerChannel)"},
@@ -192,6 +199,10 @@ const auto fusingReluScaleShift = fusingSpecificParams{std::make_shared<postNode
                  IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
                 ngraph::Shape newShape(shape.size(), 1);
                 newShape[1] = shape[1];
+                std::vector<float> newData(shape[1]);
+                for (int i = 0; i < newData.size(); i++) {
+                    newData[i] = (i + 1) * 2;
+                }
                 auto constNode = ngraph::builder::makeConstant(ngPrc, newShape, std::vector<float>{}, true);
                 return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
             }, "Add(PerChannel)"}}), {"Relu", "Add"}};

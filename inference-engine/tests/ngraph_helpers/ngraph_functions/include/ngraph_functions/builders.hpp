@@ -445,6 +445,12 @@ std::shared_ptr<Node> makeMatMul(const Output<Node> &A,
                                  bool transpose_a = false,
                                  bool transpose_b = false);
 
+std::shared_ptr<Node> makeMatMulRelaxed(const Output<Node> &A,
+                                        const Output<Node>& B,
+                                 const element::Type &elemType,
+                                 bool transpose_a = false,
+                                 bool transpose_b = false);
+
 std::shared_ptr<ngraph::Node> makeReduce(const ngraph::Output<Node>& data,
                                          const ngraph::Output<Node>& axes,
                                          bool keepDims,

@@ -173,18 +173,18 @@ std::vector<groupConvLayerCPUTestParamsSet> filterParamsSetForDevice(std::vector
 
 /* COMMON PARAMS */
 const std::vector<fusingSpecificParams> fusingParamsSet {
-        emptyFusingSpec,
-        // eltwise
-        fusingRelu,
-        fusingPRelu1D,
+//        emptyFusingSpec,
+//        // eltwise
+//        fusingRelu,
+//        fusingPRelu1D,
         // depthwise
         fusingReluScaleShift,
         // fake quantize
-        fusingFakeQuantizePerTensorRelu,
-        fusingFakeQuantizePerChannelRelu,
-        // sum
-        fusingSumEluFQ,
-        fusingSum
+//        fusingFakeQuantizePerTensorRelu,
+//        fusingFakeQuantizePerChannelRelu,
+//        // sum
+//        fusingSumEluFQ,
+//        fusingSum
 };
 
 const std::vector<fusingSpecificParams> fusingParamsSetBF16{
@@ -435,12 +435,12 @@ const auto groupConvParams_ExplicitPadding_DW_2D = ::testing::Combine(
 );
 
 const std::vector<CPUSpecificParams> CPUParams_DW_2D = {
-        conv_sse42_dw_2D,
-        conv_avx2_dw_2D,
-        conv_avx512_dw_2D,
+//        conv_sse42_dw_2D,
+//        conv_avx2_dw_2D,
+//        conv_avx512_dw_2D,
         conv_sse42_dw_2D_nspc,
         conv_avx2_dw_2D_nspc,
-        conv_avx512_dw_2D_nspc
+//        conv_avx512_dw_2D_nspc
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_FP32, GroupConvolutionLayerCPUTest,

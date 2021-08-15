@@ -61,7 +61,7 @@ std::shared_ptr<Node> makeConvolutionRelaxed(const ngraph::Output<Node> &in,
     auto shape = in.get_shape();
     std::vector<size_t> filterWeightsShape = {numOutChannels, shape[1]};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
-    auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
+    auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights, 5.3f, -5.3f);
 
     auto newConvolution = convolutionNodeRelaxed->copy_with_new_inputs({in, filterWeightsNode});
 
