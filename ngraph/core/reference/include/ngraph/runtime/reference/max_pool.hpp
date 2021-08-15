@@ -122,9 +122,10 @@ void max_pool_1d(const Values_t* data,
                  const size_t kernel_stride,
                  const size_t kernel_dilation,
                  const size_t pads_begin,
-                 const size_t pads_end) {
+                 const size_t pads_end,
+                 const size_t indices_offset) {
     int kernel_position = 0 - pads_begin;
-    // select max elem and its index for each "placeholder" in the out buffer
+    // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
     for (size_t out_idx = 0; out_idx < out_elems; ++out_idx) {
         Values_t max_elem = std::numeric_limits<Values_t>::lowest();
         Indices_t max_elem_idx = Indices_t{0};
@@ -141,7 +142,7 @@ void max_pool_1d(const Values_t* data,
             }
         }
         values[out_idx] = max_elem;
-        indices[out_idx] = max_elem_idx;
+        indices[out_idx] = max_elem_idx + indices_offset;
         kernel_position += kernel_stride;
     }
 }
@@ -166,13 +167,17 @@ void max_pool(const Values_t* data,
     const auto out_channel_elems = shape_size(std::begin(out_shape) + 2, std::end(out_shape));
 
     for (size_t b = 0; b < data_shape[0]; ++b) {
+        const Indices_t batch_indices_offset = b * data_batch_elems;
+
         for (size_t c = 0; c < data_shape[1]; ++c) {
-            // calculate the buffer ofsets for a given channel "c"
-            // then execute an appropriate implementation
-            // for all data elements in that channel
+            // calculate the buffer offsets for a given channel "c" then execute an appropriate
+            // kernel for each processed channel
             const Values_t* data_channel_first_elem = data + b * data_batch_elems + c * data_channel_elems;
             Values_t* out_channel_first_elem = values + b * out_batch_elems + c * out_channel_elems;
             Indices_t* indices_channel_first_elem = indices + b * out_batch_elems + c * out_channel_elems;
+            const Indices_t channel_indices_offset = c * data_channel_elems;
+            // total offset of the flattened tensor indices for currently processed batch and channel
+            const Indices_t indices_offset = batch_indices_offset + channel_indices_offset;
 
             if (data_shape.size() == 3) {
                 max_pool_1d<Values_t, Indices_t>(data_channel_first_elem,
@@ -184,10 +189,22 @@ void max_pool(const Values_t* data,
                                                  strides[0],
                                                  dilations[0],
                                                  pads_begin[0],
-                                                 pads_end[0]);
+                                                 pads_end[0],
+                                                 indices_offset);
             } else {
                 throw std::runtime_error("Not ready yet");
             }
+        }
+    }
+
+    // adjust the calculated indices to the requested range (specified by the axis attribute) if needed
+    if (axis != 0) {
+        const Indices_t max_index =
+            std::accumulate(std::begin(data_shape) + axis, std::end(data_shape), size_t{1}, std::multiplies<size_t>());
+
+        const auto indices_number = shape_size(out_shape);
+        for (size_t i = 0; i < indices_number; ++i) {
+            indices[i] %= max_index;
         }
     }
 }
