@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/grn.hpp"
+
 #include <algorithm>
 #include <iterator>
-#include "itt.hpp"
 
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/grn.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace std;
@@ -17,27 +18,21 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::v0::GRN, "GRN", 0);
 
-op::v0::GRN::GRN(const Output<Node>& data, float bias)
-    : Op({data})
-    , m_bias(bias)
-{
+op::v0::GRN::GRN(const Output<Node>& data, float bias) : Op({data}), m_bias(bias) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v0::GRN::visit_attributes(AttributeVisitor& visitor)
-{
+bool op::v0::GRN::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_GRN_visit_attributes);
     visitor.on_attribute("bias", m_bias);
     return true;
 }
 
-void op::v0::GRN::validate_and_infer_types()
-{
+void op::v0::GRN::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_GRN_validate_and_infer_types);
     const auto& data_pshape = get_input_partial_shape(0);
 
-    if (data_pshape.is_static())
-    {
+    if (data_pshape.is_static()) {
         const Shape& data_shape{data_pshape.to_shape()};
 
         // Input data must be 2, 3 or 4D tensor.
@@ -51,11 +46,9 @@ void op::v0::GRN::validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::v0::GRN::clone_with_new_inputs(const OutputVector& new_args) const
-{
+shared_ptr<Node> op::v0::GRN::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_GRN_clone_with_new_inputs);
-    if (new_args.size() != 1)
-    {
+    if (new_args.size() != 1) {
         throw ngraph_error("Incorrect number of new arguments");
     }
     return make_shared<GRN>(new_args.at(0), m_bias);
