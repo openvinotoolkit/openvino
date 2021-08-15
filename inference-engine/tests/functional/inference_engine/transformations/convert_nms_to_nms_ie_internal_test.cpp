@@ -33,8 +33,8 @@ TEST(TransformationTests, ConvertNMS1ToNMSIEInternal) {
         auto max_output_boxes_per_class = op::v0::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = op::v0::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = op::v0::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<op::v3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, op::v3::NonMaxSuppression::BoxEncodingType::CORNER, true);
+        auto nms = std::make_shared<op::v1::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
+                iou_threshold, score_threshold, op::v1::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 

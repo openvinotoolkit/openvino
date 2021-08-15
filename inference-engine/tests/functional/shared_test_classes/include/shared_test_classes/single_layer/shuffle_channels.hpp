@@ -29,6 +29,7 @@ typedef std::tuple<
         LayerTestsUtils::TargetDevice   // Device name
 > shuffleChannelsLayerTestParamsSet;
 
+
 class ShuffleChannelsLayerTest : public testing::WithParamInterface<shuffleChannelsLayerTestParamsSet>,
                                  virtual public LayerTestsUtils::LayerTestsCommon {
 public:

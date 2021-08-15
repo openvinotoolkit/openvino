@@ -19,6 +19,7 @@
 using namespace testing;
 using namespace ngraph;
 
+
 TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
@@ -49,7 +50,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenTest) {
         auto transpose = std::make_shared<ngraph::op::v1::Transpose>(data1,
                                                                      ngraph::op::v0::Constant::create(element::i32,
                                                                                                       Shape({3}), {1, 0, 2}));
-        auto data_shape = std::make_shared<ngraph::op::v0::ShapeOf>(data1);
+        auto data_shape = std::make_shared<ngraph::op::v3::ShapeOf>(data1);
         auto axisT = ngraph::op::v0::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::op::v0::Constant::create(seq_len_type, Shape{1}, {1});
         auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);
@@ -141,7 +142,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest) {
         auto transpose = std::make_shared<ngraph::op::v1::Transpose>(data1,
                                                                      ngraph::op::v0::Constant::create(element::i32,
                                                                                                       Shape({3}), {1, 0, 2}));
-        auto data_shape = std::make_shared<ngraph::op::v0::ShapeOf>(data1);
+        auto data_shape = std::make_shared<ngraph::op::v3::ShapeOf>(data1);
         auto axisT = ngraph::op::v0::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::op::v0::Constant::create(seq_len_type, Shape{1}, {1});
         auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);
@@ -233,7 +234,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
         auto transpose = std::make_shared<ngraph::op::v1::Transpose>(data1,
                                                                      ngraph::op::v0::Constant::create(element::i32,
                                                                                                       Shape({3}), {1, 0, 2}));
-        auto data_shape = std::make_shared<ngraph::op::v0::ShapeOf>(data1);
+        auto data_shape = std::make_shared<ngraph::op::v3::ShapeOf>(data1);
         auto axisT = ngraph::op::v0::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::op::v0::Constant::create(seq_len_type, Shape{1}, {1});
         auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);
@@ -325,7 +326,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
         auto transpose = std::make_shared<ngraph::op::v1::Transpose>(data1,
                                                                      ngraph::op::v0::Constant::create(element::i32,
                                                                                                       Shape({3}), {1, 0, 2}));
-        auto data_shape = std::make_shared<ngraph::op::v0::ShapeOf>(data1);
+        auto data_shape = std::make_shared<ngraph::op::v3::ShapeOf>(data1);
         auto axisT = ngraph::op::v0::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::op::v0::Constant::create(seq_len_type, Shape{1}, {1});
         auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);
@@ -458,7 +459,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenWithBlankIn
         auto transpose = std::make_shared<ngraph::op::v1::Transpose>(data1,
                                                                      ngraph::op::v0::Constant::create(element::i32,
                                                                                                       Shape({3}), {1, 0, 2}));
-        auto data_shape = std::make_shared<ngraph::op::v0::ShapeOf>(data1);
+        auto data_shape = std::make_shared<ngraph::op::v3::ShapeOf>(data1);
         auto axisT = ngraph::op::v0::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::op::v0::Constant::create(seq_len_type, Shape{1}, {1});
         auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);

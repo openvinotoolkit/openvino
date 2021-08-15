@@ -42,6 +42,7 @@ struct ReferenceParams {
     explicit ReferenceParams(const std::vector<int64_t> & reshape_value): reshape_value(reshape_value) {}
 };
 
+
 class TransposeToReshapeTests: public CommonTestUtils::TestsCommon,
                                public testing::WithParamInterface<std::tuple<InputShape, TransposeOrder, ReferenceParams> > {
 public:
@@ -82,7 +83,7 @@ private:
         if (!params.reshape_value.empty()) {
             reshape_dims = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{params.reshape_value.size()}, params.reshape_value);
         } else {
-            auto shape_of = std::make_shared<ngraph::op::v0::ShapeOf>(data);
+            auto shape_of = std::make_shared<ngraph::op::v3::ShapeOf>(data);
             reshape_dims = std::make_shared<ngraph::op::v1::Gather>(shape_of,
                     ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order),
                     ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));

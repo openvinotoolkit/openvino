@@ -7,6 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
+
 std::string ShuffleChannelsLayerTest::getTestCaseName(testing::TestParamInfo<shuffleChannelsLayerTestParamsSet> obj) {
     shuffleChannelsSpecificParams shuffleChannelsParams;
     InferenceEngine::Precision netPrecision;
@@ -31,6 +32,7 @@ std::string ShuffleChannelsLayerTest::getTestCaseName(testing::TestParamInfo<shu
     return result.str();
 }
 
+
 void ShuffleChannelsLayerTest::SetUp() {
     shuffleChannelsSpecificParams shuffleChannelsParams;
     std::vector<size_t> inputShape;
@@ -42,9 +44,10 @@ void ShuffleChannelsLayerTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto shuffleChannels = std::dynamic_pointer_cast<ngraph::op::v1::BatchToSpace>(
+    auto shuffleChannels = std::dynamic_pointer_cast<ngraph::op::v0::ShuffleChannels>(
             ngraph::builder::makeShuffleChannels(paramOuts[0], axis, group));
     ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(shuffleChannels)};
     function = std::make_shared<ngraph::Function>(results, params, "shuffleChannels");
 }
 }  // namespace LayerTestsDefinitions
+

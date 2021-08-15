@@ -52,7 +52,7 @@ protected:
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto shuffleChannels = std::dynamic_pointer_cast<ngraph::op::v1::BatchToSpace>(
+        auto shuffleChannels = std::dynamic_pointer_cast<ngraph::op::v0::ShuffleChannels>(
                 ngraph::builder::makeShuffleChannels(paramOuts[0], axis, group));
         shuffleChannels->get_rt_info() = getCPUInfo();
         ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(shuffleChannels)};
@@ -65,6 +65,7 @@ protected:
         selectedType += netPrecision.name();
     }
 };
+
 
 TEST_P(ShuffleChannelsLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
