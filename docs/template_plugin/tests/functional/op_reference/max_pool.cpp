@@ -199,5 +199,19 @@ INSTANTIATE_TEST_SUITE_P(
                                     Strides{1},
                                     Shape{2},
                                     Shape{2},
-                                    Shape{3})),
+                                    Shape{3}),
+                      /*************************************************/
+                      /***************** 2D test cases *****************/
+                      /*************************************************/
+                      MaxPoolParams(Shape{1, 1, 3, 3},
+                                    element::i32,
+                                    std::vector<int32_t>{3, 9, 10, 5, 7, 2, 18, 8, -2},
+                                    std::vector<int32_t>{9, 10, 18, 8},
+                                    element::i32,
+                                    std::vector<int32_t>{1, 2, 6, 7},
+                                    Strides{1, 1},
+                                    Strides{1, 1},
+                                    Shape{},
+                                    Shape{},
+                                    Shape{2, 2})),
     ReferenceMaxPoolLayerTest::getTestCaseName);

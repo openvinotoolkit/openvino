@@ -172,6 +172,18 @@ void max_pool_1d(const Values_t* data,
 // TODO:
 // bool elem_in_padding_area(Coordinate kernel_pos)
 
+template <typename T>
+struct Coord : public std::vector<T> {
+    Coord(const Shape& pads_begin) {
+        std::vector<T>::reserve(pads_begin.size());
+        for (const auto axis_padding : pads_begin) {
+            std::vector<T>::push_back(0 - axis_padding);
+        }
+    }
+
+    Coord(std::initializer_list<T>&& values) : std::vector<T>{std::move(values)} {}
+};
+
 template <typename Values_t, typename Indices_t>
 void max_pool_2d(const Values_t* data,
                  Values_t* values,
@@ -186,8 +198,7 @@ void max_pool_2d(const Values_t* data,
                  const size_t indices_offset) {
     validate_max_pool_kernel_params(2, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
 
-    int kernel_y_position = 0 - pads_begin[0];
-    int kernel_x_position = 0 - pads_begin[1];
+    Coord<int> kernel_position{pads_begin};
 
     // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
     for (size_t out_idx = 0; out_idx < out_shape[2] * out_shape[3]; ++out_idx) {
@@ -197,20 +208,19 @@ void max_pool_2d(const Values_t* data,
         // find the max element in the area covered by a current position of the kernel
         for (size_t kernel_row = 0; kernel_row < kernel[0]; ++kernel_row) {
             for (size_t kernel_col = 0; kernel_col < kernel[1]; ++kernel_col) {
-                const size_t kernel_y_offset = kernel_row * kernel_dilations[0];
-                const size_t kernel_x_offset = kernel_col * kernel_dilations[1];
+                const Coord<size_t> kernel_offset{kernel_row * kernel_dilations[0], kernel_col * kernel_dilations[1]};
                 // ignore elements in pads_begin area
-                if (kernel_y_position + kernel_y_offset < 0 || kernel_x_position + kernel_x_offset < 0) {
+                if (kernel_position[0] + kernel_offset[0] < 0 || kernel_position[1] + kernel_offset[1] < 0) {
                     continue;
                 }
                 // ignore elements in pads_end area
-                if (kernel_y_position + kernel_y_offset >= data_shape[2] ||
-                    kernel_x_position + kernel_x_offset >= data_shape[3]) {
+                if (kernel_position[0] + kernel_offset[0] >= data_shape[2] ||
+                    kernel_position[1] + kernel_offset[1] >= data_shape[3]) {
                     continue;
                 }
 
                 const size_t data_elem_offset =
-                    data_shape[2] * (kernel_row + kernel_y_position) + kernel_x_offset + kernel_x_position;
+                    data_shape[2] * (kernel_row + kernel_position[0]) + kernel_offset[1] + kernel_position[1];
 
                 if (data[data_elem_offset] > max_elem) {
                     max_elem = data[data_elem_offset];
@@ -222,10 +232,10 @@ void max_pool_2d(const Values_t* data,
         values[out_idx] = max_elem;
         indices[out_idx] = max_elem_idx + indices_offset;
 
-        kernel_x_position += kernel_strides[1];
-        if (kernel_x_position >= out_shape[3]) {
-            kernel_x_position = 0 - pads_begin[1];
-            kernel_y_position += kernel_strides[0];
+        kernel_position[1] += kernel_strides[1];
+        if (kernel_position[1] >= out_shape[3]) {
+            kernel_position[1] = 0 - pads_begin[1];
+            kernel_position[0] += kernel_strides[0];
         }
     }
 }
