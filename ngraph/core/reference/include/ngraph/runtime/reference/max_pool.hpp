@@ -146,6 +146,65 @@ void max_pool_1d(const Values_t* data,
         kernel_position += kernel_stride;
     }
 }
+
+void validate_max_pool_kernel_params(const size_t dims,
+                                     const Shape& kernel,
+                                     const Strides& kernel_strides,
+                                     const Strides& kernel_dilations,
+                                     const Shape& pads_begin,
+                                     const Shape& pads_end) {
+    NGRAPH_CHECK(kernel.size() == dims && kernel_strides.size() == dims && kernel_dilations.size() == dims &&
+                     pads_begin.size() == dims && pads_end.size() == dims,
+                 "One of the MaxPool params does not match the ",
+                 dims,
+                 "D implementation.\nkernel=",
+                 kernel,
+                 "\nkernel_strides=",
+                 kernel_strides,
+                 "\nkernel_dilations=",
+                 kernel_dilations,
+                 "\npads_begin=",
+                 pads_begin,
+                 "\npads_end=",
+                 pads_end);
+}
+
+template <typename Values_t, typename Indices_t>
+void max_pool_2d(const Values_t* data,
+                 Values_t* values,
+                 Indices_t* indices,
+                 const size_t data_elems,
+                 const size_t out_elems,
+                 const Shape kernel,
+                 const Strides& kernel_strides,
+                 const Strides& kernel_dilations,
+                 const Shape& pads_begin,
+                 const Shape& pads_end,
+                 const size_t indices_offset) {
+    validate_max_pool_kernel_params(2, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
+
+    // int kernel_position = 0 - pads_begin;
+    // // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
+    // for (size_t out_idx = 0; out_idx < out_elems; ++out_idx) {
+    //     Values_t max_elem = std::numeric_limits<Values_t>::lowest();
+    //     Indices_t max_elem_idx = Indices_t{0};
+    //     for (size_t kernel_elem = 0; kernel_elem < kernel_size; ++kernel_elem) {
+    //         const size_t kernel_elem_offset = kernel_elem * kernel_dilation;
+    //         if (kernel_position + kernel_elem_offset < 0 || kernel_position + kernel_elem_offset >= data_elems) {
+    //             // don't process the padding elements
+    //             continue;
+    //         } else {
+    //             if (data[kernel_position + kernel_elem_offset] > max_elem) {
+    //                 max_elem = data[kernel_position + kernel_elem_offset];
+    //                 max_elem_idx = kernel_position + kernel_elem_offset;
+    //             }
+    //         }
+    //     }
+    //     values[out_idx] = max_elem;
+    //     indices[out_idx] = max_elem_idx + indices_offset;
+    //     kernel_position += kernel_stride;
+    // }
+}
 }  // namespace
 
 template <typename Values_t, typename Indices_t>
@@ -190,6 +249,18 @@ void max_pool(const Values_t* data,
                                                  dilations[0],
                                                  pads_begin[0],
                                                  pads_end[0],
+                                                 indices_offset);
+            } else if (data_shape.size() == 4) {
+                max_pool_2d<Values_t, Indices_t>(data_channel_first_elem,
+                                                 out_channel_first_elem,
+                                                 indices_channel_first_elem,
+                                                 data_channel_elems,
+                                                 out_channel_elems,
+                                                 kernel,
+                                                 strides,
+                                                 dilations,
+                                                 pads_begin,
+                                                 pads_end,
                                                  indices_offset);
             } else {
                 throw std::runtime_error("Not ready yet");

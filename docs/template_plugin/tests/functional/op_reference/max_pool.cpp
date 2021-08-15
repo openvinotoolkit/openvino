@@ -18,7 +18,7 @@ using namespace InferenceEngine;
 
 struct MaxPoolParams {
     template <class Input_t, class Indices_t>
-    MaxPoolParams(const PartialShape& input_shape,
+    MaxPoolParams(const Shape& input_shape,
                   const element::Type& input_type,
                   const std::vector<Input_t>& input_data,
                   const std::vector<Input_t>& expected_values,
@@ -44,7 +44,7 @@ struct MaxPoolParams {
           m_kernel(kernel),
           m_pad_type(pad_type),
           m_axis(axis) {}
-    PartialShape m_input_shape;
+    Shape m_input_shape;
     element::Type m_input_type;
     element::Type m_indices_type;
     InferenceEngine::Blob::Ptr m_input_data;
@@ -70,6 +70,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<MaxPoolParams>& obj) {
         const auto p = obj.param;
         std::ostringstream result;
+        result << p.m_input_shape.size() - 2 << "D/";
         result << "input_shape=" << p.m_input_shape << ";";
         result << "input_type=" << p.m_input_type << ";";
         result << "indices_type=" << p.m_indices_type << ";";
@@ -107,7 +108,7 @@ TEST_P(ReferenceMaxPoolLayerTest, CompareWithHardcodedRefs) {
 INSTANTIATE_TEST_SUITE_P(
     smoke_MaxPool_With_Hardcoded_Refs,
     ReferenceMaxPoolLayerTest,
-    ::testing::Values(MaxPoolParams(PartialShape{1, 1, 9},
+    ::testing::Values(MaxPoolParams(Shape{1, 1, 9},
                                     element::i32,
                                     std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9},
                                     std::vector<int32_t>{2, 3, 4, 5, 6, 7, 8, 9},
@@ -118,7 +119,7 @@ INSTANTIATE_TEST_SUITE_P(
                                     Shape{},
                                     Shape{},
                                     Shape{2}),
-                      MaxPoolParams(PartialShape{1, 1, 9},
+                      MaxPoolParams(Shape{1, 1, 9},
                                     element::i32,
                                     std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9},
                                     std::vector<int32_t>{2, 4, 6, 8},
@@ -129,7 +130,7 @@ INSTANTIATE_TEST_SUITE_P(
                                     Shape{},
                                     Shape{},
                                     Shape{2}),
-                      MaxPoolParams(PartialShape{1, 1, 9},
+                      MaxPoolParams(Shape{1, 1, 9},
                                     element::i32,
                                     std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9},
                                     std::vector<int32_t>{1, 3, 5, 7, 9},
@@ -141,7 +142,7 @@ INSTANTIATE_TEST_SUITE_P(
                                     Shape{},
                                     Shape{2},
                                     op::PadType::SAME_LOWER),
-                      MaxPoolParams(PartialShape{1, 1, 9},
+                      MaxPoolParams(Shape{1, 1, 9},
                                     element::i32,
                                     std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9},
                                     std::vector<int32_t>{2, 4, 6, 8, 9},
@@ -153,7 +154,7 @@ INSTANTIATE_TEST_SUITE_P(
                                     Shape{},
                                     Shape{2},
                                     op::PadType::SAME_UPPER),
-                      MaxPoolParams(PartialShape{1, 1, 9},
+                      MaxPoolParams(Shape{1, 1, 9},
                                     element::i32,
                                     std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9},
                                     std::vector<int32_t>{3, 5, 7, 9},
@@ -164,7 +165,7 @@ INSTANTIATE_TEST_SUITE_P(
                                     Shape{},
                                     Shape{},
                                     Shape{2}),
-                      MaxPoolParams(PartialShape{1, 2, 4},
+                      MaxPoolParams(Shape{1, 2, 4},
                                     element::f32,
                                     std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 0.0f, -3.14f, -2.71f, 5.0f},
                                     std::vector<float>{3.0f, 4.0f, 0.0f, 5.0f},
@@ -175,7 +176,7 @@ INSTANTIATE_TEST_SUITE_P(
                                     Shape{},
                                     Shape{},
                                     Shape{3}),
-                      MaxPoolParams(PartialShape{1, 2, 4},
+                      MaxPoolParams(Shape{1, 2, 4},
                                     element::f32,
                                     std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 0.0f, -3.14f, -2.71f, 5.0f},
                                     std::vector<float>{3.0f, 4.0f, 0.0f, 5.0f},
@@ -188,7 +189,7 @@ INSTANTIATE_TEST_SUITE_P(
                                     Shape{3},
                                     op::PadType::EXPLICIT,
                                     2),
-                      MaxPoolParams(PartialShape{1, 1, 9},
+                      MaxPoolParams(Shape{1, 1, 9},
                                     element::i32,
                                     std::vector<int32_t>{1, 9, 3, 8, 5, 2, 6, 4, 7},
                                     std::vector<int32_t>{1, 9, 6, 7},
