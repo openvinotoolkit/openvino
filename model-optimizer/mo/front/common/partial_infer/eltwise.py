@@ -14,9 +14,6 @@ def eltwise_infer(node, op=None, **kwargs):
     values = [node.graph.node[inp]['value'] for inp, attr in raw_inputs]
     node_name = node.soft_get('name', node.id)
 
-    # infer output shape based on input shapes without op involvement
-    # based on repeated application of rules https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
-
     if any([s is None for s in shapes]):
         raise Error('One of the input shapes for node "{}" is None'.format(node_name))
 
