@@ -82,7 +82,6 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         lastDequantization->set_friendly_name("multiply");
         parent = lastDequantization;
     }
-    parent->set_friendly_name("output");
     if (!fqOnData3.empty()) {
         std::shared_ptr<Node> fq;
         if (operation == "relu") {
