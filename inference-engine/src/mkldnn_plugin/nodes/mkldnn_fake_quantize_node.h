@@ -105,9 +105,16 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    void appendPostOps(mkldnn::post_ops& ops) override;
+    void appendPostOps(mkldnn::post_ops& ops, bool initAsBinary = false, bool initBinaryMemory = false) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+    MKLDNNMemoryPtr cropLowMemory;
+    MKLDNNMemoryPtr cropHighMemory;
+    MKLDNNMemoryPtr inputScaleMemory;
+    MKLDNNMemoryPtr inputShiftMemory;
+    MKLDNNMemoryPtr outputScaleMemory;
+    MKLDNNMemoryPtr outputShiftMemory;
 
 private:
     void init() override;
@@ -129,6 +136,13 @@ private:
     std::vector<float> inputShift;
     std::vector<float> outputScale;
     std::vector<float> outputShift;
+
+    size_t cropLowSize;
+    size_t cropHighSize;
+    size_t inputScaleSize;
+    size_t inputShiftSize;
+    size_t outputScaleSize;
+    size_t outputShiftSize;
 
     // mkldnn style post ops data representation
     bool isPostOpDataInitialized = false;
