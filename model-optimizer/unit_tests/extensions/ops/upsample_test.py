@@ -7,7 +7,7 @@ import numpy as np
 from generator import generator, generate
 
 from extensions.ops.upsample import UpsampleOp
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
@@ -46,7 +46,7 @@ class TestUpsampleOp(unittest.TestCase):
         upsample_node = Node(graph, 'upsample')
         UpsampleOp.upsample_infer(upsample_node)
         res_shape = graph.node['node_3']['shape']
-        self.assertTrue(np.ma.allequal(expected_shape, res_shape))
+        self.assertTrue(strict_compare_tensors(expected_shape, res_shape))
 
     @generate(*[
         (np.array([1., 1., 2., 2.]), shape_array([1, 3, 227, 227]), shape_array([1, 3, 454, 454])),
@@ -76,4 +76,4 @@ class TestUpsampleOp(unittest.TestCase):
         upsample_node = Node(graph, 'upsample')
         UpsampleOp.upsample_infer(upsample_node)
         res_shape = graph.node['node_3']['shape']
-        self.assertTrue(np.ma.allequal(expected_shape, res_shape))
+        self.assertTrue(strict_compare_tensors(expected_shape, res_shape))

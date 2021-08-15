@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.ops.convolution import Convolution
 from mo.utils.error import Error
@@ -80,7 +80,7 @@ class TestConvolutionPartialInfer(unittest.TestCase):
         Convolution.infer(conv_node)
         exp_shape = shape_array([1, 64, dynamic_dimension_value, 225])
         res_shape = graph.node['conv_output']['shape']
-        self.assertTrue(np.ma.allequal(exp_shape, res_shape))
+        self.assertTrue(strict_compare_tensors(exp_shape, res_shape))
 
     def test_caffe_conv2d_infer_no_shape(self):
         graph = build_graph(nodes_attributes,
@@ -176,12 +176,12 @@ class TestConvolutionPartialInfer(unittest.TestCase):
         res_shape = deconv_node['output_shape']
         exp_shape = shape_array([1, 21, dynamic_dimension_value, 35])
 
-        self.assertTrue(np.ma.allequal(exp_shape, res_shape))
+        self.assertTrue(strict_compare_tensors(exp_shape, res_shape))
 
         # Check that after double infer shape and pad attrs do not changes
         Convolution.infer(deconv_node)
 
-        self.assertTrue(np.ma.allequal(exp_shape, res_shape))
+        self.assertTrue(strict_compare_tensors(exp_shape, res_shape))
 
     def test_deconv_infer_no_shape(self):
         graph = build_graph(nodes_attributes,

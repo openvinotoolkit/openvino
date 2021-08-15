@@ -7,7 +7,7 @@ import numpy as np
 from generator import generator, generate
 
 from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value, \
-    dynamic_dimension, shape_array, compare_shapes, shape_delete, shape_insert
+    dynamic_dimension, shape_array, compare_shapes, shape_delete, shape_insert, strict_compare_tensors
 from mo.utils.error import Error
 
 
@@ -31,8 +31,8 @@ class IsFullyDefinedTest(unittest.TestCase):
                 (int64_array([2, 3, 5, 7]), True),  # int64 array with valid values
                 (np.array([2, 3, 5, 7]), True),  # any numpy array with valid values
                 (np.array([2, dynamic_dimension_value]), True),  # array with dynamic dimension value is fully defined!
-                (gen_masked_array([2, 4, 5], [1]), False),  # masked array with at least one masked element
-                (gen_masked_array([2, 4, 5], []), True),  # masked array with no masked elements is fully defined
+                (shape_array([2, dynamic_dimension_value, 5]), False),  # masked array with at least one masked element
+                (shape_array([2, 4, 5]), True),  # masked array with no masked elements is fully defined
                 (dynamic_dimension, False),  # dynamic dimension is not fully defined
                 (dynamic_dimension_value, True),  # dynamic dimension value is fully defined
                 ((dynamic_dimension_value, dynamic_dimension_value), True),  # list with dynamic dimension values is
@@ -46,7 +46,7 @@ class IsFullyDefinedTest(unittest.TestCase):
 
 @generator
 class ShapeArrayTest(unittest.TestCase):
-    @generate(*[([1], gen_masked_array([1], []), True),
+    @generate(*[([1], shape_array([1]), True),
                 # if we provide a list with dynamic_dimension_value then it is converted to dynamic dimension
                 ([dynamic_dimension_value, 5], gen_masked_array([1, 5], [0]), True),
                 # if we provide a list with dynamic_dimension then the generated shape array still have it
@@ -55,7 +55,7 @@ class ShapeArrayTest(unittest.TestCase):
                 ([2], gen_masked_array([1], []), False),
                 ])
     def test_shape_array(self, data, ref, result):
-        self.assertEqual(np.ma.allequal(shape_array(data), ref), result)
+        self.assertEqual(strict_compare_tensors(shape_array(data), ref), result)
 
 
 @generator
@@ -102,7 +102,7 @@ class ShapeDeleteTest(unittest.TestCase):
                 (np.array([1, 2, 3, 4]), -2, [1, 2, 4]),  # [1, 2, 3, 4] -> [1, 2, 4]. Negative index
                 ])
     def test_shape_delete(self, shape, indices, result):
-        self.assertTrue(np.ma.allequal(shape_delete(shape, indices), result))
+        self.assertTrue(strict_compare_tensors(shape_delete(shape, indices), result))
 
     def test_shape_delete_raise_exception(self):
         with self.assertRaisesRegex(Error, '.*Incorrect parameter type.*'):
@@ -114,18 +114,18 @@ class ShapeInsertTest(unittest.TestCase):
     @generate(*[(gen_masked_array([1, 2, 3], []), 1, [5], gen_masked_array([1, 5, 2, 3], [])),
                 (gen_masked_array([1, 2, 3], [1]), 1, [5], gen_masked_array([1, 5, 2, 3], [2])),
                 (gen_masked_array([1, 2, 3], [1]), 1, [dynamic_dimension], gen_masked_array([1, 5, 2, 3], [1, 2])),
-                (gen_masked_array([1, 2, 3], [1]), 0, [dynamic_dimension], gen_masked_array([1, 5, 2, 3], [0, 1])),
+                (gen_masked_array([1, 2, 3], [1]), 0, [dynamic_dimension], gen_masked_array([5, 1, 2, 3], [0, 2])),
                 (gen_masked_array([1, 2, 3], [1]), np.int64(0), [dynamic_dimension],
-                 gen_masked_array([1, 5, 2, 3], [0, 1])),
-                (gen_masked_array([1, 2, 3], [1]), 3, [dynamic_dimension], gen_masked_array([1, 2, 3, 5], [0, 3])),
+                 gen_masked_array([5, 1, 2, 3], [0, 2])),
+                (gen_masked_array([1, 2, 3], [1]), 3, [dynamic_dimension], gen_masked_array([1, 2, 3, 5], [1, 3])),
                 (gen_masked_array([1, 2, 3], [1]), 3, [dynamic_dimension, dynamic_dimension],
-                 gen_masked_array([1, 2, 3, 5, 6], [0, 3, 4])),
+                 gen_masked_array([1, 2, 3, 5, 6], [1, 3, 4])),
                 (gen_masked_array([1], [0]), 0, [7, dynamic_dimension], gen_masked_array([7, 5, 2], [1, 2])),
                 ])
-    def test_shape_delete(self, shape, pos, values, result):
-        self.assertTrue(np.ma.allequal(shape_insert(shape, pos, values), result))
+    def test_shape_insert(self, shape, pos, values, result):
+        self.assertTrue(strict_compare_tensors(shape_insert(shape, pos, values), result))
 
-    def test_shape_delete_raise_exception(self):
+    def test_shape_insert_raise_exception(self):
         with self.assertRaisesRegex(Error, '.*Incorrect parameter type.*'):
             shape_insert(gen_masked_array([1, 2, 3], []), 2, {})
 

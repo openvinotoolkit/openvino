@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 from generator import generate, generator
 
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.ops.squeeze import Squeeze
 from mo.utils.error import Error
@@ -43,11 +43,13 @@ nodes_attributes = {
 
 @generator
 class TestSqueezeInfer(unittest.TestCase):
-    @generate(*[(None, shape_array([1, 2, 1, 4]), shape_array([2]), None, [1, 2, 4]),
+    @generate(*[
+        (None, shape_array([1, 2, 1, 4]), shape_array([2]), None, [1, 2, 4]),
                 # allow squeezing dynamic dimensions
                 (None, shape_array([1, 2, dynamic_dimension_value, 4]), shape_array([2]), None, [1, 2, 4]),
                 (None, shape_array([1, 2, 1, 4]), shape_array([]), None, [2, 4]),
-                (None, shape_array([1, dynamic_dimension_value, 1, 4]), shape_array([]), None, [2, 4]),
+                (None, shape_array([1, dynamic_dimension_value, 1, 4]), shape_array([]), None,
+                 shape_array([dynamic_dimension_value, 4])),
                 # do not allow squeeze dimensions not equal to 1
                 (None, shape_array([1, 2, 1, 4]), shape_array([1]), None, None),
                 # do not allow squeeze input shape to be None
@@ -70,5 +72,5 @@ class TestSqueezeInfer(unittest.TestCase):
         else:
             Squeeze.infer(node)
             if ref_value is not None:
-                self.assertTrue(np.ma.allequal(node.out_port(0).data.get_value(), ref_value))
-            self.assertTrue(np.ma.allequal(node.out_port(0).data.get_shape(), ref_shape))
+                self.assertTrue(strict_compare_tensors(node.out_port(0).data.get_value(), ref_value))
+            self.assertTrue(strict_compare_tensors(node.out_port(0).data.get_shape(), ref_shape))

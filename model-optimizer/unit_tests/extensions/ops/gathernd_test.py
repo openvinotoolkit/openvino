@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from extensions.ops.gathernd import GatherND
-from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
@@ -172,7 +172,7 @@ class TestGatherNDUpdate(unittest.TestCase):
 
     def test_partial_infer_gather_slice_batch_dims2_dynamic(self):
         nodes_attributes['gathernd_node']['batch_dims'] = 2
-        graph = build_graph(nodes_attributes, edges, inputs3)
+        graph = build_graph(nodes_attributes, edges, inputs9)
         gathernd_node = Node(graph, 'gathernd_node')
         GatherND.infer(gathernd_node)
 
@@ -182,7 +182,7 @@ class TestGatherNDUpdate(unittest.TestCase):
         # get the result
         res_output_shape = graph.node['output']['shape']
 
-        self.assertTrue(np.ma.allequal(ref_output_shape, res_output_shape),
+        self.assertTrue(strict_compare_tensors(ref_output_shape, res_output_shape),
                         'values do not match expected: {} and given: {}'.format(ref_output_shape, res_output_shape))
 
     def test_infer4(self):

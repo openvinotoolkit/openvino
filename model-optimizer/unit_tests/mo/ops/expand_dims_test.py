@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.ops.expand_dims import ExpandDims
 from unit_tests.utils.graph import build_graph
@@ -66,7 +66,7 @@ class ExpandDimsOpDynamicDims(unittest.TestCase):
 
         ExpandDims.infer(expand_dims_node)
 
-        self.assertTrue(np.ma.allequal(expand_dims_node.out_node().shape, shape_array(ref_out_shape)))
+        self.assertTrue(strict_compare_tensors(expand_dims_node.out_node().shape, shape_array(ref_out_shape)))
 
 
 @generator

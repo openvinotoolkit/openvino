@@ -4,9 +4,7 @@
 import unittest
 from collections.abc import Iterable
 
-import numpy as np
-
-from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.ops.strided_slice import StridedSlice
 from unit_tests.utils.graph import build_graph, valued_const_with_data, result, regular_op_with_empty_data, \
@@ -28,9 +26,9 @@ class TestStridedSliceInfer(unittest.TestCase):
                                          {'op': 'StridedSlice', 'begin_mask': begin_mask, 'end_mask': end_mask,
                                           'shrink_axis_mask': shrink_axis_mask, 'ellipsis_mask': ellipsis_mask,
                                           'new_axis_mask': new_axis_mask}),
-            **valued_const_with_data('begin', int64_array(begin)),
-            **valued_const_with_data('end', int64_array(end)),
-            **valued_const_with_data('strides', int64_array(strides)),
+            **valued_const_with_data('begin', shape_array(begin)),
+            **valued_const_with_data('end', shape_array(end)),
+            **valued_const_with_data('strides', shape_array(strides)),
             **result('res'),
         }
 
@@ -47,7 +45,7 @@ class TestStridedSliceInfer(unittest.TestCase):
         StridedSlice.infer(node)
         res = node.out_port(0).data.get_shape() if is_shape else node.out_port(0).data.get_value()
         if isinstance(ref_res, Iterable):
-            self.assertTrue(np.ma.allequal(res, shape_array(ref_res)))
+            self.assertTrue(strict_compare_tensors(res, shape_array(ref_res)))
         else:
             self.assertEqual(res, ref_res)
 
@@ -284,7 +282,7 @@ class TestStridedSliceInfer(unittest.TestCase):
 
     def test_slice_infer_dynamic_shape_1(
             self,  # inp[0:3, 0:1, 0:5]
-            inp=(dynamic_dimension_value, 10, 10, 10), ref_res=(3, 1, 5, 10), is_shape=True,
+            inp=(dynamic_dimension_value, 10, 10, 10), ref_res=(dynamic_dimension_value, 1, 5, 10), is_shape=True,
             begin=(0, 0, 0), end=(3, 1, 5), strides=(1, 1, 1), begin_mask=(1, 1, 1), end_mask=(1, 1, 1),
             shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)
     ):

@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from mo.front.common.partial_infer.multi_box_detection import multi_box_detection_infer
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
@@ -118,7 +118,7 @@ class TestMultiBoxDetectionInfer(unittest.TestCase):
         multi_box_detection_infer(multi_box_detection_node)
         exp_shape = shape_array([1, 1, dynamic_dimension_value, 7])
         res_shape = graph.node['node_4']['shape']
-        self.assertTrue(np.ma.allequal(exp_shape, res_shape))
+        self.assertTrue(strict_compare_tensors(exp_shape, res_shape))
 
         self.assertEqual(multi_box_detection_node.background_label_id, '0')
         self.assertEqual(multi_box_detection_node.clip, '1')

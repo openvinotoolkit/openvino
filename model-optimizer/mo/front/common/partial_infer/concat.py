@@ -4,7 +4,7 @@
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import shape_array, is_fully_defined
+from mo.front.common.partial_infer.utils import shape_array, is_fully_defined, dynamic_dimension
 from mo.ops.op import PermuteAttrs
 from mo.utils.error import Error
 
@@ -40,6 +40,13 @@ def concat_infer(node):
             shape[mask] += s[mask]
         else:
             raise Error('Concat input shapes do not match for node "{}" with axis {}'.format(node_name, axis))
+
+    #  dynamic dimensions in the output (except the concat axis) can be deduced from input shape
+    for pos in range(len(shape)):
+        if shape[pos] is dynamic_dimension and pos != axis:
+            for in_shape in shapes:
+                if in_shape[pos] is not dynamic_dimension:
+                    shape[pos] = in_shape[pos]
 
     node.out_port(0).data.set_shape(shape)
     PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])

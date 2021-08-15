@@ -5,10 +5,11 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, shape_insert, is_fully_defined
+from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, shape_insert, is_fully_defined, \
+    dynamic_dimension_value
 
 
-def make_equal_rank(shape_1: np.array, shape_2: np.array):
+def make_equal_rank(shape_1: np.ndarray, shape_2: np.ndarray):
     """
     Prepend shape with smaller length with 1. Return updates shapes
     :param shape_1: first shape
@@ -40,13 +41,16 @@ def uni_directional_shape_broadcasting(input_shape: np.array, target_shape: np.a
 
     # prepend input shape with 1s
     input, target_shape = make_equal_rank(input, target_shape)
-
+    result_shape = []
     for left, right in zip(input, target_shape):
         if left != right and left != 1 and right is not dynamic_dimension:
             log.debug('The shape "{}" cannot be broadcasted to "{}"'.format(input_shape, target_shape))
             return None
-
-    return target_shape
+        if right is dynamic_dimension and left is not dynamic_dimension and left != 1:
+            result_shape.append(left)
+        else:
+            result_shape.append(right)
+    return shape_array(result_shape)
 
 
 def bi_directional_shape_broadcasting(input_shape_1: np.array, input_shape_2: np.array):
@@ -68,8 +72,12 @@ def bi_directional_shape_broadcasting(input_shape_1: np.array, input_shape_2: np
             return None
         if left is not dynamic_dimension and right is not dynamic_dimension:
             result.append(max(left, right))
+        elif left is not dynamic_dimension and left != 1:
+            result.append(left)
+        elif right is not dynamic_dimension and right != 1:
+            result.append(right)
         else:
-            result.append(dynamic_dimension)
+            result.append(dynamic_dimension_value)
 
     return shape_array(result)
 

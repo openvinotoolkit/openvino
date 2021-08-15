@@ -7,7 +7,7 @@ import numpy as np
 from generator import generator, generate
 
 from mo.front.common.partial_infer.eltwise import eltwise_infer
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
@@ -47,9 +47,9 @@ class TestEltwiseInfer(unittest.TestCase):
                              ('node_3', 'op_output')
                              ],
                             {'node_3': {'shape': None},
-                             'node_1': {'shape': value1.shape if value1 is not None else shape_array(shape1),
+                             'node_1': {'shape': shape_array(value1).shape if value1 is not None else shape_array(shape1),
                                         'value': value1},
-                             'node_2': {'shape': value2.shape if value2 is not None else shape_array(shape2),
+                             'node_2': {'shape': shape_array(value2).shape if value2 is not None else shape_array(shape2),
                                         'value': value2}
                              })
 
@@ -61,8 +61,8 @@ class TestEltwiseInfer(unittest.TestCase):
         res_shape = graph.node['node_3']['shape']
         res_value = eltwise_node.out_node().value
         if exp_value is not None:
-            self.assertTrue(np.ma.allequal(res_value, exp_value))
-        self.assertTrue(np.ma.allequal(res_shape, exp_shape))
+            self.assertTrue(strict_compare_tensors(res_value, shape_array(exp_value)))
+        self.assertTrue(strict_compare_tensors(res_shape, shape_array(exp_shape)))
 
     def test_eltwise_infer_none_val(self):
         graph = build_graph(nodes_attributes,

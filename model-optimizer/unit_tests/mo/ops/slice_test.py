@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, shape_array
+from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, shape_array, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.ops.slice import Slice
 from mo.utils.error import Error
@@ -28,7 +28,7 @@ class TestSliceOp(unittest.TestCase):
              [[2, 3, 5]], [1, 3]),
             # when only input_shape is defined without values (one from bottom element is shape)
             (None, [4, 5, 6], [1, 2], [4, 3], [0, 1], [1, 1], None, [3, 1, 6]),
-             # boundary case
+            # boundary case
             (None, [4, 5, 6], [0, 2], [np.iinfo(np.int32).max, 3], [0, 1], [1, 1], None, [4, 1, 6]),
             # boundary case
             (None, [4, 5, 6], [np.iinfo(np.int32).min, 2], [3, 3], [0, 1], [1, 1], None, [3, 1, 6],),
@@ -100,8 +100,9 @@ class TestSliceOp(unittest.TestCase):
             slice_node = Node(graph, 'slice')
 
             Slice.infer(slice_node)
-            self.assertTrue(np.ma.allequal(slice_node.out_node().value, expected_value))
-            self.assertTrue(np.ma.allequal(slice_node.out_node().shape, expected_shape))
+            if expected_value is not None:
+                self.assertTrue(strict_compare_tensors(slice_node.out_node().value, expected_value))
+            self.assertTrue(strict_compare_tensors(slice_node.out_node().shape, expected_shape))
 
         # negative tests
         @generate(*[

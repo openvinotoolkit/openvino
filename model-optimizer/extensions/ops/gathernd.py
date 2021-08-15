@@ -3,7 +3,8 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value, \
+    compare_dimensions
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -47,7 +48,7 @@ class GatherND(Op):
 
         # check that batch dimensions of data and indices are the same
         for batch_dim in range(batch_dims):
-            assert data_shape[batch_dim] == indices_shape[batch_dim], \
+            assert compare_dimensions(data_shape[batch_dim], indices_shape[batch_dim]), \
                 "The dimension {} for data and indices tensors must be the same".format(batch_dim)
 
         # check ranks of input tensors

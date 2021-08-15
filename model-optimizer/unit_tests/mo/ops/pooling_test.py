@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.ops.pooling import Pooling
 from mo.utils.error import Error
@@ -69,7 +69,7 @@ class TestPoolingPartialInfer(unittest.TestCase):
         Pooling.infer(pool_node)
         exp_shape = shape_array([1, dynamic_dimension_value, dynamic_dimension_value, 131])
         res_shape = graph.node['node_2']['shape']
-        self.assertTrue(np.ma.allequal(exp_shape, res_shape))
+        self.assertTrue(strict_compare_tensors(exp_shape, res_shape))
 
     def test_pooling_infer_decrement_input_spatial(self):
         graph = build_graph(nodes_attributes,

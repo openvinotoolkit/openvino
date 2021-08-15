@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from extensions.ops.split import AttributedSplit, AttributedVariadicSplit, VariadicSplit
-from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
@@ -108,7 +108,7 @@ class TestSplitOp(unittest.TestCase):
         # check
         (flag, resp) = compare_graphs(graph, graph_ref, 'split_input_data')
         self.assertTrue(flag, resp)
-        self.assertTrue(np.ma.allequal(Node(graph, 'split_output_0_data').shape, shape_array(output_shape)))
+        self.assertTrue(strict_compare_tensors(Node(graph, 'split_output_0_data').shape, shape_array(output_shape)))
 
     def test_split_value_infer(self):
         #  test configuration

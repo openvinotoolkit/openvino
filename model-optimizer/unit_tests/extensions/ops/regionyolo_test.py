@@ -7,7 +7,7 @@ import numpy as np
 
 from extensions.ops.regionyolo import RegionYoloOp
 from mo.front.common.extractors.utils import layout_attrs
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
@@ -70,7 +70,7 @@ class TestRegionYOLOCaffe(unittest.TestCase):
         RegionYoloOp.regionyolo_infer(reorg_node)
         exp_shape = shape_array([dynamic_dimension_value, 227, 227])
         res_shape = graph.node['node_3']['shape']
-        self.assertTrue(np.ma.allequal(exp_shape, res_shape))
+        self.assertTrue(strict_compare_tensors(exp_shape, res_shape))
 
     def test_region_infer_flatten_again(self):
         graph = build_graph(nodes_attributes,

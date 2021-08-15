@@ -10,7 +10,7 @@ from unittest import mock
 import numpy as np
 from generator import generator, generate
 
-from mo.front.common.partial_infer.utils import shape_array
+from mo.front.common.partial_infer.utils import shape_array, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.utils.ir_engine.ir_engine import IREngine
 
@@ -70,7 +70,7 @@ class TestFunction(unittest.TestCase):
         ref_input_dict = {'data': shape_array([1, 10, 16])}
         # Check function:
         inputs_dict = self.IR.get_inputs()
-        self.assertTrue(np.ma.allequal(ref_input_dict['data'], inputs_dict['data']),
+        self.assertTrue(strict_compare_tensors(ref_input_dict['data'], inputs_dict['data']),
                         'Test on function get_inputs failed')
         log.info('Test for function get_inputs passed')
 

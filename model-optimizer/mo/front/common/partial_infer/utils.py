@@ -18,8 +18,9 @@ dynamic_dimension_value = -1000000007
 def shape_array(value, dtype=np.int64):
     # if the input already have masked values then we need to explicitly convert to dynamic_dimension_value and create
     # masked array from scratch, because otherwise method masked_equal will convert masked elements to "nan" value
-    new_value = [item if item is not dynamic_dimension else dynamic_dimension_value for item in value]
-    return np.ma.masked_equal(new_value, dynamic_dimension_value).astype(dtype=dtype)
+    if isinstance(value, Iterable) and (not isinstance(value, np.ndarray) or value.ndim != 0):
+        value = [item if item is not dynamic_dimension else dynamic_dimension_value for item in value]
+    return np.ma.masked_equal(value, dynamic_dimension_value).astype(dtype=dtype)
 
 
 def compare_dimensions(dim1, dim2):
@@ -48,6 +49,37 @@ def compare_shapes(shape1, shape2):
         return False
     for d1, d2 in zip(shape1, shape2):
         if not compare_dimensions(d1, d2):
+            return False
+    return True
+
+
+def strict_compare_tensors(tensor1, tensor2):
+    """
+    Strict comparison of two tensors. The tensors are equal iff their corresponding dimensions are equal or both 
+    dynamic.
+
+    :param tensor1: the first tensor to compare
+    :param tensor2: the second tensor to compare
+    :return: boolean result of the comparison
+    """
+    if not isinstance(tensor1, np.ma.masked_array):
+        tensor1 = shape_array(tensor1)
+    if not isinstance(tensor2, np.ma.masked_array):
+        tensor2 = shape_array(tensor2)
+
+    if tensor1.ndim != tensor2.ndim:
+        return False
+    if tensor1.size != tensor2.size:
+        return False
+    if tensor1.ndim == 0:
+        return tensor1.item() == tensor2.item()
+    if not np.array_equal(tensor1.shape, tensor2.shape):
+        return False
+    for d1, d2 in zip(tensor1.flatten(), tensor2.flatten()):
+        if d1 is not dynamic_dimension and d2 is not dynamic_dimension:
+            if d1 != d2:
+                return False
+        elif d1 is not dynamic_dimension or d2 is not dynamic_dimension:
             return False
     return True
 

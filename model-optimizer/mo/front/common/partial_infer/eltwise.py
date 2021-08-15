@@ -12,12 +12,13 @@ def eltwise_infer(node, op=None, **kwargs):
                   if 'control_flow_edge' not in attr or not attr['control_flow_edge']]
     shapes = [node.graph.node[inp]['shape'] for inp, attr in raw_inputs]
     values = [node.graph.node[inp]['value'] for inp, attr in raw_inputs]
+    node_name = node.soft_get('name', node.id)
 
     # infer output shape based on input shapes without op involvement
     # based on repeated application of rules https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
 
     if any([s is None for s in shapes]):
-        raise Error('One of the input shapes for node "{}" is None'.format(node.soft_get('name', node.id)))
+        raise Error('One of the input shapes for node "{}" is None'.format(node_name))
 
     max_dims = None
     for id, s in enumerate(shapes):
@@ -45,15 +46,17 @@ def eltwise_infer(node, op=None, **kwargs):
     output_shape = extended_shapes[0]
     for si in range(1, len(extended_shapes)):
         for ei in range(max_dims):
-            if output_shape[ei] is not dynamic_dimension and extended_shapes[si][ei] is not dynamic_dimension:
-                mind = min(output_shape[ei], extended_shapes[si][ei])
-                maxd = max(output_shape[ei], extended_shapes[si][ei])
+            right = extended_shapes[si][ei]
+            if output_shape[ei] is not dynamic_dimension and right is not dynamic_dimension:
+                mind = min(output_shape[ei], right)
+                maxd = max(output_shape[ei], right)
                 if mind == 1:
                     output_shape[ei] = maxd
                 elif mind != maxd:
-                    raise Error('Input shapes mismatch: {}'.format(shapes))
-            else:
-                output_shape[ei] = dynamic_dimension_value
+                    raise Error('Input shapes mismatch for node {}: {}'.format(node_name, shapes))
+            elif output_shape[ei] is dynamic_dimension and right is not dynamic_dimension and right != 1:
+                output_shape[ei] = right
+
     node.out_port(0).data.set_shape(output_shape)
 
     if node.has_and_set('stop_value_propagation'):

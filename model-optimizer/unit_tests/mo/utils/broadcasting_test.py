@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, shape_array
+from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, shape_array, strict_compare_tensors
 from mo.utils.broadcasting import uni_directional_broadcasting, uni_directional_shape_broadcasting, \
     bi_directional_shape_broadcasting
 
@@ -46,17 +46,21 @@ class TestingBroadcasting(unittest.TestCase):
                 ([5, 10], [1, 10], None),
                 ([10, 2], shape_array([dynamic_dimension_value, 3, 10, 2]),
                  shape_array([dynamic_dimension_value, 3, 10, 2])),
-                ([10, dynamic_dimension_value], shape_array([dynamic_dimension_value, 3, 10, 2]),
+                (shape_array([10, dynamic_dimension_value]), shape_array([dynamic_dimension_value, 3, 10, 2]),
                  shape_array([dynamic_dimension_value, 3, 10, 2])),
-                ([dynamic_dimension_value, 2], shape_array([dynamic_dimension_value, 3, 10, 2]),
-                 shape_array([dynamic_dimension_value, 3, dynamic_dimension_value, 2])),
+                (shape_array([dynamic_dimension_value, 2]), shape_array([dynamic_dimension_value, 3, 10, 2]),
+                 shape_array([dynamic_dimension_value, 3, 10, 2])),
+                (shape_array([dynamic_dimension_value]), shape_array([1]), shape_array([1])),
+                (shape_array([1]), shape_array([dynamic_dimension_value]), shape_array([dynamic_dimension_value])),
+                (shape_array([dynamic_dimension_value]), shape_array([6]), shape_array([6])),
+                (shape_array([6]), shape_array([dynamic_dimension_value]), shape_array([6])),
                 ])
     def test_uni_directional_shape_broadcasting(self, input_shape, target_shape, expected_shape):
         result = uni_directional_shape_broadcasting(input_shape, target_shape)
         if expected_shape is None:
             self.assertIsNone(result)
         else:
-            self.assertTrue(np.ma.allequal(result, expected_shape))
+            self.assertTrue(strict_compare_tensors(result, expected_shape))
 
     @generate(*[([], [20, 30, 10], [20, 30, 10]),
                 ([1], [20, 30, 10], [20, 30, 10]),
@@ -69,10 +73,18 @@ class TestingBroadcasting(unittest.TestCase):
                 ([5, 10], [1, 20], None),
                 ([10, 2], shape_array([dynamic_dimension_value, 3, 1, 2]),
                  shape_array([dynamic_dimension_value, 3, 10, 2])),
-                ([10, dynamic_dimension_value], shape_array([dynamic_dimension_value, 3, 1, 2]),
+                (shape_array([10, dynamic_dimension_value]), shape_array([dynamic_dimension_value, 3, 1, 2]),
                  shape_array([dynamic_dimension_value, 3, 10, 2])),
-                ([dynamic_dimension_value, 2], shape_array([dynamic_dimension_value, 3, 10, 1]),
-                 shape_array([dynamic_dimension_value, 3, dynamic_dimension_value, 2])),
+                (shape_array([dynamic_dimension_value, 2]), shape_array([dynamic_dimension_value, 3, 10, 1]),
+                 shape_array([dynamic_dimension_value, 3, 10, 2])),
+                (shape_array([dynamic_dimension_value]), shape_array([1]), shape_array([dynamic_dimension_value])),
+                (shape_array([1]), shape_array([dynamic_dimension_value]), shape_array([dynamic_dimension_value])),
+                (shape_array([dynamic_dimension_value]), shape_array([6]), shape_array([6])),
+                (shape_array([6]), shape_array([dynamic_dimension_value]), shape_array([6])),
                 ])
     def test_bi_directional_shape_broadcasting(self, input_shape, target_shape, expected_shape):
-        self.assertTrue(np.ma.allequal(bi_directional_shape_broadcasting(input_shape, target_shape), expected_shape))
+        result = bi_directional_shape_broadcasting(input_shape, target_shape)
+        if expected_shape is None:
+            self.assertIsNone(result)
+        else:
+            self.assertTrue(strict_compare_tensors(result, expected_shape))

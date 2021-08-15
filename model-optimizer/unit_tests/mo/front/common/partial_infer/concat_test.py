@@ -7,7 +7,7 @@ import numpy as np
 from generator import generate, generator
 
 from mo.front.common.partial_infer.concat import concat_infer
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
@@ -25,6 +25,7 @@ class TestConcatPartialInfer(unittest.TestCase):
     @generate(*[([1, 3, 227, 227], [1, 3, 220, 227], [1, 3, 447, 227], 2),
                 ([1, 3, 227, 227], [1, 3, 227, 220], [1, 3, 227, 447], -1),
                 ([1, 3, dynamic_dimension_value, 227], [1, dynamic_dimension_value, 227, 220], [1, 3, 227, 447], -1),
+                ([1, 3, 10, 227], [1, 3, 10, dynamic_dimension_value], [1, 3, 10, dynamic_dimension_value], -1),
                 ])
     def test_concat_infer(self, shape1, shape2, output_shape, axis):
         graph = build_graph(nodes_attributes,
@@ -42,7 +43,7 @@ class TestConcatPartialInfer(unittest.TestCase):
         concat_node = Node(graph, 'concat')
         concat_infer(concat_node)
         res_shape = graph.node['node_3']['shape']
-        self.assertTrue(np.ma.allequal(output_shape, res_shape))
+        self.assertTrue(strict_compare_tensors(output_shape, res_shape))
 
     @generate(*[(shape_array([1]), shape_array([4]), shape_array([1, 4]), 0),
                 (shape_array([dynamic_dimension_value]), shape_array([4]),
@@ -64,7 +65,7 @@ class TestConcatPartialInfer(unittest.TestCase):
         concat_node = Node(graph, 'concat')
         concat_infer(concat_node)
         res_value = graph.node['node_3']['value']
-        self.assertTrue(np.ma.allequal(output_value, res_value))
+        self.assertTrue(strict_compare_tensors(output_value, res_value))
 
     def test_concat_infer_not_match(self):
         graph = build_graph(nodes_attributes,
