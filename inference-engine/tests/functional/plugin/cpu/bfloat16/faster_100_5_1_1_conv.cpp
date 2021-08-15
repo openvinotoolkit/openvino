@@ -39,28 +39,28 @@ protected:
         // multiply
         ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
         // multiply
-        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{inputShapes});
+        auto input1 = std::make_shared<op::v0::Parameter>(ntype, ngraph::Shape{inputShapes});
         input1->set_friendly_name("Input_1");
-        std::shared_ptr<ngraph::opset1::Constant> const1 = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> const1 = nullptr;
         if (netPrecision == Precision::FP32) {
-            const1 = opset1::Constant::create(ntype, Shape{1}, { 2.0f });
+            const1 = op::v0::Constant::create(ntype, Shape{1}, { 2.0f });
         } else {
-            const1 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
+            const1 = op::v0::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
-        auto mulNode = std::make_shared<opset1::Multiply>(input1, const1);
+        auto mulNode = std::make_shared<op::v1::Multiply>(input1, const1);
 
         // add
-        std::shared_ptr<ngraph::opset1::Constant> const2 = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> const2 = nullptr;
         if (netPrecision == Precision::FP32) {
-            const2 = opset1::Constant::create(ntype, Shape{1}, { 1.0f });
+            const2 = op::v0::Constant::create(ntype, Shape{1}, { 1.0f });
         } else {
-            const2 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f)) });
+            const2 = op::v0::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f)) });
         }
-        auto addNode = std::make_shared<opset1::Add>(mulNode, const2);
+        auto addNode = std::make_shared<op::v1::Add>(mulNode, const2);
         addNode->set_friendly_name("Add_4");
 
         // problematic convolution: 100x5x1x1
-        std::shared_ptr<ngraph::opset1::Constant> weightsNode = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> weightsNode = nullptr;
         ngraph::Shape convFilterShape = { channelsCount, channelsCount, 1, 1 };  // out channel, /input channels, kernel h, kernel w
         if (netPrecision == Precision::FP32) {
             std::vector<float> weightValues;
@@ -70,7 +70,7 @@ protected:
             weightValues[11] = 1.0f;
             weightValues[19] = 1.0f;
             weightValues[23] = 1.0f;
-            weightsNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, convFilterShape, weightValues);
+            weightsNode = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, convFilterShape, weightValues);
         } else {
             std::vector<short> weightValuesBF16;
             weightValuesBF16.resize(channelsCount * channelsCount * 1 * 1, FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(0.0f));
@@ -79,10 +79,10 @@ protected:
             weightValuesBF16[11] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f);
             weightValuesBF16[19] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f);
             weightValuesBF16[23] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f);
-            weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesBF16.data());
+            weightsNode = std::make_shared<ngraph::op::v0::Constant>(ntype, convFilterShape, weightValuesBF16.data());
         }
 
-        std::shared_ptr<ngraph::Node> convNode = std::make_shared<ngraph::opset1::Convolution>(
+        std::shared_ptr<ngraph::Node> convNode = std::make_shared<ngraph::op::v1::Convolution>(
             addNode, weightsNode,
             ngraph::Strides({ 1, 1 }),   // strides
             ngraph::CoordinateDiff({ 0, 0 }),  // pad begin
@@ -93,7 +93,7 @@ protected:
 
 
         // ReLU
-        auto reluNode = std::make_shared<opset1::Relu>(convNode);
+        auto reluNode = std::make_shared<op::v0::Relu>(convNode);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{reluNode}, ngraph::ParameterVector{input1});
     }

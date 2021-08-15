@@ -53,7 +53,7 @@ void RNNCellTest::SetUp() {
     auto rnn_cell = ngraph::builder::makeRNN(
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
             WRB, hidden_size, activations, {}, {}, clip);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_cell)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(rnn_cell)};
     function = std::make_shared<ngraph::Function>(results, params, "rnn_cell");
     if (should_decompose) {
         ngraph::pass::Manager m;

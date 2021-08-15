@@ -65,7 +65,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::DepthToSpaceTransformation, ngraph::opset1::DepthToSpace>(testValues.params);
+        transform.add<low_precision::DepthToSpaceTransformation, ngraph::op::v0::DepthToSpace>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = DepthToSpaceFunction::getReference(

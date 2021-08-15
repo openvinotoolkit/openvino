@@ -20,8 +20,8 @@ using namespace ngraph;
 TEST(TransformationTests, InsertLoadStore) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
-        auto neg = std::make_shared<opset1::Negative>(data);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto neg = std::make_shared<op::v0::Negative>(data);
         f = std::make_shared<Function>(NodeVector{neg}, ParameterVector{data});
 
         pass::Manager m;
@@ -32,9 +32,9 @@ TEST(TransformationTests, InsertLoadStore) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
         auto load = std::make_shared<snippets::isa::Load>(data);
-        auto neg = std::make_shared<opset1::Negative>(load);
+        auto neg = std::make_shared<op::v0::Negative>(load);
         auto store = std::make_shared<snippets::isa::Store>(neg);
         f_ref = std::make_shared<Function>(NodeVector{store}, ParameterVector{data});
     }
@@ -46,8 +46,8 @@ TEST(TransformationTests, InsertLoadStore) {
 TEST(TransformationTests, InsertLoadTwise) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
-        auto neg = std::make_shared<opset1::Negative>(data);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto neg = std::make_shared<op::v0::Negative>(data);
         f = std::make_shared<Function>(NodeVector{neg}, ParameterVector{data});
 
         pass::Manager m;
@@ -58,9 +58,9 @@ TEST(TransformationTests, InsertLoadTwise) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
         auto load = std::make_shared<snippets::isa::Load>(data);
-        auto neg = std::make_shared<opset1::Negative>(load);
+        auto neg = std::make_shared<op::v0::Negative>(load);
         f_ref = std::make_shared<Function>(NodeVector{neg}, ParameterVector{data});
     }
 
@@ -71,8 +71,8 @@ TEST(TransformationTests, InsertLoadTwise) {
 TEST(TransformationTests, InsertStoreTwise) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
-        auto neg = std::make_shared<opset1::Negative>(data);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto neg = std::make_shared<op::v0::Negative>(data);
         f = std::make_shared<Function>(NodeVector{neg}, ParameterVector{data});
 
         pass::Manager m;
@@ -83,8 +83,8 @@ TEST(TransformationTests, InsertStoreTwise) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
-        auto neg = std::make_shared<opset1::Negative>(data);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto neg = std::make_shared<op::v0::Negative>(data);
         auto store = std::make_shared<snippets::isa::Store>(neg);
         f_ref = std::make_shared<Function>(NodeVector{store}, ParameterVector{data});
     }

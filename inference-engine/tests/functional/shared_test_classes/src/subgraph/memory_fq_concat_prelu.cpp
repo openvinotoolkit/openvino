@@ -95,7 +95,7 @@ void MemoryFqConcatPrelu::SetUp() {
 
     auto input = ngraph::builder::makeParams(ngPrc, {inputs});
     auto memory_read = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});
-    auto read = std::make_shared<ngraph::opset3::ReadValue>(memory_read, "variable1");
+    auto read = std::make_shared<ngraph::op::v3::ReadValue>(memory_read, "variable1");
     auto fake_constatnt = ngraph::builder::makeConstant<size_t>(ngPrc, {inputs[0]}, {0});
     auto fake = ngraph::builder::makeFakeQuantize(fake_constatnt, ngPrc,
         std::get<0>(fake_quantize_params),
@@ -106,7 +106,7 @@ void MemoryFqConcatPrelu::SetUp() {
         std::get<5>(fake_quantize_params));
     auto concat = ngraph::builder::makeConcat({read, fake, input[0]}, 1);
     auto prelu_constant = ngraph::op::Constant::create(ngPrc, {1}, {-2});
-    auto prelu = std::make_shared<ngraph::opset1::PRelu>(concat, prelu_constant);
+    auto prelu = std::make_shared<ngraph::op::v0::PRelu>(concat, prelu_constant);
     auto slice = ngraph::builder::makeStridedSlice(prelu,
         std::get<0>(strided_slice_params),
         std::get<1>(strided_slice_params),
@@ -114,8 +114,8 @@ void MemoryFqConcatPrelu::SetUp() {
         ngPrc,
         std::get<3>(strided_slice_params),
         std::get<4>(strided_slice_params));
-    auto assign = std::make_shared<ngraph::opset3::Assign>(slice, "variable1");
-    auto result = std::make_shared<ngraph::opset1::Result>(prelu);
+    auto assign = std::make_shared<ngraph::op::v3::Assign>(slice, "variable1");
+    auto result = std::make_shared<ngraph::op::v0::Result>(prelu);
     assign->add_control_dependency(read);
     result->add_control_dependency(assign);
     function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "memory_fq_concat_prelu");

@@ -25,16 +25,16 @@ protected:
         const auto& dataDims = std::get<1>(parameters);
         targetDevice = std::get<2>(parameters);
 
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataDims);
-        const auto nonZero = std::make_shared<ngraph::opset3::NonZero>(data);
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims);
+        const auto nonZero = std::make_shared<ngraph::op::v3::NonZero>(data);
 
         auto permutation = std::vector<std::int64_t>(dataDims.size());
         std::iota(permutation.begin(), permutation.end(), 0);
         std::shuffle(permutation.begin(), permutation.end(), std::mt19937());
-        const auto transposition = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{dataDims.size()}, permutation);
-        const auto transpose = std::make_shared<ngraph::opset3::Transpose>(nonZero, transposition);
+        const auto transposition = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{dataDims.size()}, permutation);
+        const auto transpose = std::make_shared<ngraph::op::v1::Transpose>(nonZero, transposition);
 
-        const auto result = std::make_shared<ngraph::opset3::Result>(transpose);
+        const auto result = std::make_shared<ngraph::op::v0::Result>(transpose);
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{data}, "NonZero-Transpose");
     }
 };

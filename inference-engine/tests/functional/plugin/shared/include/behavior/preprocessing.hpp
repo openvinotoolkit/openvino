@@ -95,13 +95,13 @@ public:
             auto paramIn = ngraph::helpers::convert2OutputVector(
                     ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 
-            auto toF32 = std::make_shared<ngraph::opset1::Convert>(paramIn[0], ngraph::element::Type_t::f32);
+            auto toF32 = std::make_shared<ngraph::op::v0::Convert>(paramIn[0], ngraph::element::Type_t::f32);
 
-            auto constNode = std::make_shared<ngraph::opset1::Constant>(
+            auto constNode = std::make_shared<ngraph::op::v0::Constant>(
                     ngraph::element::Type_t::i64, ngraph::Shape{inputShape.size()}, inputShape);
-            auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(
-                    std::make_shared<ngraph::opset1::Reshape>(with_extra_conv ? toF32 : paramIn[0], constNode, specialZero));
-            ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape)};
+            auto reshape = std::dynamic_pointer_cast<ngraph::op::v1::Reshape>(
+                    std::make_shared<ngraph::op::v1::Reshape>(with_extra_conv ? toF32 : paramIn[0], constNode, specialZero));
+            ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(reshape)};
             return std::make_shared<ngraph::Function>(results, paramsIn, "Reshape");
         };
 

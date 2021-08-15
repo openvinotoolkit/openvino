@@ -105,7 +105,7 @@ float OPCache::get_size_of_cached_ops() {
     float size = 0;
     for (const auto &op : m_ops_cache) {
         for (size_t i = 0; i < op.first->get_input_size(); ++i) {
-            const auto constant = std::dynamic_pointer_cast<ngraph::opset6::Constant>(
+            const auto constant = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(
                     op.first->get_input_node_shared_ptr(i));
             if (constant != nullptr) {
                 size += static_cast<float>(ngraph::shape_size(constant->get_shape()) *

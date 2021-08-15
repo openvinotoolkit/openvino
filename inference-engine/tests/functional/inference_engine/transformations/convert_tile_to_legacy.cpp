@@ -22,9 +22,9 @@ using namespace testing;
 using namespace ngraph;
 
 TEST(TransformationTests, ConvertTileToLegacyDynamic1) {
-    auto data = std::make_shared<opset1::Parameter>(element::f32, PartialShape{1, Dimension::dynamic()});
-    auto axes = opset1::Constant::create(element::i64, Shape{1}, {0});
-    auto tile = std::make_shared<opset1::Tile>(data, axes);
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, Dimension::dynamic()});
+    auto axes = op::v0::Constant::create(element::i64, Shape{1}, {0});
+    auto tile = std::make_shared<op::v0::Tile>(data, axes);
 
     auto f = std::make_shared<Function>(NodeVector{tile}, ParameterVector{data});
     pass::Manager manager;
@@ -35,9 +35,9 @@ TEST(TransformationTests, ConvertTileToLegacyDynamic1) {
 }
 
 TEST(TransformationTests, ConvertTileToLegacyDynamic2) {
-    auto data = std::make_shared<opset1::Parameter>(element::f32, PartialShape::dynamic());
-    auto axes = opset1::Constant::create(element::i64, Shape{1}, {0});
-    auto tile = std::make_shared<opset1::Tile>(data, axes);
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto axes = op::v0::Constant::create(element::i64, Shape{1}, {0});
+    auto tile = std::make_shared<op::v0::Tile>(data, axes);
 
     auto f = std::make_shared<Function>(NodeVector{tile}, ParameterVector{data});
     pass::Manager manager;

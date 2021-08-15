@@ -22,16 +22,16 @@ namespace LayerTestsDefinitions {
 
 static std::shared_ptr<ngraph::Function> simple_function_multiply(ngraph::element::Type type, size_t batchSize) {
     // Create Parameter operation with static shape
-    auto data = std::make_shared<ngraph::opset6::Parameter>(type, ngraph::Shape{batchSize, 2});
+    auto data = std::make_shared<ngraph::op::v0::Parameter>(type, ngraph::Shape{batchSize, 2});
     data->set_friendly_name("Parameter");
 
-    auto constant = ngraph::opset6::Constant::create(type, ngraph::Shape{1}, {2});
+    auto constant = ngraph::op::v0::Constant::create(type, ngraph::Shape{1}, {2});
     constant->set_friendly_name("constant");
-    auto mul = std::make_shared<ngraph::opset6::Multiply>(data, constant);
+    auto mul = std::make_shared<ngraph::op::v1::Multiply>(data, constant);
     mul->set_friendly_name("mul");
 
     // Create Result operation
-    auto res = std::make_shared<ngraph::opset6::Result>(mul);
+    auto res = std::make_shared<ngraph::op::v0::Result>(mul);
     res->set_friendly_name("res");
 
     // Create nGraph function
@@ -42,14 +42,14 @@ static std::shared_ptr<ngraph::Function> simple_function_multiply(ngraph::elemen
 
 static std::shared_ptr<ngraph::Function> simple_function_relu(ngraph::element::Type type, size_t batchSize) {
     // Create Parameter operation with static shape
-    auto data = std::make_shared<ngraph::opset6::Parameter>(type, ngraph::Shape{batchSize, 2});
+    auto data = std::make_shared<ngraph::op::v0::Parameter>(type, ngraph::Shape{batchSize, 2});
     data->set_friendly_name("Parameter");
 
-    auto relu = std::make_shared<ngraph::opset6::Relu>(data);
+    auto relu = std::make_shared<ngraph::op::v0::Relu>(data);
     relu->set_friendly_name("relu");
 
     // Create Result operation
-    auto res = std::make_shared<ngraph::opset6::Result>(relu);
+    auto res = std::make_shared<ngraph::op::v0::Result>(relu);
     res->set_friendly_name("res");
 
     // Create nGraph function

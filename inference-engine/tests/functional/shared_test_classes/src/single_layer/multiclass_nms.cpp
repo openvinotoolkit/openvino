@@ -259,11 +259,11 @@ void MulticlassNmsLayerTest::SetUp() {
     attrs.background_class = backgroundClass;
     attrs.normalized = normalized;
 
-    auto nms = std::make_shared<opset8::MulticlassNms>(paramOuts[0], paramOuts[1], attrs);
+    auto nms = std::make_shared<op::v8::MulticlassNms>(paramOuts[0], paramOuts[1], attrs);
 
-    auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(ngPrc, Shape {1}, {1}));
-    auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(outType, Shape {1}, {1}));
-    auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape {1}, {1}));
+    auto nms_0_identity = std::make_shared<op::v1::Multiply>(nms->output(0), op::v0::Constant::create(ngPrc, Shape {1}, {1}));
+    auto nms_1_identity = std::make_shared<op::v1::Multiply>(nms->output(1), op::v0::Constant::create(outType, Shape {1}, {1}));
+    auto nms_2_identity = std::make_shared<op::v1::Multiply>(nms->output(2), op::v0::Constant::create(outType, Shape {1}, {1}));
     function = std::make_shared<Function>(OutputVector {nms_0_identity, nms_1_identity, nms_2_identity}, params, "MulticlassNMS");
 }
 

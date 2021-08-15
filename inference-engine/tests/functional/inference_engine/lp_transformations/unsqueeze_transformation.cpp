@@ -71,7 +71,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::UnsqueezeTransformation, ngraph::opset1::Unsqueeze>(testValues.params);
+        transform.add<ngraph::pass::low_precision::UnsqueezeTransformation, ngraph::op::v0::Unsqueeze>(testValues.params);
 
         transform.transform(actualFunction);
 

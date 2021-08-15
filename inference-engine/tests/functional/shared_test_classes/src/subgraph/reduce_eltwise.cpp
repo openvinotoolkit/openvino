@@ -53,15 +53,15 @@ void ReduceEltwiseTest::SetUp() {
             FAIL() << "Reduce op doesn't support operation type: " << opType;
     }
     auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
-                             std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
+                             std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
-    auto reduce = std::make_shared<ngraph::opset3::ReduceSum>(paramOuts[0], reductionAxesNode, keepDims);
+    auto reduce = std::make_shared<ngraph::op::v1::ReduceSum>(paramOuts[0], reductionAxesNode, keepDims);
 
     std::vector<size_t> constShape(reduce.get()->get_output_size(), 1);
     constShape[2] = inputShape.back();
     auto constant = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
     auto eltw = ngraph::builder::makeEltwise(reduce, constant, ngraph::helpers::EltwiseTypes::MULTIPLY);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltw)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(eltw)};
     function = std::make_shared<ngraph::Function>(results, params, "ReduceEltwise");
 }
 } // namespace SubgraphTestsDefinitions

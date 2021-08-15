@@ -54,7 +54,7 @@ protected:
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
 
         auto constNode = builder::makeConstant(element::i64, {isA.size()}, isA);
-        auto reshape = std::make_shared<opset1::Reshape>(paramOuts[0], constNode, true);
+        auto reshape = std::make_shared<op::v1::Reshape>(paramOuts[0], constNode, true);
 
         auto matrixB = builder::makeConstant<float>(element::f32, isB, {}, true);
         auto matMul = builder::makeMatMul(reshape, matrixB, false, transpB);

@@ -65,13 +65,13 @@ protected:
             const ngraph::element::Type_t& data_type,
             const ngraph::element::Type_t& idx_type,
             const TopKTestCase& topk_setup) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, topk_setup.data_shape);
-        const auto k = ngraph::opset3::Constant::create(idx_type, {}, std::vector<int64_t>{topk_setup.k});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, topk_setup.data_shape);
+        const auto k = ngraph::op::v0::Constant::create(idx_type, {}, std::vector<int64_t>{topk_setup.k});
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{topk_setup.data_shape.size()});
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{topk_setup.data_shape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
-        const auto node = std::make_shared<ngraph::opset3::TopK>(dsr, k, topk_setup.axis, "max", "value");
+        const auto node = std::make_shared<ngraph::op::v3::TopK>(dsr, k, topk_setup.axis, "max", "value");
 
         auto outputShape = node->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
@@ -89,13 +89,13 @@ protected:
             const ngraph::element::Type_t& data_type,
             const ngraph::element::Type_t& idx_type,
             const TopKTestCase& topk_setup) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, topk_setup.data_shape);
-        const auto k = ngraph::opset3::Constant::create(idx_type, {}, std::vector<int64_t>{topk_setup.k});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, topk_setup.data_shape);
+        const auto k = ngraph::op::v0::Constant::create(idx_type, {}, std::vector<int64_t>{topk_setup.k});
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{topk_setup.data_shape.size()});
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{topk_setup.data_shape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
-        const auto node = std::make_shared<ngraph::opset3::TopK>(dsr, k, topk_setup.axis, "max", "value");
+        const auto node = std::make_shared<ngraph::op::v3::TopK>(dsr, k, topk_setup.axis, "max", "value");
 
         ngraph::OutputVector first_shape_part, second_shape_part;
         if (topk_setup.first_split_point) {
@@ -110,15 +110,15 @@ protected:
         ngraph::OutputVector results, converted;
         ngraph::Output<ngraph::Node> k_0D = k;
         if (node->get_input_element_type(1)!= ngraph::element::i64) {
-            k_0D = std::make_shared<ngraph::opset3::Convert>(k, ngraph::element::i64);
+            k_0D = std::make_shared<ngraph::op::v0::Convert>(k, ngraph::element::i64);
         }
-        const auto k_1D = std::make_shared<ngraph::opset3::Unsqueeze>(k_0D, ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {0}));
+        const auto k_1D = std::make_shared<ngraph::op::v0::Unsqueeze>(k_0D, ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {0}));
 
         if (!first_shape_part.empty() || !second_shape_part.empty()) {
             ngraph::OutputVector output_dims{k_1D};
             output_dims.insert(output_dims.begin(), first_shape_part.begin(), first_shape_part.end());
             output_dims.insert(output_dims.end(), second_shape_part.begin(), second_shape_part.end());
-            const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
+            const auto output_shape = std::make_shared<ngraph::op::v0::Concat>(output_dims, 0);
             results.push_back(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(0), output_shape));
             results.push_back(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(1), output_shape));
         } else {
@@ -156,19 +156,19 @@ protected:
             const ngraph::element::Type_t& data_type,
             const ngraph::element::Type_t& idx_type,
             const TopKTestCase& topk_setup) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, topk_setup.data_shape);
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{topk_setup.data_shape.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, topk_setup.data_shape);
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{topk_setup.data_shape.size()});
 
-        const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(data);
-        const auto gather = std::make_shared<ngraph::opset3::Gather>(shapeOf,
-                                                                     ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {topk_setup.axis}),
-                                                                     ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {0}));
-        const auto upper_bound = ngraph::opset3::Constant::create(dims->get_element_type(), {1}, {100});
-        const auto concat = std::make_shared<ngraph::opset3::Concat>(ngraph::OutputVector{upper_bound, gather}, 0);
-        const auto k = std::make_shared<ngraph::opset3::ReduceMin>(concat, ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {0}), false);
+        const auto shapeOf = std::make_shared<ngraph::op::v0::ShapeOf>(data);
+        const auto gather = std::make_shared<ngraph::op::v1::Gather>(shapeOf,
+                                                                     ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {topk_setup.axis}),
+                                                                     ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {0}));
+        const auto upper_bound = ngraph::op::v0::Constant::create(dims->get_element_type(), {1}, {100});
+        const auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{upper_bound, gather}, 0);
+        const auto k = std::make_shared<ngraph::op::v1::ReduceMin>(concat, ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {0}), false);
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
-        const auto node = std::make_shared<ngraph::opset3::TopK>(dsr, k, topk_setup.axis, "max", "value");
+        const auto node = std::make_shared<ngraph::op::v3::TopK>(dsr, k, topk_setup.axis, "max", "value");
 
         auto outputShape = node->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
@@ -186,16 +186,16 @@ protected:
             const ngraph::element::Type_t& data_type,
             const ngraph::element::Type_t& idx_type,
             const TopKTestCase& topk_setup) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, topk_setup.data_shape);
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{topk_setup.data_shape.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, topk_setup.data_shape);
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{topk_setup.data_shape.size()});
 
-        const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(data);
-        const auto gather = std::make_shared<ngraph::opset3::Gather>(shapeOf,
-                                                                     ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {topk_setup.axis}),
-                                                                     ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {0}));
-        const auto upper_bound = ngraph::opset3::Constant::create(dims->get_element_type(), {1}, {100});
-        const auto concat = std::make_shared<ngraph::opset3::Concat>(ngraph::OutputVector{upper_bound, gather}, 0);
-        const auto k = std::make_shared<ngraph::opset3::ReduceMin>(concat, ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {0}), false);
+        const auto shapeOf = std::make_shared<ngraph::op::v0::ShapeOf>(data);
+        const auto gather = std::make_shared<ngraph::op::v1::Gather>(shapeOf,
+                                                                     ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {topk_setup.axis}),
+                                                                     ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {0}));
+        const auto upper_bound = ngraph::op::v0::Constant::create(dims->get_element_type(), {1}, {100});
+        const auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{upper_bound, gather}, 0);
+        const auto k = std::make_shared<ngraph::op::v1::ReduceMin>(concat, ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {0}), false);
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
         const auto node = std::make_shared<ngraph::vpu::op::StaticShapeTopK>(dsr, k, topk_setup.axis, "max", "value");
@@ -212,16 +212,16 @@ protected:
         }
         ngraph::Output<ngraph::Node> k_0D = k;
         if (node->get_input_element_type(1)!= ngraph::element::i64) {
-            k_0D = std::make_shared<ngraph::opset3::Convert>(k, ngraph::element::i64);
+            k_0D = std::make_shared<ngraph::op::v0::Convert>(k, ngraph::element::i64);
         }
-        const auto k_1D = std::make_shared<ngraph::opset3::Unsqueeze>(k_0D, ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {0}));
+        const auto k_1D = std::make_shared<ngraph::op::v0::Unsqueeze>(k_0D, ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {0}));
 
         ngraph::OutputVector results, converted;
         if (!first_shape_part.empty() || !second_shape_part.empty()) {
             ngraph::OutputVector output_dims{k_1D};
             output_dims.insert(output_dims.begin(), first_shape_part.begin(), first_shape_part.end());
             output_dims.insert(output_dims.end(), second_shape_part.begin(), second_shape_part.end());
-            const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
+            const auto output_shape = std::make_shared<ngraph::op::v0::Concat>(output_dims, 0);
             results.push_back(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(0), output_shape));
             results.push_back(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(1), output_shape));
         } else {

@@ -17,7 +17,7 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeAndScaleShiftFunction::getOrig
     const ngraph::element::Type precision,
     const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fakeQuantizeOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
     input->set_friendly_name("input");
 
     const std::shared_ptr<Node> fakeQuantize = ngraph::builder::makeFakeQuantize(
@@ -25,16 +25,16 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeAndScaleShiftFunction::getOrig
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
     fakeQuantize->set_friendly_name("fakeQuantize");
 
-    const std::shared_ptr<Node> multiply = std::make_shared<ngraph::opset1::Multiply>(
+    const std::shared_ptr<Node> multiply = std::make_shared<ngraph::op::v1::Multiply>(
         fakeQuantize,
-        std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, std::vector<float>({ 150 })));
+        std::make_shared<ngraph::op::v0::Constant>(precision, Shape{ 1, 1, 1, 1 }, std::vector<float>({ 150 })));
 
-    const std::shared_ptr<Node> add = std::make_shared<ngraph::opset1::Add>(
+    const std::shared_ptr<Node> add = std::make_shared<ngraph::op::v1::Add>(
         multiply,
-        std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, std::vector<float>({ 127.5 })));
+        std::make_shared<ngraph::op::v0::Constant>(precision, Shape{ 1, 1, 1, 1 }, std::vector<float>({ 127.5 })));
     add->set_friendly_name("output");
 
-    const ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add) };
+    const ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(add) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FuseFakeQuantizeAndScaleShiftFunction");
 }
 

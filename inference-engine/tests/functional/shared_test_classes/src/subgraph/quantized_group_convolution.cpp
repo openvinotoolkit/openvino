@@ -87,10 +87,10 @@ void QuantGroupConvLayerTest::SetUp() {
         weights = weightsNode;
     }
 
-    auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
+    auto groupConv = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(
             ngraph::builder::makeGroupConvolution(dataFq, weights, ngPrc, stride, padBegin, padEnd, dilation, padType));
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(groupConv)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantGroupConvolution");
 }
 }  // namespace SubgraphTestsDefinitions

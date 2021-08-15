@@ -12,9 +12,9 @@ std::shared_ptr<ngraph::Node> makeMinMax(const ngraph::Output<Node> &in1,
                                          ngraph::helpers::MinMaxOpType opType) {
     switch (opType) {
         case ngraph::helpers::MinMaxOpType::MINIMUM:
-            return std::make_shared<ngraph::opset3::Minimum>(in1, in2);
+            return std::make_shared<ngraph::op::v1::Minimum>(in1, in2);
         case ngraph::helpers::MinMaxOpType::MAXIMUM:
-            return std::make_shared<ngraph::opset3::Maximum>(in1, in2);
+            return std::make_shared<ngraph::op::v1::Maximum>(in1, in2);
         default:
             throw std::logic_error("Unsupported operation type");
     }

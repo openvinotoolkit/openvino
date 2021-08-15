@@ -42,13 +42,13 @@ void TopKLayerTest::SetUp() {
     auto paramIn = ngraph::helpers::convert2OutputVector(
                         ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    auto k = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
+    auto k = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
     auto topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(
             std::make_shared<ngraph::opset4::TopK>(paramIn[0], k, axis, mode, sort));
 
     ngraph::ResultVector results;
     for (int i = 0; i < topk->get_output_size(); i++) {
-        results.push_back(std::make_shared<ngraph::opset4::Result>(topk->output(i)));
+        results.push_back(std::make_shared<ngraph::op::v0::Result>(topk->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, params, "TopK");
 }

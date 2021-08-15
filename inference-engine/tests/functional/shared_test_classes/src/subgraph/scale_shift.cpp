@@ -33,9 +33,9 @@ namespace SubgraphTestsDefinitions {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
         auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, paramsShape, scale);
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(paramsIn[0], mul_const);
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(paramsIn[0], mul_const);
         auto add_const = std::make_shared<ngraph::op::Constant>(ngPrc, paramsShape, shift);
-        auto add = std::make_shared<ngraph::opset1::Add>(mul, add_const);
+        auto add = std::make_shared<ngraph::op::v1::Add>(mul, add_const);
         function = std::make_shared<ngraph::Function>(add, paramsIn, "scale_shift");
     }
 } // namespace SubgraphTestsDefinitions

@@ -21,8 +21,8 @@ using namespace testing;
 TEST(TransformationTests, HSigmoidDecompositionTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
-        auto hsigmoid = std::make_shared<ngraph::opset5::HSigmoid>(input);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+        auto hsigmoid = std::make_shared<ngraph::op::v5::HSigmoid>(input);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{hsigmoid}, ngraph::ParameterVector{input});
 
@@ -34,14 +34,14 @@ TEST(TransformationTests, HSigmoidDecompositionTest) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
-        auto add_constant = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {3.0});
-        auto add = std::make_shared<ngraph::opset5::Add>(input, add_constant);
-        auto relu = std::make_shared<ngraph::opset5::Relu>(add);
-        auto min_constant = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {6.0});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+        auto add_constant = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{}, {3.0});
+        auto add = std::make_shared<ngraph::op::v1::Add>(input, add_constant);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(add);
+        auto min_constant = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{}, {6.0});
         auto min = std::make_shared<ngraph::opset5::Minimum>(relu, min_constant);
-        auto mul_constant = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {(1.0/6.0)});  // const(1/6)
-        auto mul = std::make_shared<ngraph::opset5::Multiply>(min, mul_constant);
+        auto mul_constant = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{}, {(1.0/6.0)});  // const(1/6)
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(min, mul_constant);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
     }

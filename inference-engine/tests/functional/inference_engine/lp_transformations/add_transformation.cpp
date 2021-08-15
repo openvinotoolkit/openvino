@@ -112,7 +112,7 @@ public:
             testValues.additionalLayer);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(testValues.params);
+        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::op::v1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         auto inputShape1Ref = inputShapes.first;

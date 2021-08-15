@@ -93,7 +93,7 @@ protected:
 
             eltwiseOps.push_back(ngraph::builder::makeEltwise(fq, ngraphInputs[eltwiseOpTypes.size() - 1], eltwiseOpTypes[eltwiseOpTypes.size() - 1]));
 
-            ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(eltwiseOps[eltwiseOps.size() - 1])};
+            ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(eltwiseOps[eltwiseOps.size() - 1])};
             function = std::make_shared<ngraph::Function>(results, ngraphParam, "eltwise_chain_fq");
         } else {
             std::vector<std::shared_ptr<ngraph::Node>> eltwiseOps;
@@ -102,7 +102,7 @@ protected:
                 eltwiseOps.push_back(ngraph::builder::makeEltwise(eltwiseOps[eltwiseOps.size() - 1], ngraphInputs[i], eltwiseOpTypes[i]));
             }
 
-            ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(eltwiseOps[eltwiseOps.size() - 1])};
+            ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(eltwiseOps[eltwiseOps.size() - 1])};
             function = std::make_shared<ngraph::Function>(results, ngraphParam, "eltwise_chain");
         }
     }

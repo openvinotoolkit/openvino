@@ -41,37 +41,37 @@ protected:
         // STAGE1: construction of the GRAPH
         ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
         // add
-        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{inputShapes});
+        auto input1 = std::make_shared<op::v0::Parameter>(ntype, ngraph::Shape{inputShapes});
         input1->set_friendly_name("Input_1");
-        std::shared_ptr<ngraph::opset1::Constant> eltConst0 = nullptr, eltConst1 = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> eltConst0 = nullptr, eltConst1 = nullptr;
         if (netPrecision == Precision::FP32) {
-            eltConst0 = opset1::Constant::create(ntype, Shape{1}, { 2.0f });
-            eltConst1 = opset1::Constant::create(ntype, Shape{1}, { 2.0f });
+            eltConst0 = op::v0::Constant::create(ntype, Shape{1}, { 2.0f });
+            eltConst1 = op::v0::Constant::create(ntype, Shape{1}, { 2.0f });
         } else {
-            eltConst0 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
-            eltConst1 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
+            eltConst0 = op::v0::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
+            eltConst1 = op::v0::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
-        auto addNode0 = std::make_shared<opset1::Multiply>(input1, eltConst0);
+        auto addNode0 = std::make_shared<op::v1::Multiply>(input1, eltConst0);
         addNode0->set_friendly_name("Add_0");
 
         // convolution
-        std::shared_ptr<ngraph::opset1::Constant> weightsNode0 = nullptr, weightsNode1 = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> weightsNode0 = nullptr, weightsNode1 = nullptr;
         ngraph::Shape convFilterShape = { channelsCount, channelsCount, 3, 3 };  // out channel, /input channels, kernel h, kernel w
         if (netPrecision == Precision::FP32) {
             std::vector<float> weightValuesFP32;
             weightValuesFP32.resize(channelsCount * channelsCount * 3 * 3);
             FuncTestUtils::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
-            weightsNode0 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesFP32);
-            weightsNode1 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesFP32);
+            weightsNode0 = std::make_shared<ngraph::op::v0::Constant>(ntype, convFilterShape, weightValuesFP32);
+            weightsNode1 = std::make_shared<ngraph::op::v0::Constant>(ntype, convFilterShape, weightValuesFP32);
         } else {
             std::vector<short> weightValuesBF16;
             weightValuesBF16.resize(channelsCount * channelsCount * 3 * 3);
             FuncTestUtils::fillInputsBySinValues(weightValuesBF16.data(), weightValuesBF16.size());
-            weightsNode0 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesBF16.data());
-            weightsNode1 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesBF16.data());
+            weightsNode0 = std::make_shared<ngraph::op::v0::Constant>(ntype, convFilterShape, weightValuesBF16.data());
+            weightsNode1 = std::make_shared<ngraph::op::v0::Constant>(ntype, convFilterShape, weightValuesBF16.data());
         }
 
-        std::shared_ptr<ngraph::Node> convNode0 = std::make_shared<ngraph::opset1::Convolution>(
+        std::shared_ptr<ngraph::Node> convNode0 = std::make_shared<ngraph::op::v1::Convolution>(
                 addNode0, weightsNode0,
                 ngraph::Strides({ 1, 1 }),   // strides
                 ngraph::CoordinateDiff({ 1, 1 }),  // pad begin
@@ -81,11 +81,11 @@ protected:
         convNode0->set_friendly_name("Convolution_0");
 
         // eltwise, i.e. sum
-        auto eltSumNode = std::make_shared<opset1::Add>(convNode0, eltConst1);
+        auto eltSumNode = std::make_shared<op::v1::Add>(convNode0, eltConst1);
         eltSumNode->set_friendly_name("Elt_sum");
 
         // convolution
-        std::shared_ptr<ngraph::Node> convNode1 = std::make_shared<ngraph::opset1::Convolution>(
+        std::shared_ptr<ngraph::Node> convNode1 = std::make_shared<ngraph::op::v1::Convolution>(
                 eltSumNode, weightsNode1,
                 ngraph::Strides({ 1, 1 }),   // strides
                 ngraph::CoordinateDiff({ 1, 1 }),  // pad begin

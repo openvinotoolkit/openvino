@@ -72,10 +72,10 @@ void QuantConvBackpropDataLayerTest::SetUp() {
 
     auto weightsFq = ngraph::builder::makeFakeQuantize(weightsNode, ngPrc, quantLevels, weightsFqConstShapes);
 
-    auto convBackpropData = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(
+    auto convBackpropData = std::dynamic_pointer_cast<ngraph::op::v1::ConvolutionBackpropData>(
             ngraph::builder::makeConvolutionBackpropData(dataFq, weightsFq, ngPrc, stride, padBegin, padEnd, dilation, padType));
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(convBackpropData)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(convBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantConvolutionBackpropData");
 }
 }  // namespace SubgraphTestsDefinitions

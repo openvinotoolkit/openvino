@@ -34,9 +34,9 @@ protected:
         targetDevice = std::get<2>(GetParam());
 
         const auto inputSubgraph = createInputSubgraphWithDSR(dataType, inputShapes);
-        const auto axes = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{unsqueezeAxes.size()}, unsqueezeAxes);
+        const auto axes = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{unsqueezeAxes.size()}, unsqueezeAxes);
 
-        return std::make_shared<ngraph::opset3::Unsqueeze>(inputSubgraph, axes);
+        return std::make_shared<ngraph::op::v0::Unsqueeze>(inputSubgraph, axes);
     }
 };
 

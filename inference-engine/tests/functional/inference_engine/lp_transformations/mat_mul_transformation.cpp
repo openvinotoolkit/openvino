@@ -96,7 +96,7 @@ public:
             testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::op::v0::MatMul>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =

@@ -28,14 +28,14 @@ TEST(TransformationTests, MulFakeQuantizeFusionPositiveConstant) {
 
     Shape data_shape{1, 3, 14, 14};
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        auto mul_const = opset5::Constant::create(element::f32, Shape{1}, {2});
-        auto mul = std::make_shared<opset5::Multiply>(data, mul_const);
-        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {1});
-        auto input_high = opset5::Constant::create(element::f32, Shape{1}, {20});
-        auto output_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0, 0, 0});
-        auto output_high = opset5::Constant::create(element::f32, Shape{1}, {10});
-        auto fq = std::make_shared<opset5::FakeQuantize>(mul, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto mul_const = op::v0::Constant::create(element::f32, Shape{1}, {2});
+        auto mul = std::make_shared<op::v1::Multiply>(data, mul_const);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{1}, {1});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{1}, {20});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0, 0, 0});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{1}, {10});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(mul, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
         f = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
@@ -47,12 +47,12 @@ TEST(TransformationTests, MulFakeQuantizeFusionPositiveConstant) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {0.5});
-        auto input_high = opset5::Constant::create(element::f32, Shape{1}, {10});
-        auto output_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0, 0, 0});
-        auto output_high = opset5::Constant::create(element::f32, Shape{1}, {10});
-        auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{1}, {0.5});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{1}, {10});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0, 0, 0});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{1}, {10});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
         f_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
@@ -67,14 +67,14 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantOnFirstInput) {
 
     Shape data_shape{1, 3, 14, 14};
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        auto mul_const = opset5::Constant::create(element::f32, Shape{1}, {2});
-        auto mul = std::make_shared<opset5::Multiply>(mul_const, data);
-        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {1});
-        auto input_high = opset5::Constant::create(element::f32, Shape{1}, {20});
-        auto output_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0, 0, 0});
-        auto output_high = opset5::Constant::create(element::f32, Shape{1}, {10});
-        auto fq = std::make_shared<opset5::FakeQuantize>(mul, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto mul_const = op::v0::Constant::create(element::f32, Shape{1}, {2});
+        auto mul = std::make_shared<op::v1::Multiply>(mul_const, data);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{1}, {1});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{1}, {20});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0, 0, 0});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{1}, {10});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(mul, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
         f = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
@@ -86,12 +86,12 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantOnFirstInput) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {0.5});
-        auto input_high = opset5::Constant::create(element::f32, Shape{1}, {10});
-        auto output_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0, 0, 0});
-        auto output_high = opset5::Constant::create(element::f32, Shape{1}, {10});
-        auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{1}, {0.5});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{1}, {10});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0, 0, 0});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{1}, {10});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
         f_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
@@ -106,14 +106,14 @@ TEST(TransformationTests, MulFakeQuantizeFusionReshape) {
 
     Shape data_shape{1, 3, 14, 14};
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        auto mul_const = opset5::Constant::create(element::f32, Shape{3, 1, 1}, {2, 4, 5});
-        auto mul = std::make_shared<opset5::Multiply>(data, mul_const);
-        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {1});
-        auto input_high = opset5::Constant::create(element::f32, Shape{1}, {20});
-        auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
-        auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
-        auto fq = std::make_shared<opset5::FakeQuantize>(mul, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto mul_const = op::v0::Constant::create(element::f32, Shape{3, 1, 1}, {2, 4, 5});
+        auto mul = std::make_shared<op::v1::Multiply>(data, mul_const);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{1}, {1});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{1}, {20});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{}, {0});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{}, {10});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(mul, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
         f = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
@@ -125,12 +125,12 @@ TEST(TransformationTests, MulFakeQuantizeFusionReshape) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        auto input_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0.5, 0.25, 0.2});
-        auto input_high = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {10, 5, 4});
-        auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
-        auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
-        auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0.5, 0.25, 0.2});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {10, 5, 4});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{}, {0});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{}, {10});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
         f_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
@@ -145,14 +145,14 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantAllNegative) {
 
     Shape data_shape{1, 3, 14, 14};
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        auto mul_const = opset5::Constant::create(element::f32, Shape{1}, {-2});
-        auto mul = std::make_shared<opset5::Multiply>(data, mul_const);
-        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {1});
-        auto input_high = opset5::Constant::create(element::f32, Shape{1}, {20});
-        auto output_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-10, -10, -10});
-        auto output_high = opset5::Constant::create(element::f32, Shape{1}, {10});
-        auto fq = std::make_shared<opset5::FakeQuantize>(mul, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto mul_const = op::v0::Constant::create(element::f32, Shape{1}, {-2});
+        auto mul = std::make_shared<op::v1::Multiply>(data, mul_const);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{1}, {1});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{1}, {20});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-10, -10, -10});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{1}, {10});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(mul, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
         f = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
@@ -164,12 +164,12 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantAllNegative) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {-0.5});
-        auto input_high = opset5::Constant::create(element::f32, Shape{1}, {-10});
-        auto output_low = opset5::Constant::create(element::f32, Shape{1}, {10});
-        auto output_high = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-10, -10, -10});
-        auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{1}, {-0.5});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{1}, {-10});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{1}, {10});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-10, -10, -10});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
         f_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
@@ -184,14 +184,14 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantSomeNegative) {
 
     Shape data_shape{1, 3, 14, 14};
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        auto mul_const = opset5::Constant::create(element::f32, Shape{3, 1, 1}, {2, 1, -2});
-        auto mul = std::make_shared<opset5::Multiply>(data, mul_const);
-        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {1});
-        auto input_high = opset5::Constant::create(element::f32, Shape{1}, {20});
-        auto output_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-10, -10, -10});
-        auto output_high = opset5::Constant::create(element::f32, Shape{1}, {10});
-        auto fq = std::make_shared<opset5::FakeQuantize>(mul, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto mul_const = op::v0::Constant::create(element::f32, Shape{3, 1, 1}, {2, 1, -2});
+        auto mul = std::make_shared<op::v1::Multiply>(data, mul_const);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{1}, {1});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{1}, {20});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-10, -10, -10});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{1}, {10});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(mul, input_low,
                                                          input_high, output_low,
                                                          output_high, 20);
         f = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
@@ -203,12 +203,12 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantSomeNegative) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        auto input_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0.5f, 1.0f, -0.5f});
-        auto input_high = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {10.0f, 20.0f, -10.0f});
-        auto output_low = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-10.0f, -10.0f, 10.0f});
-        auto output_high = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {10.0f, 10.0f, -10.0f});
-        auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {0.5f, 1.0f, -0.5f});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {10.0f, 20.0f, -10.0f});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-10.0f, -10.0f, 10.0f});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{1, 3, 1, 1}, {10.0f, 10.0f, -10.0f});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low,
                                                          input_high, output_low,
                                                          output_high, 20);
         f_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
@@ -223,14 +223,14 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantSomeNegativeF16) {
 
     Shape data_shape{1, 3, 14, 14};
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f16, data_shape);
-        auto mul_const = opset5::Constant::create(element::f16, Shape{3, 1, 1}, {2, 1, -2});
-        auto mul = std::make_shared<opset5::Multiply>(data, mul_const);
-        auto input_low = opset5::Constant::create(element::f16, Shape{1}, {1});
-        auto input_high = opset5::Constant::create(element::f16, Shape{1}, {20});
-        auto output_low = opset5::Constant::create(element::f16, Shape{1, 3, 1, 1}, {-10, -10, -10});
-        auto output_high = opset5::Constant::create(element::f16, Shape{1}, {10});
-        auto fq = std::make_shared<opset5::FakeQuantize>(mul, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f16, data_shape);
+        auto mul_const = op::v0::Constant::create(element::f16, Shape{3, 1, 1}, {2, 1, -2});
+        auto mul = std::make_shared<op::v1::Multiply>(data, mul_const);
+        auto input_low = op::v0::Constant::create(element::f16, Shape{1}, {1});
+        auto input_high = op::v0::Constant::create(element::f16, Shape{1}, {20});
+        auto output_low = op::v0::Constant::create(element::f16, Shape{1, 3, 1, 1}, {-10, -10, -10});
+        auto output_high = op::v0::Constant::create(element::f16, Shape{1}, {10});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(mul, input_low,
                                                          input_high, output_low,
                                                          output_high, 20);
         f = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
@@ -242,12 +242,12 @@ TEST(TransformationTests, MulFakeQuantizeFusionConstantSomeNegativeF16) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f16, data_shape);
-        auto input_low = opset5::Constant::create(element::f16, Shape{1, 3, 1, 1}, {0.5f, 1.0f, -0.5f});
-        auto input_high = opset5::Constant::create(element::f16, Shape{1, 3, 1, 1}, {10.0f, 20.0f, -10.0f});
-        auto output_low = opset5::Constant::create(element::f16, Shape{1, 3, 1, 1}, {-10.0f, -10.0f, 10.0f});
-        auto output_high = opset5::Constant::create(element::f16, Shape{1, 3, 1, 1}, {10.0f, 10.0f, -10.0f});
-        auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f16, data_shape);
+        auto input_low = op::v0::Constant::create(element::f16, Shape{1, 3, 1, 1}, {0.5f, 1.0f, -0.5f});
+        auto input_high = op::v0::Constant::create(element::f16, Shape{1, 3, 1, 1}, {10.0f, 20.0f, -10.0f});
+        auto output_low = op::v0::Constant::create(element::f16, Shape{1, 3, 1, 1}, {-10.0f, -10.0f, 10.0f});
+        auto output_high = op::v0::Constant::create(element::f16, Shape{1, 3, 1, 1}, {10.0f, 10.0f, -10.0f});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low,
                                                          input_high, output_low,
                                                          output_high, 20);
         f_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
@@ -262,14 +262,14 @@ TEST(TransformationTests, NegativeMulFakeQuantizeFusionNotAConstant) {
 
     Shape data_shape{1, 3, 14, 14};
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        auto mul_2nd_input = std::make_shared<opset5::Parameter>(element::f32, Shape{1});
-        auto mul = std::make_shared<opset5::Multiply>(data, mul_2nd_input);
-        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {0});
-        auto input_high = opset5::Constant::create(element::f32, Shape{1}, {20});
-        auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
-        auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
-        auto fq = std::make_shared<opset5::FakeQuantize>(mul, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto mul_2nd_input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+        auto mul = std::make_shared<op::v1::Multiply>(data, mul_2nd_input);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{1}, {0});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{1}, {20});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{}, {0});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{}, {10});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(mul, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
         f = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data, mul_2nd_input});
@@ -281,14 +281,14 @@ TEST(TransformationTests, NegativeMulFakeQuantizeFusionNotAConstant) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
-        auto mul_2nd_input = std::make_shared<opset5::Parameter>(element::f32, Shape{1});
-        auto mul = std::make_shared<opset5::Multiply>(data, mul_2nd_input);
-        auto input_low = opset5::Constant::create(element::f32, Shape{1}, {0});
-        auto input_high = opset5::Constant::create(element::f32, Shape{1}, {20});
-        auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
-        auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
-        auto fq = std::make_shared<opset5::FakeQuantize>(mul, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto mul_2nd_input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1});
+        auto mul = std::make_shared<op::v1::Multiply>(data, mul_2nd_input);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{1}, {0});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{1}, {20});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{}, {0});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{}, {10});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(mul, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
         f_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data, mul_2nd_input});

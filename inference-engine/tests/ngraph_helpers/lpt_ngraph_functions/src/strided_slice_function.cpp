@@ -29,7 +29,7 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getOriginal(
     const std::vector<int64_t>& newAxisMask,
     const std::vector<int64_t>& shrinkAxisMask,
     const std::vector<int64_t>& elipsisMask) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(inputPrecision, inputShape);
     input->set_friendly_name("input");
     const auto deq = makeDequantization(input, dequantization);
 
@@ -37,13 +37,13 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getOriginal(
     const auto endParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ end.size() }, end);
     const auto stridesParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ strides.size() }, strides);
 
-    const auto stridedSlice = std::make_shared<ngraph::opset1::StridedSlice>(
+    const auto stridedSlice = std::make_shared<ngraph::op::v1::StridedSlice>(
         deq, beginParam, endParam, stridesParam,
         beginMask, endMask, newAxisMask,
         shrinkAxisMask, elipsisMask);
     stridedSlice->set_friendly_name("StridedSlice");
 
-    const auto res = std::make_shared<ngraph::opset1::Result>(stridedSlice);
+    const auto res = std::make_shared<ngraph::op::v0::Result>(stridedSlice);
     const auto function = std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ res },
         ngraph::ParameterVector{ input },
@@ -64,7 +64,7 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getOriginal(
     const std::vector<int64_t>& newAxisMask,
     const std::vector<int64_t>& shrinkAxisMask,
     const std::vector<int64_t>& elipsisMask) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(inputPrecision, inputShape);
     input->set_friendly_name("input");
     const auto fqOnData = makeFakeQuantize(input, inputPrecision, fakeQuantize);
 
@@ -72,13 +72,13 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getOriginal(
     const auto endParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ end.size() }, end);
     const auto stridesParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ strides.size() }, strides);
 
-    const auto stridedSlice = std::make_shared<ngraph::opset1::StridedSlice>(
+    const auto stridedSlice = std::make_shared<ngraph::op::v1::StridedSlice>(
         fqOnData, beginParam, endParam, stridesParam,
         beginMask, endMask, newAxisMask,
         shrinkAxisMask, elipsisMask);
     stridedSlice->set_friendly_name("StridedSlice");
 
-    const auto res = std::make_shared<ngraph::opset1::Result>(stridedSlice);
+    const auto res = std::make_shared<ngraph::op::v0::Result>(stridedSlice);
     const auto function = std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ res },
         ngraph::ParameterVector{ input },
@@ -101,7 +101,7 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getReference(
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(inputPrecision, inputShape);
     input->set_friendly_name("input");
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
@@ -109,7 +109,7 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getReference(
     const auto endParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ end.size() }, end);
     const auto stridesParam = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ strides.size() }, strides);
 
-    const auto stridedSlice = std::make_shared<ngraph::opset1::StridedSlice>(
+    const auto stridedSlice = std::make_shared<ngraph::op::v1::StridedSlice>(
         deqBefore, beginParam, endParam, stridesParam,
         beginMask, endMask, newAxisMask,
         shrinkAxisMask, elipsisMask);
@@ -117,7 +117,7 @@ std::shared_ptr<ngraph::Function> StridedSliceFunction::getReference(
     const auto deqAfter = makeDequantization(stridedSlice, dequantizationAfter);
     deqAfter->set_friendly_name("StridedSlice");
 
-    const auto res = std::make_shared<ngraph::opset1::Result>(deqAfter);
+    const auto res = std::make_shared<ngraph::op::v0::Result>(deqAfter);
     const auto function = std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ res },
         ngraph::ParameterVector{ input },

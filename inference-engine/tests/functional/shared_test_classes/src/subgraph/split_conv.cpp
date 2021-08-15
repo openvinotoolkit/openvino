@@ -65,12 +65,12 @@ void SplitConvTest::SetUp() {
     const auto splitsNum = 2;
     const auto splitAxis = 1;
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, splitsNum, splitAxis);
-    auto relu1 = std::make_shared<ngraph::opset1::Relu>(split->output(0));
+    auto relu1 = std::make_shared<ngraph::op::v0::Relu>(split->output(0));
 
-    auto relu2 = std::make_shared<ngraph::opset1::Relu>(split->output(1));
+    auto relu2 = std::make_shared<ngraph::op::v0::Relu>(split->output(1));
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels / 2};
-    auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(relu2, reshapePattern1, false);
+    auto reshapePattern1 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
+    auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(relu2, reshapePattern1, false);
 
     auto filterWeights = CommonTestUtils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  -0.2f, 0.2f);
@@ -80,11 +80,11 @@ void SplitConvTest::SetUp() {
     auto widthAfterConv = (convInputShape[3] - kernelShape[1]) / stride + 1;
     std::vector<size_t> outFormShapes = {1,  outputChannels * widthAfterConv };
 
-    auto reshapePattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(conv, reshapePattern2, false);
+    auto reshapePattern2 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
+    auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(conv, reshapePattern2, false);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu1),
-                                 std::make_shared<ngraph::opset1::Result>(reshape2)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(relu1),
+                                 std::make_shared<ngraph::op::v0::Result>(reshape2)};
     function = std::make_shared<ngraph::Function>(results, params, "SplitConvTest");
 }
 

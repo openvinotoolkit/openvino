@@ -55,27 +55,27 @@ protected:
 
         ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
         // multiply
-        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{1, 3, 224, 224});
+        auto input1 = std::make_shared<op::v0::Parameter>(ntype, ngraph::Shape{1, 3, 224, 224});
         input1->set_friendly_name("Input_1");
-        std::shared_ptr<ngraph::opset1::Constant> const1 = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> const1 = nullptr;
         if (netPrecision == Precision::FP32) {
-            const1 = opset1::Constant::create(ntype, Shape{1}, { 2.0f });
+            const1 = op::v0::Constant::create(ntype, Shape{1}, { 2.0f });
         } else {
-            const1 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
+            const1 = op::v0::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
-        auto mulNode = std::make_shared<opset1::Multiply>(input1, const1);
+        auto mulNode = std::make_shared<op::v1::Multiply>(input1, const1);
         // add
-        std::shared_ptr<ngraph::opset1::Constant> const2 = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> const2 = nullptr;
         if (netPrecision == Precision::FP32) {
-            const2 = opset1::Constant::create(ntype, Shape{1}, { 1.0f });
+            const2 = op::v0::Constant::create(ntype, Shape{1}, { 1.0f });
         } else {
-            const2 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f)) });
+            const2 = op::v0::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f)) });
         }
-        auto addNode = std::make_shared<opset1::Add>(mulNode, const2);
+        auto addNode = std::make_shared<op::v1::Add>(mulNode, const2);
         addNode->set_friendly_name("Power1");
 
         // AvgPooling
-        auto avgpoolNode = std::make_shared<opset1::AvgPool>(addNode,
+        auto avgpoolNode = std::make_shared<op::v1::AvgPool>(addNode,
                                                              Strides{1, 1},
                                                              Shape{1, 1},
                                                              Shape{1, 1},
@@ -85,21 +85,21 @@ protected:
         avgpoolNode->set_friendly_name("AvgPooling1");
 
         // convolution1
-        std::shared_ptr<ngraph::opset1::Constant> weightsNode = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> weightsNode = nullptr;
         ngraph::Shape convFilterShape = { 3, 3, 3, 3 };  // out channel, /input channels, kernel h, kernel w
         if (netPrecision == Precision::FP32) {
             std::vector<float> weightValuesFP32;
             weightValuesFP32.resize(3 * 3 * 3 * 3);
             FuncTestUtils::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
-            weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesFP32);
+            weightsNode = std::make_shared<ngraph::op::v0::Constant>(ntype, convFilterShape, weightValuesFP32);
         } else {
             std::vector<short> weightValuesBF16;
             weightValuesBF16.resize(3 * 3 * 3 * 3);
             FuncTestUtils::fillInputsBySinValues(weightValuesBF16.data(), weightValuesBF16.size());
-            weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesBF16.data());
+            weightsNode = std::make_shared<ngraph::op::v0::Constant>(ntype, convFilterShape, weightValuesBF16.data());
         }
 
-        std::shared_ptr<ngraph::Node> convNode1 = std::make_shared<ngraph::opset1::Convolution>(
+        std::shared_ptr<ngraph::Node> convNode1 = std::make_shared<ngraph::op::v1::Convolution>(
             avgpoolNode, weightsNode,
             ngraph::Strides({ 1, 1 }),   // strides
             ngraph::CoordinateDiff({ 0, 0 }),  // pad begin
@@ -109,11 +109,11 @@ protected:
         convNode1->set_friendly_name("Convolution1");
 
         // ReLU1
-        auto reluNode = std::make_shared<opset1::Relu>(convNode1);
+        auto reluNode = std::make_shared<op::v0::Relu>(convNode1);
         reluNode->set_friendly_name("ReLU1");
 
         // convolution2
-        std::shared_ptr<ngraph::Node> convNode2 = std::make_shared<ngraph::opset1::Convolution>(
+        std::shared_ptr<ngraph::Node> convNode2 = std::make_shared<ngraph::op::v1::Convolution>(
             reluNode, weightsNode,
             ngraph::Strides({ 1, 1 }),   // strides
             ngraph::CoordinateDiff({ 0, 0 }),  // pad begin
@@ -123,7 +123,7 @@ protected:
         convNode2->set_friendly_name("Convolution2");
 
         // convolution3
-        std::shared_ptr<ngraph::Node> convNode3 = std::make_shared<ngraph::opset1::Convolution>(
+        std::shared_ptr<ngraph::Node> convNode3 = std::make_shared<ngraph::op::v1::Convolution>(
             reluNode, weightsNode,
             ngraph::Strides({ 1, 1 }),   // strides
             ngraph::CoordinateDiff({ 0, 0 }),  // pad begin
@@ -133,7 +133,7 @@ protected:
         convNode3->set_friendly_name("Convolution3");
 
         // ReLU1
-        auto reluNode2 = std::make_shared<opset1::Relu>(convNode3);
+        auto reluNode2 = std::make_shared<op::v0::Relu>(convNode3);
         reluNode2->set_friendly_name("ReLU2");
 
         // Norm1
@@ -142,21 +142,21 @@ protected:
         float eps{1e-6f};
         auto eps_mode = op::EpsMode::ADD;
 
-        auto normNode =  std::make_shared<opset1::NormalizeL2>(convNode3, axes, eps, eps_mode);
+        auto normNode =  std::make_shared<op::v0::NormalizeL2>(convNode3, axes, eps, eps_mode);
         normNode->set_friendly_name("Norm1");
 
 
 
         // Eltwise1
-        auto eltNode1 = std::make_shared<opset1::Add>(convNode2, reluNode2);
+        auto eltNode1 = std::make_shared<op::v1::Add>(convNode2, reluNode2);
         eltNode1->set_friendly_name("Eltwise1");
 
         // ReLU3
-        auto reluNode3 = std::make_shared<opset1::Relu>(eltNode1);
+        auto reluNode3 = std::make_shared<op::v0::Relu>(eltNode1);
         reluNode3->set_friendly_name("ReLU3");
 
         // maxPooling1
-        auto maxPoolNode = std::make_shared<opset1::MaxPool>(reluNode3,
+        auto maxPoolNode = std::make_shared<op::v1::MaxPool>(reluNode3,
                                                              Strides{1, 1},
                                                              Shape{1, 1},
                                                              Shape{0, 0},
@@ -165,7 +165,7 @@ protected:
         maxPoolNode->set_friendly_name("maxPooling1");
 
         // Eltwise2
-        auto eltNode2 = std::make_shared<opset1::Add>(maxPoolNode, normNode);
+        auto eltNode2 = std::make_shared<op::v1::Add>(maxPoolNode, normNode);
         eltNode2->set_friendly_name("Eltwise2");
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{eltNode2}, ngraph::ParameterVector{input1});

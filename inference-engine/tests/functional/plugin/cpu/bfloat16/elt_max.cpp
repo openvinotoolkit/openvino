@@ -42,19 +42,19 @@ protected:
         const size_t conv0OutputChannels = 1;
 
         // add
-        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{inputShapes});
+        auto input1 = std::make_shared<op::v0::Parameter>(ntype, ngraph::Shape{inputShapes});
         input1->set_friendly_name("Input_1");
-        std::shared_ptr<ngraph::opset1::Constant> powerConst = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> powerConst = nullptr;
         if (netPrecision == Precision::FP32) {
-            powerConst = opset1::Constant::create(ntype, Shape{1}, { 2.0f });
+            powerConst = op::v0::Constant::create(ntype, Shape{1}, { 2.0f });
         } else {
-            powerConst = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
+            powerConst = op::v0::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
-        auto powerNode0 = std::make_shared<opset1::Multiply>(input1, powerConst);
+        auto powerNode0 = std::make_shared<op::v1::Multiply>(input1, powerConst);
         powerNode0->set_friendly_name("Power_0");
 
         // convolution
-        std::shared_ptr<ngraph::opset1::Constant> weightsNode0 = nullptr, weightsNode1 = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> weightsNode0 = nullptr, weightsNode1 = nullptr;
         ngraph::Shape convFilterShape0 = { conv0OutputChannels, channelsCount, 3, 3 };  // out channel, /input channels, kernel h, kernel w
         ngraph::Shape convFilterShape1 = { 1, conv0OutputChannels, 3, 3 };  // out channel, /input channels, kernel h, kernel w
         if (netPrecision == Precision::FP32) {
@@ -63,19 +63,19 @@ protected:
             weightValuesFP32_1.resize(1 * conv0OutputChannels * 3 * 3);
             FuncTestUtils::fillInputsBySinValues(weightValuesFP32_0.data(), weightValuesFP32_0.size());
             FuncTestUtils::fillInputsBySinValues(weightValuesFP32_1.data(), weightValuesFP32_1.size());
-            weightsNode0 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape0, weightValuesFP32_0);
-            weightsNode1 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape1, weightValuesFP32_1);
+            weightsNode0 = std::make_shared<ngraph::op::v0::Constant>(ntype, convFilterShape0, weightValuesFP32_0);
+            weightsNode1 = std::make_shared<ngraph::op::v0::Constant>(ntype, convFilterShape1, weightValuesFP32_1);
         } else {
             std::vector<short> weightValuesBF16_0, weightValuesBF16_1;
             weightValuesBF16_0.resize(conv0OutputChannels * channelsCount * 3 * 3);
             weightValuesBF16_1.resize(1 * conv0OutputChannels * 3 * 3);
             FuncTestUtils::fillInputsBySinValues(weightValuesBF16_0.data(), weightValuesBF16_0.size());
             FuncTestUtils::fillInputsBySinValues(weightValuesBF16_1.data(), weightValuesBF16_1.size());
-            weightsNode0 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape0, weightValuesBF16_0.data());
-            weightsNode1 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape1, weightValuesBF16_1.data());
+            weightsNode0 = std::make_shared<ngraph::op::v0::Constant>(ntype, convFilterShape0, weightValuesBF16_0.data());
+            weightsNode1 = std::make_shared<ngraph::op::v0::Constant>(ntype, convFilterShape1, weightValuesBF16_1.data());
         }
 
-        std::shared_ptr<ngraph::Node> convNode0 = std::make_shared<ngraph::opset1::Convolution>(
+        std::shared_ptr<ngraph::Node> convNode0 = std::make_shared<ngraph::op::v1::Convolution>(
                 powerNode0, weightsNode0,
                 ngraph::Strides({ 1, 1 }),   // strides
                 ngraph::CoordinateDiff({ 1, 1 }),  // pad begin
@@ -85,21 +85,21 @@ protected:
         convNode0->set_friendly_name("Convolution_0");
 
         // Eltwise, i.e. Max
-        std::shared_ptr<ngraph::opset1::Constant> maxConst = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> maxConst = nullptr;
         auto batchSize = inputShapes[0];
         auto heightSize = inputShapes[2];
         auto widthSize = inputShapes[3];
         if (netPrecision == Precision::FP32) {
-            maxConst = opset1::Constant::create(ntype, Shape{batchSize, conv0OutputChannels, heightSize, widthSize}, { 2.0f });
+            maxConst = op::v0::Constant::create(ntype, Shape{batchSize, conv0OutputChannels, heightSize, widthSize}, { 2.0f });
         } else {
-            maxConst = opset1::Constant::create(ntype, Shape{batchSize, conv0OutputChannels, heightSize, widthSize},
+            maxConst = op::v0::Constant::create(ntype, Shape{batchSize, conv0OutputChannels, heightSize, widthSize},
                     { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
         maxConst->set_friendly_name("Max_const");
-        auto eltMaxNode = std::make_shared<opset1::Maximum>(convNode0, maxConst);
+        auto eltMaxNode = std::make_shared<op::v1::Maximum>(convNode0, maxConst);
         eltMaxNode->set_friendly_name("Elt_max");
 
-        std::shared_ptr<ngraph::Node> convNode1 = std::make_shared<ngraph::opset1::Convolution>(
+        std::shared_ptr<ngraph::Node> convNode1 = std::make_shared<ngraph::op::v1::Convolution>(
                 eltMaxNode, weightsNode1,
                 ngraph::Strides({ 1, 1 }),   // strides
                 ngraph::CoordinateDiff({ 1, 1 }),  // pad begin

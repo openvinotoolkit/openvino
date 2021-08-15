@@ -48,7 +48,7 @@ void NormalizeL2LayerTest::SetUp() {
     auto data_input = params[0];
     data_input->set_friendly_name("data");
     auto norm = ngraph::builder::makeNormalizeL2(data_input, axes, eps, epsMode);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(norm)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(norm)};
     function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");
 }
 

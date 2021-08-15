@@ -90,13 +90,13 @@ protected:
         auto coords = ngraph::builder::makeConstant<float>(ngraph::element::f32, coordsShape, proposalVector);
         auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
 
-        auto roialign = std::make_shared<ngraph::opset3::ROIAlign>(params[0], coords, roisIdx, pooledH, pooledW,
+        auto roialign = std::make_shared<ngraph::op::v3::ROIAlign>(params[0], coords, roisIdx, pooledH, pooledW,
                                                                    samplingRatio, spatialScale, mode);
         roialign->get_rt_info() = getCPUInfo();
         selectedType = std::string("unknown_") + inPrc.name();
 
         threshold = 1e-2;
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roialign)};
+        const ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(roialign)};
         function = std::make_shared<ngraph::Function>(results, params, "ROIAlign");
     }
 };

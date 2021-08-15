@@ -91,7 +91,7 @@ protected:
                 NGRAPH_UNREACHABLE("UNKNOWN DYNAMISM MODE for MatMul DSR graph comparison test");
         }
 
-        return std::make_shared<ngraph::opset3::MatMul>(inputA, inputB, matmul_setup.A.transpose, matmul_setup.B.transpose);
+        return std::make_shared<ngraph::op::v0::MatMul>(inputA, inputB, matmul_setup.A.transpose, matmul_setup.B.transpose);
     }
 };
 

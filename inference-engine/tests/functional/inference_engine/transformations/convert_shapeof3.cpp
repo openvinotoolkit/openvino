@@ -22,7 +22,7 @@ TEST(TransformationTests, ConvertShapeOf3WithI64) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
-        auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(input, ngraph::element::i64);
+        auto shapeof = std::make_shared<ngraph::op::v3::ShapeOf>(input, ngraph::element::i64);
         shapeof->set_friendly_name("shapeof");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{shapeof}, ngraph::ParameterVector{input});
@@ -54,7 +54,7 @@ TEST(TransformationTests, ConvertShapeOf3WithI32) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
-        auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(input, ngraph::element::i32);
+        auto shapeof = std::make_shared<ngraph::op::v3::ShapeOf>(input, ngraph::element::i32);
         shapeof->set_friendly_name("shapeof");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{shapeof}, ngraph::ParameterVector{input});

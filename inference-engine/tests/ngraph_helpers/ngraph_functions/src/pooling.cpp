@@ -22,12 +22,12 @@ std::shared_ptr<Node> makePooling(const ngraph::Output<Node> &in,
     std::shared_ptr<ngraph::Node> pooling;
     switch (poolType) {
         case ngraph::helpers::PoolingTypes::MAX:
-            pooling = std::make_shared<ngraph::opset3::MaxPool>(in, strides, padsBegin, padsEnd, kernel, roundingType,
+            pooling = std::make_shared<ngraph::op::v1::MaxPool>(in, strides, padsBegin, padsEnd, kernel, roundingType,
                                                                 padType);
 
             break;
         case ngraph::helpers::PoolingTypes::AVG:
-            pooling = std::make_shared<ngraph::opset3::AvgPool>(in, strides, padsBegin, padsEnd, kernel,
+            pooling = std::make_shared<ngraph::op::v1::AvgPool>(in, strides, padsBegin, padsEnd, kernel,
                                                                 excludePad,
                                                                 roundingType, padType);
             break;

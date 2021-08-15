@@ -47,17 +47,17 @@ protected:
             const ngraph::element::Type_t& floatType,
             const ngraph::element::Type_t& integerType,
             const NonMaxSuppressionTestCase& nmsSetup) const {
-        const auto boxes = std::make_shared<ngraph::opset3::Parameter>(
+        const auto boxes = std::make_shared<ngraph::op::v0::Parameter>(
                 floatType, ngraph::PartialShape{nmsSetup.numBatches, nmsSetup.numBoxes, 4});
-        const auto scores = std::make_shared<ngraph::opset3::Parameter>(
+        const auto scores = std::make_shared<ngraph::op::v0::Parameter>(
                 floatType, ngraph::PartialShape{nmsSetup.numBatches, nmsSetup.numClasses, nmsSetup.numBoxes});
 
-        const auto maxOutputBoxesPerClass = ngraph::opset3::Constant::create(integerType, {}, std::vector<int64_t>{nmsSetup.maxOutputBoxesPerClass});
-        const auto iouThreshold = ngraph::opset3::Constant::create(floatType, ngraph::Shape{}, std::vector<float>{nmsSetup.iouThreshold});
-        const auto scoreThreshold = ngraph::opset3::Constant::create(floatType, ngraph::Shape{}, std::vector<float>{nmsSetup.scoreThreshold});
-        const auto softNMSSigma = ngraph::opset3::Constant::create(floatType, ngraph::Shape{}, std::vector<float>{nmsSetup.softNMSSigma});
+        const auto maxOutputBoxesPerClass = ngraph::op::v0::Constant::create(integerType, {}, std::vector<int64_t>{nmsSetup.maxOutputBoxesPerClass});
+        const auto iouThreshold = ngraph::op::v0::Constant::create(floatType, ngraph::Shape{}, std::vector<float>{nmsSetup.iouThreshold});
+        const auto scoreThreshold = ngraph::op::v0::Constant::create(floatType, ngraph::Shape{}, std::vector<float>{nmsSetup.scoreThreshold});
+        const auto softNMSSigma = ngraph::op::v0::Constant::create(floatType, ngraph::Shape{}, std::vector<float>{nmsSetup.softNMSSigma});
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(scores, dims);
 
         const auto node = std::make_shared<ngraph::op::v5::NonMaxSuppression>(
@@ -77,17 +77,17 @@ protected:
             const ngraph::element::Type_t& floatType,
             const ngraph::element::Type_t& integerType,
             const NonMaxSuppressionTestCase& nmsSetup) const {
-        const auto boxes = std::make_shared<ngraph::opset3::Parameter>(
+        const auto boxes = std::make_shared<ngraph::op::v0::Parameter>(
                 floatType, ngraph::PartialShape{nmsSetup.numBatches, nmsSetup.numBoxes, 4});
-        const auto scores = std::make_shared<ngraph::opset3::Parameter>(
+        const auto scores = std::make_shared<ngraph::op::v0::Parameter>(
                 floatType, ngraph::PartialShape{nmsSetup.numBatches, nmsSetup.numClasses, nmsSetup.numBoxes});
 
-        const auto maxOutputBoxesPerClass = ngraph::opset3::Constant::create(integerType, {}, std::vector<int64_t>{nmsSetup.maxOutputBoxesPerClass});
-        const auto iouThreshold = ngraph::opset3::Constant::create(floatType, {}, std::vector<float>{nmsSetup.iouThreshold});
-        const auto scoreThreshold = ngraph::opset3::Constant::create(floatType, {}, std::vector<float>{nmsSetup.scoreThreshold});
-        const auto softNMSSigma = ngraph::opset3::Constant::create(floatType, ngraph::Shape{}, std::vector<float>{nmsSetup.softNMSSigma});
+        const auto maxOutputBoxesPerClass = ngraph::op::v0::Constant::create(integerType, {}, std::vector<int64_t>{nmsSetup.maxOutputBoxesPerClass});
+        const auto iouThreshold = ngraph::op::v0::Constant::create(floatType, {}, std::vector<float>{nmsSetup.iouThreshold});
+        const auto scoreThreshold = ngraph::op::v0::Constant::create(floatType, {}, std::vector<float>{nmsSetup.scoreThreshold});
+        const auto softNMSSigma = ngraph::op::v0::Constant::create(floatType, ngraph::Shape{}, std::vector<float>{nmsSetup.softNMSSigma});
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{3});
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{3});
         const auto dsrInput = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(scores, dims);
 
         const auto node = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(
@@ -95,8 +95,8 @@ protected:
 
         const auto validOutputs = std::make_shared<ngraph::opset5::Gather>(
                 node->output(2),
-                ngraph::opset5::Constant::create(dims->get_element_type(), ngraph::Shape{1}, {0}),
-                ngraph::opset5::Constant::create(dims->get_element_type(), ngraph::Shape{1}, {0}));
+                ngraph::op::v0::Constant::create(dims->get_element_type(), ngraph::Shape{1}, {0}),
+                ngraph::op::v0::Constant::create(dims->get_element_type(), ngraph::Shape{1}, {0}));
 
         const auto dsrIndices = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(0), node->output(2));
         const auto dsrScores = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(1), node->output(2));

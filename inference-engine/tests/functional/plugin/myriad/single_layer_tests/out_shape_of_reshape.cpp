@@ -68,14 +68,14 @@ protected:
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
 
-        const auto inputShapeParam = std::make_shared<ngraph::opset3::Parameter>(
+        const auto inputShapeParam = std::make_shared<ngraph::op::v0::Parameter>(
                 ngPrc, ngraph::Shape{inputShape.size()});
-        const auto outShapeDescriptorConst = std::make_shared<ngraph::opset3::Constant>(
+        const auto outShapeDescriptorConst = std::make_shared<ngraph::op::v0::Constant>(
                 ngPrc, ngraph::Shape{outShapeDescriptor.size()}, outShapeDescriptor);
 
         const auto outShapeOfReshape = std::make_shared<ngraph::vpu::op::OutShapeOfReshape>(
                 inputShapeParam, outShapeDescriptorConst, specialZero);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(outShapeOfReshape)};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(outShapeOfReshape)};
         function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{inputShapeParam});
     }
 

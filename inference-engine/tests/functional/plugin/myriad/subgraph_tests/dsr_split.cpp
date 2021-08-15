@@ -46,9 +46,9 @@ protected:
 
         const auto inputSubgraph = createInputSubgraphWithDSR(dataType, splitSetup.dataShapes);
 
-        const auto axis = ngraph::opset5::Constant::create(idxType, {}, {splitSetup.axis});
+        const auto axis = ngraph::op::v0::Constant::create(idxType, {}, {splitSetup.axis});
 
-        return std::make_shared<ngraph::opset5::Split>(inputSubgraph, axis, splitSetup.numSplits);
+        return std::make_shared<ngraph::op::v1::Split>(inputSubgraph, axis, splitSetup.numSplits);
     }
 };
 

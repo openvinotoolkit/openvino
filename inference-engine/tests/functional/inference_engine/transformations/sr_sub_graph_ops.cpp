@@ -14,24 +14,24 @@ TEST(SmartReshapeTests, TensorIteratorStaticParameters) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         // That which we iterate over
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
-        auto M = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1});
+        auto M = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1});
         X->set_friendly_name("X");
         Y->set_friendly_name("Y");
         M->set_friendly_name("M");
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto M_body = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto body_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
         // Body
-        auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
-        auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
+        auto sum = std::make_shared<ngraph::op::v1::Add>(Xi, Yi);
+        auto Zo = std::make_shared<ngraph::op::v1::Multiply>(sum, M_body);
         auto body = std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
                                                        ParameterVector{Xi, Yi, M_body});
 
@@ -73,24 +73,24 @@ TEST(SmartReshapeTests, TensorIteratorDynamicParameters) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         // That which we iterate over
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
-        auto M = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1});
+        auto M = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1});
         X->set_friendly_name("X");
         Y->set_friendly_name("Y");
         M->set_friendly_name("M");
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto M_body = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto body_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
         // Body
-        auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
-        auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
+        auto sum = std::make_shared<ngraph::op::v1::Add>(Xi, Yi);
+        auto Zo = std::make_shared<ngraph::op::v1::Multiply>(sum, M_body);
         auto body = std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
                                                        ParameterVector{Xi, Yi, M_body});
 
@@ -132,35 +132,35 @@ TEST(SmartReshapeTests, LoopStaticParameters) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         // That which we iterate over
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto M = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto M = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         X->set_friendly_name("X");
         Y->set_friendly_name("Y");
         M->set_friendly_name("M");
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
-        auto current_iteration = std::make_shared<opset5::Parameter>(element::i64, Shape{});
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto current_iteration = std::make_shared<op::v0::Parameter>(element::i64, Shape{});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto M_body = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto body_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
         auto trip_count =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
         auto exec_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         // Body
-        auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
-        auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
+        auto sum = std::make_shared<ngraph::op::v1::Add>(Xi, Yi);
+        auto Zo = std::make_shared<ngraph::op::v1::Multiply>(sum, M_body);
         auto body = std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
                                                   ParameterVector{Xi, current_iteration, Yi, M_body});
 
-        auto loop = std::make_shared<opset5::Loop>(trip_count, exec_condition);
+        auto loop = std::make_shared<op::v5::Loop>(trip_count, exec_condition);
         loop->set_function(body);
-        loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
+        loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{1, 1});
 
         loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 2);
         loop->set_sliced_input(Yi, Y, -1, -1, 1, 0, 1);
@@ -197,35 +197,35 @@ TEST(SmartReshapeTests, LoopDynamicParameters) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         // That which we iterate over
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto M = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto M = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         X->set_friendly_name("X");
         Y->set_friendly_name("Y");
         M->set_friendly_name("M");
 
         // Set up the cell body, a function from (Xi, Yi) -> (Zo)
         // Body parameters
-        auto current_iteration = std::make_shared<opset5::Parameter>(element::i64, Shape{});
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto current_iteration = std::make_shared<op::v0::Parameter>(element::i64, Shape{});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto M_body = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto body_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
         auto trip_count =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
         auto exec_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         // Body
-        auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
-        auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
+        auto sum = std::make_shared<ngraph::op::v1::Add>(Xi, Yi);
+        auto Zo = std::make_shared<ngraph::op::v1::Multiply>(sum, M_body);
         auto body = std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
                                                        ParameterVector{Xi, current_iteration, Yi, M_body});
 
-        auto loop = std::make_shared<opset5::Loop>(trip_count, exec_condition);
+        auto loop = std::make_shared<op::v5::Loop>(trip_count, exec_condition);
         loop->set_function(body);
-        loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
+        loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{1, 1});
 
         loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 2);
         loop->set_sliced_input(Yi, Y, -1, -1, 1, 0, 1);
@@ -262,37 +262,37 @@ TEST(SmartReshapeTests, LoopParentParametersUsedInBody) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         // That which we iterate over
-        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto add_Y = std::make_shared<opset5::Add>(Y,
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{0.f}));
-        auto M = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto add_Y = std::make_shared<op::v1::Add>(Y,
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{0.f}));
+        auto M = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         X->set_friendly_name("X");
         Y->set_friendly_name("Y");
         M->set_friendly_name("M");
 
         // Set up the cell body, a function from (Xi, add_Y) -> (Zo)
         // Body parameters
-        auto current_iteration = std::make_shared<opset5::Parameter>(element::i64, Shape{});
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto current_iteration = std::make_shared<op::v0::Parameter>(element::i64, Shape{});
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto M_body = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto body_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
         auto trip_count =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
         auto exec_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         // Body
-        auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
-        auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
+        auto sum = std::make_shared<ngraph::op::v1::Add>(Xi, Yi);
+        auto Zo = std::make_shared<ngraph::op::v1::Multiply>(sum, M_body);
         auto body = std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
                                                   ParameterVector{Xi, current_iteration, Yi, M_body});
 
-        auto loop = std::make_shared<opset5::Loop>(trip_count, exec_condition);
+        auto loop = std::make_shared<op::v5::Loop>(trip_count, exec_condition);
         loop->set_function(body);
-        loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
+        loop->set_special_body_ports(ngraph::op::v5::Loop::SpecialBodyPorts{1, 1});
 
         loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 2);
         loop->set_merged_input(M_body, M, Zo);
@@ -330,26 +330,26 @@ TEST(SmartReshapeTests, TensorIteratorParentParameterUsedInBody) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         // That which we iterate over
-        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
-        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
-        auto add_Y = std::make_shared<opset5::Add>(Y,
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{0.f}));
-        auto M = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1});
+        auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1});
+        auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1});
+        auto add_Y = std::make_shared<op::v1::Add>(Y,
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{0.f}));
+        auto M = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1});
         X->set_friendly_name("X");
         Y->set_friendly_name("Y");
         M->set_friendly_name("M");
 
         // Set up the cell body, a function from (Xi, add_Y) -> (Zo)
         // Body parameters
-        auto Xi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto Yi = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto M_body = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+        auto Xi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto Yi = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto M_body = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto body_condition =
-                std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
         // Body
-        auto sum = std::make_shared<ngraph::opset5::Add>(Xi, Yi);
-        auto Zo = std::make_shared<ngraph::opset5::Multiply>(sum, M_body);
+        auto sum = std::make_shared<ngraph::op::v1::Add>(Xi, Yi);
+        auto Zo = std::make_shared<ngraph::op::v1::Multiply>(sum, M_body);
         auto body = std::make_shared<ngraph::Function>(OutputVector{Zo, body_condition, sum},
                                                        ParameterVector{Xi, Yi, M_body});
 

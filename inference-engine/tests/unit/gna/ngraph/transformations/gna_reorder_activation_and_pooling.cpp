@@ -65,7 +65,7 @@ ActivationFactoryPtr createActivationFactory(Args&& ... args) {
 
 typedef std::tuple<
     ActivationFactoryPtr,                // activation Node factory
-    bool                                 // do we need to create ngraph::opset7::Add Node or not
+    bool                                 // do we need to create ngraph::op::v1::Add Node or not
 > ConvolutionActivationPoolTestOptions;
 
 class ConvolutionActivationPoolTestFixture : public CommonTestUtils::TestsCommon,
@@ -91,14 +91,14 @@ void ConvolutionActivationPoolTestFixture::SetUp() {
 
 std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_initial_function(ActivationFactoryPtr activation_factory,
                                                                                              bool isAddNodeNeeded) {
-    auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+    auto input_params_convolution = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                                 ngraph::Shape{1, 3, 64, 64});
-    auto input_params_add = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+    auto input_params_add = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
-    auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
+    auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                     ngraph::Shape{3, 3, 1, 1}, {1});
-    auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
+    auto bias = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                  ngraph::Shape{3, 1, 1}, {1});
     auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                                weights,
@@ -109,7 +109,7 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_init
 
     std::shared_ptr<ngraph::op::Op> last_operation = convolution_operation;
     if (isAddNodeNeeded) {
-        auto add_operation = std::make_shared<ngraph::opset7::Add>(convolution_operation,
+        auto add_operation = std::make_shared<ngraph::op::v1::Add>(convolution_operation,
                                                                    input_params_add);
         last_operation = add_operation;
     }
@@ -121,7 +121,7 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_init
                                                                         ngraph::Shape{1, 1},
                                                                         ngraph::Shape{1, 1});
 
-    auto result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
+    auto result = std::make_shared<ngraph::op::v0::Result>(max_pool_operation);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                             ngraph::ParameterVector{input_params_convolution,
                                                                     input_params_add});
@@ -129,15 +129,15 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_init
 
 std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_reference(ActivationFactoryPtr activation_factory,
                                                                                       bool isAddNodeNeeded) {
-    auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+    auto input_params_convolution = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                                 ngraph::Shape{1, 3, 64, 64});
 
-    auto input_params_add = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+    auto input_params_add = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                         ngraph::Shape{1, 3, 64, 64});
 
-    auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
+    auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                     ngraph::Shape{3, 3, 1, 1}, {1});
-    auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
+    auto bias = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                  ngraph::Shape{3, 1, 1}, {1});
     auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                                weights,
@@ -148,7 +148,7 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_refe
 
     std::shared_ptr<ngraph::op::Op> last_operation = convolution_operation;
     if (isAddNodeNeeded) {
-        auto add_operation = std::make_shared<ngraph::opset7::Add>(convolution_operation,
+        auto add_operation = std::make_shared<ngraph::op::v1::Add>(convolution_operation,
                                                                    input_params_convolution);
         last_operation = add_operation;
     }
@@ -161,7 +161,7 @@ std::shared_ptr<ngraph::Function> ConvolutionActivationPoolTestFixture::get_refe
 
     auto activation = activation_factory->createNode(max_pool_operation);
 
-    auto result = std::make_shared<ngraph::opset7::Result>(activation);
+    auto result = std::make_shared<ngraph::op::v0::Result>(activation);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params_convolution,
                                                                           input_params_add});
@@ -182,7 +182,7 @@ TEST_P(ConvolutionActivationPoolTestFixture, CompareFunctions) {
 }
 
 const std::vector<ActivationFactoryPtr> activationFactories = {
-    createActivationFactory<ngraph::opset7::Relu>(),
+    createActivationFactory<ngraph::op::v0::Relu>(),
     createActivationFactory<ngraph::opset7::Sigmoid>(),
     createActivationFactory<ngraph::opset7::Tanh>(),
     createActivationFactory<ngraph::opset7::Abs>(),
@@ -204,12 +204,12 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvFqMp) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+        auto input_params_convolution = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                                     ngraph::Shape{1, 3, 64, 64});
 
-        auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
+        auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
-        auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
+        auto bias = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
         auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                                    weights,
@@ -218,11 +218,11 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvFqMp) {
                                                                                    ngraph::CoordinateDiff{0, 0},
                                                                                    ngraph::Strides{1, 1});
 
-        auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-        auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-        auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-        auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-        auto fake_quantize_op = std::make_shared<ngraph::opset7::FakeQuantize>(convolution_operation, input_low,
+        auto input_low = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+        auto input_high = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
+        auto output_low = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
+        auto output_high = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
+        auto fake_quantize_op = std::make_shared<ngraph::op::v0::FakeQuantize>(convolution_operation, input_low,
                                                                                input_high, output_low,
                                                                                output_high, 11);
 
@@ -232,7 +232,7 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvFqMp) {
                                                                             ngraph::Shape{1, 1},
                                                                             ngraph::Shape{1, 1});
 
-        auto result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
+        auto result = std::make_shared<ngraph::op::v0::Result>(max_pool_operation);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params_convolution});
 
@@ -245,12 +245,12 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvFqMp) {
     }
 
     {
-        auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+        auto input_params_convolution = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                                     ngraph::Shape{1, 3, 64, 64});
 
-        auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
+        auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
-        auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
+        auto bias = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
         auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                                    weights,
@@ -265,15 +265,15 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvFqMp) {
                                                                             ngraph::Shape{1, 1},
                                                                             ngraph::Shape{1, 1});
 
-        auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-        auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-        auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-        auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-        auto fake_quantize_op = std::make_shared<ngraph::opset7::FakeQuantize>(max_pool_operation, input_low,
+        auto input_low = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+        auto input_high = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
+        auto output_low = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
+        auto output_high = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
+        auto fake_quantize_op = std::make_shared<ngraph::op::v0::FakeQuantize>(max_pool_operation, input_low,
                                                                                input_high, output_low,
                                                                                output_high, 11);
 
-        auto result = std::make_shared<ngraph::opset7::Result>(fake_quantize_op);
+        auto result = std::make_shared<ngraph::op::v0::Result>(fake_quantize_op);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                             ngraph::ParameterVector{input_params_convolution});
     }
@@ -289,15 +289,15 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
     std::shared_ptr<ngraph::Function> func(nullptr), reference_func(nullptr);
 
     {
-        auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+        auto input_params_convolution = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                                     ngraph::Shape{1, 3, 64, 64});
 
-        auto input_params_add = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+        auto input_params_add = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                             ngraph::Shape{1, 3, 64, 64});
 
-        auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
+        auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
-        auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
+        auto bias = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
         auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                                    weights,
@@ -306,14 +306,14 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
                                                                                    ngraph::CoordinateDiff{0, 0},
                                                                                    ngraph::Strides{1, 1});
 
-        auto add_operation = std::make_shared<ngraph::opset7::Add>(convolution_operation,
+        auto add_operation = std::make_shared<ngraph::op::v1::Add>(convolution_operation,
                                                                    input_params_add);
 
-        auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-        auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-        auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-        auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-        auto fake_quantize_op = std::make_shared<ngraph::opset7::FakeQuantize>(add_operation, input_low,
+        auto input_low = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+        auto input_high = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
+        auto output_low = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
+        auto output_high = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
+        auto fake_quantize_op = std::make_shared<ngraph::op::v0::FakeQuantize>(add_operation, input_low,
                                                                                input_high, output_low,
                                                                                output_high, 11);
 
@@ -323,7 +323,7 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
                                                                             ngraph::Shape{1, 1},
                                                                             ngraph::Shape{1, 1});
 
-        auto result = std::make_shared<ngraph::opset7::Result>(max_pool_operation);
+        auto result = std::make_shared<ngraph::op::v0::Result>(max_pool_operation);
         func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params_convolution, input_params_add});
 
@@ -336,15 +336,15 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
     }
 
     {
-        auto input_params_convolution = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+        auto input_params_convolution = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                                     ngraph::Shape{1, 3, 64, 64});
 
-        auto input_params_add = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+        auto input_params_add = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                             ngraph::Shape{1, 3, 64, 64});
 
-        auto weights = ngraph::opset7::Constant::create(ngraph::element::f32,
+        auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                         ngraph::Shape{3, 3, 1, 1}, {1});
-        auto bias = ngraph::opset7::Constant::create(ngraph::element::f32,
+        auto bias = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                      ngraph::Shape{3, 1, 1}, {1});
         auto convolution_operation = std::make_shared<ngraph::opset7::Convolution>(input_params_convolution,
                                                                                    weights,
@@ -353,7 +353,7 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
                                                                                    ngraph::CoordinateDiff{0, 0},
                                                                                    ngraph::Strides{1, 1});
 
-        auto add_operation = std::make_shared<ngraph::opset7::Add>(convolution_operation,
+        auto add_operation = std::make_shared<ngraph::op::v1::Add>(convolution_operation,
                                                                    input_params_add);
 
         auto max_pool_operation = std::make_shared<ngraph::opset7::MaxPool>(add_operation,
@@ -362,15 +362,15 @@ TEST(TransformationTests, ReorderActivationAndPoolingTestConvAddFqMp) {
                                                                             ngraph::Shape{1, 1},
                                                                             ngraph::Shape{1, 1});
 
-        auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-        auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-        auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-        auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-        auto fake_quantize_op = std::make_shared<ngraph::opset7::FakeQuantize>(max_pool_operation, input_low,
+        auto input_low = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+        auto input_high = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
+        auto output_low = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
+        auto output_high = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
+        auto fake_quantize_op = std::make_shared<ngraph::op::v0::FakeQuantize>(max_pool_operation, input_low,
                                                                                input_high, output_low,
                                                                                output_high, 11);
 
-        auto result = std::make_shared<ngraph::opset7::Result>(fake_quantize_op);
+        auto result = std::make_shared<ngraph::op::v0::Result>(fake_quantize_op);
         reference_func = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                   ngraph::ParameterVector{input_params_convolution, input_params_add});
     }

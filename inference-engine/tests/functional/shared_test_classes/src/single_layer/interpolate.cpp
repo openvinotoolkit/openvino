@@ -75,14 +75,14 @@ void InterpolateLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
-    auto sizesConst = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
-    auto sizesInput = std::make_shared<ngraph::opset3::Constant>(sizesConst);
+    auto sizesConst = ngraph::op::v0::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
+    auto sizesInput = std::make_shared<ngraph::op::v0::Constant>(sizesConst);
 
-    auto scales_const = ngraph::opset3::Constant(ngraph::element::Type_t::f32, {scales.size()}, scales);
-    auto scalesInput = std::make_shared<ngraph::opset3::Constant>(scales_const);
+    auto scales_const = ngraph::op::v0::Constant(ngraph::element::Type_t::f32, {scales.size()}, scales);
+    auto scalesInput = std::make_shared<ngraph::op::v0::Constant>(scales_const);
 
-    auto axesConst = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {axes.size()}, axes);
-    auto axesInput = std::make_shared<ngraph::opset3::Constant>(axesConst);
+    auto axesConst = ngraph::op::v0::Constant(ngraph::element::Type_t::i64, {axes.size()}, axes);
+    auto axesInput = std::make_shared<ngraph::op::v0::Constant>(axesConst);
 
     ngraph::op::v4::Interpolate::InterpolateAttrs interpolateAttributes{mode, shapeCalcMode, padBegin,
         padEnd, coordinateTransformMode, nearestMode, antialias, cubeCoef};
@@ -91,7 +91,7 @@ void InterpolateLayerTest::SetUp() {
                                                                      scalesInput,
                                                                      axesInput,
                                                                      interpolateAttributes);
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(interpolate)};
+    const ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(interpolate)};
     function = std::make_shared<ngraph::Function>(results, params, "interpolate");
 }
 
@@ -140,8 +140,8 @@ void Interpolate1LayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
-    auto sizesConst = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
-    auto sizesInput = std::make_shared<ngraph::opset3::Constant>(sizesConst);
+    auto sizesConst = ngraph::op::v0::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
+    auto sizesInput = std::make_shared<ngraph::op::v0::Constant>(sizesConst);
 
     bool align_corners = true;
 
@@ -155,7 +155,7 @@ void Interpolate1LayerTest::SetUp() {
 
     auto interpolate = std::make_shared<ngraph::op::v0::Interpolate>(params[0], sizesInput, interpolateAttributes);
 
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(interpolate)};
+    const ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(interpolate)};
     function = std::make_shared<ngraph::Function>(results, params, "interpolate");
 }
 

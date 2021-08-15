@@ -35,17 +35,17 @@ protected:
         const auto& roialign_setup = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
 
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(float_type, roialign_setup.data_shape);
-        const auto boxes = std::make_shared<ngraph::opset3::Parameter>(float_type, ngraph::Shape{roialign_setup.num_rois, 4});
-        const auto rois = std::make_shared<ngraph::opset3::Parameter>(integer_type, ngraph::Shape{roialign_setup.num_rois});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(float_type, roialign_setup.data_shape);
+        const auto boxes = std::make_shared<ngraph::op::v0::Parameter>(float_type, ngraph::Shape{roialign_setup.num_rois, 4});
+        const auto rois = std::make_shared<ngraph::op::v0::Parameter>(integer_type, ngraph::Shape{roialign_setup.num_rois});
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{data->get_shape().size()});
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{data->get_shape().size()});
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
 
-        const auto node = std::make_shared<ngraph::opset3::ROIAlign>(dsr, boxes, rois,
+        const auto node = std::make_shared<ngraph::op::v3::ROIAlign>(dsr, boxes, rois,
                 roialign_setup.pooled_h, roialign_setup.pooled_w, roialign_setup.sampling_ratio, roialign_setup.spatial_scale, roialign_setup.mode);
 
-        const auto result = std::make_shared<ngraph::opset3::Result>(node);
+        const auto result = std::make_shared<ngraph::op::v0::Result>(node);
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{data, dims, boxes, rois}, "DSR-ROIAlign");
     }
 };
@@ -80,17 +80,17 @@ protected:
         const auto& roialign_setup = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
 
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(float_type, roialign_setup.data_shape);
-        const auto boxes = std::make_shared<ngraph::opset3::Parameter>(float_type, ngraph::Shape{roialign_setup.num_rois, 4});
-        const auto rois = std::make_shared<ngraph::opset3::Parameter>(integer_type, ngraph::Shape{roialign_setup.num_rois});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(float_type, roialign_setup.data_shape);
+        const auto boxes = std::make_shared<ngraph::op::v0::Parameter>(float_type, ngraph::Shape{roialign_setup.num_rois, 4});
+        const auto rois = std::make_shared<ngraph::op::v0::Parameter>(integer_type, ngraph::Shape{roialign_setup.num_rois});
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{rois->get_shape().size()});
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{rois->get_shape().size()});
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(rois, dims);
 
-        const auto node = std::make_shared<ngraph::opset3::ROIAlign>(data, boxes, dsr,
+        const auto node = std::make_shared<ngraph::op::v3::ROIAlign>(data, boxes, dsr,
                 roialign_setup.pooled_h, roialign_setup.pooled_w, roialign_setup.sampling_ratio, roialign_setup.spatial_scale, roialign_setup.mode);
 
-        const auto result = std::make_shared<ngraph::opset3::Result>(node);
+        const auto result = std::make_shared<ngraph::op::v0::Result>(node);
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{data, dims, boxes, rois}, "DSR-ROIAlign");
     }
 };
@@ -124,20 +124,20 @@ protected:
         const auto& roialign_setup = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
 
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(float_type, roialign_setup.data_shape);
-        const auto boxes = std::make_shared<ngraph::opset3::Parameter>(float_type, ngraph::Shape{roialign_setup.num_rois, 4});
-        const auto rois = std::make_shared<ngraph::opset3::Parameter>(integer_type, ngraph::Shape{roialign_setup.num_rois});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(float_type, roialign_setup.data_shape);
+        const auto boxes = std::make_shared<ngraph::op::v0::Parameter>(float_type, ngraph::Shape{roialign_setup.num_rois, 4});
+        const auto rois = std::make_shared<ngraph::op::v0::Parameter>(integer_type, ngraph::Shape{roialign_setup.num_rois});
 
-        const auto roi_dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{rois->get_shape().size()});
+        const auto roi_dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{rois->get_shape().size()});
         const auto roi_dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(rois, roi_dims);
 
-        const auto data_dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{data->get_shape().size()});
+        const auto data_dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{data->get_shape().size()});
         const auto data_dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, data_dims);
 
-        const auto node = std::make_shared<ngraph::opset3::ROIAlign>(data_dsr, boxes, roi_dsr,
+        const auto node = std::make_shared<ngraph::op::v3::ROIAlign>(data_dsr, boxes, roi_dsr,
                 roialign_setup.pooled_h, roialign_setup.pooled_w, roialign_setup.sampling_ratio, roialign_setup.spatial_scale, roialign_setup.mode);
 
-        const auto result = std::make_shared<ngraph::opset3::Result>(node);
+        const auto result = std::make_shared<ngraph::op::v0::Result>(node);
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                 ngraph::ParameterVector{data, data_dims, boxes, rois, roi_dims}, "DSR-ROIAlign");
     }

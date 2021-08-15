@@ -39,9 +39,9 @@ protected:
 
         const auto inputSubgraph = createInputSubgraphWithDSR(inDataType, inDataShapes);
 
-        const auto axes = std::make_shared<ngraph::opset3::Constant>(
+        const auto axes = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::i64, ngraph::Shape{squeezeAxes.size()}, squeezeAxes);
-        return std::make_shared<ngraph::opset3::Squeeze>(inputSubgraph, axes);
+        return std::make_shared<ngraph::op::v0::Squeeze>(inputSubgraph, axes);
     }
 };
 

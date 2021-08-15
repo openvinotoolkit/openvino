@@ -35,8 +35,8 @@ std::shared_ptr<Node> makeBinaryConvolution(const Output<Node> &in,
         for (size_t i = 0; i < byteNum; i++)
             buffer[i] = filterWeihgts[i];
     }
-    auto conv = std::make_shared<opset1::BinaryConvolution>(in, filterWeightsNode, strides, padsBegin, padsEnd, dilations,
-                                                            opset1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT, padValue, autoPad);
+    auto conv = std::make_shared<op::v1::BinaryConvolution>(in, filterWeightsNode, strides, padsBegin, padsEnd, dilations,
+                                                            op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT, padValue, autoPad);
     return conv;
 }
 

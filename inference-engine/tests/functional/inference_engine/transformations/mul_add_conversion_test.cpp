@@ -66,21 +66,21 @@ public:
                                                            const MulConstant& mul_const,
                                                            const AddConstant& add_const,
                                                            const IsDequantization& is_dequantization) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
         ngraph::Output<ngraph::Node> last = input;
         if (!mul_const.skip) {
-            last = std::make_shared<ngraph::opset1::Multiply>(last, create_constant(mul_const.shape, mul_const.value));
+            last = std::make_shared<ngraph::op::v1::Multiply>(last, create_constant(mul_const.shape, mul_const.value));
             if (is_dequantization) {
                 ngraph::builder::subgraph::addDequantizationAttribute(last.get_node_shared_ptr());
             }
         }
         if (!add_const.skip) {
-            last = std::make_shared<ngraph::opset1::Add>(last, create_constant(add_const.shape, add_const.value));
+            last = std::make_shared<ngraph::op::v1::Add>(last, create_constant(add_const.shape, add_const.value));
             if (is_dequantization) {
                 ngraph::builder::subgraph::addDequantizationAttribute(last.get_node_shared_ptr());
             }
         }
-        last = std::make_shared<ngraph::opset1::Relu>(last);
+        last = std::make_shared<ngraph::op::v0::Relu>(last);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{last.get_node_shared_ptr()}, ngraph::ParameterVector{input});
     }
 
@@ -93,12 +93,12 @@ public:
             throw ngraph::ngraph_error("Invalid arguments");
         }
 
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
         auto scsh = std::make_shared<ngraph::op::ScaleShiftIE>(input, (!mul_const.skip ? create_constant(mul_const.shape, mul_const.value)
                                                                                        : create_constant(add_const.shape, 1)),
                                                                       (!add_const.skip ? create_constant(add_const.shape, add_const.value)
                                                                                        : create_constant(mul_const.shape, 0)));
-        auto relu = std::make_shared<ngraph::opset1::Relu>(scsh);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(scsh);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
@@ -107,12 +107,12 @@ public:
                                                           const MulConstant& mul_const,
                                                           const AddConstant& add_const,
                                                           const IsDequantization& is_dequanization) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
         float scale(1), shift(0);
         if (!mul_const.skip) scale = mul_const.value;
         if (!add_const.skip) shift = add_const.value;
         auto pow = std::make_shared<ngraph::op::PowerIE>(input, 1., scale, shift);
-        auto relu = std::make_shared<ngraph::opset1::Relu>(pow);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(pow);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
@@ -121,9 +121,9 @@ public:
                                                                 const MulConstant& mul_const,
                                                                 const AddConstant& add_const,
                                                                 const IsDequantization& is_dequanization) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
         auto add = std::make_shared<ngraph::op::Eltwise>(input, create_constant(add_const.shape, add_const.value), ELTWISE_TYPE::Sum);
-        auto relu = std::make_shared<ngraph::opset1::Relu>(add);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(add);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
@@ -132,15 +132,15 @@ public:
                                                                 const MulConstant& mul_const,
                                                                 const AddConstant& add_const,
                                                                 const IsDequantization& is_dequanization) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
         auto mul = std::make_shared<ngraph::op::Eltwise>(input, create_constant(mul_const.shape, mul_const.value), ELTWISE_TYPE::Prod);
-        auto relu = std::make_shared<ngraph::opset1::Relu>(mul);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(mul);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
     static
-    std::shared_ptr<ngraph::opset1::Constant> create_constant(const ngraph::Shape & shape, float init_value) {
-        return ngraph::opset1::Constant::create(ngraph::element::f32, shape, {init_value});
+    std::shared_ptr<ngraph::op::v0::Constant> create_constant(const ngraph::Shape & shape, float init_value) {
+        return ngraph::op::v0::Constant::create(ngraph::element::f32, shape, {init_value});
     }
 };
 

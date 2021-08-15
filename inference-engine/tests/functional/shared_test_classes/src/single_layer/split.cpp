@@ -46,11 +46,11 @@ void SplitLayerTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto split = std::dynamic_pointer_cast<ngraph::opset5::Split>(ngraph::builder::makeSplit(paramOuts[0],
+    auto split = std::dynamic_pointer_cast<ngraph::op::v1::Split>(ngraph::builder::makeSplit(paramOuts[0],
                                                                                              ngPrc, numSplits, axis));
     ngraph::ResultVector results;
     for (int i = 0; i < outIndices.size(); i++) {
-        results.push_back(std::make_shared<ngraph::opset5::Result>(split->output(outIndices[i])));
+        results.push_back(std::make_shared<ngraph::op::v0::Result>(split->output(outIndices[i])));
     }
     function = std::make_shared<ngraph::Function>(results, params, "split");
 }

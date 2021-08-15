@@ -81,16 +81,16 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
-        auto constant = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
+        auto constant = ngraph::op::v0::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
 
-        auto scales_const = ngraph::opset3::Constant(ngraph::element::Type_t::f32, {scales.size()}, scales);
+        auto scales_const = ngraph::op::v0::Constant(ngraph::element::Type_t::f32, {scales.size()}, scales);
 
-        auto scalesInput = std::make_shared<ngraph::opset3::Constant>(scales_const);
+        auto scalesInput = std::make_shared<ngraph::op::v0::Constant>(scales_const);
 
-        auto secondaryInput = std::make_shared<ngraph::opset3::Constant>(constant);
+        auto secondaryInput = std::make_shared<ngraph::op::v0::Constant>(constant);
 
-        auto axesConst = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {axes.size()}, axes);
-        auto axesInput = std::make_shared<ngraph::opset3::Constant>(axesConst);
+        auto axesConst = ngraph::op::v0::Constant(ngraph::element::Type_t::i64, {axes.size()}, axes);
+        auto axesInput = std::make_shared<ngraph::op::v0::Constant>(axesConst);
         ngraph::op::v4::Interpolate::InterpolateAttrs interpolateAttributes{mode, shapeCalcMode, padBegin,
             padEnd, coordinateTransformMode, nearestMode, antialias, cubeCoef};
         auto interpolate = std::make_shared<ngraph::op::v4::Interpolate>(params[0],

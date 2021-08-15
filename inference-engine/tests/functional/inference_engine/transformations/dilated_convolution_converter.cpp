@@ -25,8 +25,8 @@ using namespace ngraph;
 TEST(TransformationTests, DilatedConvolutionConverter) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 3, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 10, 10});
+        auto filters = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 3, 3});
         auto space_to_batch = std::make_shared<opset6::SpaceToBatch>(data,
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                 op::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}),
@@ -46,8 +46,8 @@ TEST(TransformationTests, DilatedConvolutionConverter) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 3, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 10, 10});
+        auto filters = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 3, 3});
         auto conv = std::make_shared<opset6::Convolution>(data, filters,
                 Strides{1, 1}, CoordinateDiff{1, 1}, CoordinateDiff{-1, -2}, Strides{2, 2}, op::PadType::EXPLICIT);
         f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
@@ -60,8 +60,8 @@ TEST(TransformationTests, DilatedConvolutionConverter) {
 TEST(TransformationTests, NegativeDilatedConvolutionConverterNonZeroPadsForNC) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 5, 3, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 10, 10});
+        auto filters = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 5, 3, 3});
         auto space_to_batch = std::make_shared<opset6::SpaceToBatch>(data,
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1}),
@@ -81,8 +81,8 @@ TEST(TransformationTests, NegativeDilatedConvolutionConverterNonZeroPadsForNC) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 5, 3, 3});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 10, 10});
+        auto filters = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 5, 3, 3});
         auto space_to_batch = std::make_shared<opset6::SpaceToBatch>(data,
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1}),

@@ -13,9 +13,9 @@ std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
                                         const element::Type &type,
                                         size_t numSplits,
                                         int64_t axis) {
-    auto splitAxisOp = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{},
+    auto splitAxisOp = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{},
                                                                   std::vector<int64_t>{axis});
-    auto splitNode = std::make_shared<ngraph::opset1::Split>(in, splitAxisOp, numSplits);
+    auto splitNode = std::make_shared<ngraph::op::v1::Split>(in, splitAxisOp, numSplits);
     return splitNode;
 }
 }  // namespace builder

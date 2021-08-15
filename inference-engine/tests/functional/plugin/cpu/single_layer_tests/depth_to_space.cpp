@@ -53,7 +53,7 @@ protected:
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto d2s = ngraph::builder::makeDepthToSpace(paramOuts[0], mode, blockSize);
         d2s->get_rt_info() = getCPUInfo();
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(d2s)};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(d2s)};
         function = std::make_shared<ngraph::Function>(results, params, "DepthToSpace");
     }
 };

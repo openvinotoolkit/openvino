@@ -12,8 +12,8 @@
 TEST(SmartReshapeTests, MimickingSBS) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
-        auto reshape = std::make_shared<ngraph::opset5::Reshape>(input, ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {6, -1}), true);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
+        auto reshape = std::make_shared<ngraph::op::v1::Reshape>(input, ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {6, -1}), true);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape}, ngraph::ParameterVector{input});
     }
 
@@ -27,8 +27,8 @@ TEST(SmartReshapeTests, MimickingSBS) {
 TEST(SmartReshapeTests, MimickingSBS_1) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
-        auto reshape = std::make_shared<ngraph::opset5::Reshape>(input, ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, -1}), true);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
+        auto reshape = std::make_shared<ngraph::op::v1::Reshape>(input, ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {1, -1}), true);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape}, ngraph::ParameterVector{input});
     }
 
@@ -42,8 +42,8 @@ TEST(SmartReshapeTests, MimickingSBS_1) {
 TEST(SmartReshapeTests, MimickingSBS_2) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2, 3, 4});
-        auto reshape = std::make_shared<ngraph::opset5::Reshape>(input, ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {12, -1}), true);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2, 3, 4});
+        auto reshape = std::make_shared<ngraph::op::v1::Reshape>(input, ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {12, -1}), true);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape}, ngraph::ParameterVector{input});
     }
 

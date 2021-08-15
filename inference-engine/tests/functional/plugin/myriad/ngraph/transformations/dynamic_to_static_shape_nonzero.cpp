@@ -42,19 +42,19 @@ public:
         // Create a function with only op::NonZero
         // And then run conversion pass
         {
-            const auto input = std::make_shared<ngraph::opset3::Parameter>(inputType, inputShape);
+            const auto input = std::make_shared<ngraph::op::v0::Parameter>(inputType, inputShape);
 
-            const auto nonZero = std::make_shared<ngraph::opset3::NonZero>(input, resultType);
+            const auto nonZero = std::make_shared<ngraph::op::v3::NonZero>(input, resultType);
             nonZero->set_friendly_name(s_FriendlyName);
 
             actual = std::make_shared<ngraph::Function>(ngraph::NodeVector{nonZero}, ngraph::ParameterVector{input});
-            const auto transformation = vpu::Transformations{{ngraph::opset3::NonZero::type_info, vpu::dynamicToStaticShapeNonZero}};
+            const auto transformation = vpu::Transformations{{ngraph::op::v3::NonZero::type_info, vpu::dynamicToStaticShapeNonZero}};
             vpu::DynamicToStaticShape(transformation).run_on_function(actual);
         }
 
         // Create a reference function
         {
-            const auto input = std::make_shared<ngraph::opset1::Parameter>(inputType, inputShape);
+            const auto input = std::make_shared<ngraph::op::v0::Parameter>(inputType, inputShape);
 
             const auto staticShapeNonZero = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(input, resultType);
             const auto dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(

@@ -19,7 +19,7 @@ using namespace ngraph;
 
 
 TEST(TransformationTests, FrameworkNode) {
-    auto param = std::make_shared<ngraph::opset8::Parameter>(element::i64, Shape{1, 64});
+    auto param = std::make_shared<ngraph::op::v0::Parameter>(element::i64, Shape{1, 64});
     auto f_node = std::make_shared<ngraph::op::FrameworkNode>(OutputVector{param});
     f_node->set_output_type(0, element::i64, Shape{1, 64});
 

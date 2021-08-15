@@ -28,7 +28,7 @@ public:
     public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
-        std::shared_ptr<ngraph::opset1::Constant> weights;
+        std::shared_ptr<ngraph::op::v0::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
@@ -36,7 +36,7 @@ public:
     public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        std::shared_ptr<ngraph::opset1::Constant> weights;
+        std::shared_ptr<ngraph::op::v0::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         ngraph::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
@@ -69,7 +69,7 @@ public:
             testValues.actual.fakeQuantizeOnWeights);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::op::v1::Convolution>(testValues.params);
         if (testValues.params.supportAsymmetricQuantization == false) {
             transform.get_pass_config()->set_callback<ngraph::pass::low_precision::ConvolutionTransformation>(
                 [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
@@ -79,11 +79,11 @@ public:
         transform.transform(actualFunction);
 
         if (!testValues.params.updatePrecisions) {
-            const auto convertOnWeights = std::make_shared<opset1::Convert>(testValues.expected.weights, netPrecision);
+            const auto convertOnWeights = std::make_shared<op::v0::Convert>(testValues.expected.weights, netPrecision);
             OutputVector convertedOutput(1);
             convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
             const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
-            testValues.expected.weights = as_type_ptr<opset1::Constant>(convertedWeights);
+            testValues.expected.weights = as_type_ptr<op::v0::Constant>(convertedWeights);
         }
 
         referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(

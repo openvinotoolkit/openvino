@@ -50,15 +50,15 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ngraph::Output<Node
                                                        bool addBiases,
                                                        const std::vector<ptrdiff_t> &outputPadding,
                                                        const std::vector<float> &biasesWeights) {
-    auto deconv = std::make_shared<opset1::GroupConvolutionBackpropData>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad);
+    auto deconv = std::make_shared<op::v1::GroupConvolutionBackpropData>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad);
 
     if (!outputPadding.empty()) {
-        deconv = std::make_shared<opset1::GroupConvolutionBackpropData>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad, outputPadding);
+        deconv = std::make_shared<op::v1::GroupConvolutionBackpropData>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad, outputPadding);
     }
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
         auto biasesWeightsNode = makeConstant(type, {}, biasesWeights, randomBiases);
-        auto add = std::make_shared<ngraph::opset1::Add>(deconv, biasesWeightsNode);
+        auto add = std::make_shared<ngraph::op::v1::Add>(deconv, biasesWeightsNode);
         return add;
     } else {
         return deconv;
@@ -91,17 +91,17 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ngraph::Output<Node
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
-    auto deconv = std::make_shared<opset1::GroupConvolutionBackpropData>(in, filterWeightsNode, outputShape, strides, padsBegin, padsEnd, dilations, autoPad);
+    auto deconv = std::make_shared<op::v1::GroupConvolutionBackpropData>(in, filterWeightsNode, outputShape, strides, padsBegin, padsEnd, dilations, autoPad);
 
     if (!outputPadding.empty()) {
-        deconv = std::make_shared<opset1::GroupConvolutionBackpropData>(in, filterWeightsNode, outputShape, strides, padsBegin,
+        deconv = std::make_shared<op::v1::GroupConvolutionBackpropData>(in, filterWeightsNode, outputShape, strides, padsBegin,
                                                                    padsEnd, dilations, autoPad, outputPadding);
     }
 
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
         auto biasesWeightsNode = makeConstant(type, {}, biasesWeights, randomBiases);
-        auto add = std::make_shared<ngraph::opset1::Add>(deconv, biasesWeightsNode);
+        auto add = std::make_shared<ngraph::op::v1::Add>(deconv, biasesWeightsNode);
         return add;
     } else {
         return deconv;

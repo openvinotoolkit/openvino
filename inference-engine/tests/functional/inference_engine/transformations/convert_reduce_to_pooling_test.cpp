@@ -58,12 +58,12 @@ public:
                                                            const std::vector<int64_t> & axes,
                                                            const ReduceType & reduce_type,
                                                            const bool keep_dims) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto axes_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{axes.size()}, axes);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto axes_const = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{axes.size()}, axes);
 
-        auto split_axis_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
-        auto split = std::make_shared<ngraph::opset1::Split>(input,  split_axis_const, 2);
-        auto reduce = std::make_shared<ngraph::opset1::ReduceMax>(split->output(0), axes_const, keep_dims);
+        auto split_axis_const = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto split = std::make_shared<ngraph::op::v1::Split>(input,  split_axis_const, 2);
+        auto reduce = std::make_shared<ngraph::op::v1::ReduceMax>(split->output(0), axes_const, keep_dims);
         // TODO: need to add set_keep_dims method to Reduce ops and line above will be replaced with
         // reduce = reduce_type->copy_with_new_inputs({input, axes_const});
         // reduce->set_keep_dims(keep_dims);
@@ -74,26 +74,26 @@ public:
     static std::shared_ptr<ngraph::Function> get_reference_function(const ngraph::PartialShape & input_shape,
                                                              const ReduceType & reduce,
                                                              const ReduceToPoolParams & params) {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
 
         ngraph::Output<ngraph::Node> input = param->output(0);
 
-        auto split_axis_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
-        auto split = std::make_shared<ngraph::opset1::Split>(input,  split_axis_const, 2);
+        auto split_axis_const = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto split = std::make_shared<ngraph::op::v1::Split>(input,  split_axis_const, 2);
         input = split->output(0);
 
         if (!params.reshape_begin.empty()) {
-            input = std::make_shared<ngraph::opset1::Reshape>(input,
-                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{params.reshape_begin.size()}, params.reshape_begin), false);
+            input = std::make_shared<ngraph::op::v1::Reshape>(input,
+                    ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{params.reshape_begin.size()}, params.reshape_begin), false);
         }
 
         if (!params.pooling_kernel.empty()) {
-            if (reduce->get_type_info() == ngraph::opset1::ReduceMax::type_info) {
-                input = std::make_shared<ngraph::opset1::MaxPool>(input, ngraph::Strides{1, 1}, ngraph::Shape{0, 0},
+            if (reduce->get_type_info() == ngraph::op::v1::ReduceMax::type_info) {
+                input = std::make_shared<ngraph::op::v1::MaxPool>(input, ngraph::Strides{1, 1}, ngraph::Shape{0, 0},
                         ngraph::Shape{0, 0}, params.pooling_kernel, ngraph::op::RoundingType::FLOOR /*any*/);
-            } else if (reduce->get_type_info() == ngraph::opset1::ReduceMean::type_info ||
-                       reduce->get_type_info() == ngraph::opset1::ReduceSum::type_info) {
-                input = std::make_shared<ngraph::opset1::AvgPool>(input, ngraph::Strides{1, 1}, ngraph::Shape{0, 0},
+            } else if (reduce->get_type_info() == ngraph::op::v1::ReduceMean::type_info ||
+                       reduce->get_type_info() == ngraph::op::v1::ReduceSum::type_info) {
+                input = std::make_shared<ngraph::op::v1::AvgPool>(input, ngraph::Strides{1, 1}, ngraph::Shape{0, 0},
                         ngraph::Shape{0, 0}, params.pooling_kernel, false /*any*/, ngraph::op::RoundingType::FLOOR /*any*/);
             } else {
                 throw ngraph::ngraph_error("Unsupported Reduce type!");
@@ -103,8 +103,8 @@ public:
         // TODO: handle multiply_value for ReduceSum case when set_keep_dims is ready
 
         if (!params.reshape_end.empty()) {
-            input = std::make_shared<ngraph::opset1::Reshape>(input,
-                    ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{params.reshape_end.size()}, params.reshape_end), true);
+            input = std::make_shared<ngraph::op::v1::Reshape>(input,
+                    ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{params.reshape_end.size()}, params.reshape_end), true);
         }
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{input.get_node_shared_ptr()}, ngraph::ParameterVector{param});
@@ -119,7 +119,7 @@ TEST_P(ConvertReduceToPoolingTests, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-#define MAX std::make_shared<ngraph::opset1::ReduceMax>()
+#define MAX std::make_shared<ngraph::op::v1::ReduceMax>()
 
 INSTANTIATE_TEST_SUITE_P(ReduceToMaxPooling, ConvertReduceToPoolingTests,
         testing::Values(std::make_tuple(MAX, InputShape{2, 3, 64, 64},  ReduceAxes{3},    KeepDims{true}, ReduceToPoolParams({}, {1, 64}, {})),

@@ -24,12 +24,12 @@ TEST_P(ConvBiasFusion, ConvBiasFusion) {
     std::string device = this->GetParam();
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3, 1, 1}, {1});
-        auto biases = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{6, 1, 1}, {1});
-        auto conv = std::make_shared<ngraph::opset1::Convolution>(input, weights, ngraph::Strides{1, 1},
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
+        auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3, 1, 1}, {1});
+        auto biases = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{6, 1, 1}, {1});
+        auto conv = std::make_shared<ngraph::op::v1::Convolution>(input, weights, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0}, ngraph::Strides{1, 1});
-        auto add = std::make_shared<ngraph::opset1::Add>(conv, biases);
+        auto add = std::make_shared<ngraph::op::v1::Add>(conv, biases);
 
         input->set_friendly_name("parameter");
         conv->set_friendly_name("conv");

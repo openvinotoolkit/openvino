@@ -74,22 +74,22 @@ protected:
         auto params = ngraph::builder::makeParams(ngPrc, {{1, inputShape}});
 
         auto matmul_in_shape = firstInConst ? ngraph::Shape{inputShape / 8, 8} : ngraph::Shape{8, inputShape / 8};
-        auto pattern = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, matmul_in_shape);
-        auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern, false);
+        auto pattern = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, matmul_in_shape);
+        auto reshape = std::make_shared<ngraph::op::v1::Reshape>(params[0], pattern, false);
 
         std::shared_ptr<ngraph::Node> weights_node;
         if (firstInConst) {
             std::vector<float> weights = CommonTestUtils::generate_float_numbers(matmul_in_shape[0], -0.2f, 0.2f);
-            weights_node = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{ 1, matmul_in_shape[0] }, weights);
+            weights_node = std::make_shared<ngraph::op::v0::Constant>(ngPrc, ngraph::Shape{ 1, matmul_in_shape[0] }, weights);
         } else {
             std::vector<float> weights = CommonTestUtils::generate_float_numbers(matmul_in_shape[1], -0.2f, 0.2f);
-            weights_node = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{ matmul_in_shape[1], 1 }, weights);
+            weights_node = std::make_shared<ngraph::op::v0::Constant>(ngPrc, ngraph::Shape{ matmul_in_shape[1], 1 }, weights);
         }
 
         auto matmul = firstInConst ? ngraph::builder::makeMatMul(weights_node, reshape, false, false) :
                                      ngraph::builder::makeMatMul(reshape, weights_node, false, false);
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(matmul)};
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(matmul)};
         function = std::make_shared<ngraph::Function>(results, params, "InsertTransposeBeforeMatmul");
     }
 };

@@ -31,7 +31,7 @@ namespace SubgraphTestsDefinitions {
                                                                         ngraph::Shape{3},
                                                                         std::vector<size_t>{1, inputShape[1] / 64, 64});
         auto reshape_0 = std::make_shared<ngraph::op::v1::Reshape>(input[0], reshape_0_pattern, false);
-        auto relu = std::make_shared<ngraph::opset1::Relu>(reshape_0);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(reshape_0);
 
         auto constant_squeeze = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{1}, std::vector<size_t>{0});
         auto reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
@@ -42,7 +42,7 @@ namespace SubgraphTestsDefinitions {
         auto squeeze_2 = std::make_shared<ngraph::op::Squeeze>(relu, constant_squeeze);
         auto reshape_2 = std::make_shared<ngraph::op::v1::Reshape>(squeeze_2, reshape_pattern, false);
 
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{reshape_1, reshape_2}, 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{reshape_1, reshape_2}, 1);
         function = std::make_shared<ngraph::Function>(concat, input, "copy_before_squeeze");
     }
 } // namespace SubgraphTestsDefinitions

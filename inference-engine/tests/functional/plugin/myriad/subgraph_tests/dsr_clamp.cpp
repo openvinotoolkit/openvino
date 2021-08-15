@@ -28,7 +28,7 @@ protected:
 
         const auto inputSubgraph = createInputSubgraphWithDSR(inDataType, inDataShapes);
 
-        const auto clamp = std::make_shared<ngraph::opset3::Clamp>(inputSubgraph, 0., 6.);
+        const auto clamp = std::make_shared<ngraph::op::v0::Clamp>(inputSubgraph, 0., 6.);
 
         return clamp;
     }

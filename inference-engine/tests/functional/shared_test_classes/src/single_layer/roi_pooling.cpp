@@ -80,7 +80,7 @@ namespace LayerTestsDefinitions {
                                                                                     poolShape,
                                                                                     spatial_scale,
                                                                                     pool_method);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roi_pooling)};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(roi_pooling)};
         function = std::make_shared<ngraph::Function>(results, params, "roi_pooling");
     }
 }  // namespace LayerTestsDefinitions

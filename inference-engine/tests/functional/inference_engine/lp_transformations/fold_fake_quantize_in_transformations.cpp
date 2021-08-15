@@ -66,13 +66,13 @@ public:
 
         const auto params = TestTransformationParams(testValues.params).setUpdatePrecisions(testValues.updatePrecision);
 
-        const auto constant = std::make_shared<ngraph::opset1::Constant>(
+        const auto constant = std::make_shared<ngraph::op::v0::Constant>(
             testValues.actual.constPrecision, testValues.constShape, testValues.actual.constValues);
 
         std::shared_ptr<Node> fq = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(constant, element::f32, testValues.actual.fakeQuantize);
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::FakeQuantize>(fq), testValues.actual.fqOutPrecision);
-        fq = ngraph::pass::low_precision::NetworkHelper::fold_fake_quantize(as_type_ptr<opset1::FakeQuantize>(fq), testValues.roundValues);
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fq) };
+        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(as_type_ptr<op::v0::FakeQuantize>(fq), testValues.actual.fqOutPrecision);
+        fq = ngraph::pass::low_precision::NetworkHelper::fold_fake_quantize(as_type_ptr<op::v0::FakeQuantize>(fq), testValues.roundValues);
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(fq) };
         actualFunction = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "FoldFakeQuantizeFunction");
 
         referenceFunction = ngraph::builder::subgraph::FoldFakeQuantizeFunction::getReference(

@@ -13,10 +13,10 @@ std::shared_ptr<ngraph::Node> makeScatterUpdate(const ngraph::Output<Node> &in,
                                                 const std::vector<int64_t> &indices,
                                                 const ngraph::Output<Node> &update,
                                                 int64_t axis) {
-    auto indicesNode = std::make_shared<ngraph::opset1::Constant>(indicesType, indicesShape, indices);
-    auto axis_node = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{},
+    auto indicesNode = std::make_shared<ngraph::op::v0::Constant>(indicesType, indicesShape, indices);
+    auto axis_node = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{},
                                                                 std::vector<int64_t>{axis});
-    auto dtsNode = std::make_shared<ngraph::opset3::ScatterUpdate>(in, indicesNode, update, axis_node);
+    auto dtsNode = std::make_shared<ngraph::op::v3::ScatterUpdate>(in, indicesNode, update, axis_node);
     return dtsNode;
 }
 

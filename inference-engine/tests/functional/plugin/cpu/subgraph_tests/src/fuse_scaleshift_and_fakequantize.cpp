@@ -55,15 +55,15 @@ protected:
         std::vector<std::vector<float>> quantizeIntervals;
         std::tie(inputShape, inputPrecision, scaleShift, quantizeIntervals, targetDevice) = this->GetParam();
 
-        const auto param = std::make_shared<opset6::Parameter>(inputPrecision, inputShape);
+        const auto param = std::make_shared<op::v0::Parameter>(inputPrecision, inputShape);
         Shape constShape = Shape(inputShape.size(), 1);
         constShape[1] = scaleShift.second.size();
         const auto subtract = std::make_shared<pass::low_precision::DequantizationSubtract>(
                 param,
-                std::make_shared<opset6::Constant>(inputPrecision, constShape, scaleShift.second));
+                std::make_shared<op::v0::Constant>(inputPrecision, constShape, scaleShift.second));
         const auto multiply = std::make_shared<pass::low_precision::DequantizationMultiply>(
                 param,
-                std::make_shared<opset6::Constant>(inputPrecision, constShape, scaleShift.first));
+                std::make_shared<op::v0::Constant>(inputPrecision, constShape, scaleShift.first));
         Shape inConstShape = Shape(inputShape.size(), 1);
         inConstShape[1] = quantizeIntervals[0].size();
         const auto quantize = builder::makeFakeQuantize(
@@ -75,7 +75,7 @@ protected:
                 quantizeIntervals[1],
                 quantizeIntervals[2],
                 quantizeIntervals[3]);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset6::Result>(quantize)};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(quantize)};
         function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{param}, "FuseScaleShiftAndQuantize");
     }
 };

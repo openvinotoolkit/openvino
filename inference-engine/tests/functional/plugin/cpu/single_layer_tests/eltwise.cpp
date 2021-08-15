@@ -93,7 +93,7 @@ protected:
         } else {
             secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shape_input_secondary);
             if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-                input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+                input.push_back(std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(secondaryInput));
             }
         }
 

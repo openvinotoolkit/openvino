@@ -123,8 +123,8 @@ protected:
             outFmts.erase(outFmts.begin());
         }
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_sequence->output(0)),
-                                     std::make_shared<ngraph::opset1::Result>(gru_sequence->output(1))};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(gru_sequence->output(0)),
+                                     std::make_shared<ngraph::op::v0::Result>(gru_sequence->output(1))};
 
         function = makeNgraphFunction(ngPrc, params, gru_sequence, "gru_sequence");
 

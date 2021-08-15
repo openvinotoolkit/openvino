@@ -69,9 +69,9 @@ namespace SubgraphTestsDefinitions {
         auto FQNode = ngraph::builder::makeFakeQuantize(act, ngraph::element::f32, levels[0], constShape[0],
                                                         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
 
-        auto FQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(FQNode);
+        auto FQ = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(FQNode);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(FQ)};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(FQ)};
         function = std::make_shared<ngraph::Function>(results, params, "ActivationFakeQuantizeSubgraph");
     }
 

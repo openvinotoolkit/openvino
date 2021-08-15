@@ -39,7 +39,7 @@ namespace SubgraphTestsDefinitions {
                                                                        ngraph::Shape{2},
                                                                        std::vector<size_t>{1, input_dim});
         auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(squeeze, reshape2_pattern, false);
-        auto func = std::make_shared<ngraph::opset1::Relu>(reshape2);
+        auto func = std::make_shared<ngraph::op::v0::Relu>(reshape2);
         std::string squeezeType;
 
         function = std::make_shared<ngraph::Function>(func, input, "reshape_squeeze_reshape_relu");

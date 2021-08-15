@@ -31,7 +31,7 @@ protected:
     ngraph::ParameterVector m_parameterVector;
     ngraph::ResultVector m_additionalResults;
 
-    std::shared_ptr<ngraph::opset3::Parameter> createParameter(
+    std::shared_ptr<ngraph::op::v0::Parameter> createParameter(
             const ngraph::element::Type& element_type,
             const ngraph::PartialShape& shape) {
         m_parameterVector.push_back(std::make_shared<ngraph::op::Parameter>(element_type, shape));
@@ -40,9 +40,9 @@ protected:
 
     virtual std::shared_ptr<ngraph::Node> createInputSubgraphWithDSR(
             const DataType& inDataType, const DataShapeWithUpperBound& shapes) {
-        const auto inDataParam = std::make_shared<ngraph::opset3::Parameter>(
+        const auto inDataParam = std::make_shared<ngraph::op::v0::Parameter>(
                 inDataType, shapes.upperBoundShape);
-        const auto inDataShapeParam = std::make_shared<ngraph::opset3::Parameter>(
+        const auto inDataShapeParam = std::make_shared<ngraph::op::v0::Parameter>(
                 ngraph::element::i32, ngraph::Shape{shapes.shape.size()});
         inDataShapeParam->set_friendly_name(inDataParam->get_friendly_name() + "/shape");
 
@@ -69,7 +69,7 @@ protected:
         const auto testedOp = createTestedOp();
         ngraph::ResultVector results{};
         for (const auto& output : testedOp->outputs()) {
-            results.emplace_back(std::make_shared<ngraph::opset3::Result>(output));
+            results.emplace_back(std::make_shared<ngraph::op::v0::Result>(output));
         }
         results.insert(results.end(), m_additionalResults.begin(), m_additionalResults.end());
 

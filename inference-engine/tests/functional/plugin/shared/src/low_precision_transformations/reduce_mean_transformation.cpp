@@ -37,7 +37,7 @@ void ReduceMeanTransformation::SetUp() {
     ReduceMeanTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
-    function = ngraph::builder::subgraph::ReduceFunction::getOriginal<ngraph::opset1::ReduceMean>(
+    function = ngraph::builder::subgraph::ReduceFunction::getOriginal<ngraph::op::v1::ReduceMean>(
         netPrecision,
         inputShape,
         param.fakeQuantize,

@@ -57,13 +57,13 @@ std::shared_ptr<const ngraph::Function> transform(
         const ngraph::element::Type_t& dataType,
         const ngraph::element::Type_t& idxType,
         const SplitTestCase& splitSetup) const {
-    const auto data = std::make_shared<ngraph::opset5::Parameter>(dataType, splitSetup.dataShape);
-    const auto axis = ngraph::opset5::Constant::create(idxType, {}, {splitSetup.axis});
+    const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, splitSetup.dataShape);
+    const auto axis = ngraph::op::v0::Constant::create(idxType, {}, {splitSetup.axis});
 
-    const auto dims = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{splitSetup.dataShape.size()});
+    const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{splitSetup.dataShape.size()});
 
     const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
-    const auto node = std::make_shared<ngraph::opset5::Split>(dsr, axis, splitSetup.numSplits);
+    const auto node = std::make_shared<ngraph::op::v1::Split>(dsr, axis, splitSetup.numSplits);
 
     auto outputShape = node->get_output_partial_shape(0);
     const auto function = std::make_shared<ngraph::Function>(
@@ -81,24 +81,24 @@ std::shared_ptr<const ngraph::Function> reference(
         const ngraph::element::Type_t& dataType,
         const ngraph::element::Type_t& idxType,
         const SplitTestCase& splitSetup) const {
-    const auto data = std::make_shared<ngraph::opset5::Parameter>(dataType, splitSetup.dataShape);
-    const auto axisScalar = ngraph::opset5::Constant::create(idxType, {}, std::vector<int64_t>{splitSetup.axis});
-    const auto axisVec = ngraph::opset5::Constant::create(idxType, {1}, std::vector<int64_t>{splitSetup.axis});
+    const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, splitSetup.dataShape);
+    const auto axisScalar = ngraph::op::v0::Constant::create(idxType, {}, std::vector<int64_t>{splitSetup.axis});
+    const auto axisVec = ngraph::op::v0::Constant::create(idxType, {1}, std::vector<int64_t>{splitSetup.axis});
 
-    const auto dims = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{splitSetup.dataShape.size()});
+    const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{splitSetup.dataShape.size()});
 
     const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
-    const auto node = std::make_shared<ngraph::opset5::Split>(dsr, axisScalar, splitSetup.numSplits);
+    const auto node = std::make_shared<ngraph::op::v1::Split>(dsr, axisScalar, splitSetup.numSplits);
 
     const auto dimToSplitBy = std::make_shared<ngraph::opset5::Gather>(dims,
                                                                        axisVec,
-                                                                       ngraph::opset5::Constant::create(dims->get_element_type(), {1}, {0}));
+                                                                       ngraph::op::v0::Constant::create(dims->get_element_type(), {1}, {0}));
     const auto splittedDim = std::make_shared<ngraph::opset5::Divide>(dimToSplitBy,
-                                                                      ngraph::opset5::Constant::create(dims->get_element_type(), {1}, {splitSetup.numSplits}));
+                                                                      ngraph::op::v0::Constant::create(dims->get_element_type(), {1}, {splitSetup.numSplits}));
     const auto newShape = std::make_shared<ngraph::opset5::ScatterElementsUpdate>(dims,
                                                                                   axisVec,
                                                                                   splittedDim,
-                                                                                  ngraph::opset5::Constant::create(dims->get_element_type(), {1}, {0}));
+                                                                                  ngraph::op::v0::Constant::create(dims->get_element_type(), {1}, {0}));
 
     ngraph::NodeVector results;
     for (size_t i = 0; i < node->get_output_size(); i++) {

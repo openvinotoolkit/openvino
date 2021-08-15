@@ -36,8 +36,8 @@ protected:
             const ngraph::element::Type_t& dataType,
             const ngraph::Shape& dataDims,
             const ngraph::NodeTypeInfo type_info) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataDims);
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims);
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
 
@@ -59,8 +59,8 @@ protected:
             const ngraph::element::Type_t& dataType,
             const ngraph::Shape& dataDims,
             const ngraph::NodeTypeInfo type_info) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataDims);
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims);
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims.size()});
 
         const auto dsr0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
         const auto node = ngraph::helpers::getNodeSharedPtr(type_info, {dsr0});
@@ -89,15 +89,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeUnaryElementwise, tes
         DataDims{3, 128, 256},
         DataDims{2, 3, 128, 256}),
     testing::Values(
-        ngraph::opset3::Exp::type_info,
-        ngraph::opset3::Floor::type_info,
+        ngraph::op::v0::Exp::type_info,
+        ngraph::op::v0::Floor::type_info,
         ngraph::opset5::Ceiling::type_info,
-        ngraph::opset5::Round::type_info,
-        ngraph::opset3::Log::type_info,
-        ngraph::opset3::Relu::type_info,
-        ngraph::opset3::Sigmoid::type_info,
-        ngraph::opset3::Softmax::type_info,
-        ngraph::opset3::Sqrt::type_info,
-        ngraph::opset3::LogicalNot::type_info)));
+        ngraph::op::v5::Round::type_info,
+        ngraph::op::v0::Log::type_info,
+        ngraph::op::v0::Relu::type_info,
+        ngraph::op::v0::Sigmoid::type_info,
+        ngraph::op::v1::Softmax::type_info,
+        ngraph::op::v0::Sqrt::type_info,
+        ngraph::op::v1::LogicalNot::type_info)));
 
 }  // namespace

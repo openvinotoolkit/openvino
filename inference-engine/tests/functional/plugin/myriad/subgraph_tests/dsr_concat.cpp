@@ -42,7 +42,7 @@ protected:
             inputSubgraphVector.push_back(inputSubgraph);
         }
 
-        const auto concat = std::make_shared<ngraph::opset3::Concat>(inputSubgraphVector, axis);
+        const auto concat = std::make_shared<ngraph::op::v0::Concat>(inputSubgraphVector, axis);
 
         return concat;
     }

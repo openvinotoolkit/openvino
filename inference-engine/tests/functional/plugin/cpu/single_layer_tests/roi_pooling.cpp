@@ -141,7 +141,7 @@ protected:
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
         std::shared_ptr<ngraph::Node> roi_pooling = ngraph::builder::makeROIPooling(paramOuts[0], paramOuts[1], poolShape, spatial_scale, pool_method);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roi_pooling)};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(roi_pooling)};
 
         function = makeNgraphFunction(ngPrc, params, roi_pooling, "roi_pooling");
 

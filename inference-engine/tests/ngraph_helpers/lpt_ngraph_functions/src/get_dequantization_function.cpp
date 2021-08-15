@@ -24,7 +24,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::get(
     const Shape& shape,
     const FakeQuantizeOnData& fakeQuantize,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
-    const std::shared_ptr<ngraph::Node> input = std::make_shared<ngraph::opset1::Parameter>(
+    const std::shared_ptr<ngraph::Node> input = std::make_shared<ngraph::op::v0::Parameter>(
         ngraph::element::f32,
         shape);
 
@@ -39,7 +39,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::get(
     }
 
     return std::make_shared<ngraph::Function>(
-        ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(parent) },
+        ngraph::ResultVector{ std::make_shared<ngraph::op::v0::Result>(parent) },
         ngraph::ParameterVector{ as_type_ptr<op::v0::Parameter>(input) },
         "DequantizationFunction");
 }
@@ -49,7 +49,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::get(
     const Shape& shape,
     const FakeQuantizeOnData& fakeQuantize,
     const ngraph::pass::low_precision::FakeQuantizeDequantization& dequantization) {
-    const std::shared_ptr<ngraph::Node> input = std::make_shared<ngraph::opset1::Parameter>(
+    const std::shared_ptr<ngraph::Node> input = std::make_shared<ngraph::op::v0::Parameter>(
         ngraph::element::f32,
         shape);
 
@@ -83,36 +83,36 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::get(
     }
 
     return std::make_shared<ngraph::Function>(
-        ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(parent) },
+        ngraph::ResultVector{ std::make_shared<ngraph::op::v0::Result>(parent) },
         ngraph::ParameterVector{ as_type_ptr<op::v0::Parameter>(input) },
         "DequantizationFunction");
 }
 
 std::shared_ptr<ngraph::Function> GetDequantizationFunction::getOriginal(
     bool isConvert, bool isSubtract, size_t subDataInput, size_t mulDataInput) {
-    const std::shared_ptr<ngraph::Node> input = std::make_shared<ngraph::opset1::Parameter>(
+    const std::shared_ptr<ngraph::Node> input = std::make_shared<ngraph::op::v0::Parameter>(
         ngraph::element::f32,
         ngraph::Shape{ 1, 3, 10, 10 });
 
-    const auto convert = isConvert ? std::make_shared<ngraph::opset1::Convert>(input, ngraph::element::f32) : nullptr;
+    const auto convert = isConvert ? std::make_shared<ngraph::op::v0::Convert>(input, ngraph::element::f32) : nullptr;
     std::shared_ptr<ngraph::Node> parent = isConvert ? convert : input;
 
-    auto subConst = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{}, 1.f);
+    auto subConst = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, Shape{}, 1.f);
     const auto& subArg0 = subDataInput == 0 ? parent : subConst;
     const auto& subArg1 = subDataInput == 0 ? subConst : parent;
-    const auto subtract = isSubtract ? std::make_shared<ngraph::opset1::Subtract>(subArg0, subArg1) : nullptr;
+    const auto subtract = isSubtract ? std::make_shared<ngraph::op::v1::Subtract>(subArg0, subArg1) : nullptr;
 
     if (subtract != nullptr) {
         parent = subtract;
     }
 
-    auto mulConst = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{}, 1.f);
+    auto mulConst = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, Shape{}, 1.f);
     const auto& mulArg0 = mulDataInput == 0 ? parent : mulConst;
     const auto& mulArg1 = mulDataInput == 0 ? mulConst : parent;
-    const auto multiply = std::make_shared<ngraph::opset1::Multiply>(mulArg0, mulArg1);
+    const auto multiply = std::make_shared<ngraph::op::v1::Multiply>(mulArg0, mulArg1);
 
     return std::make_shared<ngraph::Function>(
-        ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(multiply) },
+        ngraph::ResultVector{ std::make_shared<ngraph::op::v0::Result>(multiply) },
         ngraph::ParameterVector{ as_type_ptr<op::v0::Parameter>(input) },
         "Dequantization");
 }
@@ -120,7 +120,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::getOriginal(
 std::shared_ptr<ngraph::Function> GetDequantizationFunction::getReference(
     ngraph::pass::low_precision::FakeQuantizeDequantization dequantization) {
     return std::make_shared<ngraph::Function>(
-        ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(dequantization.multiply) },
+        ngraph::ResultVector{ std::make_shared<ngraph::op::v0::Result>(dequantization.multiply) },
         ngraph::ParameterVector{ as_type_ptr<op::v0::Parameter>(dequantization.data.get_node_shared_ptr()) },
         "Dequantization");
 }

@@ -21,12 +21,12 @@ using namespace testing;
 TEST(TransformationTests, BatchNormDecompositionDynamic) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-        auto gamma = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
-        auto beta = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
-        auto mean = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
-        auto var = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
-        auto broadcast = std::make_shared<ngraph::opset1::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto gamma = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
+        auto beta = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
+        auto mean = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
+        auto var = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
+        auto broadcast = std::make_shared<ngraph::op::v0::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input});

@@ -21,13 +21,13 @@ const DataShapeWithUpperBound defaultReduceShapes {
 const auto arithmeticCombinations = testing::Combine(
         testing::Values(
                 // ReduceMean can be replaced with avg pooling and work incorrectly #-34278
-                // ngraph::opset3::ReduceMean::type_info,
+                // ngraph::op::v1::ReduceMean::type_info,
 
                 // ReduceProd is not supported by myriad plugin
-                // ngraph::opset3::ReduceProd::type_info,
-                ngraph::opset3::ReduceSum::type_info,
-                ngraph::opset3::ReduceMax::type_info,
-                ngraph::opset3::ReduceMin::type_info),
+                // ngraph::op::v1::ReduceProd::type_info,
+                ngraph::op::v1::ReduceSum::type_info,
+                ngraph::op::v1::ReduceMax::type_info,
+                ngraph::op::v1::ReduceMin::type_info),
         testing::Values(
                 ngraph::element::f32),
         testing::Values(
@@ -43,9 +43,9 @@ const auto arithmeticCombinations = testing::Combine(
 const auto logicalCombinations = testing::Combine(
         testing::Values(
                 // ReduceLogicalOr is not supported by Myriad plugin
-                // ngraph::opset3::ReduceLogicalOr::type_info,
+                // ngraph::op::v1::ReduceLogicalOr::type_info,
 
-                ngraph::opset3::ReduceLogicalAnd::type_info),
+                ngraph::op::v1::ReduceLogicalAnd::type_info),
         testing::Values(ngraph::element::boolean),
         testing::Values(
                 ngraph::element::i32),
@@ -77,7 +77,7 @@ protected:
         targetDevice = std::get<4>(parameters);
 
         const auto inputSubgraph = createInputSubgraphWithDSR(dataType, reduceSetup.dataShapes);
-        const auto axes = ngraph::opset3::Constant::create(axesType, {reduceSetup.axes.size()}, reduceSetup.axes);
+        const auto axes = ngraph::op::v0::Constant::create(axesType, {reduceSetup.axes.size()}, reduceSetup.axes);
 
         const auto reduce = ngraph::helpers::getNodeSharedPtr(reduceType, {inputSubgraph, axes});
 

@@ -81,27 +81,27 @@ protected:
             const ngraph::element::Type_t& indicesType,
             const GatherNDTestCase& gatherNDSetup,
             const GatherNDTestMode& testMode) const {
-       ngraph::ParameterVector params = {std::make_shared<ngraph::opset5::Parameter>(dataType, gatherNDSetup.dataShape),
-                                         std::make_shared<ngraph::opset5::Parameter>(indicesType, gatherNDSetup.indicesShape)};
+       ngraph::ParameterVector params = {std::make_shared<ngraph::op::v0::Parameter>(dataType, gatherNDSetup.dataShape),
+                                         std::make_shared<ngraph::op::v0::Parameter>(indicesType, gatherNDSetup.indicesShape)};
 
        std::shared_ptr<ngraph::Node> inputNode, indicesNode, inputShape, indicesShape;
 
         if (testMode == GatherNDTestMode::DYNAMIC_DATA || testMode == GatherNDTestMode::ALL_DYNAMIC) {
-            params.push_back(std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{gatherNDSetup.dataShape.size()}));
+            params.push_back(std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gatherNDSetup.dataShape.size()}));
             inputNode = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(params[0], params.back());
             inputShape = params.back();
         } else {
             inputNode = params[0];
-            inputShape = ngraph::opset5::Constant::create(ngraph::element::i64, {gatherNDSetup.dataShape.size()}, gatherNDSetup.dataShape);
+            inputShape = ngraph::op::v0::Constant::create(ngraph::element::i64, {gatherNDSetup.dataShape.size()}, gatherNDSetup.dataShape);
         }
 
         if (testMode == GatherNDTestMode::DYNAMIC_INDICES || testMode == GatherNDTestMode::ALL_DYNAMIC) {
-            params.push_back(std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{gatherNDSetup.indicesShape.size()}));
+            params.push_back(std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gatherNDSetup.indicesShape.size()}));
             indicesNode = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(params[1], params.back());
             indicesShape = params.back();
         } else {
             indicesNode = params[1];
-            indicesShape = ngraph::opset5::Constant::create(ngraph::element::i64, {gatherNDSetup.indicesShape.size()}, gatherNDSetup.indicesShape);
+            indicesShape = ngraph::op::v0::Constant::create(ngraph::element::i64, {gatherNDSetup.indicesShape.size()}, gatherNDSetup.indicesShape);
         }
 
         return GatherNDInputsSetup{params, inputNode, indicesNode, inputShape, indicesShape};
@@ -116,7 +116,7 @@ protected:
         const auto& dataNode = std::get<1>(gatherNDInputsSetup);
         const auto& indicesNode = std::get<2>(gatherNDInputsSetup);
 
-        const auto node = std::make_shared<ngraph::opset5::GatherND>(dataNode, indicesNode, gatherNDSetup.batchDims);
+        const auto node = std::make_shared<ngraph::op::v5::GatherND>(dataNode, indicesNode, gatherNDSetup.batchDims);
 
         auto outputShape = node->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
@@ -141,7 +141,7 @@ protected:
         const auto& dataShape = std::get<3>(gatherNDInputsSetup);
         const auto& indicesShape = std::get<4>(gatherNDInputsSetup);
 
-        const auto node = std::make_shared<ngraph::opset5::GatherND>(dataNode, indicesNode, gatherNDSetup.batchDims);
+        const auto node = std::make_shared<ngraph::op::v5::GatherND>(dataNode, indicesNode, gatherNDSetup.batchDims);
 
         const auto dataDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(dataNode);
         const auto indicesDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(indicesNode);
@@ -154,7 +154,7 @@ protected:
         if (gatherNDSetup.batchDims > 0) {
             outputShape = std::make_shared<ngraph::opset5::ReduceProd>(
                 vpu::gatherShapeElements(indicesShape, 0, gatherNDSetup.batchDims),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {}, {0}),
                 true);
         }
 

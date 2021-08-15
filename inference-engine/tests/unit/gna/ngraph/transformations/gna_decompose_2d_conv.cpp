@@ -47,13 +47,13 @@ typedef std::tuple<
 
 struct GraphData {
     std::shared_ptr<ngraph::Node> input_node;
-    std::shared_ptr<ngraph::opset7::FakeQuantize>fq_conv;
+    std::shared_ptr<ngraph::op::v0::FakeQuantize>fq_conv;
     std::shared_ptr<ngraph::opset7::Convolution> conv;
-    std::shared_ptr<ngraph::opset7::Add> bias;
-    std::shared_ptr<ngraph::opset7::FakeQuantize>fq_bias;
+    std::shared_ptr<ngraph::op::v1::Add> bias;
+    std::shared_ptr<ngraph::op::v0::FakeQuantize>fq_bias;
     std::shared_ptr<ngraph::opset7::MaxPool> max_pool;
     std::shared_ptr<ngraph::op::util::UnaryElementwiseArithmetic> af;
-    std::shared_ptr<ngraph::opset7::FakeQuantize>fq_af;
+    std::shared_ptr<ngraph::op::v0::FakeQuantize>fq_af;
     std::shared_ptr<ngraph::Node> bias_const;
     std::shared_ptr<ngraph::Node> last_op_in_sequence_for_replacement;
     size_t conv_count;
@@ -95,18 +95,18 @@ void GetConvParams(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvParams
     conv_params.output_channel_count = conv_params.filter_count;
 }
 
-std::shared_ptr<ngraph::opset7::FakeQuantize> createFQ(std::shared_ptr<ngraph::Node>& in_node) {
-    auto input_low = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-    auto input_high = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {5});
-    auto output_low = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
-    auto output_high = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {10});
-    return std::make_shared<ngraph::opset7::FakeQuantize>(in_node, input_low, input_high, output_low, output_high, 11);
+std::shared_ptr<ngraph::op::v0::FakeQuantize> createFQ(std::shared_ptr<ngraph::Node>& in_node) {
+    auto input_low = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+    auto input_high = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {5});
+    auto output_low = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
+    auto output_high = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {10});
+    return std::make_shared<ngraph::op::v0::FakeQuantize>(in_node, input_low, input_high, output_low, output_high, 11);
 }
 
 std::shared_ptr<ngraph::Node> createBiasFQ(const ngraph::Output<ngraph::Node>& in_node,
-    std::shared_ptr<ngraph::opset7::Constant>& bias_const, std::shared_ptr<ngraph::opset7::Add>& bias, const bool& fq) {
+    std::shared_ptr<ngraph::op::v0::Constant>& bias_const, std::shared_ptr<ngraph::op::v1::Add>& bias, const bool& fq) {
     std::shared_ptr<ngraph::Node> node;
-    bias = std::make_shared<ngraph::opset7::Add>(in_node, bias_const);
+    bias = std::make_shared<ngraph::op::v1::Add>(in_node, bias_const);
     node = bias;
 
     if (fq) {
@@ -116,7 +116,7 @@ std::shared_ptr<ngraph::Node> createBiasFQ(const ngraph::Output<ngraph::Node>& i
     return node;
 }
 
-std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
+std::shared_ptr<ngraph::op::v0::Result> createFunction(const bool& fq,
     const modelType& model,
     const ngraph::Output<ngraph::Node>& input_node,
     const ngraph::Shape& filters_shape,
@@ -127,9 +127,9 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     const ngraph::Shape& maxpool_shape,
     GraphData* graph_data,
     ConvParams* conv_params) {
-    auto transpose_in_order = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
-    auto transpose_in = std::make_shared<ngraph::opset7::Transpose>(input_node, transpose_in_order);
-    std::shared_ptr<ngraph::Node> fq_filters = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64,
+    auto transpose_in_order = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
+    auto transpose_in = std::make_shared<ngraph::op::v1::Transpose>(input_node, transpose_in_order);
+    std::shared_ptr<ngraph::Node> fq_filters = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
         ngraph::Shape{4, input_node.get_shape()[3], filters_shape[0], filters_shape[1]});
 
     if (fq) {
@@ -141,19 +141,19 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     if (conv_params)
         GetConvParams(conv, *conv_params);
 
-    auto transpose_out_order = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
-    auto bias_const = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, bias_shape);
-    std::shared_ptr<ngraph::opset7::Add> bias = nullptr;
+    auto transpose_out_order = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
+    auto bias_const = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, bias_shape);
+    std::shared_ptr<ngraph::op::v1::Add> bias = nullptr;
     std::shared_ptr<ngraph::Node> fq_bias = nullptr, fq_af = nullptr;
     std::shared_ptr<ngraph::opset7::MaxPool> max_pool = nullptr;
     std::shared_ptr<ngraph::Node> activation = nullptr;
-    std::shared_ptr<ngraph::Node> last_op = std::make_shared<ngraph::opset7::Transpose>(conv, transpose_out_order);
+    std::shared_ptr<ngraph::Node> last_op = std::make_shared<ngraph::op::v1::Transpose>(conv, transpose_out_order);
 
     switch (model) {
     case modelType::TranspConvBcastAddTransp:
     {
         fq_bias = createBiasFQ(conv, bias_const, bias, fq);
-        last_op = std::make_shared<ngraph::opset7::Transpose>(fq_bias, transpose_out_order);
+        last_op = std::make_shared<ngraph::op::v1::Transpose>(fq_bias, transpose_out_order);
     }
     break;
 
@@ -162,16 +162,16 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
         fq_bias = createBiasFQ(conv, bias_const, bias, fq);
         max_pool = std::make_shared<ngraph::opset7::MaxPool>(fq_bias, maxpool_stride, ngraph::Shape{0, 0}, ngraph::Shape{0, 0}, maxpool_shape,
             ngraph::op::RoundingType::FLOOR, ngraph::op::PadType::VALID);
-        auto transpose = std::make_shared<ngraph::opset7::Transpose>(max_pool, transpose_out_order);
-        last_op = std::make_shared<ngraph::opset7::Relu>(transpose);
+        auto transpose = std::make_shared<ngraph::op::v1::Transpose>(max_pool, transpose_out_order);
+        last_op = std::make_shared<ngraph::op::v0::Relu>(transpose);
     }
     break;
 
     case modelType::TranspConvBcastAddActTransp:
     {
         fq_bias = createBiasFQ(conv, bias_const, bias, fq);
-        activation = std::make_shared<ngraph::opset7::Relu>(fq_bias);
-        last_op = std::make_shared<ngraph::opset7::Transpose>(activation, transpose_out_order);
+        activation = std::make_shared<ngraph::op::v0::Relu>(fq_bias);
+        last_op = std::make_shared<ngraph::op::v1::Transpose>(activation, transpose_out_order);
     }
     break;
 
@@ -180,11 +180,11 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
         fq_bias = createBiasFQ(conv, bias_const, bias, fq);
         max_pool = std::make_shared<ngraph::opset7::MaxPool>(fq_bias, maxpool_stride, ngraph::Shape{0, 0}, ngraph::Shape{0, 0}, maxpool_shape,
             ngraph::op::RoundingType::FLOOR, ngraph::op::PadType::VALID);
-        activation = std::make_shared<ngraph::opset7::Relu>(max_pool);
+        activation = std::make_shared<ngraph::op::v0::Relu>(max_pool);
         if (fq) {
             fq_af = createFQ(activation);
         }
-        last_op = std::make_shared<ngraph::opset7::Transpose>(fq_af ? fq_af : activation, transpose_out_order);
+        last_op = std::make_shared<ngraph::op::v1::Transpose>(fq_af ? fq_af : activation, transpose_out_order);
     }
     break;
 
@@ -197,7 +197,7 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     case modelType::TranspConvTranspBcastAddAct:
     {
         fq_bias = createBiasFQ(last_op, bias_const, bias, fq);
-        last_op = std::make_shared<ngraph::opset7::Relu>(fq_bias);
+        last_op = std::make_shared<ngraph::op::v0::Relu>(fq_bias);
     }
     break;
 
@@ -207,12 +207,12 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     }
 
     if (graph_data) {
-        graph_data->fq_conv = fq ? std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_filters) : nullptr;
+        graph_data->fq_conv = fq ? std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(fq_filters) : nullptr;
         graph_data->conv = conv;
         graph_data->bias = bias;
-        graph_data->fq_bias = fq ? std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_bias) : nullptr;
+        graph_data->fq_bias = fq ? std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(fq_bias) : nullptr;
         graph_data->af = std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(activation);
-        graph_data->fq_af = fq ? std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_af) : nullptr;
+        graph_data->fq_af = fq ? std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(fq_af) : nullptr;
         graph_data->max_pool = max_pool;
         graph_data->last_op_in_sequence_for_replacement = last_op;
         graph_data->bias_const = nullptr;
@@ -224,7 +224,7 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
         }
     }
 
-    return std::make_shared<ngraph::opset7::Result>(last_op);
+    return std::make_shared<ngraph::op::v0::Result>(last_op);
 }
 
 std::shared_ptr<ngraph::Function> get_initial_function(const bool& fq,
@@ -238,7 +238,7 @@ std::shared_ptr<ngraph::Function> get_initial_function(const bool& fq,
     const ngraph::Shape& maxpool_shape,
     GraphData& graph_data,
     ConvParams& conv_params) {
-    auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
+    auto input_params = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, input_shape);
     auto result = createFunction(fq, model, input_params, filters_shape, conv_stride, conv_dilation, bias_shape,
         maxpool_stride, maxpool_shape, &graph_data , &conv_params);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
@@ -306,28 +306,28 @@ void Decompose2DConvTestFixture::SetUp() {
     reference_function = get_reference(fq, model, input_shape, graph_data, conv_params);
 }
 
-std::shared_ptr<ngraph::Node> ReshapeBiasConst(std::shared_ptr<ngraph::opset7::Add> conv_bias, const ConvParams& conv_params) {
-    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(conv_bias->input_value(1).get_node_shared_ptr());
+std::shared_ptr<ngraph::Node> ReshapeBiasConst(std::shared_ptr<ngraph::op::v1::Add> conv_bias, const ConvParams& conv_params) {
+    auto add_const = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(conv_bias->input_value(1).get_node_shared_ptr());
 
     IE_ASSERT(add_const);
 
     auto bias_size = shape_size(add_const->get_shape());
-    return ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(add_const,
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{1, bias_size, 1, 1}), false);
+    return ngraph::op::util::make_try_fold<ngraph::op::v1::Reshape>(add_const,
+        ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{1, bias_size, 1, 1}), false);
 }
 
 std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::Node> input, size_t offset, size_t size) {
     auto shape = input.get_shape();
     return std::make_shared<ngraph::opset7::StridedSlice>(
         input,                                                                                                  // data
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset}),          // begin slice index
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset + size}),   // end slice index
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)1, (size_t)1}),       // strides
+        ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset}),          // begin slice index
+        ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset + size}),   // end slice index
+        ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)1, (size_t)1}),       // strides
         std::vector<int64_t>{1, 0},                                                                             // begin mask
         std::vector<int64_t>{1, 0});                                                                            // end mask
 }
 
-static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared_ptr<ngraph::opset7::Constant>& filters,
+static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared_ptr<ngraph::op::v0::Constant>& filters,
     const bool& vertical_permute, const bool& horizontal_permute, const size_t& split_channels) {
 
     if (!horizontal_permute && !vertical_permute && split_channels == 1)
@@ -340,16 +340,16 @@ static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared
     IE_ASSERT(filter_shape.size() == 4);
 
     if (split_channels > 1) {
-        const auto axis_node = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1});
-        const auto split = std::make_shared<ngraph::opset7::Split>(filters, axis_node, split_channels);
+        const auto axis_node = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1});
+        const auto split = std::make_shared<ngraph::op::v1::Split>(filters, axis_node, split_channels);
         flat_filters = split->outputs();
     }
 
     if (horizontal_permute) {
         for (size_t split_index = 0; split_index < split_channels; split_index++) {
             ngraph::Output<ngraph::Node>& flat_filter = flat_filters[split_index];
-            result.push_back(std::make_shared<ngraph::opset7::Transpose>(flat_filter,
-                ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{0, 1, 3, 2})));
+            result.push_back(std::make_shared<ngraph::op::v1::Transpose>(flat_filter,
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{0, 1, 3, 2})));
         }
     }
 
@@ -364,8 +364,8 @@ static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared
     }
 
     for (auto& new_filter : result)
-        new_filter = ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(new_filter,
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, reshape_shape), false);
+        new_filter = ngraph::op::util::make_try_fold<ngraph::op::v1::Reshape>(new_filter,
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, reshape_shape), false);
 
     return result;
 }
@@ -373,23 +373,23 @@ static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared
 ngraph::OutputVector SplitInput(const GraphData& graph_data, ConvParams& conv_params) {
     // We need to have proper input shape first
     ngraph::OutputVector split_planes;
-    auto padded_input_plane = std::make_shared<ngraph::opset7::Reshape>(graph_data.input_node,
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+    auto padded_input_plane = std::make_shared<ngraph::op::v1::Reshape>(graph_data.input_node,
+        ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2},
             ngraph::Shape{1, shape_size(graph_data.input_node->get_shape())}), false);
 
     if (graph_data.conv_count > 1) {
         // If we split input plane and filters due to GNA limitations - we must sum their results at the end
         conv_params.input_channel_count /= graph_data.conv_count;
 
-        auto reshape_before_transpose = std::make_shared<ngraph::opset7::Reshape>(padded_input_plane,
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+        auto reshape_before_transpose = std::make_shared<ngraph::op::v1::Reshape>(padded_input_plane,
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2},
                 {shape_size(padded_input_plane->get_shape()) / graph_data.conv_count, graph_data.conv_count}), false);
 
-        auto transpose_before_channel_wise_split = std::make_shared<ngraph::opset7::Transpose>(reshape_before_transpose,
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
+        auto transpose_before_channel_wise_split = std::make_shared<ngraph::op::v1::Transpose>(reshape_before_transpose,
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
 
-        const auto axis_node = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
-        const auto split = std::make_shared<ngraph::opset7::Split>(transpose_before_channel_wise_split, axis_node, graph_data.conv_count);
+        const auto axis_node = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        const auto split = std::make_shared<ngraph::op::v1::Split>(transpose_before_channel_wise_split, axis_node, graph_data.conv_count);
         split_planes = split->outputs();
     } else {
         split_planes.push_back(padded_input_plane);
@@ -403,7 +403,7 @@ std::vector<std::shared_ptr<ngraph::Node>> SplitFilters(const GraphData& graph_d
     // we also need to take filter height and potential dilation into account when modifying the filters
 
     // Take account of fake quantize when getting filter values
-    auto filter_values = std::dynamic_pointer_cast<ngraph::opset7::Constant>(graph_data.fq_conv == nullptr ?
+    auto filter_values = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(graph_data.fq_conv == nullptr ?
         graph_data.conv->input_value(1).get_node_shared_ptr() : graph_data.fq_conv->input_value(0).get_node_shared_ptr());
     bool vertical_permute = (conv_params.filter_height > 1);
     bool horizontal_permute = (conv_params.filter_dilation_width > 1);
@@ -451,23 +451,23 @@ void TransformInput(const GraphData& graph_data, const ConvParams& conv_params, 
 
     // Additional reshape is required for strided slices of input intended for each filter row
     if (conv_params.filter_stride_height > 1) {
-        dilated_chunks_concat = std::make_shared<ngraph::opset7::Reshape>(dilated_chunks_concat,
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+        dilated_chunks_concat = std::make_shared<ngraph::op::v1::Reshape>(dilated_chunks_concat,
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2},
                 {conv_params.filter_height, conv_params.input_width * conv_params.input_channel_count * conv_params.output_height}), false);
     }
 
-    auto transposed_dilated_chunks = std::make_shared<ngraph::opset7::Transpose>(dilated_chunks_concat,
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
+    auto transposed_dilated_chunks = std::make_shared<ngraph::op::v1::Transpose>(dilated_chunks_concat,
+        ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
 
     // Flattening of interleaved input planes
-    auto flattened_dilated_transposed_input = std::make_shared<ngraph::opset7::Reshape>(transposed_dilated_chunks,
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+    auto flattened_dilated_transposed_input = std::make_shared<ngraph::op::v1::Reshape>(transposed_dilated_chunks,
+        ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2},
             {(size_t)1, conv_params.input_width * conv_params.input_channel_count * conv_params.output_height * conv_params.filter_height}), false);
 
     split_input_plane = flattened_dilated_transposed_input;
 }
 
-static void InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fqLayer,
+static void InsertFQLayer(const std::shared_ptr<ngraph::op::v0::FakeQuantize> fqLayer,
     std::shared_ptr<ngraph::Node> lastNode) {
     if (fqLayer != nullptr) {
         lastNode = fqLayer->clone_with_new_inputs({lastNode,
@@ -479,8 +479,8 @@ static void InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq
 std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, const ConvParams& conv_params, const ngraph::Output<ngraph::Node>& input,
     std::shared_ptr<ngraph::Node> filters, const size_t conv_index, const size_t h_index) {
         // Transpose NHWC => NCHW
-        std::shared_ptr<ngraph::Node> nchw_input = std::make_shared<ngraph::opset7::Transpose>(input,
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2})->output(0));
+        std::shared_ptr<ngraph::Node> nchw_input = std::make_shared<ngraph::op::v1::Transpose>(input,
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2})->output(0));
 
         // Fake quantize
         InsertFQLayer(graph_data.fq_conv, filters);
@@ -495,7 +495,7 @@ std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, const Co
         // Bias
         std::shared_ptr<ngraph::Node> last_conv_block_op = conv;
         if (graph_data.bias_const && conv_index == 0) {
-            last_conv_block_op = std::make_shared<ngraph::opset7::Add>(conv, graph_data.bias_const);
+            last_conv_block_op = std::make_shared<ngraph::op::v1::Add>(conv, graph_data.bias_const);
             InsertFQLayer(graph_data.fq_bias, last_conv_block_op);
         }
 
@@ -512,8 +512,8 @@ std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, const Co
         }
 
         // Transpose NCHW => NHWC
-        auto nhwc_output = std::make_shared<ngraph::opset7::Transpose>(last_conv_block_op,
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 3, 1})->output(0));
+        auto nhwc_output = std::make_shared<ngraph::op::v1::Transpose>(last_conv_block_op,
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 3, 1})->output(0));
         return nhwc_output;
 }
 
@@ -567,18 +567,18 @@ std::shared_ptr<ngraph::Node> CreateDeomposedConv(const GraphData& graph_data, C
                 dilated_chunks_concat = std::make_shared<ngraph::opset7::Concat>(dilated_chunks, 0);
             }
 
-            auto transposed_dilated_chunks = std::make_shared<ngraph::opset7::Transpose>(dilated_chunks_concat,
-                ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
+            auto transposed_dilated_chunks = std::make_shared<ngraph::op::v1::Transpose>(dilated_chunks_concat,
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
 
-            auto flattened_dilated_conv_input = std::make_shared<ngraph::opset7::Reshape>(transposed_dilated_chunks,
-                ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4},
+            auto flattened_dilated_conv_input = std::make_shared<ngraph::op::v1::Reshape>(transposed_dilated_chunks,
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4},
                     ngraph::Shape{1, 1, output_width, h_1_filter_channel_count * conv_params.filter_width}), false);
 
             nhwc_conv_y_input = flattened_dilated_conv_input;
         } else {
             // If no horizontal split is done, only reshape is required before decomposed convolution
-            nhwc_conv_y_input = std::make_shared<ngraph::opset7::Reshape>(nhwc_conv_y_input,
-                ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4},
+            nhwc_conv_y_input = std::make_shared<ngraph::op::v1::Reshape>(nhwc_conv_y_input,
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4},
                     ngraph::Shape{1, 1, conv_params.input_width, h_1_filter_channel_count}), false);
         }
 
@@ -631,7 +631,7 @@ static bool ShouldDecompose(GraphData& graph_data, const ConvParams& conv_params
     return true;
 }
 
-std::shared_ptr<ngraph::opset7::Result> Decompose(const GraphData& graph_data, ConvParams& conv_params) {
+std::shared_ptr<ngraph::op::v0::Result> Decompose(const GraphData& graph_data, ConvParams& conv_params) {
     std::vector<std::shared_ptr<ngraph::Node>> partial_conv_results;
 
     // Split input and filters due to GNA filter element count limit
@@ -653,7 +653,7 @@ std::shared_ptr<ngraph::opset7::Result> Decompose(const GraphData& graph_data, C
 
     std::shared_ptr<ngraph::Node> conv_result = partial_conv_results.front();
     for (size_t i = 1; i < partial_conv_results.size(); i++) {
-        auto add_result = std::make_shared<ngraph::opset7::Add>(partial_conv_results[i], conv_result);
+        auto add_result = std::make_shared<ngraph::op::v1::Add>(partial_conv_results[i], conv_result);
         conv_result = add_result;
     }
 
@@ -667,7 +667,7 @@ std::shared_ptr<ngraph::opset7::Result> Decompose(const GraphData& graph_data, C
     replace_node(graph_data.last_op_in_sequence_for_replacement, conv_result);
     conv_result->set_friendly_name(conv_result_name);
 
-    return std::make_shared<ngraph::opset7::Result>(conv_result);
+    return std::make_shared<ngraph::op::v0::Result>(conv_result);
 }
 
 std::shared_ptr<ngraph::Function> Decompose2DConvTestFixture::get_reference(const bool& fq,
@@ -675,17 +675,17 @@ std::shared_ptr<ngraph::Function> Decompose2DConvTestFixture::get_reference(cons
     const ngraph::PartialShape& input_shape,
     GraphData& graph_data,
     ConvParams& conv_params) {
-    auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
+    auto input_params = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, input_shape);
     graph_data.input_node = input_params;
 
     ShouldDecompose(graph_data, conv_params);
 
     if (model != modelType::TranspConvTransp) {
-        graph_data.bias_const = ReshapeBiasConst(std::dynamic_pointer_cast<ngraph::opset7::Add>(graph_data.bias), conv_params);
+        graph_data.bias_const = ReshapeBiasConst(std::dynamic_pointer_cast<ngraph::op::v1::Add>(graph_data.bias), conv_params);
     }
 
     // Create decomposed reference function
-    std::shared_ptr<ngraph::opset7::Result> result;
+    std::shared_ptr<ngraph::op::v0::Result> result;
     result = Decompose(graph_data, conv_params);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
 }

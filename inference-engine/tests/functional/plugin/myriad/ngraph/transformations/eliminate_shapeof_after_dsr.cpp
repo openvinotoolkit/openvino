@@ -37,11 +37,11 @@ protected:
     std::shared_ptr<const ngraph::Function> transform(
             const TensorType& dataType,
             const TensorShape& dataShape) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataShape);
-        const auto shape = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataShape);
+        const auto shape = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, shape);
-        const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(dsr->output(0));
+        const auto shapeOf = std::make_shared<ngraph::op::v0::ShapeOf>(dsr->output(0));
 
         const auto function = std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{shapeOf},
@@ -56,8 +56,8 @@ protected:
     std::shared_ptr<const ngraph::Function> reference(
             const TensorType& dataType,
             const TensorShape& dataShape) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataShape);
-        const auto shape = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataShape);
+        const auto shape = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
 
         return std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{shape},
@@ -99,12 +99,12 @@ protected:
     std::shared_ptr<const ngraph::Function> transform(
             const TensorType& dataType,
             const TensorShape& dataShape) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataShape);
-        const auto shape = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataShape);
+        const auto shape = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, shape);
-        const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(dsr->output(0));
-        const auto shapeOfOutputRelu = std::make_shared<ngraph::opset3::Relu>(shapeOf->output(0));
+        const auto shapeOf = std::make_shared<ngraph::op::v0::ShapeOf>(dsr->output(0));
+        const auto shapeOfOutputRelu = std::make_shared<ngraph::op::v0::Relu>(shapeOf->output(0));
 
         const auto function = std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{shapeOfOutputRelu},
@@ -119,10 +119,10 @@ protected:
     std::shared_ptr<const ngraph::Function> reference(
             const TensorType& dataType,
             const TensorShape& dataShape) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataShape);
-        const auto shape = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataShape);
+        const auto shape = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
 
-        const auto shapeRelu = std::make_shared<ngraph::opset3::Relu>(shape);
+        const auto shapeRelu = std::make_shared<ngraph::op::v0::Relu>(shape);
 
         return std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{shapeRelu},
@@ -164,13 +164,13 @@ protected:
     std::shared_ptr<const ngraph::Function> transform(
             const TensorType& dataType,
             const TensorShape& dataShape) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataShape);
-        const auto shape = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataShape);
+        const auto shape = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, shape);
-        const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(dsr->output(0));
-        const auto dsrOutputRelu = std::make_shared<ngraph::opset3::Relu>(dsr->output(0));
-        const auto shapeOfOutputRelu = std::make_shared<ngraph::opset3::Relu>(shapeOf->output(0));
+        const auto shapeOf = std::make_shared<ngraph::op::v0::ShapeOf>(dsr->output(0));
+        const auto dsrOutputRelu = std::make_shared<ngraph::op::v0::Relu>(dsr->output(0));
+        const auto shapeOfOutputRelu = std::make_shared<ngraph::op::v0::Relu>(shapeOf->output(0));
 
         const auto function = std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{dsrOutputRelu},
@@ -186,12 +186,12 @@ protected:
     std::shared_ptr<const ngraph::Function> reference(
             const TensorType& dataType,
             const TensorShape& dataShape) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataShape);
-        const auto shape = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataShape);
+        const auto shape = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, shape);
-        const auto shapeRelu = std::make_shared<ngraph::opset3::Relu>(shape);
-        const auto dsrOutputRelu = std::make_shared<ngraph::opset3::Relu>(dsr->output(0));
+        const auto shapeRelu = std::make_shared<ngraph::op::v0::Relu>(shape);
+        const auto dsrOutputRelu = std::make_shared<ngraph::op::v0::Relu>(dsr->output(0));
 
         return std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{dsrOutputRelu},

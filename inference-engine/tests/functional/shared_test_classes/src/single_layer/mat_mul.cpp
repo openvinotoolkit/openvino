@@ -65,13 +65,13 @@ void MatMulTest::SetUp() {
 
     auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shapeRelatedParams.input2.first);
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+        params.push_back(std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(secondaryInput));
     }
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto MatMul = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(
+    auto MatMul = std::dynamic_pointer_cast<ngraph::op::v0::MatMul>(
             ngraph::builder::makeMatMul(paramOuts[0], secondaryInput, shapeRelatedParams.input1.second, shapeRelatedParams.input2.second));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(MatMul)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(MatMul)};
     function = std::make_shared<ngraph::Function>(results, params, "MatMul");
 }
 

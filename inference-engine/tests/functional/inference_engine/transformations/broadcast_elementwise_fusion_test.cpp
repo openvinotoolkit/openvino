@@ -48,19 +48,19 @@ public:
     std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
                                                    const InputShape & broadcast_input_shape,
                                                    const TargetShape & broadcast_shape) {
-        auto input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
-        auto input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_input_shape);
-        auto input_shape_node = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{broadcast_shape.size()}, broadcast_shape);
+        auto input1 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto input2 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, broadcast_input_shape);
+        auto input_shape_node = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{broadcast_shape.size()}, broadcast_shape);
         auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input2, input_shape_node);
-        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input1, broadcast);
+        auto elementwise = std::make_shared<ngraph::op::v1::Multiply>(input1, broadcast);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input1, input2});
     }
 
     std::shared_ptr<Function> get_reference(const InputShape & input_shape,
                                             const InputShape & broadcast_output_shape) {
-        auto ref_input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
-        auto ref_input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_output_shape);
-        auto ref_elementwise = std::make_shared<ngraph::opset5::Multiply>(ref_input1, ref_input2);
+        auto ref_input1 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto ref_input2 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, broadcast_output_shape);
+        auto ref_elementwise = std::make_shared<ngraph::op::v1::Multiply>(ref_input1, ref_input2);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{ref_elementwise}, ngraph::ParameterVector{ref_input1, ref_input2});
     }
@@ -83,19 +83,19 @@ public:
     std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
                                                    const InputShape & broadcast_input_shape,
                                                    const TargetShape & broadcast_shape) {
-        auto input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
-        auto input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_input_shape);
-        auto input_shape_node = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{broadcast_shape.size()}, broadcast_shape);
+        auto input1 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto input2 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, broadcast_input_shape);
+        auto input_shape_node = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{broadcast_shape.size()}, broadcast_shape);
         auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input2, input_shape_node);
-        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(broadcast, input1);
+        auto elementwise = std::make_shared<ngraph::op::v1::Multiply>(broadcast, input1);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input1, input2});
     }
 
     std::shared_ptr<Function> get_reference(const InputShape & input_shape,
                                             const InputShape & broadcast_output_shape) {
-        auto ref_input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
-        auto ref_input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_output_shape);
-        auto ref_elementwise = std::make_shared<ngraph::opset5::Multiply>(ref_input2, ref_input1);
+        auto ref_input1 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto ref_input2 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, broadcast_output_shape);
+        auto ref_elementwise = std::make_shared<ngraph::op::v1::Multiply>(ref_input2, ref_input1);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{ref_elementwise}, ngraph::ParameterVector{ref_input1, ref_input2});
     }
@@ -118,22 +118,22 @@ public:
     std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
                                                    const InputShape & broadcast_input_shape,
                                                    const TargetShape & broadcast_shape) {
-        auto input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
-        auto input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_input_shape);
-        auto input_shape_node = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{broadcast_shape.size()}, broadcast_shape);
+        auto input1 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto input2 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, broadcast_input_shape);
+        auto input_shape_node = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{broadcast_shape.size()}, broadcast_shape);
         auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input2, input_shape_node);
-        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input1, broadcast);
+        auto elementwise = std::make_shared<ngraph::op::v1::Multiply>(input1, broadcast);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input1, input2});
     }
 
     std::shared_ptr<Function> get_reference(const InputShape & input_shape,
                                             const InputShape & broadcast_input_shape,
                                             const TargetShape & broadcast_shape) {
-        auto ref_input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
-        auto ref_input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_input_shape);
-        auto ref_input_shape_node = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{broadcast_shape.size()}, broadcast_shape);
+        auto ref_input1 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto ref_input2 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, broadcast_input_shape);
+        auto ref_input_shape_node = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{broadcast_shape.size()}, broadcast_shape);
         auto ref_broadcast = std::make_shared<ngraph::opset5::Broadcast>(ref_input2, ref_input_shape_node);
-        auto ref_elementwise = std::make_shared<ngraph::opset5::Multiply>(ref_input1, ref_broadcast);
+        auto ref_elementwise = std::make_shared<ngraph::op::v1::Multiply>(ref_input1, ref_broadcast);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{ref_elementwise}, ngraph::ParameterVector{ref_input1, ref_input2});
     }
@@ -158,20 +158,20 @@ public:
     std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
                                                    const InputShape & broadcast_input_shape,
                                                    const InputShape & broadcast_shape) {
-        auto input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
-        auto input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_input_shape);
-        auto input_shape_node =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64,
+        auto input1 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto input2 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, broadcast_input_shape);
+        auto input_shape_node =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64,
                                                                              ngraph::Shape{(size_t)(broadcast_shape.rank().get_length())});
         auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input2, input_shape_node);
-        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input1, broadcast);
+        auto elementwise = std::make_shared<ngraph::op::v1::Multiply>(input1, broadcast);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input1, input2, input_shape_node});
     }
 
     std::shared_ptr<Function> get_reference(const InputShape & input_shape,
                                             const InputShape & broadcast_output_shape) {
-        auto ref_input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
-        auto ref_input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_output_shape);
-        auto ref_elementwise = std::make_shared<ngraph::opset5::Multiply>(ref_input1, ref_input2);
+        auto ref_input1 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto ref_input2 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, broadcast_output_shape);
+        auto ref_elementwise = std::make_shared<ngraph::op::v1::Multiply>(ref_input1, ref_input2);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{ref_elementwise}, ngraph::ParameterVector{ref_input1, ref_input2});
     }
@@ -194,24 +194,24 @@ public:
     std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
                                                    const InputShape & broadcast_input_shape,
                                                    const InputShape & broadcast_shape) {
-        auto input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
-        auto input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_input_shape);
-        auto input_shape_node =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64,
+        auto input1 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto input2 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, broadcast_input_shape);
+        auto input_shape_node =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64,
                                                                              ngraph::Shape{(size_t)(broadcast_shape.rank().get_length())});
         auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(input2, input_shape_node);
-        auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input1, broadcast);
+        auto elementwise = std::make_shared<ngraph::op::v1::Multiply>(input1, broadcast);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input1, input2, input_shape_node});
     }
 
     std::shared_ptr<Function> get_reference(const InputShape & input_shape,
                                             const InputShape & broadcast_input_shape,
                                             const InputShape & broadcast_shape) {
-        auto ref_input1 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, input_shape);
-        auto ref_input2 =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, broadcast_input_shape);
-        auto ref_input_shape_node =  std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64,
+        auto ref_input1 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto ref_input2 =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, broadcast_input_shape);
+        auto ref_input_shape_node =  std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64,
                                                                                  ngraph::Shape{(size_t)(broadcast_shape.rank().get_length())});
         auto ref_broadcast = std::make_shared<ngraph::opset5::Broadcast>(ref_input2, ref_input_shape_node);
-        auto ref_elementwise = std::make_shared<ngraph::opset5::Multiply>(ref_input1, ref_broadcast);
+        auto ref_elementwise = std::make_shared<ngraph::op::v1::Multiply>(ref_input1, ref_broadcast);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{ref_elementwise},
                                                   ngraph::ParameterVector{ref_input1, ref_input2, ref_input_shape_node});

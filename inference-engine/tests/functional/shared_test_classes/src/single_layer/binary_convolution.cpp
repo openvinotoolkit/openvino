@@ -72,7 +72,7 @@ void BinaryConvolutionLayerTest::SetUp() {
     // TODO: refactor build BinaryConvolution op to accept filters input as Parameter
     auto binConv = ngraph::builder::makeBinaryConvolution(params[0], kernelSize, strides, padsBegin, padsEnd, dilations, padType, numOutChannels,
                                                           padValue);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(binConv)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(binConv)};
     function = std::make_shared<ngraph::Function>(results, params, "BinaryConvolution");
 }
 

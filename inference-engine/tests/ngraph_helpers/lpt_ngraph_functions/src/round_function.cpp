@@ -24,7 +24,7 @@ namespace subgraph {
         const auto deq = makeDequantization(input, dequantization);
         deq->set_friendly_name("output");
 
-        const auto result = std::make_shared<ngraph::opset1::Result>(deq);
+        const auto result = std::make_shared<ngraph::op::v0::Result>(deq);
         result->set_friendly_name("result");
 
         return std::make_shared<ngraph::Function>(
@@ -43,7 +43,7 @@ namespace subgraph {
         const auto deq = makeDequantization(input, dequantization);
         deq->set_friendly_name("output");
 
-        const auto result = std::make_shared<ngraph::opset1::Result>(deq);
+        const auto result = std::make_shared<ngraph::op::v0::Result>(deq);
         result->set_friendly_name("result");
 
         return std::make_shared<ngraph::Function>(

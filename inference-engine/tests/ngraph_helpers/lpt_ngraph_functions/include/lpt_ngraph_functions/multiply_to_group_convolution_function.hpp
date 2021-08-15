@@ -34,8 +34,8 @@ public:
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::PartialShape& inputShape,
         const ngraph::element::Type& precision,
-        const std::shared_ptr<ngraph::opset1::Constant>& weights,
-        const std::shared_ptr<ngraph::opset1::Constant>& biases,
+        const std::shared_ptr<ngraph::op::v0::Constant>& weights,
+        const std::shared_ptr<ngraph::op::v0::Constant>& biases,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 };
 

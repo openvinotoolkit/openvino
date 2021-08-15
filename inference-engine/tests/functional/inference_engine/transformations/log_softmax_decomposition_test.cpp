@@ -21,8 +21,8 @@ using namespace testing;
 TEST(TransformationTests, LogSoftmaxDecomposition) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2});
-        auto log_softmax = std::make_shared<ngraph::opset5::LogSoftmax>(data, 1);
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2});
+        auto log_softmax = std::make_shared<ngraph::op::v5::LogSoftmax>(data, 1);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{log_softmax}, ngraph::ParameterVector{data});
 
@@ -34,12 +34,12 @@ TEST(TransformationTests, LogSoftmaxDecomposition) {
     }
 
     {
-        auto input0 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f64, ngraph::Shape{3, 2});
-        auto axis1_const = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto input0 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f64, ngraph::Shape{3, 2});
+        auto axis1_const = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto max = std::make_shared<ngraph::opset5::ReduceMax>(input0, axis1_const, true);
         auto sub = std::make_shared<ngraph::opset5::Subtract>(input0, max);
         auto exp = std::make_shared<ngraph::opset5::Exp>(sub);
-        auto axis2_const = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto axis2_const = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto sum = std::make_shared<ngraph::opset5::ReduceSum>(exp, axis2_const, true);
         auto log = std::make_shared<ngraph::opset5::Log>(sum);
         auto sub_end = std::make_shared<ngraph::opset5::Subtract>(sub, log);

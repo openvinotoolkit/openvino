@@ -42,48 +42,48 @@ protected:
         auto inputSize = inputShapes[1];
 
         // add
-        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{inputShapes});
+        auto input1 = std::make_shared<op::v0::Parameter>(ntype, ngraph::Shape{inputShapes});
 
         input1->set_friendly_name("Input_1");
-        std::shared_ptr<ngraph::opset1::Constant> addConst = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> addConst = nullptr;
         if (netPrecision == Precision::FP32) {
-            addConst = opset1::Constant::create(ntype, Shape{1}, { 2.0f });
+            addConst = op::v0::Constant::create(ntype, Shape{1}, { 2.0f });
         } else {
-            addConst = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
+            addConst = op::v0::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
-        auto addNode0 = std::make_shared<opset1::Multiply>(input1, addConst);
+        auto addNode0 = std::make_shared<op::v1::Multiply>(input1, addConst);
         addNode0->set_friendly_name("Add_1");
 
         // matmul
-        std::shared_ptr<ngraph::opset1::Constant> matmulConst0 = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> matmulConst0 = nullptr;
         if (netPrecision == Precision::FP32) {
-            matmulConst0 = opset1::Constant::create(ntype, Shape{inputSize, inputSize}, { 2.0f });
+            matmulConst0 = op::v0::Constant::create(ntype, Shape{inputSize, inputSize}, { 2.0f });
         } else {
-            matmulConst0 = opset1::Constant::create(ntype, Shape{inputSize, inputSize},
+            matmulConst0 = op::v0::Constant::create(ntype, Shape{inputSize, inputSize},
                                                     { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
-        auto matmulNode = std::make_shared<opset1::MatMul>(addNode0, matmulConst0);
+        auto matmulNode = std::make_shared<op::v0::MatMul>(addNode0, matmulConst0);
         matmulNode->set_friendly_name("Matmul_0");
 
         // gather
-        auto axesConst = opset1::Constant::create(ngraph::element::i64, Shape{1}, { 1 });
+        auto axesConst = op::v0::Constant::create(ngraph::element::i64, Shape{1}, { 1 });
         std::vector<size_t> gatherArray;
         for (size_t i = 0; i < inputSize; i++) {
             gatherArray.push_back(i);
         }
-        auto indexesConst = opset1::Constant::create(ngraph::element::i64, Shape{inputSize}, gatherArray);
-        auto gatherNode = std::make_shared<opset1::Gather>(matmulNode, indexesConst, axesConst);
+        auto indexesConst = op::v0::Constant::create(ngraph::element::i64, Shape{inputSize}, gatherArray);
+        auto gatherNode = std::make_shared<op::v1::Gather>(matmulNode, indexesConst, axesConst);
         gatherNode->set_friendly_name("Gather_1");
 
         // multiply
-        std::shared_ptr<ngraph::opset1::Constant> mulConst = nullptr;
+        std::shared_ptr<ngraph::op::v0::Constant> mulConst = nullptr;
         if (netPrecision == Precision::FP32) {
-            mulConst = opset1::Constant::create(ntype, Shape{inputShapes}, { 2.0f });
+            mulConst = op::v0::Constant::create(ntype, Shape{inputShapes}, { 2.0f });
         } else {
-            mulConst = opset1::Constant::create(ntype, Shape{inputShapes},
+            mulConst = op::v0::Constant::create(ntype, Shape{inputShapes},
                     { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
-        auto mulNode = std::make_shared<opset1::Multiply>(gatherNode, mulConst);
+        auto mulNode = std::make_shared<op::v1::Multiply>(gatherNode, mulConst);
         mulNode->set_friendly_name("Mul_1");
 
         return std::make_shared<ngraph::Function>(mulNode, ngraph::ParameterVector{input1});

@@ -17,10 +17,10 @@ void GatherLayerTestBase::SetUp(const gatherParamsTuple& params) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto functionParams = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
-    auto indicesNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape(indicesShape), indices);
-    auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
-    auto gather = std::make_shared<ngraph::opset3::Gather>(paramOuts[0], indicesNode, axisNode);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
+    auto indicesNode = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape(indicesShape), indices);
+    auto axisNode = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
+    auto gather = std::make_shared<ngraph::op::v1::Gather>(paramOuts[0], indicesNode, axisNode);
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, functionParams, "gather");
 }
 
@@ -87,9 +87,9 @@ void Gather7LayerTest::SetUp() {
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(functionParams));
     auto indicesNode = ngraph::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
                                                           inputShape[axis < 0 ? axis + inputShape.size() : axis] - 1, 0);
-    auto axisNode = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });
+    auto axisNode = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });
     auto gather = std::make_shared<ngraph::opset7::Gather>(paramOuts[0], indicesNode, axisNode, batchIdx);
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset7::Result>(gather) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(gather) };
     function = std::make_shared<ngraph::Function>(results, functionParams, "gather");
 }
 
@@ -130,9 +130,9 @@ void Gather8LayerTest::SetUp() {
     auto indicesNode = ngraph::builder::makeConstant<int>(ngraph::element::i64, indicesShape, {}, true,
                                                           inputShape[axis < 0 ? axis + inputShape.size() : axis] - 1,
                                                           1 - static_cast<int>(inputShape[axis < 0 ? axis + inputShape.size() : axis]));
-    auto axisNode = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });
-    auto gather = std::make_shared<ngraph::opset8::Gather>(paramOuts[0], indicesNode, axisNode, batchIdx);
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset8::Result>(gather) };
+    auto axisNode = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({}), { axis });
+    auto gather = std::make_shared<ngraph::op::v8::Gather>(paramOuts[0], indicesNode, axisNode, batchIdx);
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(gather) };
     function = std::make_shared<ngraph::Function>(results, functionParams, "gather");
 }
 

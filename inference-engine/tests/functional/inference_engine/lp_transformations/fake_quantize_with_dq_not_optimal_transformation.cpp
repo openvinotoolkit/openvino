@@ -81,20 +81,20 @@ public:
             testValues.actual.dequantizationAfter);
 
         auto precisionsRestrictions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::op::v1::Convolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             })
         });
 
         auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-            ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>()
+            ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::op::v1::Convolution>()
         });
 
         SimpleLowPrecisionTransformer transformer(precisionsRestrictions, quantizationRestrictions);
-        transformer.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(
+        transformer.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::op::v1::Convolution>(
             TestTransformationParams(params).setPrecisionsOnActivations({ element::u8 }));
-        transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);
+        transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::op::v0::FakeQuantize>(params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(

@@ -211,7 +211,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getCons
         NGRAPH_CHECK(op::is_constant(parrentNode), "Function was not fully folded to constant state!\n",
                      "Parent node of one of results is not constant and has type ", parrentNode->get_type_name());
 
-        const auto data = std::dynamic_pointer_cast<opset1::Constant>(parrentNode)->get_data_ptr<std::uint8_t>();
+        const auto data = std::dynamic_pointer_cast<op::v0::Constant>(parrentNode)->get_data_ptr<std::uint8_t>();
         const auto dataSize = shape_size(parrentNode->get_shape()) * parrentNode->get_element_type().size();
         outputs[i].second.resize(dataSize);
         std::copy(data, data + dataSize, outputs[i].second.data());

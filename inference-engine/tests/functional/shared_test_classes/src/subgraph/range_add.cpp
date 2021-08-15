@@ -32,14 +32,14 @@ void RangeAddSubgraphTest::SetUp() {
     std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto startConstant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, start);
-    auto stopConstant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, stop);
-    auto stepConstant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, step);
-    auto range = std::make_shared<ngraph::opset3::Range>(startConstant, stopConstant, stepConstant);
+    auto startConstant = std::make_shared<ngraph::op::v0::Constant>(ngPrc, ngraph::Shape{}, start);
+    auto stopConstant = std::make_shared<ngraph::op::v0::Constant>(ngPrc, ngraph::Shape{}, stop);
+    auto stepConstant = std::make_shared<ngraph::op::v0::Constant>(ngPrc, ngraph::Shape{}, step);
+    auto range = std::make_shared<ngraph::op::v0::Range>(startConstant, stopConstant, stepConstant);
 
     auto params = ngraph::builder::makeParams(ngPrc, {range->get_shape()});
     auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ngraph::helpers::EltwiseTypes::ADD);
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltwise)};
+    const ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(eltwise)};
     function = std::make_shared<ngraph::Function>(results, params, "RangeEltwise");
 }
 
@@ -73,14 +73,14 @@ void RangeNumpyAddSubgraphTest::SetUp() {
     auto ngConstPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(constPrc);
     auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
 
-    auto startConstant = std::make_shared<ngraph::opset1::Constant>(ngConstPrc, ngraph::Shape{}, start);
-    auto stopConstant = std::make_shared<ngraph::opset1::Constant>(ngConstPrc, ngraph::Shape{}, stop);
-    auto stepConstant = std::make_shared<ngraph::opset1::Constant>(ngConstPrc, ngraph::Shape{}, step);
+    auto startConstant = std::make_shared<ngraph::op::v0::Constant>(ngConstPrc, ngraph::Shape{}, start);
+    auto stopConstant = std::make_shared<ngraph::op::v0::Constant>(ngConstPrc, ngraph::Shape{}, stop);
+    auto stepConstant = std::make_shared<ngraph::op::v0::Constant>(ngConstPrc, ngraph::Shape{}, step);
     auto range = std::make_shared<ngraph::opset4::Range>(startConstant, stopConstant, stepConstant, ngNetPrc);
 
     auto params = ngraph::builder::makeParams(ngNetPrc, {range->get_shape()});
     auto eltwise = ngraph::builder::makeEltwise(params.front(), range, ngraph::helpers::EltwiseTypes::ADD);
-    const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(eltwise)};
+    const ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(eltwise)};
     function = std::make_shared<ngraph::Function>(results, params, "RangeEltwise");
 }
 }  // namespace SubgraphTestsDefinitions

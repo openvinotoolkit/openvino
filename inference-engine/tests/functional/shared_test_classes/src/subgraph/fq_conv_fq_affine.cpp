@@ -78,26 +78,26 @@ void FqConvFqAffineTest::SetUp() {
 
     auto inputFQNode = ngraph::builder::makeFakeQuantize(params[0], ngraph::element::f32, levels[0], std::vector<size_t>{},
         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
-    auto inputFQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(inputFQNode);
+    auto inputFQ = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(inputFQNode);
 
     std::vector<size_t> convInputShape = {1, inputChannels, 1, inputShape[0] * inputShape[1] / inputChannels};
-    auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(inputFQ, reshapePattern1, false);
+    auto reshapePattern1 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
+    auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(inputFQ, reshapePattern1, false);
 
     auto filterWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, {outputChannels, inputChannels, kernelShape[0], kernelShape[1]},
                                                                   { 1.0f });
 
     auto convLowNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMin});
     auto convHighNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMax});
-    auto convWeightsFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(filterWeightsNode,
+    auto convWeightsFQNode = std::make_shared<ngraph::op::v0::FakeQuantize>(filterWeightsNode,
         convLowNode, convHighNode, convLowNode, convHighNode, levels[1]);
-    auto convWeightsFQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(convWeightsFQNode);
+    auto convWeightsFQ = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(convWeightsFQNode);
 
-    auto conv = std::make_shared<ngraph::opset1::Convolution>(reshape1, convWeightsFQ, strides, std::vector<ptrdiff_t>{ 0, 0 },
+    auto conv = std::make_shared<ngraph::op::v1::Convolution>(reshape1, convWeightsFQ, strides, std::vector<ptrdiff_t>{ 0, 0 },
                                                               std::vector<ptrdiff_t>{ 0, 0 }, std::vector<size_t>{ 1, 1 },
                                                               ngraph::op::PadType::VALID);
     auto biasesWeightsNode = ngraph::builder::makeConstant(ngPrc, {}, std::vector<float>{ 0.0f });
-    auto add = std::make_shared<ngraph::opset1::Add>(conv, biasesWeightsNode);
+    auto add = std::make_shared<ngraph::op::v1::Add>(conv, biasesWeightsNode);
 
     auto widthAfterConv = (convInputShape[3] - kernelShape[1]) / strides[1] + 1;
     auto heightAfterConv = (convInputShape[2] - kernelShape[0]) / strides[0] + 1;
@@ -105,26 +105,26 @@ void FqConvFqAffineTest::SetUp() {
 
     ngraph::Output<ngraph::Node> nodeBeforeReshape;
     if (permute) {
-        auto permuteOrder = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
+        auto permuteOrder = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                        ngraph::Shape{4},
                                                                        ngraph::Shape{{0, 3, 2, 1}});
-        auto transpose = std::make_shared<ngraph::opset1::Transpose>(add, permuteOrder);
+        auto transpose = std::make_shared<ngraph::op::v1::Transpose>(add, permuteOrder);
         nodeBeforeReshape = transpose;
     } else {
         nodeBeforeReshape = add;
     }
 
-    auto reshapePattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(nodeBeforeReshape, reshapePattern2, false);
+    auto reshapePattern2 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes);
+    auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(nodeBeforeReshape, reshapePattern2, false);
 
     auto matMulWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, {outFormShapes[1], outFormShapes[1]}, { 1.0f });
     auto matMulLowNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMin});
     auto matMulHighNode = ngraph::builder::makeConstant(ngraph::element::f32, std::vector<size_t>{ 1 }, std::vector<float>{inputDataMax});
-    auto matMulWeightsFQNode = std::make_shared<ngraph::opset1::FakeQuantize>(matMulWeightsNode,
+    auto matMulWeightsFQNode = std::make_shared<ngraph::op::v0::FakeQuantize>(matMulWeightsNode,
         matMulLowNode, matMulHighNode, matMulLowNode, matMulHighNode, levels[1]);
-    auto matMulWeightsFQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(matMulWeightsFQNode);
+    auto matMulWeightsFQ = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(matMulWeightsFQNode);
 
-    auto matmul = std::make_shared<ngraph::opset1::MatMul>(reshape2, matMulWeightsFQ, false, true);
+    auto matmul = std::make_shared<ngraph::op::v0::MatMul>(reshape2, matMulWeightsFQ, false, true);
 
     function = std::make_shared<ngraph::Function>(matmul, params, "fqConvfqAffine");
 }

@@ -30,10 +30,10 @@ protected:
 
         const auto inputSubgraph = createInputSubgraphWithDSR(inDataType, inDataShapes);
 
-        const auto outShapeDescriptorConstNode = std::make_shared<ngraph::opset3::Constant>(
+        const auto outShapeDescriptorConstNode = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::i64, ngraph::Shape{outShapeDescriptor.size()}, outShapeDescriptor);
 
-        return std::make_shared<ngraph::opset3::Reshape>(
+        return std::make_shared<ngraph::op::v1::Reshape>(
                 inputSubgraph, outShapeDescriptorConstNode, specialZero);
     }
 };
@@ -53,17 +53,17 @@ protected:
         const auto inputSubgraph = createInputSubgraphWithDSR(inDataType, inDataShapes);
 
         const auto shapeDataType = inputSubgraph->get_input_element_type(1);
-        const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(inputSubgraph, shapeDataType);
-        const auto axis    = ngraph::opset3::Constant::create(shapeDataType, {1}, {0});
-        const auto indices = ngraph::opset3::Constant::create(shapeDataType, {1}, {inDataShapes.shape.size() - 1});
-        const auto outShapeDescriptorDynamicNode = std::make_shared<ngraph::opset3::Concat>(
+        const auto shapeOf = std::make_shared<ngraph::op::v3::ShapeOf>(inputSubgraph, shapeDataType);
+        const auto axis    = ngraph::op::v0::Constant::create(shapeDataType, {1}, {0});
+        const auto indices = ngraph::op::v0::Constant::create(shapeDataType, {1}, {inDataShapes.shape.size() - 1});
+        const auto outShapeDescriptorDynamicNode = std::make_shared<ngraph::op::v0::Concat>(
                 ngraph::OutputVector{
-                        ngraph::opset3::Constant::create(shapeDataType, {1}, {1}),
-                        ngraph::opset3::Constant::create(shapeDataType, {1}, {-1}),
-                        std::make_shared<ngraph::opset3::Gather>(shapeOf, indices, axis)},
+                        ngraph::op::v0::Constant::create(shapeDataType, {1}, {1}),
+                        ngraph::op::v0::Constant::create(shapeDataType, {1}, {-1}),
+                        std::make_shared<ngraph::op::v1::Gather>(shapeOf, indices, axis)},
                 0);
 
-        return std::make_shared<ngraph::opset3::Reshape>(
+        return std::make_shared<ngraph::op::v1::Reshape>(
                 inputSubgraph, outShapeDescriptorDynamicNode, true);
     }
 };

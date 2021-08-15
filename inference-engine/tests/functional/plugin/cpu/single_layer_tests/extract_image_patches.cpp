@@ -46,12 +46,12 @@ protected:
         selectedType = std::string("ref_any_") + netPrecision.name();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto inputNode = std::make_shared<ngraph::opset6::Parameter>(ngPrc, ngraph::Shape(inputShape));
+        auto inputNode = std::make_shared<ngraph::op::v0::Parameter>(ngPrc, ngraph::Shape(inputShape));
         ngraph::ParameterVector params = {inputNode};
 
         auto extImgPatches = std::make_shared<ngraph::opset6::ExtractImagePatches>(
                 inputNode, ngraph::Shape(kernel), ngraph::Strides(strides), ngraph::Shape(rates), pad_type);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset6::Result>(extImgPatches)};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(extImgPatches)};
         function = std::make_shared<ngraph::Function>(results, params, "ExtractImagePatches");
     }
 };

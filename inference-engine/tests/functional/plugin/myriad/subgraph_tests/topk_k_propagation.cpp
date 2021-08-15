@@ -47,20 +47,20 @@ public:
         const auto& k = GetParam();
         ngraph::Shape inputShape{upperBoundK};
 
-        const auto data = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, inputShape);
-        const auto dataShape = ngraph::opset5::Constant::create(ngraph::element::i32, ngraph::Shape{inputShape.size()}, inputShape);
-        const auto resultK = ngraph::opset5::Constant::create(ngraph::element::i32, {1}, {k});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, inputShape);
+        const auto dataShape = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{inputShape.size()}, inputShape);
+        const auto resultK = ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {k});
 
         const auto concat = std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{dataShape, resultK}, 0);
 
-        const auto reduceMin = std::make_shared<ngraph::opset5::ReduceMin>(concat, ngraph::opset5::Constant::create(ngraph::element::i32, {1}, {0}), false);
+        const auto reduceMin = std::make_shared<ngraph::opset5::ReduceMin>(concat, ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {0}), false);
         const auto builtSubgraph = buildSubgraph(reduceMin);
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dataShape);
         const auto topK = std::make_shared<ngraph::opset5::TopK>(dsr, builtSubgraph, 0, "max", "value");
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(topK->output(0)),
-                                     std::make_shared<ngraph::opset5::Result>(topK->output(1))};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(topK->output(0)),
+                                     std::make_shared<ngraph::op::v0::Result>(topK->output(1))};
         const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{data}, "TopKPropagationOfK");
 
         const auto transformations = vpu::Transformations{{topK->type_info, vpu::dynamicToStaticShapeTopK}};
@@ -82,7 +82,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticTopKPropagationConcatBased
 class DynamicToStaticTopKPropagationConcatReshape : public DynamicToStaticTopKPropagationConcatBased {
 protected:
     std::shared_ptr<ngraph::Node> buildSubgraph(std::shared_ptr<ngraph::Node> node) const override {
-        return std::make_shared<ngraph::opset5::Reshape>(node, ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1}), false);
+        return std::make_shared<ngraph::op::v1::Reshape>(node, ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1}), false);
     }
 };
 
@@ -96,8 +96,8 @@ protected:
     std::shared_ptr<ngraph::Node> buildSubgraph(std::shared_ptr<ngraph::Node> node) const override {
         const auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(
             node,
-            ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
-        return std::make_shared<ngraph::opset5::Squeeze>(unsqueeze, ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+        return std::make_shared<ngraph::opset5::Squeeze>(unsqueeze, ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
     }
 };
 
@@ -124,20 +124,20 @@ public:
     void SetUp() override {
         const auto& k = GetParam();
 
-        const auto upperBoundData = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{upperBoundK});
-        const auto realData = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i32, ngraph::Shape{static_cast<size_t>(k)});
+        const auto upperBoundData = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{upperBoundK});
+        const auto realData = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i32, ngraph::Shape{static_cast<size_t>(k)});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
             upperBoundData,
-            ngraph::opset5::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {k}));
+            ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {k}));
 
-        const auto shapeOf = std::make_shared<ngraph::opset5::ShapeOf>(realData);
+        const auto shapeOf = std::make_shared<ngraph::op::v0::ShapeOf>(realData);
         const auto builtSubgraph = buildSubgraph(shapeOf);
 
         const auto topK = std::make_shared<ngraph::opset5::TopK>(dsr, builtSubgraph, 0, "max", "value");
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(topK->output(0)),
-                                     std::make_shared<ngraph::opset5::Result>(topK->output(1))};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(topK->output(0)),
+                                     std::make_shared<ngraph::op::v0::Result>(topK->output(1))};
 
         const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{upperBoundData, realData}, "TopKPropagationOfK");
 
@@ -155,8 +155,8 @@ protected:
     std::shared_ptr<ngraph::Node> buildSubgraph(std::shared_ptr<ngraph::Node> node) const override {
         return std::make_shared<ngraph::opset5::Gather>(
             node,
-            ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}));
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}),
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0}));
     }
 };
 
@@ -169,14 +169,14 @@ class KPropagationAfterShapeOfElimination : public DynamicToStaticTopKPropagatio
     void SetUp() override {
         const auto& k = GetParam();
 
-        const auto data = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{static_cast<size_t>(k)});
-        const auto shape = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{1});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{static_cast<size_t>(k)});
+        const auto shape = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{1});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
                 data,
                 shape);
 
-        const auto shapeOf = std::make_shared<ngraph::opset5::ShapeOf>(dsr);
+        const auto shapeOf = std::make_shared<ngraph::op::v0::ShapeOf>(dsr);
         const auto builtSubgraph = buildSubgraph(shapeOf);
 
         const auto staticShapeTopK = std::make_shared<ngraph::vpu::op::StaticShapeTopK>(dsr, builtSubgraph, 0, "max", "value");
@@ -198,11 +198,11 @@ class KPropagationAfterShapeOfElimination : public DynamicToStaticTopKPropagatio
         const auto concat = std::make_shared<ngraph::opset6::Concat>(
             ngraph::NodeVector{
                 node,
-                ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {upperBoundK})},
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {upperBoundK})},
             0);
         return std::make_shared<ngraph::opset6::ReduceMin>(
             concat,
-            ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
     }
 };
 

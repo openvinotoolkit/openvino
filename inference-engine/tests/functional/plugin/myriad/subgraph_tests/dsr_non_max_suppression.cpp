@@ -63,10 +63,10 @@ protected:
         const auto scores = createInputSubgraphWithDSR(floatType, DataShapeWithUpperBound{ {nmsSetup.numBatches, nmsSetup.numClasses, nmsSetup.numBoxes},
             {nmsSetup.numBatches, nmsSetup.numClasses, nmsSetup.upperBoundNumBoxes}});
 
-        const auto maxOutputBoxesPerClass = ngraph::opset5::Constant::create(integerType, ngraph::Shape{}, {nmsSetup.maxOutputBoxesPerClass});
-        const auto iouThreshold = ngraph::opset5::Constant::create(floatType, ngraph::Shape{}, {nmsSetup.iouThreshold});
-        const auto scoreThreshold = ngraph::opset5::Constant::create(floatType, ngraph::Shape{}, {nmsSetup.scoreThreshold});
-        const auto softNmsSigma = ngraph::opset5::Constant::create(floatType, ngraph::Shape{}, {nmsSetup.softNmsSigma});
+        const auto maxOutputBoxesPerClass = ngraph::op::v0::Constant::create(integerType, ngraph::Shape{}, {nmsSetup.maxOutputBoxesPerClass});
+        const auto iouThreshold = ngraph::op::v0::Constant::create(floatType, ngraph::Shape{}, {nmsSetup.iouThreshold});
+        const auto scoreThreshold = ngraph::op::v0::Constant::create(floatType, ngraph::Shape{}, {nmsSetup.scoreThreshold});
+        const auto softNmsSigma = ngraph::op::v0::Constant::create(floatType, ngraph::Shape{}, {nmsSetup.softNmsSigma});
 
         return std::make_shared<ngraph::op::v5::NonMaxSuppression>(
             boxes, scores, maxOutputBoxesPerClass, iouThreshold, scoreThreshold, softNmsSigma,
@@ -77,10 +77,10 @@ protected:
             SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
             configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
             const auto testedOp = createTestedOp();
-            const auto identity_0 = std::make_shared<ngraph::opset5::Multiply>(testedOp->output(0),
-                ngraph::opset5::Constant::create(testedOp->output(0).get_element_type(), ngraph::Shape{1}, {1}));
-            const auto identity_2 = std::make_shared<ngraph::opset5::Multiply>(testedOp->output(2),
-                ngraph::opset5::Constant::create(testedOp->output(2).get_element_type(), ngraph::Shape{1}, {1}));
+            const auto identity_0 = std::make_shared<ngraph::op::v1::Multiply>(testedOp->output(0),
+                ngraph::op::v0::Constant::create(testedOp->output(0).get_element_type(), ngraph::Shape{1}, {1}));
+            const auto identity_2 = std::make_shared<ngraph::op::v1::Multiply>(testedOp->output(2),
+                ngraph::op::v0::Constant::create(testedOp->output(2).get_element_type(), ngraph::Shape{1}, {1}));
             function = std::make_shared<ngraph::Function>(
                 ngraph::OutputVector{identity_0, identity_2},
                 m_parameterVector);

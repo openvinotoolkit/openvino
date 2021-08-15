@@ -51,19 +51,19 @@ void PermConvPermConcat::SetUp() {
         reshape_in_dims);
     auto reshape_in = std::make_shared<ngraph::op::v1::Reshape>(input_parameter[0], reshape_in_pattern, false);
 
-    auto permute_in_params = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
+    auto permute_in_params = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
         ngraph::Shape{4},
         ngraph::Shape{permute_in_order});
-    auto permute_in = std::make_shared<ngraph::opset1::Transpose>(reshape_in, permute_in_params);
+    auto permute_in = std::make_shared<ngraph::op::v1::Transpose>(reshape_in, permute_in_params);
     auto conv_in_shape = permute_in->get_output_shape(0);
     auto conv_weights_size = output_channels * (conv_in_shape[1]) * kernel_shape[0] * kernel_shape[1];
     auto conv = ngraph::builder::makeConvolution(permute_in, ngPrc, {kernel_shape[0], kernel_shape[1]}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
         ngraph::op::PadType::VALID, output_channels, false, CommonTestUtils::generate_float_numbers(conv_weights_size, -0.5f, 0.5f));
 
-    auto permute_out_params = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
+    auto permute_out_params = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
         ngraph::Shape{4},
         permute_out_order);
-    auto permute_out = std::make_shared<ngraph::opset1::Transpose>(conv, permute_out_params);
+    auto permute_out = std::make_shared<ngraph::op::v1::Transpose>(conv, permute_out_params);
 
     auto permute_out_shape = permute_out->get_output_shape(0);
 
@@ -72,7 +72,7 @@ void PermConvPermConcat::SetUp() {
 
     auto concat = ngraph::builder::makeConcat({permute_out, concat_const}, 2);
 
-    auto reshape_out_pattern = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
+    auto reshape_out_pattern = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
         ngraph::Shape{2},
         InferenceEngine::SizeVector({1, (permute_out_shape[2] + 1) * permute_out_shape[3]}));
     auto reshape_out = std::make_shared<ngraph::op::v1::Reshape>(concat, reshape_out_pattern, false);

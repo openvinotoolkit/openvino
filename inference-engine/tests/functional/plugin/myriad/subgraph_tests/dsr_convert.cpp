@@ -34,7 +34,7 @@ protected:
         const auto inputSubgraph = createInputSubgraphWithDSR(
                 inDataTypes.srcType, inDataShapes);
 
-        const auto convert = std::make_shared<ngraph::opset3::Convert>(
+        const auto convert = std::make_shared<ngraph::op::v0::Convert>(
                 inputSubgraph, inDataTypes.dstType);
 
         return convert;

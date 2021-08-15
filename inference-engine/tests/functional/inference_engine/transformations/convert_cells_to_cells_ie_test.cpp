@@ -28,21 +28,21 @@ using namespace testing;
 
 TEST(TransformationTests, GRUCellConversionTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-    std::shared_ptr<ngraph::opset3::GRUCell> cell;
+    std::shared_ptr<ngraph::op::v3::GRUCell> cell;
 
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
     const size_t gates_count = 3;
     {
-        const auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, input_size});
+        const auto X = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, input_size});
         const auto W =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, input_size});
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, input_size});
         const auto R =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, hidden_size});
-        const auto H_t = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hidden_size});
-        const auto B = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size});
-        cell = std::make_shared<ngraph::opset3::GRUCell>(X, H_t, W, R, B, hidden_size);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, hidden_size});
+        const auto H_t = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hidden_size});
+        const auto B = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size});
+        cell = std::make_shared<ngraph::op::v3::GRUCell>(X, H_t, W, R, B, hidden_size);
         cell->set_friendly_name("test_cell");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell}, ngraph::ParameterVector{X, H_t});
@@ -54,14 +54,14 @@ TEST(TransformationTests, GRUCellConversionTest) {
     }
 
     {
-        const auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, input_size});
+        const auto X = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, input_size});
         const auto W =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, input_size});
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, input_size});
         const auto R =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, hidden_size});
-        const auto H_t = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hidden_size});
-        const auto B = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size});
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector({W, R}), 1);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, hidden_size});
+        const auto H_t = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hidden_size});
+        const auto B = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size});
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::NodeVector({W, R}), 1);
         auto cell_ie = std::make_shared<ngraph::op::GRUCellIE>(X, H_t, concat, B,
                                                                cell->get_hidden_size(),
                                                                cell->get_activations(),
@@ -84,16 +84,16 @@ TEST(TransformationTests, GRUCellConversionTest) {
 TEST(TransformationTests, RNNCellConversionTest) {
     const size_t hidden_size = 3;
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-    std::shared_ptr<ngraph::opset3::RNNCell> cell;
+    std::shared_ptr<ngraph::op::v0::RNNCell> cell;
 
     {
-        auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
-        auto H = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
-        auto W = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{3, 3});
-        auto R = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{3, 3});
-        auto B = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{3});
+        auto X = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
+        auto H = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
+        auto W = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{3, 3});
+        auto R = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{3, 3});
+        auto B = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{3});
 
-        cell = std::make_shared<ngraph::opset3::RNNCell>(X, H, W, R, B, hidden_size);
+        cell = std::make_shared<ngraph::op::v0::RNNCell>(X, H, W, R, B, hidden_size);
         cell->set_friendly_name("test_cell");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell}, ngraph::ParameterVector{X, H});
@@ -105,12 +105,12 @@ TEST(TransformationTests, RNNCellConversionTest) {
     }
 
     {
-        auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
-        auto H = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
-        auto W = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{3, 3});
-        auto R = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{3, 3});
-        auto B = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{3});
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector({W, R}), 1);
+        auto X = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
+        auto H = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
+        auto W = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{3, 3});
+        auto R = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{3, 3});
+        auto B = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{3});
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::NodeVector({W, R}), 1);
         auto cell_ie = std::make_shared<ngraph::op::RNNCellIE>(X, H, concat, B,
                                                                cell->get_hidden_size(),
                                                                cell->get_activations(),
@@ -137,18 +137,18 @@ TEST(TransformationTests, LSTMCellConversionTest_opset3) {
     const size_t gates_count = 4;
 
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-    std::shared_ptr<ngraph::opset3::LSTMCell> cell;
+    std::shared_ptr<ngraph::op::v0::LSTMCell> cell;
     {
-        const auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, input_size});
+        const auto X = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, input_size});
         const auto W =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, input_size});
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, input_size});
         const auto R =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, hidden_size});
-        const auto H_t = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hidden_size});
-        const auto C_t = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hidden_size});
-        const auto B = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size});
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, hidden_size});
+        const auto H_t = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hidden_size});
+        const auto C_t = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hidden_size});
+        const auto B = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size});
 
-        cell = std::make_shared<ngraph::opset3::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
+        cell = std::make_shared<ngraph::op::v0::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
         cell->set_friendly_name("test_cell");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{cell}, ngraph::ParameterVector{X, H_t, C_t});
@@ -160,16 +160,16 @@ TEST(TransformationTests, LSTMCellConversionTest_opset3) {
     }
 
     {
-        const auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, input_size});
+        const auto X = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, input_size});
         const auto W =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, input_size});
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, input_size});
         const auto R =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, hidden_size});
-        const auto H_t = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hidden_size});
-        const auto C_t = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hidden_size});
-        const auto B = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size});
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size, hidden_size});
+        const auto H_t = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hidden_size});
+        const auto C_t = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{batch_size, hidden_size});
+        const auto B = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{gates_count * hidden_size});
 
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector({W, R}), 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::NodeVector({W, R}), 1);
         auto cell_ie = std::make_shared<ngraph::op::LSTMCellIE>(X, H_t, C_t, concat, B,
                                                                 cell->get_hidden_size(),
                                                                 cell->get_activations(),
@@ -198,19 +198,19 @@ TEST(TransformationTests, LSTMCellConversionTest_opset4) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     std::shared_ptr<ngraph::opset4::LSTMCell> cell;
     {
-        const auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32,
+        const auto X = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                    ngraph::Shape{batch_size, input_size});
         const auto W =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32,
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32,
                                                            ngraph::Shape{gates_count * hidden_size, input_size});
         const auto R =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32,
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32,
                                                            ngraph::Shape{gates_count * hidden_size, hidden_size});
-        const auto H_t = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32,
+        const auto H_t = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                      ngraph::Shape{batch_size, hidden_size});
-        const auto C_t = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32,
+        const auto C_t = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                      ngraph::Shape{batch_size, hidden_size});
-        const auto B = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32,
+        const auto B = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32,
                                                                   ngraph::Shape{gates_count * hidden_size});
 
         cell = std::make_shared<ngraph::opset4::LSTMCell>(X, H_t, C_t, W, R, B, hidden_size);
@@ -225,22 +225,22 @@ TEST(TransformationTests, LSTMCellConversionTest_opset4) {
     }
 
     {
-        const auto X = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32,
+        const auto X = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                    ngraph::Shape{batch_size, input_size});
         const auto W =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32,
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32,
                                                            ngraph::Shape{gates_count * hidden_size, input_size});
         const auto R =
-                std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32,
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32,
                                                            ngraph::Shape{gates_count * hidden_size, hidden_size});
-        const auto H_t = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32,
+        const auto H_t = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                      ngraph::Shape{batch_size, hidden_size});
-        const auto C_t = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32,
+        const auto C_t = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                      ngraph::Shape{batch_size, hidden_size});
-        const auto B = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32,
+        const auto B = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32,
                                                                   ngraph::Shape{gates_count * hidden_size});
 
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector({W, R}), 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::NodeVector({W, R}), 1);
         auto cell_ie = std::make_shared<ngraph::op::LSTMCellIE>(X, H_t, C_t, concat, B,
                                                                 cell->get_hidden_size(),
                                                                 cell->get_activations(),

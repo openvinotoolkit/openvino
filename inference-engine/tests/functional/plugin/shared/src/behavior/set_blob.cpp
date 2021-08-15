@@ -104,7 +104,7 @@ void SetBlobTest::SetUp() {
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto axisNode = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<int64_t>{-1})->output(0);
     auto cumSum = std::dynamic_pointer_cast<ngraph::opset4::CumSum>(ngraph::builder::makeCumSum(paramOuts[0], axisNode, false, false));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(cumSum)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(cumSum)};
     function = std::make_shared<ngraph::Function>(results, params, "InferSetBlob");
 }
 

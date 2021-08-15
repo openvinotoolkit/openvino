@@ -80,18 +80,18 @@ protected:
         size_t batch = inputShape[inputShape.size() - 2];
         size_t elemNum = inputShape[inputShape.size() - 1];
         std::vector<float> weights = CommonTestUtils::generate_float_numbers(elemNum * elemNum, -0.1f, 0.1f);
-        auto weightsNode = std::make_shared<ngraph::opset7::Constant>(ngPrc, ngraph::Shape{elemNum, elemNum}, weights);
+        auto weightsNode = std::make_shared<ngraph::op::v0::Constant>(ngPrc, ngraph::Shape{elemNum, elemNum}, weights);
         auto matmul = ngraph::builder::makeMatMul(params[0], weightsNode, false, true);
 
         auto bias = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{1, batch, 1}, std::vector<float>{1.0f});
         auto add = ngraph::builder::makeEltwise(matmul, bias, ngraph::helpers::EltwiseTypes::ADD);
 
-        auto pattern = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
+        auto pattern = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64,
             ngraph::Shape{ inputShape.size() }, inputShape);
-        auto reshape = std::make_shared<ngraph::opset7::Reshape>(matmul, pattern, false);
-        auto relu = std::make_shared<ngraph::opset7::Relu>(reshape);
+        auto reshape = std::make_shared<ngraph::op::v1::Reshape>(matmul, pattern, false);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(reshape);
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset7::Result>(relu)};
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(relu)};
         function = std::make_shared<ngraph::Function>(results, params, "ConvertMatmulToPointwiseConv");
     }
 };
@@ -142,7 +142,7 @@ protected:
             std::vector<float>{ inputDataMin });
         auto inputHighNode = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{ 1 },
             std::vector<float>{ inputDataMax });
-        auto inputFQ = std::make_shared<ngraph::opset7::FakeQuantize>(params[0],
+        auto inputFQ = std::make_shared<ngraph::op::v0::FakeQuantize>(params[0],
             inputLowNode, inputHighNode, inputLowNode, inputHighNode, UINT16_MAX);
 
         size_t elemNum = inputShape[inputShape.size() - 1];
@@ -150,12 +150,12 @@ protected:
         const float weightsMin = -0.2f;
         const float weightsMax = 0.2f;
         std::vector<float> weights = CommonTestUtils::generate_float_numbers(elemNum * elemNum, weightsMin, weightsMax);
-        auto weightsNode = std::make_shared<ngraph::opset7::Constant>(ngPrc, ngraph::Shape{elemNum, elemNum}, weights);
+        auto weightsNode = std::make_shared<ngraph::op::v0::Constant>(ngPrc, ngraph::Shape{elemNum, elemNum}, weights);
         auto weightsLowNode = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{ 1 },
             std::vector<float>{ weightsMin });
         auto weightsHighNode = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{ 1 },
               std::vector<float>{ weightsMax });
-        auto weightsFQNode = std::make_shared<ngraph::opset7::FakeQuantize>(weightsNode,
+        auto weightsFQNode = std::make_shared<ngraph::op::v0::FakeQuantize>(weightsNode,
             weightsLowNode, weightsHighNode, weightsLowNode, weightsHighNode, UINT16_MAX);
         auto matmul = ngraph::builder::makeMatMul(inputFQ, weightsFQNode, false, true);
 
@@ -166,16 +166,16 @@ protected:
             std::vector<float>{ -inputDataMax * weightsMax *  elemNum });
         auto outputHighNode = ngraph::builder::makeConstant(ngPrc, std::vector<size_t>{ 1 },
             std::vector<float>{ inputDataMax * weightsMax * elemNum });
-        auto outputFQ = std::make_shared<ngraph::opset7::FakeQuantize>(add,
+        auto outputFQ = std::make_shared<ngraph::op::v0::FakeQuantize>(add,
             outputLowNode, outputHighNode, outputLowNode, outputHighNode, UINT16_MAX);
 
-        auto pattern = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
+        auto pattern = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64,
             ngraph::Shape{ inputShape.size() }, inputShape);
-        auto reshape = std::make_shared<ngraph::opset7::Reshape>(outputFQ, pattern, false);
+        auto reshape = std::make_shared<ngraph::op::v1::Reshape>(outputFQ, pattern, false);
 
-        auto relu = std::make_shared<ngraph::opset7::Relu>(reshape);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(reshape);
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset7::Result>(relu)};
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(relu)};
         function = std::make_shared<ngraph::Function>(results, params, "ConvertMatmulToPointwiseConv");
     }
 };

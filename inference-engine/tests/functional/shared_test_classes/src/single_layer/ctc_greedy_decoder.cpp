@@ -48,10 +48,10 @@ void CTCGreedyDecoderLayerTest::SetUp() {
     auto paramOuts = ngraph::helpers::convert2OutputVector(
         ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 
-    auto ctcGreedyDecoder = std::dynamic_pointer_cast<ngraph::opset1::CTCGreedyDecoder>(
+    auto ctcGreedyDecoder = std::dynamic_pointer_cast<ngraph::op::v0::CTCGreedyDecoder>(
             ngraph::builder::makeCTCGreedyDecoder(paramOuts[0], mergeRepeated));
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoder) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(ctcGreedyDecoder) };
     function = std::make_shared<ngraph::Function>(results, paramsIn, "CTCGreedyDecoder");
 }
 }  // namespace LayerTestsDefinitions

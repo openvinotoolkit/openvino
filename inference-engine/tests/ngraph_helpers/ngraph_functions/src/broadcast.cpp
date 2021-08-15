@@ -14,7 +14,7 @@ std::shared_ptr<ngraph::Node> makeBroadcast(const ngraph::Output<Node> &in,
                                             const ngraph::op::BroadcastType& mode,
                                             const ngraph::AxisSet& axisSet) {
     if (mode == ngraph::op::BroadcastType::NONE) {
-        auto axisSetConst = ngraph::opset5::Constant::create(ngraph::element::i64, {axisSet.size()}, axisSet.to_vector());
+        auto axisSetConst = ngraph::op::v0::Constant::create(ngraph::element::i64, {axisSet.size()}, axisSet.to_vector());
         return std::make_shared<ngraph::opset5::Broadcast>(in,
                                                            target_shape,
                                                            axisSetConst,

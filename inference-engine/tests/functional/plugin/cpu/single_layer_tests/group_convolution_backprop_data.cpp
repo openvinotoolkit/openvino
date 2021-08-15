@@ -84,12 +84,12 @@ protected:
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData> groupConv;
         if (!outputShape.empty()) {
-            auto outShape = ngraph::opset3::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
-            groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(
+            auto outShape = ngraph::op::v0::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
+            groupConv = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolutionBackpropData>(
             ngraph::builder::makeGroupConvolutionBackpropData(paramOuts[0], outShape, ngPrc, kernel, stride, padBegin,
                                                             padEnd, dilation, padType, convOutChannels, numGroups, false, outputPadding));
         } else {
-            groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(
+            groupConv = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolutionBackpropData>(
             ngraph::builder::makeGroupConvolutionBackpropData(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                                 padEnd, dilation, padType, convOutChannels, numGroups, false, outputPadding));
         }

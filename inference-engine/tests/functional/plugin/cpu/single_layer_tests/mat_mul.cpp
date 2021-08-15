@@ -93,9 +93,9 @@ protected:
         auto params = builder::makeParams(ngPrec, {isA});
         auto matrixB = builder::makeInputLayer(ngPrec, typeB, isB);
         if (typeB == helpers::InputLayerType::PARAMETER) {
-            params.push_back(std::dynamic_pointer_cast<opset1::Parameter>(matrixB));
+            params.push_back(std::dynamic_pointer_cast<op::v0::Parameter>(matrixB));
         }
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset1::Parameter>(params));
+        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::v0::Parameter>(params));
         auto matMul = builder::makeMatMul(paramOuts[0], matrixB, transpA, transpB);
         function = makeNgraphFunction(ngPrec, params, matMul, cpuNodeType);
         checkFusingPosition = false;
@@ -122,7 +122,7 @@ namespace fullyConnected {
 const auto fusingBiasFC = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<Node> inpNode, const element::Type& ngPrc, ParameterVector& params) {
                 auto bias = builder::makeConstant(ngPrc, Shape({inpNode->get_output_shape(0).back()}), std::vector<float>{}, true);
-                return std::make_shared<opset1::Add>(inpNode, bias);
+                return std::make_shared<op::v1::Add>(inpNode, bias);
             }, "fusingBiasFC"}}), {"Add"}};
 
 const std::vector<std::pair<SizeVector, SizeVector>> IS2D = {

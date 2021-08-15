@@ -84,7 +84,7 @@ public:
         pass.run_on_function(actualFunction);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::op::v1::Convolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             })
@@ -136,7 +136,7 @@ TEST_P(MarkupAvgPoolPrecisionsTransformation, CompareFunctions) {
     InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
-    const auto avgPoolOperations = LayerTransformation::get<opset1::AvgPool>(actualFunction);
+    const auto avgPoolOperations = LayerTransformation::get<op::v1::AvgPool>(actualFunction);
     ASSERT_EQ(1ul, avgPoolOperations.size()) << "unexpected avgPoolOperations size: " << avgPoolOperations.size();
 
     {
@@ -146,7 +146,7 @@ TEST_P(MarkupAvgPoolPrecisionsTransformation, CompareFunctions) {
         ASSERT_EQ(true, avgPoolPrecisioinPreservedAttribute->get()->sharedValue->value);
     }
 
-    const auto precisionPreserved = LayerTransformation::get<opset1::MaxPool>(actualFunction);
+    const auto precisionPreserved = LayerTransformation::get<op::v1::MaxPool>(actualFunction);
     ASSERT_TRUE(checkIfAttributesAreTheSame<std::shared_ptr<AvgPoolPrecisionPreservedAttribute>>(precisionPreserved)) <<
         "AvgPoolPrecisionPreservedAttribute are not the same";
 

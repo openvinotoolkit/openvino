@@ -24,13 +24,13 @@ using namespace testing;
 TEST(TransformationTests, MishFusing) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
+        auto input0 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
         auto exp = std::make_shared<ngraph::opset4::Exp>(input0);
-        auto input_const = ngraph::opset4::Constant::create(ngraph::element::f64, ngraph::Shape{1}, {-1});
-        auto add = std::make_shared<ngraph::opset4::Add>(exp, input_const);
+        auto input_const = ngraph::op::v0::Constant::create(ngraph::element::f64, ngraph::Shape{1}, {-1});
+        auto add = std::make_shared<ngraph::op::v1::Add>(exp, input_const);
         auto log = std::make_shared<ngraph::opset4::Log>(add);
         auto tanh = std::make_shared<ngraph::opset4::Tanh>(log);
-        auto mul = std::make_shared<ngraph::opset4::Multiply>(input0, tanh);
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(input0, tanh);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input0});
 
@@ -42,8 +42,8 @@ TEST(TransformationTests, MishFusing) {
     }
 
     {
-        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
-        auto mish = std::make_shared<ngraph::opset4::Mish>(data);
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
+        auto mish = std::make_shared<ngraph::op::v4::Mish>(data);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mish}, ngraph::ParameterVector{data});
     }
@@ -56,10 +56,10 @@ TEST(TransformationTests, MishFusing) {
 TEST(TransformationTests, MishWithSoftPlusFusing) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
-        auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(input0);
+        auto input0 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
+        auto softplus = std::make_shared<ngraph::op::v4::SoftPlus>(input0);
         auto tanh = std::make_shared<ngraph::opset4::Tanh>(softplus);
-        auto mul = std::make_shared<ngraph::opset4::Multiply>(input0, tanh);
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(input0, tanh);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input0});
 
@@ -71,8 +71,8 @@ TEST(TransformationTests, MishWithSoftPlusFusing) {
     }
 
     {
-        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
-        auto mish = std::make_shared<ngraph::opset4::Mish>(data);
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
+        auto mish = std::make_shared<ngraph::op::v4::Mish>(data);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mish}, ngraph::ParameterVector{data});
     }

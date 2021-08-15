@@ -64,7 +64,7 @@ public:
                 testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ClampTransformation, ngraph::opset1::Clamp>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::ClampTransformation, ngraph::op::v0::Clamp>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = testValues.nonDequantizationMultiply ?

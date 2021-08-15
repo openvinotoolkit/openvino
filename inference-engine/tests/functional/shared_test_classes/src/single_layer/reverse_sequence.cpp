@@ -43,11 +43,11 @@ void ReverseSequenceLayerTest::SetUp() {
     auto secondPrc = ngraph::element::Type_t::i32; //according to the specification
     auto secondaryInput = ngraph::builder::makeInputLayer(secondPrc, secondaryInputType, secondInputShape);
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        paramsIn.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+        paramsIn.push_back(std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(secondaryInput));
     }
 
-    auto reverse = std::make_shared<ngraph::opset1::ReverseSequence>(paramsIn[0], secondaryInput, batchAxisIndx, seqAxisIndx);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reverse)};
+    auto reverse = std::make_shared<ngraph::op::v0::ReverseSequence>(paramsIn[0], secondaryInput, batchAxisIndx, seqAxisIndx);
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(reverse)};
     function = std::make_shared<ngraph::Function>(results, paramsIn, "ReverseSequence");
 }
 

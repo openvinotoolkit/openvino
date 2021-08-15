@@ -27,12 +27,12 @@ std::shared_ptr<Node> makeConvolution(const ngraph::Output<Node> &in,
     std::vector<size_t> filterWeightsShape = {numOutChannels, shape[1]};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
-    auto conv = std::make_shared<opset1::Convolution>(in, filterWeightsNode, strides, padsBegin, padsEnd, dilations,
+    auto conv = std::make_shared<op::v1::Convolution>(in, filterWeightsNode, strides, padsBegin, padsEnd, dilations,
                                                       autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
         auto biasesWeightsNode = makeConstant(type, {1, numOutChannels , 1, 1}, biasesWeights, randomBiases);
-        auto add = std::make_shared<ngraph::opset1::Add>(conv, biasesWeightsNode);
+        auto add = std::make_shared<ngraph::op::v1::Add>(conv, biasesWeightsNode);
         return add;
     } else {
         return conv;

@@ -21,8 +21,8 @@ using namespace testing;
 TEST(TransformationTests, SoftPlusDecompositionFP32) {
     std::shared_ptr<ngraph::Function> f, f_ref;
     {
-        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(data);
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto softplus = std::make_shared<ngraph::op::v4::SoftPlus>(data);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{softplus}, ngraph::ParameterVector{data});
 
@@ -34,10 +34,10 @@ TEST(TransformationTests, SoftPlusDecompositionFP32) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
         auto exp = std::make_shared<ngraph::opset4::Exp>(input);
-        auto add = std::make_shared<ngraph::opset4::Add>(exp,
-            ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0}));
+        auto add = std::make_shared<ngraph::op::v1::Add>(exp,
+            ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0}));
         auto log = std::make_shared<ngraph::opset4::Log>(add);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input});
@@ -50,8 +50,8 @@ TEST(TransformationTests, SoftPlusDecompositionFP32) {
 TEST(TransformationTests, SoftPlusDecompositionFP16) {
     std::shared_ptr<ngraph::Function> f, f_ref;
     {
-        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{3, 1, 2});
-        auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(data);
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::Shape{3, 1, 2});
+        auto softplus = std::make_shared<ngraph::op::v4::SoftPlus>(data);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{softplus}, ngraph::ParameterVector{data});
 
@@ -63,10 +63,10 @@ TEST(TransformationTests, SoftPlusDecompositionFP16) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{3, 1, 2});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::Shape{3, 1, 2});
         auto exp = std::make_shared<ngraph::opset4::Exp>(input);
-        auto add = std::make_shared<ngraph::opset4::Add>(exp,
-            ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {1.0}));
+        auto add = std::make_shared<ngraph::op::v1::Add>(exp,
+            ngraph::op::v0::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {1.0}));
         auto log = std::make_shared<ngraph::opset4::Log>(add);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{log}, ngraph::ParameterVector{input});

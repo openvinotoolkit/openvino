@@ -23,7 +23,7 @@ public:
         const ngraph::element::Type inputPrecision,
         const ngraph::PartialShape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        std::shared_ptr<ngraph::opset1::Constant> weights,
+        std::shared_ptr<ngraph::op::v0::Constant> weights,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights);
 
     static std::shared_ptr<ngraph::Function> getOriginalWithIncorrectWeights(
@@ -53,7 +53,7 @@ public:
         const ngraph::element::Type inputPrecision,
         const ngraph::PartialShape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        std::shared_ptr<ngraph::opset1::Constant> weights,
+        std::shared_ptr<ngraph::op::v0::Constant> weights,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
         const ngraph::element::Type precisionAfterOperation,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,

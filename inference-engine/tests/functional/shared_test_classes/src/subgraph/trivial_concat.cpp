@@ -41,7 +41,7 @@ void TrivialConcatLayerTest::SetUp() {
 
     auto first_reshape = std::make_shared<ngraph::op::v1::Reshape>(constant, input_reshape_pattern, false);
 
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector({first_reshape, input}), axis);
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector({first_reshape, input}), axis);
 
     auto final_reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
         ngraph::Shape{2}, std::vector<size_t>({1, 2 * total_size}));
@@ -49,7 +49,7 @@ void TrivialConcatLayerTest::SetUp() {
 
     auto act = ngraph::builder::makeActivation(final_reshape, ngPrc, ngraph::helpers::ActivationTypes::Relu);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(act)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(act)};
     function = std::make_shared<ngraph::Function>(results, params, "trivial_concat");
 }
 }  // namespace SubgraphTestsDefinitions

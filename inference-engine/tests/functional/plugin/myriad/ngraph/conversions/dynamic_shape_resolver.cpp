@@ -25,8 +25,8 @@ public:
         const auto shapeType   = ngraph::element::i64;
         const auto tensorShape = std::initializer_list<std::size_t>{1, 800};
 
-        const auto tensor = std::make_shared<ngraph::opset3::Parameter>(tensorType, ngraph::Shape{tensorShape});
-        const auto shape  = std::make_shared<ngraph::opset3::Parameter>(shapeType, ngraph::Shape{tensorShape.size()});
+        const auto tensor = std::make_shared<ngraph::op::v0::Parameter>(tensorType, ngraph::Shape{tensorShape});
+        const auto shape  = std::make_shared<ngraph::op::v0::Parameter>(shapeType, ngraph::Shape{tensorShape.size()});
         auto dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(tensor, shape);
         dynamicShapeResolver->set_friendly_name(s_FriendlyName);
         const auto function = std::make_shared<ngraph::Function>(ngraph::NodeVector{dynamicShapeResolver}, ngraph::ParameterVector{tensor, shape});

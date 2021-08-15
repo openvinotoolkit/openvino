@@ -62,13 +62,13 @@ void ScatterNDUpdateLayerTest::SetUp() {
     auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     auto idxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indicesPrecision);
     ngraph::ParameterVector paramVector;
-    auto inputParams = std::make_shared<ngraph::opset1::Parameter>(inPrc, ngraph::Shape(inShape));
+    auto inputParams = std::make_shared<ngraph::op::v0::Parameter>(inPrc, ngraph::Shape(inShape));
     paramVector.push_back(inputParams);
-    auto updateParams = std::make_shared<ngraph::opset1::Parameter>(inPrc, ngraph::Shape(updateShape));
+    auto updateParams = std::make_shared<ngraph::op::v0::Parameter>(inPrc, ngraph::Shape(updateShape));
     paramVector.push_back(updateParams);
     auto paramVectorOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
     auto s2d = ngraph::builder::makeScatterNDUpdate(paramVectorOuts[0], idxPrc, indicesShape, indicesValue, paramVectorOuts[1]);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2d)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(s2d)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "ScatterNDUpdate");
 }
 }  // namespace LayerTestsDefinitions

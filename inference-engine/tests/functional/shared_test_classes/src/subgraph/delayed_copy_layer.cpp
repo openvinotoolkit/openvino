@@ -27,14 +27,14 @@ namespace SubgraphTestsDefinitions {
 
         auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{1, 128}, std::vector<float>{0});
 
-        auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "id");
+        auto mem_r = std::make_shared<ngraph::op::v3::ReadValue>(mem_c, "id");
 
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{mem_r, input[0]}, 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{mem_r, input[0]}, 1);
         auto split = ngraph::builder::makeVariadicSplit(concat, {384, 128}, 1);
-        auto mem_w = std::make_shared<ngraph::opset3::Assign>(split->output(1), "id");
+        auto mem_w = std::make_shared<ngraph::op::v3::Assign>(split->output(1), "id");
 
         auto VariadicSplit = ngraph::builder::makeVariadicSplit(concat, {64, 448}, 1);
-        auto relu2 = std::make_shared<ngraph::opset1::Sigmoid>(VariadicSplit->output(1));
+        auto relu2 = std::make_shared<ngraph::op::v0::Sigmoid>(VariadicSplit->output(1));
 
         mem_w->add_control_dependency(mem_r);
         relu2->add_control_dependency(mem_w);
@@ -51,11 +51,11 @@ namespace SubgraphTestsDefinitions {
         auto input = ngraph::builder::makeParams(ngPrc, {{1, 384}});
 
         auto mem_c = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{1, 128}, std::vector<float>{0});
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{mem_c, input[0]}, 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{mem_c, input[0]}, 1);
         auto split = ngraph::builder::makeVariadicSplit(concat, {384, 128}, 1);
 
         auto VariadicSplit = ngraph::builder::makeVariadicSplit(concat, {64, 448}, 1);
-        auto relu2 = std::make_shared<ngraph::opset1::Sigmoid>(VariadicSplit->output(1));
+        auto relu2 = std::make_shared<ngraph::op::v0::Sigmoid>(VariadicSplit->output(1));
 
         function = std::make_shared<ngraph::Function>(relu2, input, "delayed_copy_layer_nonmemory");
     }

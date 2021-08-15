@@ -13,7 +13,7 @@ namespace builder {
 std::shared_ptr<Node> makeShuffleChannels(const ngraph::Output<Node> &in,
                                           int axis,
                                           int group) {
-    return std::make_shared<ngraph::opset3::ShuffleChannels>(in, axis, group);
+    return std::make_shared<ngraph::op::v0::ShuffleChannels>(in, axis, group);
 }
 
 }  // namespace builder

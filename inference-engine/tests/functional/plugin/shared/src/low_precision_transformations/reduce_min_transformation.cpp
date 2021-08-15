@@ -37,7 +37,7 @@ void ReduceMinTransformation::SetUp() {
     ReduceMinTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
-    function = ngraph::builder::subgraph::ReduceFunction::getOriginal<ngraph::opset1::ReduceMin>(
+    function = ngraph::builder::subgraph::ReduceFunction::getOriginal<ngraph::op::v1::ReduceMin>(
         netPrecision,
         inputShape,
         param.fakeQuantize,

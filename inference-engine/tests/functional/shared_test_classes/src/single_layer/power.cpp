@@ -37,7 +37,7 @@ namespace LayerTestsDefinitions {
         auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
 
         auto power_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1 }, power);
-        auto pow = std::make_shared<ngraph::opset1::Power>(paramsIn[0], power_const);
+        auto pow = std::make_shared<ngraph::op::v1::Power>(paramsIn[0], power_const);
 
         function = std::make_shared<ngraph::Function>(pow, paramsIn, "power");
     }

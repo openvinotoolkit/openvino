@@ -13,10 +13,10 @@ std::shared_ptr<ngraph::Node> makeConversion(const ngraph::Output<Node>& in,
                                              const element::Type& output_type,
                                              const ngraph::helpers::ConversionTypes& conversionType) {
     if (conversionType == ngraph::helpers::ConversionTypes::CONVERT) {
-        return std::make_shared<ngraph::opset1::Convert>(in, output_type);
+        return std::make_shared<ngraph::op::v0::Convert>(in, output_type);
     } else if (conversionType == ngraph::helpers::ConversionTypes::CONVERT_LIKE) {
         const auto like = std::make_shared<op::Constant>(output_type, ngraph::Shape{1});
-        return std::make_shared<ngraph::opset1::ConvertLike>(in, like);
+        return std::make_shared<ngraph::op::v1::ConvertLike>(in, like);
     } else {
         throw std::runtime_error("Incorrect type of Conversion operation");
     }

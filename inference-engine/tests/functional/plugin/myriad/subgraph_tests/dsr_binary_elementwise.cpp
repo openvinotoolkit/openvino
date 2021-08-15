@@ -71,8 +71,8 @@ protected:
 };
 
 static const std::vector<ngraph::NodeTypeInfo> binaryEltwiseTypeVector = {
-        ngraph::opset6::Add::type_info,
-        ngraph::opset6::Multiply::type_info,
+        ngraph::op::v1::Add::type_info,
+        ngraph::op::v1::Multiply::type_info,
         ngraph::opset6::Divide::type_info,
         ngraph::opset6::Subtract::type_info,
         ngraph::opset6::Equal::type_info,

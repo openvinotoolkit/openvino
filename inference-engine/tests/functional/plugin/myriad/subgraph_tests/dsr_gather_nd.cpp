@@ -74,7 +74,7 @@ protected:
         const auto indicesParam = createParameter(idxType, gatherSetup.indicesShape.shape);
         m_indicesInputNames.insert(indicesParam->get_friendly_name());
 
-        return std::make_shared<ngraph::opset5::GatherND>(inputDataSubgraph, indicesParam, gatherSetup.batchDims);
+        return std::make_shared<ngraph::op::v5::GatherND>(inputDataSubgraph, indicesParam, gatherSetup.batchDims);
     }
 };
 
@@ -104,7 +104,7 @@ protected:
         const auto inputIdxSubgraph = createInputSubgraphWithDSR(idxType, gatherSetup.indicesShape);
         m_indicesInputNames.insert(inputIdxSubgraph->get_input_node_shared_ptr(0)->get_friendly_name());
 
-        return std::make_shared<ngraph::opset5::GatherND>(dataParam, inputIdxSubgraph, gatherSetup.batchDims);
+        return std::make_shared<ngraph::op::v5::GatherND>(dataParam, inputIdxSubgraph, gatherSetup.batchDims);
     }
 };
 
@@ -134,7 +134,7 @@ protected:
         const auto inputIdxSubgraph = createInputSubgraphWithDSR(idxType, gatherSetup.indicesShape);
         m_indicesInputNames.insert(inputIdxSubgraph->get_input_node_shared_ptr(0)->get_friendly_name());
 
-        return std::make_shared<ngraph::opset5::GatherND>(inputDataSubgraph, inputIdxSubgraph, gatherSetup.batchDims);
+        return std::make_shared<ngraph::op::v5::GatherND>(inputDataSubgraph, inputIdxSubgraph, gatherSetup.batchDims);
     }
 };
 

@@ -58,12 +58,12 @@ protected:
         const ngraph::element::Type_t& dataType,
         const ngraph::Shape& dataDims,
         const std::vector<std::int64_t>& permutation) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataDims);
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims.size()});
-        const auto transposition = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{data->get_shape().size()}, permutation);
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims);
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims.size()});
+        const auto transposition = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{data->get_shape().size()}, permutation);
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
-        const auto transpose = std::make_shared<ngraph::opset3::Transpose>(dsr, transposition);
+        const auto transpose = std::make_shared<ngraph::op::v1::Transpose>(dsr, transposition);
 
         auto outputShape = transpose->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
@@ -72,7 +72,7 @@ protected:
             "Actual");
         transpose->set_output_type(0, dsr->get_input_element_type(0), makeDynamicShape(transposition->get_output_partial_shape(0)));
 
-        const auto transformations = vpu::Transformations{{ngraph::opset3::Transpose::type_info, vpu::dynamicToStaticShapeTranspose}};
+        const auto transformations = vpu::Transformations{{ngraph::op::v1::Transpose::type_info, vpu::dynamicToStaticShapeTranspose}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
@@ -81,18 +81,18 @@ protected:
         const ngraph::element::Type_t& dataType,
         const ngraph::Shape& dataDims,
         const std::vector<std::int64_t>& permutation) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataDims);
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims.size()});
-        const auto transposition = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{data->get_shape().size()}, permutation);
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims);
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims.size()});
+        const auto transposition = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{data->get_shape().size()}, permutation);
 
         const auto dsr0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
-        const auto transpose = std::make_shared<ngraph::opset3::Transpose>(dsr0, transposition);
+        const auto transpose = std::make_shared<ngraph::op::v1::Transpose>(dsr0, transposition);
 
-        const auto axis = std::make_shared<ngraph::opset3::Constant>(
+        const auto axis = std::make_shared<ngraph::op::v0::Constant>(
             ngraph::element::u64,
             ngraph::Shape{std::initializer_list<std::size_t>{1}},
             std::vector<std::size_t>{0});
-        const auto scatterElementsUpdate = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(dims, transposition, dims, axis);
+        const auto scatterElementsUpdate = std::make_shared<ngraph::op::v3::ScatterElementsUpdate>(dims, transposition, dims, axis);
         const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(transpose, scatterElementsUpdate);
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{dsr1},

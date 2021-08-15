@@ -64,8 +64,8 @@ void ConstConvConcatTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
     std::vector<size_t> convInputShape = {inputShape[0], inputChannels, 1,  inputShape[1] / inputChannels};
-    auto reshapePattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], reshapePattern1, false);
+    auto reshapePattern1 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, convInputShape);
+    auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(params[0], reshapePattern1, false);
 
     auto filterWeights = CommonTestUtils::generate_float_numbers(outputChannels * convInputShape[1] * kernelShape[0] * kernelShape[1],
                                                                  0.0f, 0.1f);
@@ -79,9 +79,9 @@ void ConstConvConcatTest::SetUp() {
     auto constant = ngraph::builder::makeConstant(ngPrc, {1, outputChannels, 1, widthAfterConv}, const_values);
     auto concat = ngraph::builder::makeConcat({constant, conv}, 3);
 
-    auto reshapePattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 },
+    auto reshapePattern2 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 },
                                                                       std::vector<size_t>{1,  2 * outputChannels * widthAfterConv });
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(concat, reshapePattern2, false);
+    auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(concat, reshapePattern2, false);
 
     function = std::make_shared<ngraph::Function>(reshape2, params, "ConstConvConcatTest");
 }

@@ -35,7 +35,7 @@ void MvnLayerTest::SetUp() {
     auto param = ngraph::builder::makeParams(inType, {inputShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
     auto mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "mvn");
 }
 
@@ -75,7 +75,7 @@ void Mvn1LayerTest::SetUp() {
     if (!axes.empty()) {
         mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(paramOuts[0], axes, normalizeVariance, eps));
     }
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "MVN1");
 }
 
@@ -117,7 +117,7 @@ void Mvn6LayerTest::SetUp() {
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
     auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
     auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, epsMode);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "MVN6");
 }
 

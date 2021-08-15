@@ -23,9 +23,9 @@ using namespace testing;
 TEST(TransformationTests, ConvertBroadcastToTilesDynamic) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto target_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(input1, target_shape);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto target_shape = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<ngraph::op::v3::Broadcast>(input1, target_shape);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});

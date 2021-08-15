@@ -33,12 +33,12 @@ protected:
     std::shared_ptr<const ngraph::Function> transform(
             const ngraph::element::Type_t& dataType,
             const ngraph::Shape& dataDims) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataDims);
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims);
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
 
-        const auto convert = std::make_shared<ngraph::opset3::Convert>(dsr, dataType);
+        const auto convert = std::make_shared<ngraph::op::v0::Convert>(dsr, dataType);
 
         auto outputShape = convert->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
@@ -47,7 +47,7 @@ protected:
                 "Actual");
         convert->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(outputShape.rank()));
 
-        const auto transformations = vpu::Transformations{{ngraph::opset3::Convert::type_info, vpu::dynamicToStaticUnaryElementwise}};
+        const auto transformations = vpu::Transformations{{ngraph::op::v0::Convert::type_info, vpu::dynamicToStaticUnaryElementwise}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
@@ -55,11 +55,11 @@ protected:
     std::shared_ptr<const ngraph::Function> reference(
             const ngraph::element::Type_t& dataType,
             const ngraph::Shape& dataDims) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataDims);
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims);
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims.size()});
 
         const auto dsr0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
-        const auto convert = std::make_shared<ngraph::opset3::Convert>(dsr0, dataType);
+        const auto convert = std::make_shared<ngraph::op::v0::Convert>(dsr0, dataType);
 
         const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(convert, dims);
         return std::make_shared<ngraph::Function>(

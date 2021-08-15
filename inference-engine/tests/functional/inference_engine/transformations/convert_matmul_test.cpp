@@ -30,9 +30,9 @@ using namespace testing;
 TEST(TransformationTests, ConvertMatMulTest1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, false);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto input2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1});
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(input1, input2, false, false);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1, input2});
 
@@ -45,12 +45,12 @@ TEST(TransformationTests, ConvertMatMulTest1) {
     }
 
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1});
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto input2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1});
 
         auto reshape = ngraph::op::util::reshapeTo(input2, {1, 2, 1});
 
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, reshape, false, false);
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(input1, reshape, false, false);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1, input2});
     }
@@ -62,9 +62,9 @@ TEST(TransformationTests, ConvertMatMulTest1) {
 TEST(TransformationTests, ConvertMatMulTest2) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, false);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto input2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2});
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(input1, input2, false, false);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1, input2});
 
@@ -77,13 +77,13 @@ TEST(TransformationTests, ConvertMatMulTest2) {
     }
 
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2});
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto input2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2});
 
-        auto usnqueeze_input2 = std::make_shared<ngraph::opset1::Unsqueeze>(input2,
-            ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}));
+        auto usnqueeze_input2 = std::make_shared<ngraph::op::v0::Unsqueeze>(input2,
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}));
         auto reshape = ngraph::op::util::reshapeTo(usnqueeze_input2, {1, 2, 1});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, reshape, false, false);
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(input1, reshape, false, false);
         auto reshape_output = ngraph::op::util::reshapeTo(matmul, {3, 1});
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_output}, ngraph::ParameterVector{input1, input2});
@@ -96,9 +96,9 @@ TEST(TransformationTests, ConvertMatMulTest2) {
 TEST(TransformationTests, ConvertMatMulTest3) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2});
-        auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 1});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, false);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2});
+        auto input2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 1});
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(input1, input2, false, false);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1, input2});
         ngraph::pass::Manager m;
@@ -110,13 +110,13 @@ TEST(TransformationTests, ConvertMatMulTest3) {
     }
 
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2});
-        auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 1});
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2});
+        auto input2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 1});
 
-        auto usnqueeze_input1 = std::make_shared<ngraph::opset1::Unsqueeze>(input1,
-            ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+        auto usnqueeze_input1 = std::make_shared<ngraph::op::v0::Unsqueeze>(input1,
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
         auto reshape = ngraph::op::util::reshapeTo(usnqueeze_input1, {1, 1, 2});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(reshape, input2, false, false);
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(reshape, input2, false, false);
         auto reshape_output = ngraph::op::util::reshapeTo(matmul, {3, 1});
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_output}, ngraph::ParameterVector{input1, input2});
@@ -129,9 +129,9 @@ TEST(TransformationTests, ConvertMatMulTest3) {
 TEST(TransformationTests, ConvertMatMulTest4) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 1});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, false);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto input2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 1});
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(input1, input2, false, false);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1, input2});
         ngraph::pass::Manager m;
@@ -143,9 +143,9 @@ TEST(TransformationTests, ConvertMatMulTest4) {
     }
 
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 1});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, false);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto input2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 1});
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(input1, input2, false, false);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1, input2});
     }
@@ -157,9 +157,9 @@ TEST(TransformationTests, ConvertMatMulTest4) {
 TEST(TransformationTests, ConvertMatMulTest5) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
-        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, true);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
+        auto input2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(input1, input2, false, true);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
         ngraph::pass::Manager m;
@@ -171,9 +171,9 @@ TEST(TransformationTests, ConvertMatMulTest5) {
     }
 
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
-        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
-        auto input3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2}, {1});
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
+        auto input2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
+        auto input3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{2}, {1});
         auto matmul = std::make_shared<ngraph::op::FullyConnected>(input1, input2, input3, ngraph::Shape{3, 2, 2});
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
@@ -186,9 +186,9 @@ TEST(TransformationTests, ConvertMatMulTest5) {
 TEST(TransformationTests, ConvertMatMulTest6) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
-        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, true);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
+        auto input2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(input1, input2, false, true);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
         ngraph::pass::Manager m;
@@ -201,9 +201,9 @@ TEST(TransformationTests, ConvertMatMulTest6) {
     }
 
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
-        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
-        auto input3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2}, {1});
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
+        auto input2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
+        auto input3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{2}, {1});
         auto reshape_begin = ngraph::op::util::reshapeTo(input1, ngraph::Shape{6, 2});
         auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape_begin, input2, input3, ngraph::Shape{6, 2});
         auto reshape_end = ngraph::op::util::reshapeTo(fc, ngraph::Shape{3, 2, 2});
@@ -218,9 +218,9 @@ TEST(TransformationTests, ConvertMatMulTest6) {
 TEST(TransformationTests, ConvertMatMulTest7) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
-        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, true);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
+        auto input2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(input1, input2, false, true);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
 
@@ -247,9 +247,9 @@ TEST(TransformationTests, ConvertMatMulTest7) {
     }
 
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
-        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
-        auto input3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2}, {1});
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
+        auto input2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
+        auto input3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{2}, {1});
         auto matmul = std::make_shared<ngraph::op::FullyConnected>(input1, input2, input3, ngraph::Shape{3, 2, 2});
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
@@ -260,9 +260,9 @@ TEST(TransformationTests, ConvertMatMulTest7) {
 }
 
 TEST(TransformationTests, ConvertMatMulDynamic) {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, true);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto input2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(input1, input2, false, true);
 
         auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
 

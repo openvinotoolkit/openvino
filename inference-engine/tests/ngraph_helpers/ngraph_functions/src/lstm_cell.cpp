@@ -55,7 +55,7 @@ std::shared_ptr<ngraph::Node> makeLSTM(const std::vector<ngraph::Output<Node>>& 
             default:
                 throw std::runtime_error("Incorrect mode for creation of Sequence operation");
         }
-        return std::make_shared<ngraph::opset5::LSTMSequence>(in[0], in[1], in[2], seq_lengths, W, R, B, hidden_size, direction,
+        return std::make_shared<ngraph::op::v5::LSTMSequence>(in[0], in[1], in[2], seq_lengths, W, R, B, hidden_size, direction,
                                                           activations_alpha, activations_beta, activations, clip);
     }
 }

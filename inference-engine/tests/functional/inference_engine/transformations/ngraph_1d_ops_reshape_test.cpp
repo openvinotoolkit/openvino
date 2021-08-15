@@ -92,11 +92,11 @@ TEST(TransformationTests, ConvBiasReshapeTest1) {
 TEST(TransformationTests, MaxPoolReshapeTest1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
+        auto input = std::make_shared<op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
 
         ngraph::Strides strides{1};
         ngraph::Shape pads_begin{0}, pads_end{0}, kernel{3};
-        auto pool = std::make_shared<ngraph::opset1::MaxPool>(input, strides, pads_begin, pads_end, kernel, ngraph::op::RoundingType::FLOOR);
+        auto pool = std::make_shared<ngraph::op::v1::MaxPool>(input, strides, pads_begin, pads_end, kernel, ngraph::op::RoundingType::FLOOR);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{pool}, ngraph::ParameterVector{input});
         ngraph::pass::InitNodeInfo().run_on_function(f);
@@ -105,15 +105,15 @@ TEST(TransformationTests, MaxPoolReshapeTest1) {
     }
 
     {
-        auto input = std::make_shared<opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
+        auto input = std::make_shared<op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
 
-        auto reshape_begin = std::make_shared<opset1::Reshape>(input, opset1::Constant::create(element::i64, Shape{4}, {1, 3, 1, 64}), true);
+        auto reshape_begin = std::make_shared<op::v1::Reshape>(input, op::v0::Constant::create(element::i64, Shape{4}, {1, 3, 1, 64}), true);
 
         ngraph::Strides strides{1, 1};
         ngraph::Shape pads_begin{0, 0}, pads_end{0, 0}, kernel{1, 3};
-        auto pool = std::make_shared<ngraph::opset1::MaxPool>(reshape_begin, strides, pads_begin, pads_end, kernel, ngraph::op::RoundingType::FLOOR);
+        auto pool = std::make_shared<ngraph::op::v1::MaxPool>(reshape_begin, strides, pads_begin, pads_end, kernel, ngraph::op::RoundingType::FLOOR);
 
-        auto reshape_end = std::make_shared<opset1::Reshape>(pool, opset1::Constant::create(element::i64, Shape{3}, {1, 3, 62}), true);
+        auto reshape_end = std::make_shared<op::v1::Reshape>(pool, op::v0::Constant::create(element::i64, Shape{3}, {1, 3, 62}), true);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_end}, ngraph::ParameterVector{input});
     }
@@ -125,11 +125,11 @@ TEST(TransformationTests, MaxPoolReshapeTest1) {
 TEST(TransformationTests, AvgPoolReshapeTest1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
+        auto input = std::make_shared<op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
 
         ngraph::Strides strides{1};
         ngraph::Shape pads_begin{0}, pads_end{0}, kernel{3};
-        auto pool = std::make_shared<ngraph::opset1::AvgPool>(input, strides, pads_begin, pads_end, kernel, false, ngraph::op::RoundingType::FLOOR);
+        auto pool = std::make_shared<ngraph::op::v1::AvgPool>(input, strides, pads_begin, pads_end, kernel, false, ngraph::op::RoundingType::FLOOR);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{pool}, ngraph::ParameterVector{input});
         ngraph::pass::InitNodeInfo().run_on_function(f);
@@ -138,15 +138,15 @@ TEST(TransformationTests, AvgPoolReshapeTest1) {
     }
 
     {
-        auto input = std::make_shared<opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
+        auto input = std::make_shared<op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
 
-        auto reshape_begin = std::make_shared<opset1::Reshape>(input, opset1::Constant::create(element::i64, Shape{4}, {1, 3, 1, 64}), true);
+        auto reshape_begin = std::make_shared<op::v1::Reshape>(input, op::v0::Constant::create(element::i64, Shape{4}, {1, 3, 1, 64}), true);
 
         ngraph::Strides strides{1, 1};
         ngraph::Shape pads_begin{0, 0}, pads_end{0, 0}, kernel{1, 3};
-        auto pool = std::make_shared<ngraph::opset1::AvgPool>(reshape_begin, strides, pads_begin, pads_end, kernel, false, ngraph::op::RoundingType::FLOOR);
+        auto pool = std::make_shared<ngraph::op::v1::AvgPool>(reshape_begin, strides, pads_begin, pads_end, kernel, false, ngraph::op::RoundingType::FLOOR);
 
-        auto reshape_end = std::make_shared<opset1::Reshape>(pool, opset1::Constant::create(element::i64, Shape{3}, {1, 3, 62}), true);
+        auto reshape_end = std::make_shared<op::v1::Reshape>(pool, op::v0::Constant::create(element::i64, Shape{3}, {1, 3, 62}), true);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_end}, ngraph::ParameterVector{input});
     }
@@ -157,11 +157,11 @@ TEST(TransformationTests, AvgPoolReshapeTest1) {
 
 TEST(TransformationTests, ReshapeDynamicTest1) {
     {
-        auto input = std::make_shared<opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto input = std::make_shared<op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
 
         ngraph::Strides strides{1};
         ngraph::Shape pads_begin{0}, pads_end{0}, kernel{3};
-        auto pool = std::make_shared<ngraph::opset1::AvgPool>(input, strides, pads_begin, pads_end, kernel, false, ngraph::op::RoundingType::FLOOR);
+        auto pool = std::make_shared<ngraph::op::v1::AvgPool>(input, strides, pads_begin, pads_end, kernel, false, ngraph::op::RoundingType::FLOOR);
 
         auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{pool}, ngraph::ParameterVector{input});
         pass::Manager manager;
@@ -170,11 +170,11 @@ TEST(TransformationTests, ReshapeDynamicTest1) {
     }
 
     {
-        auto input = std::make_shared<opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
+        auto input = std::make_shared<op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
 
         ngraph::Strides strides{1};
         ngraph::Shape pads_begin{0}, pads_end{0}, kernel{3};
-        auto pool = std::make_shared<ngraph::opset1::MaxPool>(input, strides, pads_begin, pads_end, kernel, ngraph::op::RoundingType::FLOOR);
+        auto pool = std::make_shared<ngraph::op::v1::MaxPool>(input, strides, pads_begin, pads_end, kernel, ngraph::op::RoundingType::FLOOR);
 
         auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{pool}, ngraph::ParameterVector{input});
         pass::Manager manager;

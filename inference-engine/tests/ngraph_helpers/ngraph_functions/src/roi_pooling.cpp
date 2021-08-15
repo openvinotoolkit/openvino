@@ -17,9 +17,9 @@ std::shared_ptr<Node> makeROIPooling(const Output<Node>& input,
                                      const ngraph::helpers::ROIPoolingTypes& roi_pool_type) {
     switch (roi_pool_type) {
         case helpers::ROIPoolingTypes::ROI_MAX:
-            return std::make_shared<ngraph::opset3::ROIPooling>(input, coords, output_size, spatial_scale, "max");
+            return std::make_shared<ngraph::op::v0::ROIPooling>(input, coords, output_size, spatial_scale, "max");
         case helpers::ROIPoolingTypes::ROI_BILINEAR:
-            return std::make_shared<ngraph::opset3::ROIPooling>(input, coords, output_size, spatial_scale, "bilinear");
+            return std::make_shared<ngraph::op::v0::ROIPooling>(input, coords, output_size, spatial_scale, "bilinear");
         default:
             throw std::runtime_error("Incorrect type of ROIPooling operation");
     }

@@ -65,14 +65,14 @@ protected:
         const ngraph::element::Type_t& data_type,
         const ngraph::element::Type_t& idx_type,
         const GatherTestCase& gather_setup) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, gather_setup.data_shape);
-        const auto indices = std::make_shared<ngraph::opset3::Parameter>(idx_type, gather_setup.index_shape);
-        const auto axis = ngraph::opset3::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gather_setup.axis});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, gather_setup.data_shape);
+        const auto indices = std::make_shared<ngraph::op::v0::Parameter>(idx_type, gather_setup.index_shape);
+        const auto axis = ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gather_setup.axis});
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.data_shape.size()});
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.data_shape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
-        const auto node = std::make_shared<ngraph::opset3::Gather>(dsr, indices, axis);
+        const auto node = std::make_shared<ngraph::op::v1::Gather>(dsr, indices, axis);
 
         auto outputShape = node->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
@@ -91,16 +91,16 @@ protected:
             const ngraph::element::Type_t& data_type,
             const ngraph::element::Type_t& idx_type,
             const GatherTestCase& gather_setup) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, gather_setup.data_shape);
-        const auto indices = std::make_shared<ngraph::opset3::Parameter>(idx_type, gather_setup.index_shape);
-        const auto axis = ngraph::opset3::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gather_setup.axis});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, gather_setup.data_shape);
+        const auto indices = std::make_shared<ngraph::op::v0::Parameter>(idx_type, gather_setup.index_shape);
+        const auto axis = ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gather_setup.axis});
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.data_shape.size()});
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.data_shape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
-        const auto node = std::make_shared<ngraph::opset3::Gather>(dsr, indices, axis);
+        const auto node = std::make_shared<ngraph::op::v1::Gather>(dsr, indices, axis);
 
-        const auto indices_shape = ngraph::opset3::Constant::create(dims->get_element_type(), {gather_setup.index_shape.size()}, gather_setup.index_shape);
+        const auto indices_shape = ngraph::op::v0::Constant::create(dims->get_element_type(), {gather_setup.index_shape.size()}, gather_setup.index_shape);
         ngraph::OutputVector output_dims;
         if (gather_setup.first_split_point) {
             output_dims.push_back(vpu::gatherShapeElements(dims, 0, gather_setup.first_split_point));
@@ -113,7 +113,7 @@ protected:
                 gather_setup.second_split_point,
                 gather_setup.data_shape.size() - gather_setup.second_split_point));
         }
-        const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
+        const auto output_shape = std::make_shared<ngraph::op::v0::Concat>(output_dims, 0);
         const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node, output_shape);
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{dsr1},
@@ -145,14 +145,14 @@ protected:
         const ngraph::element::Type_t& data_type,
         const ngraph::element::Type_t& idx_type,
         const GatherTestCase& gather_setup) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, gather_setup.data_shape);
-        const auto indices = std::make_shared<ngraph::opset3::Parameter>(idx_type, gather_setup.index_shape);
-        const auto axis = ngraph::opset3::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gather_setup.axis});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, gather_setup.data_shape);
+        const auto indices = std::make_shared<ngraph::op::v0::Parameter>(idx_type, gather_setup.index_shape);
+        const auto axis = ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gather_setup.axis});
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.index_shape.size()});
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.index_shape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(indices, dims);
-        const auto node = std::make_shared<ngraph::opset3::Gather>(data, dsr, axis);
+        const auto node = std::make_shared<ngraph::op::v1::Gather>(data, dsr, axis);
 
         auto outputShape = node->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
@@ -171,16 +171,16 @@ protected:
             const ngraph::element::Type_t& data_type,
             const ngraph::element::Type_t& idx_type,
             const GatherTestCase& gather_setup) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, gather_setup.data_shape);
-        const auto indices = std::make_shared<ngraph::opset3::Parameter>(idx_type, gather_setup.index_shape);
-        const auto axis = ngraph::opset3::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gather_setup.axis});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, gather_setup.data_shape);
+        const auto indices = std::make_shared<ngraph::op::v0::Parameter>(idx_type, gather_setup.index_shape);
+        const auto axis = ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gather_setup.axis});
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.index_shape.size()});
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.index_shape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(indices, dims);
-        const auto node = std::make_shared<ngraph::opset3::Gather>(data, dsr, axis);
+        const auto node = std::make_shared<ngraph::op::v1::Gather>(data, dsr, axis);
 
-        const auto data_shape = ngraph::opset3::Constant::create(dims->get_element_type(), {gather_setup.data_shape.size()}, gather_setup.data_shape);
+        const auto data_shape = ngraph::op::v0::Constant::create(dims->get_element_type(), {gather_setup.data_shape.size()}, gather_setup.data_shape);
 
         ngraph::OutputVector output_dims;
         if (gather_setup.first_split_point) {
@@ -194,7 +194,7 @@ protected:
                 gather_setup.second_split_point,
                 gather_setup.data_shape.size() - gather_setup.second_split_point));
         }
-        const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
+        const auto output_shape = std::make_shared<ngraph::op::v0::Concat>(output_dims, 0);
         const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node, output_shape);
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{dsr1},
@@ -226,16 +226,16 @@ protected:
         const ngraph::element::Type_t& data_type,
         const ngraph::element::Type_t& idx_type,
         const GatherTestCase& gather_setup) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, gather_setup.data_shape);
-        const auto indices = std::make_shared<ngraph::opset3::Parameter>(idx_type, gather_setup.index_shape);
-        const auto axis = ngraph::opset3::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gather_setup.axis});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, gather_setup.data_shape);
+        const auto indices = std::make_shared<ngraph::op::v0::Parameter>(idx_type, gather_setup.index_shape);
+        const auto axis = ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gather_setup.axis});
 
-        const auto data_dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.data_shape.size()});
-        const auto indices_dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.index_shape.size()});
+        const auto data_dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.data_shape.size()});
+        const auto indices_dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.index_shape.size()});
 
         const auto data_dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, data_dims);
         const auto indices_dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(indices, indices_dims);
-        const auto node = std::make_shared<ngraph::opset3::Gather>(data_dsr, indices_dsr, axis);
+        const auto node = std::make_shared<ngraph::op::v1::Gather>(data_dsr, indices_dsr, axis);
 
         auto outputShape = node->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
@@ -254,16 +254,16 @@ protected:
             const ngraph::element::Type_t& data_type,
             const ngraph::element::Type_t& idx_type,
             const GatherTestCase& gather_setup) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, gather_setup.data_shape);
-        const auto indices = std::make_shared<ngraph::opset3::Parameter>(idx_type, gather_setup.index_shape);
-        const auto axis = ngraph::opset3::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gather_setup.axis});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, gather_setup.data_shape);
+        const auto indices = std::make_shared<ngraph::op::v0::Parameter>(idx_type, gather_setup.index_shape);
+        const auto axis = ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gather_setup.axis});
 
-        const auto data_dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.data_shape.size()});
-        const auto indices_dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.index_shape.size()});
+        const auto data_dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.data_shape.size()});
+        const auto indices_dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gather_setup.index_shape.size()});
 
         const auto data_dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, data_dims);
         const auto indices_dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(indices, indices_dims);
-        const auto node = std::make_shared<ngraph::opset3::Gather>(data_dsr, indices_dsr, axis);
+        const auto node = std::make_shared<ngraph::op::v1::Gather>(data_dsr, indices_dsr, axis);
 
         ngraph::OutputVector output_dims;
         if (gather_setup.first_split_point) {
@@ -277,7 +277,7 @@ protected:
                 gather_setup.second_split_point,
                 gather_setup.data_shape.size() - gather_setup.second_split_point));
         }
-        const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
+        const auto output_shape = std::make_shared<ngraph::op::v0::Concat>(output_dims, 0);
         const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node, output_shape);
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{dsr1},

@@ -48,7 +48,7 @@ void SpaceToDepthLayerTest::SetUp() {
     auto params = ngraph::builder::makeParams(inPrc, {inShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto s2d = ngraph::builder::makeSpaceToDepth(paramOuts[0], mode, blockSize);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2d)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(s2d)};
     function = std::make_shared<ngraph::Function>(results, params, "SpaceToDepth");
 }
 }  // namespace LayerTestsDefinitions

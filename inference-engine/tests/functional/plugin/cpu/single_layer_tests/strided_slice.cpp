@@ -69,7 +69,7 @@ protected:
 
         ss->get_rt_info() = getCPUInfo();
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ss)};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(ss)};
         function = std::make_shared<ngraph::Function>(results, params, "StridedSlice");
     }
 };

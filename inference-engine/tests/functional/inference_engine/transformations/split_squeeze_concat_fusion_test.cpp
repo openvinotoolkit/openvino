@@ -23,13 +23,13 @@ TEST(TransformationTests, SplitSqueezeConcatFusion) {
 
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
-        auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
-        auto split = std::make_shared<ngraph::opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
+        auto split_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
+        auto split = std::make_shared<ngraph::op::v1::Split>(input, split_axis, num_splits);
         ngraph::OutputVector squeeze_vec(num_splits);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 2 });
+            auto squeeze_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 2 });
             squeeze_vec[i] = std::make_shared<ngraph::opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
@@ -45,12 +45,12 @@ TEST(TransformationTests, SplitSqueezeConcatFusion) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
-        auto transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 6 }, { 0, 1, 3, 4, 2, 5 });
-        auto transpose = std::make_shared<ngraph::opset7::Transpose>(input, transpose_order);
-        auto reshape_shape = ngraph::opset7::Constant::create<int64_t>(ngraph::element::i64, ngraph::Shape{ 5 },
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
+        auto transpose_order = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{ 6 }, { 0, 1, 3, 4, 2, 5 });
+        auto transpose = std::make_shared<ngraph::op::v1::Transpose>(input, transpose_order);
+        auto reshape_shape = ngraph::op::v0::Constant::create<int64_t>(ngraph::element::i64, ngraph::Shape{ 5 },
                                                                        { 1, 2, 640, 20, 2 * (int64_t)num_splits });
-        auto reshape = std::make_shared<ngraph::opset7::Reshape>(transpose, reshape_shape, false);
+        auto reshape = std::make_shared<ngraph::op::v1::Reshape>(transpose, reshape_shape, false);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshape }, ngraph::ParameterVector{ input });
     }
@@ -64,13 +64,13 @@ TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutputs
 
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
-        auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
-        auto split = std::make_shared<ngraph::opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
+        auto split_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
+        auto split = std::make_shared<ngraph::op::v1::Split>(input, split_axis, num_splits);
         ngraph::OutputVector squeeze_vec(num_splits - 1);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 2 });
+            auto squeeze_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 2 });
             squeeze_vec[i] = std::make_shared<ngraph::opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
@@ -87,13 +87,13 @@ TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutputs
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
-        auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
-        auto split = std::make_shared<ngraph::opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
+        auto split_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
+        auto split = std::make_shared<ngraph::op::v1::Split>(input, split_axis, num_splits);
         ngraph::OutputVector squeeze_vec(num_splits - 1);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 2 });
+            auto squeeze_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 2 });
             squeeze_vec[i] = std::make_shared<ngraph::opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
@@ -111,13 +111,13 @@ TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseSplitOutputsGoInDi
 
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
-        auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
-        auto split = std::make_shared<ngraph::opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
+        auto split_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
+        auto split = std::make_shared<ngraph::op::v1::Split>(input, split_axis, num_splits);
         ngraph::OutputVector squeeze_vec(num_splits);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 2 });
+            auto squeeze_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 2 });
             squeeze_vec[i] = std::make_shared<ngraph::opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
@@ -136,13 +136,13 @@ TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseSplitOutputsGoInDi
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
-        auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
-        auto split = std::make_shared<ngraph::opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
+        auto split_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
+        auto split = std::make_shared<ngraph::op::v1::Split>(input, split_axis, num_splits);
         ngraph::OutputVector squeeze_vec(num_splits);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 2 });
+            auto squeeze_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 2 });
             squeeze_vec[i] = std::make_shared<ngraph::opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
@@ -162,13 +162,13 @@ TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseSplitAxisDifferent
 
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
-        auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
-        auto split = std::make_shared<ngraph::opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
+        auto split_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
+        auto split = std::make_shared<ngraph::op::v1::Split>(input, split_axis, num_splits);
         ngraph::OutputVector squeeze_vec(num_splits);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 0 });
+            auto squeeze_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 0 });
             squeeze_vec[i] = std::make_shared<ngraph::opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 
@@ -185,13 +185,13 @@ TEST(TransformationTests, SplitSqueezeConcatFusionNegativeCaseSplitAxisDifferent
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
-        auto split_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
-        auto split = std::make_shared<ngraph::opset7::Split>(input, split_axis, num_splits);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, num_splits, 640, 20, 2 });
+        auto split_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 2 });
+        auto split = std::make_shared<ngraph::op::v1::Split>(input, split_axis, num_splits);
         ngraph::OutputVector squeeze_vec(num_splits);
 
         for (size_t i = 0; i < squeeze_vec.size(); i++) {
-            auto squeeze_axis = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 0 });
+            auto squeeze_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 0 });
             squeeze_vec[i] = std::make_shared<ngraph::opset7::Squeeze>(split->output(i), squeeze_axis)->output(0);
         }
 

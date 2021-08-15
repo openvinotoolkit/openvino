@@ -129,22 +129,22 @@ static std::shared_ptr<ngraph::Function> create_simple_function() {
     //    Constant---'          /
     //              Constant---'
 
-    // Create opset6::Parameter operation with static shape
-    auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i8, ngraph::Shape{3, 1, 2});
+    // Create op::v0::Parameter operation with static shape
+    auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i8, ngraph::Shape{3, 1, 2});
     data->set_friendly_name("Parameter");
 
-    auto mul_constant = ngraph::opset6::Constant::create(ngraph::element::i8, ngraph::Shape{1}, {3});
+    auto mul_constant = ngraph::op::v0::Constant::create(ngraph::element::i8, ngraph::Shape{1}, {3});
     mul_constant->set_friendly_name("mul_constant");
-    auto mul = std::make_shared<ngraph::opset6::Multiply>(data, mul_constant);
+    auto mul = std::make_shared<ngraph::op::v1::Multiply>(data, mul_constant);
     mul->set_friendly_name("mul");
 
-    auto add_constant = ngraph::opset6::Constant::create(ngraph::element::i8, ngraph::Shape{1}, {2});
+    auto add_constant = ngraph::op::v0::Constant::create(ngraph::element::i8, ngraph::Shape{1}, {2});
     add_constant->set_friendly_name("add_constant");
-    auto add = std::make_shared<ngraph::opset6::Add>(mul, add_constant);
+    auto add = std::make_shared<ngraph::op::v1::Add>(mul, add_constant);
     add->set_friendly_name("add");
 
-    // Create opset3::Result operation
-    auto res = std::make_shared<ngraph::opset6::Result>(add);
+    // Create op::v0::Result operation
+    auto res = std::make_shared<ngraph::op::v0::Result>(add);
     res->set_friendly_name("res");
 
     // Create nGraph function

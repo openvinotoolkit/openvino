@@ -46,9 +46,9 @@ void ExecGraphUniqueNodeNames::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
-    auto concat = std::make_shared<ngraph::opset1::Concat>(split->outputs(), 1);
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(split->outputs(), 1);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(concat)};
     fnPtr = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
 }
 

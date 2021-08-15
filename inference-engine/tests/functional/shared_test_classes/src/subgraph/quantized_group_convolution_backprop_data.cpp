@@ -78,10 +78,10 @@ void QuantGroupConvBackpropDataLayerTest::SetUp() {
 
     auto weightsFq = ngraph::builder::makeFakeQuantize(weightsNode, ngPrc, quantLevels, weightsFqConstShapes);
 
-    auto groupConvBackpropData = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(
+    auto groupConvBackpropData = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolutionBackpropData>(
             ngraph::builder::makeGroupConvolutionBackpropData(dataFq, weightsFq, ngPrc, stride, padBegin, padEnd, dilation, padType));
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConvBackpropData)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(groupConvBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantGroupConvolutionBackpropData");
 }
 }  // namespace SubgraphTestsDefinitions

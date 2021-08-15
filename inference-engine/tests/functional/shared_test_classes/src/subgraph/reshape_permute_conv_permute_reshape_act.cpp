@@ -52,18 +52,18 @@ namespace SubgraphTestsDefinitions {
             reshape_in_dims);
         auto reshape_in = std::make_shared<ngraph::op::v1::Reshape>(input_parameter[0], reshape_in_pattern, false);
 
-        auto permute_in_params = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
+        auto permute_in_params = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
             ngraph::Shape{4},
             ngraph::Shape{permute_in_order});
-        auto permute_in = std::make_shared<ngraph::opset1::Transpose>(reshape_in, permute_in_params);
+        auto permute_in = std::make_shared<ngraph::op::v1::Transpose>(reshape_in, permute_in_params);
 
         auto conv = ngraph::builder::makeConvolution(permute_in, ngPrc, {kernel_shape[0], kernel_shape[1]}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
             ngraph::op::PadType::VALID, output_channels);
 
-        auto permute_out_params = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
+        auto permute_out_params = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
             ngraph::Shape{4},
             permute_out_order);
-        auto permute_out = std::make_shared<ngraph::opset1::Transpose>(conv, permute_out_params);
+        auto permute_out = std::make_shared<ngraph::op::v1::Transpose>(conv, permute_out_params);
 
         auto reshape_out_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
             ngraph::Shape{2},

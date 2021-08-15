@@ -21,11 +21,11 @@ using namespace ngraph;
 TEST(TransformationTests, StartSubgraphMultipleOutputs) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
-        auto add = std::make_shared<opset1::Add>(data0, data1);
-        auto sub = std::make_shared<opset1::Subtract>(add, data1);
-        auto mul = std::make_shared<opset1::Multiply>(add, sub);
+        auto data0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+        auto add = std::make_shared<op::v1::Add>(data0, data1);
+        auto sub = std::make_shared<op::v1::Subtract>(add, data1);
+        auto mul = std::make_shared<op::v1::Multiply>(add, sub);
         f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
 
         pass::Manager m;
@@ -36,14 +36,14 @@ TEST(TransformationTests, StartSubgraphMultipleOutputs) {
     }
 
     {
-        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
-        auto indata0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto indata1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
+        auto data0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+        auto indata0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto indata1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
         auto add = std::make_shared<snippets::op::Subgraph>(NodeVector{data0, data1},
-            std::make_shared<Function>(NodeVector{std::make_shared<opset1::Add>(indata0, indata1)}, ParameterVector{indata0, indata1}));
-        auto sub = std::make_shared<opset1::Subtract>(add, data1);
-        auto mul = std::make_shared<opset1::Multiply>(add, sub);
+            std::make_shared<Function>(NodeVector{std::make_shared<op::v1::Add>(indata0, indata1)}, ParameterVector{indata0, indata1}));
+        auto sub = std::make_shared<op::v1::Subtract>(add, data1);
+        auto mul = std::make_shared<op::v1::Multiply>(add, sub);
         f_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
     }
 
@@ -54,11 +54,11 @@ TEST(TransformationTests, StartSubgraphMultipleOutputs) {
 TEST(TransformationTests, DontStartSubgraphSingleOuptut) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
-        auto add = std::make_shared<opset1::Add>(data0, data1);
-        auto sub = std::make_shared<opset1::Subtract>(add, data1);
-        auto mul = std::make_shared<opset1::Multiply>(data0, sub);
+        auto data0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+        auto add = std::make_shared<op::v1::Add>(data0, data1);
+        auto sub = std::make_shared<op::v1::Subtract>(add, data1);
+        auto mul = std::make_shared<op::v1::Multiply>(data0, sub);
         f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
 
         pass::Manager m;
@@ -69,11 +69,11 @@ TEST(TransformationTests, DontStartSubgraphSingleOuptut) {
     }
 
     {
-        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
-        auto add = std::make_shared<opset1::Add>(data0, data1);
-        auto sub = std::make_shared<opset1::Subtract>(add, data1);
-        auto mul = std::make_shared<opset1::Multiply>(data0, sub);
+        auto data0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+        auto add = std::make_shared<op::v1::Add>(data0, data1);
+        auto sub = std::make_shared<op::v1::Subtract>(add, data1);
+        auto mul = std::make_shared<op::v1::Multiply>(data0, sub);
         f_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
     }
 
@@ -84,14 +84,14 @@ TEST(TransformationTests, DontStartSubgraphSingleOuptut) {
 TEST(TransformationTests, AttachToSubgraph) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
-        auto indata0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto indata1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
+        auto data0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+        auto indata0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto indata1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
         auto add = std::make_shared<snippets::op::Subgraph>(NodeVector{data0, data1},
-            std::make_shared<Function>(NodeVector{std::make_shared<opset1::Add>(indata0, indata1)}, ParameterVector{indata0, indata1}));
-        auto neg = std::make_shared<opset1::Negative>(add);
-        auto concat = std::make_shared<opset1::Concat>(NodeVector{add, neg}, 0);
+            std::make_shared<Function>(NodeVector{std::make_shared<op::v1::Add>(indata0, indata1)}, ParameterVector{indata0, indata1}));
+        auto neg = std::make_shared<op::v0::Negative>(add);
+        auto concat = std::make_shared<op::v0::Concat>(NodeVector{add, neg}, 0);
         f = std::make_shared<Function>(NodeVector{concat}, ParameterVector{data0, data1});
 
         pass::Manager m;
@@ -102,14 +102,14 @@ TEST(TransformationTests, AttachToSubgraph) {
     }
 
     {
-        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
-        auto indata0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto indata1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
-        auto inner = std::make_shared<opset1::Add>(indata0, indata1);
+        auto data0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+        auto indata0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto indata1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+        auto inner = std::make_shared<op::v1::Add>(indata0, indata1);
         auto add = std::make_shared<snippets::op::Subgraph>(NodeVector{data0, data1},
-            std::make_shared<Function>(NodeVector{std::make_shared<opset1::Negative>(inner), inner}, ParameterVector{indata0, indata1}));
-        auto concat = std::make_shared<opset1::Concat>(OutputVector{add->output(0), add->output(1)}, 0);
+            std::make_shared<Function>(NodeVector{std::make_shared<op::v0::Negative>(inner), inner}, ParameterVector{indata0, indata1}));
+        auto concat = std::make_shared<op::v0::Concat>(OutputVector{add->output(0), add->output(1)}, 0);
         f_ref = std::make_shared<Function>(NodeVector{concat}, ParameterVector{data0, data1});
     }
 
@@ -120,14 +120,14 @@ TEST(TransformationTests, AttachToSubgraph) {
 TEST(TransformationTests, DontAttachToSubgraphIfLoop) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
-        auto indata0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto indata1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
+        auto data0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+        auto indata0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto indata1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
         auto add = std::make_shared<snippets::op::Subgraph>(NodeVector{data0, data1},
-            std::make_shared<Function>(NodeVector{std::make_shared<opset1::Add>(indata0, indata1)}, ParameterVector{indata0, indata1}));
-        auto log = std::make_shared<opset1::Log>(add);
-        auto mul = std::make_shared<opset1::Multiply>(add, log);
+            std::make_shared<Function>(NodeVector{std::make_shared<op::v1::Add>(indata0, indata1)}, ParameterVector{indata0, indata1}));
+        auto log = std::make_shared<op::v0::Log>(add);
+        auto mul = std::make_shared<op::v1::Multiply>(add, log);
         f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
 
         pass::Manager m;
@@ -138,14 +138,14 @@ TEST(TransformationTests, DontAttachToSubgraphIfLoop) {
     }
 
     {
-        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
-        auto indata0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto indata1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
+        auto data0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
+        auto indata0 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+        auto indata1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3});
         auto add = std::make_shared<snippets::op::Subgraph>(NodeVector{data0, data1},
-            std::make_shared<Function>(NodeVector{std::make_shared<opset1::Add>(indata0, indata1)}, ParameterVector{indata0, indata1}));
-        auto log = std::make_shared<opset1::Log>(add);
-        auto mul = std::make_shared<opset1::Multiply>(add, log);
+            std::make_shared<Function>(NodeVector{std::make_shared<op::v1::Add>(indata0, indata1)}, ParameterVector{indata0, indata1}));
+        auto log = std::make_shared<op::v0::Log>(add);
+        auto mul = std::make_shared<op::v1::Multiply>(add, log);
         f_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
     }
 

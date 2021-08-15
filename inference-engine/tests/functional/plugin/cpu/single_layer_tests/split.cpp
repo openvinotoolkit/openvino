@@ -65,7 +65,7 @@ protected:
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto split = std::dynamic_pointer_cast<ngraph::opset5::Split>(ngraph::builder::makeSplit(paramOuts[0],
+        auto split = std::dynamic_pointer_cast<ngraph::op::v1::Split>(ngraph::builder::makeSplit(paramOuts[0],
                                                                                                  ngPrc, numSplits, axis));
         ngraph::ResultVector results;
 
@@ -75,7 +75,7 @@ protected:
             // This is still a single layer test since the Ceiling nodes are added only as a WA.
 
             auto fakeMultiplication = std::make_shared<ngraph::opset5::Ceiling>(split->output(outIndices[i]));
-            results.push_back(std::make_shared<ngraph::opset5::Result>(fakeMultiplication));
+            results.push_back(std::make_shared<ngraph::op::v0::Result>(fakeMultiplication));
         }
         split->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(results, params, "split");

@@ -42,7 +42,7 @@ namespace subgraph {
             ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(add);
         }
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add) };
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(add) };
         return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MulAddToScaleshiftOrPowerFunction");
     }
 
@@ -74,7 +74,7 @@ namespace subgraph {
         }
 
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastNode) };
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(lastNode) };
         return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MulAddToScaleshiftOrPowerFunction");
     }
 }  // namespace subgraph

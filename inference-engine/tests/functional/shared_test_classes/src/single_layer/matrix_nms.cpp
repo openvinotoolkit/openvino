@@ -240,10 +240,10 @@ void MatrixNmsLayerTest::SetUp() {
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
     auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
-    auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], attrs);
-    auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));
-    auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(attrs.output_type, Shape{1}, {1}));
-    auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(attrs.output_type, Shape{1}, {1}));
+    auto nms = std::make_shared<op::v8::MatrixNms>(paramOuts[0], paramOuts[1], attrs);
+    auto nms_0_identity = std::make_shared<op::v1::Multiply>(nms->output(0), op::v0::Constant::create(element::f32, Shape{1}, {1}));
+    auto nms_1_identity = std::make_shared<op::v1::Multiply>(nms->output(1), op::v0::Constant::create(attrs.output_type, Shape{1}, {1}));
+    auto nms_2_identity = std::make_shared<op::v1::Multiply>(nms->output(2), op::v0::Constant::create(attrs.output_type, Shape{1}, {1}));
     function = std::make_shared<Function>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
 }
 

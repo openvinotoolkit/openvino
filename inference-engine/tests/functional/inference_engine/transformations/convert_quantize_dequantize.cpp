@@ -27,24 +27,24 @@ template <typename LowPrecision, typename T>
 std::shared_ptr<Function> create_q_dq_function(const Shape& data_shape, float in_low, float in_high, float out_low, float out_high,
                                                const Shape& zero_point_shape, std::vector<T> zero_point_values, /*const bool zero_point_in_f32,*/
                                                const Shape& scale_shape, std::vector<float> scale_values, size_t levels) {
-    auto data = std::make_shared<opset1::Parameter>(element::f32, data_shape);
-    auto input_low = opset1::Constant::create(element::f32, Shape{}, {in_low});
-    auto input_high = opset1::Constant::create(element::f32, Shape{}, {in_high});
-    auto output_low = opset1::Constant::create(element::f32, Shape{}, {out_low});
-    auto output_high = opset1::Constant::create(element::f32, Shape{}, {out_high});
-    auto fq = std::make_shared<opset1::FakeQuantize>(data, input_low,
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    auto input_low = op::v0::Constant::create(element::f32, Shape{}, {in_low});
+    auto input_high = op::v0::Constant::create(element::f32, Shape{}, {in_high});
+    auto output_low = op::v0::Constant::create(element::f32, Shape{}, {out_low});
+    auto output_high = op::v0::Constant::create(element::f32, Shape{}, {out_high});
+    auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low,
                                                      input_high, output_low,
                                                      output_high, levels);
-    auto convert1 = std::make_shared<opset1::Convert>(fq, element::from<LowPrecision>());
-    auto convert2 = std::make_shared<opset1::Convert>(convert1, element::f32);
+    auto convert1 = std::make_shared<op::v0::Convert>(fq, element::from<LowPrecision>());
+    auto convert2 = std::make_shared<op::v0::Convert>(convert1, element::f32);
     const std::shared_ptr<Node> zero_point = element::from<T>() == element::f32 ?
-        opset1::Constant::create(element::from<T>(), zero_point_shape, zero_point_values) :
-        std::dynamic_pointer_cast<Node>(std::make_shared<opset1::Convert>(
-            opset1::Constant::create(element::from<T>(), zero_point_shape, zero_point_values),
+        op::v0::Constant::create(element::from<T>(), zero_point_shape, zero_point_values) :
+        std::dynamic_pointer_cast<Node>(std::make_shared<op::v0::Convert>(
+            op::v0::Constant::create(element::from<T>(), zero_point_shape, zero_point_values),
             element::f32));
-    auto sub = std::make_shared<opset1::Subtract>(convert2, zero_point);
-    auto scale = opset1::Constant::create(element::f32, scale_shape, scale_values);
-    auto mul = std::make_shared<opset1::Multiply>(sub, scale);
+    auto sub = std::make_shared<op::v1::Subtract>(convert2, zero_point);
+    auto scale = op::v0::Constant::create(element::f32, scale_shape, scale_values);
+    auto mul = std::make_shared<op::v1::Multiply>(sub, scale);
 
     return std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 }
@@ -68,12 +68,12 @@ void positive_test(const Shape& data_shape, float in_low, float in_high, float o
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, data_shape);
-        auto input_low = opset1::Constant::create(element::f32, Shape{}, {in_low});
-        auto input_high = opset1::Constant::create(element::f32, Shape{}, {in_high});
-        auto output_low = opset1::Constant::create(element::f32, Shape{}, {(out_low - zero_point_values[0]) * scale_values[0]});
-        auto output_high = opset1::Constant::create(element::f32, Shape{}, {(out_high - zero_point_values[0]) * scale_values[0]});
-        auto fq = std::make_shared<opset1::FakeQuantize>(data, input_low,
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+        auto input_low = op::v0::Constant::create(element::f32, Shape{}, {in_low});
+        auto input_high = op::v0::Constant::create(element::f32, Shape{}, {in_high});
+        auto output_low = op::v0::Constant::create(element::f32, Shape{}, {(out_low - zero_point_values[0]) * scale_values[0]});
+        auto output_high = op::v0::Constant::create(element::f32, Shape{}, {(out_high - zero_point_values[0]) * scale_values[0]});
+        auto fq = std::make_shared<op::v0::FakeQuantize>(data, input_low,
                                                          input_high, output_low,
                                                          output_high, levels);
         f_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});

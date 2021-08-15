@@ -46,10 +46,10 @@ void Crop4dTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {ssParams.inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto relu = std::make_shared<ngraph::opset1::Relu>(paramOuts[0]);
+    auto relu = std::make_shared<ngraph::op::v0::Relu>(paramOuts[0]);
     auto ss = ngraph::builder::makeStridedSlice(relu, ssParams.begin, ssParams.end, ssParams.strides, ngPrc, ssParams.beginMask,
                                                 ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ss)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(ss)};
     function = std::make_shared<ngraph::Function>(results, params, "crop4d");
 }
 

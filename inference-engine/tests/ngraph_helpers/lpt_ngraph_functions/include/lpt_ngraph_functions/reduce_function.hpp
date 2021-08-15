@@ -25,10 +25,10 @@ public:
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const std::vector<int64_t>& constantValues,
         const bool keepDims) {
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+        const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
         const auto dequantization = makeDequantization(input, dequantizationBefore);
 
-        const auto constant = std::make_shared<ngraph::opset1::Constant>(
+        const auto constant = std::make_shared<ngraph::op::v0::Constant>(
             ngraph::element::i32,
             ngraph::Shape{ constantValues.size() },
             constantValues);
@@ -42,7 +42,7 @@ public:
             keepDims);
 
         reduce->set_friendly_name("Output");
-        const auto result = std::make_shared<ngraph::opset1::Result>(reduce);
+        const auto result = std::make_shared<ngraph::op::v0::Result>(reduce);
         const auto function = std::make_shared<ngraph::Function>(
             ngraph::ResultVector{ result },
             ngraph::ParameterVector{ input },
@@ -58,10 +58,10 @@ public:
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
         const std::vector<int64_t>& constantValues,
         const bool keepDims) {
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+        const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
         const auto fakeQuantize = makeFakeQuantize(input, precision, fqOnData);
 
-        const auto constant = std::make_shared<ngraph::opset1::Constant>(
+        const auto constant = std::make_shared<ngraph::op::v0::Constant>(
             ngraph::element::i32,
             ngraph::Shape{ constantValues.size() },
             constantValues);
@@ -69,7 +69,7 @@ public:
         const auto reduce = std::make_shared<ReduceType>(fakeQuantize, constant, keepDims);
         reduce->set_friendly_name("Output");
 
-        const auto result = std::make_shared<ngraph::opset1::Result>(reduce);
+        const auto result = std::make_shared<ngraph::op::v0::Result>(reduce);
         const auto function = std::make_shared<ngraph::Function>(
             ngraph::ResultVector{ result },
             ngraph::ParameterVector{ input },
@@ -87,10 +87,10 @@ public:
         const bool keepDims,
         const ngraph::element::Type precisionAfterOperation,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+        const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
         const auto dequantization = makeDequantization(input, dequantizationBefore);
 
-        const auto constant = std::make_shared<ngraph::opset1::Constant>(
+        const auto constant = std::make_shared<ngraph::op::v0::Constant>(
             ngraph::element::i32,
             ngraph::Shape{ constantValues.size() },
             constantValues);
@@ -104,7 +104,7 @@ public:
         std::shared_ptr<Node> lastOperation = makeDequantization(reduce, dequantizationAfter);
 
         lastOperation->set_friendly_name("Output");
-        const auto result = std::make_shared<ngraph::opset1::Result>(lastOperation);
+        const auto result = std::make_shared<ngraph::op::v0::Result>(lastOperation);
         const auto function = std::make_shared<ngraph::Function>(
             ngraph::ResultVector{ result },
             ngraph::ParameterVector{ input },

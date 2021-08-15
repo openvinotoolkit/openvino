@@ -37,26 +37,26 @@ protected:
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-        auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(paramOuts, axis);
 
-        const auto lengthData = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64,
+        const auto lengthData = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                             ngraph::Shape{length.size()},
                                                                             length);
-        const auto axisData = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64,
+        const auto axisData = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                           ngraph::Shape{1},
                                                                           axis);
-        auto split = std::make_shared<ngraph::opset3::VariadicSplit>(concat, axisData, lengthData);
+        auto split = std::make_shared<ngraph::op::v1::VariadicSplit>(concat, axisData, lengthData);
 
         auto permutation = std::vector<std::int64_t>(split->get_output_shape(0).size());
         std::iota(permutation.rbegin(), permutation.rend(), 0);
-        const auto transposition = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64,
+        const auto transposition = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                               ngraph::Shape{split->get_output_shape(0).size()},
                                                                               permutation);
 
         ngraph::ResultVector results;
         for (int i = 0; i < 2; i++) {
-            const auto transpose = std::make_shared<ngraph::opset3::Transpose>(split->output(i), transposition);
-            results.push_back(std::make_shared<ngraph::opset1::Result>(transpose));
+            const auto transpose = std::make_shared<ngraph::op::v1::Transpose>(split->output(i), transposition);
+            results.push_back(std::make_shared<ngraph::op::v0::Result>(transpose));
         }
         function = std::make_shared<ngraph::Function>(results, params, "concat-split-transpose");
     }

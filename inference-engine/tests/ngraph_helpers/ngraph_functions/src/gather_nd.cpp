@@ -32,10 +32,10 @@ std::shared_ptr<Node> makeGatherND(
                 indicesData++;
             }
         }
-        return opset5::Constant::create(indicesType, indicesShape, indicesValues);
+        return op::v0::Constant::create(indicesType, indicesShape, indicesValues);
     }();
 
-    auto gatherNdNode = std::make_shared<opset5::GatherND>(dataNode, indices, batchDims);
+    auto gatherNdNode = std::make_shared<op::v5::GatherND>(dataNode, indices, batchDims);
     gatherNdNode->set_friendly_name("GatherND");
 
     return gatherNdNode;

@@ -64,31 +64,31 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
 
     //Reshape_1 [1,thirdDimOut*10] -> [1, 10, thirdDimOut]
     std::vector<uint64_t> outFormShapes1 = { batch_size, 10, thirdDimOut };
-    auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 3 }, outFormShapes1);
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
+    auto pattern1 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 3 }, outFormShapes1);
+    auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(params[0], pattern1, false);
 
     auto reshape1_shape = reshape1->output(0).get_shape();
     auto H_init = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hiddenSize }, {}, true);
     auto C_init = ngraph::builder::makeConstant<float>(ngPrc, { batch_size, hiddenSize }, {}, true);
     if (hidden_memory_init_out != nullptr) {
-        *hidden_memory_init_out = std::static_pointer_cast<ngraph::opset1::Constant>(H_init)->cast_vector<float>();
+        *hidden_memory_init_out = std::static_pointer_cast<ngraph::op::v0::Constant>(H_init)->cast_vector<float>();
     }
     if (cell_memory_init_out != nullptr) {
-        *cell_memory_init_out = std::static_pointer_cast<ngraph::opset1::Constant>(C_init)->cast_vector<float>();
+        *cell_memory_init_out = std::static_pointer_cast<ngraph::op::v0::Constant>(C_init)->cast_vector<float>();
     }
-    auto H_t = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape{ batch_size, hiddenSize });
-    auto C_t = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape{ batch_size, hiddenSize });
+    auto H_t = std::make_shared<ngraph::op::v0::Parameter>(ngPrc, ngraph::Shape{ batch_size, hiddenSize });
+    auto C_t = std::make_shared<ngraph::op::v0::Parameter>(ngPrc, ngraph::Shape{ batch_size, hiddenSize });
     H_t->set_friendly_name("hidden_state_1");
     C_t->set_friendly_name("cell_state_1");
     //Body
-    auto X = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape{ batch_size, 1, reshape1_shape[2] });
+    auto X = std::make_shared<ngraph::op::v0::Parameter>(ngPrc, ngraph::Shape{ batch_size, 1, reshape1_shape[2] });
     auto weightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, reshape1_shape[2] }, {}, true);
     auto reccurrenceWeightsNode = ngraph::builder::makeConstant<float>(ngPrc, { 4 * hiddenSize, hiddenSize }, {}, true);
 
     //lstm [1, 10], [1, 118], [1, 118] -> [1, 118], [1, 118]
     outFormShapes1 = { batch_size, reshape1_shape[2] };
-    auto constantX = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, outFormShapes1);
-    auto lstm1 = std::make_shared<ngraph::opset4::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
+    auto constantX = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, outFormShapes1);
+    auto lstm1 = std::make_shared<ngraph::opset4::LSTMCell>(std::make_shared<ngraph::op::v1::Reshape>(X, constantX, false),
         H_t, C_t,
         weightsNode, reccurrenceWeightsNode, hiddenSize);
 
@@ -99,7 +99,7 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
     auto body = std::make_shared<ngraph::Function>(
         ngraph::OutputVector{ H_o, C_o }, ngraph::ParameterVector{ X, H_t, C_t });
 
-    auto tensor_iterator = std::make_shared<ngraph::opset1::TensorIterator>();
+    auto tensor_iterator = std::make_shared<ngraph::op::v0::TensorIterator>();
     tensor_iterator->set_body(body);
 
     //input tensor shape: [1, 10, thirdDimOut] chunk shape: [1, 1, thirdDimOut]
@@ -112,7 +112,7 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::GetNetwork(size_t thirdDimOut,
     const size_t output_size = 12;
     auto fc1 = ngraph::builder::makeFullyConnected(out0, ngPrc, output_size, true, { hiddenSize, output_size }, { 1 }, { 1 });
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fc1) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(fc1) };
     return std::make_shared<ngraph::Function>(results, params, "Basic_LSTM_S");
 }
 

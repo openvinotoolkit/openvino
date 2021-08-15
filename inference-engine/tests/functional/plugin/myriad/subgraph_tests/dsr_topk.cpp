@@ -43,9 +43,9 @@ protected:
         targetDevice = std::get<3>(parameters);
 
         const auto inputSubgraph = createInputSubgraphWithDSR(dataType, topkSetup.dataShapes);
-        const auto k = ngraph::opset3::Constant::create(idxType, {}, std::vector<int64_t>{topkSetup.k});
+        const auto k = ngraph::op::v0::Constant::create(idxType, {}, std::vector<int64_t>{topkSetup.k});
 
-        return std::make_shared<ngraph::opset3::TopK>(inputSubgraph, k, topkSetup.axis, "max", "value");
+        return std::make_shared<ngraph::op::v3::TopK>(inputSubgraph, k, topkSetup.axis, "max", "value");
     }
 };
 
@@ -65,17 +65,17 @@ protected:
 
         const auto inputSubgraph = createInputSubgraphWithDSR(dataType, topkSetup.dataShapes);
 
-        const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(inputSubgraph->input_value(0), ngraph::element::i32);
-        const auto gather = std::make_shared<ngraph::opset3::Gather>(
+        const auto shapeOf = std::make_shared<ngraph::op::v3::ShapeOf>(inputSubgraph->input_value(0), ngraph::element::i32);
+        const auto gather = std::make_shared<ngraph::op::v1::Gather>(
                 shapeOf,
-                ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {topkSetup.axis}),
-                ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {0}));
-        const auto upper_bound = ngraph::opset3::Constant::create(inputSubgraph->get_input_element_type(1), {1}, {topkSetup.k});
-        const auto concat = std::make_shared<ngraph::opset3::Concat>(ngraph::OutputVector{upper_bound, gather}, 0);
-        const auto k = std::make_shared<ngraph::opset3::ReduceMin>(
-                concat, ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {0}), false);
+                ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {topkSetup.axis}),
+                ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {0}));
+        const auto upper_bound = ngraph::op::v0::Constant::create(inputSubgraph->get_input_element_type(1), {1}, {topkSetup.k});
+        const auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{upper_bound, gather}, 0);
+        const auto k = std::make_shared<ngraph::op::v1::ReduceMin>(
+                concat, ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, {0}), false);
 
-        return std::make_shared<ngraph::opset3::TopK>(inputSubgraph, k, topkSetup.axis, "max", "value");
+        return std::make_shared<ngraph::op::v3::TopK>(inputSubgraph, k, topkSetup.axis, "max", "value");
     }
 };
 

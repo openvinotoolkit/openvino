@@ -46,7 +46,7 @@ public:
             testValues.inputPrecision);
 
         if (roundedConst->get_element_type() == testValues.inputPrecision) {
-            const auto replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(dequantization.data, roundedConst);
+            const auto replacement = std::make_shared<op::TypeRelaxed<op::v1::Subtract>>(dequantization.data, roundedConst);
             ngraph::pass::low_precision::NetworkHelper::copyInfo(dequantization.subtract, replacement);
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, dequantization.convert->get_element_type());
             replace_node(dequantization.subtract, replacement);

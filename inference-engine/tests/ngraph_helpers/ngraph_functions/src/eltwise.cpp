@@ -15,23 +15,23 @@ std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
                                           ngraph::helpers::EltwiseTypes eltwiseType) {
     switch (eltwiseType) {
         case ngraph::helpers::EltwiseTypes::ADD:
-            return std::make_shared<ngraph::opset3::Add>(in0, in1);
+            return std::make_shared<ngraph::op::v1::Add>(in0, in1);
         case ngraph::helpers::EltwiseTypes::SUBTRACT:
-            return std::make_shared<ngraph::opset3::Subtract>(in0, in1);
+            return std::make_shared<ngraph::op::v1::Subtract>(in0, in1);
         case ngraph::helpers::EltwiseTypes::MULTIPLY:
-            return std::make_shared<ngraph::opset3::Multiply>(in0, in1);
+            return std::make_shared<ngraph::op::v1::Multiply>(in0, in1);
         case ngraph::helpers::EltwiseTypes::DIVIDE:
-            return std::make_shared<ngraph::opset3::Divide>(in0, in1);
+            return std::make_shared<ngraph::op::v1::Divide>(in0, in1);
         case ngraph::helpers::EltwiseTypes::SQUARED_DIFF:
-            return std::make_shared<ngraph::opset3::SquaredDifference>(in0, in1);
+            return std::make_shared<ngraph::op::v0::SquaredDifference>(in0, in1);
         case ngraph::helpers::EltwiseTypes::POWER:
-            return std::make_shared<ngraph::opset3::Power>(in0, in1);
+            return std::make_shared<ngraph::op::v1::Power>(in0, in1);
         case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
-            return std::make_shared<ngraph::opset3::FloorMod>(in0, in1);
+            return std::make_shared<ngraph::op::v1::FloorMod>(in0, in1);
         case ngraph::helpers::EltwiseTypes::MOD:
-            return std::make_shared<ngraph::opset3::Mod>(in0, in1);
+            return std::make_shared<ngraph::op::v1::Mod>(in0, in1);
         case ngraph::helpers::EltwiseTypes::ERF:
-            return std::make_shared<ngraph::opset1::Erf>(in0);
+            return std::make_shared<ngraph::op::v0::Erf>(in0);
         default: {
             throw std::runtime_error("Incorrect type of Eltwise operation");
         }

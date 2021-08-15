@@ -70,28 +70,28 @@ protected:
             const TensorShape& targetShape,
             const AxesMapping& axesMapping,
             BroadcastInputType broadcastInputType) const {
-        const auto tensorParam = std::make_shared<ngraph::opset3::Parameter>(tensorType, tensorShape);
-        const auto tensorWithTargetShapeParam = std::make_shared<ngraph::opset3::Parameter>(tensorType, targetShape);
+        const auto tensorParam = std::make_shared<ngraph::op::v0::Parameter>(tensorType, tensorShape);
+        const auto tensorWithTargetShapeParam = std::make_shared<ngraph::op::v0::Parameter>(tensorType, targetShape);
 
-        const auto shapeOfNode = std::make_shared<ngraph::opset3::ShapeOf>(tensorWithTargetShapeParam, shapeType);
+        const auto shapeOfNode = std::make_shared<ngraph::op::v3::ShapeOf>(tensorWithTargetShapeParam, shapeType);
 
         ngraph::ParameterVector params{tensorParam, tensorWithTargetShapeParam};
 
         std::shared_ptr<ngraph::Node> broadcastInput = tensorParam;
         if (broadcastInputType == BroadcastInputType::DYNAMIC) {
-            const auto shapeParam = std::make_shared<ngraph::opset5::Parameter>(
+            const auto shapeParam = std::make_shared<ngraph::op::v0::Parameter>(
                 shapeType,
                 ngraph::Shape{static_cast<size_t>(tensorShape.rank().get_length())});
             params.push_back(shapeParam);
             broadcastInput = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(tensorParam, shapeParam);
         }
 
-        const auto axesMappingConstant = std::make_shared<ngraph::opset3::Constant>(
+        const auto axesMappingConstant = std::make_shared<ngraph::op::v0::Constant>(
             ngraph::element::u64,
             ngraph::Shape{axesMapping.size()},
             axesMapping);
 
-        const auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(broadcastInput, shapeOfNode, axesMappingConstant);
+        const auto broadcast = std::make_shared<ngraph::op::v3::Broadcast>(broadcastInput, shapeOfNode, axesMappingConstant);
 
         auto function = std::make_shared<ngraph::Function>(
             ngraph::NodeVector{broadcast},
@@ -99,13 +99,13 @@ protected:
             "Actual");
 
         // We need to set broadcast output shape to make its rank static.
-        // In opset3::Broadcast implementation with Explicit mode output shape gets
+        // In op::v3::Broadcast implementation with Explicit mode output shape gets
         // static rank only in cases when the second input is Concat
         std::vector<ngraph::Dimension> broadcastOutShape(shapeOfNode->get_output_shape(0)[0], ngraph::Dimension::dynamic());
         broadcast->set_output_type(0, tensorParam->get_output_element_type(0), ngraph::PartialShape(broadcastOutShape));
         function->get_result()->set_output_type(0, tensorParam->get_output_element_type(0), targetShape);
 
-        const auto transformations = vpu::Transformations{{ngraph::opset3::Broadcast::type_info, vpu::dynamicToStaticShapeBroadcast}};
+        const auto transformations = vpu::Transformations{{ngraph::op::v3::Broadcast::type_info, vpu::dynamicToStaticShapeBroadcast}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
@@ -117,22 +117,22 @@ protected:
             const TensorShape& targetShape,
             const AxesMapping& axesMapping,
             BroadcastInputType broadcastInputType) const {
-        const auto tensorParam = std::make_shared<ngraph::opset3::Parameter>(tensorType, tensorShape);
-        const auto tensorWithTargetShapeParam = std::make_shared<ngraph::opset3::Parameter>(tensorType, targetShape);
-        const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(tensorWithTargetShapeParam, shapeType);
+        const auto tensorParam = std::make_shared<ngraph::op::v0::Parameter>(tensorType, tensorShape);
+        const auto tensorWithTargetShapeParam = std::make_shared<ngraph::op::v0::Parameter>(tensorType, targetShape);
+        const auto shapeOf = std::make_shared<ngraph::op::v3::ShapeOf>(tensorWithTargetShapeParam, shapeType);
 
         ngraph::ParameterVector params{tensorParam, tensorWithTargetShapeParam};
 
         std::shared_ptr<ngraph::Node> broadcastInput = tensorParam;
         if (broadcastInputType == BroadcastInputType::DYNAMIC) {
-            const auto shapeParam = std::make_shared<ngraph::opset5::Parameter>(
+            const auto shapeParam = std::make_shared<ngraph::op::v0::Parameter>(
                 shapeType,
                 ngraph::Shape{static_cast<size_t>(tensorShape.rank().get_length())});
             params.push_back(shapeParam);
             broadcastInput = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(tensorParam, shapeParam);
         }
 
-        const auto axesMappingConstant = std::make_shared<ngraph::opset3::Constant>(
+        const auto axesMappingConstant = std::make_shared<ngraph::op::v0::Constant>(
             ngraph::element::i64,
             ngraph::Shape{axesMapping.size()},
             axesMapping);
@@ -192,16 +192,16 @@ protected:
             const TensorShape& tensorShape,
             const TensorShape& targetShape,
             BroadcastInputType broadcastInputType) const {
-        const auto tensorParam = std::make_shared<ngraph::opset5::Parameter>(tensorType, tensorShape);
-        const auto tensorWithTargetShapeParam = std::make_shared<ngraph::opset5::Parameter>(shapeType, targetShape);
+        const auto tensorParam = std::make_shared<ngraph::op::v0::Parameter>(tensorType, tensorShape);
+        const auto tensorWithTargetShapeParam = std::make_shared<ngraph::op::v0::Parameter>(shapeType, targetShape);
 
-        const auto shapeOfNode = std::make_shared<ngraph::opset5::ShapeOf>(tensorWithTargetShapeParam, shapeType);
+        const auto shapeOfNode = std::make_shared<ngraph::op::v3::ShapeOf>(tensorWithTargetShapeParam, shapeType);
 
         ngraph::ParameterVector params{tensorParam, tensorWithTargetShapeParam};
 
         std::shared_ptr<ngraph::Node> broadcastInput = tensorParam;
         if (broadcastInputType == BroadcastInputType::DYNAMIC) {
-            const auto shapeParam = std::make_shared<ngraph::opset5::Parameter>(
+            const auto shapeParam = std::make_shared<ngraph::op::v0::Parameter>(
                 shapeType,
                 ngraph::Shape{static_cast<size_t>(tensorShape.rank().get_length())});
             params.push_back(shapeParam);
@@ -227,15 +227,15 @@ protected:
             const TensorShape& tensorShape,
             const TensorShape& targetShape,
             BroadcastInputType broadcastInputType) const {
-        const auto tensorParam = std::make_shared<ngraph::opset5::Parameter>(tensorType, tensorShape);
-        const auto tensorWithTargetShapeParam = std::make_shared<ngraph::opset5::Parameter>(shapeType, targetShape);
-        std::shared_ptr<ngraph::Node> shapeOf = std::make_shared<ngraph::opset5::ShapeOf>(tensorWithTargetShapeParam, shapeType);
+        const auto tensorParam = std::make_shared<ngraph::op::v0::Parameter>(tensorType, tensorShape);
+        const auto tensorWithTargetShapeParam = std::make_shared<ngraph::op::v0::Parameter>(shapeType, targetShape);
+        std::shared_ptr<ngraph::Node> shapeOf = std::make_shared<ngraph::op::v3::ShapeOf>(tensorWithTargetShapeParam, shapeType);
 
         ngraph::ParameterVector params{tensorParam, tensorWithTargetShapeParam};
 
         std::shared_ptr<ngraph::Node> broadcastInput = tensorParam;
         if (broadcastInputType == BroadcastInputType::DYNAMIC) {
-            const auto shapeParam = std::make_shared<ngraph::opset5::Parameter>(
+            const auto shapeParam = std::make_shared<ngraph::op::v0::Parameter>(
                 shapeType,
                 ngraph::Shape{static_cast<size_t>(tensorShape.rank().get_length())});
             params.push_back(shapeParam);
@@ -265,19 +265,19 @@ protected:
             dims.push_back(
                 std::make_shared<ngraph::opset5::Gather>(
                     maxRankNode,
-                    ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {i}),
-                    ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0})));
+                    ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {i}),
+                    ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0})));
         }
 
         for (int i = 0; i < minRank; i++) {
             const auto minRankDim = std::make_shared<ngraph::opset5::Gather>(
                 minRankNode,
-                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {i}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {i}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
             const auto maxRankDim = std::make_shared<ngraph::opset5::Gather>(
                 maxRankNode,
-                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {maxRank - minRank + i}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {maxRank - minRank + i}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
             dims.push_back(std::make_shared<ngraph::opset5::Maximum>(minRankDim, maxRankDim));
         }
 

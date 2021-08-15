@@ -21,9 +21,9 @@ using namespace testing;
 TEST(TransformationTests, ReduceL1DecompositionTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
-        auto axes = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::i32, ngraph::Shape{1});
-        auto reduce_l1 = std::make_shared<ngraph::opset4::ReduceL1>(data, axes, true);
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+        auto axes = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i32, ngraph::Shape{1});
+        auto reduce_l1 = std::make_shared<ngraph::op::v4::ReduceL1>(data, axes, true);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reduce_l1}, ngraph::ParameterVector{data, axes});
 
@@ -35,8 +35,8 @@ TEST(TransformationTests, ReduceL1DecompositionTest) {
     }
 
     {
-        auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
-        auto axes = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::i32, ngraph::Shape{1});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+        auto axes = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i32, ngraph::Shape{1});
         auto abs = std::make_shared<ngraph::opset4::Abs>(data);
         auto reduce_l1 = std::make_shared<ngraph::opset4::ReduceSum>(abs, axes, true);
 

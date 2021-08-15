@@ -60,7 +60,7 @@ void GatherTreeLayerTest::SetUp() {
 
     auto operationResult = std::make_shared<ngraph::opset4::GatherTree>(paramsIn.front(), inp2, inp3, inp4);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(operationResult)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(operationResult)};
     function = std::make_shared<ngraph::Function>(results, paramsIn, "GatherTree");
 }
 

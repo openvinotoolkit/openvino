@@ -84,9 +84,9 @@ protected:
         ngraph::ResultVector results;
         for (size_t i = 0; i < outputCount; ++i) {
             auto relu = ngraph::builder::makeActivation(split->output(i), ngraph::element::f32, ngraph::helpers::ActivationTypes::Sigmoid);
-            auto reluFQNode = std::make_shared<ngraph::opset8::FakeQuantize>(relu,
+            auto reluFQNode = std::make_shared<ngraph::op::v0::FakeQuantize>(relu,
                 inputLowNode, inputHighNode, inputLowNode, inputHighNode, levels);
-            results.push_back(std::make_shared<ngraph::opset8::Result>(reluFQNode));
+            results.push_back(std::make_shared<ngraph::op::v0::Result>(reluFQNode));
         }
         function = std::make_shared<ngraph::Function>(results, inputVector, "FQOutputsActivation");
     }

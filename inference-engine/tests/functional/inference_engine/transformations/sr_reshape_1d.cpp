@@ -12,9 +12,9 @@
 TEST(SmartReshapeTests, Reshape1d) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
         input->set_friendly_name("input");
-        auto reshape = std::make_shared<ngraph::opset5::Reshape>(input, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {5}), true);
+        auto reshape = std::make_shared<ngraph::op::v1::Reshape>(input, ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {5}), true);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape}, ngraph::ParameterVector{input});
     }
 
@@ -32,10 +32,10 @@ TEST(SmartReshapeTests, Reshape1d) {
 TEST(SmartReshapeTests, Reshape1d_negative) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-        auto pattern = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, ngraph::Shape{1});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto pattern = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{1});
         input->set_friendly_name("input");
-        auto reshape = std::make_shared<ngraph::opset5::Reshape>(input, pattern, false);
+        auto reshape = std::make_shared<ngraph::op::v1::Reshape>(input, pattern, false);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape}, ngraph::ParameterVector{input, pattern});
     }
 

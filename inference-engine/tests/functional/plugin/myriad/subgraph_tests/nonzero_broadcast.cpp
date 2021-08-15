@@ -48,19 +48,19 @@ protected:
 
         const auto& nonZeroParam = createParameter(tensorType, TensorShape{upperBoundShape[dynamicAxis]});
         const auto& nonZero = std::make_shared<ngraph::opset5::NonZero>(nonZeroParam, ngraph::element::i32);
-        m_additionalResults.push_back(std::make_shared<ngraph::opset3::Result>(nonZero->output(0)));
-        const auto shapeOfNonZero = std::make_shared<ngraph::opset5::ShapeOf>(nonZero, ngraph::element::i32);
+        m_additionalResults.push_back(std::make_shared<ngraph::op::v0::Result>(nonZero->output(0)));
+        const auto shapeOfNonZero = std::make_shared<ngraph::op::v3::ShapeOf>(nonZero, ngraph::element::i32);
         const auto numNonZeros = std::make_shared<ngraph::opset5::Gather>(
             shapeOfNonZero,
-            ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}),
-            ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}),
+            ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
 
         std::shared_ptr<ngraph::Node> broadcastTargetShape = numNonZeros;
 
         if (dynamicAxis > 0) {
             broadcastTargetShape = std::make_shared<ngraph::opset5::Concat>(
                 ngraph::NodeVector{
-                    ngraph::opset5::Constant::create(
+                    ngraph::op::v0::Constant::create(
                         ngraph::element::i32,
                         ngraph::Shape{dynamicAxis},
                         std::vector<size_t>{upperBoundShape.begin(), upperBoundShape.begin() + dynamicAxis}),
@@ -72,7 +72,7 @@ protected:
             broadcastTargetShape = std::make_shared<ngraph::opset5::Concat>(
                 ngraph::NodeVector{
                     broadcastTargetShape,
-                    ngraph::opset5::Constant::create(
+                    ngraph::op::v0::Constant::create(
                         ngraph::element::i32,
                         ngraph::Shape{upperBoundShape.size() - dynamicAxis - 1},
                         std::vector<size_t>{upperBoundShape.begin() + dynamicAxis + 1, upperBoundShape.end()})},
@@ -85,7 +85,7 @@ protected:
 
         if (broadcastParams.axesMapping.size() != 0) {
             const auto& axesMapping = std::get<0>(GetParam()).axesMapping;
-            const auto axesMappingConst = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{axesMapping.size()}, axesMapping);
+            const auto axesMappingConst = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{axesMapping.size()}, axesMapping);
 
             return std::make_shared<ngraph::opset5::Broadcast>(broadcastInput, broadcastTargetShape, axesMappingConst);
         }

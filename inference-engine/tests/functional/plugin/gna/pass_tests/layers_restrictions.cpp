@@ -31,7 +31,7 @@ struct FullyConnectedBatchSizeMoreThan8 {
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto weights = CommonTestUtils::generate_float_numbers(inputShape[1] * inputShape[1], -0.0001f, 0.0001f);
         auto fullyConnected = ngraph::builder::makeFullyConnected(params[0], ngPrc, inputShape[1], false, {}, weights);
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fullyConnected) };
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(fullyConnected) };
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
     static const char* getMatch() { return "and batch size(9) not supported"; }
@@ -45,7 +45,7 @@ struct FullyConnectedBatchSizeLessThanOrEqual8 {
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto weights = CommonTestUtils::generate_float_numbers(inputShape[1] * inputShape[1], -0.0001f, 0.0001f);
         auto fullyConnected = ngraph::builder::makeFullyConnected(params[0], ngPrc, inputShape[1], false, {}, weights);
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fullyConnected) };
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(fullyConnected) };
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
 };

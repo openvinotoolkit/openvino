@@ -32,12 +32,12 @@ std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
         throw std::runtime_error("Can't create layer for this pad mode");
     }
 
-    auto pads_begin = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64,
+    auto pads_begin = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                  ngraph::Shape{padsBegin.size()}, padsBegin.data());
-    auto pads_end = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64,
+    auto pads_end = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                ngraph::Shape{padsEnd.size()}, padsEnd.data());
-    auto arg_pad_value = std::make_shared<ngraph::opset3::Constant>(data.get_element_type(), ngraph::Shape{}, &argPadValue);
-    return std::make_shared<ngraph::opset3::Pad>(data, pads_begin, pads_end, arg_pad_value, pad_mode);
+    auto arg_pad_value = std::make_shared<ngraph::op::v0::Constant>(data.get_element_type(), ngraph::Shape{}, &argPadValue);
+    return std::make_shared<ngraph::op::v1::Pad>(data, pads_begin, pads_end, arg_pad_value, pad_mode);
 }
 }  // namespace builder
 }  // namespace ngraph

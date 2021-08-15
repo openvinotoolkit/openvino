@@ -44,9 +44,9 @@ void SoftMaxLayerTest::SetUp() {
     const auto paramOuts =
         ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    const auto softMax = std::make_shared<ngraph::opset1::Softmax>(paramOuts.at(0), axis);
+    const auto softMax = std::make_shared<ngraph::op::v1::Softmax>(paramOuts.at(0), axis);
 
-    const ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(softMax)};
+    const ngraph::ResultVector results {std::make_shared<ngraph::op::v0::Result>(softMax)};
 
     function = std::make_shared<ngraph::Function>(results, params, "softMax");
 }

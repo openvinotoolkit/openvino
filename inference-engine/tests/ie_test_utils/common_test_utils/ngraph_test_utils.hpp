@@ -606,7 +606,7 @@ struct Equal<uint8_t*> {
     }
 };
 
-using Constant = ngraph::opset1::Constant;
+using Constant = ngraph::op::v0::Constant;
 template <>
 struct Equal<std::shared_ptr<Constant>> {
     static bool equal_value(

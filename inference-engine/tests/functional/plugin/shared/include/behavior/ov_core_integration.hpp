@@ -537,20 +537,20 @@ TEST_P(OVClassNetworkTestP, SetAffinityWithConstantBranches) {
         {
             ngraph::PartialShape shape({1, 84});
             ngraph::element::Type type(ngraph::element::Type_t::f32);
-            auto param = std::make_shared<ngraph::opset6::Parameter>(type, shape);
-            auto matMulWeights = ngraph::opset6::Constant::create(ngraph::element::Type_t::f32, {10, 84}, {1});
-            auto shapeOf = std::make_shared<ngraph::opset6::ShapeOf>(matMulWeights);
-            auto gConst1 = ngraph::opset6::Constant::create(ngraph::element::Type_t::i32, {1}, {1});
-            auto gConst2 = ngraph::opset6::Constant::create(ngraph::element::Type_t::i64, {}, {0});
+            auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
+            auto matMulWeights = ngraph::op::v0::Constant::create(ngraph::element::Type_t::f32, {10, 84}, {1});
+            auto shapeOf = std::make_shared<ngraph::op::v0::ShapeOf>(matMulWeights);
+            auto gConst1 = ngraph::op::v0::Constant::create(ngraph::element::Type_t::i32, {1}, {1});
+            auto gConst2 = ngraph::op::v0::Constant::create(ngraph::element::Type_t::i64, {}, {0});
             auto gather = std::make_shared<ngraph::opset6::Gather>(shapeOf, gConst1, gConst2);
-            auto concatConst = ngraph::opset6::Constant::create(ngraph::element::Type_t::i64, {1}, {1});
+            auto concatConst = ngraph::op::v0::Constant::create(ngraph::element::Type_t::i64, {1}, {1});
             auto concat = std::make_shared<ngraph::opset6::Concat>(ngraph::NodeVector{concatConst, gather}, 0);
-            auto relu = std::make_shared<ngraph::opset6::Relu>(param);
-            auto reshape = std::make_shared<ngraph::opset6::Reshape>(relu, concat, false);
-            auto matMul = std::make_shared<ngraph::opset6::MatMul>(reshape, matMulWeights, false, true);
-            auto matMulBias = ngraph::opset6::Constant::create(ngraph::element::Type_t::f32, {1, 10}, {1});
-            auto addBias = std::make_shared<ngraph::opset6::Add>(matMul, matMulBias);
-            auto result = std::make_shared<ngraph::opset6::Result>(addBias);
+            auto relu = std::make_shared<ngraph::op::v0::Relu>(param);
+            auto reshape = std::make_shared<ngraph::op::v1::Reshape>(relu, concat, false);
+            auto matMul = std::make_shared<ngraph::op::v0::MatMul>(reshape, matMulWeights, false, true);
+            auto matMulBias = ngraph::op::v0::Constant::create(ngraph::element::Type_t::f32, {1, 10}, {1});
+            auto addBias = std::make_shared<ngraph::op::v1::Add>(matMul, matMulBias);
+            auto result = std::make_shared<ngraph::op::v0::Result>(addBias);
 
             ngraph::ParameterVector params = {param};
             ngraph::ResultVector results = {result};

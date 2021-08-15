@@ -29,9 +29,9 @@ std::shared_ptr<ngraph::Node> makeReduce(const ngraph::Output<Node>& data,
         case helpers::LogicalAnd:
             return std::make_shared<ngraph::opset4::ReduceLogicalAnd>(data, axes, keepDims);
         case helpers::L1:
-            return std::make_shared<ngraph::opset4::ReduceL1>(data, axes, keepDims);
+            return std::make_shared<ngraph::op::v4::ReduceL1>(data, axes, keepDims);
         case helpers::L2:
-            return std::make_shared<ngraph::opset4::ReduceL2>(data, axes, keepDims);
+            return std::make_shared<ngraph::op::v4::ReduceL2>(data, axes, keepDims);
         default:
             throw std::runtime_error("Can't create layer for this reduction type");
     }

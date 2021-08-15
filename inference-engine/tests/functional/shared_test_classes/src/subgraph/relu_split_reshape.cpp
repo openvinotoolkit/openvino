@@ -35,15 +35,15 @@ void ReluSplitReshape::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
+    auto relu = std::make_shared<ngraph::op::v0::Relu>(params[0]);
     auto split = ngraph::builder::makeSplit(relu, ngPrc, splitNum, splitAxis);
 
     auto shape = split->get_output_shape(0);
     shape[shape.size() - 2] *= 2;
     shape[shape.size() - 1] /= 2;
-    auto reshape_const = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
+    auto reshape_const = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64,
         ngraph::Shape{shape.size()}, shape);
-    auto reshape = std::make_shared<ngraph::opset1::Reshape>(split->output(0), reshape_const, false);
+    auto reshape = std::make_shared<ngraph::op::v1::Reshape>(split->output(0), reshape_const, false);
 
     function = std::make_shared<ngraph::Function>(reshape, params, "ReluSplitReshape");
 }

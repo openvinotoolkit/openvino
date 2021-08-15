@@ -102,8 +102,8 @@ protected:
                                                      true,
                                                      direction,
                                                      m_mode);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_sequence->output(0)),
-                                     std::make_shared<ngraph::opset1::Result>(rnn_sequence->output(1))};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(rnn_sequence->output(0)),
+                                     std::make_shared<ngraph::op::v0::Result>(rnn_sequence->output(1))};
         function = makeNgraphFunction(ngPrc, params, rnn_sequence, "rnn_sequence");
         if (m_mode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
             ngraph::pass::Manager manager;

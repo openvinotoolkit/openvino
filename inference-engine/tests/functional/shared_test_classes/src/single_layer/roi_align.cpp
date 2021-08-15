@@ -94,11 +94,11 @@ void ROIAlignLayerTest::SetUp() {
     fillIdxTensor(roiIdxVector, inputShape[0]);
     ngraph::Shape idxShape = { coordsShape[0] };
 
-    auto coords = std::make_shared<ngraph::opset1::Constant>(ngPrc, coordsShape, proposalVector.data());
-    auto roisIdx = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, idxShape, roiIdxVector.data());
+    auto coords = std::make_shared<ngraph::op::v0::Constant>(ngPrc, coordsShape, proposalVector.data());
+    auto roisIdx = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i32, idxShape, roiIdxVector.data());
 
     std::shared_ptr<ngraph::Node> roiAlign =
-            std::make_shared<ngraph::opset3::ROIAlign>(paramOuts[0],
+            std::make_shared<ngraph::op::v3::ROIAlign>(paramOuts[0],
                                                     coords,
                                                     roisIdx,
                                                     pooledH,
@@ -106,7 +106,7 @@ void ROIAlignLayerTest::SetUp() {
                                                     poolingRatio,
                                                     spatialScale,
                                                     poolingMode);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roiAlign)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(roiAlign)};
     function = std::make_shared<ngraph::Function>(results, params, "roi_align");
 }
 }  // namespace LayerTestsDefinitions

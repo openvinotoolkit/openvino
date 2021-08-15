@@ -48,7 +48,7 @@ void StridedSliceLayerTest::SetUp() {
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto ss = ngraph::builder::makeStridedSlice(paramOuts[0], ssParams.begin, ssParams.end, ssParams.strides, ngPrc, ssParams.beginMask,
                                                 ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ss)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(ss)};
     function = std::make_shared<ngraph::Function>(results, params, "StridedSlice");
 }
 

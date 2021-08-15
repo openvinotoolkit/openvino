@@ -89,9 +89,9 @@ TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithFalse) {
 
 TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithTrue) {
     std::shared_ptr <ngraph::Function> f_ptr;
-    auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
-    auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
-    auto empty_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {0});
+    auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
+    auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
+    auto empty_bias = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {0});
     auto fc = std::make_shared<ngraph::op::FullyConnected>(input1, weights, empty_bias, ngraph::Shape{1, 786});
     f_ptr = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{input1});
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;
@@ -101,9 +101,9 @@ TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithTrue) {
 
 TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithFalse) {
     std::shared_ptr <ngraph::Function> f_ptr;
-    auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
-    auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
-    auto empty_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {0});
+    auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
+    auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
+    auto empty_bias = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {0});
     auto fc = std::make_shared<ngraph::op::FullyConnected>(input1, weights, empty_bias, ngraph::Shape{1, 786});
     f_ptr = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{input1});
     InferenceEngine::CNNNetwork network(f_ptr), originalNetwork = network;

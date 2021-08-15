@@ -38,7 +38,7 @@ void ConstantLayerTest::SetUp() {
 
     const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_precision);
     auto constant = ngraph::op::Constant::create(precision, data_shape, data_elements);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(constant)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(constant)};
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{}, "constant");
 }

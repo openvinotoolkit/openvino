@@ -23,7 +23,7 @@ TEST_F(smoke_LPT_LowPrecisionTransformationsTests, DISABLED_removeAll) {
     //auto transformation = transformations.find("Convolution");
     //ASSERT_NE(0, transformation.size());
 
-    //transformations.removeAll<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>();
+    //transformations.removeAll<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::op::v1::Convolution>();
     //transformation = transformations.find("Convolution");
     //ASSERT_EQ(0, transformation.size());
 }
@@ -33,7 +33,7 @@ TEST_F(smoke_LPT_LowPrecisionTransformationsTests, DISABLED_removeAll) {
 //    auto transformation = transformations.find("Concat");
 //    ASSERT_NE(0, transformation.size());
 //
-//    transformations.removeBranchSpecific<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, ngraph::opset1::Concat>();
+//    transformations.removeBranchSpecific<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, ngraph::op::v0::Concat>();
 //    transformation = transformations.find("Concat");
 //    ASSERT_EQ(0, transformation.size());
 //}
@@ -43,7 +43,7 @@ TEST_F(smoke_LPT_LowPrecisionTransformationsTests, DISABLED_removeAll) {
 //    auto transformation = transformations.find("MatMul");
 //    ASSERT_NE(0, transformation.size());
 //
-//    transformations.remove<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>();
+//    transformations.remove<ngraph::pass::low_precision::MatMulTransformation, ngraph::op::v0::MatMul>();
 //    transformation = transformations.find("MatMul");
 //    ASSERT_EQ(0, transformation.size());
 //}
@@ -54,7 +54,7 @@ TEST_F(smoke_LPT_LowPrecisionTransformationsTests, DISABLED_removeAll) {
 //    ASSERT_NE(0, transformation.size());
 //    const size_t originalSize = transformation.size();
 //
-//    transformations.removeCleanup<ngraph::pass::low_precision::FuseConvertTransformation, ngraph::opset1::Multiply>();
+//    transformations.removeCleanup<ngraph::pass::low_precision::FuseConvertTransformation, ngraph::op::v1::Multiply>();
 //    transformation = transformations.find("Multiply");
 //    ASSERT_EQ(originalSize - 1, transformation.size());
 //}
@@ -65,7 +65,7 @@ TEST_F(smoke_LPT_LowPrecisionTransformationsTests, DISABLED_removeAll) {
 //    ASSERT_NE(0, transformation.size());
 //    const size_t originalSize = transformation.size();
 //
-//    transformations.removeStandaloneCleanup<ngraph::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation, ngraph::opset1::Multiply>();
+//    transformations.removeStandaloneCleanup<ngraph::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation, ngraph::op::v1::Multiply>();
 //    transformation = transformations.find("Multiply");
 //    ASSERT_EQ(originalSize - 1, transformation.size());
 //}

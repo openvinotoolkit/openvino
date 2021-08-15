@@ -53,10 +53,10 @@ void GroupConvolutionLayerTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
+    auto groupConv = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(
             ngraph::builder::makeGroupConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, numGroups));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(groupConv)};
     function = std::make_shared<ngraph::Function>(results, params, "groupConvolution");
 }
 }  // namespace LayerTestsDefinitions

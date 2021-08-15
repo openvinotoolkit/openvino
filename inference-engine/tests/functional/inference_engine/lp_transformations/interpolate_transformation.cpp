@@ -124,7 +124,7 @@ public:
                 testValues.actual.dequantization);
 
             SimpleLowPrecisionTransformer transformer;
-            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::opset1::Interpolate>(testValues.params);
+            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::op::v0::Interpolate>(testValues.params);
             transformer.transform(actualFunction);
 
             referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(
@@ -151,7 +151,7 @@ public:
                 testValues.actual.dequantization);
 
             SimpleLowPrecisionTransformer transformer;
-            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::opset4::Interpolate>(testValues.params);
+            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::op::v4::Interpolate>(testValues.params);
             transformer.transform(actualFunction);
 
             referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(

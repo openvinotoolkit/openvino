@@ -129,9 +129,9 @@ protected:
             outFmts.resize(1);
         }
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(0)),
-                                     std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(1)),
-                                     std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(2))};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(lstm_sequence->output(0)),
+                                     std::make_shared<ngraph::op::v0::Result>(lstm_sequence->output(1)),
+                                     std::make_shared<ngraph::op::v0::Result>(lstm_sequence->output(2))};
 
         function = makeNgraphFunction(ngPrc, params, lstm_sequence, "lstm_sequence");
 

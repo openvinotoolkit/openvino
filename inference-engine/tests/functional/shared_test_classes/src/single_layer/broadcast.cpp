@@ -33,11 +33,11 @@ void BroadcastLayerTest::SetUp() {
     std::tie(targetShape, axesMapping, mode, inputShape, networkPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(networkPrecision);
 
-    auto target_shape_const = ngraph::opset3::Constant::create(ngraph::element::i64, {targetShape.size()}, targetShape);
+    auto target_shape_const = ngraph::op::v0::Constant::create(ngraph::element::i64, {targetShape.size()}, targetShape);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     auto broadcast = ngraph::builder::makeBroadcast(params[0], target_shape_const, mode, axesMapping);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(broadcast)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(broadcast)};
     function = std::make_shared<ngraph::Function>(results, params, "BroadcastInference");
 }
 

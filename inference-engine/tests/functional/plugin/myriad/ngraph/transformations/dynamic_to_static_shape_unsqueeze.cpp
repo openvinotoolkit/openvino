@@ -51,13 +51,13 @@ protected:
         const ngraph::element::Type_t& data_type,
         const ngraph::Shape& input_shape,
         const std::vector<std::int64_t>& unsqueeze_axes) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, input_shape);
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{input_shape.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, input_shape);
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{input_shape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
 
-        const auto axes = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{unsqueeze_axes.size()}, unsqueeze_axes);
-        const auto node = std::make_shared<ngraph::opset3::Unsqueeze>(dsr, axes);
+        const auto axes = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{unsqueeze_axes.size()}, unsqueeze_axes);
+        const auto node = std::make_shared<ngraph::op::v0::Unsqueeze>(dsr, axes);
 
         const auto function = std::make_shared<ngraph::Function>(
             ngraph::NodeVector{node},
@@ -76,22 +76,22 @@ protected:
             const ngraph::Shape& input_shape,
             const std::vector<std::int64_t>& unsqueeze_axes,
             const std::vector<std::int64_t>& concat_indices) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, input_shape);
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{input_shape.size()});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, input_shape);
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{input_shape.size()});
 
         const auto dsr0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
 
-        const auto axes = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{unsqueeze_axes.size()}, unsqueeze_axes);
-        const auto unsqueeze = std::make_shared<ngraph::opset3::Unsqueeze>(dsr0, axes);
+        const auto axes = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{unsqueeze_axes.size()}, unsqueeze_axes);
+        const auto unsqueeze = std::make_shared<ngraph::op::v0::Unsqueeze>(dsr0, axes);
 
-        const auto split_axis = std::make_shared<ngraph::opset3::Constant>(
+        const auto split_axis = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t>{0});
-        const auto split = std::make_shared<ngraph::opset3::Split>(dims, split_axis, input_shape.size());
+        const auto split = std::make_shared<ngraph::op::v1::Split>(dims, split_axis, input_shape.size());
 
         ngraph::OutputVector new_shape;
         for (const auto & i : concat_indices) {
             if (i == NEW_DIM) {
-                const auto new_dim = std::make_shared<ngraph::opset3::Constant>(
+                const auto new_dim = std::make_shared<ngraph::op::v0::Constant>(
                         split->get_input_element_type(0), ngraph::Shape{1}, std::vector<int64_t>{0});
                 new_shape.push_back(new_dim->output(0));
             } else {
@@ -99,7 +99,7 @@ protected:
             }
         }
 
-        const auto concat = std::make_shared<ngraph::opset3::Concat>(new_shape, 0);
+        const auto concat = std::make_shared<ngraph::op::v0::Concat>(new_shape, 0);
         const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(unsqueeze, concat);
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{dsr1},

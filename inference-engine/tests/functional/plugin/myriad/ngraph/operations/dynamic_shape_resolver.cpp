@@ -29,13 +29,13 @@ public:
         const auto& dataType   = std::get<0>(parameters);
         const auto& dataShape  = std::get<1>(parameters);
 
-        data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataShape);
-        dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
+        data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataShape);
+        dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
     }
 
 protected:
-    std::shared_ptr<ngraph::opset3::Parameter> data;
-    std::shared_ptr<ngraph::opset3::Parameter> dims;
+    std::shared_ptr<ngraph::op::v0::Parameter> data;
+    std::shared_ptr<ngraph::op::v0::Parameter> dims;
 };
 
 TEST_P(DynamicShapeResolverTests, CanValidateAndInferTypes) {
@@ -105,13 +105,13 @@ public:
         const auto& dataPartialShape  = std::get<2>(parameters);
         const auto& dimsPartialShape  = std::get<3>(parameters);
 
-        data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataPartialShape);
-        dims = std::make_shared<ngraph::opset3::Parameter>(dimsType, dimsPartialShape);
+        data = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataPartialShape);
+        dims = std::make_shared<ngraph::op::v0::Parameter>(dimsType, dimsPartialShape);
     }
 
 protected:
-    std::shared_ptr<ngraph::opset3::Parameter> data;
-    std::shared_ptr<ngraph::opset3::Parameter> dims;
+    std::shared_ptr<ngraph::op::v0::Parameter> data;
+    std::shared_ptr<ngraph::op::v0::Parameter> dims;
 };
 
 using DynamicShapeResolverNegativeTestsDataType = DynamicShapeResolverNegativeTests;
@@ -213,7 +213,7 @@ protected:
         const auto& gatherAxis = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
                                                                             ngraph::Shape{1},
                                                                             std::vector<int64_t>{1});
-        const auto& gather = std::make_shared<ngraph::opset1::Gather>(nonZero->output(0), gatherIndices, gatherAxis);
+        const auto& gather = std::make_shared<ngraph::op::v1::Gather>(nonZero->output(0), gatherIndices, gatherAxis);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{tensor});
     }

@@ -51,9 +51,9 @@ protected:
             const DataShape& dataShape,
             const ngraph::element::Type& dataType,
             ngraph::ParameterVector& params) const {
-        const auto param = std::make_shared<ngraph::opset3::Parameter>(
+        const auto param = std::make_shared<ngraph::op::v0::Parameter>(
                 dataType, dataShape);
-        const auto shape = std::make_shared<ngraph::opset3::Parameter>(
+        const auto shape = std::make_shared<ngraph::op::v0::Parameter>(
                 ngraph::element::i64, ngraph::Shape{dataShape.size()});
         params.push_back(param);
         params.push_back(shape);
@@ -70,14 +70,14 @@ protected:
             dsrVector.push_back(createDSRWithParams(dataShape, dataType, params));
         }
 
-        const auto concat = std::make_shared<ngraph::opset3::Concat>(dsrVector, axis);
+        const auto concat = std::make_shared<ngraph::op::v0::Concat>(dsrVector, axis);
         const auto function = std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{concat}, params, "Actual");
         concat->set_output_type(0, dsrVector[0]->get_input_element_type(0),
                                 ngraph::PartialShape::dynamic(concat->get_output_partial_shape(0).rank()));
 
         const auto transformations = vpu::Transformations{
-            {ngraph::opset3::Concat::type_info, vpu::dynamicToStaticShapeConcat}};
+            {ngraph::op::v0::Concat::type_info, vpu::dynamicToStaticShapeConcat}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
@@ -95,7 +95,7 @@ protected:
         for (size_t inputIdx = 1; inputIdx < dataShapes.size(); ++inputIdx) {
             dsrVector.push_back(createDSRWithParams(
                     dataShapes.at(inputIdx), dataType, params));
-            const auto shapeAccumulatorOp = std::make_shared<ngraph::opset3::Add>(
+            const auto shapeAccumulatorOp = std::make_shared<ngraph::op::v1::Add>(
                     accumulatedShape, params.back());
             accumulatedShape = shapeAccumulatorOp->output(0);
         }
@@ -103,11 +103,11 @@ protected:
         const size_t rank = dataShapes.front().size();
         std::vector<int64_t> dividerValues(rank, dataShapes.size());
         dividerValues[axis < 0 ? axis + rank : axis] = 1;
-        const auto divider = std::make_shared<ngraph::opset3::Constant>(
+        const auto divider = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::i64, ngraph::Shape{rank}, dividerValues);
-        const auto divide = std::make_shared<ngraph::opset3::Divide>(accumulatedShape, divider);
+        const auto divide = std::make_shared<ngraph::op::v1::Divide>(accumulatedShape, divider);
 
-        const auto concat = std::make_shared<ngraph::opset3::Concat>(dsrVector, axis);
+        const auto concat = std::make_shared<ngraph::op::v0::Concat>(dsrVector, axis);
         const auto outDsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(concat, divide);
         return std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{outDsr}, params, "Expected");

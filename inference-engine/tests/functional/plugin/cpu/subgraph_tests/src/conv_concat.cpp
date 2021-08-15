@@ -107,7 +107,7 @@ void ConvConcatSubgraphTest::SetUp() {
 
     auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{convolutionNodes[0], convolutionNodes[1]}, axis);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(concat)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, inputParams, "convolutionConcat");
 }
 

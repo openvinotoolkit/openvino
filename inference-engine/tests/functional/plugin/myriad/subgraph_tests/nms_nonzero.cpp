@@ -32,27 +32,27 @@ protected:
         const auto& nms_setup = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
 
-        const auto boxes = std::make_shared<ngraph::opset3::Parameter>(
+        const auto boxes = std::make_shared<ngraph::op::v0::Parameter>(
                 float_type, ngraph::PartialShape{nms_setup.num_batches, nms_setup.num_boxes, 4});
-        const auto scores = std::make_shared<ngraph::opset3::Parameter>(
+        const auto scores = std::make_shared<ngraph::op::v0::Parameter>(
                 float_type, ngraph::PartialShape{nms_setup.num_batches, nms_setup.num_classes, nms_setup.num_boxes});
-        const auto max_output_boxes_per_class = std::make_shared<ngraph::opset3::Constant>(
+        const auto max_output_boxes_per_class = std::make_shared<ngraph::op::v0::Constant>(
                 integer_type, ngraph::Shape{}, std::vector<int64_t>{nms_setup.max_output_boxes_per_class});
-        const auto iou_threshold = std::make_shared<ngraph::opset3::Constant>(
+        const auto iou_threshold = std::make_shared<ngraph::op::v0::Constant>(
                 float_type, ngraph::Shape{}, std::vector<float>{nms_setup.iou_threshold});
-        const auto score_threshold = std::make_shared<ngraph::opset3::Constant>(
+        const auto score_threshold = std::make_shared<ngraph::op::v0::Constant>(
                 float_type, ngraph::Shape{}, std::vector<float>{nms_setup.score_threshold});
 
-        const auto NMS = std::make_shared<ngraph::opset3::NonMaxSuppression>(
+        const auto NMS = std::make_shared<ngraph::op::v3::NonMaxSuppression>(
                 boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
-                ngraph::opset3::NonMaxSuppression::BoxEncodingType::CORNER, false, ngraph::element::i32);
+                ngraph::op::v3::NonMaxSuppression::BoxEncodingType::CORNER, false, ngraph::element::i32);
 
-        const auto nonZero = std::make_shared<ngraph::opset3::NonZero>(boxes);
+        const auto nonZero = std::make_shared<ngraph::op::v3::NonZero>(boxes);
 
-        const auto resultNMS = std::make_shared<ngraph::opset3::Result>(NMS);
-        const auto resultNonZero = std::make_shared<ngraph::opset3::Result>(nonZero);
+        const auto resultNMS = std::make_shared<ngraph::op::v0::Result>(NMS);
+        const auto resultNonZero = std::make_shared<ngraph::op::v0::Result>(nonZero);
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{resultNMS, resultNonZero},
-                                                      ngraph::ParameterVector{boxes, scores}, "opset3::NMS-NonZero");
+                                                      ngraph::ParameterVector{boxes, scores}, "op::v1::NMS-NonZero");
     }
 };
 

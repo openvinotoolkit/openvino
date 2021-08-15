@@ -38,9 +38,9 @@ protected:
         const auto indicesParam = createParameter(idxType, gatherSetup.indexShape.shape);
         m_indicesInputNames.insert(indicesParam->get_friendly_name());
 
-        const auto axis = ngraph::opset3::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gatherSetup.axis});
+        const auto axis = ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gatherSetup.axis});
 
-        const auto gather = std::make_shared<ngraph::opset3::Gather>(inputDataSubgraph, indicesParam, axis);
+        const auto gather = std::make_shared<ngraph::op::v1::Gather>(inputDataSubgraph, indicesParam, axis);
 
         return gather;
     }
@@ -71,14 +71,14 @@ protected:
         targetDevice = std::get<3>(parameters);
         outPrc = InferenceEngine::details::convertPrecision(inDataType);;
 
-        const auto dataParam = std::make_shared<ngraph::opset3::Parameter>(inDataType, gatherSetup.inputShapes.shape);
+        const auto dataParam = std::make_shared<ngraph::op::v0::Parameter>(inDataType, gatherSetup.inputShapes.shape);
         m_parameterVector.push_back(dataParam);
         const auto inputIdxSubgraph = createInputSubgraphWithDSR(idxType, gatherSetup.indexShape);
         m_indicesInputNames.insert(inputIdxSubgraph->get_input_node_shared_ptr(0)->get_friendly_name());
 
-        const auto axis = ngraph::opset3::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gatherSetup.axis});
+        const auto axis = ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gatherSetup.axis});
 
-        const auto gather = std::make_shared<ngraph::opset3::Gather>(dataParam, inputIdxSubgraph, axis);
+        const auto gather = std::make_shared<ngraph::op::v1::Gather>(dataParam, inputIdxSubgraph, axis);
 
         return gather;
     }
@@ -113,9 +113,9 @@ protected:
         const auto inputIdxSubgraph = createInputSubgraphWithDSR(idxType, gatherSetup.indexShape);
         m_indicesInputNames.insert(inputIdxSubgraph->get_input_node_shared_ptr(0)->get_friendly_name());
 
-        const auto axis = ngraph::opset3::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gatherSetup.axis});
+        const auto axis = ngraph::op::v0::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gatherSetup.axis});
 
-        const auto gather = std::make_shared<ngraph::opset3::Gather>(inputDataSubgraph, inputIdxSubgraph, axis);
+        const auto gather = std::make_shared<ngraph::op::v1::Gather>(inputDataSubgraph, inputIdxSubgraph, axis);
 
         return gather;
     }

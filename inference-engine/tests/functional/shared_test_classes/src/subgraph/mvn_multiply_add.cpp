@@ -49,11 +49,11 @@ void MVNMultiplyAdd::SetUp() {
     auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
     auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, epsMode);
     auto gamma = ngraph::builder::makeConstant<float>(dataType, constantShapes, {}, true);
-    auto mul = std::make_shared<ngraph::opset7::Multiply>(mvn, gamma);
+    auto mul = std::make_shared<ngraph::op::v1::Multiply>(mvn, gamma);
     auto beta = ngraph::builder::makeConstant<float>(dataType, constantShapes, {}, true);
-    auto add = std::make_shared<ngraph::opset7::Add>(mul, beta);
+    auto add = std::make_shared<ngraph::op::v1::Add>(mul, beta);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(add)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(add)};
     function = std::make_shared<ngraph::Function>(results, param, "MVNMultiplyAdd");
 }
 } // namespace SubgraphTestsDefinitions

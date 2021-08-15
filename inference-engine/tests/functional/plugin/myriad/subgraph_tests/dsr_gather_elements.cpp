@@ -34,12 +34,12 @@ protected:
         const auto& gatherSetup = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
 
-        const auto dataParam = std::make_shared<ngraph::opset6::Parameter>(inDataType, gatherSetup.inputShapes.shape);
+        const auto dataParam = std::make_shared<ngraph::op::v0::Parameter>(inDataType, gatherSetup.inputShapes.shape);
         m_parameterVector.push_back(dataParam);
         const auto inputIdxSubgraph = createInputSubgraphWithDSR(idxType, gatherSetup.indexShape);
         m_indicesInputNames.insert(inputIdxSubgraph->get_input_node_shared_ptr(0)->get_friendly_name());
 
-        const auto gather = std::make_shared<ngraph::opset6::GatherElements>(dataParam, inputIdxSubgraph, gatherSetup.axis);
+        const auto gather = std::make_shared<ngraph::op::v6::GatherElements>(dataParam, inputIdxSubgraph, gatherSetup.axis);
 
         return gather;
     }

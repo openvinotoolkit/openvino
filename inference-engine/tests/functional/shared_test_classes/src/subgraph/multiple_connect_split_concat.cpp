@@ -26,16 +26,16 @@ void MultipleConnectSplitConcatTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {{1, 256}});
-    auto relu_start = std::make_shared<ngraph::opset1::Relu>(params[0]);
+    auto relu_start = std::make_shared<ngraph::op::v0::Relu>(params[0]);
     auto split = ngraph::builder::makeSplit(relu_start, ngPrc, 1, 1);
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), split->output(0)}, 1);
-    auto concat_2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{split->output(0), split->output(0)},
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{split->output(0), split->output(0)}, 1);
+    auto concat_2 = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{split->output(0), split->output(0)},
                                                              1);
-    auto relu = std::make_shared<ngraph::opset1::Relu>(concat);
-    auto relu_2 = std::make_shared<ngraph::opset1::Relu>(concat_2);
+    auto relu = std::make_shared<ngraph::op::v0::Relu>(concat);
+    auto relu_2 = std::make_shared<ngraph::op::v0::Relu>(concat_2);
     ngraph::ResultVector resultVector{
-            std::make_shared<ngraph::opset1::Result>(relu),
-            std::make_shared<ngraph::opset1::Result>(relu_2)
+            std::make_shared<ngraph::op::v0::Result>(relu),
+            std::make_shared<ngraph::op::v0::Result>(relu_2)
     };
     function = std::make_shared<ngraph::Function>(resultVector, params, "Multiple_connection_split_concat");
 }

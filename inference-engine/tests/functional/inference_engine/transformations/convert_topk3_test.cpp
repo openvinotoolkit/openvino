@@ -25,9 +25,9 @@ using namespace testing;
 TEST(TransformationTests, ConvertTopK3I32Output0) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
-        auto k = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
-        auto topk = std::make_shared<ngraph::opset3::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
+        auto k = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto topk = std::make_shared<ngraph::op::v3::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
         topk->set_friendly_name("topk");
 
         // due to the 'compare_functions' limitation we will check only one output
@@ -42,9 +42,9 @@ TEST(TransformationTests, ConvertTopK3I32Output0) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
-        auto k = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
-        auto topk = std::make_shared<ngraph::opset2::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
+        auto k = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto topk = std::make_shared<ngraph::op::v1::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
         topk->set_friendly_name("topk");
 
         // due to the 'compare_functions' limitation we will check only one output
@@ -63,9 +63,9 @@ TEST(TransformationTests, ConvertTopK3I32Output0) {
 TEST(TransformationTests, ConvertTopK3I32Output1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
-        auto k = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
-        auto topk = std::make_shared<ngraph::opset3::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
+        auto k = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto topk = std::make_shared<ngraph::op::v3::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
         topk->set_friendly_name("topk");
 
         // due to the 'compare_functions' limitation we will check only one output
@@ -79,9 +79,9 @@ TEST(TransformationTests, ConvertTopK3I32Output1) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
-        auto k = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
-        auto topk = std::make_shared<ngraph::opset2::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
+        auto k = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto topk = std::make_shared<ngraph::op::v1::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
         topk->set_friendly_name("topk");
 
         // due to the 'compare_functions' limitation we will check only one output
@@ -100,9 +100,9 @@ TEST(TransformationTests, ConvertTopK3I32Output1) {
 TEST(TransformationTests, ConvertTopK3I64Output0) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
-        auto k = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
-        auto topk = std::make_shared<ngraph::opset3::TopK>(input, k, 1, "min", "value", ngraph::element::i64);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
+        auto k = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto topk = std::make_shared<ngraph::op::v3::TopK>(input, k, 1, "min", "value", ngraph::element::i64);
         topk->set_friendly_name("topk");
 
         // due to the 'compare_functions' limitation we will check only one output
@@ -116,9 +116,9 @@ TEST(TransformationTests, ConvertTopK3I64Output0) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
-        auto k = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
-        auto topk = std::make_shared<ngraph::opset2::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
+        auto k = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto topk = std::make_shared<ngraph::op::v1::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
         topk->set_friendly_name("topk");
 
         // due to the 'compare_functions' limitation we will check only one output
@@ -137,9 +137,9 @@ TEST(TransformationTests, ConvertTopK3I64Output0) {
 TEST(TransformationTests, ConvertTopK3I64Output1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
-        auto k = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
-        auto topk = std::make_shared<ngraph::opset3::TopK>(input, k, 1, "min", "value", ngraph::element::i64);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
+        auto k = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto topk = std::make_shared<ngraph::op::v3::TopK>(input, k, 1, "min", "value", ngraph::element::i64);
         topk->set_friendly_name("topk");
 
         // due to the 'compare_functions' limitation we will check only one output
@@ -153,10 +153,10 @@ TEST(TransformationTests, ConvertTopK3I64Output1) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
-        auto k = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
-        auto topk = std::make_shared<ngraph::opset2::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
-        auto convert = std::make_shared<ngraph::opset2::Convert>(topk->output(1), topk->get_index_element_type());
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
+        auto k = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto topk = std::make_shared<ngraph::op::v1::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
+        auto convert = std::make_shared<ngraph::op::v0::Convert>(topk->output(1), topk->get_index_element_type());
         topk->set_friendly_name("topk");
 
         // due to the 'compare_functions' limitation we will check only one output

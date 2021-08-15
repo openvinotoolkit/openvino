@@ -19,8 +19,8 @@ using namespace testing;
 TEST(TransformationTests, Gelu7Downgrade) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
-        auto gelu = std::make_shared<ngraph::opset7::Gelu>(input, ngraph::op::GeluApproximationMode::ERF);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
+        auto gelu = std::make_shared<ngraph::op::v7::Gelu>(input, ngraph::op::GeluApproximationMode::ERF);
         gelu->set_friendly_name("gelu7");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gelu}, ngraph::ParameterVector{input});
@@ -33,8 +33,8 @@ TEST(TransformationTests, Gelu7Downgrade) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
-        auto gelu = std::make_shared<ngraph::opset2::Gelu>(input);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
+        auto gelu = std::make_shared<ngraph::op::v0::Gelu>(input);
         gelu->set_friendly_name("gelu7");
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gelu}, ngraph::ParameterVector{input});

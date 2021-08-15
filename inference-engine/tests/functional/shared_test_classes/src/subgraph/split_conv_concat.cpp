@@ -37,14 +37,14 @@ void SplitConvConcat::SetUp() {
     }
     auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::VALID, 8, false, filterWeights1);
-    auto relu1 = std::make_shared<ngraph::opset1::Relu>(conv1);
+    auto relu1 = std::make_shared<ngraph::op::v0::Relu>(conv1);
 
     auto conv2 = ngraph::builder::makeConvolution(split->output(1), ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::VALID, 8, false, filterWeights2);
-    auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2);
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), relu2->output(0)}, 1);
+    auto relu2 = std::make_shared<ngraph::op::v0::Relu>(conv2);
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu1->output(0), relu2->output(0)}, 1);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
 }
 

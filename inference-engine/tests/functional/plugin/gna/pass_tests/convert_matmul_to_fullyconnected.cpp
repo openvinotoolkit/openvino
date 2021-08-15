@@ -68,9 +68,9 @@ protected:
 
         auto const_eltwise = ngraph::builder::makeConstant<float>(ngPrc,
                 {inputShape[0][0], inputShape[1][1]}, {1.0f});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(const_mult2, params[0], false, false);
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(const_mult2, params[0], false, false);
 
-        auto eltwise = std::make_shared<ngraph::opset1::Multiply>(matmul, const_eltwise);
+        auto eltwise = std::make_shared<ngraph::op::v1::Multiply>(matmul, const_eltwise);
         function = std::make_shared<ngraph::Function>(eltwise, params, "ConvertMatmulToFC");
     }
 };

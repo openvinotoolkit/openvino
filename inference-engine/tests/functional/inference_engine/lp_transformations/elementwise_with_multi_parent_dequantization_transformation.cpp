@@ -80,7 +80,7 @@ public:
             testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(testValues.params);
+        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::op::v1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ElementwiseWithMultiParentDequantizationFunction::get(

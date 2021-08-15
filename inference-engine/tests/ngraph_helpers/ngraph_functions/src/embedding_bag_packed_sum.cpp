@@ -21,16 +21,16 @@ std::shared_ptr<Node> makeEmbeddingBagPackedSum(
     std::vector<size_t> i_values(i_size);
     for (int i = 0; i < indices.size(); i++)
         memcpy(i_values.data() + indices[0].size() * i, indices[i].data(), indices[0].size() * sizeof(size_t));
-    auto indicesNode = std::make_shared<ngraph::opset1::Constant>(indicesType, i_shape, i_values);
+    auto indicesNode = std::make_shared<ngraph::op::v0::Constant>(indicesType, i_shape, i_values);
 
     std::shared_ptr<Node> embBag;
     if (with_weights) {
         auto weightsNode = makeConstant<float>(dataType, i_shape, {}, true);
 
-        embBag = std::make_shared<opset3::EmbeddingBagPackedSum>(
+        embBag = std::make_shared<op::v3::EmbeddingBagPackedSum>(
             embTableNode, indicesNode, weightsNode);
     } else {
-        embBag = std::make_shared<opset3::EmbeddingBagPackedSum>(
+        embBag = std::make_shared<op::v3::EmbeddingBagPackedSum>(
             embTableNode, indicesNode);
     }
     return embBag;

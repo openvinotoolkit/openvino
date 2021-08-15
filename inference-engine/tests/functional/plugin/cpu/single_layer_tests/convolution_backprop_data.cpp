@@ -89,7 +89,7 @@ protected:
                 padEnd, dilation, padType, convOutChannels, false, outPadding);
 
         if (!outputShape.empty()) {
-            auto outShape = ngraph::opset3::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
+            auto outShape = ngraph::op::v0::Constant::create(ngraph::element::i64, {outputShape.size()}, outputShape);
             deconvolutionNode = ngraph::builder::makeConvolutionBackpropData(paramOuts.front(), outShape, ngPrc, kernel, stride, padBegin,
                 padEnd, dilation, padType, convOutChannels);
         }

@@ -52,10 +52,10 @@ protected:
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto shuffleChannels = std::dynamic_pointer_cast<ngraph::opset3::ShuffleChannels>(
+        auto shuffleChannels = std::dynamic_pointer_cast<ngraph::op::v1::BatchToSpace>(
                 ngraph::builder::makeShuffleChannels(paramOuts[0], axis, group));
         shuffleChannels->get_rt_info() = getCPUInfo();
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shuffleChannels)};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(shuffleChannels)};
         function = std::make_shared<ngraph::Function>(results, params, "shuffleChannels");
 
         if (selectedType.empty()) {

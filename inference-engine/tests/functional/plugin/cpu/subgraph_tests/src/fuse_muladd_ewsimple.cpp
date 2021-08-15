@@ -49,7 +49,7 @@ void FuseMulAddAndEwSimpleTest1::CreateGraph() {
     auto mul1 = ngraph::builder::makeEltwise(params[1], params[2], EltwiseTypes::MULTIPLY);
     auto add = ngraph::builder::makeEltwise(tanh, mul1, EltwiseTypes::ADD);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(add)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(add)};
     function = std::make_shared<ngraph::Function>(results, params, "MulAdd_EwSimple");
 }
 
@@ -74,7 +74,7 @@ void FuseMulAddAndEwSimpleTest2::CreateGraph() {
     auto mul1 = ngraph::builder::makeEltwise(tanh2, tanh1, EltwiseTypes::MULTIPLY);
     auto add = ngraph::builder::makeEltwise(mul1, params[2], EltwiseTypes::ADD);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(add)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(add)};
     function = std::make_shared<ngraph::Function>(results, params, "MulAdd_EwSimple_2");
 }
 
@@ -98,7 +98,7 @@ void FuseMulAddAndEwSimpleTest3::CreateGraph() {
     auto mul2 = ngraph::builder::makeEltwise(tanh1, params[3], EltwiseTypes::MULTIPLY);
     auto add2 = ngraph::builder::makeEltwise(params[4], mul2, EltwiseTypes::ADD);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(add2)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(add2)};
     function = std::make_shared<ngraph::Function>(results, params, "MulAdd_EwSimple_3");
 }
 

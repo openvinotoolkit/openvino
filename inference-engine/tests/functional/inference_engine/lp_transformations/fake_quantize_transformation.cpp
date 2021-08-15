@@ -93,12 +93,12 @@ public:
             fakeQuantizeOnData.addNotPrecisionPreservedOperation);
 
         auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, params.precisionsOnActivations}})
+           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::op::v1::AvgPool>({{0, params.precisionsOnActivations}})
         });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::op::v0::FakeQuantize>(params);
+        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::op::v1::AvgPool>(params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(

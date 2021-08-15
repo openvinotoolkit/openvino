@@ -18,13 +18,13 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::getOriginal(
     const ngraph::element::Type originalFunctionPrecision,
     const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fakeQuantizeOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, inputShape);
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(originalFunctionPrecision, inputShape);
 
     const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
         input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
-    const std::shared_ptr<ngraph::Node> maxPool = std::make_shared<ngraph::opset1::MaxPool>(
+    const std::shared_ptr<ngraph::Node> maxPool = std::make_shared<ngraph::op::v1::MaxPool>(
         fakeQuantize,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
@@ -32,7 +32,7 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::getOriginal(
         Shape{ 2, 2 },
         op::RoundingType::FLOOR);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(maxPool) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(maxPool) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MaxPoolTransformation");
 }
 
@@ -42,12 +42,12 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::get(
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(precisionBeforeDequantization, inputShape);
     std::shared_ptr<ngraph::Node> parent = input;
 
     parent = makeDequantization(parent, dequantizationBefore);
 
-    const auto maxPool = std::make_shared<ngraph::opset1::MaxPool>(
+    const auto maxPool = std::make_shared<ngraph::op::v1::MaxPool>(
         parent,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
@@ -60,7 +60,7 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::get(
     parent = makeDequantization(maxPool, dequantizationAfter);
     maxPool->set_friendly_name("maxPool");
 
-    const std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(parent);
+    const std::shared_ptr<ngraph::op::v0::Result> result = std::make_shared<ngraph::op::v0::Result>(parent);
 
     const std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ result },

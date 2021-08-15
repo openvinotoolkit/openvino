@@ -18,12 +18,12 @@ TEST_P(PluginSpecificConversion, addOutputAfterLoadNetwork) {
     std::shared_ptr<ngraph::Function> f(nullptr);
 
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 300, 300});
-        auto const1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1, 1}, {1});
-        auto add1 = std::make_shared<ngraph::opset1::Add>(input, const1);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 300, 300});
+        auto const1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1, 1}, {1});
+        auto add1 = std::make_shared<ngraph::op::v1::Add>(input, const1);
         add1->set_friendly_name("add1");
-        auto const2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1, 1}, {1});
-        auto add2 = std::make_shared<ngraph::opset1::Add>(add1, const2);
+        auto const2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1, 1}, {1});
+        auto add2 = std::make_shared<ngraph::op::v1::Add>(add1, const2);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add2}, ngraph::ParameterVector{input});
     }
 
@@ -43,7 +43,7 @@ TEST_P(PluginSpecificConversion, GeluConversionTest) {
     std::shared_ptr<ngraph::Function> f(nullptr);
 
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
         auto gelu = std::make_shared<ngraph::op::Gelu>(input);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gelu}, ngraph::ParameterVector{input});
     }
@@ -61,9 +61,9 @@ TEST_P(PluginSpecificConversion, MatMulConversionTest) {
     std::shared_ptr<ngraph::Function> f(nullptr);
 
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{64, 3}, {1});
-        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input, weights);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
+        auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{64, 3}, {1});
+        auto matmul = std::make_shared<ngraph::op::v0::MatMul>(input, weights);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input});
     }
 

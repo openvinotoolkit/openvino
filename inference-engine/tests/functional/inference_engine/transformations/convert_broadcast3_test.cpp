@@ -55,18 +55,18 @@ public:
 
     std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
                                                    const TargetShape & target_shape) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto target_shape_node = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{target_shape.size()}, target_shape);
-        auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(input, target_shape_node, op::BroadcastType::NUMPY);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto target_shape_node = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{target_shape.size()}, target_shape);
+        auto broadcast = std::make_shared<ngraph::op::v3::Broadcast>(input, target_shape_node, op::BroadcastType::NUMPY);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input});
     }
 
     std::shared_ptr<Function> get_reference_broadcast(const InputShape & input_shape,
                                                       const TargetShape & target_shape) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto target_shape_node = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{target_shape.size()}, target_shape);
-        auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(input, target_shape_node, op::AutoBroadcastType::NUMPY);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto target_shape_node = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{target_shape.size()}, target_shape);
+        auto broadcast = std::make_shared<ngraph::op::v1::Broadcast>(input, target_shape_node, op::AutoBroadcastType::NUMPY);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input});
     }
@@ -87,18 +87,18 @@ public:
 
     std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
                                                    const TargetShape & target_shape) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto target_shape_node = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{target_shape.size()}, target_shape);
-        auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto target_shape_node = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{target_shape.size()}, target_shape);
+        auto broadcast = std::make_shared<ngraph::op::v3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input});
     }
 
     std::shared_ptr<Function> get_reference_broadcast(const InputShape & input_shape,
                                                       const TargetShape & target_shape) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto const_node = ngraph::opset1::Constant::create(ngraph::element::f32, Shape{target_shape}, {1});
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(input, const_node);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto const_node = ngraph::op::v0::Constant::create(ngraph::element::f32, Shape{target_shape}, {1});
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(input, const_node);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
     }
@@ -120,18 +120,18 @@ public:
 
     std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
                                                    const TargetShape & target_shape) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto target_shape_node = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{target_shape.size()}, target_shape);
-        auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto target_shape_node = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{target_shape.size()}, target_shape);
+        auto broadcast = std::make_shared<ngraph::op::v3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input});
     }
 
     std::shared_ptr<Function> get_reference_broadcast(const InputShape & input_shape,
                                                       const TargetShape & aligned_target_shape) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto target_shape_node = ngraph::opset1::Constant::create(ngraph::element::i64, Shape{aligned_target_shape.size()}, aligned_target_shape);
-        auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(input, target_shape_node, op::AutoBroadcastType::NUMPY);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto target_shape_node = ngraph::op::v0::Constant::create(ngraph::element::i64, Shape{aligned_target_shape.size()}, aligned_target_shape);
+        auto broadcast = std::make_shared<ngraph::op::v1::Broadcast>(input, target_shape_node, op::AutoBroadcastType::NUMPY);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input});
     }
@@ -152,20 +152,20 @@ public:
 
     std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
                                                    const TargetShape & target_shape) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto target_shape_node = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, target_shape);
-        auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto target_shape_node = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, target_shape);
+        auto broadcast = std::make_shared<ngraph::op::v3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input, target_shape_node});
     }
 
     std::shared_ptr<Function> get_reference_broadcast(const InputShape & input_shape,
                                                       const TargetShape & target_shape) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto target_shape_node = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, target_shape);
-        auto constant_one = opset1::Constant::create(ngraph::element::f32, {1}, {1});
-        auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(input, broadcast);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto target_shape_node = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, target_shape);
+        auto constant_one = op::v0::Constant::create(ngraph::element::f32, {1}, {1});
+        auto broadcast = std::make_shared<ngraph::op::v1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(input, broadcast);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input, target_shape_node});
     }
 };
@@ -185,20 +185,20 @@ public:
 
     std::shared_ptr<Function> get_initial_function(const InputShape & input_shape,
                                                    const TargetShape & target_shape) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::boolean, input_shape);
-        auto target_shape_node = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, target_shape);
-        auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::boolean, input_shape);
+        auto target_shape_node = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, target_shape);
+        auto broadcast = std::make_shared<ngraph::op::v3::Broadcast>(input, target_shape_node, op::BroadcastType::BIDIRECTIONAL);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input, target_shape_node});
     }
 
     std::shared_ptr<Function> get_reference_broadcast(const InputShape & input_shape,
                                                       const TargetShape & target_shape) {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::boolean, input_shape);
-        auto target_shape_node = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i64, target_shape);
-        auto constant_one = opset1::Constant::create(ngraph::element::boolean, {1}, {1});
-        auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
-        auto mul = std::make_shared<ngraph::opset1::LogicalOr>(input, broadcast);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::boolean, input_shape);
+        auto target_shape_node = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, target_shape);
+        auto constant_one = op::v0::Constant::create(ngraph::element::boolean, {1}, {1});
+        auto broadcast = std::make_shared<ngraph::op::v1::Broadcast>(constant_one, target_shape_node, op::AutoBroadcastType::NUMPY);
+        auto mul = std::make_shared<ngraph::op::v1::LogicalOr>(input, broadcast);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input, target_shape_node});
     }
 };
@@ -317,9 +317,9 @@ INSTANTIATE_TEST_SUITE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBro
 TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto target_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(input1, target_shape, ngraph::op::BroadcastType::NUMPY);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto target_shape = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<ngraph::op::v3::Broadcast>(input1, target_shape, ngraph::op::BroadcastType::NUMPY);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});
@@ -332,9 +332,9 @@ TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
     }
 
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto target_shape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(input1, target_shape, ngraph::op::AutoBroadcastType::NUMPY);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto target_shape = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<ngraph::op::v1::Broadcast>(input1, target_shape, ngraph::op::AutoBroadcastType::NUMPY);
         broadcast->set_friendly_name("broadcast");
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});
@@ -352,9 +352,9 @@ TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
 TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto target_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(input1, target_shape, ngraph::op::BroadcastType::PDPD);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto target_shape = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<ngraph::op::v3::Broadcast>(input1, target_shape, ngraph::op::BroadcastType::PDPD);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});
@@ -367,9 +367,9 @@ TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
     }
 
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto target_shape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(input1, target_shape, ngraph::op::AutoBroadcastType::PDPD);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto target_shape = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<ngraph::op::v1::Broadcast>(input1, target_shape, ngraph::op::AutoBroadcastType::PDPD);
         broadcast->set_friendly_name("broadcast");
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});
@@ -387,10 +387,10 @@ TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
 TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 5, 2});
-        auto brodcast_axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{0, 1, 2});
-        auto target_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(input1, target_shape, brodcast_axis, ngraph::op::BroadcastType::EXPLICIT);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 5, 2});
+        auto brodcast_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{0, 1, 2});
+        auto target_shape = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<ngraph::op::v3::Broadcast>(input1, target_shape, brodcast_axis, ngraph::op::BroadcastType::EXPLICIT);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});
@@ -403,10 +403,10 @@ TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
     }
 
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 5, 2});
-        auto brodcast_axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{0, 1, 2});
-        auto target_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(input1, target_shape, brodcast_axis, ngraph::op::AutoBroadcastType::EXPLICIT);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 5, 2});
+        auto brodcast_axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{0, 1, 2});
+        auto target_shape = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<ngraph::op::v1::Broadcast>(input1, target_shape, brodcast_axis, ngraph::op::AutoBroadcastType::EXPLICIT);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});
     }
@@ -424,9 +424,9 @@ TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
 TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 2});
-        auto target_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 1});
-        auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(input1, target_shape, ngraph::op::BroadcastType::BIDIRECTIONAL);
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 2});
+        auto target_shape = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 1});
+        auto broadcast = std::make_shared<ngraph::op::v3::Broadcast>(input1, target_shape, ngraph::op::BroadcastType::BIDIRECTIONAL);
         broadcast->set_friendly_name("broadcast");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});
@@ -439,9 +439,9 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 2});
-        auto target_shape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
-        auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(input, target_shape, ngraph::op::AutoBroadcastType::NUMPY);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 2});
+        auto target_shape = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{3, 5, 2});
+        auto broadcast = std::make_shared<ngraph::op::v1::Broadcast>(input, target_shape, ngraph::op::AutoBroadcastType::NUMPY);
         broadcast->set_friendly_name("broadcast");
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input});

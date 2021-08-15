@@ -18,12 +18,12 @@ namespace {
 struct Graph {
     std::shared_ptr<ngraph::Function> createFunction();
 
-    std::shared_ptr<ngraph::opset7::Parameter> input_params;
+    std::shared_ptr<ngraph::op::v0::Parameter> input_params;
     ngraph::OutputVector output_nodes;
 };
 
 std::shared_ptr<ngraph::Function> Graph::createFunction() {
-    auto result = std::make_shared<ngraph::opset7::Result>(output_nodes.front());
+    auto result = std::make_shared<ngraph::op::v0::Result>(output_nodes.front());
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                               ngraph::ParameterVector{input_params});
 }
@@ -92,7 +92,7 @@ using CreateBaseDecoratorPtr = std::unique_ptr<CreateBaseDecorator>;
 
 Graph CreateBaseDecorator::build() {
     Graph graph;
-    graph.input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32,
+    graph.input_params = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32,
                                                                      input_data_shape_);
     return graph;
 }
@@ -109,7 +109,7 @@ private:
 };
 
 ngraph::Output<ngraph::Node> CreateConvolution::createOutputNode(const ngraph::Output<ngraph::Node>& parent_node) {
-    auto kernel = ngraph::opset7::Constant::create(ngraph::element::f32,
+    auto kernel = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                    kernel_shape_, {1});
 
     return std::make_shared<ngraph::opset7::Convolution>(parent_node,
@@ -137,13 +137,13 @@ private:
 };
 
 void CreateSplittedConvolution::updateGraph(Graph& graph) {
-    auto split_node_c1 = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{3});
-    auto split_node_c2 = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({split_shape_.size()}), split_shape_);
+    auto split_node_c1 = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{3});
+    auto split_node_c2 = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({split_shape_.size()}), split_shape_);
     auto split_node = std::make_shared<ngraph::opset7::VariadicSplit>(graph.input_params,
                                                                       split_node_c1,
                                                                       split_node_c2);
 
-    auto kernel = ngraph::opset7::Constant::create(ngraph::element::f32,
+    auto kernel = ngraph::op::v0::Constant::create(ngraph::element::f32,
                                                    kernel_shape_, {1});
 
     for (int i = 0; i < split_shape_.size(); ++i) {
@@ -166,8 +166,8 @@ protected:
 };
 
 ngraph::Output<ngraph::Node> CreateAdd::createOutputNode(const ngraph::Output<ngraph::Node>& parent_node) {
-    auto bias = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-    return std::make_shared<ngraph::opset7::Add>(parent_node, bias);
+    auto bias = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+    return std::make_shared<ngraph::op::v1::Add>(parent_node, bias);
 }
 
 class CreateFakeQuantize : public CreateAppendableGraphDecorator {
@@ -179,11 +179,11 @@ protected:
 };
 
 ngraph::Output<ngraph::Node> CreateFakeQuantize::createOutputNode(const ngraph::Output<ngraph::Node>& parent_node) {
-    auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-    auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
-    auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-    auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-    return std::make_shared<ngraph::opset7::FakeQuantize>(parent_node, input_low,
+    auto input_low = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+    auto input_high = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {20});
+    auto output_low = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
+    auto output_high = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
+    return std::make_shared<ngraph::op::v0::FakeQuantize>(parent_node, input_low,
                                                           input_high, output_low,
                                                           output_high, 11);
 }

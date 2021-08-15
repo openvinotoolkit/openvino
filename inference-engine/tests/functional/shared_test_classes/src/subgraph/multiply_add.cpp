@@ -31,10 +31,10 @@ void MultiplyAddLayerTest::SetUp() {
     constShape[1] = inputShape[1];
 
     auto const_mul = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
-    auto mul = std::make_shared<ngraph::opset3::Multiply>(paramOuts[0], const_mul);
+    auto mul = std::make_shared<ngraph::op::v1::Multiply>(paramOuts[0], const_mul);
     auto const_add = ngraph::builder::makeConstant<float>(ngPrc, constShape, {}, true);
-    auto add = std::make_shared<ngraph::opset3::Add>(mul, const_add);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(add)};
+    auto add = std::make_shared<ngraph::op::v1::Add>(mul, const_add);
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(add)};
     function = std::make_shared<ngraph::Function>(results, params, "multiplyAdd");
 }
 } // namespace SubgraphTestsDefinitions

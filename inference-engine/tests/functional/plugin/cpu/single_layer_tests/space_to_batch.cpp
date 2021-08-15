@@ -58,7 +58,7 @@ protected:
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto s2b = ngraph::builder::makeSpaceToBatch(paramOuts[0], ngPrc, blockShape, padsBegin, padsEnd);
         s2b->get_rt_info() = getCPUInfo();
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2b)};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(s2b)};
         function = std::make_shared<ngraph::Function>(results, params, "SpaceToBatch");
     }
 };

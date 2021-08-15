@@ -44,7 +44,7 @@ void VariadicSplitPad::SetUp() {
 
     for (size_t i : connectIndexes) {
         auto pad = ngraph::builder::makePad(split->output(i), padBegin, padEnd, 0, padMode);
-        results.push_back(std::make_shared<ngraph::opset1::Result>(pad));
+        results.push_back(std::make_shared<ngraph::op::v0::Result>(pad));
     }
     function = std::make_shared<ngraph::Function>(results, input, "variadic_split_pad");
 }

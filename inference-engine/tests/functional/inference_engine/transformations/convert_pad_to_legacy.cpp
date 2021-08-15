@@ -19,10 +19,10 @@
 using namespace testing;
 
 TEST(TransformationTests, ConvertPadToLegacyDynamic) {
-    auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-    auto pad_begin = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
-    auto pad_end = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
-    auto pad = std::make_shared<ngraph::opset1::Pad>(data, pad_begin, pad_end, ngraph::op::PadMode::SYMMETRIC);
+    auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+    auto pad_begin = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
+    auto pad_end = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
+    auto pad = std::make_shared<ngraph::op::v1::Pad>(data, pad_begin, pad_end, ngraph::op::PadMode::SYMMETRIC);
 
     auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{pad}, ngraph::ParameterVector{data});
 

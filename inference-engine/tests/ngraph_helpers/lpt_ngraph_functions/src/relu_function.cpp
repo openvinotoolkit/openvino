@@ -19,13 +19,13 @@ std::shared_ptr<ngraph::Function> ReluFunction::getOriginal(
     const ngraph::PartialShape& inputShape,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
-    const std::shared_ptr<Node> relu = std::make_shared<ngraph::opset1::Relu>(dequantizationOp);
+    const std::shared_ptr<Node> relu = std::make_shared<ngraph::op::v0::Relu>(dequantizationOp);
     relu->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(relu) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(relu) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReluFunction");
 }
 
@@ -33,14 +33,14 @@ std::shared_ptr<ngraph::Function> ReluFunction::getOriginal(
     const ngraph::PartialShape& inputShape,
     const ngraph::element::Type precisionBeforeFq,
     const FakeQuantizeOnData& fqOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeFq, inputShape);
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(precisionBeforeFq, inputShape);
 
     const std::shared_ptr<Node> quantizationOp = fqOnData.empty() ?
         std::dynamic_pointer_cast<ngraph::Node>(input) :
         makeFakeQuantize(input, precisionBeforeFq, fqOnData);
-    const std::shared_ptr<Node> relu = std::make_shared<ngraph::opset1::Relu>(quantizationOp);
+    const std::shared_ptr<Node> relu = std::make_shared<ngraph::op::v0::Relu>(quantizationOp);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(relu) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(relu) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReluFunction");
 }
 
@@ -50,20 +50,20 @@ std::shared_ptr<ngraph::Function> ReluFunction::getReference(
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
-    std::shared_ptr<ngraph::opset1::Relu> relu;
+    std::shared_ptr<ngraph::op::v0::Relu> relu;
     if (quantizationOpBefore->get_output_element_type(0) == precisionAfterOperation) {
-        relu = std::make_shared<ngraph::opset1::Relu>(quantizationOpBefore);
+        relu = std::make_shared<ngraph::op::v0::Relu>(quantizationOpBefore);
     } else {
-        relu = std::make_shared<op::TypeRelaxed<ngraph::opset1::Relu>>(quantizationOpBefore);
+        relu = std::make_shared<op::TypeRelaxed<ngraph::op::v0::Relu>>(quantizationOpBefore);
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(relu, precisionAfterOperation);
     }
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(relu, dequantizationAfter);
     quantizationOpAfter->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(quantizationOpAfter) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReluFunction");
 }
 

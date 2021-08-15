@@ -25,14 +25,14 @@ using namespace ngraph;
 TEST(TransformationTests, SpaceToBatchFusionTranspose) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
-        auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto trans_before = std::make_shared<op::v1::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         auto pad = std::make_shared<opset6::Pad>(trans_before,
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1}),
                 op::Constant::create(element::i64, Shape{4}, {2, 2, 3, 3}),
                 op::Constant::create(element::f32, Shape{}, {0}), op::PadMode::CONSTANT);
         auto space_to_depth = std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
-        auto trans_after = std::make_shared<opset6::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto trans_after = std::make_shared<op::v1::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         f = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
 
         pass::Manager m;
@@ -43,7 +43,7 @@ TEST(TransformationTests, SpaceToBatchFusionTranspose) {
     }
 
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 3, 4, 8});
         auto space_to_batch = std::make_shared<opset6::SpaceToBatch>(data,
             op::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
             op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1}),
@@ -59,14 +59,14 @@ TEST(TransformationTests, SpaceToBatchFusionTranspose) {
 TEST(TransformationTests, SpaceToBatchFusionReshape) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
-        auto reshape_before = std::make_shared<opset6::Reshape>(data, op::Constant::create(element::i64, Shape{4}, {3, 12, 4, 8}), false);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto reshape_before = std::make_shared<op::v1::Reshape>(data, op::Constant::create(element::i64, Shape{4}, {3, 12, 4, 8}), false);
         auto pad = std::make_shared<opset6::Pad>(reshape_before,
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1}),
                 op::Constant::create(element::i64, Shape{4}, {2, 2, 3, 3}),
                 op::Constant::create(element::f32, Shape{}, {0}), op::PadMode::CONSTANT);
         auto space_to_depth = std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
-        auto trans_after = std::make_shared<opset6::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto trans_after = std::make_shared<op::v1::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         f = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
 
         pass::Manager m;
@@ -77,7 +77,7 @@ TEST(TransformationTests, SpaceToBatchFusionReshape) {
     }
 
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 3, 4, 8});
         auto space_to_batch = std::make_shared<opset6::SpaceToBatch>(data,
             op::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
             op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1}),
@@ -93,14 +93,14 @@ TEST(TransformationTests, SpaceToBatchFusionReshape) {
 TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidTransposePerm) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
-        auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {3, 0, 2, 1}));
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto trans_before = std::make_shared<op::v1::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {3, 0, 2, 1}));
         auto pad = std::make_shared<opset6::Pad>(trans_before,
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1}),
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 3, 2}),
                 op::Constant::create(element::f32, Shape{}, {0}), op::PadMode::CONSTANT);
         auto space_to_depth = std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
-        auto trans_after = std::make_shared<opset6::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto trans_after = std::make_shared<op::v1::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         f = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
 
         pass::Manager m;
@@ -111,14 +111,14 @@ TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidTransposePerm) {
     }
 
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
-        auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {3, 0, 2, 1}));
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto trans_before = std::make_shared<op::v1::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {3, 0, 2, 1}));
         auto pad = std::make_shared<opset6::Pad>(trans_before,
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1}),
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 3, 2}),
                 op::Constant::create(element::f32, Shape{}, {0}), op::PadMode::CONSTANT);
         auto space_to_depth = std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
-        auto trans_after = std::make_shared<opset6::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto trans_after = std::make_shared<op::v1::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         f_ref = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
     }
 
@@ -129,14 +129,14 @@ TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidTransposePerm) {
 TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidPad) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
-        auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto trans_before = std::make_shared<op::v1::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         auto pad = std::make_shared<opset6::Pad>(trans_before,
                 op::Constant::create(element::i64, Shape{4}, {0, 1, 1, 0}),
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 3, 2}),
                 op::Constant::create(element::f32, Shape{}, {1}), op::PadMode::CONSTANT);
         auto space_to_depth = std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
-        auto trans_after = std::make_shared<opset6::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto trans_after = std::make_shared<op::v1::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         f = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
 
         pass::Manager m;
@@ -147,14 +147,14 @@ TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidPad) {
     }
 
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
-        auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto trans_before = std::make_shared<op::v1::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         auto pad = std::make_shared<opset6::Pad>(trans_before,
                 op::Constant::create(element::i64, Shape{4}, {0, 1, 1, 0}),
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 3, 2}),
                 op::Constant::create(element::f32, Shape{}, {1}), op::PadMode::CONSTANT);
         auto space_to_depth = std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
-        auto trans_after = std::make_shared<opset6::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto trans_after = std::make_shared<op::v1::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         f_ref = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
     }
 
@@ -165,14 +165,14 @@ TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidPad) {
 TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidMode) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
-        auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto trans_before = std::make_shared<op::v1::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         auto pad = std::make_shared<opset6::Pad>(trans_before,
                 op::Constant::create(element::i64, Shape{4}, {0, 1, 1, 0}),
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 3, 2}),
                 op::Constant::create(element::f32, Shape{}, {0}), op::PadMode::CONSTANT);
         auto space_to_depth = std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, 2);
-        auto trans_after = std::make_shared<opset6::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto trans_after = std::make_shared<op::v1::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         f = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
 
         pass::Manager m;
@@ -183,14 +183,14 @@ TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidMode) {
     }
 
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
-        auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto trans_before = std::make_shared<op::v1::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         auto pad = std::make_shared<opset6::Pad>(trans_before,
                 op::Constant::create(element::i64, Shape{4}, {0, 1, 1, 0}),
                 op::Constant::create(element::i64, Shape{4}, {1, 1, 3, 2}),
                 op::Constant::create(element::f32, Shape{}, {0}), op::PadMode::CONSTANT);
         auto space_to_depth = std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, 2);
-        auto trans_after = std::make_shared<opset6::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto trans_after = std::make_shared<op::v1::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
         f_ref = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
     }
 
@@ -201,14 +201,14 @@ TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidMode) {
 TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidRank) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8, 8});
-        auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 3, 4, 8, 8});
+        auto trans_before = std::make_shared<op::v1::Transpose>(data, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
         auto pad = std::make_shared<opset6::Pad>(trans_before,
                 op::Constant::create(element::i64, Shape{5}, {0, 1, 1, 0, 0}),
                 op::Constant::create(element::i64, Shape{5}, {1, 1, 3, 2, 2}),
                 op::Constant::create(element::f32, Shape{}, {0}), op::PadMode::CONSTANT);
         auto space_to_depth = std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
-        auto trans_after = std::make_shared<opset6::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
+        auto trans_after = std::make_shared<op::v1::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
         f = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
 
         pass::Manager m;
@@ -219,14 +219,14 @@ TEST(TransformationTests, NegativeSpaceToBatchFusionInvalidRank) {
     }
 
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8, 8});
-        auto trans_before = std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{12, 3, 4, 8, 8});
+        auto trans_before = std::make_shared<op::v1::Transpose>(data, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
         auto pad = std::make_shared<opset6::Pad>(trans_before,
                 op::Constant::create(element::i64, Shape{5}, {0, 1, 1, 0, 0}),
                 op::Constant::create(element::i64, Shape{5}, {1, 1, 3, 2, 2}),
                 op::Constant::create(element::f32, Shape{}, {0}), op::PadMode::CONSTANT);
         auto space_to_depth = std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
-        auto trans_after = std::make_shared<opset6::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
+        auto trans_after = std::make_shared<op::v1::Transpose>(space_to_depth, op::Constant::create(element::i64, Shape{5}, {1, 0, 2, 3, 4}));
         f_ref = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
     }
 

@@ -19,9 +19,9 @@
 using namespace testing;
 
 TEST(TransformationTests, ConvertLRNToLegacyDynamic) {
-    auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-    auto axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
-    auto lrn = std::make_shared<ngraph::opset1::LRN>(data, axis, 1, 2, 3, 4);
+    auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+    auto axis = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
+    auto lrn = std::make_shared<ngraph::op::v0::LRN>(data, axis, 1, 2, 3, 4);
 
     auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{lrn}, ngraph::ParameterVector{data});
 

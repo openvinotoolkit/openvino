@@ -90,20 +90,20 @@ public:
             testValues.actual.fakeQuantize2);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
+            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::op::v1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
         });
 
         auto quantizationRestrictions = testValues.multiChannels ?
             std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
             std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::AvgPool>()
+                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::op::v1::AvgPool>()
             });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation, quantizationRestrictions);
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::op::v0::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::op::v1::MaxPool>(testValues.params);
+        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::op::v1::AvgPool>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::op::v0::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithIntermediateAvgPool(

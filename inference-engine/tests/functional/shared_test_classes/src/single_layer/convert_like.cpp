@@ -31,8 +31,8 @@ void ConvertLikeLayerTest::SetUp() {
     auto targetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(targetPrecision);
     auto params = ngraph::builder::makeParams(ngPrc1, inputShape1);
     params.push_back(ngraph::builder::makeParams(targetPrc, inputShape2).front());
-    auto convertLike = std::make_shared<ngraph::opset3::ConvertLike>(params.front(), params.back());
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(convertLike)};
+    auto convertLike = std::make_shared<ngraph::op::v1::ConvertLike>(params.front(), params.back());
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(convertLike)};
     function = std::make_shared<ngraph::Function>(results, params, "ConvertLike");
 }
 }  // namespace LayerTestsDefinitions

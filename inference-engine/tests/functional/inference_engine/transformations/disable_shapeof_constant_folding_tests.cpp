@@ -25,10 +25,10 @@ using namespace ngraph;
 TEST(TransformationTests, DisableShapeOfConstantFolding) {
     std::shared_ptr<Function> f, f_ref;
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto shape_of = std::make_shared<opset6::ShapeOf>(data);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 10, 10});
+        auto shape_of = std::make_shared<op::v0::ShapeOf>(data);
         auto abs = std::make_shared<opset6::Abs>(shape_of);
-        auto reshape = std::make_shared<opset6::Reshape>(data, abs, false);
+        auto reshape = std::make_shared<op::v1::Reshape>(data, abs, false);
         f = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
         pass::Manager m;
@@ -38,10 +38,10 @@ TEST(TransformationTests, DisableShapeOfConstantFolding) {
     }
 
     {
-        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto shape_of = std::make_shared<opset6::ShapeOf>(data);
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 10, 10});
+        auto shape_of = std::make_shared<op::v0::ShapeOf>(data);
         auto abs = std::make_shared<opset6::Abs>(shape_of);
-        auto reshape = std::make_shared<opset6::Reshape>(data, abs, false);
+        auto reshape = std::make_shared<op::v1::Reshape>(data, abs, false);
         f_ref = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
     }
 
@@ -52,11 +52,11 @@ TEST(TransformationTests, DisableShapeOfConstantFolding) {
 TEST(TransformationTests, ShapeOfShapeOfConstantFolding) {
     std::shared_ptr<Function> f, f_ref;
     {
-        auto data = std::make_shared<opset6::Parameter>(element::i64, Shape{1, 4, 10, 10});
-        auto shape_of = std::make_shared<opset6::ShapeOf>(data);
-        auto reshape = std::make_shared<opset6::Reshape>(data, shape_of, false);
-        auto rank = std::make_shared<opset6::ShapeOf>(shape_of);
-        auto mul = std::make_shared<opset6::Multiply>(reshape, rank);
+        auto data = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, 4, 10, 10});
+        auto shape_of = std::make_shared<op::v0::ShapeOf>(data);
+        auto reshape = std::make_shared<op::v1::Reshape>(data, shape_of, false);
+        auto rank = std::make_shared<op::v0::ShapeOf>(shape_of);
+        auto mul = std::make_shared<op::v1::Multiply>(reshape, rank);
         f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
         pass::Manager m;
@@ -66,10 +66,10 @@ TEST(TransformationTests, ShapeOfShapeOfConstantFolding) {
     }
 
     {
-        auto data = std::make_shared<opset6::Parameter>(element::i64, Shape{1, 4, 10, 10});
-        auto shape_of = std::make_shared<opset6::ShapeOf>(data);
-        auto reshape = std::make_shared<opset6::Reshape>(data, shape_of, false);
-        auto mul = std::make_shared<opset6::Multiply>(reshape, opset6::Constant::create(element::i64, Shape{1}, {4}));
+        auto data = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, 4, 10, 10});
+        auto shape_of = std::make_shared<op::v0::ShapeOf>(data);
+        auto reshape = std::make_shared<op::v1::Reshape>(data, shape_of, false);
+        auto mul = std::make_shared<op::v1::Multiply>(reshape, op::v0::Constant::create(element::i64, Shape{1}, {4}));
         f_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
     }
 

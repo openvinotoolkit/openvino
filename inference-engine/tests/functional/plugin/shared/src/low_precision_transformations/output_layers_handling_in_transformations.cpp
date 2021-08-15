@@ -53,7 +53,7 @@ void OutputLayersHandlingInTransformations::SetUp() {
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(ngPrecision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
 
     const float k = 1.f;
@@ -62,7 +62,7 @@ void OutputLayersHandlingInTransformations::SetUp() {
         { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
     fakeQuantizeOnActivations->set_friendly_name("fakeQuantizeOnActivations");
 
-    const auto weights = ngraph::opset1::Constant::create(
+    const auto weights = ngraph::op::v0::Constant::create(
         ngPrecision,
         ngraph::Shape{ inputShape[1ul], inputShape[1ul], 1ul, 1ul },
         std::vector<float>(inputShape[1ul] * inputShape[1ul], 1ul));
@@ -72,7 +72,7 @@ void OutputLayersHandlingInTransformations::SetUp() {
         { -128.f / k }, { 127.f / k }, { -128.f / k }, { 127.f / k });
     fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
 
-    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::opset1::Convolution>(
+    std::shared_ptr<ngraph::op::v1::Convolution> convolution = std::make_shared<ngraph::op::v1::Convolution>(
         fakeQuantizeOnActivations,
         fakeQuantizeOnWeights,
         ngraph::Strides{ 1ul, 1ul },
@@ -82,8 +82,8 @@ void OutputLayersHandlingInTransformations::SetUp() {
     convolution->set_friendly_name("convolution");
 
     ngraph::ResultVector results {
-        std::make_shared<ngraph::opset1::Result>(convolution),
-        std::make_shared<ngraph::opset1::Result>(fakeQuantizeOnActivations)
+        std::make_shared<ngraph::op::v0::Result>(convolution),
+        std::make_shared<ngraph::op::v0::Result>(fakeQuantizeOnActivations)
     };
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "OutputLayersHandling");

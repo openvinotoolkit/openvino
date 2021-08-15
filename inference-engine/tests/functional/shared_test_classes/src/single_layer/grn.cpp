@@ -39,8 +39,8 @@ void GrnLayerTest::SetUp() {
     auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShapes });
     auto paramsOut = ngraph::helpers::convert2OutputVector(
         ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
-    auto grn = std::make_shared<ngraph::opset1::GRN>(paramsOut[0], bias);
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(grn) };
+    auto grn = std::make_shared<ngraph::op::v0::GRN>(paramsOut[0], bias);
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(grn) };
     function = std::make_shared<ngraph::Function>(results, paramsIn, "Grn");
 }
 }  // namespace LayerTestsDefinitions

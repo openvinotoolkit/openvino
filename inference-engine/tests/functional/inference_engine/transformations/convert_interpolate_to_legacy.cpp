@@ -19,9 +19,9 @@
 using namespace testing;
 
 TEST(TransformationTests, ConvertInterpolateDynamic) {
-    auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-    auto shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {30, 60});
-    auto interp = std::make_shared<ngraph::opset1::Interpolate>(data, shape, ngraph::op::v0::InterpolateAttrs());
+    auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+    auto shape = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {30, 60});
+    auto interp = std::make_shared<ngraph::op::v0::Interpolate>(data, shape, ngraph::op::v0::InterpolateAttrs());
 
     auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{interp}, ngraph::ParameterVector{data});
 

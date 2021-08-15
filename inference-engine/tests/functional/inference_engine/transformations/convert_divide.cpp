@@ -22,9 +22,9 @@ using namespace testing;
 TEST(TransformationTests, ConvertDivide) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
-        auto divide = std::make_shared<ngraph::opset1::Divide>(data, divide_constant);
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto divide_constant = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
+        auto divide = std::make_shared<ngraph::op::v1::Divide>(data, divide_constant);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
 
@@ -36,11 +36,11 @@ TEST(TransformationTests, ConvertDivide) {
     }
 
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
-        auto pow = std::make_shared<ngraph::opset1::Power>(divide_constant,
-                                                           ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, {-1}));
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(data, pow);
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto divide_constant = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
+        auto pow = std::make_shared<ngraph::op::v1::Power>(divide_constant,
+                                                           ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{}, {-1}));
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(data, pow);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data});
     }
@@ -52,9 +52,9 @@ TEST(TransformationTests, ConvertDivide) {
 TEST(TransformationTests, ConvertDivideNegative) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{3, 1, 2});
-        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {2});
-        auto divide = std::make_shared<ngraph::opset1::Divide>(data, divide_constant);
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i32, ngraph::Shape{3, 1, 2});
+        auto divide_constant = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {2});
+        auto divide = std::make_shared<ngraph::op::v1::Divide>(data, divide_constant);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
 
@@ -66,9 +66,9 @@ TEST(TransformationTests, ConvertDivideNegative) {
     }
 
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{3, 1, 2});
-        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {2});
-        auto divide = std::make_shared<ngraph::opset1::Divide>(data, divide_constant);
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i32, ngraph::Shape{3, 1, 2});
+        auto divide_constant = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {2});
+        auto divide = std::make_shared<ngraph::op::v1::Divide>(data, divide_constant);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
     }
@@ -80,9 +80,9 @@ TEST(TransformationTests, ConvertDivideNegative) {
 TEST(TransformationTests, ConvertDivideScalar) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{});
-        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, {1.5});
-        auto divide = std::make_shared<ngraph::opset1::Divide>(data, divide_constant);
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{});
+        auto divide_constant = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{}, {1.5});
+        auto divide = std::make_shared<ngraph::op::v1::Divide>(data, divide_constant);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
 
@@ -96,11 +96,11 @@ TEST(TransformationTests, ConvertDivideScalar) {
     }
 
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{});
-        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, {1.5});
-        auto pow = std::make_shared<ngraph::opset1::Power>(divide_constant,
-                                                           ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, {-1}));
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(data, pow);
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{});
+        auto divide_constant = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{}, {1.5});
+        auto pow = std::make_shared<ngraph::op::v1::Power>(divide_constant,
+                                                           ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{}, {-1}));
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(data, pow);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data});
 

@@ -44,7 +44,7 @@ void GatherElementsLayerTest::SetUp() {
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto gather = std::dynamic_pointer_cast<ngraph::op::v6::GatherElements>(
             ngraph::builder::makeGatherElements(paramOuts[0], indicesShape, ngIPrc, axis));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, params, "gatherEl");
 }
 

@@ -37,7 +37,7 @@ void TileLayerTest::SetUp() {
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto tile = ngraph::builder::makeTile(paramOuts[0], tileParams);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(tile)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(tile)};
     function = std::make_shared<ngraph::Function>(results, params, "tile");
 }
 

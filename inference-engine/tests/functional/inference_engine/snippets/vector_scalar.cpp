@@ -20,9 +20,9 @@ using namespace ngraph;
 TEST(TransformationTests, ReplaceLoadsWithScalarLoads) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
         auto load = std::make_shared<snippets::isa::Load>(data);
-        auto neg = std::make_shared<opset1::Negative>(load);
+        auto neg = std::make_shared<op::v0::Negative>(load);
         auto store = std::make_shared<snippets::isa::Store>(neg);
         f = std::make_shared<Function>(NodeVector{store}, ParameterVector{data});
 
@@ -33,9 +33,9 @@ TEST(TransformationTests, ReplaceLoadsWithScalarLoads) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
         auto load = std::make_shared<snippets::isa::ScalarLoad>(data);
-        auto neg = std::make_shared<opset1::Negative>(load);
+        auto neg = std::make_shared<op::v0::Negative>(load);
         auto store = std::make_shared<snippets::isa::Store>(neg);
         f_ref = std::make_shared<Function>(NodeVector{store}, ParameterVector{data});
     }
@@ -47,9 +47,9 @@ TEST(TransformationTests, ReplaceLoadsWithScalarLoads) {
 TEST(TransformationTests, ReplaceStoresWithScalarStores) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
         auto load = std::make_shared<snippets::isa::Load>(data);
-        auto neg = std::make_shared<opset1::Negative>(load);
+        auto neg = std::make_shared<op::v0::Negative>(load);
         auto store = std::make_shared<snippets::isa::Store>(neg);
         f = std::make_shared<Function>(NodeVector{store}, ParameterVector{data});
 
@@ -60,9 +60,9 @@ TEST(TransformationTests, ReplaceStoresWithScalarStores) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
         auto load = std::make_shared<snippets::isa::Load>(data);
-        auto neg = std::make_shared<opset1::Negative>(load);
+        auto neg = std::make_shared<op::v0::Negative>(load);
         auto store = std::make_shared<snippets::isa::ScalarStore>(neg);
         f_ref = std::make_shared<Function>(NodeVector{store}, ParameterVector{data});
     }

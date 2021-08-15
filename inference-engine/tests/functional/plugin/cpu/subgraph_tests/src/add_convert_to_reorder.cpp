@@ -30,10 +30,10 @@ public:
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto indicesNode = ngraph::opset3::Constant::create(secondConstantType, ngraph::Shape(indicesShape), indices);
-        auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
-        auto gather = std::make_shared<ngraph::opset3::Gather>(paramOuts[0], indicesNode, axisNode);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
+        auto indicesNode = ngraph::op::v0::Constant::create(secondConstantType, ngraph::Shape(indicesShape), indices);
+        auto axisNode = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
+        auto gather = std::make_shared<ngraph::op::v1::Gather>(paramOuts[0], indicesNode, axisNode);
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(gather)};
         function = std::make_shared<ngraph::Function>(results, params, "gather");
     }
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {

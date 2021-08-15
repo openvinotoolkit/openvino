@@ -12,14 +12,14 @@
 TEST(SmartReshapeTests, SS_Squeeze) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
         auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
                 input,
-                ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, 1}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {0, 0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {0, 0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {1, 1}),
                 std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1});
-        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
+        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {0}));
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze}, ngraph::ParameterVector{input});
     }
@@ -41,14 +41,14 @@ TEST(SmartReshapeTests, SS_Squeeze) {
 TEST(SmartReshapeTests, SS_Squeeze_mask_use_negative) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
         auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
                 input,
-                ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, 1}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {0, 0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {0, 0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {1, 1}),
                 std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1}, std::vector<int64_t>{0, 1});
-        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
+        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {0}));
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze}, ngraph::ParameterVector{input});
     }
@@ -67,14 +67,14 @@ TEST(SmartReshapeTests, SS_Squeeze_mask_use_negative) {
 TEST(SmartReshapeTests, SS_Squeeze_negative_stride_negative) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
         auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
                 input,
-                ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {-1, -1}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {0, 0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {0, 0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {-1, -1}),
                 std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1});
-        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
+        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {0}));
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze}, ngraph::ParameterVector{input});
     }
@@ -92,15 +92,15 @@ TEST(SmartReshapeTests, SS_Squeeze_negative_stride_negative) {
 TEST(SmartReshapeTests, SS_SharedSqueezes) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
         auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
                 input,
-                ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {0, 0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, 1}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {0, 0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {0, 0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {2}, {1, 1}),
                 std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1});
-        auto squeeze_1 = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
-        auto squeeze_2 = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, {0}));
+        auto squeeze_1 = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {0}));
+        auto squeeze_2 = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {0}));
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze_1, squeeze_2}, ngraph::ParameterVector{input});
     }
@@ -122,14 +122,14 @@ TEST(SmartReshapeTests, SS_SharedSqueezes) {
 TEST(SmartReshapeTests, SS_SqueezeNegativeAxes) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 1, 8, 1, 2});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 1, 8, 1, 2});
         auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
                 input,
-                ngraph::opset5::Constant::create(ngraph::element::i64, {6}, {0, 0, 0, 0, 0, 0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {6}, {0, 0, 0, 0, 0, 0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {6}, {1, 1, 1, 1, 1, 1}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {6}, {0, 0, 0, 0, 0, 0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {6}, {0, 0, 0, 0, 0, 0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {6}, {1, 1, 1, 1, 1, 1}),
                 std::vector<int64_t>{1, 1, 1, 1, 1, 1}, std::vector<int64_t>{1, 1, 1, 1, 1, 1});
-        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {-2, 0, -4}));
+        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(ss, ngraph::op::v0::Constant::create(ngraph::element::i64, {3}, {-2, 0, -4}));
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze}, ngraph::ParameterVector{input});
     }
@@ -150,13 +150,13 @@ TEST(SmartReshapeTests, SS_SqueezeNegativeAxes) {
 TEST(SmartReshapeTests, Squeeze_SSNegativeAxes) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 1, 8, 1, 2});
-        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(input, ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {-2, 0, -4}));
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 1, 8, 1, 2});
+        auto squeeze = std::make_shared<ngraph::opset5::Squeeze>(input, ngraph::op::v0::Constant::create(ngraph::element::i64, {3}, {-2, 0, -4}));
         auto ss = std::make_shared<ngraph::opset5::StridedSlice>(
                 squeeze,
-                ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {0, 0, 0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {0, 0, 0}),
-                ngraph::opset5::Constant::create(ngraph::element::i64, {3}, {1, 1, 1}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {3}, {0, 0, 0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {3}, {0, 0, 0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {3}, {1, 1, 1}),
                 std::vector<int64_t>{1, 1, 1}, std::vector<int64_t>{1, 1, 1});
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{input});

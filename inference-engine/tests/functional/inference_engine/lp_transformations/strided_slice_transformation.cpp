@@ -96,7 +96,7 @@ public:
             testValues.layerParams.elipsisMask);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::StridedSliceTransformation, ngraph::opset1::StridedSlice>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::StridedSliceTransformation, ngraph::op::v1::StridedSlice>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::StridedSliceFunction::getReference(

@@ -70,8 +70,8 @@ protected:
 
         ResultVector results;
         for (int i = 0; i < numOut; i++) {
-            auto mockNode = std::make_shared<opset5::Multiply>(conv->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));
-            results.push_back(std::make_shared<opset5::Result>(mockNode));
+            auto mockNode = std::make_shared<op::v1::Multiply>(conv->output(0), op::v0::Constant::create(element::f32, Shape{1}, {1}));
+            results.push_back(std::make_shared<op::v0::Result>(mockNode));
         }
 
         function = std::make_shared<ngraph::Function>(results, inputParams, "Conv3dReshape");

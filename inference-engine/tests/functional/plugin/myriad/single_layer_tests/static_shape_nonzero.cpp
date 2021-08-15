@@ -52,10 +52,10 @@ protected:
         std::tie(inputShape, inPrc, targetDevice) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
 
-        const auto input = std::make_shared<ngraph::opset3::Parameter>(ngPrc, ngraph::Shape(inputShape));
+        const auto input = std::make_shared<ngraph::op::v0::Parameter>(ngPrc, ngraph::Shape(inputShape));
         const auto staticShapeNonZero = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(input, ngraph::element::i32);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(staticShapeNonZero->output(0)),
-                std::make_shared<ngraph::opset3::Result>(staticShapeNonZero->output(1))};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(staticShapeNonZero->output(0)),
+                std::make_shared<ngraph::op::v0::Result>(staticShapeNonZero->output(1))};
         function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{input});
         outPrc = InferenceEngine::Precision::I32;
     }

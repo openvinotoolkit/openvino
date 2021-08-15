@@ -34,7 +34,7 @@ std::shared_ptr<Node> makeCTCLoss(
     auto labelsLengthNode = makeConstant(iType, {N}, labelsLength);
     auto blankIndexNode = makeConstant<int>(iType, {}, {blankIndex});
 
-    auto ctcLossNode = std::make_shared<opset4::CTCLoss>(logitsNode, logitsLengthNode, labelsNode,
+    auto ctcLossNode = std::make_shared<op::v4::CTCLoss>(logitsNode, logitsLengthNode, labelsNode,
         labelsLengthNode, blankIndexNode, preprocessCollapseRepeated, ctcMergeRepeated, unique);
 
     return ctcLossNode;

@@ -33,10 +33,10 @@ public:
         const auto& tensorShape = std::get<1>(parameters);
         m_outputType            = std::get<2>(parameters);
 
-        m_param = std::make_shared<ngraph::opset3::Parameter>(tensorType, tensorShape);
+        m_param = std::make_shared<ngraph::op::v0::Parameter>(tensorType, tensorShape);
     }
 protected:
-    std::shared_ptr<ngraph::opset3::Parameter> m_param;
+    std::shared_ptr<ngraph::op::v0::Parameter> m_param;
     ngraph::element::Type m_outputType;
 };
 

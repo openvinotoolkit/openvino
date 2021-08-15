@@ -83,8 +83,8 @@ protected:
         auto lstm_cell = ngraph::builder::makeLSTM(
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)), WRB, hidden_size, activations, {}, {}, clip);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_cell->output(0)),
-                                     std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(lstm_cell->output(0)),
+                                     std::make_shared<ngraph::op::v0::Result>(lstm_cell->output(1))};
 
         function = makeNgraphFunction(ngPrc, params, lstm_cell, "lstm_cell");
     }

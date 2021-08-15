@@ -79,7 +79,7 @@ namespace LayerTestsDefinitions {
         // 1. Create TensorIterator body.
         // 2. Set PortMap
         // 3. Create outer function
-        auto axis = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1},
+        auto axis = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1},
                                                                std::vector<int64_t>{static_cast<int64_t>(sequence_axis)});
         switch (ti_body) {
             case ngraph::helpers::TensorIteratorBody::LSTM: {
@@ -101,9 +101,9 @@ namespace LayerTestsDefinitions {
                 ngraph::OutputVector out_vector = {squeeze, body_params[1], body_params[2]};
                 auto lstm_cell = ngraph::builder::makeLSTM(out_vector, WRB, hidden_size, {"sigmoid", "tanh", "tanh"}, {}, {}, clip);
                 auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(lstm_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(unsqueeze),
-                                             std::make_shared<ngraph::opset1::Result>(lstm_cell->output(0)),
-                                             std::make_shared<ngraph::opset1::Result>(lstm_cell->output(1))};
+                ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(unsqueeze),
+                                             std::make_shared<ngraph::op::v0::Result>(lstm_cell->output(0)),
+                                             std::make_shared<ngraph::op::v0::Result>(lstm_cell->output(1))};
                 auto body = std::make_shared<ngraph::Function>(results, body_params, "lstm_cell");
                 tensor_iterator->set_function(body);
 
@@ -148,8 +148,8 @@ namespace LayerTestsDefinitions {
                 auto gru_cell = ngraph::builder::makeGRU(out_vector, WRB, hidden_size, {"sigmoid", "tanh"},
                                                          {}, {}, clip, false);
                 auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(gru_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_cell->output(0)),
-                                             std::make_shared<ngraph::opset1::Result>(unsqueeze)};
+                ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(gru_cell->output(0)),
+                                             std::make_shared<ngraph::op::v0::Result>(unsqueeze)};
                 auto body = std::make_shared<ngraph::Function>(results, body_params, "gru_cell");
                 tensor_iterator->set_function(body);
 
@@ -191,8 +191,8 @@ namespace LayerTestsDefinitions {
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
                 auto rnn_cell = ngraph::builder::makeRNN(out_vector, WRB, hidden_size, {"tanh"}, {}, {}, clip);
                 auto unsqueeze = std::make_shared<ngraph::opset5::Unsqueeze>(rnn_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_cell),
-                                             std::make_shared<ngraph::opset1::Result>(unsqueeze)};
+                ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(rnn_cell),
+                                             std::make_shared<ngraph::op::v0::Result>(unsqueeze)};
                 auto body = std::make_shared<ngraph::Function>(results, body_params, "rnn_cell");
                 tensor_iterator->set_function(body);
 

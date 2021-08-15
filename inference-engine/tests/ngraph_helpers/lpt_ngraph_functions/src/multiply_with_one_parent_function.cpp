@@ -15,15 +15,15 @@ std::shared_ptr<ngraph::Function> MultiplyWithOneParentFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
 
     const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
             input, precision, fqOnData.quantizationLevel, fqOnData.constantShape,
         fqOnData.inputLowValues, fqOnData.inputHighValues, fqOnData.outputLowValues, fqOnData.outputHighValues);
 
-    const auto multiply = std::make_shared<ngraph::opset1::Multiply>(fakeQuantize->output(0), fakeQuantize->output(0));
+    const auto multiply = std::make_shared<ngraph::op::v1::Multiply>(fakeQuantize->output(0), fakeQuantize->output(0));
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(multiply) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MultiplyWithOneParentFunction");
 }
 

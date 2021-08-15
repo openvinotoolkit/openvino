@@ -12,8 +12,8 @@ using namespace SubgraphTestsDefinitions;
 namespace {
     const std::vector<ngraph::element::Type> types{ngraph::element::f32, ngraph::element::f16};
 
-#define MUL(X) std::tuple<ngraph::NodeTypeInfo, int64_t>(ngraph::opset4::Multiply::type_info, X)
-#define ADD(X) std::tuple<ngraph::NodeTypeInfo, int64_t>(ngraph::opset4::Add::type_info, X)
+#define MUL(X) std::tuple<ngraph::NodeTypeInfo, int64_t>(ngraph::op::v1::Multiply::type_info, X)
+#define ADD(X) std::tuple<ngraph::NodeTypeInfo, int64_t>(ngraph::op::v1::Add::type_info, X)
 #define IN std::vector<std::tuple<ngraph::NodeTypeInfo, int64_t>>
 
     INSTANTIATE_TEST_SUITE_P(smoke_Convolution_1D, ConvEltwiseFusion,

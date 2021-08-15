@@ -122,7 +122,7 @@ void PoolingLayerTest::SetUp() {
                                                                          excludePad,
                                                                          poolType);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(pooling)};
     function = std::make_shared<ngraph::Function>(results, params, "pooling");
 }
 
@@ -156,7 +156,7 @@ void GlobalPoolingLayerTest::SetUp() {
                                                                          excludePad,
                                                                          poolType);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(pooling)};
     function = std::make_shared<ngraph::Function>(results, params, "pooling");
 }
 }  // namespace LayerTestsDefinitions

@@ -22,13 +22,13 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
     const bool addFQ,
     const std::string additionalLayer,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore) {
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, ngraph::Shape(inputShape));
+    const auto input1 = std::make_shared<ngraph::op::v0::Parameter>(inputPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent1 = input1;
     {
         parent1 = ngraph::builder::makeFakeQuantize(input1, precision, 256, {}, { -1.28 }, { 1.27 }, { -1.28 }, { 1.27 });
         parent1->set_friendly_name("fakeQuantizeOnActivations1");
 
-        parent1 = std::make_shared<ngraph::opset1::AvgPool>(
+        parent1 = std::make_shared<ngraph::op::v1::AvgPool>(
             parent1,
             Strides{ 1, 1 },
             Shape{ 1, 1 },
@@ -39,7 +39,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
         parent1->set_friendly_name("avgPool1");
 
         if (additionalLayer == "maxpool") {
-            parent1 = std::make_shared<ngraph::opset1::MaxPool>(
+            parent1 = std::make_shared<ngraph::op::v1::MaxPool>(
                 parent1,
                 Strides{ 1, 1 },
                 Shape{ 1, 1 },
@@ -55,13 +55,13 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
         }
     }
 
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, ngraph::Shape(inputShape));
+    const auto input2 = std::make_shared<ngraph::op::v0::Parameter>(inputPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent2 = input2;
     {
         parent2 = ngraph::builder::makeFakeQuantize(input1, precision, 256, {}, { -1.28f / 2.f }, { 1.27f / 2.f }, { -1.28f / 2.f }, { 1.27f / 2.f });
         parent2->set_friendly_name("fakeQuantizeOnActivations2");
 
-        parent2 = std::make_shared<ngraph::opset1::AvgPool>(
+        parent2 = std::make_shared<ngraph::op::v1::AvgPool>(
             parent2,
             Strides{ 1, 1 },
             Shape{ 1, 1 },
@@ -72,7 +72,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
         parent2->set_friendly_name("avgPool2");
 
         if (additionalLayer == "maxpool") {
-            parent2 = std::make_shared<ngraph::opset1::MaxPool>(
+            parent2 = std::make_shared<ngraph::op::v1::MaxPool>(
                 parent2,
                 Strides{ 1, 1 },
                 Shape{ 1, 1 },
@@ -87,7 +87,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
             parent2->set_friendly_name("lastFakeQuantize2");
         }
     }
-    auto parent = std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, 1));
+    auto parent = std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<op::v0::Concat>(ngraph::OutputVector{ parent1, parent2 }, 1));
     parent->set_friendly_name("concat");
 
     {
@@ -95,7 +95,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
         const size_t inputChannels = 6ul;
         const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
         const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
-            std::make_shared<opset1::Constant>(element::f32, shape, std::vector<float>(1.f, ngraph::shape_size(shape))),
+            std::make_shared<op::v0::Constant>(element::f32, shape, std::vector<float>(1.f, ngraph::shape_size(shape))),
             precision,
             255,
             {outputChannels, 1, 1, 1},
@@ -105,7 +105,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
             std::vector<float>(outputChannels, 1.27f));
         fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
 
-        parent = std::make_shared<ngraph::opset1::Convolution>(
+        parent = std::make_shared<ngraph::op::v1::Convolution>(
             ngraph::op::TemporaryReplaceOutputType(parent, precision).get(),
             ngraph::op::TemporaryReplaceOutputType(fakeQuantizeOnWeights, precision).get(),
             ngraph::Strides{ 1, 1 },
@@ -118,7 +118,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
 
     parent->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(parent) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "AlignConcatQuantizationParameters");
 }
 
@@ -131,7 +131,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, ngraph::Shape(inputShape));
+    const auto input1 = std::make_shared<ngraph::op::v0::Parameter>(inputPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent1 = input1;
     {
         FakeQuantizeOnData onData = { 256, {}, { -1.28f }, { 1.27f }, { 0.f }, { 255.f }, ngraph::element::u8};
@@ -139,7 +139,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(parent1, element::u8);
         parent1->set_friendly_name("fakeQuantizeOnActivations1");
 
-        parent1 = std::make_shared<ngraph::opset1::AvgPool>(
+        parent1 = std::make_shared<ngraph::op::v1::AvgPool>(
             parent1,
             Strides{ 1, 1 },
             Shape{ 1, 1 },
@@ -150,7 +150,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
         parent1->set_friendly_name("avgPool1");
 
         if (additionalLayer == "maxpool") {
-            parent1 = std::make_shared<ngraph::opset1::MaxPool>(
+            parent1 = std::make_shared<ngraph::op::v1::MaxPool>(
                 parent1,
                 Strides{ 1, 1 },
                 Shape{ 1, 1 },
@@ -166,7 +166,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
         }
     }
 
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, ngraph::Shape(inputShape));
+    const auto input2 = std::make_shared<ngraph::op::v0::Parameter>(inputPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent2 = input2;
     {
         FakeQuantizeOnData onData = { 256, {}, { -0.64f }, { 0.635f }, { 64.f }, { 192.f }, element::u8};
@@ -174,7 +174,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(parent2, element::u8);
         parent2->set_friendly_name("fakeQuantizeOnActivations2");
 
-        parent2 = std::make_shared<ngraph::opset1::AvgPool>(
+        parent2 = std::make_shared<ngraph::op::v1::AvgPool>(
             parent2,
             Strides{ 1, 1 },
             Shape{ 1, 1 },
@@ -185,7 +185,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
         parent2->set_friendly_name("avgPool2");
 
         if (additionalLayer == "maxpool") {
-            parent2 = std::make_shared<ngraph::opset1::MaxPool>(
+            parent2 = std::make_shared<ngraph::op::v1::MaxPool>(
                 parent2,
                 Strides{ 1, 1 },
                 Shape{ 1, 1 },
@@ -200,7 +200,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
             parent2->set_friendly_name("lastFakeQuantize2");
         }
     }
-    auto parent = std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, 1));
+    auto parent = std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<op::v0::Concat>(ngraph::OutputVector{ parent1, parent2 }, 1));
     parent->set_friendly_name("concat");
 
     if (!dequantizationBefore.empty()) {
@@ -211,12 +211,12 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
         const size_t outputChannels = 9ul;
         const size_t inputChannels = 6ul;
         const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
-        const auto onWeights = std::make_shared<opset1::Constant>(
+        const auto onWeights = std::make_shared<op::v0::Constant>(
             element::i8,
             shape,
             std::vector<size_t>(outputChannels * inputChannels, 127));
 
-        parent = std::make_shared<ngraph::opset1::Convolution>(
+        parent = std::make_shared<ngraph::op::v1::Convolution>(
             ngraph::op::TemporaryReplaceOutputType(parent, precision).get(),
             ngraph::op::TemporaryReplaceOutputType(onWeights, precision).get(),
             ngraph::Strides{ 1, 1 },
@@ -233,7 +233,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
 
     parent->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(parent) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "AlignConcatQuantizationParameters");
 }
 

@@ -19,18 +19,18 @@ namespace subgraph {
         const ngraph::PartialShape& inputShape) {
         const float k = 50.f;
 
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+        const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
         const auto fakeQuantizeOnActivations = ngraph::builder::makeFakeQuantize(
             input, precision, 256ul, { 1ul },
             { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
 
         const size_t channelsValue = inputShape[1].get_length();
-        const auto weights = ngraph::opset1::Constant::create(
+        const auto weights = ngraph::op::v0::Constant::create(
             precision,
             ngraph::Shape{ channelsValue, channelsValue, 1, 1 },
             std::vector<float>(channelsValue * channelsValue, 1));
 
-        const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
+        const auto convolution = std::make_shared<ngraph::op::v1::Convolution>(
             fakeQuantizeOnActivations == nullptr ? input : fakeQuantizeOnActivations,
             ngraph::builder::makeFakeQuantize(weights, precision, 256ul, { 1ul }, { -128.f / k }, { 127.f / k }, { -128.f / k }, { 127.f / k }),
             ngraph::Strides{ 1, 1 },
@@ -38,7 +38,7 @@ namespace subgraph {
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::Strides{ 1, 1 });
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(convolution) };
         std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
             results,
             ngraph::ParameterVector{ input },

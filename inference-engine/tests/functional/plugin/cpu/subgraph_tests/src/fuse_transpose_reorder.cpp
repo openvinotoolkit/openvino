@@ -83,10 +83,10 @@ void FuseTransposeAndReorderTest::CreateGraph() {
     auto memFmt = inputShape.size() == 5 ? ndhwc : nhwc;
 
     auto constOrder = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
-    auto transpose = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder);
+    auto transpose = std::make_shared<ngraph::op::v1::Transpose>(params[0], constOrder);
     transpose->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(transpose)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(transpose)};
     function = std::make_shared<ngraph::Function>(results, params, "TransposeReorder");
 }
 
@@ -143,26 +143,26 @@ void FuseTransposeAndReorderTest1::CreateGraph() {
     auto order = inputShape.size() == 5 ? std::vector<int64_t>{0, 2, 3, 4, 1} : std::vector<int64_t>{0, 2, 3, 1};
 
     auto constOrder1 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
-    auto transpose1 = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder1);
+    auto transpose1 = std::make_shared<ngraph::op::v1::Transpose>(params[0], constOrder1);
     auto memFmt1 = inputShape.size() == 5 ? ndhwc : nhwc;
     transpose1->get_rt_info() = makeCPUInfo({memFmt1}, {memFmt1}, {});
 
     auto constOrder2 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
-    auto transpose2 = std::make_shared<ngraph::opset5::Transpose>(transpose1, constOrder2);
+    auto transpose2 = std::make_shared<ngraph::op::v1::Transpose>(transpose1, constOrder2);
     auto memFmt2 = inputShape.size() == 5 ? ndhwc : nhwc;
     transpose2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
 
     auto constOrder3 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
-    auto transpose3 = std::make_shared<ngraph::opset5::Transpose>(transpose2, constOrder3);
+    auto transpose3 = std::make_shared<ngraph::op::v1::Transpose>(transpose2, constOrder3);
     auto memFmt3 = inputShape.size() == 5 ? ncdhw : nchw;
     transpose3->get_rt_info() = makeCPUInfo({memFmt3}, {memFmt3}, {});
 
     auto shape = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, transpose3->get_output_shape(0));
-    auto reshape = std::make_shared<ngraph::opset5::Reshape>(transpose1, shape, false);
+    auto reshape = std::make_shared<ngraph::op::v1::Reshape>(transpose1, shape, false);
 
     auto concat = ngraph::builder::makeConcat({transpose3, reshape}, 1);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(concat)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "Transpose_TransposeReorderTranspose_Reshape_Concat");
 }
 
@@ -213,19 +213,19 @@ void FuseTransposeAndReorderTest2::CreateGraph() {
     auto order = inputShape.size() == 5 ? std::vector<int64_t>{0, 4, 1, 2, 3} : std::vector<int64_t>{0, 3, 1, 2};
 
     auto constOrder1 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
-    auto transpose1 = std::make_shared<ngraph::opset5::Transpose>(params[0], constOrder1);
+    auto transpose1 = std::make_shared<ngraph::op::v1::Transpose>(params[0], constOrder1);
     auto memFmt1 = inputShape.size() == 5 ? ndhwc : nhwc;
     transpose1->get_rt_info() = makeCPUInfo({memFmt1}, {memFmt1}, {});
 
     auto constOrder2 = ngraph::builder::makeConstant(ngraph::element::i64, {inputShape.size()}, order);
-    auto transpose2 = std::make_shared<ngraph::opset5::Transpose>(params[1], constOrder2);
+    auto transpose2 = std::make_shared<ngraph::op::v1::Transpose>(params[1], constOrder2);
     auto memFmt2 = inputShape.size() == 5 ? ncdhw : nchw;
     transpose2->get_rt_info() = makeCPUInfo({memFmt2}, {memFmt2}, {});
 
     auto concat = ngraph::builder::makeConcat({transpose1, transpose2}, 1);
     concat->get_rt_info() = makeCPUInfo({memFmt1, memFmt1}, {memFmt1}, {});
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset5::Result>(concat)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "Transpose_Transpose_Concat");
 }
 

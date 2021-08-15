@@ -93,9 +93,9 @@ void FakeQuantizeLayerTest::SetUp() {
             {fqDirectArg[2]},
             {fqDirectArg[3]});
     }
-    auto fq = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fakeQNode);
+    auto fq = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(fakeQNode);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fq)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(fq)};
     function = std::make_shared<ngraph::Function>(results, params, "fakeQuantize");
 
     configuration = config.second;
@@ -206,9 +206,9 @@ void FakeQuantizeLayerTestRevise::SetUp() {
             {fqDirectArg[2]},
             {fqDirectArg[3]});
     }
-    auto fq = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fakeQNode);
+    auto fq = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(fakeQNode);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fq)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(fq)};
     function = std::make_shared<ngraph::Function>(results, params, "fakeQuantize");
 
     configuration = config.second;

@@ -88,7 +88,7 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
 
     ngraph::ResultVector results;
     for (int i = 0; i < ctcGreedyDecoderSeqLen->get_output_size(); i++) {
-        results.push_back(std::make_shared<ngraph::opset1::Result>(ctcGreedyDecoderSeqLen->output(i)));
+        results.push_back(std::make_shared<ngraph::op::v0::Result>(ctcGreedyDecoderSeqLen->output(i)));
     }
     function = std::make_shared<ngraph::Function>(results, paramsIn, "CTCGreedyDecoderSeqLen");
 }

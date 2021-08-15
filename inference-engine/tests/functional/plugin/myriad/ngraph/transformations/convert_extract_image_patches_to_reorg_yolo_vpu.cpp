@@ -39,7 +39,7 @@ protected:
             const ngraph::Strides& strides,
             const ngraph::Shape& rates,
             const ngraph::op::PadType& padMode) {
-        const auto param = std::make_shared<ngraph::opset5::Parameter>(
+        const auto param = std::make_shared<ngraph::op::v0::Parameter>(
                 ngraph::element::f32,
                 dataShape);
 
@@ -62,7 +62,7 @@ protected:
     static std::shared_ptr<ngraph::Function> reference(
             const ngraph::PartialShape& dataShape,
             const ngraph::Strides& strides) {
-        const auto param = std::make_shared<ngraph::opset5::Parameter>(
+        const auto param = std::make_shared<ngraph::op::v0::Parameter>(
                 ngraph::element::f32,
                 dataShape);
 

@@ -23,10 +23,10 @@ using namespace ngraph;
 TEST(TransformationTests, ConvertPadToConv) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
-        auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
-        auto pad_end = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 0, 1});
-        auto pad_value = opset4::Constant::create(element::f32, Shape{}, {0});
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 64, 64});
+        auto pad_begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
+        auto pad_end = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 1});
+        auto pad_value = op::v0::Constant::create(element::f32, Shape{}, {0});
         auto pad_mode = op::PadMode::CONSTANT;
         auto pad = std::make_shared<opset4::Pad>(input, pad_begin, pad_end, pad_value, pad_mode);
         f = std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});
@@ -40,8 +40,8 @@ TEST(TransformationTests, ConvertPadToConv) {
     }
 
     {
-        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
-        auto weights = opset4::Constant::create(element::f32, Shape{3, 1, 1, 1, 1}, {1});
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 64, 64});
+        auto weights = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1, 1}, {1});
         Strides stride{1, 1};
         CoordinateDiff pad_begin{1, 0}, pad_end{0, 1};
         auto conv = std::make_shared<opset4::GroupConvolution>(input, weights, stride, pad_begin, pad_end, stride);
@@ -55,10 +55,10 @@ TEST(TransformationTests, ConvertPadToConv) {
 
 TEST(TransformationTests, ConvertPadToConvNeg1) {
     auto get_function = []() -> std::shared_ptr<Function> {
-        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
-        auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {1, 0, 1, 0}); // Batch dim padding
-        auto pad_end = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 0, 1});
-        auto pad_value = opset4::Constant::create(element::f32, Shape{}, {0});
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 64, 64});
+        auto pad_begin = op::v0::Constant::create(element::i64, Shape{4}, {1, 0, 1, 0}); // Batch dim padding
+        auto pad_end = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 1});
+        auto pad_value = op::v0::Constant::create(element::f32, Shape{}, {0});
         auto pad_mode = op::PadMode::CONSTANT;
         auto pad = std::make_shared<opset4::Pad>(input, pad_begin, pad_end, pad_value, pad_mode);
         return std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});
@@ -78,10 +78,10 @@ TEST(TransformationTests, ConvertPadToConvNeg1) {
 
 TEST(TransformationTests, ConvertPadToConvNeg2) {
     auto get_function = []() -> std::shared_ptr<Function> {
-        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
-        auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
-        auto pad_end = opset4::Constant::create(element::i64, Shape{4}, {0, 1, 0, 1}); // Channel dim padding
-        auto pad_value = opset4::Constant::create(element::f32, Shape{}, {0});
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 64, 64});
+        auto pad_begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
+        auto pad_end = op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 0, 1}); // Channel dim padding
+        auto pad_value = op::v0::Constant::create(element::f32, Shape{}, {0});
         auto pad_mode = op::PadMode::CONSTANT;
         auto pad = std::make_shared<opset4::Pad>(input, pad_begin, pad_end, pad_value, pad_mode);
         return std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});
@@ -101,10 +101,10 @@ TEST(TransformationTests, ConvertPadToConvNeg2) {
 
 TEST(TransformationTests, ConvertPadToConvNeg3) {
     auto get_function = []() -> std::shared_ptr<Function> {
-        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
-        auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
-        auto pad_end = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 0, 1});
-        auto pad_value = opset4::Constant::create(element::f32, Shape{}, {0});
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 64, 64});
+        auto pad_begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
+        auto pad_end = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 1});
+        auto pad_value = op::v0::Constant::create(element::f32, Shape{}, {0});
         auto pad_mode = op::PadMode::SYMMETRIC; // Unsupported mode
         auto pad = std::make_shared<opset4::Pad>(input, pad_begin, pad_end, pad_value, pad_mode);
         return std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});
@@ -125,10 +125,10 @@ TEST(TransformationTests, ConvertPadToConvNeg3) {
 
 TEST(TransformationTests, ConvertPadToConvNeg4) {
     auto get_function = []() -> std::shared_ptr<Function> {
-        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
-        auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
-        auto pad_end = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 0, 1});
-        auto pad_value = opset4::Constant::create(element::f32, Shape{}, {1.}); // Unsupported value
+        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 64, 64});
+        auto pad_begin = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
+        auto pad_end = op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 1});
+        auto pad_value = op::v0::Constant::create(element::f32, Shape{}, {1.}); // Unsupported value
         auto pad_mode = op::PadMode::CONSTANT;
         auto pad = std::make_shared<opset4::Pad>(input, pad_begin, pad_end, pad_value, pad_mode);
         return std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});

@@ -12,7 +12,7 @@ std::shared_ptr<ngraph::Node> makeScatterNDUpdate(const ngraph::Output<Node> &in
                                                   const std::vector<size_t>& indicesShape,
                                                   const std::vector<size_t>& indices,
                                                   const ngraph::Output<Node> &update) {
-    auto indicesNode = std::make_shared<ngraph::opset1::Constant>(indicesType, indicesShape, indices);
+    auto indicesNode = std::make_shared<ngraph::op::v0::Constant>(indicesType, indicesShape, indices);
     auto dtsNode = std::make_shared<ngraph::opset4::ScatterNDUpdate>(in, indicesNode, update);
     return dtsNode;
 }

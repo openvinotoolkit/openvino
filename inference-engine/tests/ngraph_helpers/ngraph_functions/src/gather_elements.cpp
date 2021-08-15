@@ -25,7 +25,7 @@ std::shared_ptr<Node> makeGatherElements(
                                               1ull, std::multiplies<std::size_t>{});
 
     auto indicesValues = NGraphFunctions::Utils::generateVector<element::Type_t::i32>(indicesSize, axisDim - 1, 0);
-    auto indicesNode = opset5::Constant::create(indicesType, indicesShape, indicesValues);
+    auto indicesNode = op::v0::Constant::create(indicesType, indicesShape, indicesValues);
 
     auto gatherElNode = std::make_shared<op::v6::GatherElements>(dataNode, indicesNode, axis);
     gatherElNode->set_friendly_name("GatherElements");

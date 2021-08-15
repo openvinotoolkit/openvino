@@ -26,9 +26,9 @@ using namespace ngraph;
 TEST(TransformationTests, ClampFusion) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
-        auto min_const = opset5::Constant::create(element::f32, Shape{1}, {0.1});
-        auto max_const = opset5::Constant::create(element::f32, Shape{1}, {5});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto min_const = op::v0::Constant::create(element::f32, Shape{1}, {0.1});
+        auto max_const = op::v0::Constant::create(element::f32, Shape{1}, {5});
         auto max = std::make_shared<opset5::Maximum>(data, min_const);
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
         f = std::make_shared<Function>(NodeVector{min}, ParameterVector{data});
@@ -41,7 +41,7 @@ TEST(TransformationTests, ClampFusion) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         f_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
     }
@@ -53,9 +53,9 @@ TEST(TransformationTests, ClampFusion) {
 TEST(TransformationTests, ClampFusionScalars) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
-        auto min_const = opset5::Constant::create(element::f32, Shape{}, {0.1});
-        auto max_const = opset5::Constant::create(element::f32, Shape{}, {5});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto min_const = op::v0::Constant::create(element::f32, Shape{}, {0.1});
+        auto max_const = op::v0::Constant::create(element::f32, Shape{}, {5});
         auto max = std::make_shared<opset5::Maximum>(data, min_const);
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
         f = std::make_shared<Function>(NodeVector{min}, ParameterVector{data});
@@ -68,7 +68,7 @@ TEST(TransformationTests, ClampFusionScalars) {
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         f_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
     }
@@ -80,9 +80,9 @@ TEST(TransformationTests, ClampFusionScalars) {
 TEST(TransformationTests, ClampFusionNonConstMin) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
-        auto min_val = std::make_shared<opset5::Parameter>(element::f32, Shape{});
-        auto max_const = opset5::Constant::create(element::f32, Shape{}, {5});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto min_val = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
+        auto max_const = op::v0::Constant::create(element::f32, Shape{}, {5});
         auto max = std::make_shared<opset5::Maximum>(data, min_val);
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
         f = std::make_shared<Function>(NodeVector{min}, ParameterVector{data, min_val});
@@ -95,9 +95,9 @@ TEST(TransformationTests, ClampFusionNonConstMin) {
     }
 
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
-        auto min_val = std::make_shared<opset5::Parameter>(element::f32, Shape{});
-        auto max_const = opset5::Constant::create(element::f32, Shape{}, {5});
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 2});
+        auto min_val = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
+        auto max_const = op::v0::Constant::create(element::f32, Shape{}, {5});
         auto max = std::make_shared<opset5::Maximum>(data, min_val);
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
         f_ref = std::make_shared<Function>(NodeVector{min}, ParameterVector{data, min_val});

@@ -32,7 +32,7 @@ void LowPrecisionTest::SetUp() {
     auto weights2Shape = ngraph::Shape{ 128, 32 };
 
     // fully connected 1
-    auto input = std::make_shared<ngraph::opset1::Parameter>(ngPrc, inputShape);
+    auto input = std::make_shared<ngraph::op::v0::Parameter>(ngPrc, inputShape);
     std::vector<float> weights1Data(ngraph::shape_size(weights1Shape), 0.0f);
 
     for (size_t i = 0; i < 16; i++) {
@@ -40,38 +40,38 @@ void LowPrecisionTest::SetUp() {
     }
 
     auto weights1 = ngraph::builder::makeConstant<float>(ngPrc, weights1Shape, weights1Data);
-    auto fc1 = std::make_shared<ngraph::opset1::MatMul>(input, weights1);
+    auto fc1 = std::make_shared<ngraph::op::v0::MatMul>(input, weights1);
     fc1->set_friendly_name("FullyConnected_1");
 
     // bias 1
     std::vector<float> bias1Data(ngraph::shape_size(inputShape), 0.0f);
     auto bias1 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, bias1Data);
-    auto add1 = std::make_shared<ngraph::opset1::Add>(fc1, bias1);
+    auto add1 = std::make_shared<ngraph::op::v1::Add>(fc1, bias1);
     add1->set_friendly_name("Add_1");
 #if 0
     // ReLU 1
-    auto relu1 = std::make_shared<ngraph::opset1::Relu>(add1);
+    auto relu1 = std::make_shared<ngraph::op::v0::Relu>(add1);
     relu1->set_friendly_name("Relu_1");
 
     //// fully connected 2
     std::vector<float> weights2Data(ngraph::shape_size(weights2Shape), 0.0f);
     std::fill(weights2Data.begin(), weights2Data.end(), 0.0001f);
     auto weights2 = ngraph::builder::makeConstant<float>(ngPrc, weights2Shape, weights2Data);
-    auto fc2 = std::make_shared<ngraph::opset1::MatMul>(relu1, weights2);
+    auto fc2 = std::make_shared<ngraph::op::v0::MatMul>(relu1, weights2);
     fc2->set_friendly_name("FullyConnected_2");
 
     //// bias 2
     std::vector<float> bias2Data(ngraph::shape_size(weights2Shape), 0.0f);
     auto bias2 = ngraph::builder::makeConstant<float>(ngPrc, weights2Shape, bias2Data);
-    auto add2 = std::make_shared<ngraph::opset1::Add>(fc2, bias2);
+    auto add2 = std::make_shared<ngraph::op::v1::Add>(fc2, bias2);
     add2->set_friendly_name("Add_2");
 
     //// ReLU 2
-    auto relu2 = std::make_shared<ngraph::opset1::Relu>(add2);
+    auto relu2 = std::make_shared<ngraph::op::v0::Relu>(add2);
     relu2->set_friendly_name("Relu_2");
 #endif
     configuration = config.second;
-    function = std::make_shared<ngraph::Function>(ngraph::ResultVector{std::make_shared<ngraph::opset1::Result>(add1)},
+    function = std::make_shared<ngraph::Function>(ngraph::ResultVector{std::make_shared<ngraph::op::v0::Result>(add1)},
                                                   ngraph::ParameterVector{input},
                                                   "LowPrecisionTest");
 }

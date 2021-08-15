@@ -256,7 +256,7 @@ CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::Par
    ngraph::ResultVector results;
 
    for (int i = 0; i < newLastNode->get_output_size(); i++)
-        results.push_back(std::make_shared<ngraph::opset1::Result>(newLastNode->output(i)));
+        results.push_back(std::make_shared<ngraph::op::v0::Result>(newLastNode->output(i)));
 
    return std::make_shared<ngraph::Function>(results, params, name);
 }

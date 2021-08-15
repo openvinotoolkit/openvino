@@ -161,7 +161,7 @@ typedef DSRParsingTests DSRParsingFromNgraphTests;
 TEST_F(DSRParsingFromNgraphTests, DSRParserCreatesAndConnectsTwoOutputsOnOutputDSR) {
     const auto& inPrecision = ::ngraph::element::Type(::ngraph::element::Type_t::i32);
 
-    const auto& tensor = std::make_shared<ngraph::opset3::Parameter>(inPrecision, ngraph::Shape{1, 800});
+    const auto& tensor = std::make_shared<ngraph::op::v0::Parameter>(inPrecision, ngraph::Shape{1, 800});
     const auto& staticShapeNonZero = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(tensor);
     const auto& dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
             staticShapeNonZero->output(0), staticShapeNonZero->output(1));
@@ -196,13 +196,13 @@ TEST_F(DSRParsingFromNgraphTests, DSRParserCreatesAndConnectsTwoOutputsOnOutputD
 TEST_F(DSRParsingFromNgraphTests, DSRWithSingleProducerCreatesConnectionBetweenDataAndShape) {
     const auto& inPrecision = ::ngraph::element::Type(::ngraph::element::Type_t::i32);
 
-    const auto& tensor = std::make_shared<ngraph::opset3::Parameter>(inPrecision, ngraph::Shape{800});
+    const auto& tensor = std::make_shared<ngraph::op::v0::Parameter>(inPrecision, ngraph::Shape{800});
     const auto& staticShapeNonZero = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(tensor);
     const auto& dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
             staticShapeNonZero->output(0), staticShapeNonZero->output(1));
-    const auto& gatherIndices = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{0});
-    const auto& gatherAxis = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{1});
-    const auto& gather = std::make_shared<ngraph::opset3::Gather>(dynamicShapeResolver->output(0), gatherIndices, gatherAxis);
+    const auto& gatherIndices = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{0});
+    const auto& gatherAxis = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{1});
+    const auto& gather = std::make_shared<ngraph::op::v1::Gather>(dynamicShapeResolver->output(0), gatherIndices, gatherAxis);
 
     const auto& fnPtr = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{tensor});
 
@@ -224,15 +224,15 @@ TEST_F(DSRParsingFromNgraphTests, DSRWithSingleProducerCreatesConnectionBetweenD
 TEST_F(DSRParsingFromNgraphTests, DSRWithTwoProducersCreatesConnectionBetweenDataAndShape) {
     const auto& inPrecision = ::ngraph::element::Type(::ngraph::element::Type_t::i32);
 
-    const auto& tensor = std::make_shared<ngraph::opset3::Parameter>(inPrecision, ngraph::Shape{800});
+    const auto& tensor = std::make_shared<ngraph::op::v0::Parameter>(inPrecision, ngraph::Shape{800});
     const auto& staticShapeNonZero = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(tensor);
-    const auto& reluData = std::make_shared<ngraph::opset3::Relu>(staticShapeNonZero->output(0));
-    const auto& reluShape = std::make_shared<ngraph::opset3::Relu>(staticShapeNonZero->output(1));
+    const auto& reluData = std::make_shared<ngraph::op::v0::Relu>(staticShapeNonZero->output(0));
+    const auto& reluShape = std::make_shared<ngraph::op::v0::Relu>(staticShapeNonZero->output(1));
     const auto& dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
         reluData->output(0), reluShape->output(0));
-    const auto& gatherIndices = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{0});
-    const auto& gatherAxis = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{1});
-    const auto& gather = std::make_shared<ngraph::opset3::Gather>(dynamicShapeResolver->output(0), gatherIndices, gatherAxis);
+    const auto& gatherIndices = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{0});
+    const auto& gatherAxis = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{1});
+    const auto& gather = std::make_shared<ngraph::op::v1::Gather>(dynamicShapeResolver->output(0), gatherIndices, gatherAxis);
 
     const auto& fnPtr = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{tensor});
 

@@ -31,14 +31,14 @@ void BroadcastPowerTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputs_shapes[0]});
     auto reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{inputs_shapes[1].size()},
             inputs_shapes[1]);
-    auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], reshape_pattern, false);
+    auto reshape = std::make_shared<ngraph::op::v1::Reshape>(params[0], reshape_pattern, false);
 
     auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-1.0f});
     auto sum = ngraph::builder::makeEltwise(reshape, const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
 
     auto reshape_pattern_2 = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{inputs_shapes[0].size()},
             inputs_shapes[0]);
-    auto reshape_2 = std::make_shared<ngraph::opset1::Reshape>(sum, reshape_pattern_2, false);
+    auto reshape_2 = std::make_shared<ngraph::op::v1::Reshape>(sum, reshape_pattern_2, false);
     function = std::make_shared<ngraph::Function>(reshape_2, params, "BroadcastPowerPass");
 }
 } // namespace SubgraphTestsDefinitions

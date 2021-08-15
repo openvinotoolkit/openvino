@@ -49,9 +49,9 @@ void GatherNDLayerTest::SetUp() {
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto dataNode = paramOuts[0];
-    auto gather = std::dynamic_pointer_cast<ngraph::opset5::GatherND>(
+    auto gather = std::dynamic_pointer_cast<ngraph::op::v5::GatherND>(
             ngraph::builder::makeGatherND(dataNode, indicesShape, ngIPrc, batchDims));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, params, "gatherND");
 }
 }  // namespace LayerTestsDefinitions

@@ -76,8 +76,8 @@ namespace LayerTestsDefinitions {
         auto rnn_sequence = ngraph::builder::makeRNN(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
                                                        WRB, hidden_size, activations, {}, {}, clip, true, direction,
                                                        m_mode);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_sequence->output(0)),
-                                     std::make_shared<ngraph::opset1::Result>(rnn_sequence->output(1))};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(rnn_sequence->output(0)),
+                                     std::make_shared<ngraph::op::v0::Result>(rnn_sequence->output(1))};
         function = std::make_shared<ngraph::Function>(results, params, "rnn_sequence");
         bool is_pure_sequence = (m_mode == SequenceTestsMode::PURE_SEQ ||
                                  m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||

@@ -27,13 +27,13 @@ using namespace testing;
 TEST(TransformationTests, ConvBiasFusion) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
-        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {1});
-        auto bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 1, 1}, {1});
-        auto conv = std::make_shared<ngraph::opset1::Convolution>(input1, weights, ngraph::Strides{1, 1}, ngraph::CoordinateDiff{0, 0},
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
+        auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {1});
+        auto bias = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 1, 1}, {1});
+        auto conv = std::make_shared<ngraph::op::v1::Convolution>(input1, weights, ngraph::Strides{1, 1}, ngraph::CoordinateDiff{0, 0},
                 ngraph::CoordinateDiff{0, 0}, ngraph::Strides{1, 1});
 
-        auto add = std::make_shared<ngraph::opset1::Add>(conv, bias);
+        auto add = std::make_shared<ngraph::op::v1::Add>(conv, bias);
         add->set_friendly_name("add");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
@@ -46,7 +46,7 @@ TEST(TransformationTests, ConvBiasFusion) {
     auto nGraph = network.getFunction();
     ASSERT_NE(nullptr, nGraph);
     for (auto & op : nGraph->get_ops()) {
-        if (auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(op)) {
+        if (auto conv = std::dynamic_pointer_cast<ngraph::op::v1::Convolution>(op)) {
             auto & rtInfo = conv->get_rt_info();
             rtInfo["PrimitivesPriority"] = std::make_shared<ngraph::VariantWrapper<std::string> > ("test");
         }

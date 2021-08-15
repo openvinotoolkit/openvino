@@ -85,14 +85,14 @@ void PriorBoxClusteredLayerTest::SetUp() {
     attributes.offset = offset;
     attributes.variances = variances;
 
-    auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
-    auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
+    auto shape_of_1 = std::make_shared<ngraph::op::v0::ShapeOf>(params[0]);
+    auto shape_of_2 = std::make_shared<ngraph::op::v0::ShapeOf>(params[1]);
     auto priorBoxClustered = std::make_shared<ngraph::op::PriorBoxClustered>(
         shape_of_1,
         shape_of_2,
         attributes);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(priorBoxClustered) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(priorBoxClustered) };
     function = std::make_shared<ngraph::Function>(results, params, "PB_Clustered");
 }
 }  // namespace LayerTestsDefinitions

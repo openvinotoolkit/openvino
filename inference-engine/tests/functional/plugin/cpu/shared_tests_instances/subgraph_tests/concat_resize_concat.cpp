@@ -46,34 +46,34 @@ protected:
 
         std::vector<size_t> shape1({size_t(dims1[0]), size_t(dims1[1]), size_t(dims1[2]), size_t(dims1[3])});
         std::vector<size_t> shape2({size_t(dims2[0]), size_t(dims2[1]), size_t(dims2[2]), size_t(dims2[3])});
-        auto inputNode1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape(shape1));
-        auto inputNode2 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape(shape1));
-        auto inputNode3 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape(shape2));
+        auto inputNode1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape(shape1));
+        auto inputNode2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape(shape1));
+        auto inputNode3 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape(shape2));
         // concat layer
         ngraph::OutputVector concatNodes1;
         concatNodes1.push_back(inputNode1);
         concatNodes1.push_back(inputNode2);
-        std::shared_ptr<ngraph::Node> inputNode = std::make_shared<ngraph::opset3::Concat>(concatNodes1, 1);
+        std::shared_ptr<ngraph::Node> inputNode = std::make_shared<ngraph::op::v0::Concat>(concatNodes1, 1);
 
         // preresize layer
-        ngraph::opset4::Interpolate::InterpolateAttrs attrs;
-        attrs.mode = ngraph::opset4::Interpolate::InterpolateMode::LINEAR_ONNX;
-        attrs.shape_calculation_mode = ngraph::opset4::Interpolate::ShapeCalcMode::SIZES;
-        attrs.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::ASYMMETRIC;
-        attrs.nearest_mode = ngraph::opset4::Interpolate::NearestMode::CEIL;
+        ngraph::op::v4::Interpolate::InterpolateAttrs attrs;
+        attrs.mode = ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES;
+        attrs.coordinate_transformation_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC;
+        attrs.nearest_mode = ngraph::op::v4::Interpolate::NearestMode::CEIL;
         std::vector<int64_t> shape = {3, 3 };
 
         std::vector<float> scales = {1.5, 1.5 };
-        auto outputShape = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{2}, shape.data());
-        auto scalesShape = std::make_shared<ngraph::opset3::Constant>(ngraph::element::f32, ngraph::Shape{2}, scales.data());
-        auto axes = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{2}, std::vector<int64_t>{2, 3});
-        std::shared_ptr<ngraph::Node> preresizeNode = std::make_shared<ngraph::opset4::Interpolate>(inputNode, outputShape, scalesShape, axes, attrs);
+        auto outputShape = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, shape.data());
+        auto scalesShape = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::f32, ngraph::Shape{2}, scales.data());
+        auto axes = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, std::vector<int64_t>{2, 3});
+        std::shared_ptr<ngraph::Node> preresizeNode = std::make_shared<ngraph::op::v4::Interpolate>(inputNode, outputShape, scalesShape, axes, attrs);
 
         // concat layer
         ngraph::OutputVector concatNodes2;
         concatNodes2.push_back(preresizeNode);
         concatNodes2.push_back(inputNode3);
-        std::shared_ptr<ngraph::Node> outputNode = std::make_shared<ngraph::opset3::Concat>(concatNodes2, 1);
+        std::shared_ptr<ngraph::Node> outputNode = std::make_shared<ngraph::op::v0::Concat>(concatNodes2, 1);
 
         // Run shape inference on the nodes
         ngraph::NodeVector nodes;
@@ -90,7 +90,7 @@ protected:
         inputs.push_back(inputNode2);
         inputs.push_back(inputNode3);
         ngraph::ResultVector outputs;
-        outputs.push_back(std::make_shared<ngraph::opset1::Result>(outputNode));
+        outputs.push_back(std::make_shared<ngraph::op::v0::Result>(outputNode));
         function = std::make_shared<ngraph::Function>(outputs, inputs);
     }
 };
@@ -108,7 +108,7 @@ namespace {
 
 INSTANTIATE_TEST_CASE_P(smoke_ConcResizeConc,
                         ConcatResizeConcatTest, ::testing::Combine(
-                           ::testing::Values(ngraph::opset4::Interpolate::type_info),
+                           ::testing::Values(ngraph::op::v4::Interpolate::type_info),
                            ::testing::ValuesIn(channel_count),
                            ::testing::ValuesIn(batch_count)),
                         ConcatResizeConcatTest::getTestCaseName);

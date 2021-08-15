@@ -24,7 +24,7 @@ public:
         const size_t groupCount,
         const int groupCalculationDimention,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        std::shared_ptr<ngraph::opset1::Constant> weightsConst,
+        std::shared_ptr<ngraph::op::v0::Constant> weightsConst,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
@@ -44,7 +44,7 @@ public:
         const size_t groupCount,
         const int calculatedDimention,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        std::shared_ptr<ngraph::opset1::Constant> weightsConst,
+        std::shared_ptr<ngraph::op::v0::Constant> weightsConst,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
         const ngraph::element::Type precisionAfterOperation,

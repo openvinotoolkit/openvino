@@ -95,9 +95,9 @@ void QuantMatMulTest::SetUp() {
     auto dataFq0 = makeFakeQuantizeNode(quantLevels0, inputRange0, outputRange0, quantGranularity0, paramOuts[0], inputShape0, fqPrec0);
     auto dataFq1 = makeFakeQuantizeNode(quantLevels1, inputRange1, outputRange1, quantGranularity1, paramOuts[1], inputShape1, fqPrec1);
 
-    auto MatMul = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(
+    auto MatMul = std::dynamic_pointer_cast<ngraph::op::v0::MatMul>(
             ngraph::builder::makeMatMul(dataFq0, dataFq1));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(MatMul)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(MatMul)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantMatMul");
 }
 }  // namespace SubgraphTestsDefinitions

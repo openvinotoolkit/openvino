@@ -21,11 +21,11 @@ using namespace testing;
 TEST(TransformationTests, StridesOptimization1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -36,11 +36,11 @@ TEST(TransformationTests, StridesOptimization1) {
         m.run_passes(f);
     }
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -55,11 +55,11 @@ TEST(TransformationTests, StridesOptimization1) {
 TEST(TransformationTests, StridesOptimization2) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -70,11 +70,11 @@ TEST(TransformationTests, StridesOptimization2) {
         m.run_passes(f);
     }
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{4, 4},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -89,11 +89,11 @@ TEST(TransformationTests, StridesOptimization2) {
 TEST(TransformationTests, StridesOptimization3) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -104,11 +104,11 @@ TEST(TransformationTests, StridesOptimization3) {
         m.run_passes(f);
     }
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -124,17 +124,17 @@ TEST(TransformationTests, StridesOptimization3) {
 TEST(TransformationTests, StridesOptimization4) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto relu_1 = std::make_shared<ngraph::opset7::Relu>(conv_1);
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
+        auto relu_1 = std::make_shared<ngraph::op::v0::Relu>(conv_1);
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(data, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto relu_2 = std::make_shared<ngraph::opset7::Relu>(conv_2);
-        auto add = std::make_shared<ngraph::opset7::Add>(relu_1, relu_2);
-        auto weights_3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto relu_2 = std::make_shared<ngraph::op::v0::Relu>(conv_2);
+        auto add = std::make_shared<ngraph::op::v1::Add>(relu_1, relu_2);
+        auto weights_3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(add, weights_3, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -145,17 +145,17 @@ TEST(TransformationTests, StridesOptimization4) {
         m.run_passes(f);
     }
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{4, 4},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto relu_1 = std::make_shared<ngraph::opset7::Relu>(conv_1);
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
+        auto relu_1 = std::make_shared<ngraph::op::v0::Relu>(conv_1);
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(data, weights_2, ngraph::Strides{4, 4},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto relu_2 = std::make_shared<ngraph::opset7::Relu>(conv_2);
-        auto add = std::make_shared<ngraph::opset7::Add>(relu_1, relu_2);
-        auto weights_3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto relu_2 = std::make_shared<ngraph::op::v0::Relu>(conv_2);
+        auto add = std::make_shared<ngraph::op::v1::Add>(relu_1, relu_2);
+        auto weights_3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(add, weights_3, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -171,14 +171,14 @@ TEST(TransformationTests, StridesOptimization4) {
 TEST(TransformationTests, StridesOptimization5) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0}, ngraph::Strides{});
-        auto relu_1 = std::make_shared<ngraph::opset7::Relu>(conv_1);
-        auto relu_2 = std::make_shared<ngraph::opset7::Relu>(data);
-        auto add = std::make_shared<ngraph::opset7::Add>(relu_1, relu_2);
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto relu_1 = std::make_shared<ngraph::op::v0::Relu>(conv_1);
+        auto relu_2 = std::make_shared<ngraph::op::v0::Relu>(data);
+        auto add = std::make_shared<ngraph::op::v1::Add>(relu_1, relu_2);
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(add, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -189,15 +189,15 @@ TEST(TransformationTests, StridesOptimization5) {
         m.run_passes(f);
     }
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto relu_1 = std::make_shared<ngraph::opset7::Relu>(conv_1);
+        auto relu_1 = std::make_shared<ngraph::op::v0::Relu>(conv_1);
         auto pool = std::make_shared<ngraph::opset7::MaxPool>(data, ngraph::Strides{2, 2}, ngraph::Shape{0, 0}, ngraph::Shape{0, 0}, ngraph::Shape{1, 1});
-        auto relu_2 = std::make_shared<ngraph::opset7::Relu>(pool);
-        auto add = std::make_shared<ngraph::opset7::Add>(relu_1, relu_2);
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto relu_2 = std::make_shared<ngraph::op::v0::Relu>(pool);
+        auto add = std::make_shared<ngraph::op::v1::Add>(relu_1, relu_2);
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(add, weights_2, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -214,17 +214,17 @@ TEST(TransformationTests, StridesOptimization5) {
 TEST(TransformationTests, StridesOptimization6) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
+        auto weights_3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(conv_2, weights_3, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_4 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto weights_4 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_4 = std::make_shared<ngraph::opset7::Convolution>(conv_3, weights_4, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -235,17 +235,17 @@ TEST(TransformationTests, StridesOptimization6) {
         m.run_passes(f);
     }
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
+        auto weights_3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 3, 3}, {128});
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(conv_2, weights_3, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_4 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto weights_4 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_4 = std::make_shared<ngraph::opset7::Convolution>(conv_3, weights_4, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -264,18 +264,18 @@ TEST(TransformationTests, StridesOptimization6) {
 TEST(TransformationTests, StridesOptimization7) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto weights_3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(conv_2, weights_3, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto relu = std::make_shared<ngraph::opset7::Relu>(conv_1);
-        auto weights_4 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(conv_1);
+        auto weights_4 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_4 = std::make_shared<ngraph::opset7::Convolution>(relu, weights_4, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -286,19 +286,19 @@ TEST(TransformationTests, StridesOptimization7) {
         m.run_passes(f);
     }
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(conv_1, weights_2, ngraph::Strides{4, 4},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto weights_3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto weights_3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(conv_2, weights_3, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
         auto pool = std::make_shared<ngraph::opset7::MaxPool>(conv_1, ngraph::Strides{2, 2}, ngraph::Shape{0, 0}, ngraph::Shape{0, 0}, ngraph::Shape{1, 1});
-        auto relu = std::make_shared<ngraph::opset7::Relu>(pool);
-        auto weights_4 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(pool);
+        auto weights_4 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_4 = std::make_shared<ngraph::opset7::Convolution>(relu, weights_4, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -317,20 +317,20 @@ TEST(TransformationTests, StridesOptimization7) {
 TEST(TransformationTests, StridesOptimization8) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0}, ngraph::Strides{});
-        auto relu_1 = std::make_shared<ngraph::opset7::Relu>(conv_1);
+        auto relu_1 = std::make_shared<ngraph::op::v0::Relu>(conv_1);
         ngraph::Shape const_shape{1, 3, 224, 224};
-        auto constant = ngraph::opset7::Constant::create(ngraph::element::f32, const_shape, std::vector<float>(shape_size(const_shape), 1));
-        auto add = std::make_shared<ngraph::opset7::Add>(relu_1, constant);
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto constant = ngraph::op::v0::Constant::create(ngraph::element::f32, const_shape, std::vector<float>(shape_size(const_shape), 1));
+        auto add = std::make_shared<ngraph::op::v1::Add>(relu_1, constant);
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(add, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto data_2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 112, 112});
-        auto add_2 = std::make_shared<ngraph::opset7::Add>(conv_2, data_2);
-        auto weights_3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data_2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 112, 112});
+        auto add_2 = std::make_shared<ngraph::op::v1::Add>(conv_2, data_2);
+        auto weights_3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(add_2, weights_3, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -341,26 +341,26 @@ TEST(TransformationTests, StridesOptimization8) {
         m.run_passes(f);
     }
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{4, 4},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto relu_1 = std::make_shared<ngraph::opset7::Relu>(conv_1);
+        auto relu_1 = std::make_shared<ngraph::op::v0::Relu>(conv_1);
         ngraph::Shape const_shape{1, 3, 56, 56};
-        auto constant = ngraph::opset7::Constant::create(ngraph::element::f32, const_shape, std::vector<float>(shape_size(const_shape), 1));
-        auto add = std::make_shared<ngraph::opset7::Add>(relu_1, constant);
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto constant = ngraph::op::v0::Constant::create(ngraph::element::f32, const_shape, std::vector<float>(shape_size(const_shape), 1));
+        auto add = std::make_shared<ngraph::op::v1::Add>(relu_1, constant);
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(add, weights_2, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
-        auto data_2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 112, 112});
-        auto reshape = std::make_shared<ngraph::opset7::Reshape>(data_2,
-                ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 3, 112, 112}), false);
+        auto data_2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3, 112, 112});
+        auto reshape = std::make_shared<ngraph::op::v1::Reshape>(data_2,
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 3, 112, 112}), false);
         auto pool_2 = std::make_shared<ngraph::opset7::MaxPool>(reshape, ngraph::Strides{2, 2}, ngraph::Shape{0, 0},
                 ngraph::Shape{0, 0}, ngraph::Shape{1, 1});
         auto squeeze = std::make_shared<ngraph::opset7::Squeeze>(pool_2,
                 ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{1}, {0}));
-        auto add_2 = std::make_shared<ngraph::opset7::Add>(conv_2, squeeze);
-        auto weights_3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto add_2 = std::make_shared<ngraph::op::v1::Add>(conv_2, squeeze);
+        auto weights_3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(add_2, weights_3, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -381,29 +381,29 @@ TEST(TransformationTests, StridesOptimization8) {
 TEST(TransformationTests, StridesOptimization9) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0}, ngraph::Strides{});
 
-        auto data_2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{224});
-        auto add_const = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{224}, {128});
-        auto add = std::make_shared<ngraph::opset7::Add>(data_2, add_const);
-        auto add_2_const = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{224}, {128});
-        auto add_2 = std::make_shared<ngraph::opset7::Add>(add, add_2_const);
+        auto data_2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{224});
+        auto add_const = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{224}, {128});
+        auto add = std::make_shared<ngraph::op::v1::Add>(data_2, add_const);
+        auto add_2_const = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{224}, {128});
+        auto add_2 = std::make_shared<ngraph::op::v1::Add>(add, add_2_const);
 
-        auto add_3 = std::make_shared<ngraph::opset7::Add>(conv_1, add_2);
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto add_3 = std::make_shared<ngraph::op::v1::Add>(conv_1, add_2);
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(add_3, weights_2, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        auto data_3 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{});
-        auto add_4_const = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, {128});
-        auto add_4 = std::make_shared<ngraph::opset7::Add>(data_3, add_4_const);
-        auto add_5_const = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {128});
-        auto add_5 = std::make_shared<ngraph::opset7::Add>(add_4, add_5_const);
-        auto add_6 = std::make_shared<ngraph::opset7::Add>(conv_2, add_5);
-        auto weights_3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data_3 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{});
+        auto add_4_const = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{}, {128});
+        auto add_4 = std::make_shared<ngraph::op::v1::Add>(data_3, add_4_const);
+        auto add_5_const = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {128});
+        auto add_5 = std::make_shared<ngraph::op::v1::Add>(add_4, add_5_const);
+        auto add_6 = std::make_shared<ngraph::op::v1::Add>(conv_2, add_5);
+        auto weights_3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(add_6, weights_3, ngraph::Strides{2, 2},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
@@ -414,41 +414,41 @@ TEST(TransformationTests, StridesOptimization9) {
         m.run_passes(f);
     }
     {
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
-        auto weights_1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
+        auto weights_1 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_1 = std::make_shared<ngraph::opset7::Convolution>(data, weights_1, ngraph::Strides{4, 4},
                 ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0}, ngraph::Strides{});
 
-        auto data_2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{224});
-        auto reshape = std::make_shared<ngraph::opset7::Reshape>(data_2,
-                ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 224}), false);
+        auto data_2 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{224});
+        auto reshape = std::make_shared<ngraph::op::v1::Reshape>(data_2,
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 224}), false);
         auto pool = std::make_shared<ngraph::opset7::MaxPool>(reshape, ngraph::Strides{4, 4}, ngraph::Shape{0, 0},
                 ngraph::Shape{0, 0}, ngraph::Shape{1, 1});
         auto squeeze = std::make_shared<ngraph::opset7::Squeeze>(pool,
                 ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{3}, {0, 1, 2}));
-        auto add_const = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{56}, {128});
-        auto add = std::make_shared<ngraph::opset7::Add>(squeeze, add_const);
-        auto add_2_const = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{56}, {128});
-        auto add_2 = std::make_shared<ngraph::opset7::Add>(add, add_2_const);
+        auto add_const = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{56}, {128});
+        auto add = std::make_shared<ngraph::op::v1::Add>(squeeze, add_const);
+        auto add_2_const = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{56}, {128});
+        auto add_2 = std::make_shared<ngraph::op::v1::Add>(add, add_2_const);
 
-        auto add_3 = std::make_shared<ngraph::opset7::Add>(conv_1, add_2);
-        auto weights_2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto add_3 = std::make_shared<ngraph::op::v1::Add>(conv_1, add_2);
+        auto weights_2 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_2 = std::make_shared<ngraph::opset7::Convolution>(add_3, weights_2, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 
-        auto data_3 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{});
-        auto new_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
-        auto reshape_2 = std::make_shared<ngraph::opset7::Reshape>(data_3, new_shape, false);
+        auto data_3 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{});
+        auto new_shape = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+        auto reshape_2 = std::make_shared<ngraph::op::v1::Reshape>(data_3, new_shape, false);
         auto pool_2 = std::make_shared<ngraph::opset7::MaxPool>(reshape_2, ngraph::Strides{2, 2}, ngraph::Shape{0, 0},
                 ngraph::Shape{0, 0}, ngraph::Shape{1, 1});
         auto squeeze_2 = std::make_shared<ngraph::opset7::Squeeze>(pool_2,
                 ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{4}, {0, 1, 2, 3}));
-        auto add_4_const = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, {128});
-        auto add_4 = std::make_shared<ngraph::opset7::Add>(squeeze_2, add_4_const);
-        auto add_5_const = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {128});
-        auto add_5 = std::make_shared<ngraph::opset7::Add>(add_4, add_5_const);
-        auto add_6 = std::make_shared<ngraph::opset7::Add>(conv_2, add_5);
-        auto weights_3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
+        auto add_4_const = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{}, {128});
+        auto add_4 = std::make_shared<ngraph::op::v1::Add>(squeeze_2, add_4_const);
+        auto add_5_const = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {128});
+        auto add_5 = std::make_shared<ngraph::op::v1::Add>(add_4, add_5_const);
+        auto add_6 = std::make_shared<ngraph::op::v1::Add>(conv_2, add_5);
+        auto weights_3 = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1}, {128});
         auto conv_3 = std::make_shared<ngraph::opset7::Convolution>(add_6, weights_3, ngraph::Strides{1, 1},
                 ngraph::CoordinateDiff{}, ngraph::CoordinateDiff{}, ngraph::Strides{});
 

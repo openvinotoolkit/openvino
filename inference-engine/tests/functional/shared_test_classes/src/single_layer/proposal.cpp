@@ -168,8 +168,8 @@ void ProposalLayerTest::SetUp() {
                                            framework));
 
     ngraph::ResultVector results{
-        std::make_shared<ngraph::opset1::Result>(proposal->output(0)),
-        std::make_shared<ngraph::opset1::Result>(proposal->output(1))};
+        std::make_shared<ngraph::op::v0::Result>(proposal->output(0)),
+        std::make_shared<ngraph::op::v0::Result>(proposal->output(1))};
     function = std::make_shared<ngraph::Function>(results, params, "proposal");
 }
 

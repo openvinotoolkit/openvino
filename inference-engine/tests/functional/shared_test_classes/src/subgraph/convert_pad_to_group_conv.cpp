@@ -32,12 +32,12 @@ void ConvertPadToConvTests::SetUp() {
     std::tie(input_shape, pad_begin, pad_end, value, mode, targetDevice) = this->GetParam();
 
     {
-        auto param = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, input_shape);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
         auto pad = std::make_shared<ngraph::opset4::Pad>(param,
-                                                         ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{pad_begin.size()}, pad_begin),
-                                                         ngraph::opset4::Constant::create(ngraph::element::i64, ngraph::Shape{pad_end.size()}, pad_end),
-                                                         ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{}, {value}), mode);
-        auto relu = std::make_shared<ngraph::opset4::Relu>(pad);
+                                                         ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{pad_begin.size()}, pad_begin),
+                                                         ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{pad_end.size()}, pad_end),
+                                                         ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{}, {value}), mode);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(pad);
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{relu}, ngraph::ParameterVector{param}, "pad");
     }
 }

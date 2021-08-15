@@ -30,11 +30,11 @@ struct ReduceTestCase {
 
 const auto arithmetic_combinations = testing::Combine(
     testing::Values(
-            ngraph::opset3::ReduceMax::type_info,
-            ngraph::opset3::ReduceMean::type_info,
-            ngraph::opset3::ReduceMin::type_info,
-            ngraph::opset3::ReduceProd::type_info,
-            ngraph::opset3::ReduceSum::type_info),
+            ngraph::op::v1::ReduceMax::type_info,
+            ngraph::op::v1::ReduceMean::type_info,
+            ngraph::op::v1::ReduceMin::type_info,
+            ngraph::op::v1::ReduceProd::type_info,
+            ngraph::op::v1::ReduceSum::type_info),
     testing::Values(
             ngraph::element::f16,
             ngraph::element::f32,
@@ -55,8 +55,8 @@ const auto arithmetic_combinations = testing::Combine(
 
 const auto logical_combinations = testing::Combine(
         testing::Values(
-            ngraph::opset3::ReduceLogicalAnd::type_info,
-            ngraph::opset3::ReduceLogicalOr::type_info),
+            ngraph::op::v1::ReduceLogicalAnd::type_info,
+            ngraph::op::v1::ReduceLogicalOr::type_info),
         testing::Values(ngraph::element::boolean),
         testing::Values(
             ngraph::element::i32,
@@ -90,10 +90,10 @@ protected:
             const ngraph::element::Type_t& data_type,
             const ngraph::element::Type_t& axes_type,
             const ReduceTestCase& reduce_setup) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, reduce_setup.data_shape);
-        const auto axes = ngraph::opset3::Constant::create(axes_type, {reduce_setup.axes.size()}, reduce_setup.axes);
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, reduce_setup.data_shape);
+        const auto axes = ngraph::op::v0::Constant::create(axes_type, {reduce_setup.axes.size()}, reduce_setup.axes);
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{reduce_setup.data_shape.size()});
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{reduce_setup.data_shape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
         const auto node = ngraph::helpers::getNodeSharedPtr(type_info, {dsr, axes});
@@ -120,10 +120,10 @@ protected:
             const ngraph::element::Type_t& data_type,
             const ngraph::element::Type_t& axes_type,
             const ReduceTestCase& reduce_setup) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, reduce_setup.data_shape);
-        const auto axes = ngraph::opset3::Constant::create(axes_type, {reduce_setup.axes.size()}, reduce_setup.axes);
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, reduce_setup.data_shape);
+        const auto axes = ngraph::op::v0::Constant::create(axes_type, {reduce_setup.axes.size()}, reduce_setup.axes);
 
-        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{reduce_setup.data_shape.size()});
+        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{reduce_setup.data_shape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
         const auto node = ngraph::helpers::getNodeSharedPtr(type_info, {dsr, axes});
@@ -136,16 +136,16 @@ protected:
 
         ngraph::Output<ngraph::Node> output_shape;
         if (reduce_setup.keep_dims) {
-            output_shape = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(
+            output_shape = std::make_shared<ngraph::op::v3::ScatterElementsUpdate>(
                     dims,
-                    ngraph::opset3::Constant::create(ngraph::element::i64, {reduce_setup.axes.size()}, reduce_setup.axes),
-                    ngraph::opset3::Constant::create(ngraph::element::i64, {reduce_setup.gather_indices.size()}, reduce_setup.gather_indices),
-                    ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0}));
+                    ngraph::op::v0::Constant::create(ngraph::element::i64, {reduce_setup.axes.size()}, reduce_setup.axes),
+                    ngraph::op::v0::Constant::create(ngraph::element::i64, {reduce_setup.gather_indices.size()}, reduce_setup.gather_indices),
+                    ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {0}));
         } else {
-            output_shape = std::make_shared<ngraph::opset3::Gather>(
+            output_shape = std::make_shared<ngraph::op::v1::Gather>(
                     dims,
-                    ngraph::opset3::Constant::create(ngraph::element::i64, {reduce_setup.gather_indices.size()}, reduce_setup.gather_indices),
-                    ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0}));
+                    ngraph::op::v0::Constant::create(ngraph::element::i64, {reduce_setup.gather_indices.size()}, reduce_setup.gather_indices),
+                    ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {0}));
         }
         const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node, output_shape);
         return std::make_shared<ngraph::Function>(

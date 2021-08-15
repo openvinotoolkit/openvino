@@ -66,7 +66,7 @@ template<ngraph::element::Type_t from, ngraph::element::Type_t to>
 class ConvertConvertLayerOutputPrecision : public MatcherPass {
 public:
     ConvertConvertLayerOutputPrecision() {
-        auto convert = ngraph::pattern::wrap_type<opset1::Convert>();
+        auto convert = ngraph::pattern::wrap_type<op::v0::Convert>();
         ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
             auto convert = std::dynamic_pointer_cast<ngraph::op::Convert>(m.get_match_root());
             if (!convert) {

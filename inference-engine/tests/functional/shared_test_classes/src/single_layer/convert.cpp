@@ -29,8 +29,8 @@ void ConvertLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     auto targetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(targetPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, inputShape);
-    auto convert = std::make_shared<ngraph::opset3::Convert>(params.front(), targetPrc);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(convert)};
+    auto convert = std::make_shared<ngraph::op::v0::Convert>(params.front(), targetPrc);
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(convert)};
     function = std::make_shared<ngraph::Function>(results, params, "Convert");
 }
 }  // namespace LayerTestsDefinitions

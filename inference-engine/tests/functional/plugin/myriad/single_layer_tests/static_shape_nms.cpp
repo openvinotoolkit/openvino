@@ -74,25 +74,25 @@ protected:
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
 
-        const auto inputBoxes = std::make_shared<ngraph::opset3::Parameter>(
+        const auto inputBoxes = std::make_shared<ngraph::op::v0::Parameter>(
                 ngPrc, ngraph::Shape({static_cast<size_t>(numBatches), static_cast<size_t>(numBoxes), 4}));
-        const auto inputScores = std::make_shared<ngraph::opset3::Parameter>(
+        const auto inputScores = std::make_shared<ngraph::op::v0::Parameter>(
                 ngPrc, ngraph::Shape({static_cast<size_t>(numBatches), static_cast<size_t>(numClasses), static_cast<size_t>(numBoxes)}));
-        const auto maxOutputBoxesPerClassConst = std::make_shared<ngraph::opset3::Constant>(
+        const auto maxOutputBoxesPerClassConst = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::i64, ngraph::Shape{}, maxOutputBoxesPerClass);
-        const auto iouThresholdConst = std::make_shared<ngraph::opset3::Constant>(
+        const auto iouThresholdConst = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::f32, ngraph::Shape{}, iouThreshold);
-        const auto scoreThresholdConst = std::make_shared<ngraph::opset3::Constant>(
+        const auto scoreThresholdConst = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::f32, ngraph::Shape{}, scoreThreshold);
-        const auto softNMSSigmaConst = std::make_shared<ngraph::opset3::Constant>(
+        const auto softNMSSigmaConst = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::f32, ngraph::Shape{1}, softNMSSigma);
 
         const auto staticShapeNMS = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(
                 inputBoxes, inputScores, maxOutputBoxesPerClassConst, iouThresholdConst, scoreThresholdConst, softNMSSigmaConst,
                 0, false, ngraph::element::i32);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(staticShapeNMS->output(0)),
-                                     std::make_shared<ngraph::opset3::Result>(staticShapeNMS->output(1))};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(staticShapeNMS->output(0)),
+                                     std::make_shared<ngraph::op::v0::Result>(staticShapeNMS->output(1))};
         function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{inputBoxes, inputScores});
     }
 };
@@ -135,15 +135,15 @@ protected:
     void SetUp() override {
         targetDevice = this->GetParam();
 
-        const auto inputBoxes = std::make_shared<ngraph::opset3::Parameter>(
+        const auto inputBoxes = std::make_shared<ngraph::op::v0::Parameter>(
                 ngraph::element::f32, ngraph::Shape({static_cast<size_t>(1), static_cast<size_t>(10), 4}));
-        const auto inputScores = std::make_shared<ngraph::opset3::Parameter>(
+        const auto inputScores = std::make_shared<ngraph::op::v0::Parameter>(
                 ngraph::element::f32, ngraph::Shape({static_cast<size_t>(1), static_cast<size_t>(5), static_cast<size_t>(10)}));
-        const auto maxOutputBoxesPerClassConst = std::make_shared<ngraph::opset3::Constant>(
+        const auto maxOutputBoxesPerClassConst = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::i64, ngraph::Shape{}, 10);
-        const auto iouThresholdConst = std::make_shared<ngraph::opset3::Constant>(
+        const auto iouThresholdConst = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::f32, ngraph::Shape{}, .0f);
-        const auto scoreThresholdConst = std::make_shared<ngraph::opset3::Constant>(
+        const auto scoreThresholdConst = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::f32, ngraph::Shape{}, .0f);
 
         const auto nms = createNMS(inputBoxes, inputScores, maxOutputBoxesPerClassConst, iouThresholdConst, scoreThresholdConst);
@@ -160,9 +160,9 @@ protected:
             const ngraph::Output<ngraph::Node>& maxOutputBoxesPerClassConst,
             const ngraph::Output<ngraph::Node>& iouThresholdConst,
             const ngraph::Output<ngraph::Node>& scoreThresholdConst) override {
-        return std::make_shared<ngraph::opset1::NonMaxSuppression>(
+        return std::make_shared<ngraph::op::v3::NonMaxSuppression>(
                 inputBoxes, inputScores, maxOutputBoxesPerClassConst, iouThresholdConst, scoreThresholdConst,
-                ngraph::opset1::NonMaxSuppression::BoxEncodingType::CORNER, false);
+                ngraph::op::v3::NonMaxSuppression::BoxEncodingType::CORNER, false);
     }
 };
 
@@ -180,9 +180,9 @@ class NMS3toStaticShapeNMS : public PreviousNMStoStaticShapeNMS {
             const ngraph::Output<ngraph::Node>& maxOutputBoxesPerClassConst,
             const ngraph::Output<ngraph::Node>& iouThresholdConst,
             const ngraph::Output<ngraph::Node>& scoreThresholdConst) override {
-        return std::make_shared<ngraph::opset3::NonMaxSuppression>(
+        return std::make_shared<ngraph::op::v3::NonMaxSuppression>(
                 inputBoxes, inputScores, maxOutputBoxesPerClassConst, iouThresholdConst, scoreThresholdConst,
-                ngraph::opset3::NonMaxSuppression::BoxEncodingType::CORNER, false);
+                ngraph::op::v3::NonMaxSuppression::BoxEncodingType::CORNER, false);
     }
 };
 

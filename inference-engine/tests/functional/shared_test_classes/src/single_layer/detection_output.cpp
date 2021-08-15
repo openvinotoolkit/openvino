@@ -147,9 +147,9 @@ void DetectionOutputLayerTest::SetUp() {
     }
 
     auto params = ngraph::builder::makeParams(ngraph::element::f32, inShapes);
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::v0::Parameter>(params));
     auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(detOut)};
     function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
 }
 }  // namespace LayerTestsDefinitions

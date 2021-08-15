@@ -47,11 +47,11 @@ std::shared_ptr<Node> makeGroupConvolution(const ngraph::Output<Node> &in,
                                            const op::PadType &autoPad,
                                            bool addBiases,
                                            const std::vector<float> &biasesWeights) {
-    auto conv = std::make_shared<opset1::GroupConvolution>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad);
+    auto conv = std::make_shared<op::v1::GroupConvolution>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
         auto biasesWeightsNode = makeConstant(type, {}, biasesWeights, randomBiases);
-        auto add = std::make_shared<ngraph::opset1::Add>(conv, biasesWeightsNode);
+        auto add = std::make_shared<ngraph::op::v1::Add>(conv, biasesWeightsNode);
         return add;
     } else {
         return conv;

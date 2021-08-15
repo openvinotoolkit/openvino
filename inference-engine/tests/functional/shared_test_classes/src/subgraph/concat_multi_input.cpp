@@ -41,10 +41,10 @@ void ConcatMultiInput::GenerateStridedSliceModel() {
     std::vector<int64_t> newAxis = { 0, 0 };
     std::vector<int64_t> begin_mask = { 0, 0 };
     std::vector<int64_t> end_mask = { 0, 0 };
-    std::vector<std::shared_ptr<ngraph::opset1::StridedSlice>> ssArray;
+    std::vector<std::shared_ptr<ngraph::op::v1::StridedSlice>> ssArray;
     ngraph::OutputVector concatInput;
 
-    auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
+    auto relu = std::make_shared<ngraph::op::v0::Relu>(params[0]);
     std::vector<int64_t> startOffset = { 0, 0 };
     for (size_t i = 0; i < inputShapes.size(); ++i) {
         std::vector<int64_t> shape = { static_cast<int64_t>(inputShapes[i][0]),
@@ -53,16 +53,16 @@ void ConcatMultiInput::GenerateStridedSliceModel() {
                                            static_cast<int64_t>(inputShapes[i][1]) + startOffset[1]};
         auto begin = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, startOffset);
         auto end = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 2 }, endoffset);
-        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask, newAxis);
+        auto ss = std::make_shared<ngraph::op::v1::StridedSlice>(relu, begin, end, stride, begin_mask, end_mask, newAxis);
         ssArray.push_back(ss);
         concatInput.push_back(ssArray[i]);
 
         startOffset[1] += shape[1];
     }
 
-    auto concat = std::make_shared<ngraph::opset1::Concat>(concatInput, 1);
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(concatInput, 1);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(concat) };
     function = std::make_shared<ngraph::Function>(results, params, "ConcatMultiInput");
 }
 
@@ -101,7 +101,7 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
 
     auto concat = ngraph::builder::makeConcat(concatInputs, 1);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(concat) };
     function = std::make_shared<ngraph::Function>(results, input_vector, "ConcatConstOnly");
 }
 
@@ -110,17 +110,17 @@ void ConcatMultiInput::GenerateMemoryModel() {
     auto input = ngraph::builder::makeParams(ngPrc, { inputShapes[0] });
 
     auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ngraph::PartialShape::dynamic(), ngraph::element::dynamic, "concat_input_memory"});
-    auto mem_i = std::make_shared<ngraph::opset8::Constant>(ngPrc, inputShapes[0]);
-    auto mem_r = std::make_shared<ngraph::opset8::ReadValue>(mem_i, variable);
+    auto mem_i = std::make_shared<ngraph::op::v0::Constant>(ngPrc, inputShapes[0]);
+    auto mem_r = std::make_shared<ngraph::op::v6::ReadValue>(mem_i, variable);
 
     ngraph::OutputVector concat_input;
     concat_input.push_back(mem_r);
     concat_input.push_back(input.at(0));
-    auto concat = std::make_shared<ngraph::opset8::Concat>(concat_input, axis);
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(concat_input, axis);
 
-    auto mem_w = std::make_shared<ngraph::opset8::Assign>(input.at(0), variable);
+    auto mem_w = std::make_shared<ngraph::op::v6::Assign>(input.at(0), variable);
 
-    auto res = std::make_shared<ngraph::opset8::Result>(concat);
+    auto res = std::make_shared<ngraph::op::v0::Result>(concat);
     function = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::SinkVector{mem_w}, input, "ConcatMemory");
 }
 

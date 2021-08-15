@@ -28,10 +28,10 @@ using namespace ngraph;
 TEST(TransformationTests, ConvertMulticlassNmsToMulticlassNmsIE) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto boxes = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
 
-        auto nms = std::make_shared<opset8::MulticlassNms>(boxes, scores, opset8::MulticlassNms::Attributes());
+        auto nms = std::make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
@@ -45,9 +45,9 @@ TEST(TransformationTests, ConvertMulticlassNmsToMulticlassNmsIE) {
     }
 
     {
-        auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MulticlassNms>>(boxes, scores, opset8::MulticlassNms::Attributes());
+        auto boxes = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::op::v8::MulticlassNms>>(boxes, scores, op::v8::MulticlassNms::Attributes());
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         ASSERT_TRUE(f_ref->get_output_partial_shape(0).is_static()) << "Shape " << f_ref->get_output_partial_shape(0) << " should be static";

@@ -78,14 +78,14 @@ void PriorBoxLayerTest::SetUp() {
     attributes.clip = clip;
     attributes.flip = flip;
 
-    auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
-    auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
+    auto shape_of_1 = std::make_shared<ngraph::op::v0::ShapeOf>(params[0]);
+    auto shape_of_2 = std::make_shared<ngraph::op::v0::ShapeOf>(params[1]);
     auto priorBox = std::make_shared<ngraph::op::PriorBox>(
         shape_of_1,
         shape_of_2,
         attributes);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBox)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(priorBox)};
     function = std::make_shared <ngraph::Function>(results, params, "PriorBoxFunction");
 }
 } // namespace LayerTestDefinitions

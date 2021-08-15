@@ -4,6 +4,7 @@
 
 #include "ngraph_functions/builders.hpp"
 
+#include "ngraph/op/batch_to_space.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -13,13 +14,13 @@ std::shared_ptr<ngraph::Node> makeBatchToSpace(const ngraph::Output<Node> &in,
                                                const std::vector<int64_t> &cropsBegin,
                                                const std::vector<int64_t> &cropsEnd) {
     ngraph::Shape constShape = {in.get_shape().size()};
-    auto blockShapeNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, constShape,
+    auto blockShapeNode = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, constShape,
                                                                      blockShape.data());
-    auto cropsBeginNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, constShape,
+    auto cropsBeginNode = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, constShape,
                                                                      cropsBegin.data());
-    auto cropsEndNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, constShape, cropsEnd.data());
+    auto cropsEndNode = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, constShape, cropsEnd.data());
 
-    auto btsNode = std::make_shared<ngraph::opset2::BatchToSpace>(in, blockShapeNode, cropsBeginNode, cropsEndNode);
+    auto btsNode = std::make_shared<ngraph::op::v1::BatchToSpace>(in, blockShapeNode, cropsBeginNode, cropsEndNode);
     return btsNode;
 }
 

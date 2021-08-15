@@ -8,9 +8,9 @@ namespace ngraph {
 namespace builder {
 
 std::shared_ptr<ngraph::Node> makeDepthToSpace(const ngraph::Output<Node> &in,
-                                               ngraph::opset3::DepthToSpace::DepthToSpaceMode mode,
+                                               ngraph::op::v0::DepthToSpace::DepthToSpaceMode mode,
                                                size_t blockSize) {
-    auto dtsNode = std::make_shared<ngraph::opset3::DepthToSpace>(in, mode, blockSize);
+    auto dtsNode = std::make_shared<ngraph::op::v0::DepthToSpace>(in, mode, blockSize);
     return dtsNode;
 }
 

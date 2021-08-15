@@ -71,9 +71,9 @@ protected:
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
 
-        const auto inputParam = std::make_shared<ngraph::opset3::Parameter>(
+        const auto inputParam = std::make_shared<ngraph::op::v0::Parameter>(
                 ngPrc, ngraph::Shape(inputShape));
-        const auto targetShapeConst = std::make_shared<ngraph::opset3::Constant>(
+        const auto targetShapeConst = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::i64, ngraph::Shape{targetShape.size()}, targetShape);
 
         std::shared_ptr<ngraph::vpu::op::StaticShapeBroadcast> staticShapeBroadcast;
@@ -81,7 +81,7 @@ protected:
             staticShapeBroadcast = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
                     inputParam, targetShapeConst);
         } else if (mode == "explicit") {
-            const auto axesMappingConst = std::make_shared<ngraph::opset3::Constant>(
+            const auto axesMappingConst = std::make_shared<ngraph::op::v0::Constant>(
                     ngraph::element::i64, ngraph::Shape{axesMapping.size()}, axesMapping);
             staticShapeBroadcast = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
                     inputParam, targetShapeConst, axesMappingConst);
@@ -90,7 +90,7 @@ protected:
                     inputParam, targetShapeConst, ngraph::op::BroadcastType::BIDIRECTIONAL);
         }
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(staticShapeBroadcast->output(0))};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(staticShapeBroadcast->output(0))};
         function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{inputParam});
     }
 };

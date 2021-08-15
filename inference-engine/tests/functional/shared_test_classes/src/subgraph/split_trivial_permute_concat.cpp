@@ -36,13 +36,13 @@ namespace SubgraphTestsDefinitions {
         auto input = ngraph::builder::makeParams(ngPrc, { inputShape });
         auto split = ngraph::builder::makeSplit(input[0], ngPrc, 2, splitAxis);
 
-        auto permute_in_params = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64,
+        auto permute_in_params = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
                                                                             ngraph::Shape{ 4 },
                                                                             ngraph::Shape{ {0, 3, 2, 1} });
-        auto permute_0 = std::make_shared<ngraph::opset1::Transpose>(split->output(0), permute_in_params);
-        auto permute_1 = std::make_shared<ngraph::opset1::Transpose>(split->output(1), permute_in_params);
+        auto permute_0 = std::make_shared<ngraph::op::v1::Transpose>(split->output(0), permute_in_params);
+        auto permute_1 = std::make_shared<ngraph::op::v1::Transpose>(split->output(1), permute_in_params);
 
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ split->output(0), split->output(1) }, concatAxis);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{ split->output(0), split->output(1) }, concatAxis);
         auto act = ngraph::builder::makeActivation(concat, ngPrc, ngraph::helpers::ActivationTypes::Relu);
         function = std::make_shared<ngraph::Function>(act, input, "split_trivial_permute_concat");
     }

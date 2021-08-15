@@ -34,7 +34,7 @@ protected:
         const auto indicesSubgraph = createInputSubgraphWithDSR(integerType, scatterSetup.indicesShape);
         const auto updatesSubgraph = createInputSubgraphWithDSR(numericType, scatterSetup.updatesShape);
 
-        const auto axis = std::make_shared<ngraph::opset3::Constant>(integerType, ngraph::Shape{1}, std::vector<int64_t>{scatterSetup.axis});
+        const auto axis = std::make_shared<ngraph::op::v0::Constant>(integerType, ngraph::Shape{1}, std::vector<int64_t>{scatterSetup.axis});
 
         return ngraph::helpers::getNodeSharedPtr(scatterSetup.scatterTypeInfo, {inputSubgraph, indicesSubgraph, updatesSubgraph, axis});
     }
@@ -52,7 +52,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicScatter, DSR_Scatter,
                     ngraph::element::i32),
             testing::Values(
                     ScatterTestCase{
-                        ngraph::opset3::ScatterUpdate::type_info,
+                        ngraph::op::v3::ScatterUpdate::type_info,
                         {{84, 256, 7, 7}, {100, 256, 7, 7}},
                         {{84}, {100}},
                         {{84, 256, 7, 7}, {100, 256, 7, 7}},

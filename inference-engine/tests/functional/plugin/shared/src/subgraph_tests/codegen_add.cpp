@@ -40,12 +40,12 @@ namespace LayerTestsDefinitions {
         InferenceEngine::Precision netPrecision;
         std::tie(netPrecision, inputShape0, inputShape1, targetDevice) = this->GetParam();
 
-        auto input0 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{inputShape0});
-        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{inputShape1});
+        auto input0 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{inputShape0});
+        auto input1 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{inputShape1});
 
-        auto add = std::make_shared<ngraph::opset1::Add>(input0, input1);
-        auto neg = std::make_shared<ngraph::opset1::Negative>(add);
-        auto result = std::make_shared<ngraph::opset1::Result>(neg);
+        auto add = std::make_shared<ngraph::op::v1::Add>(input0, input1);
+        auto neg = std::make_shared<ngraph::op::v0::Negative>(add);
+        auto result = std::make_shared<ngraph::op::v0::Result>(neg);
 
         function = std::make_shared<ngraph::Function>(
             ngraph::ResultVector{result},

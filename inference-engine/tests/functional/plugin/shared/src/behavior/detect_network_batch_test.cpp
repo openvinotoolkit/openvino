@@ -11,13 +11,13 @@ std::shared_ptr<ngraph::Function> makeNNWithMultipleInputsDiffDims(ngraph::Shape
                                                             ngraph::element::Type_t type = ngraph::element::Type_t::i32) {
     const auto elems = ngraph::shape_size(inputShape);
     auto shape2 = ngraph::Shape({inputShape[0], elems / inputShape[0]});
-    auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, inputShape);
-    auto param1 = std::make_shared<ngraph::opset1::Parameter>(type, inputShape);
-    auto param2 = std::make_shared<ngraph::opset1::Parameter>(type, shape2);
-    auto add = std::make_shared<ngraph::opset1::Add>(param0, param1);
-    auto reshape = std::make_shared<ngraph::opset6::Reshape>(add, ngraph::op::Constant::create(ngraph::element::i32, {2}, shape2), false);
-    auto add2 = std::make_shared<ngraph::opset1::Add>(reshape, param2);
-    auto result = std::make_shared<ngraph::opset1::Result>(add2);
+    auto param0 = std::make_shared<ngraph::op::v0::Parameter>(type, inputShape);
+    auto param1 = std::make_shared<ngraph::op::v0::Parameter>(type, inputShape);
+    auto param2 = std::make_shared<ngraph::op::v0::Parameter>(type, shape2);
+    auto add = std::make_shared<ngraph::op::v1::Add>(param0, param1);
+    auto reshape = std::make_shared<ngraph::op::v1::Reshape>(add, ngraph::op::Constant::create(ngraph::element::i32, {2}, shape2), false);
+    auto add2 = std::make_shared<ngraph::op::v1::Add>(reshape, param2);
+    auto result = std::make_shared<ngraph::op::v0::Result>(add2);
     auto fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param0, param1, param2});
     fn_ptr->set_friendly_name("MultipleInputsDiffDims");
     return fn_ptr;
@@ -25,12 +25,12 @@ std::shared_ptr<ngraph::Function> makeNNWithMultipleInputsDiffDims(ngraph::Shape
 
 std::shared_ptr<ngraph::Function> makeNNWithMultipleInputsSameDims(ngraph::Shape inputShape = {1, 3, 240, 240},
                                                             ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
-    auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, inputShape);
-    auto param1 = std::make_shared<ngraph::opset1::Parameter>(type, inputShape);
-    auto param2 = std::make_shared<ngraph::opset1::Parameter>(type, inputShape);
-    auto add = std::make_shared<ngraph::opset1::Add>(param0, param1);
-    auto add2 = std::make_shared<ngraph::opset1::Add>(add, param2);
-    auto result = std::make_shared<ngraph::opset1::Result>(add2);
+    auto param0 = std::make_shared<ngraph::op::v0::Parameter>(type, inputShape);
+    auto param1 = std::make_shared<ngraph::op::v0::Parameter>(type, inputShape);
+    auto param2 = std::make_shared<ngraph::op::v0::Parameter>(type, inputShape);
+    auto add = std::make_shared<ngraph::op::v1::Add>(param0, param1);
+    auto add2 = std::make_shared<ngraph::op::v1::Add>(add, param2);
+    auto result = std::make_shared<ngraph::op::v0::Result>(add2);
     auto fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param0, param1, param2});
     fn_ptr->set_friendly_name("MultipleInputsSameDims");
     return fn_ptr;

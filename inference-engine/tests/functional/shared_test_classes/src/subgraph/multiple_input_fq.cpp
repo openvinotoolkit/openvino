@@ -35,7 +35,7 @@ void MultipleInputTest::SetUp() {
     auto mul3 = ngraph::builder::makeEltwise(mul1, mul2, ngraph::helpers::EltwiseTypes::ADD);
     auto fake3 = ngraph::builder::makeFakeQuantize(input[2], ngPrc, 255, { 1 }, { -0.5 }, { 0.5 }, { -0.5 }, { 0.5 });
     auto mul4 = ngraph::builder::makeEltwise(fake3, mul3, ngraph::helpers::EltwiseTypes::ADD);
-    auto result = std::make_shared<ngraph::opset7::Result>(mul4);
+    auto result = std::make_shared<ngraph::op::v0::Result>(mul4);
     function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "multiple_input");
 }
 

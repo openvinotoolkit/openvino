@@ -100,7 +100,7 @@ protected:
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
+        auto groupConv = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(
                 ngraph::builder::makeGroupConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                                       padEnd, dilation, padType, convOutChannels, numGroups));
         function = makeNgraphFunction(ngPrc, params, groupConv, "groupConvolution");

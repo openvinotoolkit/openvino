@@ -46,15 +46,15 @@ TEST(TransformationTests, UnrollLoopGRUCell) {
         auto res_1 = std::make_shared<Result>(gru_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(gru_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body_condition = std::make_shared<ngraph::opset6::Constant>(
+        auto body_condition = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::boolean, ngraph::Shape{1}, true);
         auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition},
                                                ParameterVector{Xi, Yi});
 
         auto trip_count =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
         auto exec_condition =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 2});
         loop->set_function(body);
@@ -135,15 +135,15 @@ TEST(TransformationTests, UnrollLoopRNNCell) {
         auto res_1 = std::make_shared<Result>(rnn_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(rnn_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body_condition = std::make_shared<ngraph::opset6::Constant>(
+        auto body_condition = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::boolean, ngraph::Shape{1}, true);
         auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition},
                                                ParameterVector{Xi, Yi});
 
         auto trip_count =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
         auto exec_condition =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 2});
         loop->set_function(body);
@@ -226,15 +226,15 @@ TEST(TransformationTests, UnrollLoopLSTMCell) {
         auto res_1 = std::make_shared<Result>(lstm_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body_condition = std::make_shared<ngraph::opset6::Constant>(
+        auto body_condition = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::boolean, ngraph::Shape{1}, true);
         auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition},
                                                ParameterVector{Xi, Yi, Zi});
 
         auto trip_count =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{}, 2);
         auto exec_condition =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 2});
         loop->set_function(body);
@@ -317,15 +317,15 @@ TEST(TransformationTests, UnrollLoopGRUCellSingleIteration) {
         auto res_1 = std::make_shared<Result>(gru_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(gru_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body_condition = std::make_shared<ngraph::opset6::Constant>(
+        auto body_condition = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::boolean, ngraph::Shape{1}, true);
         auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition},
                                                ParameterVector{Xi, Yi});
 
         auto trip_count =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 1);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{}, 1);
         auto exec_condition =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 2});
         loop->set_function(body);
@@ -400,15 +400,15 @@ TEST(TransformationTests, UnrollLoopRNNCellSingleIteration) {
         auto res_1 = std::make_shared<Result>(rnn_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(rnn_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body_condition = std::make_shared<ngraph::opset6::Constant>(
+        auto body_condition = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::boolean, ngraph::Shape{1}, true);
         auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition},
                                                ParameterVector{Xi, Yi});
 
         auto trip_count =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 1);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{}, 1);
         auto exec_condition =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 2});
         loop->set_function(body);
@@ -484,15 +484,15 @@ TEST(TransformationTests, UnrollLoopLSTMCellSingleIteration) {
         auto res_1 = std::make_shared<Result>(lstm_cell);
         auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell, axis);
         auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto body_condition = std::make_shared<ngraph::opset6::Constant>(
+        auto body_condition = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::boolean, ngraph::Shape{1}, true);
         auto body = std::make_shared<Function>(OutputVector{res_1, res_2, body_condition},
                                                ParameterVector{Xi, Yi, Zi});
 
         auto trip_count =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 1);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{}, 1);
         auto exec_condition =
-                std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+                std::make_shared<ngraph::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
         auto loop = std::make_shared<Loop>(trip_count, exec_condition);
         loop->set_special_body_ports({-1, 2});
         loop->set_function(body);

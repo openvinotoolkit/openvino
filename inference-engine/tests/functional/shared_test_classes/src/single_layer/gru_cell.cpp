@@ -65,7 +65,7 @@ void GRUCellTest::SetUp() {
     auto gru_cell = ngraph::builder::makeGRU(
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
             WRB, hidden_size, activations, {}, {}, clip, linear_before_reset);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_cell->output(0))};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(gru_cell->output(0))};
     function = std::make_shared<ngraph::Function>(results, params, "gru_cell");
     if (should_decompose) {
         ngraph::pass::Manager m;

@@ -46,7 +46,7 @@ void LogSoftmaxLayerTest::SetUp() {
 
     const auto logSoftmax = std::make_shared<ngraph::op::v5::LogSoftmax>(paramOuts.at(0), axis);
 
-    const ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(logSoftmax)};
+    const ngraph::ResultVector results {std::make_shared<ngraph::op::v0::Result>(logSoftmax)};
 
     function = std::make_shared<ngraph::Function>(results, params, "logSoftmax");
 }

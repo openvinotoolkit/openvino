@@ -88,7 +88,7 @@ protected:
         auto maxpool = ngraph::builder::makePooling(activation, {1, 2}, {0, 0}, {0, 0}, {1, 2}, ngraph::op::RoundingType::FLOOR,
                                                     ngraph::op::PadType::VALID, false, ngraph::helpers::PoolingTypes::MAX);
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(maxpool)};
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(maxpool)};
         function = std::make_shared<ngraph::Function>(results, inputVector, "ActMaxpoolReordering");
     }
 };

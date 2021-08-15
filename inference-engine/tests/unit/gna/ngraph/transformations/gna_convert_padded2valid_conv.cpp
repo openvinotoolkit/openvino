@@ -66,17 +66,17 @@ void GetConvParams(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& 
     conv_data.pads_end_width = conv->get_pads_end()[1];
 }
 
-std::shared_ptr<ngraph::opset7::FakeQuantize> createFQ(ngraph::Output<ngraph::Node>& in_node) {
-    auto input_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
-    auto input_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {5});
-    auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
-    auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
-    return std::make_shared<ngraph::opset7::FakeQuantize>(in_node, input_low, input_high, output_low, output_high, 11);
+std::shared_ptr<ngraph::op::v0::FakeQuantize> createFQ(ngraph::Output<ngraph::Node>& in_node) {
+    auto input_low = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1});
+    auto input_high = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {5});
+    auto output_low = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
+    auto output_high = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
+    return std::make_shared<ngraph::op::v0::FakeQuantize>(in_node, input_low, input_high, output_low, output_high, 11);
 }
 
 ngraph::Output<ngraph::Node> createBiasFQ(const ngraph::Output<ngraph::Node>& in_node,
-    std::shared_ptr<ngraph::opset7::Constant>& bias_const, const bool& fq) {
-    ngraph::Output<ngraph::Node> bcast_add = std::make_shared<ngraph::opset7::Add>(in_node, bias_const);
+    std::shared_ptr<ngraph::op::v0::Constant>& bias_const, const bool& fq) {
+    ngraph::Output<ngraph::Node> bcast_add = std::make_shared<ngraph::op::v1::Add>(in_node, bias_const);
 
     if (fq) {
         bcast_add = createFQ(bcast_add);
@@ -85,7 +85,7 @@ ngraph::Output<ngraph::Node> createBiasFQ(const ngraph::Output<ngraph::Node>& in
     return bcast_add;
 }
 
-std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
+std::shared_ptr<ngraph::op::v0::Result> createFunction(const bool& fq,
     const modelType& model,
     const ngraph::Output<ngraph::Node>& input_node,
     const ngraph::Shape& filters_shape,
@@ -98,9 +98,9 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     const ngraph::Shape& maxpool_shape,
     const ngraph::op::PadType& pad_type,
     ConvData* conv_data) {
-    auto transpose_in_order = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
-    auto transpose_in = std::make_shared<ngraph::opset7::Transpose>(input_node, transpose_in_order);
-    ngraph::Output<ngraph::Node> filters = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64,
+    auto transpose_in_order = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<int64_t>{0, 3, 1, 2});
+    auto transpose_in = std::make_shared<ngraph::op::v1::Transpose>(input_node, transpose_in_order);
+    ngraph::Output<ngraph::Node> filters = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
         ngraph::Shape{4, input_node.get_shape()[3], filters_shape[0], filters_shape[1]});
 
     if (fq) {
@@ -110,16 +110,16 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     auto conv = std::make_shared<ngraph::opset7::Convolution>(transpose_in, filters, conv_stride, pads_begin, pads_end, conv_dilation, pad_type);
     if (conv_data)
         GetConvParams(conv, *conv_data);
-    auto transpose_out_order = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
-    auto bias_const = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, bias_shape);
+    auto transpose_out_order = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
+    auto bias_const = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, bias_shape);
 
-    ngraph::Output<ngraph::Node> last_op = std::make_shared<ngraph::opset7::Transpose>(conv, transpose_out_order);
+    ngraph::Output<ngraph::Node> last_op = std::make_shared<ngraph::op::v1::Transpose>(conv, transpose_out_order);
 
     switch (model) {
     case modelType::TranspConvBcastAddTransp:
     {
         auto bcast_add = createBiasFQ(conv, bias_const, fq);
-        last_op = std::make_shared<ngraph::opset7::Transpose>(bcast_add, transpose_out_order);
+        last_op = std::make_shared<ngraph::op::v1::Transpose>(bcast_add, transpose_out_order);
     }
     break;
 
@@ -128,16 +128,16 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
         auto bcast_add = createBiasFQ(conv, bias_const, fq);
         auto maxpool = std::make_shared<ngraph::opset7::MaxPool>(bcast_add, maxpool_stride, ngraph::Shape{0, 0}, ngraph::Shape{0, 0}, maxpool_shape,
             ngraph::op::RoundingType::FLOOR, ngraph::op::PadType::VALID);
-        auto transpose = std::make_shared<ngraph::opset7::Transpose>(maxpool, transpose_out_order);
-        last_op = std::make_shared<ngraph::opset7::Relu>(transpose);
+        auto transpose = std::make_shared<ngraph::op::v1::Transpose>(maxpool, transpose_out_order);
+        last_op = std::make_shared<ngraph::op::v0::Relu>(transpose);
     }
     break;
 
     case modelType::TranspConvBcastAddActTransp:
     {
         auto bcast_add = createBiasFQ(conv, bias_const, fq);
-        auto activation = std::make_shared<ngraph::opset7::Relu>(bcast_add);
-        last_op = std::make_shared<ngraph::opset7::Transpose>(activation, transpose_out_order);
+        auto activation = std::make_shared<ngraph::op::v0::Relu>(bcast_add);
+        last_op = std::make_shared<ngraph::op::v1::Transpose>(activation, transpose_out_order);
     }
     break;
 
@@ -146,8 +146,8 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
         auto bcast_add = createBiasFQ(conv, bias_const, fq);
         auto maxpool = std::make_shared<ngraph::opset7::MaxPool>(bcast_add, maxpool_stride, ngraph::Shape{0, 0}, ngraph::Shape{0, 0}, maxpool_shape,
             ngraph::op::RoundingType::FLOOR, ngraph::op::PadType::VALID);
-        auto activation = std::make_shared<ngraph::opset7::Relu>(maxpool);
-        last_op = std::make_shared<ngraph::opset7::Transpose>(activation, transpose_out_order);
+        auto activation = std::make_shared<ngraph::op::v0::Relu>(maxpool);
+        last_op = std::make_shared<ngraph::op::v1::Transpose>(activation, transpose_out_order);
     }
     break;
 
@@ -160,7 +160,7 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
     case modelType::TranspConvTranspBcastAddAct:
     {
         auto bcast_add = createBiasFQ(last_op, bias_const, fq);
-        last_op = std::make_shared<ngraph::opset7::Relu>(bcast_add);
+        last_op = std::make_shared<ngraph::op::v0::Relu>(bcast_add);
     }
     break;
 
@@ -169,7 +169,7 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const bool& fq,
         break;
     }
 
-    return std::make_shared<ngraph::opset7::Result>(last_op);
+    return std::make_shared<ngraph::op::v0::Result>(last_op);
 }
 
 std::shared_ptr<ngraph::Function> get_initial_function(const bool& fq,
@@ -185,7 +185,7 @@ std::shared_ptr<ngraph::Function> get_initial_function(const bool& fq,
     const ngraph::Shape& maxpool_shape,
     const ngraph::op::PadType& pad_type,
     ConvData& conv_data) {
-    auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
+    auto input_params = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, input_shape);
     auto result = createFunction(fq, model, input_params, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation, bias_shape,
         maxpool_stride, maxpool_shape, pad_type, &conv_data);
     return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
@@ -267,15 +267,15 @@ void ConvertPadded2ValidConvTestFixture::SetUp() {
 std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::Node> input, size_t offset, size_t size) {
     return std::make_shared<ngraph::opset7::StridedSlice>(
         input, // data
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset}), // begin sice index
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset + size}), // end slice index
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)1, (size_t)1}), // strides
+        ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset}), // begin sice index
+        ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset + size}), // end slice index
+        ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)1, (size_t)1}), // strides
         std::vector<int64_t>{1, 0},  // begin mask
         std::vector<int64_t>{1, 0}); // end mask
 }
 
 void InsertPadding(ngraph::OutputVector& input_rows_to_concat, size_t size,
-    const std::shared_ptr<ngraph::opset7::Constant> padding_const, size_t biggest_padding) {
+    const std::shared_ptr<ngraph::op::v0::Constant> padding_const, size_t biggest_padding) {
 
     if (size == biggest_padding) {
         input_rows_to_concat.push_back(padding_const);
@@ -301,12 +301,12 @@ std::shared_ptr<ngraph::Node> CreatePaddedNet(const ngraph::Output<ngraph::Node>
     if (!biggest_padding)
         return nullptr;
 
-    auto flat_input = std::make_shared<ngraph::opset7::Reshape>(input_node,
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+    auto flat_input = std::make_shared<ngraph::op::v1::Reshape>(input_node,
+        ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2},
             ngraph::Shape{1ull, shape_size(input_node.get_shape())}), false);
 
     // Constant with zero padding
-    auto const_holding_padding = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{1, biggest_padding}, 0);
+    auto const_holding_padding = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1, biggest_padding}, 0);
 
     std::shared_ptr<ngraph::Node> original_row = flat_input;
     ngraph::OutputVector input_rows_to_concat;
@@ -367,7 +367,7 @@ std::shared_ptr<ngraph::Function> ConvertPadded2ValidConvTestFixture::get_refere
     const ngraph::Shape& maxpool_shape,
     const ngraph::op::PadType& pad_type,
     const ConvData& conv_data) {
-    auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
+    auto input_params = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, input_shape);
 
     // Add padding where neccessary
 
@@ -380,15 +380,15 @@ std::shared_ptr<ngraph::Function> ConvertPadded2ValidConvTestFixture::get_refere
     // padding
     // padding
     auto padded_input_plane = CreatePaddedNet(input_params, conv_data);
-    std::shared_ptr<ngraph::opset7::Result> result;
+    std::shared_ptr<ngraph::op::v0::Result> result;
 
     if (padded_input_plane) {
-        auto shape_const = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{4},
+        auto shape_const = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{4},
             ngraph::Shape{static_cast<size_t>(1),
             conv_data.pads_begin_height + conv_data.input_height + conv_data.pads_end_height,
             conv_data.pads_begin_width + conv_data.input_width + conv_data.pads_end_width,
             conv_data.input_channel_count});
-        auto padded_input_plane_reshaped = std::make_shared<ngraph::opset7::Reshape>(padded_input_plane, shape_const, false);
+        auto padded_input_plane_reshaped = std::make_shared<ngraph::op::v1::Reshape>(padded_input_plane, shape_const, false);
         result = createFunction(fq, model, padded_input_plane_reshaped, filters_shape, conv_stride,
             ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0}, conv_dilation, bias_shape,
             maxpool_stride, maxpool_shape, ngraph::op::PadType::EXPLICIT, nullptr);

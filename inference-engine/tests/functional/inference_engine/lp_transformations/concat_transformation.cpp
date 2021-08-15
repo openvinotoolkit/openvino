@@ -148,13 +148,13 @@ public:
             testValues.addNotPrecisionPreservedOperation);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
+            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::op::v1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
         });
 
         auto quantizationRestrictions = testValues.multiChannels ?
             std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
             std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::AvgPool>()
+                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::op::v1::AvgPool>()
             });
 
         const auto params = TestTransformationParams::toParams(testValues.params);
@@ -230,13 +230,13 @@ TEST_P(ConcatTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
-    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    const auto actualFakeQuantizes = LayerTransformation::get<op::v0::FakeQuantize>(actualFunction);
     ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
         "PrecisionsAttribute are not the same";
 
     ConcatTransformationTestValues testValues = std::get<2>(GetParam());
     if (testValues.checkIntervalsAlignmentAttributes) {
-        auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
+        auto operations = LayerTransformation::get<op::v0::Concat>(actualFunction);
         operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
         ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) <<
             "IntervalsAlignmentAttribute are not the same";

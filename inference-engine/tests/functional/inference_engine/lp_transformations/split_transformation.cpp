@@ -80,7 +80,7 @@ public:
             testValues.addUnsupportedConcat);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::SplitTransformation, ngraph::op::v1::Split>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::SplitFunction::getReference(

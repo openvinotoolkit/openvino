@@ -88,7 +88,7 @@ std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::Node> &node, L
                           << std::endl
                           << "The constant will be replaced with parameter and initial data ranges meta info"
                           << std::endl;
-                auto param = std::make_shared<ngraph::opset6::Parameter>(constant->get_element_type(),
+                auto param = std::make_shared<ngraph::op::v0::Parameter>(constant->get_element_type(),
                                                                          constant->get_shape());
                 op_inputs.push_back(param);
 
@@ -136,7 +136,7 @@ std::shared_ptr<ngraph::Node> clone_weightable_node(const std::shared_ptr<ngraph
                           << std::endl
                           << "The constant will be replaced with parameter and initial data ranges meta info"
                           << std::endl;
-                auto param = std::make_shared<ngraph::opset6::Parameter>(constant_input->get_element_type(),
+                auto param = std::make_shared<ngraph::op::v0::Parameter>(constant_input->get_element_type(),
                                                                          constant_input->get_shape());
                 op_inputs.push_back(param);
             } else {
@@ -149,7 +149,7 @@ std::shared_ptr<ngraph::Node> clone_weightable_node(const std::shared_ptr<ngraph
             continue;
         }
         // Input is constant and in the target weights ports
-        auto param = std::make_shared<ngraph::opset6::Parameter>(constant_input->get_element_type(),
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(constant_input->get_element_type(),
                                                                  constant_input->get_shape());
         port_info.convert_to_const = true;
         meta.ports_info[i] = port_info;

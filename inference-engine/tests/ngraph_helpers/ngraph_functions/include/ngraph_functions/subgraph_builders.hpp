@@ -14,27 +14,27 @@ inline std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> in
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
     std::vector<size_t> constShape = {inputShape[0], inputShape[2], inputShape[1], inputShape[3]};
-    auto const1 = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, constShape);
+    auto const1 = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, constShape);
     const1->set_friendly_name("Const_1");
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params.front(), const1, false);
+    auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(params.front(), const1, false);
     reshape1->set_friendly_name("Reshape_1");
     auto conv1 = ngraph::builder::makeConvolution(reshape1, ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 4);
     conv1->set_friendly_name("Conv_1");
     std::vector<size_t> stride{1, 1}, padB{0, 0}, padE = padB, kernel{1, 2};
-    auto pool1 = std::make_shared<ngraph::opset1::MaxPool>(conv1, stride, padB, padE, kernel,
+    auto pool1 = std::make_shared<ngraph::op::v1::MaxPool>(conv1, stride, padB, padE, kernel,
                                                                ngraph::op::RoundingType::FLOOR,
                                                                ngraph::op::PadType::EXPLICIT);
     pool1->set_friendly_name("Pool_1");
-    auto relu1 = std::make_shared<ngraph::opset1::Relu>(pool1);
+    auto relu1 = std::make_shared<ngraph::op::v0::Relu>(pool1);
     relu1->set_friendly_name("Relu_1");
     ngraph::Shape reluShape = relu1->outputs()[0].get_tensor().get_shape();
     std::vector<size_t> constShape2 = {1, ngraph::shape_size(reluShape)};
-    auto const2 = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, constShape2);
+    auto const2 = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{2}, constShape2);
     const2->set_friendly_name("Const_2");
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(relu1, const2, false);
+    auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(relu1, const2, false);
     reshape2->set_friendly_name("Reshape_2");
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape2)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(reshape2)};
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     return fnPtr;
 }
@@ -46,14 +46,14 @@ inline std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t>
 
     auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    auto relu1 = std::make_shared<ngraph::opset1::Relu>(conv1);
+    auto relu1 = std::make_shared<ngraph::op::v0::Relu>(conv1);
 
     auto conv2 = ngraph::builder::makeConvolution(split->output(1), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2);
+    auto relu2 = std::make_shared<ngraph::op::v0::Relu>(conv2);
 
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), relu2->output(0)}, 1);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu1->output(0), relu2->output(0)}, 1);
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(concat)};
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     fnPtr->set_friendly_name("SplitConvConcat");
     return fnPtr;
@@ -63,16 +63,16 @@ inline std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inp
                                                          ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
-    auto shapeOf = std::make_shared<ngraph::opset4::ShapeOf>(params[0]);
+    auto shapeOf = std::make_shared<ngraph::op::v0::ShapeOf>(params[0]);
     auto convert = std::make_shared<ngraph::opset4::Convert>(shapeOf, ngPrc);
     auto newShape = ngraph::builder::makeConstant<int64_t>(ngraph::element::i64, {4}, {1, 4, 1, 1});
-    auto reshape = std::make_shared<ngraph::opset4::Reshape>(convert, newShape, false);
+    auto reshape = std::make_shared<ngraph::op::v1::Reshape>(convert, newShape, false);
     auto conv1 = ngraph::builder::makeConvolution(params[0], ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 4);
-    auto relu1 = std::make_shared<ngraph::opset4::Relu>(conv1);
-    auto add = std::make_shared<ngraph::opset4::Add>(relu1, reshape);
+    auto relu1 = std::make_shared<ngraph::op::v0::Relu>(conv1);
+    auto add = std::make_shared<ngraph::op::v1::Add>(relu1, reshape);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(add)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(add)};
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     fnPtr->set_friendly_name("KSOFunction");
     return fnPtr;
@@ -85,38 +85,38 @@ inline std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<si
 
     auto conv1_0 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    auto relu1_0 = std::make_shared<ngraph::opset1::Relu>(conv1_0);
+    auto relu1_0 = std::make_shared<ngraph::op::v0::Relu>(conv1_0);
     auto conv1_1 = ngraph::builder::makeConvolution(relu1_0, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    auto relu1_1 = std::make_shared<ngraph::opset1::Relu>(conv1_1);
+    auto relu1_1 = std::make_shared<ngraph::op::v0::Relu>(conv1_1);
     auto conv1_2 = ngraph::builder::makeConvolution(relu1_1, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5);
-    auto relu1_2 = std::make_shared<ngraph::opset1::Relu>(conv1_2);
+    auto relu1_2 = std::make_shared<ngraph::op::v0::Relu>(conv1_2);
     auto conv1_3 = ngraph::builder::makeConvolution(relu1_2, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5);
-    auto relu1_3 = std::make_shared<ngraph::opset1::Relu>(conv1_3);
+    auto relu1_3 = std::make_shared<ngraph::op::v0::Relu>(conv1_3);
     auto conv1_4 = ngraph::builder::makeConvolution(relu1_2, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5);
-    auto relu1_4 = std::make_shared<ngraph::opset1::Relu>(conv1_4);
+    auto relu1_4 = std::make_shared<ngraph::op::v0::Relu>(conv1_4);
 
     auto conv2_0 = ngraph::builder::makeConvolution(split->output(1), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5);
-    auto relu2_0 = std::make_shared<ngraph::opset1::Relu>(conv2_0);
+    auto relu2_0 = std::make_shared<ngraph::op::v0::Relu>(conv2_0);
     auto conv2_1 = ngraph::builder::makeConvolution(relu2_0, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5);
-    auto relu2_1 = std::make_shared<ngraph::opset1::Relu>(conv2_1);
+    auto relu2_1 = std::make_shared<ngraph::op::v0::Relu>(conv2_1);
     auto conv2_2 = ngraph::builder::makeConvolution(relu2_1, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5);
-    auto relu2_2 = std::make_shared<ngraph::opset1::Relu>(conv2_2);
+    auto relu2_2 = std::make_shared<ngraph::op::v0::Relu>(conv2_2);
     auto conv2_3 = ngraph::builder::makeConvolution(relu2_2, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5);
-    auto relu2_3 = std::make_shared<ngraph::opset1::Relu>(conv2_3);
+    auto relu2_3 = std::make_shared<ngraph::op::v0::Relu>(conv2_3);
     auto conv2_4 = ngraph::builder::makeConvolution(relu2_2, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5);
-    auto relu2_4 = std::make_shared<ngraph::opset1::Relu>(conv2_4);
+    auto relu2_4 = std::make_shared<ngraph::op::v0::Relu>(conv2_4);
 
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1_4->output(0), relu2_4->output(0)}, 1);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu1_4->output(0), relu2_4->output(0)}, 1);
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(concat)};
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     fnPtr->set_friendly_name("SplitMultiConvConcat");
     return fnPtr;
@@ -128,35 +128,35 @@ inline std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(
         size_t L = 10,   // Sequence length
         size_t I = 8,    // Input size
         size_t H = 32) { // Hidden size
-    auto SENT = std::make_shared<ngraph::opset1::Parameter>(ngPRC, ngraph::Shape{N, L, I});
+    auto SENT = std::make_shared<ngraph::op::v0::Parameter>(ngPRC, ngraph::Shape{N, L, I});
 
-    auto H_init = std::make_shared<ngraph::opset1::Parameter>(ngPRC, ngraph::Shape{N, 1, H});
-    auto C_init = std::make_shared<ngraph::opset1::Parameter>(ngPRC, ngraph::Shape{N, 1, H});
+    auto H_init = std::make_shared<ngraph::op::v0::Parameter>(ngPRC, ngraph::Shape{N, 1, H});
+    auto C_init = std::make_shared<ngraph::op::v0::Parameter>(ngPRC, ngraph::Shape{N, 1, H});
 
-    auto H_t = std::make_shared<ngraph::opset1::Parameter>(ngPRC, ngraph::Shape{N, 1, H});
-    auto C_t = std::make_shared<ngraph::opset1::Parameter>(ngPRC, ngraph::Shape{N, 1, H});
+    auto H_t = std::make_shared<ngraph::op::v0::Parameter>(ngPRC, ngraph::Shape{N, 1, H});
+    auto C_t = std::make_shared<ngraph::op::v0::Parameter>(ngPRC, ngraph::Shape{N, 1, H});
 
     // Body
-    auto X = std::make_shared<ngraph::opset1::Parameter>(ngPRC, ngraph::Shape{N, 1, I});
+    auto X = std::make_shared<ngraph::op::v0::Parameter>(ngPRC, ngraph::Shape{N, 1, I});
     std::vector<uint64_t> dataW(4 * H * I, 0);
-    auto W_body = std::make_shared<ngraph::opset1::Constant>(ngPRC, ngraph::Shape{4 * H, I}, dataW);
+    auto W_body = std::make_shared<ngraph::op::v0::Constant>(ngPRC, ngraph::Shape{4 * H, I}, dataW);
     std::vector<uint64_t> dataR(4 * H * H, 0);
-    auto R_body = std::make_shared<ngraph::opset1::Constant>(ngPRC, ngraph::Shape{4 * H, H}, dataR);
+    auto R_body = std::make_shared<ngraph::op::v0::Constant>(ngPRC, ngraph::Shape{4 * H, H}, dataR);
     std::vector<uint64_t> inShape = {N, H};
-    auto constantH = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{2}, inShape);
+    auto constantH = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, inShape);
     inShape = {N, I};
-    auto constantX = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{2}, inShape);
+    auto constantX = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, inShape);
     auto LSTM_cell =
-            std::make_shared<ngraph::opset4::LSTMCell>(std::make_shared<ngraph::opset1::Reshape>(X, constantX, false),
-                                                   std::make_shared<ngraph::opset1::Reshape>(H_t, constantH, false),
-                                                   std::make_shared<ngraph::opset1::Reshape>(C_t, constantH, false),
+            std::make_shared<ngraph::opset4::LSTMCell>(std::make_shared<ngraph::op::v1::Reshape>(X, constantX, false),
+                                                   std::make_shared<ngraph::op::v1::Reshape>(H_t, constantH, false),
+                                                   std::make_shared<ngraph::op::v1::Reshape>(C_t, constantH, false),
                                                    W_body,
                                                    R_body,
                                                    H);
     inShape = {N, 1, H};
     auto constantHo = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{3}, inShape);
-    auto H_o = std::make_shared<ngraph::opset1::Reshape>(LSTM_cell->output(0), constantHo, false);
-    auto C_o = std::make_shared<ngraph::opset1::Reshape>(LSTM_cell->output(1), constantHo, false);
+    auto H_o = std::make_shared<ngraph::op::v1::Reshape>(LSTM_cell->output(0), constantHo, false);
+    auto C_o = std::make_shared<ngraph::op::v1::Reshape>(LSTM_cell->output(1), constantHo, false);
     auto body = std::make_shared<ngraph::Function>(
             ngraph::OutputVector{H_o, C_o}, ngraph::ParameterVector{X, H_t, C_t});
 
@@ -173,8 +173,8 @@ inline std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(
     // Output 1 is last Co, result 1 of body
     auto out1 = tensor_iterator->get_iter_value(C_o, -1);
 
-    auto results = ngraph::ResultVector{std::make_shared<ngraph::opset1::Result>(out0),
-                                        std::make_shared<ngraph::opset1::Result>(out1)};
+    auto results = ngraph::ResultVector{std::make_shared<ngraph::op::v0::Result>(out0),
+                                        std::make_shared<ngraph::op::v0::Result>(out1)};
     auto fn_ptr = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{SENT, H_init, C_init});
     fn_ptr->set_friendly_name("TIwithLSTMcell");
     return fn_ptr;
@@ -182,11 +182,11 @@ inline std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(
 
 inline std::shared_ptr<ngraph::Function> makeSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24},
                                                         ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
-    auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
+    auto param0 = std::make_shared<ngraph::op::v0::Parameter>(type, ngraph::Shape(inputShape));
 
     auto conv1 = ngraph::builder::makeConvolution(param0, type, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 4);
-    auto result = std::make_shared<ngraph::opset1::Result>(conv1);
+    auto result = std::make_shared<ngraph::op::v0::Result>(conv1);
     auto fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param0});
     fn_ptr->set_friendly_name("SingleConv");
     return fn_ptr;
@@ -194,7 +194,7 @@ inline std::shared_ptr<ngraph::Function> makeSingleConv(std::vector<size_t> inpu
 
 inline std::shared_ptr<ngraph::Function> makeMultiSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24},
     ngraph::element::Type type = ngraph::element::Type_t::f32) {
-    auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
+    auto param0 = std::make_shared<ngraph::op::v0::Parameter>(type, ngraph::Shape(inputShape));
     auto conv1 = ngraph::builder::makeConvolution(param0, type, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
     auto conv2 = ngraph::builder::makeConvolution(conv1, type, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
@@ -215,7 +215,7 @@ inline std::shared_ptr<ngraph::Function> makeMultiSingleConv(std::vector<size_t>
                                                   ngraph::op::PadType::EXPLICIT, 5);
     auto conv10 = ngraph::builder::makeConvolution(conv9, type, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    auto result = std::make_shared<ngraph::opset1::Result>(conv10);
+    auto result = std::make_shared<ngraph::op::v0::Result>(conv10);
     auto fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param0});
     fn_ptr->set_friendly_name("MultiSingleConv");
     return fn_ptr;
@@ -223,10 +223,10 @@ inline std::shared_ptr<ngraph::Function> makeMultiSingleConv(std::vector<size_t>
 
 inline std::shared_ptr<ngraph::Function> make2InputSubtract(std::vector<size_t> inputShape = {1, 3, 24, 24},
                                                             ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
-    auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
-    auto param1 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
-    auto subtract = std::make_shared<ngraph::opset1::Subtract>(param0, param1);
-    auto result = std::make_shared<ngraph::opset1::Result>(subtract);
+    auto param0 = std::make_shared<ngraph::op::v0::Parameter>(type, ngraph::Shape(inputShape));
+    auto param1 = std::make_shared<ngraph::op::v0::Parameter>(type, ngraph::Shape(inputShape));
+    auto subtract = std::make_shared<ngraph::op::v1::Subtract>(param0, param1);
+    auto result = std::make_shared<ngraph::op::v0::Result>(subtract);
     auto fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param0, param1});
     fn_ptr->set_friendly_name("TwoInputSubtract");
     return fn_ptr;
@@ -239,26 +239,26 @@ inline std::shared_ptr<ngraph::Function> makeNestedSplitConvConcat(std::vector<s
 
     auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    auto relu1 = std::make_shared<ngraph::opset1::Relu>(conv1);
+    auto relu1 = std::make_shared<ngraph::op::v0::Relu>(conv1);
 
     auto conv2 = ngraph::builder::makeConvolution(split->output(1), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 10);
-    auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2);
+    auto relu2 = std::make_shared<ngraph::op::v0::Relu>(conv2);
 
     auto split2 = ngraph::builder::makeSplit(relu2, ngPrc, 2, 1);
 
     auto conv3 = ngraph::builder::makeConvolution(split2->output(0), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    auto relu3 = std::make_shared<ngraph::opset1::Relu>(conv3);
+    auto relu3 = std::make_shared<ngraph::op::v0::Relu>(conv3);
 
     auto conv4 = ngraph::builder::makeConvolution(split2->output(1), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    auto relu4 = std::make_shared<ngraph::opset1::Relu>(conv4);
+    auto relu4 = std::make_shared<ngraph::op::v0::Relu>(conv4);
 
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu3->output(0), relu4->output(0)}, 1);
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu3->output(0), relu4->output(0)}, 1);
 
-    auto concat1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), concat}, 1);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat1)};
+    auto concat1 = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu1->output(0), concat}, 1);
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(concat1)};
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     fnPtr->set_friendly_name("NestedSplitConvConcat");
     return fnPtr;
@@ -271,24 +271,24 @@ inline std::shared_ptr<ngraph::Function> makeSplitConvConcatInputInBranch(std::v
 
     auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    auto relu1 = std::make_shared<ngraph::opset1::Relu>(conv1);
+    auto relu1 = std::make_shared<ngraph::op::v0::Relu>(conv1);
 
     auto conv2 = ngraph::builder::makeConvolution(split->output(1), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2);
+    auto relu2 = std::make_shared<ngraph::op::v0::Relu>(conv2);
 
     auto conv4 = ngraph::builder::makeConvolution(params[1]->output(0), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    auto relu4 = std::make_shared<ngraph::opset1::Relu>(conv4);
+    auto relu4 = std::make_shared<ngraph::op::v0::Relu>(conv4);
 
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu4->output(0), relu2->output(0)}, 1);
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu4->output(0), relu2->output(0)}, 1);
 
     auto conv3 = ngraph::builder::makeConvolution(concat, ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    auto relu3 = std::make_shared<ngraph::opset1::Relu>(conv3);
+    auto relu3 = std::make_shared<ngraph::op::v0::Relu>(conv3);
 
-    auto concat1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), relu3->output(0)}, 1);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat1)};
+    auto concat1 = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu1->output(0), relu3->output(0)}, 1);
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(concat1)};
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     fnPtr->set_friendly_name("SplitConvConcatInputInBranch");
     return fnPtr;
@@ -303,53 +303,53 @@ inline std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranch(std::
 
     auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5);  SET_NAME(conv1);
-    auto relu1 = std::make_shared<ngraph::opset1::Relu>(conv1); SET_NAME(relu1);
+    auto relu1 = std::make_shared<ngraph::op::v0::Relu>(conv1); SET_NAME(relu1);
 
     auto conv2 = ngraph::builder::makeConvolution(split->output(1), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv2);
-    auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2); SET_NAME(relu2);
+    auto relu2 = std::make_shared<ngraph::op::v0::Relu>(conv2); SET_NAME(relu2);
 
     auto nestedSubgraph = [&] {
         auto split = ngraph::builder::makeSplit(params[1], ngPrc, 2, 1); SET_NAME(split);
 
         auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv1);
-        auto relu1 = std::make_shared<ngraph::opset1::Relu>(conv1); SET_NAME(relu1);
+        auto relu1 = std::make_shared<ngraph::op::v0::Relu>(conv1); SET_NAME(relu1);
 
         auto conv2 = ngraph::builder::makeConvolution(split->output(1), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 10); SET_NAME(conv2);
-        auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2); SET_NAME(relu2);
+        auto relu2 = std::make_shared<ngraph::op::v0::Relu>(conv2); SET_NAME(relu2);
 
         auto split2 = ngraph::builder::makeSplit(relu2, ngPrc, 2, 1); SET_NAME(split2);
 
         auto conv3 = ngraph::builder::makeConvolution(split2->output(0), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv3);
-        auto relu3 = std::make_shared<ngraph::opset1::Relu>(conv3); SET_NAME(relu3);
+        auto relu3 = std::make_shared<ngraph::op::v0::Relu>(conv3); SET_NAME(relu3);
 
         auto conv4 = ngraph::builder::makeConvolution(split2->output(1), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv4);
-        auto relu4 = std::make_shared<ngraph::opset1::Relu>(conv4); SET_NAME(relu4);
+        auto relu4 = std::make_shared<ngraph::op::v0::Relu>(conv4); SET_NAME(relu4);
 
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu3->output(0), relu4->output(0)}, 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu3->output(0), relu4->output(0)}, 1);
         SET_NAME(concat);
 
-        auto concat1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), concat}, 1); SET_NAME(concat1);
+        auto concat1 = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu1->output(0), concat}, 1); SET_NAME(concat1);
 
         auto conv5 = ngraph::builder::makeConvolution(concat1, ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv5);
-        auto relu5 = std::make_shared<ngraph::opset1::Relu>(conv5); SET_NAME(relu5);
+        auto relu5 = std::make_shared<ngraph::op::v0::Relu>(conv5); SET_NAME(relu5);
 
         return relu5;
     }();
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{nestedSubgraph->output(0), relu2->output(0)}, 1);
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{nestedSubgraph->output(0), relu2->output(0)}, 1);
     SET_NAME(concat);
 
     auto conv3 = ngraph::builder::makeConvolution(concat, ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv3);
-    auto relu3 = std::make_shared<ngraph::opset1::Relu>(conv3); SET_NAME(relu3);
+    auto relu3 = std::make_shared<ngraph::op::v0::Relu>(conv3); SET_NAME(relu3);
 
-    auto concat1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), relu3->output(0)}, 1); SET_NAME(concat1);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat1)};
+    auto concat1 = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu1->output(0), relu3->output(0)}, 1); SET_NAME(concat1);
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(concat1)};
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     fnPtr->set_friendly_name("SplitConvConcatNestedInBranch");
     return fnPtr;
@@ -365,47 +365,47 @@ inline std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranchNested
 
     auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5);  SET_NAME(conv1);
-    auto relu1 = std::make_shared<ngraph::opset1::Relu>(conv1); SET_NAME(relu1);
+    auto relu1 = std::make_shared<ngraph::op::v0::Relu>(conv1); SET_NAME(relu1);
 
     auto conv2 = ngraph::builder::makeConvolution(split->output(1), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 10); SET_NAME(conv2);
-    auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2); SET_NAME(relu2);
+    auto relu2 = std::make_shared<ngraph::op::v0::Relu>(conv2); SET_NAME(relu2);
 
     auto split3 = ngraph::builder::makeSplit(relu2, ngPrc, 2, 1); SET_NAME(split3);
 
     auto conv32 = ngraph::builder::makeConvolution(split3->output(1), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 10); SET_NAME(conv32);
-    auto relu32 = std::make_shared<ngraph::opset1::Relu>(conv32); SET_NAME(relu32);
+    auto relu32 = std::make_shared<ngraph::op::v0::Relu>(conv32); SET_NAME(relu32);
 
     auto nestedSubgraph = [&] {
         auto split = ngraph::builder::makeSplit(params[1], ngPrc, 2, 1); SET_NAME(split);
 
         auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv1);
-        auto relu1 = std::make_shared<ngraph::opset1::Relu>(conv1); SET_NAME(relu1);
+        auto relu1 = std::make_shared<ngraph::op::v0::Relu>(conv1); SET_NAME(relu1);
 
         auto conv2 = ngraph::builder::makeConvolution(split->output(1), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 10); SET_NAME(conv2);
-        auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2); SET_NAME(relu2);
+        auto relu2 = std::make_shared<ngraph::op::v0::Relu>(conv2); SET_NAME(relu2);
 
         auto split2 = ngraph::builder::makeSplit(relu2, ngPrc, 2, 1); SET_NAME(split2);
 
         auto conv3 = ngraph::builder::makeConvolution(split2->output(0), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv3);
-        auto relu3 = std::make_shared<ngraph::opset1::Relu>(conv3); SET_NAME(relu3);
+        auto relu3 = std::make_shared<ngraph::op::v0::Relu>(conv3); SET_NAME(relu3);
 
         auto conv4 = ngraph::builder::makeConvolution(split2->output(1), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv4);
-        auto relu4 = std::make_shared<ngraph::opset1::Relu>(conv4); SET_NAME(relu4);
+        auto relu4 = std::make_shared<ngraph::op::v0::Relu>(conv4); SET_NAME(relu4);
 
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu3->output(0), relu4->output(0)}, 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu3->output(0), relu4->output(0)}, 1);
         SET_NAME(concat);
 
-        auto concat1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), concat}, 1); SET_NAME(concat1);
+        auto concat1 = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu1->output(0), concat}, 1); SET_NAME(concat1);
 
         auto conv5 = ngraph::builder::makeConvolution(concat1, ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv5);
-        auto relu5 = std::make_shared<ngraph::opset1::Relu>(conv5); SET_NAME(relu5);
+        auto relu5 = std::make_shared<ngraph::op::v0::Relu>(conv5); SET_NAME(relu5);
 
         return relu5;
     }();
@@ -415,43 +415,43 @@ inline std::shared_ptr<ngraph::Function> makeSplitConvConcatNestedInBranchNested
 
         auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv1);
-        auto relu1 = std::make_shared<ngraph::opset1::Relu>(conv1); SET_NAME(relu1);
+        auto relu1 = std::make_shared<ngraph::op::v0::Relu>(conv1); SET_NAME(relu1);
 
         auto conv2 = ngraph::builder::makeConvolution(split->output(1), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 10); SET_NAME(conv2);
-        auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2); SET_NAME(relu2);
+        auto relu2 = std::make_shared<ngraph::op::v0::Relu>(conv2); SET_NAME(relu2);
 
         auto split2 = ngraph::builder::makeSplit(relu2, ngPrc, 2, 1); SET_NAME(split2);
 
         auto conv3 = ngraph::builder::makeConvolution(split2->output(0), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv3);
-        auto relu3 = std::make_shared<ngraph::opset1::Relu>(conv3); SET_NAME(relu3);
+        auto relu3 = std::make_shared<ngraph::op::v0::Relu>(conv3); SET_NAME(relu3);
 
         auto conv4 = ngraph::builder::makeConvolution(split2->output(1), ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv4);
-        auto relu4 = std::make_shared<ngraph::opset1::Relu>(conv4); SET_NAME(relu4);
+        auto relu4 = std::make_shared<ngraph::op::v0::Relu>(conv4); SET_NAME(relu4);
 
-        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu3->output(0), relu4->output(0)}, 1);
+        auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu3->output(0), relu4->output(0)}, 1);
         SET_NAME(concat);
 
-        auto concat1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), concat}, 1); SET_NAME(concat1);
+        auto concat1 = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu1->output(0), concat}, 1); SET_NAME(concat1);
 
         auto conv5 = ngraph::builder::makeConvolution(concat1, ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                     ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv5);
-        auto relu5 = std::make_shared<ngraph::opset1::Relu>(conv5); SET_NAME(relu5);
+        auto relu5 = std::make_shared<ngraph::op::v0::Relu>(conv5); SET_NAME(relu5);
 
         return relu5;
     }();
 
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{nestedSubgraph->output(0), split3->output(0)}, 1);
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{nestedSubgraph->output(0), split3->output(0)}, 1);
     SET_NAME(concat);
 
     auto conv3 = ngraph::builder::makeConvolution(concat, ngPrc, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5); SET_NAME(conv3);
-    auto relu3 = std::make_shared<ngraph::opset1::Relu>(conv3); SET_NAME(relu3);
+    auto relu3 = std::make_shared<ngraph::op::v0::Relu>(conv3); SET_NAME(relu3);
 
-    auto concat1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), relu3->output(0)}, 1); SET_NAME(concat1);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat1), std::make_shared<ngraph::opset1::Result>(nestedSubgraph1)};
+    auto concat1 = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{relu1->output(0), relu3->output(0)}, 1); SET_NAME(concat1);
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(concat1), std::make_shared<ngraph::op::v0::Result>(nestedSubgraph1)};
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     fnPtr->set_friendly_name("SplitConvConcatNestedInBranchNestedOut");
     return fnPtr;
@@ -461,14 +461,14 @@ inline std::shared_ptr<ngraph::Function> makeConvBias(std::vector<size_t> inputS
                                                       ngraph::element::Type type = ngraph::element::Type_t::f32) {
     auto parameter =  ngraph::builder::makeParams(type, {inputShape});
     parameter[0]->set_friendly_name("parameter");
-    auto weights = ngraph::opset1::Constant::create(type, ngraph::Shape{6, 3, 1, 1}, {1});
-    auto biases = ngraph::opset1::Constant::create(type, ngraph::Shape{6, 1, 1}, {1});
-    auto conv = std::make_shared<ngraph::opset1::Convolution>(parameter[0], weights, ngraph::Strides{1, 1},
+    auto weights = ngraph::op::v0::Constant::create(type, ngraph::Shape{6, 3, 1, 1}, {1});
+    auto biases = ngraph::op::v0::Constant::create(type, ngraph::Shape{6, 1, 1}, {1});
+    auto conv = std::make_shared<ngraph::op::v1::Convolution>(parameter[0], weights, ngraph::Strides{1, 1},
             ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0}, ngraph::Strides{1, 1});
     conv->set_friendly_name("conv");
-    auto add = std::make_shared<ngraph::opset1::Add>(conv, biases);
+    auto add = std::make_shared<ngraph::op::v1::Add>(conv, biases);
     add->set_friendly_name("add");
-    auto result = std::make_shared<ngraph::opset1::Result>(add);
+    auto result = std::make_shared<ngraph::op::v0::Result>(add);
     result->set_friendly_name("result");
     std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{parameter});
     fn_ptr->set_friendly_name("ConvBias");

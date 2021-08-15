@@ -32,7 +32,7 @@ public:
     public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
-        std::shared_ptr<ngraph::opset1::Constant> weights;
+        std::shared_ptr<ngraph::op::v0::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     };
@@ -41,7 +41,7 @@ public:
     public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        std::shared_ptr<ngraph::opset1::Constant> weights;
+        std::shared_ptr<ngraph::op::v0::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
         ngraph::element::Type precisionAfterOperation;
@@ -82,7 +82,7 @@ public:
             ngraph::element::f32);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(testValues.params);
+        transform.add<ngraph::pass::low_precision::GroupConvolutionTransformation, ngraph::op::v1::GroupConvolution>(testValues.params);
         if (testValues.params.supportAsymmetricQuantization == false) {
             transform.get_pass_config()->set_callback<ngraph::pass::low_precision::GroupConvolutionTransformation>(
                 [](const std::shared_ptr<const ngraph::Node>& node) -> bool {

@@ -35,8 +35,8 @@ void ConcatLayerTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, inputShape);
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
+    auto concat = std::make_shared<ngraph::op::v0::Concat>(paramOuts, axis);
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, params, "concat");
 }
 }  // namespace LayerTestsDefinitions

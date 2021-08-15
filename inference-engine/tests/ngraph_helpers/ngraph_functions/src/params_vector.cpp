@@ -12,7 +12,7 @@ namespace builder {
 ngraph::ParameterVector makeParams(const element::Type &type, const std::vector<std::vector<size_t>> &shapes) {
     ngraph::ParameterVector outs;
     for (const auto &shape : shapes) {
-        auto paramNode = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(shape));
+        auto paramNode = std::make_shared<ngraph::op::v0::Parameter>(type, ngraph::Shape(shape));
         outs.push_back(paramNode);
     }
 
@@ -24,7 +24,7 @@ ngraph::ParameterVector makeParams(const element::Type &type, const std::vector<
     for (const auto &input : inputs) {
         const auto &name = input.first;
         const auto &shape = input.second;
-        auto paramNode = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(shape));
+        auto paramNode = std::make_shared<ngraph::op::v0::Parameter>(type, ngraph::Shape(shape));
         paramNode->set_friendly_name(name);
         outs.push_back(paramNode);
     }

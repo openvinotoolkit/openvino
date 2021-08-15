@@ -41,7 +41,7 @@ namespace LayerTestsDefinitions {
         auto input = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
         auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, inputType, {inputShapes[1]});
         if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+            input.push_back(std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(secondaryInput));
         }
 
         auto op = ngraph::builder::makeMinMax(input[0], secondaryInput, opType);

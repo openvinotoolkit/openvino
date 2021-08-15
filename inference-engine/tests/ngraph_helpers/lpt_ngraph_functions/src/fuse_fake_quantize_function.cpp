@@ -28,12 +28,12 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
     const ngraph::element::Type precisionAfterDequantization,
     const ngraph::element::Type precisionFqOnData,
     const FakeQuantizeOnDataWithConstant& fqOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(add.empty() ? precisionBeforeDequantization : precisionBeforeAdd, inputShape);
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(add.empty() ? precisionBeforeDequantization : precisionBeforeAdd, inputShape);
     input->set_friendly_name("input");
 
     std::shared_ptr<Node> parent = input;
     if (!add.empty()) {
-        parent = makeElementwise<ngraph::opset1::Add>(parent, add);
+        parent = makeElementwise<ngraph::op::v1::Add>(parent, add);
     }
 
     const std::shared_ptr<Node> lastDequantization = makeDequantization(parent, dequantization);
@@ -43,7 +43,7 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
         makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnData);
     fakeQuantize->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fakeQuantize) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(fakeQuantize) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FuseFakeQuantizeFunction");
 }
 
@@ -56,12 +56,12 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
         const ngraph::element::Type precisionAfterDequantization,
         const ngraph::element::Type precisionFqOnData,
         const FakeQuantizeOnDataWithConstant& fqOnData) {
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(add.empty() ? precisionBeforeDequantization : precisionBeforeAdd, inputShape);
+        const auto input = std::make_shared<ngraph::op::v0::Parameter>(add.empty() ? precisionBeforeDequantization : precisionBeforeAdd, inputShape);
         input->set_friendly_name("input");
 
         std::shared_ptr<Node> parent = input;
         if (!add.empty()) {
-            parent = makeElementwise<ngraph::opset1::Add>(parent, add);
+            parent = makeElementwise<ngraph::op::v1::Add>(parent, add);
         }
 
         const std::shared_ptr<Node> lastDequantization = makeDequantization(parent, dequantization);
@@ -81,7 +81,7 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
         }
         lastNode->set_friendly_name("output");
 
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastNode) };
+        ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(lastNode) };
         return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FuseFakeQuantizeFunction");
     }
 
@@ -101,21 +101,21 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::get(
     ngraph::ParameterVector inputs;
     std::vector<std::shared_ptr<Node>> lastDequantizations;
     for (const Branch& branch : branches) {
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(branch.precisionBeforeDequantization, inputShape);
+        const auto input = std::make_shared<ngraph::op::v0::Parameter>(branch.precisionBeforeDequantization, inputShape);
         inputs.push_back(input);
 
         const std::shared_ptr<Node> lastDequantization = makeDequantization(input, branch.dequantization);
         lastDequantizations.push_back(lastDequantization);
     }
 
-    std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(lastDequantizations[0], lastDequantizations[1]);
+    std::shared_ptr<ngraph::op::v1::Multiply> multiply = std::make_shared<ngraph::op::v1::Multiply>(lastDequantizations[0], lastDequantizations[1]);
 
     const std::shared_ptr<Node> fakeQuantize = branches[0].dequantization.multiply.outPrecision == precisionFqOnData ?
         makeFakeQuantize(multiply, precisionFqOnData, fqOnData) :
         makeFakeQuantizeTypeRelaxed(multiply, precisionFqOnData, fqOnData);
     fakeQuantize->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fakeQuantize) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(fakeQuantize) };
     return std::make_shared<ngraph::Function>(results, inputs, "FuseFakeQuantizeFunction");
 }
 

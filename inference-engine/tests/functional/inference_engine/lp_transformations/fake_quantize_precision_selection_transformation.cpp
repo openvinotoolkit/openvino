@@ -90,17 +90,17 @@ public:
             });
 
         auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::op::v1::Convolution>({
                {0, testValues.precisionsOnActivationForLimitedOperation},
                {1, { element::i8 }}
            })
         });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions);
-        transform.add<ngraph::pass::low_precision::PReluTransformation, ngraph::opset1::PRelu>(params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(precisionLimitedOperationParams);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(params);
+        transform.add<ngraph::pass::low_precision::PReluTransformation, ngraph::op::v0::PRelu>(params);
+        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::op::v1::Convolution>(precisionLimitedOperationParams);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::op::v0::FakeQuantize>(params);
+        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::op::v1::MaxPool>(params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getReference(

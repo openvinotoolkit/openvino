@@ -32,10 +32,10 @@ using namespace testing;
 TEST(TransformationTests, ConvertStridedSliceToCropTests1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
-        auto slice_begin  = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 0, 0});
-        auto slice_end    = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 0, 0});
-        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+        auto input        = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
+        auto slice_begin  = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 0, 0});
+        auto slice_end    = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 0, 0});
+        auto slice_stride = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
 
         std::vector<int64_t> begin_mask       = {1, 0, 1, 1};
         std::vector<int64_t> end_mask         = {1, 0, 1, 1};
@@ -43,7 +43,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests1) {
         std::vector<int64_t> shrink_axis_mask = {0, 1, 0, 0};
         std::vector<int64_t> ellipsis_mask    = {0, 0, 0, 0};
 
-        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
+        auto sslice = std::make_shared<ngraph::op::v1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
                                                                      begin_mask, end_mask,
                                                                      new_axis_mask, shrink_axis_mask, ellipsis_mask);
         sslice->set_friendly_name("strided_slice");
@@ -58,7 +58,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests1) {
     }
 
     {
-        auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
+        auto input        = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
 
         std::vector<int64_t> axes   = {0, 1, 2, 3};
         std::vector<int64_t> dim    = {1, 1, 384, 640};
@@ -87,10 +87,10 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests1) {
 TEST(TransformationTests, ConvertStridedSliceToCropTests2) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
-        auto slice_begin  = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 0});
-        auto slice_end    = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 0, 0});
-        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+        auto input        = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
+        auto slice_begin  = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 0});
+        auto slice_end    = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 0, 0});
+        auto slice_stride = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
 
         std::vector<int64_t> begin_mask       = {1, 1, 1, 1};
         std::vector<int64_t> end_mask         = {1, 0, 1, 1};
@@ -98,7 +98,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests2) {
         std::vector<int64_t> shrink_axis_mask = {0, 1, 0, 0};
         std::vector<int64_t> ellipsis_mask    = {0, 0, 0, 0};
 
-        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
+        auto sslice = std::make_shared<ngraph::op::v1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
                                                                      begin_mask, end_mask,
                                                                      new_axis_mask, shrink_axis_mask, ellipsis_mask);
         sslice->set_friendly_name("strided_slice");
@@ -112,7 +112,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests2) {
     }
 
     {
-        auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
+        auto input        = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
 
         std::vector<int64_t> axes   = {0, 1, 2, 3};
         std::vector<int64_t> dim    = {1, 1, 384, 640};
@@ -141,10 +141,10 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests2) {
 TEST(TransformationTests, ConvertStridedSliceToCropNegative) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(4));
-        auto slice_begin  = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 0, 0});
-        auto slice_end    = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 0, 0});
-        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+        auto input        = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(4));
+        auto slice_begin  = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 0, 0});
+        auto slice_end    = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 0, 0});
+        auto slice_stride = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
 
         std::vector<int64_t> begin_mask       = {1, 0, 1, 1};
         std::vector<int64_t> end_mask         = {1, 0, 1, 1};
@@ -152,7 +152,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropNegative) {
         std::vector<int64_t> shrink_axis_mask = {0, 1, 0, 0};
         std::vector<int64_t> ellipsis_mask    = {0, 0, 0, 0};
 
-        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
+        auto sslice = std::make_shared<ngraph::op::v1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
                                                                      begin_mask, end_mask,
                                                                      new_axis_mask, shrink_axis_mask, ellipsis_mask);
         sslice->set_friendly_name("strided_slice");
@@ -166,10 +166,10 @@ TEST(TransformationTests, ConvertStridedSliceToCropNegative) {
     }
 
     {
-        auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(4));
-        auto slice_begin  = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 0, 0});
-        auto slice_end    = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 0, 0});
-        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+        auto input        = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(4));
+        auto slice_begin  = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 1, 0, 0});
+        auto slice_end    = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 0, 0});
+        auto slice_stride = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
 
         std::vector<int64_t> begin_mask       = {1, 0, 1, 1};
         std::vector<int64_t> end_mask         = {1, 0, 1, 1};
@@ -177,7 +177,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropNegative) {
         std::vector<int64_t> shrink_axis_mask = {0, 1, 0, 0};
         std::vector<int64_t> ellipsis_mask    = {0, 0, 0, 0};
 
-        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
+        auto sslice = std::make_shared<ngraph::op::v1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
                                                                      begin_mask, end_mask,
                                                                      new_axis_mask, shrink_axis_mask, ellipsis_mask);
         sslice->set_friendly_name("strided_slice");
@@ -193,10 +193,10 @@ TEST(TransformationTests, ConvertStridedSliceToCropNegative) {
 TEST(TransformationTests, ConvertStridedSliceToCropNegative2) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{128, 1});
-        auto slice_begin  = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 0, 0});
-        auto slice_end    = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 0, 0});
-        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 1});
+        auto input        = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{128, 1});
+        auto slice_begin  = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 0, 0});
+        auto slice_end    = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 0, 0});
+        auto slice_stride = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 1});
 
         std::vector<int64_t> begin_mask       = {0, 1, 1};
         std::vector<int64_t> end_mask         = {0, 1, 1};
@@ -204,7 +204,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropNegative2) {
         std::vector<int64_t> shrink_axis_mask = {0, 0, 0};
         std::vector<int64_t> ellipsis_mask    = {0, 0, 0};
 
-        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
+        auto sslice = std::make_shared<ngraph::op::v1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
                                                                      begin_mask, end_mask,
                                                                      new_axis_mask, shrink_axis_mask, ellipsis_mask);
         sslice->set_friendly_name("strided_slice");
@@ -218,10 +218,10 @@ TEST(TransformationTests, ConvertStridedSliceToCropNegative2) {
     }
 
     {
-        auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{128, 1});
-        auto slice_begin  = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 0, 0});
-        auto slice_end    = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 0, 0});
-        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 1});
+        auto input        = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{128, 1});
+        auto slice_begin  = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 0, 0});
+        auto slice_end    = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 0, 0});
+        auto slice_stride = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 1, 1});
 
         std::vector<int64_t> begin_mask       = {0, 1, 1};
         std::vector<int64_t> end_mask         = {0, 1, 1};
@@ -229,7 +229,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropNegative2) {
         std::vector<int64_t> shrink_axis_mask = {0, 0, 0};
         std::vector<int64_t> ellipsis_mask    = {0, 0, 0};
 
-        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
+        auto sslice = std::make_shared<ngraph::op::v1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
                                                                      begin_mask, end_mask,
                                                                      new_axis_mask, shrink_axis_mask, ellipsis_mask);
         sslice->set_friendly_name("strided_slice");
@@ -246,10 +246,10 @@ TEST(TransformationTests, ConvertStridedSliceToCropNoneZeroBeginValuesWithMask) 
     // when begin_mask/end_mask are present begin/end values should not affect output shape
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 4});
-        auto slice_begin  = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 2, 1});
-        auto slice_end    = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 2});
-        auto slice_stride = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
+        auto input        = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 4});
+        auto slice_begin  = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 2, 1});
+        auto slice_end    = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 0, 0, 2});
+        auto slice_stride = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 1, 1, 1});
 
         std::vector<int64_t> begin_mask       = {1, 0, 1, 1};
         std::vector<int64_t> end_mask         = {1, 0, 1, 0};
@@ -257,7 +257,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropNoneZeroBeginValuesWithMask) 
         std::vector<int64_t> shrink_axis_mask = {0, 0, 0, 0};
         std::vector<int64_t> ellipsis_mask    = {0, 0, 0, 0};
 
-        auto sslice = std::make_shared<ngraph::opset1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
+        auto sslice = std::make_shared<ngraph::op::v1::StridedSlice>(input, slice_begin, slice_end, slice_stride,
                                                                      begin_mask, end_mask,
                                                                      new_axis_mask, shrink_axis_mask, ellipsis_mask);
         sslice->set_friendly_name("strided_slice");
@@ -271,7 +271,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropNoneZeroBeginValuesWithMask) 
     }
 
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 4});
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 4});
 
         std::vector<int64_t> axes   = {0, 1, 2, 3};
         std::vector<int64_t> dim    = {1, 1, 2, 2};

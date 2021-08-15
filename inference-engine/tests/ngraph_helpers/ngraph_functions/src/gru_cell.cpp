@@ -57,7 +57,7 @@ std::shared_ptr<ngraph::Node> makeGRU(const OutputVector& in,
             default:
                 throw std::runtime_error("Incorrect mode for creation of Sequence operation");
         }
-        return std::make_shared<ngraph::opset5::GRUSequence>(in[0], in[1], seq_lengths, W, R, B, hidden_size, direction,
+        return std::make_shared<ngraph::op::v5::GRUSequence>(in[0], in[1], seq_lengths, W, R, B, hidden_size, direction,
                                                              activations, activations_alpha, activations_beta, clip, linear_before_reset);
     }
 }

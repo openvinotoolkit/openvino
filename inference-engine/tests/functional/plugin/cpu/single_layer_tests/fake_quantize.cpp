@@ -106,13 +106,13 @@ protected:
 
         auto ngInPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrec);
         ParameterVector params = builder::makeParams(ngInPrec, {inDataShape});
-        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<opset5::Parameter>(params));
+        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::v0::Parameter>(params));
 
         auto il = builder::makeConstant(ngInPrec, inRangesShapes[0], rangesBounds[0], rangesBounds[0].empty());
         auto ih = builder::makeConstant(ngInPrec, inRangesShapes[1], rangesBounds[1], rangesBounds[1].empty());
         auto ol = builder::makeConstant(ngInPrec, inRangesShapes[2], rangesBounds[2], rangesBounds[2].empty());
         auto oh = builder::makeConstant(ngInPrec, inRangesShapes[3], rangesBounds[3], rangesBounds[3].empty());
-        auto fq = std::make_shared<opset5::FakeQuantize>(paramOuts[0], il, ih, ol, oh, levels);
+        auto fq = std::make_shared<op::v0::FakeQuantize>(paramOuts[0], il, ih, ol, oh, levels);
 
         layerName = shouldBeDecomposed ? "" : "FakeQuantize";
 

@@ -52,17 +52,17 @@ protected:
         const ngraph::Shape& dataDims0,
         const ngraph::Shape& dataDims1,
         TestShapeTypes testShapeTypes) const {
-        const auto input0 = std::make_shared<ngraph::opset6::Parameter>(dataType, dataDims0);
-        const auto input1 = std::make_shared<ngraph::opset6::Parameter>(dataType, dataDims1);
+        const auto input0 = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims0);
+        const auto input1 = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims1);
 
-        const auto input0Dims = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims0.size()});
+        const auto input0Dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims0.size()});
         const auto dsr0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input0, input0Dims);
 
         ngraph::ParameterVector params{input0, input1, input0Dims};
 
         std::shared_ptr<ngraph::Node> eltwiseInput1 = input1;
         if (testShapeTypes == TestShapeTypes::ALL_DYNAMIC) {
-            const auto input1Dims = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64,
+            const auto input1Dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64,
                                                                                 ngraph::Shape{dataDims1.size()});
             eltwiseInput1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input1, input1Dims);
             params.push_back(input1Dims);
@@ -92,20 +92,20 @@ public:
         const ngraph::Shape& dataDims1,
         TestShapeTypes testShapeTypes) {
         // Data flow subgraph
-        const auto input0 = std::make_shared<ngraph::opset6::Parameter>(dataType, dataDims0);
-        const auto input1 = std::make_shared<ngraph::opset6::Parameter>(dataType, dataDims1);
+        const auto input0 = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims0);
+        const auto input1 = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims1);
 
-        const auto input0Dims = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims0.size()});
+        const auto input0Dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims0.size()});
         const auto dsr0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input0, input0Dims);
 
         ngraph::ParameterVector params{input0, input1, input0Dims};
 
         std::shared_ptr<ngraph::Node> dims;
         if (testShapeTypes == TestShapeTypes:: ALL_DYNAMIC) {
-            params.push_back(std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims1.size()}));
+            params.push_back(std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims1.size()}));
             dims = params.back();
         } else {
-            dims = ngraph::opset6::Constant::create(ngraph::element::i64, {dataDims1.size()}, dataDims1);
+            dims = ngraph::op::v0::Constant::create(ngraph::element::i64, {dataDims1.size()}, dataDims1);
         }
 
         std::shared_ptr<ngraph::Node> eltwiseInput1 = input1;
@@ -138,20 +138,20 @@ public:
         const ngraph::Shape& dataDims1,
         TestShapeTypes testShapeTypes) {
         // Data flow subgraph
-        const auto input0 = std::make_shared<ngraph::opset6::Parameter>(dataType, dataDims0);
-        const auto input1 = std::make_shared<ngraph::opset6::Parameter>(dataType, dataDims1);
+        const auto input0 = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims0);
+        const auto input1 = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims1);
 
-        const auto input0Dims = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims0.size()});
+        const auto input0Dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims0.size()});
         const auto dsr0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input0, input0Dims);
 
         ngraph::ParameterVector params{input0, input1, input0Dims};
 
         std::shared_ptr<ngraph::Node> dims;
         if (testShapeTypes == TestShapeTypes::ALL_DYNAMIC) {
-            params.push_back(std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims1.size()}));
+            params.push_back(std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims1.size()}));
             dims = params.back();
         } else {
-            dims = ngraph::opset6::Constant::create(ngraph::element::i64, {dataDims1.size()}, dataDims1);
+            dims = ngraph::op::v0::Constant::create(ngraph::element::i64, {dataDims1.size()}, dataDims1);
         }
 
         std::shared_ptr<ngraph::Node> eltwiseInput1 = input1;
@@ -162,7 +162,7 @@ public:
         const auto eltwise = buildEltwise(eltwiseType, {dsr0, eltwiseInput1}, params, testShapeTypes);
 
         // Shape infer subgraph
-        const auto broadcastConst = ngraph::opset6::Constant::create(ngraph::element::i64, {dataDims1.size() - dataDims0.size()}, {1});
+        const auto broadcastConst = ngraph::op::v0::Constant::create(ngraph::element::i64, {dataDims1.size() - dataDims0.size()}, {1});
         const auto concat = std::make_shared<ngraph::opset6::Concat>(ngraph::OutputVector{broadcastConst, input0Dims}, 0);
 
         std::shared_ptr<ngraph::Node> maxShape = std::make_shared<ngraph::opset6::Maximum>(concat, dims);
@@ -187,20 +187,20 @@ public:
         const ngraph::Shape& dataDims1,
         TestShapeTypes testShapeTypes) {
         // Data flow subgraph
-        const auto input0 = std::make_shared<ngraph::opset6::Parameter>(dataType, dataDims0);
-        const auto input1 = std::make_shared<ngraph::opset6::Parameter>(dataType, dataDims1);
+        const auto input0 = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims0);
+        const auto input1 = std::make_shared<ngraph::op::v0::Parameter>(dataType, dataDims1);
 
-        const auto input0Dims = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims0.size()});
+        const auto input0Dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims0.size()});
         const auto dsr0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input0, input0Dims);
 
         ngraph::ParameterVector params{input0, input1, input0Dims};
 
         std::shared_ptr<ngraph::Node> dims;
         if (testShapeTypes == TestShapeTypes::ALL_DYNAMIC) {
-            params.push_back(std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims1.size()}));
+            params.push_back(std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{dataDims1.size()}));
             dims = params.back();
         } else {
-            dims = ngraph::opset6::Constant::create(ngraph::element::i64, {dataDims1.size()}, dataDims1);
+            dims = ngraph::op::v0::Constant::create(ngraph::element::i64, {dataDims1.size()}, dataDims1);
         }
 
         std::shared_ptr<ngraph::Node> eltwiseInput1 = input1;
@@ -211,7 +211,7 @@ public:
         const auto eltwise = buildEltwise(eltwiseType, {dsr0, eltwiseInput1}, params, testShapeTypes);
 
         // Shape infer subgraph
-        const auto broadcastConst = ngraph::opset6::Constant::create(ngraph::element::i64, {dataDims0.size() - dataDims1.size()}, {1});
+        const auto broadcastConst = ngraph::op::v0::Constant::create(ngraph::element::i64, {dataDims0.size() - dataDims1.size()}, {1});
         const auto concat = std::make_shared<ngraph::opset6::Concat>(ngraph::OutputVector{broadcastConst, dims}, 0);
 
         std::shared_ptr<ngraph::Node> maxShape = std::make_shared<ngraph::opset6::Maximum>(input0Dims, concat);
@@ -236,12 +236,12 @@ private:
         ngraph::ParameterVector& params,
         TestShapeTypes testShapeTypes) {
         if (eltwiseType == ngraph::opset6::Select::type_info) {
-            params.push_back(std::make_shared<ngraph::opset6::Parameter>(
+            params.push_back(std::make_shared<ngraph::op::v0::Parameter>(
                     ngraph::element::boolean,
                     ngraph::Shape{inputs.front().get_shape()}));
             std::shared_ptr<ngraph::Node> condInput = params.back();
             if (testShapeTypes == TestShapeTypes::ALL_DYNAMIC) {
-                params.push_back(std::make_shared<ngraph::opset6::Parameter>(
+                params.push_back(std::make_shared<ngraph::op::v0::Parameter>(
                     ngraph::element::i64,
                     ngraph::Shape{static_cast<size_t>(inputs.front().get_partial_shape().rank().get_length())}));
                 condInput = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(condInput, params.back());
@@ -257,7 +257,7 @@ private:
         const auto& shapeValue = inputShape.get_partial_shape();
         const auto& rank = ngraph::shape_size(shapeValue.to_shape());
 
-        const auto& zeros = ngraph::opset6::Constant::create(ngraph::element::i64, {rank}, std::vector<std::int64_t>(rank, 0));
+        const auto& zeros = ngraph::op::v0::Constant::create(ngraph::element::i64, {rank}, std::vector<std::int64_t>(rank, 0));
         const auto& isZero = std::make_shared<ngraph::opset6::Equal>(inputShape, zeros);
         return std::make_shared<ngraph::opset6::Select>(isZero, zeros, outputShape);
     }
@@ -274,12 +274,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseBroadcast, DynamicToStaticShapeEltwise, te
         ngraph::element::i64,
         ngraph::element::u8),
     testing::Values(
-        ngraph::opset6::Add::type_info,
+        ngraph::op::v1::Add::type_info,
         ngraph::opset6::Divide::type_info,
         ngraph::opset6::Equal::type_info,
         ngraph::opset6::Greater::type_info,
         ngraph::opset6::Power::type_info,
-        ngraph::opset6::Multiply::type_info,
+        ngraph::op::v1::Multiply::type_info,
         ngraph::opset6::Subtract::type_info,
         ngraph::opset6::Maximum::type_info,
         ngraph::opset6::Minimum::type_info,

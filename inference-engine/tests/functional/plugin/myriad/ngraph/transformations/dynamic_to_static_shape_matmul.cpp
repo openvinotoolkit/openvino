@@ -72,16 +72,16 @@ public:
 protected:
     ngraph::ParameterVector setting_up_input_dynamism(
             const DYNAMISM_MODE mode,
-            const std::shared_ptr<ngraph::opset3::Parameter> input_A,
-            const std::shared_ptr<ngraph::opset3::Parameter> input_B,
+            const std::shared_ptr<ngraph::op::v0::Parameter> input_A,
+            const std::shared_ptr<ngraph::op::v0::Parameter> input_B,
             std::shared_ptr<ngraph::Node>& renewed_input_A,
             std::shared_ptr<ngraph::Node>& renewed_input_B,
             std::shared_ptr<ngraph::Node>& A_shape_node,
             std::shared_ptr<ngraph::Node>& B_shape_node) const {
         ngraph::ParameterVector parameters{input_A, input_B};
 
-        auto input_A_dsr = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{input_A->get_shape().size()});
-        auto input_B_dsr = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{input_B->get_shape().size()});
+        auto input_A_dsr = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{input_A->get_shape().size()});
+        auto input_B_dsr = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{input_B->get_shape().size()});
 
         auto dsr_A = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input_A, input_A_dsr);
         auto dsr_B = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input_B, input_B_dsr);
@@ -101,14 +101,14 @@ protected:
                 renewed_input_A = dsr_A;
                 renewed_input_B = input_B;
                 A_shape_node = input_A_dsr;
-                B_shape_node = ngraph::opset3::Constant::create(ngraph::element::i64, {input_B->get_shape().size()}, input_B->get_shape());
+                B_shape_node = ngraph::op::v0::Constant::create(ngraph::element::i64, {input_B->get_shape().size()}, input_B->get_shape());
                 break;
             }
             case DYNAMISM_MODE::B_INPUT_DYNAMIC: {
                 parameters.push_back(input_B_dsr);
                 renewed_input_A = input_A;
                 renewed_input_B = dsr_B;
-                A_shape_node = ngraph::opset3::Constant::create(ngraph::element::i64, {input_A->get_shape().size()}, input_A->get_shape());
+                A_shape_node = ngraph::op::v0::Constant::create(ngraph::element::i64, {input_A->get_shape().size()}, input_A->get_shape());
                 B_shape_node = input_B_dsr;
                 break;
             }
@@ -122,17 +122,17 @@ protected:
             const DYNAMISM_MODE mode,
             const ngraph::element::Type_t& data_type,
             const MatMulTestCase& matmul_setup) const {
-        auto input_A = std::make_shared<ngraph::opset3::Parameter>(data_type, matmul_setup.A.shape);
-        auto input_B = std::make_shared<ngraph::opset3::Parameter>(data_type, matmul_setup.B.shape);
+        auto input_A = std::make_shared<ngraph::op::v0::Parameter>(data_type, matmul_setup.A.shape);
+        auto input_B = std::make_shared<ngraph::op::v0::Parameter>(data_type, matmul_setup.B.shape);
 
         std::shared_ptr<ngraph::Node> explicit_A_input, explicit_B_input, normalized_A_shape, normalized_B_shape;
         const auto parameters = setting_up_input_dynamism(mode, input_A, input_B, explicit_A_input, explicit_B_input, normalized_A_shape, normalized_B_shape);
-        const auto node = std::make_shared<ngraph::opset3::MatMul>(explicit_A_input, explicit_B_input, matmul_setup.A.transpose, matmul_setup.B.transpose);
+        const auto node = std::make_shared<ngraph::op::v0::MatMul>(explicit_A_input, explicit_B_input, matmul_setup.A.transpose, matmul_setup.B.transpose);
 
         const auto function = std::make_shared<ngraph::Function>(ngraph::NodeVector{node}, parameters, "Actual");
         node->set_output_type(0, node->get_output_element_type(0), ngraph::PartialShape::dynamic(node->get_output_partial_shape(0).rank()));
 
-        const auto transformations = vpu::Transformations{{ngraph::opset3::MatMul::type_info, vpu::dynamicToStaticShapeMatMul}};
+        const auto transformations = vpu::Transformations{{ngraph::op::v0::MatMul::type_info, vpu::dynamicToStaticShapeMatMul}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
@@ -141,60 +141,60 @@ protected:
             const DYNAMISM_MODE mode,
             const ngraph::element::Type_t& data_type,
             const MatMulTestCase& matmul_setup) {
-        auto input_A = std::make_shared<ngraph::opset3::Parameter>(data_type, matmul_setup.A.shape);
-        auto input_B = std::make_shared<ngraph::opset3::Parameter>(data_type, matmul_setup.B.shape);
+        auto input_A = std::make_shared<ngraph::op::v0::Parameter>(data_type, matmul_setup.A.shape);
+        auto input_B = std::make_shared<ngraph::op::v0::Parameter>(data_type, matmul_setup.B.shape);
         std::shared_ptr<ngraph::Node> explicit_A_input, explicit_B_input, normalized_A_shape, normalized_B_shape;
         const auto parameters = setting_up_input_dynamism(mode, input_A, input_B, explicit_A_input, explicit_B_input, normalized_A_shape, normalized_B_shape);
-        const auto node = std::make_shared<ngraph::opset3::MatMul>(explicit_A_input, explicit_B_input, matmul_setup.A.transpose, matmul_setup.B.transpose);
+        const auto node = std::make_shared<ngraph::op::v0::MatMul>(explicit_A_input, explicit_B_input, matmul_setup.A.transpose, matmul_setup.B.transpose);
 
         // A
         if (matmul_setup.A.rank_diff) {
             ngraph::OutputVector extended_shape_parts = {
-                    ngraph::opset3::Constant::create(
+                    ngraph::op::v0::Constant::create(
                             ngraph::element::i64, {matmul_setup.A.rank_diff}, std::vector<int64_t>(matmul_setup.A.rank_diff, 1)), normalized_A_shape};
-            normalized_A_shape = std::make_shared<ngraph::opset3::Concat>(extended_shape_parts, 0);
+            normalized_A_shape = std::make_shared<ngraph::op::v0::Concat>(extended_shape_parts, 0);
         }
         if (!matmul_setup.A.gather_idxs_for_transpose.empty()) {
-            const auto indices = ngraph::opset3::Constant::create(
+            const auto indices = ngraph::op::v0::Constant::create(
                     ngraph::element::i64, {matmul_setup.A.gather_idxs_for_transpose.size()}, matmul_setup.A.gather_idxs_for_transpose);
-            const auto axis = ngraph::opset3::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
-            normalized_A_shape = std::make_shared<ngraph::opset3::Gather>(normalized_A_shape, indices, axis);
+            const auto axis = ngraph::op::v0::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
+            normalized_A_shape = std::make_shared<ngraph::op::v1::Gather>(normalized_A_shape, indices, axis);
         }
         // B
         if (matmul_setup.B.rank_diff) {
             ngraph::OutputVector extended_shape_parts = {
-                    ngraph::opset3::Constant::create(
+                    ngraph::op::v0::Constant::create(
                             ngraph::element::i64, {matmul_setup.B.rank_diff}, std::vector<int64_t>(matmul_setup.B.rank_diff, 1)), normalized_B_shape};
-            normalized_B_shape = std::make_shared<ngraph::opset3::Concat>(extended_shape_parts, 0);
+            normalized_B_shape = std::make_shared<ngraph::op::v0::Concat>(extended_shape_parts, 0);
         }
         if (!matmul_setup.B.gather_idxs_for_transpose.empty()) {
-            const auto indices = ngraph::opset3::Constant::create(
+            const auto indices = ngraph::op::v0::Constant::create(
                     ngraph::element::i64, {matmul_setup.B.gather_idxs_for_transpose.size()}, matmul_setup.B.gather_idxs_for_transpose);
-            const auto axis = ngraph::opset3::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
-            normalized_B_shape = std::make_shared<ngraph::opset3::Gather>(normalized_B_shape, indices, axis);
+            const auto axis = ngraph::op::v0::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
+            normalized_B_shape = std::make_shared<ngraph::op::v1::Gather>(normalized_B_shape, indices, axis);
         }
         // Common
         ngraph::OutputVector output_dims;
         if (!matmul_setup.A.batch_gather_idxs.empty()) {
-            const auto max_shape = std::make_shared<ngraph::opset3::Maximum>(normalized_A_shape, normalized_B_shape);
-            const auto indices = ngraph::opset3::Constant::create(
+            const auto max_shape = std::make_shared<ngraph::op::v1::Maximum>(normalized_A_shape, normalized_B_shape);
+            const auto indices = ngraph::op::v0::Constant::create(
                     ngraph::element::i64, {matmul_setup.A.batch_gather_idxs.size()}, matmul_setup.A.batch_gather_idxs);
-            const auto axis = ngraph::opset3::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
-            const auto batch_dims = std::make_shared<ngraph::opset3::Gather>(max_shape, indices, axis);
+            const auto axis = ngraph::op::v0::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
+            const auto batch_dims = std::make_shared<ngraph::op::v1::Gather>(max_shape, indices, axis);
             output_dims.push_back(batch_dims);
         }
-        const auto input_channels = std::make_shared<ngraph::opset3::Gather>(
+        const auto input_channels = std::make_shared<ngraph::op::v1::Gather>(
                 normalized_A_shape,
-                ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {matmul_setup.A.channel_idx}),
-                ngraph::opset3::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0}));
-        const auto output_channels = std::make_shared<ngraph::opset3::Gather>(
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {matmul_setup.A.channel_idx}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0}));
+        const auto output_channels = std::make_shared<ngraph::op::v1::Gather>(
                 normalized_B_shape,
-                ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {matmul_setup.B.channel_idx}),
-                ngraph::opset3::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0}));
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {matmul_setup.B.channel_idx}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0}));
         output_dims.push_back(input_channels);
         output_dims.push_back(output_channels);
 
-        const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
+        const auto output_shape = std::make_shared<ngraph::op::v0::Concat>(output_dims, 0);
         const auto dsr_final = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node, output_shape);
         const auto function = std::make_shared<ngraph::Function>(ngraph::NodeVector{dsr_final}, parameters, "Transformed-MatMul");
         return function;

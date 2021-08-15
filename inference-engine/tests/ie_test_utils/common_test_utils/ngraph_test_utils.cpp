@@ -118,7 +118,7 @@ public:
     using SubGraphOp = ngraph::op::util::SubGraphOp;
     using InputDescripton = SubGraphOp::InputDescription;
     using InputNode = ngraph::Input<ngraph::Node>;
-    using Parameter = ngraph::opset6::Parameter;
+    using Parameter = ngraph::op::v0::Parameter;
 
     explicit NodeAndInputDescription(
             const InputNode &input, const Parameter *parameter, const InputDescripton *description)
@@ -212,7 +212,7 @@ public:
     using SubGraphOp = ngraph::op::util::SubGraphOp;
     using OutputDescription = SubGraphOp::OutputDescription;
     using OutputNode = ngraph::Output<ngraph::Node>;
-    using Result = ngraph::opset6::Result;
+    using Result = ngraph::op::v0::Result;
 
     explicit NodeAndOutputDescription(
             const OutputNode &output, const Result *result, const OutputDescription *description)
@@ -300,8 +300,8 @@ private:
 
 class BackEdge {
 public:
-    using Parameter = ngraph::opset6::Parameter;
-    using Result = ngraph::opset6::Result;
+    using Parameter = ngraph::op::v0::Parameter;
+    using Result = ngraph::op::v0::Result;
     using Id = uint64_t;
 
     explicit BackEdge(const Parameter *parameter, const Result *result)
@@ -673,7 +673,7 @@ Comparator::Result Comparator::compare(
 void Comparator::compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
     for (size_t i = 0; i < node1->inputs().size(); ++i) {
         if (should_compare(CmpValues::CONST_VALUES)) {
-            using Constant = ngraph::opset1::Constant;
+            using Constant = ngraph::op::v0::Constant;
             const auto equal_value =
                 ::attributes::detail::equal::Equal<std::shared_ptr<Constant>>::equal_value;
 

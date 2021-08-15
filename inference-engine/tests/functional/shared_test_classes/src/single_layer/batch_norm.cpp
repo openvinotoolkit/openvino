@@ -39,10 +39,10 @@ void BatchNormLayerTest::SetUp() {
 
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::opset4::Parameter>(params));
+            ngraph::helpers::castOps2Nodes<ngraph::op::v0::Parameter>(params));
 
     auto batchNorm = ngraph::builder::makeBatchNormInference(paramOuts[0], epsilon);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(batchNorm)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(batchNorm)};
     function = std::make_shared<ngraph::Function>(results, params, "BatchNormInference");
 }
 

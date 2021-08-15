@@ -39,7 +39,7 @@ void BatchToSpaceLayerTest::SetUp() {
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto b2s = ngraph::builder::makeBatchToSpace(paramOuts[0], ngPrc, blockShape, cropsBegin, cropsEnd);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(b2s)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(b2s)};
     function = std::make_shared<ngraph::Function>(results, params, "BatchToSpace");
 }
 

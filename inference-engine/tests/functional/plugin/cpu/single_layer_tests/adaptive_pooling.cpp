@@ -72,9 +72,9 @@ protected:
         auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
 
         // we cannot create abstract Op to use polymorphism
-        auto adapoolMax = std::make_shared<ngraph::opset8::AdaptiveMaxPool>(params[0], pooledParam, ngraph::element::i32);
+        auto adapoolMax = std::make_shared<ngraph::op::v8::AdaptiveMaxPool>(params[0], pooledParam, ngraph::element::i32);
         adapoolMax->get_rt_info() = getCPUInfo();
-        auto adapoolAvg = std::make_shared<ngraph::opset8::AdaptiveAvgPool>(params[0], pooledParam);
+        auto adapoolAvg = std::make_shared<ngraph::op::v8::AdaptiveAvgPool>(params[0], pooledParam);
         adapoolAvg->get_rt_info() = getCPUInfo();
 
         selectedType = std::string("unknown_FP32");

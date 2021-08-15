@@ -32,16 +32,16 @@ protected:
             const TensorShape& inShape,
             const TensorType& inType,
             size_t axis) {
-        const auto parameter = std::make_shared<ngraph::opset6::Parameter>(inType, inShape);
+        const auto parameter = std::make_shared<ngraph::op::v0::Parameter>(inType, inShape);
 
         const auto unsqueeze = std::make_shared<ngraph::opset6::Unsqueeze>(
                 parameter,
-                ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {axis}));
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {axis}));
 
         const auto gather = std::make_shared<ngraph::opset6::Gather>(
                 unsqueeze,
-                ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}),
-                ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {axis}));
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}),
+                ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {axis}));
 
         const auto function = std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{gather},
@@ -59,7 +59,7 @@ protected:
             const TensorShape& inShape,
             const TensorType& inType,
             size_t axis) {
-        const auto parameter = std::make_shared<ngraph::opset6::Parameter>(inType, inShape);
+        const auto parameter = std::make_shared<ngraph::op::v0::Parameter>(inType, inShape);
 
         return std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{parameter},

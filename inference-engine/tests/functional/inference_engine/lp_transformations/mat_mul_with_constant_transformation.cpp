@@ -103,7 +103,7 @@ public:
             testValues.actual.dequantizationOnWeights);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::op::v0::MatMul>(testValues.params);
         if (testValues.params.support3DTensorOnActivations == false) {
             transformer.get_pass_config()->set_callback<ngraph::pass::low_precision::MatMulTransformation>(
                 [](const std::shared_ptr<const ngraph::Node>& node) -> bool {

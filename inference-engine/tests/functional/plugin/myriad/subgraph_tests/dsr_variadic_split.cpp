@@ -45,11 +45,11 @@ protected:
 
         const auto inputSubgraph = createInputSubgraphWithDSR(dataType, variadicSplitSetup.dataShapes);
 
-        const auto axis = ngraph::opset3::Constant::create(idxType, {}, std::vector<int64_t>{variadicSplitSetup.axis});
-        const auto splitLengths = ngraph::opset3::Constant::create(idxType,
+        const auto axis = ngraph::op::v0::Constant::create(idxType, {}, std::vector<int64_t>{variadicSplitSetup.axis});
+        const auto splitLengths = ngraph::op::v0::Constant::create(idxType,
                 {variadicSplitSetup.splitLengths.size()}, std::vector<int64_t>{variadicSplitSetup.splitLengths});
 
-        return std::make_shared<ngraph::opset3::VariadicSplit>(inputSubgraph, axis, splitLengths);
+        return std::make_shared<ngraph::op::v1::VariadicSplit>(inputSubgraph, axis, splitLengths);
     }
 };
 

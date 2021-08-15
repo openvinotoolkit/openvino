@@ -24,8 +24,8 @@ TEST(MergeSubsequentDSROperations, smoke_SingleDSRFunction) {
     const auto inputType  = ngraph::element::f16;
     const auto inputShape = ngraph::Shape{1};
 
-    const auto data = std::make_shared<ngraph::opset4::Parameter>(inputType, inputShape);
-    const auto shape = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::i64, ngraph::Shape{inputShape.size()});
+    const auto data = std::make_shared<ngraph::op::v0::Parameter>(inputType, inputShape);
+    const auto shape = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{inputShape.size()});
 
     const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, shape);
     const auto reference = std::make_shared<const ngraph::Function>(
@@ -56,23 +56,23 @@ TEST(MergeSubsequentDSROperations, smoke_DSR_ReLU_DSR_ReLU_DSR) {
     const auto inputType  = ngraph::element::f16;
     const auto inputShape = ngraph::Shape{1};
 
-    const auto data  = std::make_shared<ngraph::opset4::Parameter>(inputType, inputShape);
-    const auto shape = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::i64, ngraph::Shape{inputShape.size()});
+    const auto data  = std::make_shared<ngraph::op::v0::Parameter>(inputType, inputShape);
+    const auto shape = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{inputShape.size()});
     const auto dsr_0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, shape);
 
-    const auto relu_0 = std::make_shared<ngraph::opset4::Relu>(dsr_0);
+    const auto relu_0 = std::make_shared<ngraph::op::v0::Relu>(dsr_0);
 
     // emulates shape subgraph for operation ReLU
-    const auto one_0 = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<std::int64_t>{1});
-    const auto sum_0 = std::make_shared<ngraph::opset4::Add>(shape, one_0);
+    const auto one_0 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<std::int64_t>{1});
+    const auto sum_0 = std::make_shared<ngraph::op::v1::Add>(shape, one_0);
 
     const auto dsr_1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(relu_0, sum_0);
 
-    const auto relu_1 = std::make_shared<ngraph::opset4::Relu>(dsr_1);
+    const auto relu_1 = std::make_shared<ngraph::op::v0::Relu>(dsr_1);
 
     // emulates shape subgraph for operation ReLU
-    const auto one_1 = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<std::int64_t>{1});
-    const auto sum_1 = std::make_shared<ngraph::opset4::Add>(sum_0, one_1);
+    const auto one_1 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<std::int64_t>{1});
+    const auto sum_1 = std::make_shared<ngraph::op::v1::Add>(sum_0, one_1);
 
     const auto dsr_2 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(relu_1, sum_1);
 
@@ -117,21 +117,21 @@ TEST(MergeSubsequentDSROperations, smoke_DSR_ReLU_DSR_DSR) {
 
     std::shared_ptr<ngraph::Function> actual;
     {
-        const auto data  = std::make_shared<ngraph::opset4::Parameter>(inputType, inputShape);
-        const auto shape = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::i64, ngraph::Shape{inputShape.size()});
+        const auto data  = std::make_shared<ngraph::op::v0::Parameter>(inputType, inputShape);
+        const auto shape = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{inputShape.size()});
         const auto dsr_0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, shape);
 
-        const auto relu_0 = std::make_shared<ngraph::opset4::Relu>(dsr_0);
+        const auto relu_0 = std::make_shared<ngraph::op::v0::Relu>(dsr_0);
 
         // emulates shape subgraph for operation ReLU
-        const auto one_0 = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<std::int64_t>{1});
-        const auto sum_0 = std::make_shared<ngraph::opset4::Add>(shape, one_0);
+        const auto one_0 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<std::int64_t>{1});
+        const auto sum_0 = std::make_shared<ngraph::op::v1::Add>(shape, one_0);
 
         const auto dsr_1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(relu_0, sum_0);
 
         // emulates shape subgraph for operation ReLU
-        const auto one_1 = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<std::int64_t>{1});
-        const auto sum_1 = std::make_shared<ngraph::opset4::Add>(sum_0, one_1);
+        const auto one_1 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<std::int64_t>{1});
+        const auto sum_1 = std::make_shared<ngraph::op::v1::Add>(sum_0, one_1);
 
         const auto dsr_2 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(dsr_1, sum_1);
 
@@ -143,19 +143,19 @@ TEST(MergeSubsequentDSROperations, smoke_DSR_ReLU_DSR_DSR) {
 
     std::shared_ptr<const ngraph::Function> reference;
     {
-        const auto data  = std::make_shared<ngraph::opset4::Parameter>(inputType, inputShape);
-        const auto shape = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::i64, ngraph::Shape{inputShape.size()});
+        const auto data  = std::make_shared<ngraph::op::v0::Parameter>(inputType, inputShape);
+        const auto shape = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{inputShape.size()});
         const auto dsr_0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, shape);
 
-        const auto relu_0 = std::make_shared<ngraph::opset4::Relu>(dsr_0);
+        const auto relu_0 = std::make_shared<ngraph::op::v0::Relu>(dsr_0);
 
         // emulates shape subgraph for operation ReLU
-        const auto one_0 = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<std::int64_t>{1});
-        const auto sum_0 = std::make_shared<ngraph::opset4::Add>(shape, one_0);
+        const auto one_0 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<std::int64_t>{1});
+        const auto sum_0 = std::make_shared<ngraph::op::v1::Add>(shape, one_0);
 
         // emulates shape subgraph for operation ReLU
-        const auto one_1 = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<std::int64_t>{1});
-        const auto sum_1 = std::make_shared<ngraph::opset4::Add>(sum_0, one_1);
+        const auto one_1 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<std::int64_t>{1});
+        const auto sum_1 = std::make_shared<ngraph::op::v1::Add>(sum_0, one_1);
 
         const auto dsr_2 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(relu_0, sum_1);
 

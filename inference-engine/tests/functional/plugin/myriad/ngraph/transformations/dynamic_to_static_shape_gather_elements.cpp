@@ -68,21 +68,21 @@ protected:
             const ngraph::element::Type_t& idxType,
             const GatherElementsTestCase& gatherElementsSetup,
             DataShapeType dataShapeType) const {
-        const auto data = std::make_shared<ngraph::opset6::Parameter>(dataType, gatherElementsSetup.dataShape);
-        const auto indices = std::make_shared<ngraph::opset6::Parameter>(idxType, gatherElementsSetup.indexShape);
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, gatherElementsSetup.dataShape);
+        const auto indices = std::make_shared<ngraph::op::v0::Parameter>(idxType, gatherElementsSetup.indexShape);
 
-        const auto indicesDims = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{gatherElementsSetup.indexShape.size()});
+        const auto indicesDims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gatherElementsSetup.indexShape.size()});
         const auto indicesDsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(indices, indicesDims);
 
         ngraph::ParameterVector params{data, indices, indicesDims};
         std::shared_ptr<ngraph::Node> gatherData = data;
 
         if (dataShapeType == DataShapeType::DYNAMIC) {
-            params.push_back(std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{gatherElementsSetup.dataShape.size()}));
+            params.push_back(std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gatherElementsSetup.dataShape.size()}));
             gatherData = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, params.back());
         }
 
-        const auto node = std::make_shared<ngraph::opset6::GatherElements>(gatherData, indicesDsr, gatherElementsSetup.axis);
+        const auto node = std::make_shared<ngraph::op::v6::GatherElements>(gatherData, indicesDsr, gatherElementsSetup.axis);
 
         const auto function = std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{node},
@@ -100,17 +100,17 @@ protected:
             const ngraph::element::Type_t& idxType,
             const GatherElementsTestCase& gatherElementsSetup,
             DataShapeType dataShapeType) const {
-        const auto data = std::make_shared<ngraph::opset6::Parameter>(dataType, gatherElementsSetup.dataShape);
-        const auto indices = std::make_shared<ngraph::opset6::Parameter>(idxType, gatherElementsSetup.indexShape);
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(dataType, gatherElementsSetup.dataShape);
+        const auto indices = std::make_shared<ngraph::op::v0::Parameter>(idxType, gatherElementsSetup.indexShape);
 
-        const auto indicesDims = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{gatherElementsSetup.indexShape.size()});
+        const auto indicesDims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gatherElementsSetup.indexShape.size()});
         const auto indicesDsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(indices, indicesDims);
 
         ngraph::ParameterVector params{data, indices, indicesDims};
         std::shared_ptr<ngraph::Node> gatherData = data;
 
         if (dataShapeType == DataShapeType::DYNAMIC) {
-            params.push_back(std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{gatherElementsSetup.dataShape.size()}));
+            params.push_back(std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{gatherElementsSetup.dataShape.size()}));
             gatherData = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, params.back());
         }
 

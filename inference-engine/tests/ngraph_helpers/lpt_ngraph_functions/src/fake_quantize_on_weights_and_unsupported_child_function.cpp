@@ -16,9 +16,9 @@ namespace subgraph {
 std::shared_ptr<ngraph::Function> FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
     const ngraph::Shape& inputShape,
     const ngraph::element::Type inputPrecision,
-    const std::shared_ptr<ngraph::opset1::Constant> weights,
+    const std::shared_ptr<ngraph::op::v0::Constant> weights,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
+    const auto input = std::make_shared<ngraph::op::v0::Parameter>(inputPrecision, inputShape);
     input->set_friendly_name("Input");
     weights->set_friendly_name("Weights");
 
@@ -29,12 +29,12 @@ std::shared_ptr<ngraph::Function> FakeQuantizeOnWeightsAndUnsupportedChildFuncti
         weightsParent = fakeQuantizeOnWeights;
     }
 
-    auto unsupportedOperation = std::make_shared<ngraph::opset1::ConvolutionBackpropData>(
+    auto unsupportedOperation = std::make_shared<ngraph::op::v1::ConvolutionBackpropData>(
         input, weightsParent, ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 }, ngraph::CoordinateDiff{ 0, 0 }, ngraph::Strides{ 1, 1 });
     unsupportedOperation->set_friendly_name("UnsupportedOperation");
 
-    const auto result = std::make_shared<ngraph::opset1::Result>(unsupportedOperation);
+    const auto result = std::make_shared<ngraph::op::v0::Result>(unsupportedOperation);
     result->set_friendly_name("Result");
 
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(

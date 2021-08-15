@@ -74,11 +74,11 @@ void ConvolutionReluSequenceTest::SetUp() {
                     lastOutputs,
                     ngPrc, single.kernelSize, single.strides, single.padBegin, single.padEnd,
                     dilation, ngraph::op::PadType::EXPLICIT, single.numOutChannels, addBiases, filter_weights, biases));
-        lastOutputs = std::make_shared<ngraph::opset1::Relu>(conv);
+        lastOutputs = std::make_shared<ngraph::op::v0::Relu>(conv);
         if (single.poolingWindow.size() == 2 &&
                 (single.poolingWindow[0] != 1 ||
                  single.poolingWindow[1] != 1)) {
-            lastOutputs = std::make_shared<ngraph::opset3::MaxPool>(lastOutputs, single.poolingStride,
+            lastOutputs = std::make_shared<ngraph::op::v1::MaxPool>(lastOutputs, single.poolingStride,
                 ngraph::Shape{ 0, 0 },
                 ngraph::Shape{ 0, 0 },
                 single.poolingWindow);
@@ -86,7 +86,7 @@ void ConvolutionReluSequenceTest::SetUp() {
         inputChannels = single.numOutChannels;
     }
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lastOutputs)};
+    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(lastOutputs)};
     function = std::make_shared<ngraph::Function>(results, params, "convolution_relu_sequence");
 }
 }  // namespace SubgraphTestsDefinitions

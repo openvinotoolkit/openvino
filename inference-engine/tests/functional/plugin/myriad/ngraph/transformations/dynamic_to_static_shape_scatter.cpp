@@ -57,12 +57,12 @@ protected:
             const ngraph::element::Type_t& integerType,
             const ScatterTestCase& scatterSetup,
             ShapeType indicesUpdatesShapeType) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(numericType, scatterSetup.dataShape);
-        const auto indices = std::make_shared<ngraph::opset3::Parameter>(integerType, scatterSetup.indicesShape);
-        const auto updates = std::make_shared<ngraph::opset3::Parameter>(numericType, scatterSetup.updatesShape);
-        const auto axis = std::make_shared<ngraph::opset3::Constant>(integerType, ngraph::Shape{1}, std::vector<int64_t>{scatterSetup.axis});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(numericType, scatterSetup.dataShape);
+        const auto indices = std::make_shared<ngraph::op::v0::Parameter>(integerType, scatterSetup.indicesShape);
+        const auto updates = std::make_shared<ngraph::op::v0::Parameter>(numericType, scatterSetup.updatesShape);
+        const auto axis = std::make_shared<ngraph::op::v0::Constant>(integerType, ngraph::Shape{1}, std::vector<int64_t>{scatterSetup.axis});
 
-        const auto dataDims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{scatterSetup.dataShape.size()});
+        const auto dataDims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{scatterSetup.dataShape.size()});
         const auto dataDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dataDims);
 
         ngraph::ParameterVector params{data, indices, updates, dataDims};
@@ -70,10 +70,10 @@ protected:
         std::shared_ptr<ngraph::Node> scatterIndices = indices;
         std::shared_ptr<ngraph::Node> scatterUpdates = updates;
         if (indicesUpdatesShapeType == ShapeType::DYNAMIC) {
-            const auto indicesDims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{scatterSetup.indicesShape.size()});
+            const auto indicesDims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{scatterSetup.indicesShape.size()});
             scatterIndices = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(indices, indicesDims);
             params.push_back(indicesDims);
-            const auto updatesDims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{scatterSetup.updatesShape.size()});
+            const auto updatesDims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{scatterSetup.updatesShape.size()});
             scatterUpdates = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(updates, updatesDims);
             params.push_back(updatesDims);
         }
@@ -97,12 +97,12 @@ protected:
             const ngraph::element::Type_t& integerType,
             const ScatterTestCase& scatterSetup,
             ShapeType indicesUpdatesShapeType) const {
-        const auto data = std::make_shared<ngraph::opset3::Parameter>(numericType, scatterSetup.dataShape);
-        const auto indices = std::make_shared<ngraph::opset3::Parameter>(integerType, scatterSetup.indicesShape);
-        const auto updates = std::make_shared<ngraph::opset3::Parameter>(numericType, scatterSetup.updatesShape);
-        const auto axis = std::make_shared<ngraph::opset3::Constant>(integerType, ngraph::Shape{1}, std::vector<int64_t>{scatterSetup.axis});
+        const auto data = std::make_shared<ngraph::op::v0::Parameter>(numericType, scatterSetup.dataShape);
+        const auto indices = std::make_shared<ngraph::op::v0::Parameter>(integerType, scatterSetup.indicesShape);
+        const auto updates = std::make_shared<ngraph::op::v0::Parameter>(numericType, scatterSetup.updatesShape);
+        const auto axis = std::make_shared<ngraph::op::v0::Constant>(integerType, ngraph::Shape{1}, std::vector<int64_t>{scatterSetup.axis});
 
-        const auto dataDims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{scatterSetup.dataShape.size()});
+        const auto dataDims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{scatterSetup.dataShape.size()});
         const auto dataDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dataDims);
 
         ngraph::ParameterVector params{data, indices, updates, dataDims};
@@ -110,10 +110,10 @@ protected:
         std::shared_ptr<ngraph::Node> scatterIndices = indices;
         std::shared_ptr<ngraph::Node> scatterUpdates = updates;
         if (indicesUpdatesShapeType == ShapeType::DYNAMIC) {
-            const auto indicesDims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{scatterSetup.indicesShape.size()});
+            const auto indicesDims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{scatterSetup.indicesShape.size()});
             scatterIndices = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(indices, indicesDims);
             params.push_back(indicesDims);
-            const auto updatesDims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{scatterSetup.updatesShape.size()});
+            const auto updatesDims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{scatterSetup.updatesShape.size()});
             scatterUpdates = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(updates, updatesDims);
             params.push_back(updatesDims);
         }
@@ -146,7 +146,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeScatter, testing::Com
         ngraph::element::i64,
         ngraph::element::u8),
     testing::Values(
-        ScatterTestCase{ngraph::opset3::ScatterUpdate::type_info, {1000, 256, 10, 15}, {125, 20}, {1000, 125, 20, 10, 15}, 1},
+        ScatterTestCase{ngraph::op::v3::ScatterUpdate::type_info, {1000, 256, 10, 15}, {125, 20}, {1000, 125, 20, 10, 15}, 1},
         ScatterTestCase{ngraph::opset5::ScatterElementsUpdate::type_info, {300}, {300}, {300}, 0}),
     testing::Values(
         ShapeType::DYNAMIC,

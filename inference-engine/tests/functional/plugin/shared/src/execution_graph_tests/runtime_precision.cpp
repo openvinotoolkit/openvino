@@ -30,7 +30,7 @@ std::shared_ptr<ngraph::Function> makeEltwiseFunction(const std::vector<Inferenc
     auto inputs = ngraph::builder::makeParams(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[0]), {{1, 16, 5, 4}});
     auto secondaryInput = ngraph::builder::makeInputLayer(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecisions[1]),
             ngraph::helpers::InputLayerType::PARAMETER, {{1, 16, 5, 4}});
-    inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+    inputs.push_back(std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(secondaryInput));
 
     auto eltwise = ngraph::builder::makeEltwise(inputs[0], secondaryInput, ngraph::helpers::EltwiseTypes::ADD);
     eltwise->set_friendly_name("Eltwise");
@@ -48,7 +48,7 @@ std::shared_ptr<ngraph::Function> makeFakeQuantizeReluFunction(const std::vector
     auto inputHighNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {255});
     auto outputLowNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {0});
     auto outputHighNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {255});
-    auto fakeQuantize = std::make_shared<ngraph::opset1::FakeQuantize>(inputs[0], inputLowNode, inputHighNode, outputLowNode, outputHighNode, 256);
+    auto fakeQuantize = std::make_shared<ngraph::op::v0::FakeQuantize>(inputs[0], inputLowNode, inputHighNode, outputLowNode, outputHighNode, 256);
     fakeQuantize->set_friendly_name("FakeQuantize");
 
     auto relu = std::make_shared<ngraph::op::Relu>(fakeQuantize);
@@ -67,7 +67,7 @@ std::shared_ptr<ngraph::Function> makeFakeQuantizeBinaryConvolutionFunction(cons
     auto inputHighNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {1});
     auto outputLowNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {0});
     auto outputHighNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1, 1, 1, 1}, {1});
-    auto fakeQuantize = std::make_shared<ngraph::opset1::FakeQuantize>(inputs[0], inputLowNode, inputHighNode, outputLowNode, outputHighNode, 2);
+    auto fakeQuantize = std::make_shared<ngraph::op::v0::FakeQuantize>(inputs[0], inputLowNode, inputHighNode, outputLowNode, outputHighNode, 2);
     fakeQuantize->set_friendly_name("FakeQuantize");
 
     auto binConv = ngraph::builder::makeBinaryConvolution(fakeQuantize, {3, 3}, {1, 1}, {1, 1}, {1, 1}, {1, 1}, ngraph::op::PadType::EXPLICIT, 32, 0);

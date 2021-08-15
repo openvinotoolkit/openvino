@@ -21,13 +21,13 @@ using namespace testing;
 TEST(TransformationTests, SwishFusionWithBeta) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
-        auto beta = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{});
-        auto mul = std::make_shared<ngraph::opset4::Multiply>(input, beta);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+        auto beta = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{});
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(input, beta);
         auto neg = std::make_shared<ngraph::opset4::Negative>(mul);
         auto exp = std::make_shared<ngraph::opset4::Exp>(neg);
-        auto constant = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
-        auto add = std::make_shared<ngraph::opset4::Add>(exp, constant);
+        auto constant = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
+        auto add = std::make_shared<ngraph::op::v1::Add>(exp, constant);
         auto div = std::make_shared<ngraph::opset4::Divide>(input, add);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input, beta});
@@ -40,9 +40,9 @@ TEST(TransformationTests, SwishFusionWithBeta) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
-        auto beta = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{});
-        auto swish = std::make_shared<ngraph::opset4::Swish>(input, beta);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+        auto beta = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{});
+        auto swish = std::make_shared<ngraph::op::v4::Swish>(input, beta);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{swish}, ngraph::ParameterVector{input, beta});
     }
@@ -54,11 +54,11 @@ TEST(TransformationTests, SwishFusionWithBeta) {
 TEST(TransformationTests, SwishFusionWithoutBeta) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto neg = std::make_shared<ngraph::opset4::Negative>(input);
         auto exp = std::make_shared<ngraph::opset4::Exp>(neg);
-        auto constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {1.0});
-        auto add = std::make_shared<ngraph::opset4::Add>(exp, constant);
+        auto constant = ngraph::op::v0::Constant::create(ngraph::element::f16, ngraph::Shape{}, {1.0});
+        auto add = std::make_shared<ngraph::op::v1::Add>(exp, constant);
         auto div = std::make_shared<ngraph::opset4::Divide>(input, add);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
@@ -71,8 +71,8 @@ TEST(TransformationTests, SwishFusionWithoutBeta) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
-        auto swish = std::make_shared<ngraph::opset4::Swish>(input);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto swish = std::make_shared<ngraph::op::v4::Swish>(input);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{swish}, ngraph::ParameterVector{input});
     }
@@ -84,11 +84,11 @@ TEST(TransformationTests, SwishFusionWithoutBeta) {
 TEST(TransformationTests, SwishFusionWithoutBetaNonOneAddConstant) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto neg = std::make_shared<ngraph::opset4::Negative>(input);
         auto exp = std::make_shared<ngraph::opset4::Exp>(neg);
-        auto constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {1.1});
-        auto add = std::make_shared<ngraph::opset4::Add>(exp, constant);
+        auto constant = ngraph::op::v0::Constant::create(ngraph::element::f16, ngraph::Shape{}, {1.1});
+        auto add = std::make_shared<ngraph::op::v1::Add>(exp, constant);
         auto div = std::make_shared<ngraph::opset4::Divide>(input, add);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
@@ -101,11 +101,11 @@ TEST(TransformationTests, SwishFusionWithoutBetaNonOneAddConstant) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto neg = std::make_shared<ngraph::opset4::Negative>(input);
         auto exp = std::make_shared<ngraph::opset4::Exp>(neg);
-        auto constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {1.1});
-        auto add = std::make_shared<ngraph::opset4::Add>(exp, constant);
+        auto constant = ngraph::op::v0::Constant::create(ngraph::element::f16, ngraph::Shape{}, {1.1});
+        auto add = std::make_shared<ngraph::op::v1::Add>(exp, constant);
         auto div = std::make_shared<ngraph::opset4::Divide>(input, add);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
@@ -120,9 +120,9 @@ TEST(TransformationTests, SwishFusionWithoutBetaNonOneAddConstant) {
 TEST(TransformationTests, SwishFusionWithSigmoid) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto sig = std::make_shared<ngraph::opset4::Sigmoid>(input);
-        auto mul = std::make_shared<ngraph::opset4::Multiply>(input, sig);
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(input, sig);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
@@ -134,8 +134,8 @@ TEST(TransformationTests, SwishFusionWithSigmoid) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
-        auto swish = std::make_shared<ngraph::opset4::Swish>(input);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto swish = std::make_shared<ngraph::op::v4::Swish>(input);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{swish}, ngraph::ParameterVector{input});
     }
@@ -147,11 +147,11 @@ TEST(TransformationTests, SwishFusionWithSigmoid) {
 TEST(TransformationTests, SwishFusionWithSigmoidWithBeta) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
-        auto beta = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{});
-        auto mul_beta = std::make_shared<ngraph::opset4::Multiply>(input, beta);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto beta = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::Shape{});
+        auto mul_beta = std::make_shared<ngraph::op::v1::Multiply>(input, beta);
         auto sig = std::make_shared<ngraph::opset4::Sigmoid>(mul_beta);
-        auto mul = std::make_shared<ngraph::opset4::Multiply>(input, sig);
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(input, sig);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input, beta});
 
@@ -163,9 +163,9 @@ TEST(TransformationTests, SwishFusionWithSigmoidWithBeta) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
-        auto beta = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{});
-        auto swish = std::make_shared<ngraph::opset4::Swish>(input, beta);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto beta = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::Shape{});
+        auto swish = std::make_shared<ngraph::op::v4::Swish>(input, beta);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{swish}, ngraph::ParameterVector{input, beta});
     }
@@ -178,11 +178,11 @@ TEST(TransformationTests, SwishFusionWithSigmoidWithBetaConstant) {
     // test where the beta constant has multiple but the same value
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
-        auto beta = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{3}, {2.0, 2.0, 2.0});
-        auto mul_beta = std::make_shared<ngraph::opset4::Multiply>(input, beta);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto beta = ngraph::op::v0::Constant::create(ngraph::element::f16, ngraph::Shape{3}, {2.0, 2.0, 2.0});
+        auto mul_beta = std::make_shared<ngraph::op::v1::Multiply>(input, beta);
         auto sig = std::make_shared<ngraph::opset4::Sigmoid>(mul_beta);
-        auto mul = std::make_shared<ngraph::opset4::Multiply>(input, sig);
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(input, sig);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
@@ -194,9 +194,9 @@ TEST(TransformationTests, SwishFusionWithSigmoidWithBetaConstant) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
-        auto beta = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.0});
-        auto swish = std::make_shared<ngraph::opset4::Swish>(input, beta);
+        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto beta = ngraph::op::v0::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.0});
+        auto swish = std::make_shared<ngraph::op::v4::Swish>(input, beta);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{swish}, ngraph::ParameterVector{input});
     }

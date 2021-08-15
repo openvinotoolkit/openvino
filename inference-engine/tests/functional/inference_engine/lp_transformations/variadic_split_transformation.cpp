@@ -84,7 +84,7 @@ public:
             testValues.splitLengths);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::VariadicSplitTransformation, ngraph::opset1::VariadicSplit>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::VariadicSplitTransformation, ngraph::op::v1::VariadicSplit>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::VariadicSplitFunction::getReference(

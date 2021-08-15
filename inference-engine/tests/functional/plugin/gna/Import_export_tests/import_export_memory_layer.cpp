@@ -86,15 +86,15 @@ protected:
 
         auto params = ngraph::builder::makeParams(ngPrc, {{1, 336}});
         auto mem_c = ngraph::builder::makeConstant(ngPrc, {1, 336}, std::vector<size_t>{1});
-        auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "id");
+        auto mem_r = std::make_shared<ngraph::op::v3::ReadValue>(mem_c, "id");
 
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(params[0], mem_r);
-        auto mem_w = std::make_shared<ngraph::opset3::Assign>(mul, "id");
+        auto mul = std::make_shared<ngraph::op::v1::Multiply>(params[0], mem_r);
+        auto mem_w = std::make_shared<ngraph::op::v3::Assign>(mul, "id");
 
-        auto relu = std::make_shared<ngraph::opset1::Relu>(mul);
+        auto relu = std::make_shared<ngraph::op::v0::Relu>(mul);
         mem_w->add_control_dependency(mem_r);
         relu->add_control_dependency(mem_w);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu)};
+        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(relu)};
         function = std::make_shared<ngraph::Function>(results, params, "ExportImportNetwork");
     }
 

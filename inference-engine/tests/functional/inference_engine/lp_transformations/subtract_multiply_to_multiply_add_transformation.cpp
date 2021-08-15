@@ -65,7 +65,7 @@ public:
             testValues.actual.precisionAfter);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::SubtractMultiplyToMultiplyAddTransformation, ngraph::opset1::Multiply>(testValues.params);
+        transform.add<low_precision::SubtractMultiplyToMultiplyAddTransformation, ngraph::op::v1::Multiply>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = SubtractMultiplyToMultiplyAddFunction::getReference(

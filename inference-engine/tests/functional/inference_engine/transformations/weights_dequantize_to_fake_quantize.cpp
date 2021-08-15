@@ -36,37 +36,37 @@ public:
 
         std::vector<int8_t> weights{test_case.min_int, test_case.max_int};
         {
-            auto i_weights = std::make_shared<ngraph::opset6::Constant>(ngraph::element::i8, ngraph::Shape{weights.size()}, weights);
+            auto i_weights = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i8, ngraph::Shape{weights.size()}, weights);
 
             auto f_weights = std::make_shared<ngraph::opset6::Convert>(i_weights, float_element_type);
 
-            auto zp = std::make_shared<ngraph::opset6::Constant>(float_element_type, ngraph::Shape{}, std::vector<float>{test_case.zp});
+            auto zp = std::make_shared<ngraph::op::v0::Constant>(float_element_type, ngraph::Shape{}, std::vector<float>{test_case.zp});
             auto subtract_zp = std::make_shared<ngraph::opset6::Subtract>(f_weights, zp);
 
-            auto scale = std::make_shared<ngraph::opset6::Constant>(float_element_type, ngraph::Shape{}, std::vector<float>{test_case.scale});
+            auto scale = std::make_shared<ngraph::op::v0::Constant>(float_element_type, ngraph::Shape{}, std::vector<float>{test_case.scale});
 
             ngraph::NodeVector output;
             if (test_case.zp == 0)
-                output.push_back(std::make_shared<ngraph::opset6::Multiply>(f_weights, scale));
+                output.push_back(std::make_shared<ngraph::op::v1::Multiply>(f_weights, scale));
             else
-                output.push_back(std::make_shared<ngraph::opset6::Multiply>(subtract_zp, scale));
+                output.push_back(std::make_shared<ngraph::op::v1::Multiply>(subtract_zp, scale));
 
             f = std::make_shared<ngraph::Function>(output, ngraph::ParameterVector{});
         }
 
         {
-            auto i_weights = std::make_shared<ngraph::opset6::Constant>(ngraph::element::i8, ngraph::Shape{weights.size()}, weights);
+            auto i_weights = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i8, ngraph::Shape{weights.size()}, weights);
 
             auto f_weights = std::make_shared<ngraph::opset6::Convert>(i_weights, float_element_type);
 
-            auto i_low = std::make_shared<ngraph::opset6::Constant>(
+            auto i_low = std::make_shared<ngraph::op::v0::Constant>(
                     float_element_type, ngraph::Shape{}, std::vector<float>{static_cast<float>(test_case.min_int)});
-            auto i_high = std::make_shared<ngraph::opset6::Constant>(
+            auto i_high = std::make_shared<ngraph::op::v0::Constant>(
                     float_element_type, ngraph::Shape{}, std::vector<float>{static_cast<float>(test_case.max_int)});
-            auto o_low = std::make_shared<ngraph::opset6::Constant>(float_element_type, ngraph::Shape{}, std::vector<float>{test_case.o_low});
-            auto o_high = std::make_shared<ngraph::opset6::Constant>(float_element_type, ngraph::Shape{}, std::vector<float>{test_case.o_high});
+            auto o_low = std::make_shared<ngraph::op::v0::Constant>(float_element_type, ngraph::Shape{}, std::vector<float>{test_case.o_low});
+            auto o_high = std::make_shared<ngraph::op::v0::Constant>(float_element_type, ngraph::Shape{}, std::vector<float>{test_case.o_high});
 
-            auto fq = std::make_shared<ngraph::opset6::FakeQuantize>(f_weights, i_low, i_high, o_low, o_high, test_case.levels);
+            auto fq = std::make_shared<ngraph::op::v0::FakeQuantize>(f_weights, i_low, i_high, o_low, o_high, test_case.levels);
 
             f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{fq}, ngraph::ParameterVector{});
         }

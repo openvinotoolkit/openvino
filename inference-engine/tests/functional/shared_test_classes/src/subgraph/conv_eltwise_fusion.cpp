@@ -41,7 +41,7 @@ void ConvEltwiseFusion::SetUp() {
     std::tie(eltwise_type, expected_number_of_ops) = t;
     ngraph::pass::Manager manager;
     {
-        auto param = std::make_shared<ngraph::opset4::Parameter>(precision, input_shape);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(precision, input_shape);
         auto spatial_dims = input_shape.size() - 2;
 
         ngraph::Shape strides(spatial_dims, 1);
@@ -62,14 +62,14 @@ void ConvEltwiseFusion::SetUp() {
         }
 
         std::shared_ptr<ngraph::Node> eltwise;
-        if (eltwise_type == ngraph::opset4::Multiply::type_info) {
-            eltwise = std::make_shared<ngraph::opset4::Multiply>(conv, eltwise_const);
+        if (eltwise_type == ngraph::op::v1::Multiply::type_info) {
+            eltwise = std::make_shared<ngraph::op::v1::Multiply>(conv, eltwise_const);
             manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
             manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
             manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
             manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
-        } else if (eltwise_type == ngraph::opset4::Add::type_info) {
-            eltwise = std::make_shared<ngraph::opset4::Add>(conv, eltwise_const);
+        } else if (eltwise_type == ngraph::op::v1::Add::type_info) {
+            eltwise = std::make_shared<ngraph::op::v1::Add>(conv, eltwise_const);
             manager.register_pass<ngraph::pass::ConvertConvolutions>();
             manager.register_pass<ngraph::pass::ConvFusion>();
         } else {

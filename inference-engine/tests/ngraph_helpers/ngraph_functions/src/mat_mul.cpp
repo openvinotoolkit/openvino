@@ -11,7 +11,7 @@ std::shared_ptr<Node> makeMatMul(const Output<Node>& A,
                                  const Output<Node>& B,
                                  bool transpose_a,
                                  bool transpose_b) {
-    return std::make_shared<ngraph::opset3::MatMul>(A, B, transpose_a, transpose_b);
+    return std::make_shared<ngraph::op::v0::MatMul>(A, B, transpose_a, transpose_b);
 }
 
 }  // namespace builder

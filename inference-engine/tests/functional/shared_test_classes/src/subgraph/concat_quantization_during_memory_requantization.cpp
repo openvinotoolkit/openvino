@@ -35,9 +35,9 @@ namespace SubgraphTestsDefinitions {
         auto input = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });
 
         auto mem_1_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_1_init);
-        auto mem_1_read = std::make_shared<ngraph::opset3::ReadValue>(mem_1_const, "memory_1");
+        auto mem_1_read = std::make_shared<ngraph::op::v3::ReadValue>(mem_1_const, "memory_1");
 
-        auto concat_1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ mem_1_read, input[0] }, 1);
+        auto concat_1 = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{ mem_1_read, input[0] }, 1);
         // Revert concat names to set the needed order of scale factors calculation
         concat_1->set_friendly_name("concat2");
         auto split_1 = ngraph::builder::makeVariadicSplit(concat_1, { inputSize, hiddenSize }, 1);
@@ -45,17 +45,17 @@ namespace SubgraphTestsDefinitions {
         auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize },
                                                                 CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.0f));
         auto mul = ngraph::builder::makeEltwise(split_1->output(1), mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
-        auto mem_1_write = std::make_shared<ngraph::opset3::Assign>(mul, "memory_1");
+        auto mem_1_write = std::make_shared<ngraph::op::v3::Assign>(mul, "memory_1");
 
         auto mem_2_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_2_init);
-        auto mem_2_read = std::make_shared<ngraph::opset3::ReadValue>(mem_2_const, "memory_2");
+        auto mem_2_read = std::make_shared<ngraph::op::v3::ReadValue>(mem_2_const, "memory_2");
 
-        auto concat_2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ mem_2_read, mul }, 1);
+        auto concat_2 = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{ mem_2_read, mul }, 1);
         // Revert concat names to set the needed order of scale factors calculation
         concat_2->set_friendly_name("concat1");
         auto split_2 = ngraph::builder::makeSplit(concat_2, ngPrc, 2, 1);
-        auto mem_2_write = std::make_shared<ngraph::opset3::Assign>(split_2->output(0), "memory_2");
-        auto sigm = std::make_shared<ngraph::opset1::Sigmoid>(split_2->output(1));
+        auto mem_2_write = std::make_shared<ngraph::op::v3::Assign>(split_2->output(0), "memory_2");
+        auto sigm = std::make_shared<ngraph::op::v0::Sigmoid>(split_2->output(1));
 
         mem_1_write->add_control_dependency(mem_1_read);
         sigm->add_control_dependency(mem_1_write);
@@ -80,7 +80,7 @@ namespace SubgraphTestsDefinitions {
         auto input = ngraph::builder::makeParams(ngPrc, { {1, inputSize} });
 
         auto mem_1_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_1_init);
-        auto concat_1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ mem_1_const, input[0] }, 1);
+        auto concat_1 = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{ mem_1_const, input[0] }, 1);
         auto split_1 = ngraph::builder::makeVariadicSplit(concat_1, { inputSize, hiddenSize }, 1);
 
         auto mul_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize },
@@ -88,9 +88,9 @@ namespace SubgraphTestsDefinitions {
         auto mul = ngraph::builder::makeEltwise(split_1->output(1), mul_const, ngraph::helpers::EltwiseTypes::MULTIPLY);
 
         auto mem_2_const = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{ 1, hiddenSize }, memory_2_init);
-        auto concat_2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ mem_2_const, mul }, 1);
+        auto concat_2 = std::make_shared<ngraph::op::v0::Concat>(ngraph::OutputVector{ mem_2_const, mul }, 1);
         auto split_2 = ngraph::builder::makeSplit(concat_2, ngPrc, 2, 1);
-        auto sigm = std::make_shared<ngraph::opset1::Sigmoid>(split_2->output(1));
+        auto sigm = std::make_shared<ngraph::op::v0::Sigmoid>(split_2->output(1));
 
         function = std::make_shared<ngraph::Function>(sigm, input, "concat_quant_during_memory_requant_nomemory");
     }

@@ -63,8 +63,8 @@ protected:
         const auto dsr0 = generateInputSubgraph();
 
         const auto outShapeDescriptorParam = m_patternGenerator(dsr0);
-        const auto reshape = ngraph::as_type_ptr<ngraph::opset3::Constant>(outShapeDescriptorParam)
-            ? std::make_shared<ngraph::opset3::Reshape>(dsr0, outShapeDescriptorParam, true)
+        const auto reshape = ngraph::as_type_ptr<ngraph::op::v0::Constant>(outShapeDescriptorParam)
+            ? std::make_shared<ngraph::op::v1::Reshape>(dsr0, outShapeDescriptorParam, true)
             : std::make_shared<ngraph::vpu::op::StaticShapeReshape>(dsr0, outShapeDescriptorParam, true);
 
         const auto outShapeOfReshape = std::make_shared<ngraph::vpu::op::OutShapeOfReshape>(dsr0->input_value(1), outShapeDescriptorParam, true);
@@ -83,8 +83,8 @@ private:
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{std::move(result)},
             ngraph::ParameterVector{
-                std::dynamic_pointer_cast<ngraph::opset3::Parameter>(input.get_input_node_shared_ptr(0)),
-                std::dynamic_pointer_cast<ngraph::opset3::Parameter>(input.get_input_node_shared_ptr(1))
+                std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(input.get_input_node_shared_ptr(0)),
+                std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(input.get_input_node_shared_ptr(1))
             },
             name);
     }
@@ -104,13 +104,13 @@ std::shared_ptr<ngraph::op::Op> generateStaticReshapePattern(std::shared_ptr<ngr
 }
 
 std::shared_ptr<ngraph::op::Op> generateDynamicReshapePattern(std::shared_ptr<ngraph::vpu::op::DynamicShapeResolver> dsr) {
-    const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(std::move(dsr));
-    const auto axis    = ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0});
-    const auto indices = ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0});
-    return std::make_shared<ngraph::opset3::Concat>(
+    const auto shapeOf = std::make_shared<ngraph::op::v0::ShapeOf>(std::move(dsr));
+    const auto axis    = ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {0});
+    const auto indices = ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {0});
+    return std::make_shared<ngraph::op::v0::Concat>(
         ngraph::OutputVector{
-            std::make_shared<ngraph::opset3::Gather>(shapeOf, indices, axis),
-            ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {-1})},
+            std::make_shared<ngraph::op::v1::Gather>(shapeOf, indices, axis),
+            ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {-1})},
         0);
 }
 

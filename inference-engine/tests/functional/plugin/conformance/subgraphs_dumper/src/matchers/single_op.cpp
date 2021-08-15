@@ -167,7 +167,7 @@ bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node,
 SingleOpMatcher::SingleOpMatcher() {
     default_configs = {
             std::make_shared<MatcherConfig<>>(std::vector<std::string>{}, std::vector<size_t>{0}),
-            std::make_shared<MatcherConfig<ngraph::opset6::FakeQuantize>>(std::vector<std::string>{},
+            std::make_shared<MatcherConfig<ngraph::op::v0::FakeQuantize>>(std::vector<std::string>{},
                                                                           std::vector<size_t>{0, 1, 2, 3, 4}),
             std::make_shared<MatcherConfig<
                     ngraph::op::v0::MatMul,

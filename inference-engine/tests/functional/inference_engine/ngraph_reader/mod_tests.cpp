@@ -68,9 +68,9 @@ TEST_F(NGraphReaderTests, ReadModNetwork) {
     Blob::Ptr weights;
     std::shared_ptr<ngraph::Function> f_ref{nullptr};
 
-    auto data_A = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{256, 56});
-    auto data_B = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{256, 56});
-    auto mod = std::make_shared<ngraph::opset1::Mod>(data_A, data_B);
+    auto data_A = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{256, 56});
+    auto data_B = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{256, 56});
+    auto mod = std::make_shared<ngraph::op::v1::Mod>(data_A, data_B);
     f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mod}, ngraph::ParameterVector{data_A, data_B});
 
     auto network = ie.ReadNetwork(modelV10, weights);

@@ -105,7 +105,7 @@ public:
             testValues.actual.dequantization3);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::op::v1::Convolution>({
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}}
             })
@@ -114,14 +114,14 @@ public:
         auto quantizationRestrictions = testValues.multiChannels ?
             std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
             std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0})
+                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::op::v1::Convolution>({0})
             });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation, quantizationRestrictions);
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::op::v0::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::op::v1::Convolution>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::PrecisionPropagationFunction::getReferenceWithNeighbors(
@@ -157,13 +157,13 @@ TEST_P(ConcatWithNeighborsWithConvolutionTransformation, CompareFunctions) {
     //auto res = compare_functions(referenceFunction, actualFunction, true, false, false);
     //ASSERT_TRUE(res.first) << res.second;
 
-    auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    auto actualFakeQuantizes = LayerTransformation::get<op::v0::FakeQuantize>(actualFunction);
     ASSERT_EQ(3ul, actualFakeQuantizes.size()) << "unexpected FakeQuantize operations count " << actualFakeQuantizes.size();
 
     ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
         "PrecisionsAttribute shared values are not the same";
 
-    auto actualConcatOperations = LayerTransformation::get<opset1::Concat>(actualFunction);
+    auto actualConcatOperations = LayerTransformation::get<op::v0::Concat>(actualFunction);
     ASSERT_EQ(2ul, actualConcatOperations.size()) << "unexpected concat operations";
     ASSERT_NE(nullptr, ngraph::pass::low_precision::getAttribute<std::shared_ptr<QuantizationAlignmentAttribute>>(actualConcatOperations[0]));
     ASSERT_NE(nullptr, ngraph::pass::low_precision::getAttribute<std::shared_ptr<QuantizationAlignmentAttribute>>(actualConcatOperations[1]));
@@ -172,7 +172,7 @@ TEST_P(ConcatWithNeighborsWithConvolutionTransformation, CompareFunctions) {
     ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(actualConcatOperations)) <<
         "IntervalsAlignmentAttribute shared values are not the same";
 
-    auto convolutions = LayerTransformation::get<opset1::Convolution>(actualFunction);
+    auto convolutions = LayerTransformation::get<op::v1::Convolution>(actualFunction);
     ASSERT_EQ(1ul, convolutions.size()) << "unexpected convolution operations";
     ASSERT_EQ(2ul, convolutions[0]->input(0).get_rt_info().size()) <<
         "unexpected input 0 attributes count: LowPrecision::PerTensorQuantization & LowPrecision::Precisions";
