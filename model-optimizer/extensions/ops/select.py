@@ -43,7 +43,7 @@ class Select(Op):
         assert output_shape is not None, 'Input shapes for node {} are not broadcast-able'.format(node_name)
         node.out_port(0).data.set_shape(output_shape)
 
-        if condition_value is not None and is_fully_defined(condition_value):
+        if condition_value is not None:
             if resulting_tensors[0] is not None:
                 resulting_tensors[0] = bi_directional_broadcasting(resulting_tensors[0], b_shape)
             if resulting_tensors[1] is not None:

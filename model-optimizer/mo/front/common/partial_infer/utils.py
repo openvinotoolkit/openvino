@@ -55,7 +55,7 @@ def compare_shapes(shape1, shape2):
 
 def strict_compare_tensors(tensor1, tensor2):
     """
-    Strict comparison of two tensors. The tensors are equal iff their corresponding dimensions are equal or both 
+    Strict comparison of two tensors. The tensors are equal iff their corresponding elements are equal or both are
     dynamic.
 
     :param tensor1: the first tensor to compare
