@@ -2,4 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-install(DIRECTORY . RENAME layer_tests_openvino DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+project(layer_tests)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/ DESTINATION layer_tests_openvino COMPONENT tests EXCLUDE_FROM_ALL)
