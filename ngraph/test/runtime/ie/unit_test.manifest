@@ -479,8 +479,6 @@ IE_CPU.onnx_roi_align_f32
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 not
-logical_xor
-logical_and
 gather_axis_0_bool
 auto_bcast_binary_elementwise
 auto_bcast_binary_elementwise_pdpd
