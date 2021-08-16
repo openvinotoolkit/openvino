@@ -3,11 +3,9 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset3.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -15,8 +13,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, non_zero_op_default)
-{
+TEST(attributes, non_zero_op_default) {
     NodeBuilder::get_ops().register_factory<opset3::NonZero>();
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<op::NonZero>(data_node);
@@ -28,8 +25,7 @@ TEST(attributes, non_zero_op_default)
     EXPECT_EQ(non_zero->get_output_type(), element::i64);
 }
 
-TEST(attributes, non_zero_op_i32)
-{
+TEST(attributes, non_zero_op_i32) {
     NodeBuilder::get_ops().register_factory<opset3::NonZero>();
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<op::NonZero>(data_node, element::i32);
@@ -41,9 +37,7 @@ TEST(attributes, non_zero_op_i32)
     EXPECT_EQ(non_zero->get_output_type(), element::i32);
 }
 
-
-TEST(attributes, non_zero_op_i32_string)
-{
+TEST(attributes, non_zero_op_i32_string) {
     NodeBuilder::get_ops().register_factory<opset3::NonZero>();
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<op::NonZero>(data_node, "i32");
@@ -55,8 +49,7 @@ TEST(attributes, non_zero_op_i32_string)
     EXPECT_EQ(non_zero->get_output_type(), element::i32);
 }
 
-TEST(attributes, non_zero_op_i64)
-{
+TEST(attributes, non_zero_op_i64) {
     NodeBuilder::get_ops().register_factory<opset3::NonZero>();
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<op::NonZero>(data_node, element::i64);
@@ -68,9 +61,7 @@ TEST(attributes, non_zero_op_i64)
     EXPECT_EQ(non_zero->get_output_type(), element::i64);
 }
 
-
-TEST(attributes, non_zero_op_i64_string)
-{
+TEST(attributes, non_zero_op_i64_string) {
     NodeBuilder::get_ops().register_factory<opset3::NonZero>();
     const auto data_node = make_shared<op::Parameter>(element::f32, Shape{1});
     const auto non_zero = make_shared<op::NonZero>(data_node, "i64");

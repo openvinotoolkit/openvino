@@ -53,7 +53,7 @@ from ngraph.opset1.ops import exp
 from ngraph.opset1.ops import fake_quantize
 from ngraph.opset1.ops import floor
 from ngraph.opset1.ops import floor_mod
-from ngraph.opset7.ops import gather
+from ngraph.opset8.ops import gather
 from ngraph.opset6.ops import gather_elements
 from ngraph.opset5.ops import gather_nd
 from ngraph.opset1.ops import gather_tree
