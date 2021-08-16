@@ -248,10 +248,6 @@ onnx_size_op_graph_middle
 shape_of_vector
 shape_of_matrix
 shape_of_5d
-numeric_float_nan
-numeric_float_inf
-numeric_double_nan
-numeric_double_inf
 
 fake_quantize_pdpd
 IE_GPU.fake_quantize
@@ -421,7 +417,6 @@ max_pool_2d_1channel_1image_overpadded
 grn_2d_with_bias
 erf
 divide_adjoint_stability
-equal
 notequal
 greater
 greatereq
@@ -484,9 +479,6 @@ IE_CPU.onnx_roi_align_f32
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 not
-logical_xor
-logical_or
-logical_and
 gather_axis_0_bool
 auto_bcast_binary_elementwise
 auto_bcast_binary_elementwise_pdpd
