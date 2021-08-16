@@ -33,8 +33,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, not)
-{
+NGRAPH_TEST(${BACKEND_NAME}, not) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::boolean, shape);
     auto f = make_shared<Function>(make_shared<op::v1::LogicalNot>(A), ParameterVector{A});
@@ -47,8 +46,7 @@ NGRAPH_TEST(${BACKEND_NAME}, not)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, not_i32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, not_i32) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::i32, shape);
     auto f = make_shared<Function>(make_shared<op::v1::LogicalNot>(A), ParameterVector{A});
