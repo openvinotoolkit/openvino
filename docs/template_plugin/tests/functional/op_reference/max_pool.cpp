@@ -317,7 +317,20 @@ INSTANTIATE_TEST_SUITE_P(
                       Strides{2, 2},  // strides: 2x2
                       Strides{1, 1},
                       Shape{},
-                      Shape{2, 1},    // pads_end: 2x1
-                      Shape{3, 3})),  // kernel: 3x3
+                      Shape{2, 1},  // pads_end: 2x1
+                      Shape{3, 3}),
+        MaxPoolParams(Shape{1, 2, 3, 3},
+                      element::i64,
+                      std::vector<int64_t>{0, -2, 24, 13, 7, -5, -4, 4, 21, -18, 81, 20, -15, 37, 23, 41, 18, 42},
+                      std::vector<int64_t>{13, 24, 13, 21, 81, 81, 41, 42},
+                      element::i64,
+                      std::vector<int64_t>{3, 2, 3, 8, 1, 1, 6, 8},
+                      Strides{1, 1},
+                      Strides{1, 1},
+                      Shape{},
+                      Shape{},
+                      Shape{2, 2},
+                      op::PadType::EXPLICIT,
+                      2)),  // axis: 2
 
     ReferenceMaxPoolLayerTest::getTestCaseName);

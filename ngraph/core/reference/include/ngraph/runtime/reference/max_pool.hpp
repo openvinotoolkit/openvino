@@ -170,7 +170,7 @@ void max_pool_1d(const Values_t* data,
 }
 
 template <typename T>
-struct Coord : public std::vector<T> { // TODO: switch to std::array with N meaning the number of dims
+struct Coord : public std::vector<T> {  // TODO: switch to std::array with N meaning the number of dims
     Coord(const Shape& pads_begin) {
         std::vector<T>::reserve(pads_begin.size());
         for (const auto axis_padding : pads_begin) {
@@ -194,13 +194,34 @@ bool elem_in_padding_area(const Coord<int>& kernel_position,
     return false;
 }
 
+template <typename T>
+Coord<T> next_kernel_position(Coord<T> kernel_position,
+                              const Shape& kernel,
+                              const Strides& kernel_strides,
+                              const Strides& kernel_dilations,
+                              const Shape& data_shape,
+                              const Shape& pads_begin,
+                              const Shape& pads_end) {
+    // move the kernel horizontally one stride to the right
+    kernel_position[1] += kernel_strides[1];
+
+    // if the top-right corner of the kernel is outside of the padding area,
+    // move it back to the left and one stride down
+    if (kernel_position[1] + (kernel[1] - 1) * kernel_dilations[1] >= data_shape[3] + pads_end[1]) {
+        kernel_position[1] = 0 - pads_begin[1];
+        kernel_position[0] += kernel_strides[0];
+    }
+
+    return kernel_position;
+}
+
 template <typename Values_t, typename Indices_t>
 void max_pool_2d(const Values_t* data,
                  Values_t* values,
                  Indices_t* indices,
                  const Shape& data_shape,
                  const Shape& out_shape,
-                 const Shape kernel,
+                 const Shape& kernel,
                  const Strides& kernel_strides,
                  const Strides& kernel_dilations,
                  const Shape& pads_begin,
@@ -218,6 +239,7 @@ void max_pool_2d(const Values_t* data,
         // find the max element in the area covered by a current position of the kernel
         for (size_t kernel_row = 0; kernel_row < kernel[0]; ++kernel_row) {
             for (size_t kernel_col = 0; kernel_col < kernel[1]; ++kernel_col) {
+                // offset from the top-left corner of the kernel for a given row and col
                 const Coord<size_t> kernel_offset{kernel_row * kernel_dilations[0], kernel_col * kernel_dilations[1]};
 
                 // ignore the elements in the padding area
@@ -225,12 +247,13 @@ void max_pool_2d(const Values_t* data,
                     continue;
                 }
 
-                const size_t data_elem_offset =
+                // index of the flattened tensor element under the current row & column of the kernel
+                const size_t data_elem_index =
                     data_shape[2] * (kernel_offset[0] + kernel_position[0]) + kernel_offset[1] + kernel_position[1];
 
-                if (data[data_elem_offset] > max_elem) {
-                    max_elem = data[data_elem_offset];
-                    max_elem_idx = data_elem_offset;
+                if (data[data_elem_index] > max_elem) {
+                    max_elem = data[data_elem_index];
+                    max_elem_idx = data_elem_index;
                 }
             }
         }
@@ -238,11 +261,13 @@ void max_pool_2d(const Values_t* data,
         values[out_idx] = max_elem;
         indices[out_idx] = max_elem_idx + indices_offset;
 
-        kernel_position[1] += kernel_strides[1];
-        if (kernel_position[1] + (kernel[1] - 1) * kernel_dilations[1] >= data_shape[3] + pads_end[1]) {
-            kernel_position[1] = 0 - pads_begin[1];
-            kernel_position[0] += kernel_strides[0];
-        }
+        kernel_position = next_kernel_position(kernel_position,
+                                               kernel,
+                                               kernel_strides,
+                                               kernel_dilations,
+                                               data_shape,
+                                               pads_begin,
+                                               pads_end);
     }
 }
 
