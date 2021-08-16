@@ -30,6 +30,26 @@ def check_python_version():
         return 1
 
 
+def get_imported_module_version(imported_module):
+    """
+    Get imported module version
+    :return: version(str) or raise AttributeError exception
+    """
+    version_attrs = ("__version__", "VERSION", "version")
+    installed_version = None
+    for attr in version_attrs:
+        installed_version = getattr(imported_module, attr, None)
+        if isinstance(installed_version, str):
+           return installed_version
+        else: 
+            installed_version = None
+
+    if installed_version is None:
+        raise AttributeError("{} module doesn't have version attribute".format(imported_module))
+    else:
+        return installed_version
+
+
 def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup):
     """
     Please do not add parameter type annotations (param:type).
@@ -210,7 +230,7 @@ def get_environment_setup(framework):
     try:
         if framework == 'tf':
             exec("import tensorflow")
-            env_setup['tensorflow'] = sys.modules["tensorflow"].__version__
+            env_setup['tensorflow'] = get_imported_module_version(sys.modules["tensorflow"])
             exec("del tensorflow")
     except (AttributeError, ImportError):
         pass
@@ -250,7 +270,7 @@ def check_requirements(framework=None):
         try:
             importable_name = modules.get(name, name)
             exec("import {}".format(importable_name))
-            installed_version = sys.modules[importable_name].__version__
+            installed_version = get_imported_module_version(sys.modules[importable_name])
             version_check(name, installed_version, required_version, key, not_satisfied_versions)
             exec("del {}".format(importable_name))
         except (AttributeError, ImportError):
