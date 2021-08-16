@@ -53,7 +53,7 @@ public:
 
     ie::IInferRequestInternal::Ptr CreateInferRequestImpl(ie::InputsDataMap networkInputs,
                                                          ie::OutputsDataMap networkOutputs) override {
-        if (!_isNetworkConstant && (_device == nullptr || !_device->isBooted())) {
+        if (_device == nullptr || !_device->isBooted()) {
             IE_THROW() << "Can not create infer request: there is no available devices with platform "
                                << _device->_platform;
         }
@@ -65,7 +65,7 @@ public:
     }
 
     ie::IInferRequestInternal::Ptr CreateInferRequest() override {
-        if (!_isNetworkConstant && (_device == nullptr || !_device->isBooted())) {
+        if (_device == nullptr || !_device->isBooted()) {
             IE_THROW() << "Can not create infer request: there is no available devices with platform "
                                << _device->_platform;
         }
@@ -84,15 +84,15 @@ public:
         model.write(_graphBlob.data(), _graphBlob.size());
     }
 
-    void Export(const std::string &modelFileName) override {
-        std::ofstream modelFile(modelFileName, std::ios::out | std::ios::binary);
+    // void Export(const std::string &modelFileName) override {
+    //     std::ofstream modelFile(modelFileName, std::ios::out | std::ios::binary);
 
-        if (modelFile.is_open()) {
-            Export(modelFile);
-        } else {
-            IE_THROW() << "The " << modelFileName << " file can not be opened for export";
-        }
-    }
+    //     if (modelFile.is_open()) {
+    //         Export(modelFile);
+    //     } else {
+    //         IE_THROW() << "The " << modelFileName << " file can not be opened for export";
+    //     }
+    // }
 
     ie::Parameter GetMetric(const std::string &name) const override;
 
@@ -108,7 +108,7 @@ private:
     DevicePtr _device;
     GraphMetaInfo _graphMetaData;
     PluginConfiguration _config;
-    bool _isNetworkConstant = false;
+    // bool _isNetworkConstant = false;
     const std::shared_ptr<ie::ICore> _core = nullptr;
     int _actualNumExecutors = 0;
     std::vector<std::string> _supportedMetrics;
@@ -121,6 +121,7 @@ private:
     std::queue<std::string> _taskExecutorGetResultIds;
 
     ExecutableNetwork(std::shared_ptr<IMvnc> mvnc,
+        std::vector<DevicePtr> &devicePool,
         const PluginConfiguration& config,
         const std::shared_ptr<ie::ICore> core);
 

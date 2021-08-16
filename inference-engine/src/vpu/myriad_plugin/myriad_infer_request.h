@@ -33,8 +33,8 @@ class MyriadInferRequest : public InferenceEngine::IInferRequestInternal {
     GraphDesc _graphDesc;
     std::vector<uint8_t> resultBuffer;
     std::vector<uint8_t> inputBuffer;
-    std::map<std::string, ie::Blob::Ptr> _constDatas;
-    bool _isNetworkConstant;
+        // std::map<std::string, ie::Blob::Ptr> _constDatas;
+        // bool _isNetworkConstant;
 
 public:
     typedef std::shared_ptr<MyriadInferRequest> Ptr;
@@ -47,9 +47,7 @@ public:
                                 const std::vector<StageMetaInfo> &blobMetaData,
                                 const PluginConfiguration &myriadConfig,
                                 const Logger::Ptr &log,
-                                const MyriadExecutorPtr &executor,
-                                std::map<std::string, ie::Blob::Ptr> constDatas,
-                                bool isNetworkConstant);
+                                const MyriadExecutorPtr &executor);
 
     void InferImpl() override;
     void InferAsync();
