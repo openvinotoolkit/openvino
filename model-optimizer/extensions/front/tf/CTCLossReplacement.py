@@ -20,7 +20,7 @@ class CTCLossReplacement(FrontReplacementSubgraph):
     enabled = True
 
     def run_before(self):
-        from extensions.front.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement
+        from extensions.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement
         return [CTCGreedyDecoderReplacement]
 
     def pattern(self):

@@ -133,8 +133,6 @@ extensions/front/caffe/split_to_identity.py
 extensions/front/caffe/tanh.py
 extensions/front/ChangePlaceholderTypes.py
 extensions/front/create_tensor_nodes.py
-extensions/front/CTCGreedyDecoderReplacement.py
-extensions/front/CTCLossReplacement.py
 extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
 extensions/front/DropoutWithRandomUniformReplacer.py
@@ -401,7 +399,9 @@ extensions/front/tf/CorrectRollAxes.py
 extensions/front/tf/crop_and_resize_ext.py
 extensions/front/tf/CropAndResizeReplacement.py
 extensions/front/tf/CTCGreedyDecoder_ext.py
+extensions/front/tf/CTCGreedyDecoderReplacement.py
 extensions/front/tf/CTCLoss_ext.py
+extensions/front/tf/CTCLossReplacement.py
 extensions/front/tf/cumsum_ext.py
 extensions/front/tf/deconv_ext.py
 extensions/front/tf/depth_to_space.py

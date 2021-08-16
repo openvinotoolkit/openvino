@@ -3,7 +3,7 @@
 
 import unittest
 
-from extensions.front.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement, \
+from extensions.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement, \
     CTCGreedyDecoderWithSparseToDenseShapeReplacement, CTCGreedyDecoderSingleReplacement
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs

@@ -19,7 +19,7 @@ def replace_ctc_greedy_decoder(graph: Graph, match: dict):
     sparse_to_dense_name = sparse_to_dense.soft_get('name', sparse_to_dense.id)
     ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
 
-    # for normalizing input channel need to transpose input data from [T, N, C] to [N, T, C]
+    # for normalizing input channel needs to transpose input data from [T, N, C] to [N, T, C]
     # which supported CTCGreedyDecoderSeqLen op.
     ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
                                                    {'name': ctc_greedy_decoder_tf_name + '/ctc_data_permute'})
@@ -45,8 +45,8 @@ def replace_ctc_greedy_decoder(graph: Graph, match: dict):
 
 class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
     """
-    TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by Inference Engine and
-    Inference Engine's CTCGreedyDecoderSeqLen has different output that is in a dense format. So this transformation
+    TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by Inference Engine, and
+    Inference Engine's CTCGreedyDecoderSeqLen has a different output that is in a dense format. So this transformation
     intents to replace TF CTCGreedyDecoder+SparseToDense where SparseToDense third input get from input parameter
     to CTCGreedyDecoderSeqLen which compatible with IE.
     """
@@ -70,8 +70,8 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
 
 class CTCGreedyDecoderWithSparseToDenseShapeReplacement(FrontReplacementSubgraph):
     """
-    TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by Inference Engine and
-    Inference Engine's CTCGreedyDecoderSeqLen has different output that is in a dense format. So this transformation
+    TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by Inference Engine, and
+    Inference Engine's CTCGreedyDecoderSeqLen has a different output that is in a dense format. So this transformation
     intents to replace TF CTCGreedyDecoder+SparseToDense where SparseToDense third input get from CTCGreedyDecoder
     second output to CTCGreedyDecoderSeqLen which compatible with IE.
     """
@@ -96,9 +96,9 @@ class CTCGreedyDecoderWithSparseToDenseShapeReplacement(FrontReplacementSubgraph
 
 class CTCGreedyDecoderSingleReplacement(FrontReplacementSubgraph):
     """
-    TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by Inference Engine and
-    Inference Engine's CTCGreedyDecoderSeqLen has different output that is in a dense format. So this transformation
-    handle single TF CTCGreedyDecoder and warns user about another format of output.
+    TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by Inference Engine, and
+    Inference Engine's CTCGreedyDecoderSeqLen has a different output that is in a dense format. So this transformation
+    handles a single TF CTCGreedyDecoder and warns the user about another format of the output
     """
     enabled = True
 
@@ -115,7 +115,7 @@ class CTCGreedyDecoderSingleReplacement(FrontReplacementSubgraph):
         ctc_greedy_decoder_tf = match['decoder']
         ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
 
-        # for normalizing input channel need to transpose input data from [T, N, C] to [N, T, C]
+        # for normalizing input channel needs to transpose input data from [T, N, C] to [N, T, C]
         # which supported CTCGreedyDecoderSeqLen op.
         log.warning('Found CTCGreedyDecoder operation at the end of network. '
                     'PLEASE NOTE, appropriate network output will have dense format, not sparse format')
@@ -130,6 +130,6 @@ class CTCGreedyDecoderSingleReplacement(FrontReplacementSubgraph):
         ctc_data_permute.out_port(0).connect(ctc_greedy_decoder_tf.in_port(0))
 
         if ctc_greedy_decoder_tf.out_port(1).disconnected():
-            # Create Result operation and connect in to second output if it is not connected to any  other operation
+            # Create Result operation and connect it to the second output if it is not connected to any  other operation
             second_result = Result(graph, {'name': ctc_greedy_decoder_tf_name + '/seq_lengths_output'}).create_node()
             ctc_greedy_decoder_tf.out_port(1).connect(second_result.in_port(0))
