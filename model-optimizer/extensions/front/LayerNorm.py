@@ -89,7 +89,7 @@ class LayerNorm(FrontReplacementPattern):
         pow_param = match['pow_param']
         add_param = match['add_param']
         if add_param.value.size == 1 and pow_param.value.size == 1 and add_param.value.item() <= 1e-05 \
-                and pow_param.value.item() == 0.5 and match['pool0_param'].value == match['pool1_param'].value:
+                and pow_param.value.item() == 0.5 and (match['pool0_param'].value == match['pool1_param'].value).all():
             log.debug('Found LayerNorm pattern after {} with name {}'.format(node_before.op, node_before_name))
             mvn = create_op_with_const_inputs(graph, MVN, {1: match['pool1_param'].value},
                                               {'eps': add_param.value.item(), 'normalize_variance': 1,
