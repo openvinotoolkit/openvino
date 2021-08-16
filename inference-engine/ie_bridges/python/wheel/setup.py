@@ -120,9 +120,9 @@ class CustomBuild(build):
 
     cmake_build_types = ['Release', 'Debug', 'RelWithDebInfo', 'MinSizeRel']
     user_options = [
-        ('config=', None, 'Build configuration [{}].'.format('|'.join(cmake_build_types))),
+        ('config=', None, 'Build configuration [{types}].'.format(types='|'.join(cmake_build_types))),
         ('jobs=', None, 'Specifies the number of jobs to use with make.'),
-        ('cmake-args=', None, 'Additional options to be passed to CMake.')
+        ('cmake-args=', None, 'Additional options to be passed to CMake.'),
     ]
 
     def initialize_options(self):
@@ -151,7 +151,7 @@ class CustomBuild(build):
                 self.debug = True if 'Debug' == self.config else False
             except ValueError:
                 self.announce('Unsupported CMAKE_BUILD_TYPE value: ' + self.config, level=4)
-                self.announce('Supported values: {}'.format(', '.join(self.cmake_build_types)), level=4)
+                self.announce('Supported values: {types}'.format(types=', '.join(self.cmake_build_types)), level=4)
                 sys.exit(1)
         if self.jobs is None and os.getenv('MAX_JOBS') is not None:
             self.jobs = os.getenv('MAX_JOBS')
@@ -161,22 +161,22 @@ class CustomBuild(build):
     def run(self):
         global CMAKE_BUILD_DIR
         self.jobs = multiprocessing.cpu_count()
-        plat_specifier = '.%s-%d.%d' % (self.plat_name, *sys.version_info[:2])
+        plat_specifier = '.{0}-{1}.{2}'.format(self.plat_name, *sys.version_info[:2])
         self.build_temp = os.path.join(self.build_base, 'temp' + plat_specifier, self.config)
 
         # if setup.py is directly called use CMake to build product
         if CMAKE_BUILD_DIR == '.':
-            OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(CMAKE_BUILD_DIR, '../../../../'))
+            openvino_root_dir = os.path.normpath(os.path.join(CMAKE_BUILD_DIR, '../../../../'))
             self.announce('Configuring cmake project', level=3)
 
-            self.spawn(['cmake', '-H' + OPENVINO_ROOT_DIR, '-B' + self.build_temp,
-                    '-DCMAKE_BUILD_TYPE={}'.format(self.config),
-                    '-DENABLE_PYTHON=ON',
-                    '-DNGRAPH_ONNX_FRONTEND_ENABLE=ON'])
+            self.spawn(['cmake', '-H' + openvino_root_dir, '-B' + self.build_temp,
+                        '-DCMAKE_BUILD_TYPE={type}'.format(type=self.config),
+                        '-DENABLE_PYTHON=ON',
+                        '-DNGRAPH_ONNX_FRONTEND_ENABLE=ON'])
 
             self.announce('Building binaries', level=3)
             self.spawn(['cmake', '--build', self.build_temp,
-                    '--config', self.config, '-j', str(self.jobs)])
+                        '--config', self.config, '-j', str(self.jobs)])
             CMAKE_BUILD_DIR = self.build_temp
 
         self.run_command('build_clib')
