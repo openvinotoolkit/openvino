@@ -9,7 +9,6 @@ jobs:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    WORKERS_NUMBER: 8
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     ONNXRUNTIME_REPO_DIR: $(REPO_DIR)/../onnxruntime
