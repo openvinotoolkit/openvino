@@ -62,9 +62,9 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
     } else if (deviceName_.find("MULTI:") == 0) {
         deviceName_ = "MULTI";
         config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
-    } else if (deviceName_.find("AUTO") == 0) {
+    } else if (deviceName.find("AUTO") == 0) {
         deviceName_ = "MULTI";
-        if (deviceName_.find("AUTO:") == 0) {
+        if (deviceName.find("AUTO:") == 0) {
             config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] =
                 deviceName.substr(std::string("AUTO:").size());
         }
