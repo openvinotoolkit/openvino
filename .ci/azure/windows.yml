@@ -111,13 +111,18 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" /mon=$(BUILD_DIR)\BUILD-OpenVINO-IB.xml
+      call "$(MSVS_VARS_PATH)" && "$(IB_DIR)\BuildConsole.exe" /COMMAND="ninja" /LogLevel="3" /mon=$(BUILD_DIR)\BUILD-OpenVINO-IB.xml
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
     continueOnError: true
 
+  - publish: $(IB_DIR)\Logs
+    artifact: IB-Logs
+    continueOnError: true
+
   - publish: $(BUILD_DIR)\BUILD-OpenVINO-IB.xml
     artifact: BUILD-OpenVINO-IB.xml
+    continueOnError: true
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files'
