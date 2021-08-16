@@ -7,17 +7,16 @@
 **Short description**: *ScatterUpdate* creates a copy of the first input tensor with updated elements specified with second and third input tensors.
 
 **Detailed description**: *ScatterUpdate* creates a copy of the first input tensor with updated elements in positions specified with `indices` input
-and values specified with `updates` tensor starting from the dimension with index `axis`. For the `data` tensor of shape `[d_0, d_1, ..., d_n]`,
-`indices` tensor of shape `[i_0, i_1, ..., i_k]` and `updates` tensor of shape
-`[d_0, d_1, ... d_(axis - 1), i_0, i_1, ..., i_k, d_(axis + 1), ..., d_n]` the operation computes
-for each `m, n, ..., p` of the `indices` tensor indices:
+and values specified with `updates` tensor starting from the dimension with index `axis`. For the `data` tensor of shape \f$[d_0, d_1, \dots, d_n]\f$,
+`indices` tensor of shape \f$[i_0, i_1, \dots, i_k]\f$ and `updates` tensor of shape
+\f$[d_0, d_1, \dots, d_{axis - 1}, i_0, i_1, \dots, i_k, d_{axis + 1}, \dots, d_n]\f$ the operation computes
+for each \f$m,\;n,\;\dots,\;p\f$ of the `indices` tensor indices:
 
-```
-data[..., indices[m, n, ..., p], ...] = updates[..., m, n, ..., p, ...]
-```
 
-where first `...` in the `data` corresponds to first `axis` dimensions, last `...` in the `data` corresponds to the
-`rank(data) - (axis + 1)` dimensions.
+\f[data[\dots,\;indices[m,\;n,\;\dots,\;p],\;\dots] = updates[\dots,\;m,\;n,\;\dots,\;p,\;\dots]\f]
+
+where first \f$\dots\f$ in the `data` corresponds to first `axis` dimensions, last\f$\dots\f$ in the `data` corresponds to the
+\f$rank(data) - (axis + 1)\f$ dimensions.
 
 Several examples for case when `axis = 0`:
 1. `indices` is a \f$0\f$D tensor: \f$data[indices, \dots] = updates[\dots]\f$
