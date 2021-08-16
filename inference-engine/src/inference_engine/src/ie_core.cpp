@@ -171,8 +171,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         std::vector<FileUtils::FilePath> listOfExtentions;
     };
 
-    std::unordered_set<std::string> opsetNames;
-    std::vector<ie::IExtensionPtr> extensions;
+    mutable std::unordered_set<std::string> opsetNames;
+    mutable std::vector<ie::IExtensionPtr> extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -411,8 +411,6 @@ public:
                     listOfExtentions.push_back(extensionLocation);
                 }
             }
-
-            TryToRegisterLibraryAsExtensionUnsafe(pluginPath);
 
             // fill value in plugin registry for later lazy initialization
             {
@@ -692,7 +690,11 @@ public:
                     });
                 }
 
-                return plugins.emplace(deviceName, plugin).first->second;
+                auto reault = plugins.emplace(deviceName, plugin).first->second;
+
+                TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
+
+                return result;
             } catch (const ie::Exception& ex) {
                 IE_THROW() << "Failed to create plugin " << FileUtils::fromFilePath(desc.libraryLocation)
                            << " for device " << deviceName << "\n"
@@ -743,8 +745,6 @@ public:
             if (FileUtils::fileExist(absFilePath))
                 pluginPath = absFilePath;
         }
-
-        TryToRegisterLibraryAsExtensionUnsafe(pluginPath);
 
         PluginDescriptor desc = {pluginPath, {}, {}};
         pluginRegistry[deviceName] = desc;
@@ -822,7 +822,7 @@ public:
         AddExtensionUnsafe(extension);
     }
 
-    void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) {
+    void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const {
         std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
         for (const auto& it : opsets) {
             if (opsetNames.find(it.first) != opsetNames.end())
@@ -892,7 +892,7 @@ public:
 
 private:
     template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
-    void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) {
+    void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) const {
         try {
             const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(path);
             AddExtensionUnsafe(extension_ptr);
