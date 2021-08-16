@@ -189,8 +189,8 @@ Standard TensorFlow\* operations:
 | Cos | No |
 | Cosh | No |
 | CropAndResize | "method" = "bilinear" only |
-| CTCGreedyDecoder | No |
-| CTCLoss | No |
+| CTCGreedyDecoder | Supported only with decoded indices output in a dense format |
+| CTCLoss | Supported only with decoded indices input in a dense format |
 | CumSum | No |
 | DepthToSpace| No |
 | DepthwiseConv2dNative| No |
@@ -228,7 +228,7 @@ Standard TensorFlow\* operations:
 | IFFT | Supported only when it is part of a sub-graph of the special form |
 | IFFT2D | Supported only when it is part of a sub-graph of the special form |
 | IFFT3D | Supported only when it is part of a sub-graph of the special form |
-| IteratorGetNext | No |
+| IteratorGetNext | Supported only when it is part of a sub-graph of the special form |
 | LRN | No |
 | LeakyRelu | No |
 | Less | No |
@@ -239,7 +239,7 @@ Standard TensorFlow\* operations:
 | LogicalOr | No |
 | LogicalNot | No |
 | LogSoftmax | No |
-| LookupTableInsertV2 | No |
+| LookupTableInsertV2 | Supported only when it is part of a sub-graph of the special form |
 | LoopCond | Supported only when it is fused to the TensorIterator layer |
 | MatMul | No |
 | Max | No |
@@ -280,7 +280,7 @@ Standard TensorFlow\* operations:
 | ResizeNearestNeighbor | No |
 | ResourceGather| No |
 | ReverseSequence | No |
-| ReverseV2 | No |
+| ReverseV2 | Supported only when can be converted to ReverseSequence operation |
 | Roll | No |
 | Round | No |
 | Pow | No |
@@ -297,9 +297,9 @@ Standard TensorFlow\* operations:
 | Softsign | No |
 | SpaceToBatchND | No |
 | SpaceToDepth | No |
-| SparseFillEmptyRows | No |
-| SparseReshape | No |
-| SparseSegmentSum | No |
+| SparseFillEmptyRows | Supported only when it is part of a sub-graph of the special form |
+| SparseReshape | Supported only when it is part of a sub-graph of the special form |
+| SparseSegmentSum | Supported only when it is part of a sub-graph of the special form |
 | SparseToDense | CPU only |
 | Split | No |
 | SplitV | No |
@@ -327,7 +327,6 @@ Standard TensorFlow\* operations:
 | Tile | No |
 | TopkV2 | No |
 | Transpose | No |
-| Unique | No |
 | Unpack | No |
 | Variable | No |
 | VariableV2 | No |
@@ -484,7 +483,7 @@ Standard ONNX\* operators:
 | Asinh | No |
 | Atan | No |
 | Atanh | No |
-| ATen | No |
+| ATen | Supported only for 'embedding_bag' operator |
 | AveragePool | No |
 | BatchMatMul | No |
 | BatchNormalization | No |
@@ -511,8 +510,12 @@ Standard ONNX\* operators:
 | Erf | No |
 | Exp | No |
 | Expand | No |
-| ExperimentalDetectronGroupNorm | No |
-| ExperimentalDetectronROIFeatureExtractor | No |
+| ExperimentalDetectronDetectionOutput (Intel experimental) | No |
+| ExperimentalDetectronGenerateProposalsSingleImage (Intel experimental) | No |
+| ExperimentalDetectronGroupNorm (Intel experimental) | No |
+| ExperimentalDetectronPriorGridGenerator (Intel experimental) | No |
+| ExperimentalDetectronROIFeatureExtractor (Intel experimental) | No |
+| ExperimentalDetectronTopKROIs (Intel experimental) | No |
 | FakeQuantize (Intel experimental) | No |
 | Fill | No |
 | Flatten | No |
