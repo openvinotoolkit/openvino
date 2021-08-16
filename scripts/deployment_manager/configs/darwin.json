@@ -46,8 +46,6 @@
       "dependencies" : ["ie_core"],
       "files": [
         "deployment_tools/inference_engine/lib/intel64/libmyriadPlugin.so",
-        "deployment_tools/inference_engine/lib/intel64/myriad_compile",
-        "deployment_tools/inference_engine/lib/intel64/myriad_perfcheck",
         "deployment_tools/inference_engine/lib/intel64/libinference_engine_legacy.dylib",
         "deployment_tools/inference_engine/lib/intel64/usb-ma2x8x.mvcmd",
         "deployment_tools/inference_engine/lib/intel64/pcie-ma2x8x.mvcmd"

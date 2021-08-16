@@ -6,6 +6,7 @@
 #include "mkldnn_node.h"
 #include "mkldnn_extension_utils.h"
 #include <blob_factory.hpp>
+#include <nodes/mkldnn_input_node.h>
 
 using namespace mkldnn;
 namespace MKLDNNPlugin {
@@ -66,8 +67,13 @@ void MKLDNNEdge::drop() {
 
 
 bool MKLDNNEdge::needReorder() {
+    if (!getInputDesc().isCompatible(getOutputDesc())) {
+        return true;
+    }
+
     bool canBeInPlaceConflicts = false;
-    auto parentSPD = getParent()->getSelectedPrimitiveDescriptor();
+    auto parentNode = getParent();
+    auto parentSPD = parentNode->getSelectedPrimitiveDescriptor();
     auto childSPD = getChild()->getSelectedPrimitiveDescriptor();
     if (!parentSPD || !childSPD)
         IE_THROW() << "Cannot make a decision about reorder. Primitive descriptors weren't selected.";
@@ -96,10 +102,10 @@ bool MKLDNNEdge::needReorder() {
         return count;
     };
 
-    const auto portChildEdges = getParent()->getChildEdgesAtPort(inNumber);
+    const auto portChildEdges = parentNode->getChildEdgesAtPort(inNumber);
     if (in_place && childCanChangeMem && portChildEdges.size() > 1 && detectInPlaceChildrenNum(portChildEdges) > 1)
         canBeInPlaceConflicts = true;
-    if (!canBeInPlaceConflicts && in_place && !getParent()->getChildEdges().empty()) {
+    if (!canBeInPlaceConflicts && in_place && !parentNode->getChildEdges().empty()) {
         for (auto &p_edge_peer : portChildEdges) {
             if (p_edge_peer.get() == this)
                 continue;
@@ -113,7 +119,27 @@ bool MKLDNNEdge::needReorder() {
             outNumber >= 0 && outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace >= 0)
             canBeInPlaceConflicts = true;
     }
-    return canBeInPlaceConflicts || !getInputDesc().isCompatible(getOutputDesc());
+
+    if (canBeInPlaceConflicts) {
+        return true;
+    }
+
+    // In case the parent node is an input constant, the memory is unaligned and the child primitive isa is SSE,
+    // we have to insert reorder since the vast majority of arithmetic and data processing instructions in legacy SSE isa requires
+    // the memory address in the operands must be aligned on 16-byte boundary.
+    if ((childSPD->getImplementationType() & impl_desc_type::sse42) &&
+        Type::Input == parentNode->getType() &&
+        parentNode->isConstant()) {
+        if (auto pInputNode = std::dynamic_pointer_cast<MKLDNNInputNode>(parentNode)) {
+            auto rawMemPtr = pInputNode->getMemoryPtr()->GetData();
+            bool isAligned = (reinterpret_cast<uintptr_t>(rawMemPtr) & 15) == 0;
+            if (!isAligned) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
