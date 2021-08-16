@@ -886,7 +886,7 @@ void MKLDNNGraph::SortTopologically() {
             for (int i = 0; i < node->parentEdges.size(); i++) {
                 auto edge = node->getParentEdgeAt(i);
                 int port = edge->getOutputNum();
-                if (!res[port])
+                if (port < port_num && !res[port])
                     res[port] = edge;
                 else
                     res.push_back(edge);
@@ -900,7 +900,7 @@ void MKLDNNGraph::SortTopologically() {
             for (int i = 0; i < node->childEdges.size(); i++) {
                 auto edge = node->getChildEdgeAt(i);
                 int port = edge->getInputNum();
-                if (!res[port])
+                if (port < port_num && !res[port])
                     res[port] = edge;
                 else
                     res.push_back(edge);
