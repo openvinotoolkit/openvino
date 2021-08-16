@@ -1573,18 +1573,6 @@ gather_v7_axis_0_bool
 gather_v7_3d_indices_axis_1_batch_dims_1_int32
 gather_v7_4d_data_axis_2_batch_dims_1_int32
 
-# RandomUniform is not implemented yet for CPU, GPU
-random_uniform_float32_case1
-random_uniform_float16_case1
-random_uniform_double_case1
-random_uniform_float32_case2
-random_uniform_float16_case2
-random_uniform_double_case2
-random_uniform_int32
-random_uniform_int64
-random_uniform_bfloat16_case1
-random_uniform_bfloat16_case2
-
 # Issue 49621: Incorrect blob sizes for node BinaryConvolution_X
 bin_convolution_2D_1batch_1channel
 bin_convolution_2D_1batch_1channel_padding_pad_val_0

@@ -177,7 +177,6 @@ set(SRC
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
     type_prop/prior_box_clustered.cpp
-    type_prop/random_uniform.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
@@ -283,7 +282,6 @@ set(SRC
     visitors/op/prior_box_clustered.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
-    visitors/op/random_uniform.cpp
     visitors/op/reduce_l1.cpp
     visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
@@ -469,7 +467,6 @@ set(MULTI_TEST_SRC
     backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
-    backend/random_uniform.in.cpp
     backend/range.in.cpp
     backend/recurrent_cells.in.cpp
     backend/reduce_l1.in.cpp

@@ -59,7 +59,6 @@
 #include <ngraph/runtime/reference/prior_box.hpp>
 #include <ngraph/runtime/reference/proposal.hpp>
 #include <ngraph/runtime/reference/psroi_pooling.hpp>
-#include <ngraph/runtime/reference/random_uniform.hpp>
 #include <ngraph/runtime/reference/region_yolo.hpp>
 #include <ngraph/runtime/reference/reorg_yolo.hpp>
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
