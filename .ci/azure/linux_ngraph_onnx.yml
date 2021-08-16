@@ -4,17 +4,13 @@ jobs:
     matrix:
       Release:
         BUILD_TYPE: 'Release'
-        PROTOBUF_LITE: 'OFF'
+        PROTOBUF_LITE: 'ON'
         TOX_COMMAND: 'tox && tox -e zoo_models'
       Debug:
         BUILD_TYPE: 'Debug'
-        PROTOBUF_LITE: 'OFF'
-        TOX_COMMAND: 'tox'
-      Protobuf_lite:
-        BUILD_TYPE: 'Release'
         PROTOBUF_LITE: 'ON'
-        TOX_COMMAND: 'tox && tox -e zoo_models'
-    maxParallel: 3
+        TOX_COMMAND: 'tox'
+    maxParallel: 2
 
   # About 300% of total time
   timeoutInMinutes: 90
