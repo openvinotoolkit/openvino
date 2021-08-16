@@ -169,9 +169,6 @@ void max_pool_1d(const Values_t* data,
     }
 }
 
-// TODO:
-// bool elem_in_padding_area(Coordinate kernel_pos)
-
 template <typename T>
 struct Coord : public std::vector<T> {
     Coord(const Shape& pads_begin) {
@@ -183,6 +180,19 @@ struct Coord : public std::vector<T> {
 
     Coord(std::initializer_list<T>&& values) : std::vector<T>{std::move(values)} {}
 };
+
+bool elem_in_padding_area(const Coord<int>& kernel_position,
+                          const Coord<size_t>& kernel_offset,
+                          const Shape& data_shape) {
+    for (size_t dim = 0; dim < data_shape.size() - 2; ++dim) {
+        if (kernel_position[dim] + kernel_offset[dim] < 0 ||
+            kernel_position[dim] + kernel_offset[dim] >= data_shape[dim + 2]) {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 template <typename Values_t, typename Indices_t>
 void max_pool_2d(const Values_t* data,
@@ -209,13 +219,9 @@ void max_pool_2d(const Values_t* data,
         for (size_t kernel_row = 0; kernel_row < kernel[0]; ++kernel_row) {
             for (size_t kernel_col = 0; kernel_col < kernel[1]; ++kernel_col) {
                 const Coord<size_t> kernel_offset{kernel_row * kernel_dilations[0], kernel_col * kernel_dilations[1]};
-                // ignore elements in pads_begin area
-                if (kernel_position[0] + kernel_offset[0] < 0 || kernel_position[1] + kernel_offset[1] < 0) {
-                    continue;
-                }
-                // ignore elements in pads_end area
-                if (kernel_position[0] + kernel_offset[0] >= data_shape[2] ||
-                    kernel_position[1] + kernel_offset[1] >= data_shape[3]) {
+
+                // ignore the elements in the padding area
+                if (elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
                     continue;
                 }
 
@@ -233,7 +239,7 @@ void max_pool_2d(const Values_t* data,
         indices[out_idx] = max_elem_idx + indices_offset;
 
         kernel_position[1] += kernel_strides[1];
-        if (kernel_position[1] >= out_shape[3]) {
+        if (kernel_position[1] + kernel[1] * kernel_dilations[1] > data_shape[3]) {
             kernel_position[1] = 0 - pads_begin[1];
             kernel_position[0] += kernel_strides[0];
         }
