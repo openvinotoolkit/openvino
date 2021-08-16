@@ -157,7 +157,6 @@ class CustomBuild(build):
             self.jobs = os.getenv('MAX_JOBS')
         self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
 
-
     def run(self):
         global CMAKE_BUILD_DIR
         self.jobs = multiprocessing.cpu_count()
