@@ -6,7 +6,6 @@
 
 #include "ngraph/op/op.hpp"
 
-
 namespace ngraph {
 namespace op {
 namespace v4 {
