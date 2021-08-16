@@ -30,3 +30,5 @@ addIeTargetTest(
         LABELS
             CPU
 )
+
+set_ie_threading_interface_for(${TARGET_NAME})
