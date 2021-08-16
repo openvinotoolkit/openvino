@@ -173,10 +173,6 @@ bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
     return (isGnaLibVersion3_0 || isGnaLibVersion2_1) && isUpTo20HwGnaDevice(compileTargetDevice);
 }
 
-namespace {
-    const volatile auto Gna2DeviceVersion3_0 = static_cast<Gna2DeviceVersion>(0x30);
-} // namespace
-
 Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const bool execTarget) const {
     auto parsed = Gna2DeviceVersion2_0;
     auto throwUnsupportedGnaTarget = [&](std::string extraSuffix) {
@@ -217,7 +213,12 @@ uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
     // (bit exactly) as on the selected GNA execution target generation.
     // See the GNA Plugin's GNA_EXEC_TARGET config option description.
     if (swExactMode) {
-        const auto consistentDevice = getTargetDevice(true);
+        Gna2DeviceVersion consistentDevice;
+        if (useDeviceEmbeddedExport) {
+            consistentDevice = Gna2DeviceVersionEmbedded1_0;
+        } else {
+            consistentDevice = getTargetDevice(true);
+        }
         status = Gna2RequestConfigEnableHardwareConsistency(reqConfId, consistentDevice);
         checkGna2Status(status, "Gna2RequestConfigEnableHardwareConsistency(" + std::to_string(static_cast<long>(consistentDevice)) + ")");
     }
@@ -507,8 +508,14 @@ void GNADeviceHelper::open(uint8_t n_threads) {
     auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &detectedGnaDevVersion);
     checkGna2Status(status, "Gna2DeviceGetVersion");
 
-    status = Gna2DeviceOpen(nGnaDeviceIndex);
-    checkGna2Status(status, "Gna2DeviceOpen");
+    if (useDeviceEmbeddedExport) {
+        status = Gna2DeviceCreateForExport(exportGeneration, &nGnaDeviceIndex);
+        GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport");
+    } else {
+        status = Gna2DeviceOpen(nGnaDeviceIndex);
+        checkGna2Status(status, "Gna2DeviceOpen");
+    }
+
     // TODO: GNA2: uncomment when scratchpad repaired
     // status = Gna2DeviceSetNumberOfThreads(nGnaDeviceIndex, n_threads);
     // checkGna2Status(status);
