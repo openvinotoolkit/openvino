@@ -170,7 +170,7 @@ void max_pool_1d(const Values_t* data,
 }
 
 template <typename T>
-struct Coord : public std::vector<T> {
+struct Coord : public std::vector<T> { // TODO: switch to std::array with N meaning the number of dims
     Coord(const Shape& pads_begin) {
         std::vector<T>::reserve(pads_begin.size());
         for (const auto axis_padding : pads_begin) {
@@ -226,7 +226,7 @@ void max_pool_2d(const Values_t* data,
                 }
 
                 const size_t data_elem_offset =
-                    data_shape[2] * (kernel_row + kernel_position[0]) + kernel_offset[1] + kernel_position[1];
+                    data_shape[2] * (kernel_offset[0] + kernel_position[0]) + kernel_offset[1] + kernel_position[1];
 
                 if (data[data_elem_offset] > max_elem) {
                     max_elem = data[data_elem_offset];
@@ -239,7 +239,7 @@ void max_pool_2d(const Values_t* data,
         indices[out_idx] = max_elem_idx + indices_offset;
 
         kernel_position[1] += kernel_strides[1];
-        if (kernel_position[1] + kernel[1] * kernel_dilations[1] > data_shape[3]) {
+        if (kernel_position[1] + (kernel[1] - 1) * kernel_dilations[1] >= data_shape[3] + pads_end[1]) {
             kernel_position[1] = 0 - pads_begin[1];
             kernel_position[0] += kernel_strides[0];
         }
