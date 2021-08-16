@@ -3,6 +3,7 @@
 //
 
 #include "primitive_inst.h"
+#include "impls/ocl/primitive_base.hpp"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "generic_layer_inst.h"
@@ -24,6 +25,27 @@
 #include <algorithm>
 
 namespace cldnn {
+
+bool is_user_cpu(const program_node* user) {
+    if (user->can_be_optimized()) {
+        auto users = user->get_users();
+        for (const auto& u : users) {
+            if (is_user_cpu(u)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    return user->get_selected_impl()->is_cpu();
+}
+
+bool is_any_user_cpu(const std::list<const program_node*>& users) {
+    for (const auto& user : users) {
+        if (is_user_cpu(user))
+            return true;
+    }
+    return false;
+}
 
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
@@ -170,8 +192,10 @@ memory::ptr primitive_inst::allocate_output() {
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     auto use_lockable_memory = _node.is_output() || _node.get_selected_impl()->is_cpu()
                                || std::any_of(_node.get_users().begin(), _node.get_users().end(),
-                                              [](const program_node* n) {return n->get_selected_impl()->is_cpu() || n->can_be_optimized(); })
-                               || !engine.supports_allocation(allocation_type::usm_device);
+                                              [](const program_node* n) {
+                                     return n->get_selected_impl()->is_cpu() || is_any_user_cpu(n->get_users());
+                                  }) || !engine.supports_allocation(allocation_type::usm_device);
+
     allocation_type alloc_type = use_lockable_memory ?
                                  engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d())
                                                      : allocation_type::usm_device;

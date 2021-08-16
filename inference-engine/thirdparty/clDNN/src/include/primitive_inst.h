@@ -21,6 +21,9 @@
 
 namespace cldnn {
 
+// checks if any user in a list is a cpu primitive
+bool is_any_user_cpu(const std::list<const program_node*>& users);
+
 class primitive_inst;
 
 template <class PType>
@@ -43,6 +46,7 @@ struct primitive_impl {
         : _weights_reorder_params(params), _kernel_name(kernel_name) {}
     virtual ~primitive_impl() = default;
 
+    virtual void allocate_internal_buffers(primitive_inst& instance) = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     virtual bool validate(const primitive_inst& instance) const = 0;
@@ -111,6 +115,13 @@ public:
     event::ptr execute(const std::vector<event::ptr>& events);
     void init_kernels();
     void set_arguments();
+
+    void allocate_internal_buffers() {
+        if (_impl) {
+            _impl->allocate_internal_buffers(*this);
+        }
+    }
+
     bool validate() const {
         if (_impl == nullptr)
             throw std::invalid_argument("[Internal cldnn error].  Validation method for nullptr impl is not allowed.");
@@ -207,6 +218,17 @@ private:
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
+    void allocate_internal_buffers(primitive_inst& instance) override {
+        if (instance.type() != PType::type_id())
+            throw std::invalid_argument("Implementation type does not match primitive type");
+        if (instance.get_impl() != this)
+            throw std::invalid_argument(
+                "Trying to allocate internal buffers for primitive implementation with mismatching primitive instance");
+        return allocate_internal_buffers_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
+    }
+
+    virtual void allocate_internal_buffers_impl(typed_primitive_inst<PType>&) {}
+
     void set_arguments(primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
@@ -216,7 +238,6 @@ private:
 
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
-
 
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
     virtual event::ptr execute_impl(const std::vector<event::ptr>& event,

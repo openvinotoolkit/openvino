@@ -843,7 +843,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node) {
         const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
         preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
     }
-
     return preferred_impl;
 }
 

@@ -167,6 +167,7 @@ public:
                            const std::vector<event::ptr>& events);
     void allocate_primitives();
     void build_insts_deps();
+    void allocate_internal_buffers();
     uint32_t get_id() const { return net_id; }
     stream& get_stream() const { return *_stream; }
     stream::ptr get_stream_ptr() const { return _stream; }
