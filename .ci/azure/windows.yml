@@ -111,7 +111,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "$(IB_DIR)\BuildConsole.exe" /COMMAND="ninja" /mon=$(BUILD_DIR)\BUILD-OpenVINO-IB.xml
+      call "$(MSVS_VARS_PATH)" && "$(IB_DIR)\BuildConsole.exe" /COMMAND="ninja" /LogLevel="Detailed" /mon=$(BUILD_DIR)\BUILD-OpenVINO-IB.ib_mon
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
     continueOnError: true
@@ -120,7 +120,7 @@ jobs:
     artifact: IB-Logs
     continueOnError: true
 
-  - publish: $(BUILD_DIR)\BUILD-OpenVINO-IB.xml
+  - publish: $(BUILD_DIR)\BUILD-OpenVINO-IB.ib_mon
     artifact: BUILD-OpenVINO-IB.xml
     continueOnError: true
 
