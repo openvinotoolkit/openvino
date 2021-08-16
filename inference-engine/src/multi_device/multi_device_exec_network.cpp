@@ -273,7 +273,7 @@ void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
 
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     // this is necessary to guarantee member destroyed after getting future
-    if (!_alreadyActualNetwork) {
+    if (_acceleratorFuture.valid() && !_alreadyActualNetwork) {
         // printf("!!! DEBUG: actual network is still not ready, wait that\n");
         _acceleratorFuture.get();
     }
