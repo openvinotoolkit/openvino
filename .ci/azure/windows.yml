@@ -111,7 +111,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "$(IB_DIR)\BuildConsole.exe" /COMMAND="ninja" /LogLevel="3" /mon=$(BUILD_DIR)\BUILD-OpenVINO-IB.xml
+      call "$(MSVS_VARS_PATH)" && "$(IB_DIR)\BuildConsole.exe" /COMMAND="ninja" /mon=$(BUILD_DIR)\BUILD-OpenVINO-IB.xml
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
     continueOnError: true
