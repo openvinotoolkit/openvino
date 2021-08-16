@@ -22,7 +22,7 @@
 
 namespace ov {
 /// A user-defined function.
-class CORE_API Function {
+class OPENVINO_API Function {
 public:
     static constexpr ngraph::DiscreteTypeInfo type_info{"Function", 0};
     const ngraph::DiscreteTypeInfo& get_type_info() const {

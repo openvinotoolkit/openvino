@@ -17,7 +17,7 @@ class Node;
 namespace ov {
 using VariantTypeInfo = ngraph::DiscreteTypeInfo;
 
-class CORE_API Variant {
+class OPENVINO_API Variant {
 public:
     virtual ~Variant();
     virtual const VariantTypeInfo& get_type_info() const = 0;
@@ -51,14 +51,14 @@ protected:
     value_type m_value;
 };
 
-extern template class CORE_API VariantImpl<std::string>;
-extern template class CORE_API VariantImpl<int64_t>;
+extern template class OPENVINO_API VariantImpl<std::string>;
+extern template class OPENVINO_API VariantImpl<int64_t>;
 
 template <typename VT>
 class VariantWrapper {};
 
 template <>
-class CORE_API VariantWrapper<std::string> : public VariantImpl<std::string> {
+class OPENVINO_API VariantWrapper<std::string> : public VariantImpl<std::string> {
 public:
     static constexpr VariantTypeInfo type_info{"Variant::std::string", 0};
     const VariantTypeInfo& get_type_info() const override {
@@ -68,7 +68,7 @@ public:
 };
 
 template <>
-class CORE_API VariantWrapper<int64_t> : public VariantImpl<int64_t> {
+class OPENVINO_API VariantWrapper<int64_t> : public VariantImpl<int64_t> {
 public:
     static constexpr VariantTypeInfo type_info{"Variant::int64_t", 0};
     const VariantTypeInfo& get_type_info() const override {
