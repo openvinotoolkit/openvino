@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "configuration.h"
 #include <algorithm>
+#include "custom_task_arena.h"
 
 namespace cldnn {
 namespace gpu {
@@ -24,6 +25,14 @@ configuration::configuration()
       queues_num(0),
       tuning_cache_path("cache.json"),
       kernels_cache_path(""),
-      n_threads(std::max(static_cast<uint16_t>(std::thread::hardware_concurrency()), static_cast<uint16_t>(1))) {}
+      n_threads(std::max(static_cast<uint16_t>(std::thread::hardware_concurrency()), static_cast<uint16_t>(1))),
+      core_type(cldnn::custom::task_arena::automatic) {
+#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
+            if ((cldnn::custom::info::core_types().size() > 1 /*Hybrid CPUs*/)) {
+                  n_threads = std::min(static_cast<uint16_t>(cldnn::custom::info::get_num_big_cores()), n_threads);
+                  core_type = cldnn::custom::info::core_types().back(); // Now only big core supports
+            }
+#endif
+      }
 }  // namespace gpu
 }  // namespace cldnn
