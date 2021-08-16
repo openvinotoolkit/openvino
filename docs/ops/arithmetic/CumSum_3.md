@@ -34,7 +34,7 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: A tensor of type *T* and rank greater or equal to 1. **Required.**
 
 * **2**: Axis index along which the cumulative sum is performed. A scalar of type *T_AXIS*. Negative value means counting dimensions from the back. Default value is `0`. **Optional.**
 
