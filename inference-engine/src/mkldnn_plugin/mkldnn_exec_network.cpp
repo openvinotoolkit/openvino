@@ -12,8 +12,11 @@
 #include "mkldnn_itt.h"
 #include "nodes/mkldnn_memory_node.hpp"
 #include <threading/ie_executor_manager.hpp>
-
+#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#include <threading/ie_tbb_streams_executor.hpp>
+#else
 #include <threading/ie_cpu_streams_executor.hpp>
+#endif
 #include <ie_system_conf.h>
 #include <algorithm>
 #include <unordered_set>
@@ -31,6 +34,14 @@ MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap network
                                           InferenceEngine::OutputsDataMap networkOutputs) {
     return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
 }
+
+struct ImmediateSerialExecutor : public ITaskExecutor {
+    void run(InferenceEngine::Task task) override {
+        std::lock_guard<std::mutex> l{_mutex};
+        task();
+    }
+    std::mutex _mutex;
+};
 
 MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
                                      const Config &cfg,
@@ -61,11 +72,20 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     } else {
         auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
-        _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+        _taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
+#else
+        _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+#endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
-        _callbackExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
-            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+        // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
+        _callbackExecutor = std::make_shared<ImmediateSerialExecutor>();
+#else
+        _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+                                IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+#endif
     } else {
         _callbackExecutor = _taskExecutor;
     }
@@ -146,6 +166,19 @@ MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() {
     return graphLock;
 }
 
+MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() const {
+    int streamId = 0;
+    int numaNodeId = 0;
+    auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
+    if (nullptr != streamsExecutor) {
+        streamId = streamsExecutor->GetStreamId();
+        numaNodeId = streamsExecutor->GetNumaNodeId();
+    }
+    auto graphLock = Graph::Lock(_graphs[streamId % _graphs.size()]);
+    IE_ASSERT(graphLock._graph.IsReady());
+    return graphLock;
+}
+
 void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
     {
         std::lock_guard<std::mutex> lock{_cfgMutex};
@@ -171,9 +204,8 @@ InferenceEngine::CNNNetwork MKLDNNExecNetwork::GetExecGraphInfo() {
 }
 
 Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
-    if (_graphs.size() == 0)
-        IE_THROW() << "No graph was found";
-    Config engConfig = const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.getProperty();
+    if (_graphs.size() == 0) IE_THROW() << "No graph was found";
+    Config engConfig = GetGraph()._graph.getProperty();
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         return option->second;
@@ -187,8 +219,7 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         IE_THROW() << "No graph was found";
 
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        IE_SET_METRIC_RETURN(NETWORK_NAME,
-                               const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.dump().getName());
+        IE_SET_METRIC_RETURN(NETWORK_NAME, GetGraph()._graph.dump().getName());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
@@ -198,12 +229,12 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && key : const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.getProperty()._config) {
+        for (auto && key : GetGraph()._graph.getProperty()._config) {
             configKeys.push_back(key.first);
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        Config engConfig = const_cast<MKLDNNExecNetwork*>(this)->GetGraph()._graph.getProperty();
+        Config engConfig = GetGraph()._graph.getProperty();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
