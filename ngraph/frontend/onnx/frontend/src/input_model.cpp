@@ -14,6 +14,9 @@ using namespace ngraph::frontend;
 InputModelONNX::InputModelONNX(const std::string& path)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
 
+InputModelONNX::InputModelONNX(std::istream& model_stream, const std::string& path)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path)} {}
+
 std::vector<Place::Ptr> InputModelONNX::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();
     std::vector<Place::Ptr> in_places;

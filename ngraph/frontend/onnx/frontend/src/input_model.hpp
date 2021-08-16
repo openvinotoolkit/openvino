@@ -6,12 +6,16 @@
 
 #include <editor.hpp>
 #include <frontend_manager/input_model.hpp>
+#include <fstream>
 
 namespace ngraph {
 namespace frontend {
 class InputModelONNX : public InputModel {
 public:
     InputModelONNX(const std::string& path);
+    // The path can be needed even if the model is passed as stream, because it is required
+    // for onnx external data feature
+    InputModelONNX(std::istream& model_stream, const std::string& path = "");
 
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override;

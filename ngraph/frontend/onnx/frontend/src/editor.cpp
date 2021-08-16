@@ -191,11 +191,20 @@ struct onnx_editor::ONNXModelEditor::Impl {
 
     Impl(const std::string& model_path)
         : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_file(model_path))} {}
+
+    Impl(std::istream& model_stream)
+        : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(model_stream))} {}
 };
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
     : m_model_path{model_path},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
+                  delete impl;
+              }} {}
+
+onnx_editor::ONNXModelEditor::ONNXModelEditor(std::istream& model_stream, const std::string& model_path)
+    : m_model_path{model_path},
+      m_pimpl{new ONNXModelEditor::Impl{model_stream}, [](Impl* impl) {
                   delete impl;
               }} {}
 

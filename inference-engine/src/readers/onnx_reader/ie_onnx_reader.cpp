@@ -3,9 +3,9 @@
 //
 
 #include "ie_onnx_reader.hpp"
-#include "onnx_model_validator.hpp"
 #include <ie_api.h>
-#include <onnx_import/onnx.hpp>
+#include "ie_common.h"
+#include "frontend_manager/frontend_manager.hpp"
 
 using namespace InferenceEngine;
 
@@ -38,31 +38,38 @@ private:
 };
 } // namespace
 
+static ngraph::frontend::FrontEndManager manager; // TODO move to ctor
+
 bool ONNXReader::supportModel(std::istream& model) const {
     StreamRewinder rwd{model};
 
     const auto model_path = readPathFromStream(model);
 
-    // this might mean that the model is loaded from a string in memory
-    // let's try to figure out if it's any of the supported formats
-    if (model_path.empty()) {
-        if (!is_valid_model(model, onnx_format{})) {
-            model.seekg(0, model.beg);
-            return is_valid_model(model, prototxt_format{});
-        } else {
+    const auto is_valid_onnx_fe = [](const ngraph::frontend::FrontEnd::Ptr& onnx_fe) {
+        if (onnx_fe && onnx_fe->get_name() == "onnx") {
             return true;
         }
-    }
+        return false;
+    };
 
-    if (model_path.find(".prototxt", 0) != std::string::npos) {
-        return is_valid_model(model, prototxt_format{});
-    } else {
-        return is_valid_model(model, onnx_format{});
+    if (model_path.empty()) {
+        if (is_valid_onnx_fe(manager.load_by_model(&model))) {
+            return true;
+        }
+
+    } else if (is_valid_onnx_fe(manager.load_by_model(model_path))) {
+        return true;
     }
+    return false;
 }
 
 CNNNetwork ONNXReader::read(std::istream& model, const std::vector<IExtensionPtr>& exts) const {
-    return CNNNetwork(ngraph::onnx_import::import_onnx_model(model, readPathFromStream(model)), exts);
+    const auto onnx_fe = manager.load_by_model(&model);
+    if (onnx_fe && onnx_fe->get_name() == "onnx") {
+        const auto input_model = onnx_fe->load(&model, readPathFromStream(model));
+        return CNNNetwork(onnx_fe->convert(input_model), exts);
+    }
+    throw InferenceEngine::NetworkNotRead("Error during during reading onnx model");
 }
 
 INFERENCE_PLUGIN_API(void) InferenceEngine::CreateReader(std::shared_ptr<IReader>& reader) {
