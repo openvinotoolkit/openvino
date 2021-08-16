@@ -10,10 +10,10 @@
  */
 #pragma once
 
+#include <map>
 #include <string>
 #include <tuple>
 #include <vector>
-#include <map>
 
 #include "ie_precision.hpp"
 
@@ -37,12 +37,11 @@ namespace Metrics {
 #define EXEC_NETWORK_METRIC_KEY(name) METRIC_KEY(name)
 
 #ifndef DECLARE_METRIC_KEY_IMPL
-#define DECLARE_METRIC_KEY(name, ...)            \
-    static constexpr auto METRIC_##name = #name
+#    define DECLARE_METRIC_KEY(name, ...) static constexpr auto METRIC_##name = #    name
 #else
-#define DECLARE_METRIC_KEY(name, ...)            \
-    static constexpr auto METRIC_##name = #name; \
-    DECLARE_METRIC_KEY_IMPL(name, __VA_ARGS__)
+#    define DECLARE_METRIC_KEY(name, ...)            \
+        static constexpr auto METRIC_##name = #name; \
+        DECLARE_METRIC_KEY_IMPL(name, __VA_ARGS__)
 #endif
 
 #define DECLARE_EXEC_NETWORK_METRIC_KEY(name, ...) DECLARE_METRIC_KEY(name, __VA_ARGS__)
@@ -51,7 +50,7 @@ namespace Metrics {
  * @def METRIC_VALUE(name)
  * @brief shortcut for defining metric values
  */
-#define METRIC_VALUE(name) InferenceEngine::Metrics::name
+#define METRIC_VALUE(name)         InferenceEngine::Metrics::name
 #define DECLARE_METRIC_VALUE(name) static constexpr auto name = #name
 
 /**
@@ -162,9 +161,15 @@ enum class DeviceType {
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Metrics::DeviceType& deviceType) {
     switch (deviceType) {
-        case InferenceEngine::Metrics::DeviceType::discrete: os << "discrete"; break;
-        case InferenceEngine::Metrics::DeviceType::integrated: os << "integrated"; break;
-        default: os << "unknown"; break;
+    case InferenceEngine::Metrics::DeviceType::discrete:
+        os << "discrete";
+        break;
+    case InferenceEngine::Metrics::DeviceType::integrated:
+        os << "integrated";
+        break;
+    default:
+        os << "unknown";
+        break;
     }
 
     return os;
@@ -177,7 +182,8 @@ inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Metrics
 DECLARE_METRIC_KEY(DEVICE_TYPE, DeviceType);
 
 /**
- * @brief Metric which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by specified device
+ * @brief Metric which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by
+ * specified device
  */
 DECLARE_METRIC_KEY(DEVICE_GOPS, std::map<InferenceEngine::Precision, float>);
 
@@ -212,15 +218,15 @@ namespace PluginConfigParams {
  * @def CONFIG_KEY(name)
  * @brief shortcut for defining configuration keys
  */
-#define CONFIG_KEY(name) InferenceEngine::PluginConfigParams::_CONFIG_KEY(name)
-#define _CONFIG_KEY(name) KEY_##name
+#define CONFIG_KEY(name)         InferenceEngine::PluginConfigParams::_CONFIG_KEY(name)
+#define _CONFIG_KEY(name)        KEY_##name
 #define DECLARE_CONFIG_KEY(name) static constexpr auto _CONFIG_KEY(name) = #name
 
 /**
  * @def CONFIG_VALUE(name)
  * @brief shortcut for defining configuration values
  */
-#define CONFIG_VALUE(name) InferenceEngine::PluginConfigParams::name
+#define CONFIG_VALUE(name)         InferenceEngine::PluginConfigParams::name
 #define DECLARE_CONFIG_VALUE(name) static constexpr auto name = #name
 
 /**
@@ -239,13 +245,14 @@ DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
  * PluginConfigParams::NO (no pinning for CPU inference threads)
- * PluginConfigParams::YES, which is default on the conventional CPUs (pinning threads to cores, best for static benchmarks),
+ * PluginConfigParams::YES, which is default on the conventional CPUs (pinning threads to cores, best for static
+ * benchmarks),
  *
  * the following options are implemented only for the TBB as a threading option
  * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
  *      on the Windows and MacOS* this option behaves as YES
- * PluginConfigParams::HYBRID_AWARE (let the runtime to do pinning to the cores types, e.g. prefer the "big" cores for latency tasks)
- *      on the hybrid CPUs this option is default
+ * PluginConfigParams::HYBRID_AWARE (let the runtime to do pinning to the cores types, e.g. prefer the "big" cores for
+ * latency tasks) on the hybrid CPUs this option is default
  *
  * Also, the settings are ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
  * environment variable is set (as affinity is configured explicitly)
@@ -313,12 +320,15 @@ DECLARE_CONFIG_KEY(CONFIG_FILE);
 DECLARE_CONFIG_KEY(LOG_LEVEL);
 
 DECLARE_CONFIG_VALUE(LOG_NONE);     // turn off logging
-DECLARE_CONFIG_VALUE(LOG_ERROR);    // error events that might still allow the application to continue running
-DECLARE_CONFIG_VALUE(LOG_WARNING);  // potentially harmful situations which may further lead to ERROR
-DECLARE_CONFIG_VALUE(
-    LOG_INFO);  // informational messages that display the progress of the application at coarse-grained level
-DECLARE_CONFIG_VALUE(LOG_DEBUG);  // fine-grained events that are most useful to debug an application.
-DECLARE_CONFIG_VALUE(LOG_TRACE);  // finer-grained informational events than the DEBUG
+DECLARE_CONFIG_VALUE(LOG_ERROR);    // error events that might still allow the
+                                    // application to continue running
+DECLARE_CONFIG_VALUE(LOG_WARNING);  // potentially harmful situations which may
+                                    // further lead to ERROR
+DECLARE_CONFIG_VALUE(LOG_INFO);     // informational messages that display the progress of the
+                                    // application at coarse-grained level
+DECLARE_CONFIG_VALUE(LOG_DEBUG);    // fine-grained events that are most useful to
+                                    // debug an application.
+DECLARE_CONFIG_VALUE(LOG_TRACE);    // finer-grained informational events than the DEBUG
 
 /**
  * @brief the key for setting of required device to execute on
@@ -348,7 +358,6 @@ DECLARE_CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS);
  */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo::serialize method")
 DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
-
 
 /**
  * @brief The name for setting to execute in bfloat16 precision whenever it is possible
