@@ -46,6 +46,9 @@ public:
     ///
     OutputVector make_max_pool() const;
 
+    /// \brief Creates max pooling ONNX operation with 2 outputs (values and indices).
+    OutputVector make_max_pool_with_indices() const;
+
 protected:
     Node m_onnx_node;
     const OutputVector m_inputs;
