@@ -282,7 +282,7 @@ namespace {
     constexpr bool AddOutFakeQuantizeNode = true;
 }
 
-INSTANTIATE_TEST_SUITE_P(ConvertMatmulToPointWiseConvolutionTestSuite, ConvertMatmulToPointWiseConvolutionFixture,
+INSTANTIATE_TEST_CASE_P(ConvertMatmulToPointWiseConvolutionTestSuite, ConvertMatmulToPointWiseConvolutionFixture,
     ::testing::Values(
         std::make_tuple(
             createTransformedGraph<CreateMatMul>(),
@@ -446,8 +446,8 @@ TEST_P(ConvertMatmulToPointWiseConvolutionInvalidInputFixture, CompareFunctions)
     execute_test_cloned_function(function, pass_manager);
 }
 
-INSTANTIATE_TEST_SUITE_P(ConvertMatmulToPointWiseConvolutionInvalidInputTestSuite, ConvertMatmulToPointWiseConvolutionInvalidInputFixture,
-                         ::testing::Combine(::testing::ValuesIn(transform_types),
+INSTANTIATE_TEST_CASE_P(ConvertMatmulToPointWiseConvolutionInvalidInputTestSuite, ConvertMatmulToPointWiseConvolutionInvalidInputFixture,
+                        ::testing::Combine(::testing::ValuesIn(transform_types),
                                             ::testing::ValuesIn(input_shapes)));
 
 } // namespace

@@ -7,6 +7,7 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include "layers/gna_permute.hpp"
 #include "backend/gna_limitations.hpp"
