@@ -35,15 +35,19 @@ def get_imported_module_version(imported_module):
     Get imported module version
     :return: version(str) or raise AttributeError exception
     """
-    version_attrs = ["__version__", "VERSION", "version"]
+    version_attrs = ("__version__", "VERSION", "version")
     installed_version = None
     for attr in version_attrs:
-        if installed_version is None:
-            installed_version = getattr(imported_module, attr, None)
-            installed_version = installed_version if isinstance(installed_version, str) else None
-        else:
-            return installed_version
-    raise AttributeError("{} module doesn't have version attribute".format(imported_module))
+        installed_version = getattr(imported_module, attr, None)
+        if isinstance(installed_version, str):
+           return installed_version
+        else: 
+            installed_version = None
+
+    if installed_version is None:
+        raise AttributeError("{} module doesn't have version attribute".format(imported_module))
+    else:
+        return installed_version
 
 
 def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup):
