@@ -118,17 +118,17 @@ class PrebuiltExtension(Extension):
 class CustomBuild(build):
     """Custom implementation of build_clib"""
 
-    cmake_build_types = ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
+    cmake_build_types = ['Release', 'Debug', 'RelWithDebInfo', 'MinSizeRel']
     user_options = [
-        ("config=", None, "Build configuration [{}].".format("|".join(cmake_build_types))),
-        ("jobs=", None, "Specifies the number of jobs to use with make."),
-        ("cmake-args=", None, "Additional options to be passed to CMake.")
+        ('config=', None, 'Build configuration [{}].'.format('|'.join(cmake_build_types))),
+        ('jobs=', None, 'Specifies the number of jobs to use with make.'),
+        ('cmake-args=', None, 'Additional options to be passed to CMake.')
     ]
 
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
         super().initialize_options()
-        self.build_base = "build"
+        self.build_base = 'build'
         self.config = None
         self.jobs = None
         self.cmake_args = None
@@ -139,44 +139,44 @@ class CustomBuild(build):
 
         if not self.config:
             if self.debug:
-                self.config = "Debug"
+                self.config = 'Debug'
             else:
-                self.announce("Set default value for CMAKE_BUILD_TYPE = Release.", level=4)
-                self.config = "Release"
+                self.announce('Set default value for CMAKE_BUILD_TYPE = Release.', level=4)
+                self.config = 'Release'
         else:
             build_types = [item.lower() for item in self.cmake_build_types]
             try:
                 i = build_types.index(str(self.config).lower())
                 self.config = self.cmake_build_types[i]
-                self.debug = True if "Debug" == self.config else False
+                self.debug = True if 'Debug' == self.config else False
             except ValueError:
-                self.announce("Unsupported CMAKE_BUILD_TYPE value: " + self.config, level=4)
-                self.announce("Supported values: {}".format(", ".join(self.cmake_build_types)), level=4)
+                self.announce('Unsupported CMAKE_BUILD_TYPE value: ' + self.config, level=4)
+                self.announce('Supported values: {}'.format(', '.join(self.cmake_build_types)), level=4)
                 sys.exit(1)
-        if self.jobs is None and os.getenv("MAX_JOBS") is not None:
-            self.jobs = os.getenv("MAX_JOBS")
+        if self.jobs is None and os.getenv('MAX_JOBS') is not None:
+            self.jobs = os.getenv('MAX_JOBS')
         self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
 
 
     def run(self):
         global CMAKE_BUILD_DIR
         self.jobs = multiprocessing.cpu_count()
-        plat_specifier = ".%s-%d.%d" % (self.plat_name, *sys.version_info[:2])
-        self.build_temp = os.path.join(self.build_base, "temp" + plat_specifier, self.config)
+        plat_specifier = '.%s-%d.%d' % (self.plat_name, *sys.version_info[:2])
+        self.build_temp = os.path.join(self.build_base, 'temp' + plat_specifier, self.config)
 
         # if setup.py is directly called use CMake to build product
         if CMAKE_BUILD_DIR == '.':
-            OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(CMAKE_BUILD_DIR, "../../../../"))
-            self.announce("Configuring cmake project", level=3)
+            OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(CMAKE_BUILD_DIR, '../../../../'))
+            self.announce('Configuring cmake project', level=3)
 
-            self.spawn(["cmake", "-H" + OPENVINO_ROOT_DIR, "-B" + self.build_temp,
-                    "-DCMAKE_BUILD_TYPE={}".format(self.config),
-                    "-DENABLE_PYTHON=ON",
-                    "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"])
+            self.spawn(['cmake', '-H' + OPENVINO_ROOT_DIR, '-B' + self.build_temp,
+                    '-DCMAKE_BUILD_TYPE={}'.format(self.config),
+                    '-DENABLE_PYTHON=ON',
+                    '-DNGRAPH_ONNX_FRONTEND_ENABLE=ON'])
 
-            self.announce("Building binaries", level=3)
-            self.spawn(["cmake", "--build", self.build_temp,
-                    "--config", self.config, "-j", str(self.jobs)])
+            self.announce('Building binaries', level=3)
+            self.spawn(['cmake', '--build', self.build_temp,
+                    '--config', self.config, '-j', str(self.jobs)])
             CMAKE_BUILD_DIR = self.build_temp
 
         self.run_command('build_clib')
