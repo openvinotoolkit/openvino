@@ -212,32 +212,21 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     bool workModeAuto = workMode != fullConfig.end() && workMode->second == InferenceEngine::PluginConfigParams::YES;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
 
-    // not found device priorities for -d AUTO use case
+    // if workMode is AUTO
+    if (workMode != fullConfig.end()) {
+        return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, fullConfig, this);
+    }
+
     if (priorities == fullConfig.end()) {
-        if (workModeAuto) {
-            std::string allDevices;
-            auto availableDevices = GetCore()->GetAvailableDevices();
-            if (availableDevices.empty()) {
-                IE_THROW(NotFound) << "No available device found";
-            }
-            for (auto&& device : availableDevices) {
-                allDevices += device;
-                allDevices += ((device == availableDevices[availableDevices.size()-1]) ? "" : ",");
-            }
-            metaDevices = ParseMetaDevices(allDevices, fullConfig);
-            multiNetworkConfig.insert({MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, allDevices});
-        } else {
-            IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
-        }
+        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
         metaDevices = ParseMetaDevices(priorities->second, fullConfig);
         multiNetworkConfig.insert(*priorities);
     }
-    // check if it is -d AUTO or -d AUTO:xPU use case
-    if (workModeAuto) {
-        auto targetDevice = SelectDevice(metaDevices, networkPrecision);
-        metaDevices = { targetDevice };
-    }
+
+    // collect the settings that are applicable to the devices we are loading the network to
+    std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
+    multiNetworkConfig.insert(*priorities);
 
     DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
     std::mutex load_mutex;
@@ -454,6 +443,27 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
         IE_THROW() << "Cannot select any device";
     }
     return CPU[0];
+}
+
+std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string, std::string>& config) const {
+    std::string allDevices;
+
+    auto deviceListConfig = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    if (deviceListConfig == config.end()) {
+        auto deviceList = GetCore()->GetAvailableDevices();
+        for (auto&& device : deviceList) {
+            allDevices += device;
+            allDevices += ((device == deviceList[deviceList.size()-1]) ? "" : ",");
+        }
+    } else {
+        allDevices = deviceListConfig->second;
+    }
+
+    if (allDevices.empty()) {
+        IE_THROW() << "Please, check environment due to no supported devices can be used";
+    }
+
+    return allDevices;
 }
 
 }  // namespace MultiDevicePlugin

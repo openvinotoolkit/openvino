@@ -23,7 +23,10 @@
 
 namespace MultiDevicePlugin {
 
+class MultiDeviceInferencePlugin;
+
 using DeviceName = std::string;
+using NetworkFuture = std::future<InferenceEngine::SoExecutableNetworkInternal>;
 
 struct DeviceInformation {
     DeviceName deviceName;
@@ -105,10 +108,14 @@ public:
     };
     using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
 
-    explicit MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::SoExecutableNetworkInternal>&                  networksPerDevice,
+    explicit MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::SoExecutableNetworkInternal>&        networksPerDevice,
                                           const std::vector<DeviceInformation>&                                 networkDevices,
                                           const std::unordered_map<std::string, InferenceEngine::Parameter>&    config,
                                           const bool                                                            needPerfCounters = false);
+    MultiDeviceExecutableNetwork(const std::string&                           modelPath,
+                                 const InferenceEngine::CNNNetwork&           network,
+                                 const std::map<std::string, std::string>&    config,
+                                 MultiDeviceInferencePlugin*                  plugin);
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) override;
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
@@ -129,7 +136,7 @@ public:
     static thread_local const char*                             _thisPreferredDeviceName;
     mutable std::mutex                                          _mutex;
     std::vector<DeviceInformation>                              _devicePriorities;
-    const std::vector<DeviceInformation>                        _devicePrioritiesInitial;
+    std::vector<DeviceInformation>                              _devicePrioritiesInitial;
     DeviceMap<InferenceEngine::SoExecutableNetworkInternal>     _networksPerDevice;
     ThreadSafeQueue<InferenceEngine::Task>                      _inferPipelineTasks;
     DeviceMap<std::unique_ptr<ThreadSafeQueue<InferenceEngine::Task>>> _inferPipelineTasksDeviceSpecific;
@@ -138,6 +145,24 @@ public:
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool                                                        _needPerfCounters = false;
     std::atomic_size_t                                          _numRequestsCreated = {0};
+
+private:
+    void SetActualNetworkReadyStatus();
+    void GenerateWorkers(const std::string& device, const InferenceEngine::SoExecutableNetworkInternal& executableNetwork);
+    void WaitForActualDevice() const;
+    bool TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork);
+    void SetAutoModeConfig(const std::map<std::string, InferenceEngine::Parameter> &config);
+
+private:
+    MultiDeviceInferencePlugin* _multiPlugin;
+    InferenceEngine::SoExecutableNetworkInternal                        _networkFirstReady;
+    mutable InferenceEngine::SoExecutableNetworkInternal                _networkActualNeeded;
+    NetworkFuture                                                       _cpuFuture;
+    mutable NetworkFuture                                               _acceleratorFuture;
+    mutable std::atomic<bool>                                           _alreadyActualNetwork = {false};
+    bool _workModeIsAUTO { false };
+
+    std::map<std::string, InferenceEngine::Parameter>                   _cacheConfig;
 };
 
 }  // namespace MultiDevicePlugin
