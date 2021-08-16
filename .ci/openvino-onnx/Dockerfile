@@ -4,7 +4,7 @@ LABEL version=2021.03.30.1
 
 # Build configuration arguments
 ARG BUILD_TYPE=Release
-ARG PROTOBUF_LITE=OFF
+ARG PROTOBUF_LITE=ON
 
 ARG http_proxy
 ARG https_proxy
