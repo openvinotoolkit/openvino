@@ -16,6 +16,32 @@ from mo.graph.graph import Graph, Node, add_opoutput
 from mo.utils.error import Error
 
 
+def create_edge_with_attrs(graph, src_name, src_internal_id, src_port, dst_id, dst_port):
+    # src_name - name of input for edge
+    # src_internal_id - input node id. Can be the same as src_name or different if Parameter was created
+    assert (graph.has_node(src_internal_id))
+    edge_attrs = {
+        'out': src_port,
+        'in': dst_port,
+        'name': src_name,
+        'fw_tensor_debug_info': [(src_internal_id, src_name)],
+        'in_attrs': ['in', 'name'],
+        'out_attrs': ['out', 'name'],
+        'data_attrs': ['fw_tensor_debug_info']
+    }
+    graph.add_edge(src_internal_id, dst_id, **edge_attrs)
+
+
+def create_parameter_with_empty_attrs(graph, param_name):
+    graph.add_node(param_name, kind='op', op='Parameter', name=param_name, pb=None, shape=None)
+    parameter_node = Node(graph, param_name)
+    # need to manually update necessary attrs for the node because extractor will not be called
+    # for it because the node does not have .pb attribute
+    Parameter.update_node_stat(parameter_node, {})
+
+    return parameter_node
+
+
 class LoopExtractor(FrontExtractorOp):
     op = 'Loop'
     enabled = True
@@ -72,6 +98,10 @@ class LoopExtractor(FrontExtractorOp):
                             parent_graph = cur_graph.graph['parent_node'].graph
                             external_edges.append([])
                             additional_params.append({})
+                            assert 0 <= counter < len(additional_params)
+                            assert 0 <= counter < len(external_edges)
+                            src_id = ""
+                            src_port = 0
                             # if parent graph contains input node, create edge from outer to inner graph
                             if inp in parent_graph.graph['tensor_mapping']:
                                 log.debug('The edge between outer and inner graphs detected: {} -> {}'.format(inp, id))
@@ -81,11 +111,7 @@ class LoopExtractor(FrontExtractorOp):
                                     if transit_parameter is None:
                                         # create new Parameter body node and connect the body node with the outer graph using it
                                         param_id = str(inp)
-                                        cur_graph.add_node(param_id, kind='op', op='Parameter', name=param_id, pb=None, shape=None)
-                                        parameter_node = Node(cur_graph, param_id)
-                                        # need to manually update necessary attrs for the node because extractor will not be called
-                                        # for it because the node does not have .pb attribute
-                                        Parameter.update_node_stat(parameter_node, {})
+                                        parameter_node = create_parameter_with_empty_attrs(cur_graph, param_id)
                                         src_id, src_port = param_id, 0
                                     else:
                                         parameter_node = transit_parameter
@@ -103,24 +129,14 @@ class LoopExtractor(FrontExtractorOp):
                                 if transit_parameter is None:
                                     # create new Parameter in inner graph in hope that we will find node later
                                     param_id = str(inp).split(':')[0]
-                                    cur_graph.add_node(param_id, kind='op', op='Parameter', name=param_id, pb=None,
-                                                       shape=None)
-                                    parameter_node = Node(cur_graph, param_id)
-                                    # need to manually update necessary attrs for the node because extractor will not be called
-                                    # for it because the node does not have .pb attribute
-                                    Parameter.update_node_stat(parameter_node, {})
+                                    parameter_node = create_parameter_with_empty_attrs(cur_graph, param_id)
                                 else:
                                     parameter_node = transit_parameter
                                     param_id = transit_parameter.id
 
                                 # create transit parameter in outer graph in hope that real input will be found later
                                 parent_param_id = str(inp).split(':')[0]+"_transit"
-                                parent_graph.add_node(parent_param_id, kind='op', op='Parameter', name=parent_param_id,
-                                                      pb=None, shape=None)
-                                parent_parameter_node = Node(parent_graph, parent_param_id)
-                                # need to manually update necessary attrs for the node because extractor will not be called
-                                # for it because the node does not have .pb attribute
-                                Parameter.update_node_stat(parent_parameter_node, {})
+                                parent_parameter_node = create_parameter_with_empty_attrs(parent_graph, parent_param_id)
 
                                 external_edges[counter].append(((parent_param_id, 0), parameter_node, parent_param_id))
                                 src_id, src_port = param_id, 0
@@ -128,17 +144,7 @@ class LoopExtractor(FrontExtractorOp):
                                 transit_parameter = parent_parameter_node
 
                             if cur_graph.has_node(id):
-                                assert (cur_graph.has_node(src_id))
-                                edge_attrs = {
-                                    'out': src_port,
-                                    'in': dst_port,
-                                    'name': inp,
-                                    'fw_tensor_debug_info': [(inp, inp)],
-                                    'in_attrs': ['in', 'name'],
-                                    'out_attrs': ['out', 'name'],
-                                    'data_attrs': ['fw_tensor_debug_info']
-                                }
-                                cur_graph.add_edge(src_id, id, **edge_attrs)
+                                create_edge_with_attrs(cur_graph, inp, src_id, src_port, id, dst_port)
 
                             cur_graph = parent_graph
                             counter += 1
@@ -149,17 +155,7 @@ class LoopExtractor(FrontExtractorOp):
                                 'model is not consistent. Protobuf fragment: {}', inp, pb_node)
                 else:
                     src_id, src_port = data_nodes_map[inp]
-                    assert (body_graph.has_node(src_id))
-                    edge_attrs = {
-                        'out': src_port,
-                        'in': dst_port,
-                        'name': inp,
-                        'fw_tensor_debug_info': [(src_id, inp)],
-                        'in_attrs': ['in', 'name'],
-                        'out_attrs': ['out', 'name'],
-                        'data_attrs': ['fw_tensor_debug_info']
-                    }
-                    body_graph.add_edge(src_id, id, **edge_attrs)
+                    create_edge_with_attrs(body_graph, inp, src_id, src_port, id, dst_port)
 
             # add outgoing edges to data_nodes_map
             for src_port, out in enumerate(pb_node.output):
@@ -214,14 +210,9 @@ class LoopExtractor(FrontExtractorOp):
             cur_loop_node = cur_graph.graph['parent_node']
             parent_graph = cur_loop_node.graph
             for (src_node, src_port), body_node, tensor_name in external_edges_subg:
-                parent_graph.add_edge(src_node, cur_loop_node.id, **{'out': src_port,
-                                                               'in': next_loop_input_port_idx,
-                                                               'name': src_node,
-                                                               'fw_tensor_debug_info': [(src_node, tensor_name)],
-                                                               'in_attrs': ['in', 'name'],
-                                                               'out_attrs': ['out', 'name'],
-                                                               'data_attrs': ['fw_tensor_debug_info']}
-                                    )
+                create_edge_with_attrs(parent_graph, tensor_name, src_node, src_port,
+                                       cur_loop_node.id, next_loop_input_port_idx)
+
                 Loop.connect_body_input(cur_loop_node, next_loop_input_port_idx, body_node)
                 next_loop_input_port_idx += 1
             cur_graph = parent_graph
