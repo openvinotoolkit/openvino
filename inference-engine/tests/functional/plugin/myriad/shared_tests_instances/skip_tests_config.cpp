@@ -47,6 +47,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*HoldersTestOnImportedNetwork\.CreateRequestWithCoreRemoved.*)",
         // TODO: Issue 58621
         R"(.*IEClassNetworkTestP\.LoadNetworkActualNoThrow.*)",
-        R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)"
+        R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)",
+        R"(.*(ConstantResultSubgraphTest).*)"
     };
 }
