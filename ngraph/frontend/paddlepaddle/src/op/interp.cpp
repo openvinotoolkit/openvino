@@ -79,7 +79,7 @@ NamedOutputs interpolate(const NodeContext& node, const ngraph::opset6::Interpol
     Output<Node> target_spatial_shape;
 
     if (node.has_ng_input("OutSize")) {
-        attrs.shape_calculation_mode = ShapeCalcMode::sizes;
+        attrs.shape_calculation_mode = ShapeCalcMode::SIZES;
         auto hw_shape = node.get_ng_input("OutSize");
         const auto shape_of_x = std::make_shared<opset6::ShapeOf>(x);
         auto shape_begin = opset6::Constant::create(element::i64, {1}, {0});
@@ -94,10 +94,10 @@ NamedOutputs interpolate(const NodeContext& node, const ngraph::opset6::Interpol
             0);
         scales = calculate_scales_based_on_sizes(x, target_spatial_shape);
     } else if (out_w <= 0 || out_h <= 0) {
-        attrs.shape_calculation_mode = ShapeCalcMode::scales;
+        attrs.shape_calculation_mode = ShapeCalcMode::SCALES;
         target_spatial_shape = calculate_output_shape_based_on_scales(x, scale, scales);
     } else {
-        attrs.shape_calculation_mode = ShapeCalcMode::sizes;
+        attrs.shape_calculation_mode = ShapeCalcMode::SIZES;
         target_spatial_shape = extract_out_sizes(x, {out_h, out_w});
         scales = calculate_scales_based_on_sizes(x, target_spatial_shape);
     }
@@ -105,17 +105,17 @@ NamedOutputs interpolate(const NodeContext& node, const ngraph::opset6::Interpol
     bool align_corners = node.get_attribute<bool>("align_corners");
     int32_t align_mode = node.get_attribute<int32_t>("align_mode");
 
-    if (mode == InterpolateMode::nearest) {
-        attrs.coordinate_transformation_mode = CoordinateTransformMode::asymmetric;
+    if (mode == InterpolateMode::NEAREST) {
+        attrs.coordinate_transformation_mode = CoordinateTransformMode::ASYMMETRIC;
     } else if (!align_corners && align_mode == 1) {
-        attrs.coordinate_transformation_mode = CoordinateTransformMode::asymmetric;
+        attrs.coordinate_transformation_mode = CoordinateTransformMode::ASYMMETRIC;
     } else if (!align_corners && align_mode == 0) {
-        attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
+        attrs.coordinate_transformation_mode = CoordinateTransformMode::HALF_PIXEL;
     } else if (align_corners) {
-        attrs.coordinate_transformation_mode = CoordinateTransformMode::align_corners;
+        attrs.coordinate_transformation_mode = CoordinateTransformMode::ALIGN_CORNERS;
     }
 
-    attrs.nearest_mode = Nearest_mode::simple;
+    attrs.nearest_mode = Nearest_mode::SIMPLE;
     attrs.antialias = false;
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
@@ -126,12 +126,12 @@ NamedOutputs interpolate(const NodeContext& node, const ngraph::opset6::Interpol
 }
 
 NamedOutputs bilinear_interp_v2(const NodeContext& node) {
-    auto mode = ngraph::opset6::Interpolate::InterpolateMode::linear_onnx;
+    auto mode = ngraph::opset6::Interpolate::InterpolateMode::LINEAR_ONNX;
     return interpolate(node, mode);
 }
 
 NamedOutputs nearest_interp_v2(const NodeContext& node) {
-    auto mode = ngraph::opset6::Interpolate::InterpolateMode::nearest;
+    auto mode = ngraph::opset6::Interpolate::InterpolateMode::NEAREST;
     return interpolate(node, mode);
 }
 

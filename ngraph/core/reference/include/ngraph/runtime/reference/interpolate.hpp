@@ -27,7 +27,7 @@ using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
 class GetNearestPixel final {
 public:
     /// \brief Constructs calculation of a nearest pixel in the default mode.
-    GetNearestPixel() : GetNearestPixel(Nearest_mode::round_prefer_floor) {}
+    GetNearestPixel() : GetNearestPixel(Nearest_mode::ROUND_PREFER_FLOOR) {}
 
     /// \brief Constructs calculation of nearest pixel for the specified mode.
     ///
@@ -58,19 +58,19 @@ private:
     /// \return The function to calculate the nearest pixel.
     Func get_func(Nearest_mode mode) {
         switch (mode) {
-        case Nearest_mode::round_prefer_ceil:
+        case Nearest_mode::ROUND_PREFER_CEIL:
             return [](float x_original, bool) {
                 return static_cast<int64_t>(std::round(x_original));
             };
-        case Nearest_mode::floor:
+        case Nearest_mode::FLOOR:
             return [](float x_original, bool) {
                 return static_cast<int64_t>(std::floor(x_original));
             };
-        case Nearest_mode::ceil:
+        case Nearest_mode::CEIL:
             return [](float x_original, bool) {
                 return static_cast<int64_t>(std::ceil(x_original));
             };
-        case Nearest_mode::simple:
+        case Nearest_mode::SIMPLE:
             return [](float x_original, bool is_downsample) {
                 if (is_downsample) {
                     return static_cast<int64_t>(std::ceil(x_original));
@@ -93,7 +93,7 @@ private:
 class GetOriginalCoordinate final {
 public:
     /// \brief Constructs calculation of a nearest pixel in the default mode.
-    GetOriginalCoordinate() : GetOriginalCoordinate(Transform_mode::half_pixel) {}
+    GetOriginalCoordinate() : GetOriginalCoordinate(Transform_mode::HALF_PIXEL) {}
 
     /// \brief Constructs calculation of the source coordinate.
     ///
@@ -129,22 +129,22 @@ private:
     /// \return The function to calculate the source coordinate.
     Func get_func(Transform_mode mode) {
         switch (mode) {
-        case Transform_mode::pytorch_half_pixel:
+        case Transform_mode::PYTORCH_HALF_PIXEL:
             return [](float x_resized, float x_scale, float length_resized, float) {
                 return length_resized > 1 ? (x_resized + 0.5f) / x_scale - 0.5f : 0.0f;
             };
             break;
-        case Transform_mode::asymmetric:
+        case Transform_mode::ASYMMETRIC:
             return [](float x_resized, float x_scale, float, float) {
                 return x_resized / x_scale;
             };
             break;
-        case Transform_mode::tf_half_pixel_for_nn:
+        case Transform_mode::TF_HALF_PIXEL_FOR_NN:
             return [](float x_resized, float x_scale, float, float) {
                 return (x_resized + 0.5f) / x_scale;
             };
             break;
-        case Transform_mode::align_corners:
+        case Transform_mode::ALIGN_CORNERS:
             return [](float x_resized, float, float length_resized, float length_original) {
                 return length_resized == 1 ? 0 : x_resized * (length_original - 1) / (length_resized - 1);
             };
@@ -290,16 +290,16 @@ public:
         helper = InterpolateEvalHelper{m_attrs, input_data_shape, axes, out_shape, scales};
 
         switch (m_interp_mode) {
-        case InterpolateMode::nearest:
+        case InterpolateMode::NEAREST:
             nearest_func(input_data, out);
             break;
-        case InterpolateMode::linear:
+        case InterpolateMode::LINEAR:
             linear_func(input_data, out);
             break;
-        case InterpolateMode::linear_onnx:
+        case InterpolateMode::LINEAR_ONNX:
             linear_onnx_func(input_data, out);
             break;
-        case InterpolateMode::cubic:
+        case InterpolateMode::CUBIC:
             cubic_func(input_data, out);
             break;
         }
