@@ -16,6 +16,7 @@
 #include "ngraph/op/util/variable_context.hpp"
 #include "ngraph/op/util/variable_extension.hpp"
 #include "ngraph/opsets/opset7.hpp"
+#include "ngraph/topological_order.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -540,6 +541,10 @@ VariablePtr Function::get_variable_by_id(const string& variable_id) const {
         return *variable;
     else
         return VariablePtr();
+}
+
+std::shared_ptr<Order> Function::get_order() const {
+    return m_parameters[0]->m_order;
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Function>>::type_info;

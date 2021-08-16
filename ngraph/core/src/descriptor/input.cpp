@@ -7,6 +7,7 @@
 #include "ngraph/descriptor/output.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/topological_order.hpp"
 #include "ngraph/type/element_type.hpp"
 
 using namespace ngraph;

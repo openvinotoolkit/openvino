@@ -16,6 +16,7 @@
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
+#include "ngraph/topological_order.hpp"
 #include "perf_counters.hpp"
 
 using namespace std;

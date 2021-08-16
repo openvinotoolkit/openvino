@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/topological_order.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
