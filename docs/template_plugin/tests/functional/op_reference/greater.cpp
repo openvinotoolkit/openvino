@@ -65,8 +65,10 @@ std::vector<RefComparisonParams> generateComparisonCombinedParams() {
         generateComparisonParams<element::Type_t::f32>(element::f32),
         generateComparisonParams<element::Type_t::f16>(element::f16),
         generateComparisonParams<element::Type_t::i32>(element::i32),
+        generateComparisonParams<element::Type_t::i64>(element::i64),
         generateComparisonParams<element::Type_t::u32>(element::u32),
-        generateComparisonParams<element::Type_t::u8>(element::boolean)};
+        generateComparisonParams<element::Type_t::u64>(element::u64),
+        generateComparisonParams<element::Type_t::boolean>(element::boolean)};
     std::vector<RefComparisonParams> combinedParams;
 
     for (const auto& params : compTypeParams) {
