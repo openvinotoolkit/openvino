@@ -16,7 +16,7 @@ for each `m, n, ..., p` of the `indices` tensor indices:
 \f[data[\dots,\;indices[m,\;n,\;\dots,\;p],\;\dots] = updates[\dots,\;m,\;n,\;\dots,\;p,\;\dots]\f]
 
 where first \f$\dots\f$ in the `data` corresponds to first `axis` dimensions, last\f$\dots\f$ in the `data` corresponds to the
-\f$rank(data) - (axis + 1)\f$ dimensions.
+`rank(data) - (axis + 1)` dimensions.
 
 Several examples for case when `axis = 0`:
 1. `indices` is a \f$0\f$D tensor: \f$data[indices, \dots] = updates[\dots]\f$
