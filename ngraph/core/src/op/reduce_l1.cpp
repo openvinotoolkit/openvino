@@ -23,9 +23,11 @@ op::v4::ReduceL1::ReduceL1(const Output<Node>& arg, const Output<Node>& reductio
     constructor_validate_and_infer_types();
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 shared_ptr<Node> op::v4::ReduceL1::get_default_value() const {
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
 }
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 shared_ptr<Node> op::v4::ReduceL1::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v4_ReduceL1_clone_with_new_inputs);
