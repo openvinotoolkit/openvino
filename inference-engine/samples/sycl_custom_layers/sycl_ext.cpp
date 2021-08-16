@@ -110,22 +110,6 @@ SYCLLayerImpl::getSupportedConfigurations(std::vector<InferenceEngine::LayerConf
     return InferenceEngine::StatusCode::OK;
 }
 
-//class SYCLContext : public InferenceEngine::RemoteContext, public defails::param_map_obj_getter {
-//public:
-//    /**
-//     * @brief A smart pointer to the ClContext object
-//     */
-//    using Ptr = std::shared_ptr<ClContext>;
-//
-//    /**
-//     * @brief Returns the underlying OpenCL context handle.
-//     */
-//    sycl::queue getExecutionQueue() {
-//        return _ObjFromParams<sycl::queue, gpu_handle_param>(getParams(), GPU_PARAM_KEY(SYCL_QUEUE),
-//                GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(SYCL));
-//    }
-//};
-
 InferenceEngine::StatusCode SYCLLayerImpl::execute(std::vector<InferenceEngine::Blob::Ptr>& inputs,
                                                    std::vector<InferenceEngine::Blob::Ptr>& outputs,
                                                    InferenceEngine::ResponseDesc *resp) noexcept
@@ -152,7 +136,6 @@ InferenceEngine::StatusCode SYCLLayerImpl::execute(std::vector<InferenceEngine::
     for(size_t idx = 0; idx < inputs[0]->size(); ++idx) {
         out[idx] = in[idx] + 3.0;
     };
-
 //
 //    // Get the SYCL queue from the remoteContext (don't even need the sycl context)
 //    RemoteContext::Ptr remoteContext = inputSYCLBuffer->getContext();

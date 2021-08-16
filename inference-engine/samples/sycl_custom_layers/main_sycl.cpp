@@ -17,9 +17,10 @@ int main (int argc, char** argv) {
     std::shared_ptr<ngraph::Node> relu = std::make_shared<ngraph::op::Relu>(pool);
     // std::shared_ptr<ngraph::Node> ocl_layer = std::make_shared<SYCLLayerOp>(relu1);
     std::shared_ptr<ngraph::Node> ocl_layer = std::make_shared<SYCLLayerOp>(input);
+    std::shared_ptr<ngraph::Node> add = std::make_shared<ngraph::op::v1::Add>(input, ocl_layer);
 
     auto ngraph_function = std::make_shared<ngraph::Function>(
-            ocl_layer, ngraph::ParameterVector{std::dynamic_pointer_cast<ngraph::op::Parameter>(input)});
+            add, ngraph::ParameterVector{std::dynamic_pointer_cast<ngraph::op::Parameter>(input)});
 
     // Load network
     InferenceEngine::Core ie;
@@ -57,9 +58,15 @@ int main (int argc, char** argv) {
 
     const auto lockedMemory = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->rmap();
     const float* out = lockedMemory.as<float*>();
+    std::vector<float> goldData{ 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25 };
     printf("Output: ");
     for (size_t i = 0; i < outputBlob->size(); ++i) {
         printf("%f,", out[i]);
+        if (goldData[i] != outData[i]) {
+            IE_THROW()
+                    << "\n[ERROR] Output incorrect, expected " << goldData[i] << ", got " << outData[i] << " at index "
+                    << i << std::endl;
+        }
     }
     printf("\n");
 
