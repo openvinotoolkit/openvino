@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/xor.hpp"
+#include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -24,12 +25,6 @@ shared_ptr<Node> op::v1::LogicalXor::clone_with_new_inputs(const OutputVector& n
     NGRAPH_OP_SCOPE(v1_LogicalXor_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::LogicalXor>(new_args.at(0), new_args.at(1), this->get_autob());
-}
-
-bool ngraph::op::v1::LogicalXor::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_LogicalXor_visit_attributes);
-    BinaryElementwiseLogical::visit_attributes(visitor);
-    return true;
 }
 
 namespace logxor {
@@ -55,22 +50,17 @@ bool evaluate_logxor(const HostTensorPtr& arg0,
     out->set_broadcast(broadcast_spec, arg0, arg1);
     switch (arg0->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_logxor, boolean, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_logxor, i32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_logxor, i64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_logxor, u32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_logxor, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_logxor, f16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_logxor, f32, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
         break;
     }
     return rc;
-}
+}  // namespace logxor
 }  // namespace logxor
 
 bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_LogicalXor_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
     return logxor::evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -78,12 +68,6 @@ bool op::v1::LogicalXor::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_LogicalXor_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::boolean:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
         return true;
     default:
         break;
@@ -113,12 +97,6 @@ bool op::v0::Xor::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Xor_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::boolean:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
         return true;
     default:
         break;
