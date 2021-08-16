@@ -19,7 +19,7 @@ def replace_ctc_greedy_decoder(graph: Graph, match: dict):
     sparse_to_dense_name = sparse_to_dense.soft_get('name', sparse_to_dense.id)
     ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
 
-    # for normalizing input channel needs to transpose input data from [T, N, C] to [N, T, C]
+    # For normalizing input channel needs to transpose input data from [T, N, C] to [N, T, C]
     # which supported CTCGreedyDecoderSeqLen op.
     ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
                                                    {'name': ctc_greedy_decoder_tf_name + '/ctc_data_permute'})
@@ -36,10 +36,10 @@ def replace_ctc_greedy_decoder(graph: Graph, match: dict):
     ctc_greedy_decoder.in_port(0).connect(ctc_data_permute.out_port(0))
     ctc_greedy_decoder_tf.in_port(1).get_source().connect(ctc_greedy_decoder.in_port(1))
 
-    # set output of the new sub-graph as a source for SparseToDense consumer
+    # Set output of the new sub-graph as a source for SparseToDense consumer
     sparse_to_dense.out_port(0).get_connection().set_source(ctc_greedy_decoder.out_port(0))
 
-    # remove no longer needed nodes
+    # Remove no longer needed nodes
     graph.remove_nodes_from([sparse_to_dense.id, cast.id, ctc_greedy_decoder_tf.id])
 
 
@@ -100,36 +100,25 @@ class CTCGreedyDecoderSingleReplacement(FrontReplacementSubgraph):
     Inference Engine's CTCGreedyDecoderSeqLen has a different output that is in a dense format. So this transformation
     handles a single TF CTCGreedyDecoder and warns the user about another format of the output
     """
-    enabled = True
+    def find_and_replace_pattern(self, graph: Graph):
+        for ctc_greedy_decoder_tf in graph.get_op_nodes(op='CTCGreedyDecoderSeqLen'):
+            ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
 
-    @staticmethod
-    def pattern(**kwargs):
-        return dict(
-            nodes=[('decoder', dict(op='CTCGreedyDecoderSeqLen')),
-                   ('result', dict(op='Result')),
-                   ],
-            edges=[('decoder', 'result', {'out': 0})]
-        )
+            # For normalizing input channel needs to transpose input data from [T, N, C] to [N, T, C]
+            # which supported CTCGreedyDecoderSeqLen op.
+            log.warning('Found CTCGreedyDecoder operation at the end of network. '
+                        'PLEASE NOTE, appropriate network output will have dense format, not sparse format')
+            ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
+                                                           {'name': ctc_greedy_decoder_tf_name + '/ctc_data_permute'})
 
-    def replace_sub_graph(self, graph: Graph, match: dict):
-        ctc_greedy_decoder_tf = match['decoder']
-        ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
+            assert ctc_greedy_decoder_tf.has_valid('merge_repeated'), \
+                'The CTCGreedyDecoderSeqLen node "{}" misses "merge_repeated" attribute'.format(ctc_greedy_decoder_tf_name)
 
-        # for normalizing input channel needs to transpose input data from [T, N, C] to [N, T, C]
-        # which supported CTCGreedyDecoderSeqLen op.
-        log.warning('Found CTCGreedyDecoder operation at the end of network. '
-                    'PLEASE NOTE, appropriate network output will have dense format, not sparse format')
-        ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
-                                                       {'name': ctc_greedy_decoder_tf_name + '/ctc_data_permute'})
+            ctc_greedy_decoder_tf.in_port(0).get_source().connect(ctc_data_permute.in_port(0))
+            ctc_greedy_decoder_tf.in_port(0).disconnect()
+            ctc_data_permute.out_port(0).connect(ctc_greedy_decoder_tf.in_port(0))
 
-        assert ctc_greedy_decoder_tf.has_valid('merge_repeated'), \
-            'The CTCGreedyDecoderSeqLen node "{}" misses "merge_repeated" attribute'.format(ctc_greedy_decoder_tf_name)
-
-        ctc_greedy_decoder_tf.in_port(0).get_source().connect(ctc_data_permute.in_port(0))
-        ctc_greedy_decoder_tf.in_port(0).disconnect()
-        ctc_data_permute.out_port(0).connect(ctc_greedy_decoder_tf.in_port(0))
-
-        if ctc_greedy_decoder_tf.out_port(1).disconnected():
-            # Create Result operation and connect it to the second output if it is not connected to any  other operation
-            second_result = Result(graph, {'name': ctc_greedy_decoder_tf_name + '/seq_lengths_output'}).create_node()
-            ctc_greedy_decoder_tf.out_port(1).connect(second_result.in_port(0))
+            if ctc_greedy_decoder_tf.out_port(1).disconnected():
+                # Create Result operation and connect it to the second output if it is not connected to any  other operation
+                second_result = Result(graph, {'name': ctc_greedy_decoder_tf_name + '/seq_lengths_output'}).create_node()
+                ctc_greedy_decoder_tf.out_port(1).connect(second_result.in_port(0))
