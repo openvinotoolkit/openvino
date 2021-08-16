@@ -40,7 +40,7 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
         IInferRequestInternal(networkInputs, networkOutputs), _executor(executor),
         _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
         _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo),
-        _graphDesc(graphDesc)) {
+        _graphDesc(graphDesc) {
     VPU_PROFILE(MyriadInferRequest);
 
     const auto& ioStrides = _config.get<TensorStridesOption>();
@@ -86,7 +86,7 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
     resultBuffer.resize(compilerOutputsInfo.totalSize);
 
     VPU_THROW_UNLESS(
-        !_networkOutputs.empty() && !_networkInputs.empty()),
+        !_networkOutputs.empty() && !_networkInputs.empty(),
         "No information about network's output/input");
 }
 
@@ -141,7 +141,7 @@ void MyriadInferRequest::InferAsync() {
         }
     }
 
-    _executor->queueInference(_graphDesc, inputBuffer.data());
+    _executor->queueInference(_graphDesc, inputBuffer.data(), _inputInfo.totalSize, nullptr, 0);
 }
 static void copyBlobAccordingUpperBound(
     const Blob::Ptr& in,

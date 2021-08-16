@@ -60,8 +60,7 @@ public:
 
         return std::make_shared<MyriadInferRequest>(_graphDesc, networkInputs, networkOutputs,
                                                     _inputInfo, _outputInfo,
-                                                    _graphMetaData.stagesMeta, _config, _log, _executor,
-                                                    _constDatas, _isNetworkConstant);
+                                                    _graphMetaData.stagesMeta, _config, _log, _executor);
     }
 
     ie::IInferRequestInternal::Ptr CreateInferRequest() override {
@@ -73,7 +72,7 @@ public:
         auto syncRequestImpl = std::make_shared<MyriadInferRequest>(_graphDesc, _networkInputs, _networkOutputs,
                                                                     _inputInfo, _outputInfo,
                                                                     _graphMetaData.stagesMeta, _config, _log,
-                                                                    _executor, _constDatas, _isNetworkConstant);
+                                                                    _executor);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
         return std::make_shared<MyriadAsyncInferRequest>(

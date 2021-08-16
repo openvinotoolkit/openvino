@@ -46,7 +46,8 @@ ExecutableNetwork::ExecutableNetwork(
     _device = _executor->openDevice(devicePool, _config);
 
     const auto& revision = _device->revision();
-    _actualNumExecutors = config.compileConfig().numExecutors != -1 ? config.compileConfig().numExecutors : DefaultAllocation::numStreams(revision, config);
+    _actualNumExecutors = _config.get<ThroughputStreamsOption>().hasValue() ?
+                          _config.get<ThroughputStreamsOption>().get() : DefaultAllocation::numStreams(revision, _config);
 
     _supportedMetrics = {
         METRIC_KEY(NETWORK_NAME),
