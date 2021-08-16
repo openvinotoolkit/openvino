@@ -17,6 +17,7 @@
 #include "ngraph/pass/manager.hpp"
 #include "util/provenance_enabler.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 using ::testing::Return;

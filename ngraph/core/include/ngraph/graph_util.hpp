@@ -228,6 +228,7 @@ void replace_nodes(const std::shared_ptr<Function>& f,
                        parameter_replacement_map,
                    const std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Node>>& body_replacement_map);
 
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 NodeVector find_common_args(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement);
 
@@ -330,9 +331,11 @@ void validate_nodes_and_infer_types(const T& nodes) {
 }
 
 // Check if all paths from X to a result go through Y
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 bool is_post_dominated(Node* X, Node* Y);
 
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 bool is_equal_to_const_value(const std::string& const_value, const Output<Node>& reduce_constant);
 
@@ -360,6 +363,7 @@ std::shared_ptr<ngraph::Function> clone_function(const ngraph::Function& func, N
 NGRAPH_API
 std::shared_ptr<ngraph::Function> clone_function(const ngraph::Function& func);
 
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 std::pair<std::shared_ptr<op::Result>, std::shared_ptr<op::v0::Parameter>> insert_result_parameter_split(
     const std::shared_ptr<Node>& src_node,
@@ -370,15 +374,19 @@ void insert_new_node_between(const std::shared_ptr<Node>& src_node,
                              const std::shared_ptr<Node>& dst_node,
                              const std::shared_ptr<Node>& new_node);
 
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 std::shared_ptr<Node> make_zero(const element::Type& element_type, const Shape& shape);
 
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 std::shared_ptr<Node> make_constant_from_string(std::string val, const element::Type& element_type, const Shape& shape);
 
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 bool is_zero(const Output<Node>& reduce_constant);
 
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 NodeVector get_subgraph_outputs(const NodeVector& nodes,
                                 const NodeVector& exclusions,
@@ -391,6 +399,7 @@ NodeVector get_subgraph_outputs(const NodeVector& nodes,
 NGRAPH_API
 NodeVector extract_subgraph(const NodeVector& results, const NodeVector& args);
 
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 bool is_one(const Output<Node>& reduce_constant);
 
@@ -403,20 +412,25 @@ NGRAPH_API
 bool is_used(Node* node);
 
 // Returns count of `node` users that are still live in the graph
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 size_t get_user_count(Node* node);
 
 // Return true if a node's user could potentially overwrite
 // the output of this node with in-place kernels
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 bool possibly_overwritten(Node* node);
 
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 bool is_strided(const Strides& strides);
 
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 bool is_valid_rank(const std::shared_ptr<Node>& node, std::vector<size_t> valid_ranks);
 
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 void plot_graph(std::shared_ptr<Function> f,
                 const std::string& filename,
@@ -424,16 +438,19 @@ void plot_graph(std::shared_ptr<Function> f,
 
 /// \return A vector containing handles for each input of dst that is connected to an output
 ///         of `src`.
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 std::vector<Input<Node>> get_inputs_from(Node& src, Node& dst);
 /// \return A vector containing a handle for each output of src that is connected to an input
 ///         of `dst`.
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 std::vector<Output<Node>> get_outputs_to(Node& src, Node& dst);
 
 /// Checks the func for graph cycles starting from results going backwards, then from parameters
 /// going forward.
 /// It returns true if a cycle is found and the first cycle encountered.
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
 bool check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& cycle_nodes, bool& is_bkwd_cycle);
 

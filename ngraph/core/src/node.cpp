@@ -344,6 +344,7 @@ void Node::merge_provenance_tags_from(const std::shared_ptr<const Node>& source)
 }
 
 void Node::transfer_provenance_tags(const shared_ptr<Node>& replacement) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     auto common_args = ngraph::find_common_args(shared_from_this(), replacement);
 
     std::set<string> removed_subgraph_tags;
@@ -362,6 +363,7 @@ void Node::transfer_provenance_tags(const shared_ptr<Node>& replacement) {
     };
 
     traverse_nodes({replacement}, set_prov_new_nodes, common_args);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 Node* Node::get_input_node_ptr(size_t index) const {
