@@ -45,4 +45,18 @@ public:
     };
     std::vector<SplitConnectedLayerInfo> splitOutputLayers;
 };
+
+// @brief Returns sizes of split outputs to split the input tensor to aligned parts not greater than the specified size
+static std::vector<uint32_t> GetAlignedSplitSizes(uint32_t totalSize, uint32_t maxSplitSize, uint32_t alignment = 64) {
+    std::vector<uint32_t> splitSizes;
+    uint32_t maxAlignedSplitSize = maxSplitSize - maxSplitSize % alignment;
+    uint32_t usedSize = 0;
+    while (usedSize < totalSize) {
+        uint32_t partSize = std::min(totalSize - usedSize, maxAlignedSplitSize);
+        splitSizes.push_back(partSize);
+        usedSize += partSize;
+    }
+    return splitSizes;
+}
+
 }  // namespace GNAPluginNS

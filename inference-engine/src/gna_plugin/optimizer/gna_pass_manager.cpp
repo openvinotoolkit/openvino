@@ -87,7 +87,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
     });
     IE_ASSERT(inputLayer != nullptr);
     size_t weightsSize = LayerInfo(prevLayer).has32BOutput() ? nextLayer->outData[0]->getDims().back() :
-        Get2DReshapedData(nextLayer->outData[0], 8)->getDims()[1];
+        Get2DReshapedData(nextLayer->outData[0], GNALimitations::GetMinBatchToFitInBuffer(nextLayer->outData[0]), 8)->getDims()[1];
     std::vector<float> weightsValues(weightsSize, fillValue);
     IE_ASSERT(diagLayer != nullptr);
     diagLayer->_weights = make_shared_blob<float>(
@@ -1113,6 +1113,9 @@ void InsertConcatAligningFilterPass::run() {
                                             SizeVector({filterWeights.size()}),
                                             Layout::C));
                 concatAligningFilter->_weights->allocate();
+                if (!concatAligningFilter->_weights->buffer().as<float*>()) {
+                    THROW_GNA_EXCEPTION << "Failed to allocate weights of size " << filterWeights.size() << " for " << filterName;
+                }
 
                 CopyVectorToBlob(concatAligningFilter->_weights, filterWeights);
 
@@ -1395,15 +1398,20 @@ void EltwiseSplitOverChannelsPass::run() {
             THROW_GNA_LAYER_EXCEPTION(l) << "number of outputs expected to be 1";
         }
         auto oData = l->outData.front();
-        auto out_width = GetDataDimSize(oData, DataDimName::W);
-        auto totalElementsForOutput = details::product(oData->getDims().begin(), oData->getDims().end());
-         // gna limit this to be OxFFFF
-        auto maxAffineElements = 65536 - 64;
-        if (totalElementsForOutput <= maxAffineElements) {
+        auto oDims = oData->getDims();
+        auto totalElementsSize = details::product(std::begin(oDims), std::end(oDims));
+        if (totalElementsSize <= GNALimitations::bufferMaxSize) {
             continue;
         }
 
-        auto totalSplits = 1 + totalElementsForOutput / maxAffineElements;
+        auto firstValuableDim = std::find_if(std::begin(oDims), std::end(oDims), [](size_t val) { return val > 1; });
+        IE_ASSERT(firstValuableDim != std::end(oDims));
+        auto splittedElementsSize = *firstValuableDim;
+        auto splittedDimIx = std::distance(std::begin(oDims), firstValuableDim);
+
+        // Split output size should be multiple by 64 to avoid align filters insertion
+        auto splitSizes = GetAlignedSplitSizes(splittedElementsSize,
+            GNALimitations::bufferMaxSize * splittedElementsSize / totalElementsSize);
 
         pass_trace() << "transforming " << LAYER_NAME(l) << " by splitting it to multiple eltwise operations\n";
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);
@@ -1421,27 +1429,13 @@ void EltwiseSplitOverChannelsPass::run() {
             auto inputDesc = l->insData[kThEltwiseInput].lock()->getTensorDesc();
 
             // create split layer outputs
-            size_t usedElements = 0;
-            for (size_t i = 0; i < totalSplits; i++) {
-                SizeVector newDims;
-                size_t elements_num = std::min(totalElementsForOutput - usedElements,
-                        static_cast<size_t>(maxAffineElements));
-                if (inputDesc.getDims().size() == 2) {
-                    newDims = SizeVector{1, elements_num};
-                } else {
-                    elements_num = elements_num - elements_num % out_width;
-                    newDims = SizeVector{1, elements_num / out_width, out_width};
-                }
-
+            for (auto elementsNum : splitSizes) {
+                auto newDims = oDims;
+                newDims[splittedDimIx] = elementsNum;
                 auto newDesc = TensorDesc(inputDesc.getPrecision(), newDims, inputDesc.getLayout());
                 auto data = std::make_shared<Data>(l->name + "/" + std::to_string(kThEltwiseInput) + "/1", newDesc);
                 getCreatorLayer(data) = split;
                 split->outData.push_back(data);
-
-                usedElements += elements_num;
-                if (usedElements == totalElementsForOutput) {
-                    break;
-                }
             }
             // replacing connection X->eltwise to X->split
             auto oData = CNNLayerFindOutData(l, kThEltwiseInput);
@@ -1461,7 +1455,7 @@ void EltwiseSplitOverChannelsPass::run() {
         concat->outData.push_back(masterEltwise->outData.front());
         getCreatorLayer(masterEltwise->outData.front()) = concat;
 
-        for (size_t k = 0; k != totalSplits; k++) {
+        for (size_t k = 0; k != splitSizes.size(); k++) {
             auto eltwiseRaw = std::make_shared<EltwiseLayer>(
                     LayerParams{l->name + "/eltwise/" + std::to_string(k), "Eltwise", Precision::FP32});
             IE_ASSERT(eltwiseRaw != nullptr);
@@ -1521,7 +1515,9 @@ void SubstituteScaleShiftBroadCastPass::run() {
         if (was_reshaped) {
             dataDims = reshaped_data[insData->getName()];
         } else {
-            dataDims = HasTo2DReshapeData(l) ? Get2DReshapedData(insData, 8)->getDims() : insData->getDims();
+            dataDims = HasTo2DReshapeData(l) ?
+                Get2DReshapedData(insData, GNALimitations::GetMinBatchToFitInBuffer(insData), 8)->getDims() :
+                insData->getDims();
         }
 
         if (dataDims.size() <= 2) {
