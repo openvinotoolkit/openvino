@@ -155,7 +155,7 @@ void GNADeviceHelper::releaseModel(const uint32_t model_id) {
 
 bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
     const auto compileTargetDevice = getTargetDevice(false);
-    return isGnaLibVersion2_1 && isUpTo20HwGnaDevice(compileTargetDevice);
+    return (isGnaLibVersion3_0 || isGnaLibVersion2_1) && isUpTo20HwGnaDevice(compileTargetDevice);
 }
 
 Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const bool execTarget) const {
@@ -198,7 +198,12 @@ uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
     // (bit exactly) as on the selected GNA execution target generation.
     // See the GNA Plugin's GNA_EXEC_TARGET config option description.
     if (swExactMode) {
-        const auto consistentDevice = getTargetDevice(true);
+        Gna2DeviceVersion consistentDevice;
+        if (useDeviceEmbeddedExport) {
+            consistentDevice = Gna2DeviceVersionEmbedded1_0;
+        } else {
+            consistentDevice = getTargetDevice(true);
+        }
         status = Gna2RequestConfigEnableHardwareConsistency(reqConfId, consistentDevice);
         checkGna2Status(status, "Gna2RequestConfigEnableHardwareConsistency(" + std::to_string(static_cast<long>(consistentDevice)) + ")");
     }
@@ -435,7 +440,7 @@ GNADeviceHelper::DumpResult GNADeviceHelper::dumpXnn(const uint32_t modelId) {
     checkStatus();
 #else
     r.model.reset(
-        ExportSueLegacyUsingGnaApi2(modelId, &r.header),
+        ExportSueLegacyUsingGnaApi2(modelId, nGnaDeviceIndex, &r.header),
         gnaUserFree);
 #endif
 
@@ -454,7 +459,7 @@ void GNADeviceHelper::dumpXnnForDeviceVersion(
     const Gna2DeviceVersion targetDeviceVersion) {
 
     Gna2ModelSueCreekHeader sueHeader;
-    auto ptr = ExportSueLegacyUsingGnaApi2(modelId, &sueHeader);
+    auto ptr = ExportSueLegacyUsingGnaApi2(modelId, nGnaDeviceIndex, &sueHeader);
     gnaUserFree(ptr);
 
     ExportGnaDescriptorPartiallyFilled(sueHeader.NumberOfLayers, outStream);
@@ -487,8 +492,14 @@ void GNADeviceHelper::open(uint8_t n_threads) {
 #else
     auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &detectedGnaDevVersion);
     checkGna2Status(status, "Gna2DeviceGetVersion");
-    status = Gna2DeviceOpen(nGnaDeviceIndex);
-    checkGna2Status(status, "Gna2DeviceOpen");
+
+    if (useDeviceEmbeddedExport) {
+        status = Gna2DeviceCreateForExport(exportGeneration, &nGnaDeviceIndex);
+        GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport");
+    } else {
+        status = Gna2DeviceOpen(nGnaDeviceIndex);
+        checkGna2Status(status, "Gna2DeviceOpen");
+    }
     // TODO: GNA2: uncomment when scratchpad repaired
     // status = Gna2DeviceSetNumberOfThreads(nGnaDeviceIndex, n_threads);
     // checkGna2Status(status);
