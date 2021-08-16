@@ -21,5 +21,4 @@ add_subdirectory(unittests)
 add_subdirectory(memleaks_tests)
 add_subdirectory(memcheck_tests)
 
-install(DIRECTORY scripts DESTINATION tests/stress_tests COMPONENT tests EXCLUDE_FROM_ALL)
-install(DIRECTORY .automation DESTINATION tests/stress_tests COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY scripts/ .automation/ DESTINATION tests/stress_tests COMPONENT tests EXCLUDE_FROM_ALL)
