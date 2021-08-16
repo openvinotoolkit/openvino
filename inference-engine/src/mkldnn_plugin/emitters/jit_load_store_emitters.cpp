@@ -177,7 +177,8 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
         }
 
         if (bytes_to_load >= 8 && bytes_to_load < 16)
-            h->pinsrq(xmm, addr(start_bytes), 0);
+            h->movq(xmm, addr(start_bytes));
+            //  better CPI than h->pinsrq(xmm, addr(start_bytes), 0);
         else if (bytes_to_load == 16)
             h->uni_vmovdqu(xmm, addr(start_bytes));
 
@@ -189,17 +190,18 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
                 h->uni_vpinsrw(xmm, xmm, addr(start_bytes), 0);
                 h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 2), 2);
                 break;
-            case 4: h->pinsrd(xmm, addr(start_bytes), 0); break;
+            case 4: h->movss(xmm, addr(start_bytes)); break;
+                    // in most case, better than h->pinsrd(xmm, addr(start_bytes), 0);
             case 5:
-                h->pinsrd(xmm, addr(start_bytes), 0);
+                h->movss(xmm, addr(start_bytes));
                 h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 4), 4);
                 break;
             case 6:
-                h->pinsrd(xmm, addr(start_bytes), 0);
+                h->movss(xmm, addr(start_bytes));
                 h->uni_vpinsrw(xmm, xmm, addr(start_bytes + 4), 2);
                 break;
             case 7:
-                h->pinsrd(xmm, addr(start_bytes), 0);
+                h->movss(xmm, addr(start_bytes));
                 h->uni_vpinsrw(xmm, xmm, addr(start_bytes + 4), 2);
                 h->uni_vpinsrb(xmm, xmm, addr(start_bytes + 6), 6);
                 break;
@@ -685,7 +687,8 @@ template <typename Vmm>
             }
 
             if (bytes_to_store >= 8 && bytes_to_store < 16)
-                h->pextrq(addr(start_bytes), xmm, 0);
+                h->movq(addr(start_bytes), xmm);
+                // h->pextrq(addr(start_bytes), xmm, 0);
             else if (bytes_to_store == 16)
                 h->uni_vmovdqu(addr(start_bytes), xmm);
 
@@ -699,17 +702,18 @@ template <typename Vmm>
                     h->uni_vpextrw(addr(start_bytes), xmm, 0);
                     h->uni_vpextrb(addr(start_bytes + 2), xmm, 2);
                     break;
-                case 4: h->pextrd(addr(start_bytes), xmm, 0); break;
+                case 4: h->movss(addr(start_bytes), xmm); break;
+                        // h->pextrd(addr(start_bytes), xmm, 0); break;
                 case 5:
-                    h->pextrd(addr(start_bytes), xmm, 0);
+                    h->movss(addr(start_bytes), xmm);
                     h->uni_vpextrb(addr(start_bytes + 4), xmm, 4);
                     break;
                 case 6:
-                    h->pextrd(addr(start_bytes), xmm, 0);
+                    h->movss(addr(start_bytes), xmm);
                     h->uni_vpextrw(addr(start_bytes + 4), xmm, 2);
                     break;
                 case 7:
-                    h->pextrd(addr(start_bytes), xmm, 0);
+                    h->movss(addr(start_bytes), xmm);
                     h->uni_vpextrw(addr(start_bytes + 4), xmm, 2);
                     h->uni_vpextrb(addr(start_bytes + 6), xmm, 6);
                     break;
