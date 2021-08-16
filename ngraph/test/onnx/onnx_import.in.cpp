@@ -22,23 +22,24 @@
 #endif
 // clang-format on
 
-#include "onnx_import/core/null_node.hpp"
+#include <cpp/ie_cnn_network.h>
+
+#include "default_opset.hpp"
 #include "gtest/gtest.h"
+#include "ngraph/ngraph.hpp"
+#include "ngraph/pass/constant_folding.hpp"
+#include "ngraph/pass/manager.hpp"
+#include "onnx_import/core/null_node.hpp"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
-#include "default_opset.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
+#include "util/engine/test_engines.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/engine/test_engines.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
-#include <cpp/ie_cnn_network.h>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -4023,11 +4024,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32) {
     test_case.run();
 }
 
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_3d)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_3d.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_3d) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_3d.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<int32_t>(Shape{1, 3, 3}, {-1, 0, 1, 20, -20, 10, 0, 2, 1});
@@ -4037,10 +4036,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_3d)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_ceil_mode)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_ceil_mode.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_ceil_mode) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_ceil_mode.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<int32_t>(Shape{1, 1, 4, 4}, gen_range<int32_t>(16, 1));
@@ -4050,27 +4048,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_ceil_mode)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_dilations)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_dilations.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_dilations) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_dilations.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<int32_t>(Shape{1, 1, 4, 4},
-                                 {9, 10, 11, 12, 1, 2, 3, 4, 16, 14, 15, 13, 5, 6, 8, 7});
+    test_case.add_input<int32_t>(Shape{1, 1, 4, 4}, {9, 10, 11, 12, 1, 2, 3, 4, 16, 14, 15, 13, 5, 6, 8, 7});
     test_case.add_expected_output<int32_t>(Shape{1, 1, 2, 2}, {16, 15, 6, 8});
     test_case.add_expected_output<int64_t>(Shape{1, 1, 2, 2}, {8, 10, 13, 14});
 
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_strides)
-{
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_strides) {
     // kernel: 3x3
     // strides: 3, 3
     // explicit pads: 2, 2, 2, 2
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_strides.prototxt"));
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_strides.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<int8_t>(Shape{1, 1, 5, 5}, gen_range<int8_t>(25, 1));
