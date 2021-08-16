@@ -353,7 +353,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(function);
 
-    for (const auto &pass : additionalPasses)
+    for (const auto pass : additionalPasses)
         pass->run_on_function(function);
 
     function->validate_nodes_and_infer_types();
