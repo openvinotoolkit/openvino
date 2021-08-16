@@ -48,6 +48,7 @@ private:
                                                                        InferenceEngine::CNNNetwork network,
                                                                        const std::map<std::string, std::string>& config,
                                                                        const std::string &networkPrecision = METRIC_VALUE(FP32));
+    static void CheckConfig(const std::map<std::string, std::string>& config);
 };
 
 }  // namespace MultiDevicePlugin

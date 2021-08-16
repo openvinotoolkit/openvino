@@ -214,6 +214,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
 
     // if workMode is AUTO
     if (workMode != fullConfig.end()) {
+        CheckConfig(fullConfig);
         return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, fullConfig, this);
     }
 
@@ -464,6 +465,24 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
     }
 
     return allDevices;
+}
+
+void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config) {
+    for (auto&& kvp : config) {
+        if (kvp.first.find("AUTO_") == 0) {
+            continue;
+        } else if (kvp.first == PluginConfigParams::KEY_PERF_COUNT) {
+            if (kvp.second == PluginConfigParams::YES ||
+                kvp.second == PluginConfigParams::NO) {
+                continue;
+            } else {
+                IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
+            }
+        } else if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
+            IE_THROW() << "Unsupported config key: " << kvp.first;
+        }
+    }
 }
 
 }  // namespace MultiDevicePlugin

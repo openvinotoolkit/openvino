@@ -125,13 +125,11 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     auto LoadNetworkAsync =
         [this, core, modelPath, network](const std::string& device) -> SoExecutableNetworkInternal {
             SoExecutableNetworkInternal executableNetwork;
-            // std::cout << "!!! DEBUG: Starting Async loading to the " << device << " !!!" << std::endl;
             if (!modelPath.empty()) {
                 executableNetwork = core->LoadNetwork(modelPath, device, {});
             } else {
                 executableNetwork = core->LoadNetwork(network, device, {});
             }
-            std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
 
             GenerateWorkers(device, executableNetwork);
 
@@ -274,7 +272,6 @@ void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     // this is necessary to guarantee member destroyed after getting future
     if (_acceleratorFuture.valid() && !_alreadyActualNetwork) {
-        // printf("!!! DEBUG: actual network is still not ready, wait that\n");
         _acceleratorFuture.get();
     }
 

@@ -90,6 +90,13 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU}}
     };
 
+    const std::vector<std::map<std::string, std::string>> autoConfigs = {
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
+             CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU}}
+    };
+
+
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigAPITests,
             ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
@@ -115,7 +122,7 @@ namespace {
             ::testing::Combine(
                     ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                    ::testing::ValuesIn(multiconf)),
+                    ::testing::ValuesIn(autoConfigs)),
             CorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
