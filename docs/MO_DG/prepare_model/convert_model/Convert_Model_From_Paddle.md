@@ -3,9 +3,9 @@
 A summary of the steps for optimizing and deploying a model that was trained with Paddle\*:
 
 1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for Paddle\*.
-2. [Convert a Paddle\* Model](#Convert_From_Paddle) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values
-3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../IE_DG/Samples_Overview.md)
-4. [Integrate](../../../IE_DG/Samples_Overview.md) the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment
+2. [Convert a Paddle\* Model](#Convert_From_Paddle) to produce an optimized [Intermediate Representation (IR)](../../IR_and_opsets.md) of the model based on the trained network topology, weights, and biases values.
+3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../IE_DG/Samples_Overview.md).
+4. [Integrate](../../../IE_DG/Samples_Overview.md) the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment.
 
 ## Supported Topologies
 
@@ -23,7 +23,7 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 |Yolo v3| detection| Models are exported from [PaddleDetection](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.1). Refer to [EXPORT_MODEL.md](https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.1/deploy/EXPORT_MODEL.md#).|
 |ppyolo| detection| Models are exported from [PaddleDetection](https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.1). Refer to [EXPORT_MODEL.md](https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.1/deploy/EXPORT_MODEL.md#).|
 
-> **NOTE:** The models verified are exported from the repository of branch release/2.1 .
+> **NOTE:** The verified models are exported from the repository of branch release/2.1.
 
 ## Convert a Paddle* Model <a name="Convert_From_Paddle"></a>
 
@@ -41,7 +41,7 @@ Parameters to convert your model:
 > **NOTE:** `--scale`, `--scale_values`, `--mean_values`, `--mean_file` are unsupported in the current version of mo_paddle.
 
 ### Example of Converting a Paddle* Model
-Below is the example command with Model Optimizer to convert yolo v3 Paddle\* network to OpenVINO IR network.
+Below is the example command to convert yolo v3 Paddle\* network to OpenVINO IR network with Model Optimizer.
 ```sh
 python3 mo.py --model_name yolov3_darknet53_270e_coco --output_dir <OUTPUT_MODEL_DIR> --framework=paddle --data_type=FP32 --reverse_input_channels --input_shape=[2,3,608,608],[1,2],[1,2] --input=image,im_shape,scale_factor --output=save_infer_model/scale_0.tmp_1,save_infer_model/scale_1.tmp_1 --input_model=yolov3.pdmodel
 ```
