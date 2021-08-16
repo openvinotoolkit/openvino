@@ -243,9 +243,32 @@ INSTANTIATE_TEST_SUITE_P(
                       std::vector<int32_t>{15, 19, 16, 20},
                       element::i32,
                       std::vector<int32_t>{5, 7, 12, 15},
+                      Strides{2, 2},  // strides: 2x2
+                      Strides{1, 1},
+                      Shape{},
+                      Shape{},
+                      Shape{2, 2}),
+        MaxPoolParams(Shape{1, 1, 4, 4},
+                      element::i32,
+                      std::vector<int32_t>{8, -9, 1, -16, -14, 15, -17, 19, -13, 3, 10, 17, 16, -11, -15, 20},
+                      std::vector<int32_t>{10, 17, 16, 20},
+                      element::i32,
+                      std::vector<int32_t>{10, 11, 12, 15},
+                      Strides{1, 1},
+                      Strides{2, 2},  // dilations: 2x2
+                      Shape{},
+                      Shape{},
+                      Shape{2, 2}),
+        MaxPoolParams(Shape{1, 1, 4, 4},
+                      element::i32,
+                      std::vector<int32_t>{8, -9, 1, -16, -14, 15, -17, 19, -13, 3, 10, 17, 16, -11, -15, 20},
+                      std::vector<int32_t>{15, 19, 16, 20},
+                      element::i32,
+                      std::vector<int32_t>{5, 7, 12, 15},
                       Strides{1, 1},
                       Strides{1, 1},
                       Shape{},
                       Shape{},
                       Shape{3, 3})),  // kernel: 3x3
+
     ReferenceMaxPoolLayerTest::getTestCaseName);
