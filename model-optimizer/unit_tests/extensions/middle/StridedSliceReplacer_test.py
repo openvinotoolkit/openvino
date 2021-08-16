@@ -121,16 +121,16 @@ class TestStridedSliceReplacer(unittest.TestCase):
         ref_graph = build_graph(
             nodes_attrs=nodes,
             edges=[
-                *connect('input', '0:squeeze'),
-                *connect('squeeze_axes', '1:squeeze'),
-                *connect('squeeze', '0:unsqueeze'),
+                *connect('input', '0:unsqueeze'),
                 *connect('unsqueeze_axes', '1:unsqueeze'),
-                *connect('unsqueeze', 'result')
+                *connect('unsqueeze', '0:squeeze'),
+                *connect('squeeze_axes', '1:squeeze'),
+                *connect('squeeze', 'result')
             ],
             update_attributes={
                 'squeeze_axes_d': {'value': [0]},
                 'unsqueeze_axes_d': {'value': [1]},
-                'unsqueeze_d': {'shape': [3, 1, 5, 5]},
+                'squeeze_d': {'shape': [3, 1, 5, 5]},
             },
             nodes_with_edges_only=True
         )
