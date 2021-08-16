@@ -31,6 +31,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 void ngraph::traverse_nodes(const std::shared_ptr<const Function> p, std::function<void(std::shared_ptr<Node>)> f) {
     traverse_nodes(p.get(), f);
 }
@@ -788,9 +790,7 @@ bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>&
         if (has_result_output && !is_type<ngraph::op::Parameter>(replacement.get_node())) {
             replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
             // Update output tensor name
-            NGRAPH_SUPPRESS_DEPRECATED_START
             replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
-            NGRAPH_SUPPRESS_DEPRECATED_END
         }
 
         // Save replacement tensor names before replacement as they will be
