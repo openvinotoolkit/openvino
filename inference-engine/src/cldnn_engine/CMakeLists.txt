@@ -12,7 +12,7 @@ if(CMAKE_COMPILER_IS_GNUCC)
     endif()
 endif()
 
-if(GPU_DEBUG_CONFIG)
+if(ENABLE_GPU_DEBUG_CAPS)
   add_definitions(-DGPU_DEBUG_CONFIG=1)
 endif()
 
@@ -26,11 +26,11 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml
+target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml::static
                                              inference_engine
                                              inference_engine_transformations
                                              inference_engine_lp_transformations
-                                             ${NGRAPH_LIBRARIES})
+                                             ngraph)
 
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}

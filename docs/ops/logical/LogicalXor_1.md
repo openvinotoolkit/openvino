@@ -20,12 +20,12 @@
 
 **Inputs**
 
-* **1**: A tensor of type T. **Required**.
-* **2**: A tensor of type T. **Required**.
+* **1**: A tensor of type *T*. **Required.**
+* **2**: A tensor of type *T*. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise logical XOR operation. A tensor of type T.
+* **1**: The result of element-wise logical XOR operation. A tensor of type *T*.
 
 **Types**
 
@@ -37,7 +37,7 @@ Before performing logical operation, input tensors *a* and *b* are broadcasted i
 After broadcasting *LogicalXor* does the following with the input tensors *a* and *b*:
 
 \f[
-o_{i} = a_{i} xor b_{i}
+o_{i} = a_{i} \oplus b_{i}
 \f]
 
 **Examples**

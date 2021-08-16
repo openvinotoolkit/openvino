@@ -15,6 +15,7 @@
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
+#include <gna/gna_config.hpp>
 #endif
 
 namespace GNAPluginNS {
@@ -97,8 +98,7 @@ public:
                                              uint32_t num_bytes_per_bias,
                                              uint32_t num_filters,
                                              uint32_t num_filter_coefficients,
-                                             uint32_t num_feature_map_rows,
-                                             uint32_t num_feature_map_columns,
+                                             uint32_t convStride,
                                              float weight_scale_factor,
                                              float output_scale_factor,
                                              A *&ptr_inputs,
@@ -114,8 +114,7 @@ public:
                                             num_bytes_per_bias,
                                             num_filters,
                                             num_filter_coefficients,
-                                            num_feature_map_rows,
-                                            num_feature_map_columns,
+                                            convStride,
                                             weight_scale_factor,
                                             output_scale_factor,
                                             (void *&) ptr_inputs,
@@ -295,7 +294,7 @@ public:
 
 
 #if GNA_LIB_VER == 2
-    void InitGNAStruct(Gna2Model *gnaModel);
+    void InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget = InferenceEngine::GNAConfigParams::GNA_TARGET_2_0);
     void DestroyGNAStruct(Gna2Model *gnaModel);
 #else
 
@@ -428,8 +427,7 @@ private:
                                                     uint32_t num_bytes_per_bias,
                                                     uint32_t num_filters,
                                                     uint32_t num_filter_coefficients,
-                                                    uint32_t num_feature_map_rows,
-                                                    uint32_t num_feature_map_columns,
+                                                    uint32_t convStride,
                                                     float weight_scale_factor,
                                                     float output_scale_factor,
                                                     void *&ptr_inputs,

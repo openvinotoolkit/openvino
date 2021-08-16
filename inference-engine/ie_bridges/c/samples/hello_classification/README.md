@@ -36,7 +36,7 @@ To build the sample, please use instructions available at [Build the Sample Appl
 
 To run the sample, you need specify a model and image:
 
-- you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
@@ -47,33 +47,45 @@ To run the sample, you need specify a model and image:
 >
 > - The sample accepts models in ONNX format (\*.onnx) that do not require preprocessing.
 
-You can do inference of an image using a trained AlexNet network on a GPU using the following command:
+### Example
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+```
+python <path_to_omz_tools>/downloader.py --name alexnet
+```
 
-```sh
-./hello_classification_c <path_to_model>/alexnet_fp32.xml <path_to_image>/cat.png GPU
+2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+
+```
+python <path_to_omz_tools>/converter.py --name alexnet
+```
+
+3. Perform inference of `car.bmp` using `alexnet` model on a `GPU`, for example:
+
+```
+<path_to_sample>/hello_classification_c <path_to_model>/alexnet.xml <path_to_image>/car.bmp GPU
 ```
 
 ## Sample Output
 
 The application outputs top-10 inference results.
 
-```sh
+```
 Top 10 results:
 
-Image /opt/intel/openvino/deployment_tools/demo/car.png
+Image C:\images\car.bmp
 
 classid probability
 ------- -----------
-479     0.7562205
-511     0.0760381
-436     0.0724111
-817     0.0462140
-656     0.0301231
-661     0.0056171
-581     0.0031622
-468     0.0029917
-717     0.0023081
-627     0.0016193
+656       0.666479
+654       0.112940
+581       0.068487
+874       0.033385
+436       0.026132
+817       0.016731
+675       0.010980
+511       0.010592
+569       0.008178
+717       0.006336
 
 This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
@@ -82,7 +94,7 @@ This sample is an API example, for any performance measurements please use the d
 
 - [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
 - [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
-- [Model Downloader](@ref omz_tools_downloader_README)
+- [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [ie_core_create]:https://docs.openvinotoolkit.org/latest/ie_c_api/group__Core.html#gaab73c7ee3704c742eaac457636259541

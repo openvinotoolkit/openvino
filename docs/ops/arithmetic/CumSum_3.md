@@ -2,10 +2,10 @@
 
 **Versioned name**: *CumSum-3*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *CumSum* performs cumulative summation of the input elements along the given axis.
- 
+
 **Detailed description**: By default, it will do the sum inclusively meaning the first element is copied as is. Through an "exclusive" attribute, this behavior can change to exclude the first element. It can also perform summation in the opposite direction of the axis. For that, set reverse attribute to `true`.
 
 **Attributes**:
@@ -32,13 +32,13 @@
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: An tensor of type *T*. **Required.**
 
-* **2**: Scalar axis of type T_AXIS. Negative value means counting dimensions from the back. Default value is 0. **Optional.**
+* **2**: Scalar axis of type *T_AXIS*. Negative value means counting dimensions from the back. Default value is 0. **Optional.**
 
 **Outputs**
 
-* **1**: Output tensor with cumulative sums of the input's elements. A tensor of type T of the same shape as 1st input.
+* **1**: Output tensor with cumulative sums of the input's elements. A tensor of type *T* of the same shape as 1st input.
 
 **Types**
 

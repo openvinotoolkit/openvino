@@ -48,7 +48,7 @@ std::shared_ptr<ngraph::Function> SplitFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> SplitFunction::getOriginal(
     const ngraph::element::Type originalFunctionPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
     int64_t splitedAxis, size_t numSplit) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, inputShape);
