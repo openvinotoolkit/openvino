@@ -157,6 +157,7 @@ set(SRC
     type_prop/logical_and.cpp
     type_prop/logical_not.cpp
     type_prop/logical_or.cpp
+    type_prop/logical_xor.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
@@ -460,6 +461,7 @@ set(MULTI_TEST_SRC
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
+    backend/logical_not.in.cpp
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp

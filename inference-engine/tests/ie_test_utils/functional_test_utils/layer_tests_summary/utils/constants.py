@@ -62,6 +62,7 @@ VERIFIED_OP_REFERENCES = [
     'LogicalAnd-1',
     'LogicalNot-1'
     'LogicalOr-1'
+    'LogicalXor-1'
     'LogSoftmax-5',
     'Loop-5',
     'MVN-1',
