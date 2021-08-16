@@ -597,7 +597,7 @@ extensions/middle/InterpolateSequenceToInterpolate.py
 extensions/middle/L2NormFusing.py
 extensions/middle/LayoutChangeForConstantShapePaths.py
 extensions/middle/LayoutChangeForEinsum.py
-extensions/middle/LayoutChangeForTFWeightsInNCHWConvolutions.py
+extensions/middle/LayoutChangeForTFNCHWConvolutions.py
 extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
 extensions/middle/MakeKaldiConstReshapable.py

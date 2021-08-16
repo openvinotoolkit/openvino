@@ -6,7 +6,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from extensions.middle.LayoutChangeForTFWeightsInNCHWConvolutions import LayoutChangeForTFWeightsInNCHWConvolutions
+from extensions.middle.LayoutChangeForTFNCHWConvolutions import LayoutChangeForTFWeightsInNCHWConvolutions
 from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.middle.passes.eliminate import shape_inference
