@@ -12,10 +12,10 @@
 
 #pragma once
 
-#include "ie_plugin_config.hpp"
-#include "ie_api.h"
-
 #include <string>
+
+#include "ie_api.h"
+#include "ie_plugin_config.hpp"
 
 #define DECLARE_VPU_CONFIG(name) static constexpr auto name = #name
 

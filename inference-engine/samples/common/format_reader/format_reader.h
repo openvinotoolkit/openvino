@@ -14,19 +14,19 @@
 #include <vector>
 
 #if defined(_WIN32)
-    #ifdef IMPLEMENT_FORMAT_READER
-        #define FORMAT_READER_API(type) extern "C" __declspec(dllexport) type
-    #else
-        #define FORMAT_READER_API(type) extern "C" type
-    #endif
+#    ifdef IMPLEMENT_FORMAT_READER
+#        define FORMAT_READER_API(type) extern "C" __declspec(dllexport) type
+#    else
+#        define FORMAT_READER_API(type) extern "C" type
+#    endif
 #elif (__GNUC__ >= 4)
-    #ifdef IMPLEMENT_FORMAT_READER
-        #define FORMAT_READER_API(type) extern "C" __attribute__((visibility("default"))) type
-    #else
-        #define FORMAT_READER_API(type) extern "C" type
-    #endif
+#    ifdef IMPLEMENT_FORMAT_READER
+#        define FORMAT_READER_API(type) extern "C" __attribute__((visibility("default"))) type
+#    else
+#        define FORMAT_READER_API(type) extern "C" type
+#    endif
 #else
-    #define FORMAT_READER_API(TYPE) extern "C" TYPE
+#    define FORMAT_READER_API(TYPE) extern "C" TYPE
 #endif
 
 namespace FormatReader {

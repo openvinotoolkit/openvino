@@ -31,8 +31,8 @@
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
-#include <transformations/op_conversions/convert_gather_v7_to_gather_v1.hpp>
-#include <transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp>
+#include <transformations/op_conversions/convert_gather_downgrade.hpp>
+#include <transformations/op_conversions/convert_gather_upgrade.hpp>
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
@@ -311,6 +311,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
     pass_config->enable<ngraph::pass::ConvertGather1ToGather7>();
+    pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
     if (useLpt) {
         pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {

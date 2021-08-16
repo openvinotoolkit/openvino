@@ -15,11 +15,15 @@ void ITaskExecutor::runAndWait(const std::vector<Task>& tasks) {
     std::vector<std::packaged_task<void()>> packagedTasks;
     std::vector<std::future<void>> futures;
     for (std::size_t i = 0; i < tasks.size(); ++i) {
-        packagedTasks.emplace_back([&tasks, i] {tasks[i]();});
+        packagedTasks.emplace_back([&tasks, i] {
+            tasks[i]();
+        });
         futures.emplace_back(packagedTasks.back().get_future());
     }
     for (std::size_t i = 0; i < tasks.size(); ++i) {
-        run([&packagedTasks, i]{packagedTasks[i]();});
+        run([&packagedTasks, i] {
+            packagedTasks[i]();
+        });
     }
     // std::future::get will rethrow exception from task.
     // We should wait all tasks before any exception is thrown.
