@@ -32,6 +32,7 @@ struct configuration {
     std::string tuning_cache_path;
     std::string kernels_cache_path;
     uint16_t n_threads;
+    int core_type;
 };
 }  // namespace gpu
 }  // namespace cldnn
