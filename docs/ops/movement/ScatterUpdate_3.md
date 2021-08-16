@@ -20,18 +20,15 @@ where first `...` in the `data` corresponds to first `axis` dimensions, last `..
 `rank(data) - (axis + 1)` dimensions.
 
 Several examples for case when `axis = 0`:
-1. `indices` is a 0D tensor: `data[indices, ...] = updates[...]`
-2. `indices` is a 1D tensor (for each `i`): `data[indices[i], ...] = updates[i, ...]`
-3. `indices` is a ND tensor (for each `i, ..., j`): `data[indices[i, ..., j], ...] = updates[i, ..., j, ...]`
-
-This operation is similar to TensorFlow* operation [ScatterUpdate](https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/scatter_update)
-but allows scattering for the arbitrary axis.
+1. `indices` is a \f$0\f$D tensor: \f$data[indices, \dots] = updates[\dots]\f$
+2. `indices` is a \f$1\f$D tensor (for each `i`): \f$data[indices[i],\;\dots] = updates[i,\;\dots]\f$
+3. `indices` is a \f$N\f$D tensor (for each `i`, \f$\dots\f$, `j`): \f$data[indices[i],\;\dots,\;j],\;\dots] = updates[i,\;\dots,\;j,\;\dots]\f$
 
 **Attributes**: *ScatterUpdate* does not have attributes.
 
 **Inputs**:
 
-*   **1**: `data` tensor of arbitrary rank `r` and of type *T*. **Required.**
+*   **1**: `data` tensor of arbitrary rank `r` and of type *T_NUMERIC*. **Required.**
 
 *   **2**: `indices` tensor with indices of type *T_IND*.
 All index values are expected to be within bounds `[0, s - 1]` along axis of size `s`. If multiple indices point to the
@@ -49,7 +46,7 @@ The value can be in range `[-r, r - 1]` where `r` is the rank of `data`. **Requi
 
 **Types**
 
-* *T*: any numeric type.
+* *T_NUMERIC*: any numeric type.
 
 * *T_IND*: any supported integer types.
 
@@ -60,29 +57,29 @@ The value can be in range `[-r, r - 1]` where `r` is the rank of `data`. **Requi
 ```xml
 <layer ... type="ScatterUpdate">
     <input>
-        <port id="0">
+        <port id="0">  <!-- data -->
             <dim>1000</dim>
             <dim>256</dim>
             <dim>10</dim>
             <dim>15</dim>
         </port>
-        <port id="1">
+        <port id="1">  <!-- indices -->
             <dim>125</dim>
             <dim>20</dim>
         </port>
-        <port id="2">
+        <port id="2">  <!-- udpates -->
             <dim>1000</dim>
             <dim>125</dim>
             <dim>20</dim>
             <dim>10</dim>
             <dim>15</dim>
         </port>
-        <port id="3">     <!-- value [1] -->
-            <dim>1</dim>
+        <port id="3">   <!-- axis -->
+            <dim>1</dim> <!-- value [1] -->
         </port>
     </input>
     <output>
-        <port id="4" precision="FP32">
+        <port id="4" precision="FP32"> <!-- output -->
             <dim>1000</dim>
             <dim>256</dim>
             <dim>10</dim>
