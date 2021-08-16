@@ -36,13 +36,11 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
                                        const std::vector<StageMetaInfo> &blobMetaData,
                                        const PluginConfiguration& myriadConfig,
                                        const Logger::Ptr &log,
-                                       const MyriadExecutorPtr &executor,
-                                       std::map<std::string, ie::Blob::Ptr> constDatas,
-                                       bool isNetworkConstant = true) :
+                                       const MyriadExecutorPtr &executor) :
         IInferRequestInternal(networkInputs, networkOutputs), _executor(executor),
         _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
         _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo),
-        _graphDesc(graphDesc), _constDatas(constDatas), _isNetworkConstant(isNetworkConstant) {
+        _graphDesc(graphDesc)) {
     VPU_PROFILE(MyriadInferRequest);
 
     const auto& ioStrides = _config.get<TensorStridesOption>();
@@ -88,7 +86,7 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
     resultBuffer.resize(compilerOutputsInfo.totalSize);
 
     VPU_THROW_UNLESS(
-        !_networkOutputs.empty() && !(_networkInputs.empty() && !_isNetworkConstant),
+        !_networkOutputs.empty() && !_networkInputs.empty()),
         "No information about network's output/input");
 }
 
@@ -98,9 +96,6 @@ void MyriadInferRequest::InferImpl() {
 }
 
 void MyriadInferRequest::InferAsync() {
-    if (_isNetworkConstant) {
-        return;
-    }
     VPU_PROFILE(InferAsync);
 
     // execute input pre-processing
@@ -146,8 +141,7 @@ void MyriadInferRequest::InferAsync() {
         }
     }
 
-    _executor->queueInference(_graphDesc, inputBuffer.data(),
-                            _inputInfo.totalSize, nullptr, 0);
+    _executor->queueInference(_graphDesc, inputBuffer.data());
 }
 static void copyBlobAccordingUpperBound(
     const Blob::Ptr& in,
@@ -209,19 +203,19 @@ void MyriadInferRequest::GetResult() {
                                                     << "Output [" << name << "] is not provided.";
         return foundBlob->second->getTensorDesc().getLayout();
     };
-    if (_isNetworkConstant) {
-        for (const auto& output : _outputs) {
-            const auto& ieBlobName = output.first;
-            const auto& ieBlob = output.second;
-            IE_ASSERT(_constDatas.find(ieBlobName) != _constDatas.end()) <<
-            "Input [" << ieBlobName << "] is not provided.";
-            std::copy_n(
-                _constDatas[ieBlobName]->cbuffer().as<uint8_t *>(),
-                _constDatas[ieBlobName]->byteSize(),
-                ieBlob->buffer().as<uint8_t *>());
-        }
-        return;
-    }
+    // if (_isNetworkConstant) {
+    //     for (const auto& output : _outputs) {
+    //         const auto& ieBlobName = output.first;
+    //         const auto& ieBlob = output.second;
+    //         IE_ASSERT(_constDatas.find(ieBlobName) != _constDatas.end()) <<
+    //         "Input [" << ieBlobName << "] is not provided.";
+    //         std::copy_n(
+    //             _constDatas[ieBlobName]->cbuffer().as<uint8_t *>(),
+    //             _constDatas[ieBlobName]->byteSize(),
+    //             ieBlob->buffer().as<uint8_t *>());
+    //     }
+    //     return;
+    // }
     // For networks with only one output
     if (_outputInfo.offset.size() == 1) {
         const auto& it = _outputs.begin();

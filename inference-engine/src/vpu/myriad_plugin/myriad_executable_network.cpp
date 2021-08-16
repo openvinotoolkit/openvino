@@ -28,6 +28,7 @@ namespace MyriadPlugin {
 
 ExecutableNetwork::ExecutableNetwork(
         std::shared_ptr<IMvnc> mvnc,
+        std::vector<DevicePtr>& devicePool,
         const PluginConfiguration& config,
         const std::shared_ptr<ie::ICore> core) :
             _config(config),
@@ -42,6 +43,10 @@ ExecutableNetwork::ExecutableNetwork(
         consoleOutput());
 
     _executor = std::make_shared<MyriadExecutor>(false, std::move(mvnc), logLevel, _log);
+    _device = _executor->openDevice(devicePool, _config);
+
+    const auto& revision = _device->revision();
+    _actualNumExecutors = config.compileConfig().numExecutors != -1 ? config.compileConfig().numExecutors : DefaultAllocation::numStreams(revision, config);
 
     _supportedMetrics = {
         METRIC_KEY(NETWORK_NAME),
@@ -52,12 +57,12 @@ ExecutableNetwork::ExecutableNetwork(
     };
 }
 
-void ExecutableNetwork::openDevice(std::vector<DevicePtr>& devicePool) {
-    _device = _executor->openDevice(devicePool, _config);
-    const auto& revision = _device->revision();
-    _actualNumExecutors = _config.get<ThroughputStreamsOption>().hasValue()
-        ? _config.get<ThroughputStreamsOption>().get() : DefaultAllocation::numStreams(revision, _config);
-}
+// void ExecutableNetwork::openDevice(std::vector<DevicePtr>& devicePool) {
+//     _device = _executor->openDevice(devicePool, _config);
+//     const auto& revision = _device->revision();
+//     _actualNumExecutors = _config.get<ThroughputStreamsOption>().hasValue()
+//         ? _config.get<ThroughputStreamsOption>().get() : DefaultAllocation::numStreams(revision, _config);
+// }
 
 ExecutableNetwork::ExecutableNetwork(
         const ie::CNNNetwork& network,
@@ -65,13 +70,16 @@ ExecutableNetwork::ExecutableNetwork(
         std::vector<DevicePtr>& devicePool,
         const PluginConfiguration& config,
         const std::shared_ptr<ie::ICore> core) :
-            ExecutableNetwork(std::move(mvnc), config, core) {
+            ExecutableNetwork(std::move(mvnc), devicePool, config, core) {
     VPU_PROFILE(ExecutableNetwork);
 
     const auto compilerLog = std::make_shared<Logger>(
         "GraphCompiler",
         _config.get<LogLevelOption>(),
         consoleOutput());
+
+    if (_device == nullptr)
+        IE_THROW() << "No device was detected";
 
     auto compiledGraph = compileNetwork(
         network,
@@ -87,7 +95,13 @@ ExecutableNetwork::ExecutableNetwork(
     _inputInfo  = std::move(compiledGraph->inputInfo);
     _outputInfo = std::move(compiledGraph->outputInfo);
 
+    if (!_device->isBooted()) {
+        return;
+    }
+
     const auto& networkName = network.getName();
+    _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages, networkName, _actualNumExecutors);
+
     if (_config.get<ExclusiveAsyncRequestsOption>()) {
         ExecutorManager *executorManager = ExecutorManager::getInstance();
         _taskExecutor = executorManager->getExecutor("MYRIAD");
@@ -98,21 +112,21 @@ ExecutableNetwork::ExecutableNetwork(
         idStream << networkName << "_TaskExecutorGetResult" << i;
         _taskExecutorGetResultIds.emplace(idStream.str());
     }
-    if (_inputInfo.totalSize == 0) {
-        _isNetworkConstant = true;
-        const auto& nGraphFunc = network.getFunction();
-        const auto& sortedLayers = nGraphFunc->get_ordered_ops();
-        for (const auto& layer : sortedLayers) {
-            if (strcmp(layer->get_type_info().name, "Constant") == 0) {
-                const auto& constOp = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(layer);
-                auto name = constOp->get_friendly_name();
-                _constDatas[name] = ie::details::shareWeights(constOp);
-            }
-        }
-        return;
-    }
-    openDevice(devicePool);
-    _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages, networkName, _actualNumExecutors);
+    // if (_inputInfo.totalSize == 0) {
+    //     _isNetworkConstant = true;
+    //     const auto& nGraphFunc = network.getFunction();
+    //     const auto& sortedLayers = nGraphFunc->get_ordered_ops();
+    //     for (const auto& layer : sortedLayers) {
+    //         if (strcmp(layer->get_type_info().name, "Constant") == 0) {
+    //             const auto& constOp = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(layer);
+    //             auto name = constOp->get_friendly_name();
+    //             _constDatas[name] = ie::details::shareWeights(constOp);
+    //         }
+    //     }
+    //     return;
+    // }
+    // openDevice(devicePool);
+    // _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages, networkName, _actualNumExecutors);
 }
 
 void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devicePool, const PluginConfiguration& configuration) {
@@ -122,6 +136,10 @@ void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devic
     _graphBlob.resize(static_cast<size_t>(blobSize));
     strm.seekg(currentPos, strm.beg);
     strm.read(&_graphBlob[0], blobSize);
+
+    if (!_device->isBooted()) {
+        return;
+    }
 
     std::string networkName = importedNetworkName;
 
@@ -135,7 +153,7 @@ void ExecutableNetwork::Import(std::istream& strm, std::vector<DevicePtr> &devic
 
     _inputInfo  = blobReader.getInputInfo();
     _outputInfo = blobReader.getOutputInfo();
-    openDevice(devicePool);
+    // openDevice(devicePool);
     _executor->allocateGraph(_device, _graphDesc, _graphBlob, blobHeader, numStages, networkName, _actualNumExecutors);
     _graphMetaData.stagesMeta.resize(numStages);
     for (auto &meta : _graphMetaData.stagesMeta) {
@@ -160,7 +178,7 @@ ExecutableNetwork::ExecutableNetwork(std::istream& strm,
                                std::vector<DevicePtr> &devicePool,
                                const PluginConfiguration& config,
                                const std::shared_ptr<ie::ICore> core) :
-    ExecutableNetwork(std::move(mvnc), config, core) {
+    ExecutableNetwork(std::move(mvnc), devicePool, config, core) {
     VPU_PROFILE(ExecutableNetwork);
     Import(strm, devicePool, config);
 }
@@ -171,7 +189,7 @@ ExecutableNetwork::ExecutableNetwork(
         std::vector<DevicePtr>& devicePool,
         const PluginConfiguration& config,
         const std::shared_ptr<ie::ICore> core) :
-    ExecutableNetwork(std::move(mvnc), config, core) {
+    ExecutableNetwork(std::move(mvnc), devicePool, config, core) {
     VPU_PROFILE(ExecutableNetwork);
     std::ifstream blobFile{blobFilename, std::ios::binary};
     Import(blobFile, devicePool, config);
