@@ -6,7 +6,6 @@
 
 #include <sys/stat.h>
 
-#include <ie/details/ie_so_pointer.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -822,7 +821,7 @@ public:
         AddExtensionUnsafe(extension);
     }
 
-    void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const {
+    void AddExtensionUnsafe(const ie::IExtensionPtr& extension) const {
         std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
         for (const auto& it : opsets) {
             if (opsetNames.find(it.first) != opsetNames.end())
@@ -891,6 +890,25 @@ public:
     }
 
 private:
+    void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const {
+        std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
+        for (const auto& it : opsets) {
+            if (opsetNames.find(it.first) != opsetNames.end())
+                IE_THROW() << "Cannot add opset with name: " << it.first
+                           << ". Opset with the same name already exists.";
+            opsetNames.insert(it.first);
+        }
+
+        // add extensions for already created plugins
+        for (auto& plugin : plugins) {
+            try {
+                plugin.second.AddExtension(extension);
+            } catch (...) {
+            }
+        }
+        extensions.emplace_back(extension);
+    }
+
     template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
     void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) const {
         try {
