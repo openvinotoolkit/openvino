@@ -14,7 +14,7 @@
 
 class CustomReLUImpl : public InferenceEngine::ILayerExecImpl {
 public:
-    explicit CustomReLUImpl(const std::shared_ptr<ngraph::Node>& node): _node(node) {}
+    explicit CustomReLUImpl(const std::shared_ptr<ngraph::Node>& node) : _node(node) {}
 
     InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
                                                            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
@@ -44,15 +44,19 @@ public:
         return InferenceEngine::OK;
     }
 
-    InferenceEngine::StatusCode init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+    InferenceEngine::StatusCode init(InferenceEngine::LayerConfig& /*config*/,
+                                     InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         return InferenceEngine::StatusCode::OK;
     }
 
-    InferenceEngine::StatusCode execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
+    InferenceEngine::StatusCode execute(std::vector<InferenceEngine::Blob::Ptr>& inputs,
+                                        std::vector<InferenceEngine::Blob::Ptr>& outputs,
                                         InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         static bool wasCalled = false;
         if (!wasCalled) {
-            std::cout << "Running " + std::string(CUSTOM_RELU_TYPE) + " kernel for the first time (next messages won't be printed)" << std::endl;
+            std::cout << "Running " + std::string(CUSTOM_RELU_TYPE) +
+                             " kernel for the first time (next messages won't be printed)"
+                      << std::endl;
             wasCalled = true;
         }
         for (size_t i = 0; i < inputs.size(); i++) {
@@ -80,13 +84,13 @@ private:
 
 class CustomReluOp : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info {CUSTOM_RELU_TYPE, 0};
+    static constexpr ngraph::NodeTypeInfo type_info{CUSTOM_RELU_TYPE, 0};
     const ngraph::NodeTypeInfo& get_type_info() const override {
         return type_info;
     }
 
     CustomReluOp() = default;
-    explicit CustomReluOp(const ngraph::Output<ngraph::Node>& arg): Op({arg}) {
+    explicit CustomReluOp(const ngraph::Output<ngraph::Node>& arg) : Op({arg}) {
         constructor_validate_and_infer_types();
     }
 
@@ -134,7 +138,8 @@ public:
         return {"CPU"};
     }
 
-    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
+    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node,
+                                                       const std::string& implType) override {
         if (impls.find(node->description()) == impls.end() || implType != "CPU")
             return nullptr;
         return impls[node->description()](node);

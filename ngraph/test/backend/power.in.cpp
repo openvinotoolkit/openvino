@@ -33,8 +33,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, power)
-{
+NGRAPH_TEST(${BACKEND_NAME}, power) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -49,8 +48,7 @@ NGRAPH_TEST(${BACKEND_NAME}, power)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, power_broadcasted)
-{
+NGRAPH_TEST(${BACKEND_NAME}, power_broadcasted) {
     Shape shape_a{2, 1, 5};
     Shape shape_b{2, 1};
     Shape shape_r{2, 2, 5};
@@ -64,13 +62,12 @@ NGRAPH_TEST(${BACKEND_NAME}, power_broadcasted)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape_r, {1, 2, 3, 4, 5, 1, 4, 9, 16, 25,
-                                                   6, 7, 8, 9, 10, 36, 49, 64, 81, 100});
+    test_case.add_expected_output<float>(shape_r,
+                                         {1, 2, 3, 4, 5, 1, 4, 9, 16, 25, 6, 7, 8, 9, 10, 36, 49, 64, 81, 100});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, power_scalars)
-{
+NGRAPH_TEST(${BACKEND_NAME}, power_scalars) {
     Shape shape{};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -85,8 +82,7 @@ NGRAPH_TEST(${BACKEND_NAME}, power_scalars)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, power_vector_and_scalar)
-{
+NGRAPH_TEST(${BACKEND_NAME}, power_vector_and_scalar) {
     Shape shape_a{2, 2};
     Shape shape_b{};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
