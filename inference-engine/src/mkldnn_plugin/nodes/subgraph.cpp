@@ -400,7 +400,7 @@ void MKLDNNSnippetNode::define_shedule() {
             // update offsets for tile 2D because loaders have ptr shifts in some cases and stores have always ptrs shifts
             for (auto i = 0; i < offsets_in.size(); i++) {
                 int64_t offset = offsets_in[i][tensorRank - 2];
-                if (offset > dataSize || offset == 0 && dims_in[i].back() != 1) {
+                if ((offset > dataSize) || (offset == 0 && dims_in[i].back() != 1)) {
                     sch_offsets_in[i] = offset - dims_out[max_rank_out_desc_idx].back() * dataSize;
                 } else if (offset == dataSize) {
                     sch_offsets_in[i] = offset;
