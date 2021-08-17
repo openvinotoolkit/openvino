@@ -502,7 +502,6 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
 }
 // ! [infer_request:set_blob]
 
-
 // ! [infer_request:get_performance_counts]
 std::map<std::string, InferenceEngineProfileInfo> TemplateInferRequest::GetPerformanceCounts() const {
     std::map<std::string, InferenceEngineProfileInfo> perfMap;
