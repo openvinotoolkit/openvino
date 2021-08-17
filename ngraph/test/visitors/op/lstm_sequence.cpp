@@ -3,14 +3,12 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -18,8 +16,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, lstm_sequence_op)
-{
+TEST(attributes, lstm_sequence_op) {
     NodeBuilder::get_ops().register_factory<opset5::LSTMSequence>();
 
     const size_t batch_size = 4;
@@ -28,17 +25,14 @@ TEST(attributes, lstm_sequence_op)
     const size_t input_size = 16;
     const size_t hidden_size = 64;
 
-    const auto X =
-        make_shared<op::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
+    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
         make_shared<op::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
     const auto initial_cell_state =
         make_shared<op::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
     const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
-    const auto W = make_shared<op::Parameter>(element::f32,
-                                              Shape{num_directions, 4 * hidden_size, input_size});
-    const auto R = make_shared<op::Parameter>(element::f32,
-                                              Shape{num_directions, 4 * hidden_size, hidden_size});
+    const auto W = make_shared<op::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
     const auto lstm_direction = op::RecurrentSequenceDirection::BIDIRECTIONAL;

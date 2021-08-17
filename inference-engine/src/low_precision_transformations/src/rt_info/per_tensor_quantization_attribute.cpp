@@ -5,6 +5,7 @@
 #include "low_precision/rt_info/per_tensor_quantization_attribute.hpp"
 
 using namespace ngraph;
+using namespace ov;
 
 template class ngraph::VariantImpl<PerTensorQuantizationAttribute>;
 constexpr VariantTypeInfo VariantWrapper<PerTensorQuantizationAttribute>::type_info;

@@ -57,10 +57,10 @@ protected:
 
         // preresize layer
         ngraph::opset4::Interpolate::InterpolateAttrs attrs;
-        attrs.mode = ngraph::opset4::Interpolate::InterpolateMode::linear_onnx;
-        attrs.shape_calculation_mode = ngraph::opset4::Interpolate::ShapeCalcMode::sizes;
-        attrs.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::asymmetric;
-        attrs.nearest_mode = ngraph::opset4::Interpolate::NearestMode::ceil;
+        attrs.mode = ngraph::opset4::Interpolate::InterpolateMode::LINEAR_ONNX;
+        attrs.shape_calculation_mode = ngraph::opset4::Interpolate::ShapeCalcMode::SIZES;
+        attrs.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::ASYMMETRIC;
+        attrs.nearest_mode = ngraph::opset4::Interpolate::NearestMode::CEIL;
         std::vector<int64_t> shape = {3, 3 };
 
         std::vector<float> scales = {1.5, 1.5 };
