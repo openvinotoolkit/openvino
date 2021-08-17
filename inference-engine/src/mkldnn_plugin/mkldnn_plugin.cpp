@@ -116,7 +116,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-// #define DUMP_TOKENIZATION
+//#define DUMP_TOKENIZATION
 
 Engine::Engine() {
     _pluginName = "CPU";
@@ -450,9 +450,9 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     if (tokenizeSubgraphs != Config::TokenizationMode::Disabled) {
 #if defined (DUMP_TOKENIZATION)
-        std::cout << "Tokenization is ON" << std::endl;
+//        std::cout << "Tokenization is ON" << std::endl;
         for (auto op : nGraphFunc->get_ordered_ops()) {
-            std::cout << "IN: " << op << std::endl;
+//            std::cout << "IN: " << op << std::endl;
             if (auto constant = ngraph::as_type_ptr<ngraph::opset1::Constant>(op)) {
                 std::cout << "constant value " << reinterpret_cast<const float*>(constant->get_data_ptr())[0] << std::endl;
             }
@@ -475,19 +475,19 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             return name;
         };
         for (auto op : nGraphFunc->get_ordered_ops()) {
-            std::cout << "OUT: " << op << std::endl;
+//            std::cout << "OUT: " << op << std::endl;
             if (auto subgraph = ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(op)) {
-                for (auto& bop : subgraph->get_body()->get_ordered_ops()) {
-                    std::cout << "out:     " << bop << std::endl;
-                }
+//                for (auto& bop : subgraph->get_body()->get_ordered_ops()) {
+//                    std::cout << "out:     " << bop << std::endl;
+//                }
                 //ngraph::pass::VisualizeTree(std::string("subgraph_")+std::to_string(subgraph_index++)+".svg").run_on_function(subgraph->get_body());
                 ngraph::pass::VisualizeTree(std::string("subgraph_")+formatNodeName(op->get_friendly_name())+".svg").run_on_function(subgraph->get_body());
             }
 
             if (auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op)) {
-                for (auto& bop : ti->get_body()->get_ordered_ops()) {
-                    std::cout << "out:     " << bop << std::endl;
-                }
+//                for (auto& bop : ti->get_body()->get_ordered_ops()) {
+//                    std::cout << "out:     " << bop << std::endl;
+//                }
                 ngraph::pass::VisualizeTree(std::string("tensor_iterator")+std::to_string(subgraph_index++)+".svg").run_on_function(ti->get_body());
             }
         }
