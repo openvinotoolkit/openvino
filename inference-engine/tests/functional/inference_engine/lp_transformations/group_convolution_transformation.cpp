@@ -84,7 +84,7 @@ public:
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(testValues.params);
         if (testValues.params.supportAsymmetricQuantization == false) {
-            transform.set_callback<ngraph::pass::low_precision::GroupConvolutionTransformation>(
+            transform.get_pass_config()->set_callback<ngraph::pass::low_precision::GroupConvolutionTransformation>(
                 [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
                     return ngraph::pass::low_precision::LayerTransformation::isAsymmetricQuantization(node);
                 });
@@ -163,7 +163,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
 
@@ -188,7 +188,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
 
@@ -213,7 +213,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
 
@@ -262,7 +262,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
     // group convolution, per-channel quantization with different values, without zero point
@@ -335,7 +335,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {
                 {},
                 {},
-                {{ 0.0002f }, ngraph::element::f32, {1, 24, 1, 1}}
+                {{ 0.0002f }, ngraph::element::f32, {}}
             },
         }
     },
@@ -384,7 +384,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // per-channel quantization with different values, without zero point
@@ -535,7 +535,7 @@ const std::vector<GroupConvolutionTestValues> testValuesForDepthWiseConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 6, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // depth-wise convolution, tensor quantization, with zero point
@@ -559,7 +559,7 @@ const std::vector<GroupConvolutionTestValues> testValuesForDepthWiseConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 6, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // depth-wise convolution, per-channel quantization with different values, without zero point
@@ -629,7 +629,7 @@ const std::vector<GroupConvolutionTestValues> testValuesForDepthWiseConv = {
             {
                 {},
                 {},
-                {{ 0.0002f }, ngraph::element::f32, {1, 6, 1, 1}}
+                {{ 0.0002f }, ngraph::element::f32, {}}
             },
         }
     },
@@ -678,7 +678,7 @@ const std::vector<GroupConvolutionTestValues> testValuesForDepthWiseConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 6, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // without dequantization operations

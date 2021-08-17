@@ -4,9 +4,6 @@
 
 #include "unary_ops.hpp"
 
-using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v4::SoftPlus, element::f32>>;
+using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v4::SoftPlus, ngraph::element::f32>>;
 
-INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_atrribute,
-                               UnaryOperatorVisitor,
-                               Types,
-                               UnaryOperatorTypeName);
+INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_atrribute, UnaryOperatorVisitor, Types, UnaryOperatorTypeName);

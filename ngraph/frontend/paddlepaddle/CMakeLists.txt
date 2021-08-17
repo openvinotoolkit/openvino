@@ -23,12 +23,6 @@ set(PROTO_HDRS)
 # Generate protobuf file on build time for each '.proto' file in src/proto
 file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/proto/*.proto)
 
-if(CMAKE_CROSSCOMPILING)
-    set(PDPD_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
-else()
-    set(PDPD_PROTOC_EXECUTABLE $<TARGET_FILE:protoc>)
-endif()
-
 foreach(INFILE ${proto_files})
     get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
     get_filename_component(FILE_WE ${INFILE} NAME_WE)
@@ -37,9 +31,9 @@ foreach(INFILE ${proto_files})
     set(GENERATED_PROTO ${INFILE})
     add_custom_command(
             OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
-            COMMAND ${PDPD_PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
-            DEPENDS ${PDPD_PROTOC_EXECUTABLE} ${GENERATED_PROTO}
-            COMMENT "Running C++ protocol buffer compiler (${PDPD_PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
+            COMMAND ${PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
+            DEPENDS ${PROTOC_EXECUTABLE} ${GENERATED_PROTO}
+            COMMENT "Running C++ protocol buffer compiler (${PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
             VERBATIM
             COMMAND_EXPAND_LISTS)
     list(APPEND PROTO_SRCS "${OUTPUT_PB_SRC}")
@@ -58,6 +52,11 @@ add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_P
 
 add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend_proto)
 
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                    ADDITIONAL_INCLUDE_DIRECTORIES
+                        $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+
 target_include_directories(${TARGET_NAME}
         PUBLIC
             $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
@@ -74,10 +73,10 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
 endif()
 
-link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
+link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 
-target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager
-                                     PRIVATE ngraph::builder)
+target_link_libraries(${TARGET_NAME} PRIVATE ngraph::frontend_manager::static
+                                     PRIVATE ngraph::builder inference_engine_transformations)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})

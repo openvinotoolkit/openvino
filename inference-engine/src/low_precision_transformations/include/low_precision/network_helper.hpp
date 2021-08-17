@@ -131,7 +131,7 @@ public:
         const float dequantizationMul,
         const float dequantizationSub,
         const ngraph::element::Type originalPrecision,
-        const ngraph::PartialShape dataNodeOutputShape,
+        const ngraph::PartialShape& dataNodeOutputShape,
         element::Type precision,
         const element::Type deqPrecision = element::f32,
         std::shared_ptr<ngraph::Node> input = nullptr);
@@ -151,7 +151,7 @@ public:
 
     static bool isQuantizeSupported(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
 
-    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node>& node, const size_t parentIndex = 0ul, const bool inPlace = false);
+    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<const Node>& node, const size_t parentIndex = 0ul, const bool inPlace = false);
 
     static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node, const bool convertIsMandatory = false);
 
@@ -186,7 +186,7 @@ public:
 
     static size_t getParentOutputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
 
-    static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
+    static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization, const element::Type precision);
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
     static bool checkZeroPoint(const std::shared_ptr<Node>& node, const DataPrecision& dataPrecision = DataPrecision());

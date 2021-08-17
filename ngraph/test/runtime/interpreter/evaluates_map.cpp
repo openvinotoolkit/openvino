@@ -66,7 +66,6 @@
 #include <ngraph/runtime/reference/roi_pooling.hpp>
 #include <ngraph/runtime/reference/roll.hpp>
 #include <ngraph/runtime/reference/scatter_nd_update.hpp>
-#include <ngraph/runtime/reference/select.hpp>
 #include <ngraph/runtime/reference/selu.hpp>
 #include <ngraph/runtime/reference/sequences.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
@@ -1608,24 +1607,6 @@ namespace
     }
 
     template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v1::Select>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-
-        runtime::reference::select<T>(inputs[0]->get_data_ptr<const char>(),
-                                      inputs[1]->get_data_ptr<const T>(),
-                                      inputs[2]->get_data_ptr<const T>(),
-                                      outputs[0]->get_data_ptr<T>(),
-                                      op->get_input_shape(0),
-                                      op->get_input_shape(1),
-                                      op->get_input_shape(2),
-                                      op->get_auto_broadcast());
-        return true;
-    }
-
-    template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v1::AvgPool>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
@@ -1988,13 +1969,25 @@ namespace
                              const HostTensorVector& outputs,
                              const HostTensorVector& inputs)
         {
-            using TI = typename element_type_traits<ti>::value_type;
-            using TO = typename element_type_traits<to>::value_type;
-            runtime::reference::convert<TI, TO>(inputs[0]->get_data_ptr<TI>(),
-                                                outputs[0]->get_data_ptr<TO>(),
-                                                shape_size(inputs[0]->get_shape()));
-        }
+            outputs[0]->set_shape(inputs[0]->get_shape());
+            size_t element_count = shape_size(outputs[0]->get_shape());
 
+            if (((ti == element::u1) || (to == element::u1)) ||
+            ((ti == element::u4) || (to == element::u4)) ||
+            ((ti == element::i4) || (to == element::i4)))
+            {
+                runtime::reference::detail::lp_convert(inputs[0]->get_data_ptr<ti>(),
+                                                       outputs[0]->get_data_ptr<to>(),
+                                                       element_count,
+                                                       ti,
+                                                       to);
+            }
+            else
+            {
+                runtime::reference::convert(
+                    inputs[0]->get_data_ptr<ti>(), outputs[0]->get_data_ptr<to>(), element_count);
+            }
+        }
     } // namespace convert_like_v1
 
     template <element::Type_t OUT_ET>
@@ -2007,6 +2000,12 @@ namespace
         case element::Type_t::boolean:
             convert_like_v1::evaluate<element::Type_t::boolean, OUT_ET>(op, outputs, inputs);
             break;
+        case element::Type_t::u1:
+            convert_like_v1::evaluate<element::Type_t::u1, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u4:
+            convert_like_v1::evaluate<element::Type_t::u4, OUT_ET>(op, outputs, inputs);
+            break;
         case element::Type_t::u8:
             convert_like_v1::evaluate<element::Type_t::u8, OUT_ET>(op, outputs, inputs);
             break;
@@ -2018,6 +2017,9 @@ namespace
             break;
         case element::Type_t::u64:
             convert_like_v1::evaluate<element::Type_t::u64, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i4:
+            convert_like_v1::evaluate<element::Type_t::i4, OUT_ET>(op, outputs, inputs);
             break;
         case element::Type_t::i8:
             convert_like_v1::evaluate<element::Type_t::i8, OUT_ET>(op, outputs, inputs);
@@ -2437,19 +2439,19 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::v0::fake_quantize<T>(inputs[0]->get_data_ptr<const T>(),
-                                                 inputs[1]->get_data_ptr<const T>(),
-                                                 inputs[2]->get_data_ptr<const T>(),
-                                                 inputs[3]->get_data_ptr<const T>(),
-                                                 inputs[4]->get_data_ptr<const T>(),
-                                                 outputs[0]->get_data_ptr<T>(),
-                                                 op->get_input_shape(0),
-                                                 op->get_input_shape(1),
-                                                 op->get_input_shape(2),
-                                                 op->get_input_shape(3),
-                                                 op->get_input_shape(4),
-                                                 op->get_levels(),
-                                                 op->get_auto_broadcast());
+        runtime::reference::fake_quantize<T>(inputs[0]->get_data_ptr<const T>(),
+                                             inputs[1]->get_data_ptr<const T>(),
+                                             inputs[2]->get_data_ptr<const T>(),
+                                             inputs[3]->get_data_ptr<const T>(),
+                                             inputs[4]->get_data_ptr<const T>(),
+                                             outputs[0]->get_data_ptr<T>(),
+                                             op->get_input_shape(0),
+                                             op->get_input_shape(1),
+                                             op->get_input_shape(2),
+                                             op->get_input_shape(3),
+                                             op->get_input_shape(4),
+                                             op->get_levels(),
+                                             op->get_auto_broadcast());
         return true;
     }
 
@@ -2897,11 +2899,19 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
-                                              outputs[0]->get_data_ptr<T>(),
-                                              outputs[1]->get_data_ptr<int64_t>(),
-                                              inputs[0]->get_shape(),
-                                              op->get_output_shape(0));
+        if (op->get_index_element_type() == element::i32) {
+            runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  outputs[1]->get_data_ptr<int32_t>(),
+                                                  inputs[0]->get_shape(),
+                                                  op->get_output_shape(0));
+        } else if (op->get_index_element_type() == element::i64) {
+            runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  outputs[1]->get_data_ptr<int64_t>(),
+                                                  inputs[0]->get_shape(),
+                                                  op->get_output_shape(0));
+        }
         return true;
     }
 
@@ -2943,6 +2953,8 @@ namespace
             return evaluate<element::Type_t::f64>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::f32:
             return evaluate<element::Type_t::f32>(as_type_ptr<T>(node), outputs, inputs);
+        case element::Type_t::i4:
+            return evaluate<element::Type_t::i4>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::i8:
             return evaluate<element::Type_t::i8>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::i16:
@@ -2951,6 +2963,10 @@ namespace
             return evaluate<element::Type_t::i32>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::i64:
             return evaluate<element::Type_t::i64>(as_type_ptr<T>(node), outputs, inputs);
+        case element::Type_t::u1:
+            return evaluate<element::Type_t::u1>(as_type_ptr<T>(node), outputs, inputs);
+        case element::Type_t::u4:
+            return evaluate<element::Type_t::u4>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::u8:
             return evaluate<element::Type_t::u8>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::u16:

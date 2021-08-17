@@ -25,7 +25,7 @@
 *Abs* does the following with the input tensor *a*:
 
 \f[
-a_{i} = abs(a_{i})
+a_{i} = \vert a_{i} \vert
 \f]
 
 **Examples**

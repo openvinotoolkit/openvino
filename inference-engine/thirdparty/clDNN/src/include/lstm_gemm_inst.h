@@ -38,7 +38,7 @@ public:
     static std::string to_string(lstm_gemm_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, lstm_gemm_node const& node);
+    typed_primitive_inst(network& network, lstm_gemm_node const& node);
 
     memory::ptr weights_memory() const { return dep_memory_ptr(1); }
     memory::ptr recurrent_memory() const { return dep_memory_ptr(2); }

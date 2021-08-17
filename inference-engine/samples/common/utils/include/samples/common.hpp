@@ -24,11 +24,11 @@
 #include <vector>
 
 #ifndef UNUSED
-    #if defined(_MSC_VER) && !defined(__clang__)
-        #define UNUSED
-    #else
-        #define UNUSED __attribute__((unused))
-    #endif
+#    if defined(_MSC_VER) && !defined(__clang__)
+#        define UNUSED
+#    else
+#        define UNUSED __attribute__((unused))
+#    endif
 #endif
 
 /**
@@ -46,7 +46,8 @@ inline void ltrim(std::string& s) {
  * @param s - string to trim
  */
 inline void rtrim(std::string& s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(),
+    s.erase(std::find_if(s.rbegin(),
+                         s.rend(),
                          [](int c) {
                              return !std::isspace(c);
                          })
@@ -130,7 +131,7 @@ public:
      * @param g - value for green channel
      * @param b - value for blue channel
      */
-    Color(unsigned char r, unsigned char g, unsigned char b): _r(r), _g(g), _b(b) {}
+    Color(unsigned char r, unsigned char g, unsigned char b) : _r(r), _g(g), _b(b) {}
 
     inline unsigned char red() {
         return _r;
@@ -157,9 +158,11 @@ public:
 static UNUSED void writeOutputBmp(std::vector<std::vector<size_t>> data, size_t classesNum, std::ostream& outFile) {
     unsigned int seed = (unsigned int)time(NULL);
     // Known colors for training classes from Cityscape dataset
-    static std::vector<Color> colors = {{128, 64, 128}, {232, 35, 244}, {70, 70, 70},    {156, 102, 102}, {153, 153, 190}, {153, 153, 153}, {30, 170, 250},
-                                        {0, 220, 220},  {35, 142, 107}, {152, 251, 152}, {180, 130, 70},  {60, 20, 220},   {0, 0, 255},     {142, 0, 0},
-                                        {70, 0, 0},     {100, 60, 0},   {90, 0, 0},      {230, 0, 0},     {32, 11, 119},   {0, 74, 111},    {81, 0, 81}};
+    static std::vector<Color> colors = {
+        {128, 64, 128}, {232, 35, 244}, {70, 70, 70},   {156, 102, 102}, {153, 153, 190}, {153, 153, 153},
+        {30, 170, 250}, {0, 220, 220},  {35, 142, 107}, {152, 251, 152}, {180, 130, 70},  {60, 20, 220},
+        {0, 0, 255},    {142, 0, 0},    {70, 0, 0},     {100, 60, 0},    {90, 0, 0},      {230, 0, 0},
+        {32, 11, 119},  {0, 74, 111},   {81, 0, 81}};
 
     while (classesNum > colors.size()) {
         static std::mt19937 rng(seed);
@@ -171,13 +174,17 @@ static UNUSED void writeOutputBmp(std::vector<std::vector<size_t>> data, size_t 
     unsigned char file[14] = {
         'B',
         'M',  // magic
-        0,       0, 0,
+        0,
+        0,
+        0,
         0,  // size in bytes
         0,
         0,  // app data
         0,
         0,  // app data
-        40 + 14, 0, 0,
+        40 + 14,
+        0,
+        0,
         0  // start of data offset
     };
     unsigned char info[40] = {
@@ -262,13 +269,17 @@ static UNUSED bool writeOutputBmp(std::string name, unsigned char* data, size_t 
     unsigned char file[14] = {
         'B',
         'M',  // magic
-        0,       0, 0,
+        0,
+        0,
+        0,
         0,  // size in bytes
         0,
         0,  // app data
         0,
         0,  // app data
-        40 + 14, 0, 0,
+        40 + 14,
+        0,
+        0,
         0  // start of data offset
     };
     unsigned char info[40] = {
@@ -342,11 +353,18 @@ static UNUSED bool writeOutputBmp(std::string name, unsigned char* data, size_t 
  * @param classes - vector of classes
  * @param thickness - thickness of a line (in pixels) to be used for bounding boxes
  */
-static UNUSED void addRectangles(unsigned char* data, size_t height, size_t width, std::vector<int> rectangles, std::vector<int> classes, int thickness = 1) {
+static UNUSED void addRectangles(unsigned char* data,
+                                 size_t height,
+                                 size_t width,
+                                 std::vector<int> rectangles,
+                                 std::vector<int> classes,
+                                 int thickness = 1) {
     std::vector<Color> colors = {// colors to be used for bounding boxes
-                                 {128, 64, 128}, {232, 35, 244}, {70, 70, 70},    {156, 102, 102}, {153, 153, 190}, {153, 153, 153}, {30, 170, 250},
-                                 {0, 220, 220},  {35, 142, 107}, {152, 251, 152}, {180, 130, 70},  {60, 20, 220},   {0, 0, 255},     {142, 0, 0},
-                                 {70, 0, 0},     {100, 60, 0},   {90, 0, 0},      {230, 0, 0},     {32, 11, 119},   {0, 74, 111},    {81, 0, 81}};
+                                 {128, 64, 128},  {232, 35, 244}, {70, 70, 70},  {156, 102, 102}, {153, 153, 190},
+                                 {153, 153, 153}, {30, 170, 250}, {0, 220, 220}, {35, 142, 107},  {152, 251, 152},
+                                 {180, 130, 70},  {60, 20, 220},  {0, 0, 255},   {142, 0, 0},     {70, 0, 0},
+                                 {100, 60, 0},    {90, 0, 0},     {230, 0, 0},   {32, 11, 119},   {0, 74, 111},
+                                 {81, 0, 81}};
     if (rectangles.size() % 4 != 0 || rectangles.size() / 4 != classes.size()) {
         return;
     }
@@ -430,13 +448,17 @@ static UNUSED bool writeOutputBmp(unsigned char* data, size_t height, size_t wid
     unsigned char file[14] = {
         'B',
         'M',  // magic
-        0,       0, 0,
+        0,
+        0,
+        0,
         0,  // size in bytes
         0,
         0,  // app data
         0,
         0,  // app data
-        40 + 14, 0, 0,
+        40 + 14,
+        0,
+        0,
         0  // start of data offset
     };
     unsigned char info[40] = {
@@ -515,8 +537,11 @@ static std::vector<std::pair<std::string, InferenceEngine::InferenceEngineProfil
     return sorted;
 }
 
-static UNUSED void printPerformanceCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& performanceMap, std::ostream& stream,
-                                          std::string deviceName, bool bshowHeader = true) {
+static UNUSED void printPerformanceCounts(
+    const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& performanceMap,
+    std::ostream& stream,
+    std::string deviceName,
+    bool bshowHeader = true) {
     long long totalTime = 0;
     // Print performance counts
     if (bshowHeader) {
@@ -560,12 +585,16 @@ static UNUSED void printPerformanceCounts(const std::map<std::string, InferenceE
     std::cout << std::endl;
 }
 
-static UNUSED void printPerformanceCounts(InferenceEngine::InferRequest request, std::ostream& stream, std::string deviceName, bool bshowHeader = true) {
+static UNUSED void printPerformanceCounts(InferenceEngine::InferRequest request,
+                                          std::ostream& stream,
+                                          std::string deviceName,
+                                          bool bshowHeader = true) {
     auto performanceMap = request.GetPerformanceCounts();
     printPerformanceCounts(performanceMap, stream, deviceName, bshowHeader);
 }
 
-inline std::map<std::string, std::string> getMapFullDevicesNames(InferenceEngine::Core& ie, std::vector<std::string> devices) {
+inline std::map<std::string, std::string> getMapFullDevicesNames(InferenceEngine::Core& ie,
+                                                                 std::vector<std::string> devices) {
     std::map<std::string, std::string> devicesMap;
     InferenceEngine::Parameter p;
     for (std::string& deviceName : devices) {
@@ -608,8 +637,20 @@ public:
     float xmin, xmax, ymin, ymax, prob;
     bool difficult;
 
-    DetectedObject(int _objectType, float _xmin, float _ymin, float _xmax, float _ymax, float _prob, bool _difficult = false)
-        : objectType(_objectType), xmin(_xmin), xmax(_xmax), ymin(_ymin), ymax(_ymax), prob(_prob), difficult(_difficult) {}
+    DetectedObject(int _objectType,
+                   float _xmin,
+                   float _ymin,
+                   float _xmax,
+                   float _ymax,
+                   float _prob,
+                   bool _difficult = false)
+        : objectType(_objectType),
+          xmin(_xmin),
+          xmax(_xmax),
+          ymin(_ymin),
+          ymax(_ymax),
+          prob(_prob),
+          difficult(_difficult) {}
 
     DetectedObject(const DetectedObject& other) = default;
 
@@ -617,10 +658,18 @@ public:
         // Add small space to eliminate empty squares
         float epsilon = 0;  // 1e-5f;
 
-        DetectedObject detectedObject1(detectedObject1_.objectType, (detectedObject1_.xmin - epsilon), (detectedObject1_.ymin - epsilon),
-                                       (detectedObject1_.xmax - epsilon), (detectedObject1_.ymax - epsilon), detectedObject1_.prob);
-        DetectedObject detectedObject2(detectedObject2_.objectType, (detectedObject2_.xmin + epsilon), (detectedObject2_.ymin + epsilon),
-                                       (detectedObject2_.xmax), (detectedObject2_.ymax), detectedObject2_.prob);
+        DetectedObject detectedObject1(detectedObject1_.objectType,
+                                       (detectedObject1_.xmin - epsilon),
+                                       (detectedObject1_.ymin - epsilon),
+                                       (detectedObject1_.xmax - epsilon),
+                                       (detectedObject1_.ymax - epsilon),
+                                       detectedObject1_.prob);
+        DetectedObject detectedObject2(detectedObject2_.objectType,
+                                       (detectedObject2_.xmin + epsilon),
+                                       (detectedObject2_.ymin + epsilon),
+                                       (detectedObject2_.xmax),
+                                       (detectedObject2_.ymax),
+                                       detectedObject2_.prob);
 
         if (detectedObject1.objectType != detectedObject2.objectType) {
             // objects are different, so the result is 0
@@ -657,8 +706,10 @@ public:
         }
 
         // union
-        float square1 = (addendum + detectedObject1.xmax - detectedObject1.xmin) * (addendum + detectedObject1.ymax - detectedObject1.ymin);
-        float square2 = (addendum + detectedObject2.xmax - detectedObject2.xmin) * (addendum + detectedObject2.ymax - detectedObject2.ymin);
+        float square1 = (addendum + detectedObject1.xmax - detectedObject1.xmin) *
+                        (addendum + detectedObject1.ymax - detectedObject1.ymin);
+        float square2 = (addendum + detectedObject2.xmax - detectedObject2.xmin) *
+                        (addendum + detectedObject2.ymax - detectedObject2.ymin);
 
         float unn = square1 + square2 - intr;
 
@@ -666,7 +717,13 @@ public:
     }
 
     DetectedObject scale(float scale_x, float scale_y) const {
-        return DetectedObject(objectType, xmin * scale_x, ymin * scale_y, xmax * scale_x, ymax * scale_y, prob, difficult);
+        return DetectedObject(objectType,
+                              xmin * scale_x,
+                              ymin * scale_y,
+                              xmax * scale_x,
+                              ymax * scale_y,
+                              prob,
+                              difficult);
     }
 };
 
@@ -675,7 +732,9 @@ public:
     const std::list<DetectedObject> alist;
     const bool check_probs;
 
-    explicit ImageDescription(const std::list<DetectedObject>& _alist, bool _check_probs = false): alist(_alist), check_probs(_check_probs) {}
+    explicit ImageDescription(const std::list<DetectedObject>& _alist, bool _check_probs = false)
+        : alist(_alist),
+          check_probs(_check_probs) {}
 
     static float ioUMultiple(const ImageDescription& detectedObjects, const ImageDescription& desiredObjects) {
         const ImageDescription *detectedObjectsSmall, *detectedObjectsBig;
@@ -755,7 +814,7 @@ private:
     }
 
 public:
-    explicit AveragePrecisionCalculator(double _threshold): threshold(_threshold) {}
+    explicit AveragePrecisionCalculator(double _threshold) : threshold(_threshold) {}
 
     // gt_bboxes -> des
     // bboxes -> det
@@ -763,7 +822,7 @@ public:
     void consumeImage(const ImageDescription& detectedObjects, const ImageDescription& desiredObjects) {
         // Collecting IoU values
         std::vector<bool> visited(desiredObjects.alist.size(), false);
-        std::vector<DetectedObject> bboxes {std::begin(detectedObjects.alist), std::end(detectedObjects.alist)};
+        std::vector<DetectedObject> bboxes{std::begin(detectedObjects.alist), std::end(detectedObjects.alist)};
         std::sort(bboxes.begin(), bboxes.end(), SortBBoxDescend);
 
         for (auto&& detObj : bboxes) {
@@ -882,10 +941,15 @@ public:
  * @param width - width of the rectangle
  * @param detectedObjects - vector of detected objects
  */
-static UNUSED void addRectangles(unsigned char* data, size_t height, size_t width, std::vector<DetectedObject> detectedObjects) {
-    std::vector<Color> colors = {{128, 64, 128}, {232, 35, 244}, {70, 70, 70},    {156, 102, 102}, {153, 153, 190}, {153, 153, 153}, {30, 170, 250},
-                                 {0, 220, 220},  {35, 142, 107}, {152, 251, 152}, {180, 130, 70},  {60, 20, 220},   {0, 0, 255},     {142, 0, 0},
-                                 {70, 0, 0},     {100, 60, 0},   {90, 0, 0},      {230, 0, 0},     {32, 11, 119},   {0, 74, 111},    {81, 0, 81}};
+static UNUSED void addRectangles(unsigned char* data,
+                                 size_t height,
+                                 size_t width,
+                                 std::vector<DetectedObject> detectedObjects) {
+    std::vector<Color> colors = {{128, 64, 128},  {232, 35, 244}, {70, 70, 70},  {156, 102, 102}, {153, 153, 190},
+                                 {153, 153, 153}, {30, 170, 250}, {0, 220, 220}, {35, 142, 107},  {152, 251, 152},
+                                 {180, 130, 70},  {60, 20, 220},  {0, 0, 255},   {142, 0, 0},     {70, 0, 0},
+                                 {100, 60, 0},    {90, 0, 0},     {230, 0, 0},   {32, 11, 119},   {0, 74, 111},
+                                 {81, 0, 81}};
 
     for (size_t i = 0; i < detectedObjects.size(); i++) {
         int cls = detectedObjects[i].objectType % colors.size();
@@ -923,10 +987,11 @@ inline std::size_t getTensorWidth(const InferenceEngine::TensorDesc& desc) {
     const auto& layout = desc.getLayout();
     const auto& dims = desc.getDims();
     const auto& size = dims.size();
-    if ((size >= 2) && (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC || layout == InferenceEngine::Layout::NCDHW ||
-                        layout == InferenceEngine::Layout::NDHWC || layout == InferenceEngine::Layout::OIHW || layout == InferenceEngine::Layout::GOIHW ||
-                        layout == InferenceEngine::Layout::OIDHW || layout == InferenceEngine::Layout::GOIDHW || layout == InferenceEngine::Layout::CHW ||
-                        layout == InferenceEngine::Layout::HW)) {
+    if ((size >= 2) && (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
+                        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
+                        layout == InferenceEngine::Layout::OIHW || layout == InferenceEngine::Layout::GOIHW ||
+                        layout == InferenceEngine::Layout::OIDHW || layout == InferenceEngine::Layout::GOIDHW ||
+                        layout == InferenceEngine::Layout::CHW || layout == InferenceEngine::Layout::HW)) {
         // Regardless of layout, dimensions are stored in fixed order
         return dims.back();
     } else {
@@ -939,10 +1004,11 @@ inline std::size_t getTensorHeight(const InferenceEngine::TensorDesc& desc) {
     const auto& layout = desc.getLayout();
     const auto& dims = desc.getDims();
     const auto& size = dims.size();
-    if ((size >= 2) && (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC || layout == InferenceEngine::Layout::NCDHW ||
-                        layout == InferenceEngine::Layout::NDHWC || layout == InferenceEngine::Layout::OIHW || layout == InferenceEngine::Layout::GOIHW ||
-                        layout == InferenceEngine::Layout::OIDHW || layout == InferenceEngine::Layout::GOIDHW || layout == InferenceEngine::Layout::CHW ||
-                        layout == InferenceEngine::Layout::HW)) {
+    if ((size >= 2) && (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
+                        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
+                        layout == InferenceEngine::Layout::OIHW || layout == InferenceEngine::Layout::GOIHW ||
+                        layout == InferenceEngine::Layout::OIDHW || layout == InferenceEngine::Layout::GOIDHW ||
+                        layout == InferenceEngine::Layout::CHW || layout == InferenceEngine::Layout::HW)) {
         // Regardless of layout, dimensions are stored in fixed order
         return dims.at(size - 2);
     } else {
@@ -953,8 +1019,9 @@ inline std::size_t getTensorHeight(const InferenceEngine::TensorDesc& desc) {
 
 inline std::size_t getTensorChannels(const InferenceEngine::TensorDesc& desc) {
     const auto& layout = desc.getLayout();
-    if (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC || layout == InferenceEngine::Layout::NCDHW ||
-        layout == InferenceEngine::Layout::NDHWC || layout == InferenceEngine::Layout::C || layout == InferenceEngine::Layout::CHW ||
+    if (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
+        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
+        layout == InferenceEngine::Layout::C || layout == InferenceEngine::Layout::CHW ||
         layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::CN) {
         // Regardless of layout, dimensions are stored in fixed order
         const auto& dims = desc.getDims();
@@ -982,8 +1049,9 @@ inline std::size_t getTensorChannels(const InferenceEngine::TensorDesc& desc) {
 
 inline std::size_t getTensorBatch(const InferenceEngine::TensorDesc& desc) {
     const auto& layout = desc.getLayout();
-    if (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC || layout == InferenceEngine::Layout::NCDHW ||
-        layout == InferenceEngine::Layout::NDHWC || layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::CN) {
+    if (layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC ||
+        layout == InferenceEngine::Layout::NCDHW || layout == InferenceEngine::Layout::NDHWC ||
+        layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::CN) {
         // Regardless of layout, dimensions are stored in fixed order
         const auto& dims = desc.getDims();
         switch (desc.getLayoutByDims(dims)) {

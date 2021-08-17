@@ -84,6 +84,8 @@ def parse_args():
                            'Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency '
                            'estimations the number of streams should be set to 1. '
                            'See samples README for more details.')
+    args.add_argument('--latency_percentile', type=int, required=False, default=50, choices=range(1,101),
+                      help='Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).')
     args.add_argument('-enforcebf16', '--enforce_bfloat16', type=str2bool, required=False, default=False, nargs='?', const=True, choices=[True, False],
                       help='Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform. '
                            '\'true\'  - enable  bfloat16 regardless of platform support. '
@@ -128,6 +130,12 @@ def parse_args():
                       help="Optional. Enable model caching to specified directory")
     args.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,
                       help="Optional. Loads model from file directly without read_network.")
+    args.add_argument('-iscale', '--input_scale', type=str, required=False, default='',
+                      help="Optional. Scale values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
+                           "Example: -iscale data[255,255,255],info[255,255,255]\n")
+    args.add_argument('-imean', '--input_mean', type=str, required=False, default='',
+                      help="Optional. Mean values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
+                           "Example: -imean data[255,255,255],info[255,255,255]\n")
     parsed_args = parser.parse_args()
 
     return parsed_args
