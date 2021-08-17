@@ -17,7 +17,7 @@ nodes = {
     **regular_op_with_shaped_data('convert', [3, 4, 5], {'type': 'Convert'}),
     **result('result'),
 
-    # new Roll node and inputs
+    # new RandomUniform node and inputs
     **regular_op_with_shaped_data('min_val', [1], {'type': 'Const'}),
     **regular_op_with_shaped_data('max_val', [1], {'type': 'Const'}),
     **regular_op_with_shaped_data('shape', [3], {'type': 'Const'}),

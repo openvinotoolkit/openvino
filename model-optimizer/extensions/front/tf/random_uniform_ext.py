@@ -14,8 +14,8 @@ class RandomUniformExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = {
             'output_type': tf_dtype_extractor(node.pb.attr["dtype"].type),
-            'seed': node.pb.attr['seed'].i,
-            'seed2': node.pb.attr['seed2'].i
+            'global_seed': node.pb.attr['seed'].i,
+            'op_seed': node.pb.attr['seed2'].i
         }
         AttributedRandomUniform.update_node_stat(node, attrs)
         return cls.enabled

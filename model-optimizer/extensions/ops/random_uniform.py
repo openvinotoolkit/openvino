@@ -4,7 +4,7 @@
 import numpy as np
 
 from mo.graph.graph import Graph, Node
-from mo.middle.passes.convert_data_type import np_data_type_to_destination_type, np_data_type_to_str
+from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
 
 
@@ -24,16 +24,15 @@ class RandomUniform(Op):
             'in_ports_count': 3,
             'out_ports_count': 1,
             'type_infer': self.type_infer,
-            'seed': 0,
-            'seed2': 0,
+            'global_seed': 0,
+            'op_seed': 0,
             'output_type': np.float32,
-            'force_precision_in_ports': {1: None, 2: None},
         }, attrs)
 
     def backend_attrs(self):
         return [('output_type', lambda node: np_data_type_to_destination_type(node.output_type)),
-                'seed',
-                'seed2']
+                'global_seed',
+                'op_seed']
 
     @staticmethod
     def type_infer(node: Node):
@@ -42,12 +41,13 @@ class RandomUniform(Op):
     @staticmethod
     def infer(node: Node):
         assert node.has_valid('output_type')
-        type_str = np_data_type_to_str(node['output_type'])
-        node['force_precision_in_ports'] = {1: type_str, 2: type_str}
 
-        out_shape = node.in_node(0).value
-        node.out_node().shape = out_shape
+        node.out_port(0).data.set_shape(node.in_port(0).data.get_value())
 
+        # We need to keep data type in data nodes corresponding to min and max values,
+        # as min and max value type should be the same as output_type attribute of RandomUniform
+        # operation. 'correct_data_type' attribute prevents changes of the data node type when
+        # ir data type is not equal to data node type.
         node.in_node(1)['correct_data_type'] = True
         node.in_node(2)['correct_data_type'] = True
 
@@ -69,7 +69,7 @@ class AttributedRandomUniform(Op):
             'infer': None,
             'in_ports_count': 3,
             'out_ports_count': 1,
-            'seed': 0,
-            'seed2': 0,
+            'global_seed': 0,
+            'op_seed': 0,
             'output_type': np.float32,
         }, attrs)

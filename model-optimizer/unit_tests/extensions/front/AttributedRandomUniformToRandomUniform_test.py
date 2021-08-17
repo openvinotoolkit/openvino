@@ -18,7 +18,7 @@ nodes = {
                                          'shape': int64_array([5, 4, 3])}),
     **result('result'),
 
-    # new Roll node and inputs
+    # new RandomUniform node and inputs
     **regular_op('random_uniform', {'type': 'RandomUniform'}),
     **const('min_val', float32_array([-1.5])),
     **const('max_val', float32_array([10.7])),

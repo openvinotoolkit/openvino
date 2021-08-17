@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.ops.random_uniform import RandomUniform
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -22,7 +20,7 @@ class AttributedRandomUniformToRandomUniform(FrontReplacementPattern):
             original_name = attr_random_uniform.soft_get('name', attr_random_uniform.id)
 
             if not attr_random_uniform.has_valid('output_type'):
-                raise Error('RandomUniform should have valid ''output_type'' attribute.')
+                raise Error("RandomUniform should have valid ''output_type'' attribute.")
             output_type = attr_random_uniform.soft_get('output_type')
 
             if attr_random_uniform.has_valid('min_val'):
@@ -38,12 +36,12 @@ class AttributedRandomUniformToRandomUniform(FrontReplacementPattern):
 
             if not attr_random_uniform.has_port('in', 0) or attr_random_uniform.in_port(0).disconnected():
                 if not attr_random_uniform.has_valid('shape'):
-                    raise Error('RandomUniform should have valid ''shape'' attribute or input node on 0 port.')
+                    raise Error("RandomUniform should have valid ''shape'' attribute or input node on 0 port.")
                 else:
                     port_value_dict.update({0: attr_random_uniform.shape})
 
             attrs = {'seed': attr_random_uniform.soft_get('seed', 0), 'seed2': attr_random_uniform.soft_get('seed2', 0),
-                     'output_type': attr_random_uniform.soft_get('output_type', np.float32)}
+                     'output_type': output_type}
 
             new_random_uniform = create_op_with_const_inputs(graph, op=RandomUniform, port_value_dict=port_value_dict,
                                                              op_attrs=attrs)
