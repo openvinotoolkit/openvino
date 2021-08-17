@@ -66,10 +66,7 @@ OutputVector crop(const Node& node) {
     std::vector<int64_t> begin_mask{1, 1, 0, 0};
     std::vector<int64_t> end_mask{1, 1, 0, 0};
 
-    // Default strides: 1,1,1,1
-    const auto strides = default_opset::Constant::create(ngraph::element::i64, Shape{4}, {1, 1, 1, 1});
-
-    return {std::make_shared<default_opset::StridedSlice>(input_data, begin, end, strides, begin_mask, end_mask)};
+    return {std::make_shared<default_opset::StridedSlice>(input_data, begin, end, begin_mask, end_mask)};
 }
 
 }  // namespace set_1
