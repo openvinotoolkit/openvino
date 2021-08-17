@@ -25,8 +25,6 @@ class CTCGreedyDecoderReplacementTests(unittest.TestCase):
 
         # new nodes
         'new_decoder': {'kind': 'op', 'op': 'CTCGreedyDecoderSeqLen', 'merge_repeated': True},
-        'dense_decoder': {'kind': 'op', 'op': 'CTCGreedyDecoderSeqLen', 'merge_repeated': True,
-                          'output_sparse_format': False},
         **const('squeeze_axes', int64_array([2, 3])),
         'squeeze_dec_seq': {'kind': 'op', 'op': 'Squeeze'},
         'cast_to_int': {'kind': 'op', 'op': 'Cast'},
@@ -95,10 +93,10 @@ class CTCGreedyDecoderReplacementTests(unittest.TestCase):
         graph_ref = build_graph(self.nodes_attributes,
                                 [('logits', 'transpose', {'out': 0, 'in': 0}),
                                  ('order_arr', 'transpose', {'out': 0, 'in': 1}),
-                                 ('transpose', 'dense_decoder', {'out': 0, 'in': 0}),
-                                 ('seq_len', 'dense_decoder', {'out': 0, 'in': 1}),
-                                 ('dense_decoder', 'last', {'out': 0, 'in': 0}),
-                                 ('dense_decoder', 'last_1', {'out': 1, 'in': 0}),
+                                 ('transpose', 'new_decoder', {'out': 0, 'in': 0}),
+                                 ('seq_len', 'new_decoder', {'out': 0, 'in': 1}),
+                                 ('new_decoder', 'last', {'out': 0, 'in': 0}),
+                                 ('new_decoder', 'last_1', {'out': 1, 'in': 0}),
                                  ],
                                 nodes_with_edges_only=True)
 
