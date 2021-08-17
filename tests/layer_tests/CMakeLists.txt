@@ -4,4 +4,4 @@
 
 project(layer_tests)
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/ DESTINATION layer_tests_openvino COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/ DESTINATION tests/layer_tests_openvino COMPONENT tests EXCLUDE_FROM_ALL)
