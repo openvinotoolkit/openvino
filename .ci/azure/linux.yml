@@ -30,6 +30,7 @@ jobs:
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
     INSTALL_DIR: $(WORK_DIR)/install_pkg
+    TEST_PKG_DIR: $(WORK_DIR)/test_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
 
@@ -235,6 +236,14 @@ jobs:
       cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
     displayName: 'Python API Tests'
+    continueOnError: false
+
+  - script: |
+      . $(SETUPVARS) -pyver 3.6
+      python3 -m pip install -r requirements.txt
+      python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xml
+    workingDirectory: $TEST_PKG_DIR/layer_tests
+    displayName: 'Layer Tests'
     continueOnError: false
 
   - task: PublishTestResults@2
