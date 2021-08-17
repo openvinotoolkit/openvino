@@ -4,7 +4,7 @@
 
 **Category**: Comparison binary operation
 
-**Short description**: *NotEqual* performs element-wise comparison binary operation with two given tensors applying
+**Short description**: *NotEqual* performs element-wise comparison operation with two given tensors applying
 multi-directional broadcast rules.
 
 **Detailed description**
