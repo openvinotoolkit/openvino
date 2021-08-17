@@ -1579,6 +1579,18 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
             transpose_inputs_info,
             transpose_outputs_info);
 
+    // If scale factors are defined in configuration we still need to use them instead of imported values,
+    // for example to change the scale factors for the old models.
+    if (!config.inputScaleFactors.empty()) {
+        IE_ASSERT(config.inputScaleFactors.size() == inputsDesc->inputScaleFactors.size());
+        for (size_t i = 0; i < config.inputScaleFactors.size(); ++i) {
+            if (config.inputScaleFactors[i] != GNAPluginNS::kScaleFactorDefault) {
+                gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << i << std::endl;
+                inputsDesc->inputScaleFactors[i] = config.inputScaleFactors[i];
+            }
+        }
+    }
+
 #if GNA_LIB_VER == 2
     auto getOrientation = [](Gna2Operation & gnaOperation) {
         return gnaOperation.Type == Gna2OperationTypeConvolution ?
