@@ -98,22 +98,23 @@ public:
     ///
     bool is_correct_tensor_name(const std::string& name) const;
 
-    /// \brief     Get name of input port indicated by the input edge.
+    /// \brief     Get name of the tensor which is the source of the input edge.
     ///
-    /// \note      Empty string is returned if the port name is not found.
+    /// \note      Empty string is returned if the tensor name is not found.
     ///
-    std::string get_input_port_name(const InputEdge& edge) const;
+    std::string get_source_tensor_name(const InputEdge& edge) const;
 
-    /// \brief     Get name of output port indicated by the input edge.
+    /// \brief     Get name of the tensor which is the target of the output edge.
     ///
-    /// \note      Empty string is returned if the port name is not found.
+    /// \note      Empty string is returned if the tensor name is not found.
     ///
-    std::string get_output_port_name(const OutputEdge& edge) const;
+    std::string get_target_tensor_name(const OutputEdge& edge) const;
 
 private:
     std::vector<int> find_node_indexes(const std::string& node_name, const std::string& output_name) const;
 
-    int get_node_input_idx(int node_index, const std::string& input_name) const;
+    // note: a single node can have more than one inputs with the same name
+    std::vector<int> get_node_input_indexes(int node_index, const std::string& input_name) const;
     int get_node_output_idx(int node_index, const std::string& output_name) const;
 
     std::vector<std::vector<std::string>> m_node_inputs;

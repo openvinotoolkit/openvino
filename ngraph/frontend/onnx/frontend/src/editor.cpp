@@ -325,25 +325,33 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::model_outputs() const {
     return outputs;
 }
 
-bool onnx_editor::ONNXModelEditor::is_input(const InputEdge& edge) const {
+std::string onnx_editor::ONNXModelEditor::get_source_tensor_name(const InputEdge& edge) const {
     update_mapper_if_needed();
-    const auto& port_name = m_pimpl->m_edge_mapper.get_input_port_name(edge);
-    if (port_name.empty()) {
+    return m_pimpl->m_edge_mapper.get_source_tensor_name(edge);
+}
+
+bool onnx_editor::ONNXModelEditor::is_input(const InputEdge& edge) const {
+    const auto& tensor_name = get_source_tensor_name(edge);
+    if (tensor_name.empty()) {
         return false;
     } else {
         const auto& inputs = model_inputs();
-        return std::count(std::begin(inputs), std::end(inputs), port_name) > 0;
+        return std::count(std::begin(inputs), std::end(inputs), tensor_name) > 0;
     }
 }
 
-bool onnx_editor::ONNXModelEditor::is_output(const OutputEdge& edge) const {
+std::string onnx_editor::ONNXModelEditor::get_target_tensor_name(const OutputEdge& edge) const {
     update_mapper_if_needed();
-    const auto& port_name = m_pimpl->m_edge_mapper.get_output_port_name(edge);
-    if (port_name.empty()) {
+    return m_pimpl->m_edge_mapper.get_target_tensor_name(edge);
+}
+
+bool onnx_editor::ONNXModelEditor::is_output(const OutputEdge& edge) const {
+    const auto& tensor_name = get_target_tensor_name(edge);
+    if (tensor_name.empty()) {
         return false;
     } else {
         const auto& outputs = model_outputs();
-        return std::count(std::begin(outputs), std::end(outputs), port_name) > 0;
+        return std::count(std::begin(outputs), std::end(outputs), tensor_name) > 0;
     }
 }
 
