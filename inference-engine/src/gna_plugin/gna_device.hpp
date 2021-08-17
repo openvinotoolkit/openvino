@@ -55,8 +55,6 @@ class GNADeviceHelper {
     Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;
     std::string executionTarget;
     std::string compileTarget;
-    bool useDeviceEmbeddedExport = false;
-    Gna2DeviceVersion exportGeneration = Gna2DeviceVersionEmbedded1_0;
     bool isGnaLibVersion2_1 = false;
     bool isGnaLibVersion3_0 = false;
 
@@ -85,16 +83,12 @@ public:
          bool swExactModeIn = false,
          uint8_t lib_async_n_threads = 1,
          bool use_openmp = false,
-         bool isPerformanceMeasuring = false,
-         bool deviceEmbedded = false,
-         int deviceVersionParsed = 0) :
+         bool isPerformanceMeasuring = false) :
          swExactMode(swExactModeIn),
          executionTarget(executionTargetIn),
          compileTarget(compileTargetIn),
          isPerformanceMeasuring(isPerformanceMeasuring),
-         nGnaDeviceIndex{selectGnaDevice()},
-         useDeviceEmbeddedExport(deviceEmbedded),
-         exportGeneration(static_cast<Gna2DeviceVersion>(deviceVersionParsed)) {
+         nGnaDeviceIndex{selectGnaDevice()} {
 #endif
         open(lib_async_n_threads);
         initGnaPerfCounters();

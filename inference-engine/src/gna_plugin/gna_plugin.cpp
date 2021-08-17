@@ -412,9 +412,7 @@ void GNAPlugin::InitGNADevice() {
                 config.swExactMode,
                 gnaFlags->gna_lib_async_threads_num,
                 gnaFlags->gna_openmp_multithreading,
-                gnaFlags->performance_counting,
-                !config.dumpXNNPath.empty(),
-                GetDeviceVersionFromString(config.dumpXNNGeneration));
+                gnaFlags->performance_counting);
 #endif
     size_t page_size_bytes = 4096;
     gnamem = std::make_shared<gna_memory_type>(memory::make_polymorph<memory::GNAAllocator>(gnadevice), page_size_bytes);
