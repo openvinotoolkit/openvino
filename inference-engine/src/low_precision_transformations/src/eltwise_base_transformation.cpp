@@ -15,10 +15,16 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-bool EltwiseBaseTransformation::isBroadcasted(const Shape& shape) noexcept {
-    const size_t spatialIndex = shape.size() == 1 ? 0ul : (shape.size() == 2ul ? 1ul : 2ul);
-    for (size_t i = spatialIndex; i < shape.size(); ++i) {
-        if (shape[i] != 1ul) {
+bool EltwiseBaseTransformation::isBroadcasted(const PartialShape& shape) noexcept {
+    const auto rank = shape.rank();
+    if (rank.is_dynamic()) {
+        return false;
+    }
+
+    const size_t rankValue = rank.get_length();
+    const size_t spatialIndex = rankValue == 1 ? 0ul : (rankValue == 2ul ? 1ul : 2ul);
+    for (size_t i = spatialIndex; i < rankValue; ++i) {
+        if (shape[i].is_dynamic() || shape[i].get_length() != 1ul) {
             return false;
         }
     }
@@ -48,15 +54,10 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
+    // at least one branch quantization is mandatory
     if ((dequantization1.data.get_node() == nullptr) ||
-        (dequantization1.empty() && !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
-                                    !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()))) {
-        return false;
-    }
-
-    if ((dequantization2.data.get_node() == nullptr) ||
-        (dequantization2.empty() && !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()) &&
-                                    !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()))) {
+        (dequantization2.data.get_node() == nullptr) ||
+        (dequantization1.empty() && dequantization2.empty())) {
         return false;
     }
 
@@ -95,13 +96,37 @@ static bool isBranchHaveMultipleConsumers(const std::shared_ptr<Node> branchData
 // return branch index with FP32 precision after eltwise transformation
 int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise) const {
     const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(eltwise, 0ul);
-    if (dequantization1.empty() || as_type<opset1::Constant>(dequantization1.data.get_node())) {
+    if (as_type<opset1::Constant>(dequantization1.data.get_node())) {
         return -1;
     }
 
     const FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(eltwise, 1ul);
-    if (dequantization2.empty() || as_type<opset1::Constant>(dequantization2.data.get_node())) {
+    if (as_type<opset1::Constant>(dequantization2.data.get_node())) {
         return -1;
+    }
+
+    if (!dequantization1.empty() && dequantization1.isLowPrecision() && (dequantization2.empty() || !dequantization2.isLowPrecision())) {
+        return 1;
+    }
+
+    if ((dequantization1.empty() || !dequantization1.isLowPrecision()) && !dequantization2.empty() && dequantization2.isLowPrecision()) {
+        return 0;
+    }
+
+    if (!updatePrecisions) {
+        // If result is still not defined, then handle special cases for updatePrecisions == false, assumption for one branch quantization:
+        //    1. branch with dequantization operations is quantized,
+        //    2. empty branch is not quantized.
+        // As result: move dequantization operations to empty branch.
+        // Note: keep comparisions uppper as is: low precision can be used in updatePrecisions == false case
+        // if FakeQuantize operations were decomposed before LPT.
+        if (!dequantization1.empty() && dequantization2.empty()) {
+            return 1;
+        }
+
+        if (dequantization1.empty() || !dequantization2.empty()) {
+            return 0;
+        }
     }
 
     const std::shared_ptr<opset1::FakeQuantize> fakeQuantize1 =
@@ -141,7 +166,7 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
     const bool allBranchesAreEqual = isTargetType(parentNodes[0]) == isTargetType(parentNodes[1]);
     if (allBranchesAreEqual) {
         for (size_t i = 0; i < parentNodes.size(); ++i) {
-             if (isBroadcasted(parentNodes[i]->get_output_shape(0))) {
+             if (isBroadcasted(parentNodes[i]->get_output_partial_shape(0))) {
                 return static_cast<int>(i);
             }
         }

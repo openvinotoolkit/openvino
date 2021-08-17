@@ -80,7 +80,7 @@ class ConstantWriter {
 public:
     using FilePosition = int64_t;
     using HashValue = size_t;
-    using ConstWritePositions = std::unordered_map<HashValue, FilePosition>;
+    using ConstWritePositions = std::unordered_map<HashValue, std::pair<FilePosition, void const *>>;
 
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
         : m_binary_output(bin_data)
@@ -93,18 +93,19 @@ public:
             m_binary_output.write(ptr, size);
             return offset;
         }
-        // The biggest supported models have at maximum 1-2 thousand constant nodes,
-        // with 64 bit hash that gives a probability around 1 in 10 trillion that a
-        // hash collision will appear. Because of this, a choice has been made to
-        // not perform collision detection and keep the hashing quick and seamless.
+        // This hash is weak (but efficient) and must be replace with some other
+        // more stable hash algorithm. For example current hash algorithms gives
+        // the same hash for {2, 2} and {0, 128} arrays. So we have to compare
+        // values when finding a match in hash map.
         const HashValue hash = hash_combine(ptr, size);
         const auto found = m_hash_to_file_positions.find(hash);
-        if (found != end(m_hash_to_file_positions)) {
-            return found->second;
+        if (found != end(m_hash_to_file_positions) &&
+            memcmp(static_cast<void const*>(ptr), found->second.second, size) == 0) {
+            return found->second.first;
         }
 
         m_binary_output.write(ptr, size);
-        m_hash_to_file_positions.insert({hash, offset});
+        m_hash_to_file_positions.insert({hash, {offset, static_cast<void const *>(ptr)}});
 
         return offset;
     }
@@ -234,7 +235,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
     void output_descriptions_on_adapter(const std::vector<std::shared_ptr<
                                         ngraph::op::util::SubGraphOp::OutputDescription>>& output_descriptions,
-                                        const std::vector<std::string>& parameter_mapping,
+                                        const uint32_t& input_count,
                                         const std::vector<std::string>& result_mapping,
                                         pugi::xml_node& port_map) {
         NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Function.");
@@ -245,7 +246,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
         for (const auto& output_description : output_descriptions) {
             pugi::xml_node output = port_map.append_child("output");
-            output.append_attribute("external_port_id").set_value(parameter_mapping.size() + output_description->m_output_index);
+            output.append_attribute("external_port_id").set_value(input_count + output_description->m_output_index);
             output.append_attribute("internal_layer_id").set_value(result_mapping[output_description->m_body_value_index].c_str());
 
             if (auto concat_output = as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
@@ -305,7 +306,11 @@ public:
                 input_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
             } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
                                 <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
-                output_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
+                uint32_t op_input_count = 0;
+                for (auto c = m_xml_node.parent().child("input").first_child(); !c.empty(); c = c.next_sibling()) {
+                    op_input_count++;
+                }
+                output_descriptions_on_adapter(a->get(), op_input_count, result_mapping, port_map);
             } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
                 special_body_ports_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
             }
@@ -460,10 +465,10 @@ const std::vector<Edge> create_edge_mapping(
 std::string get_opset_name(
     const ngraph::Node* n,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
-    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 7>{
+    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 8>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
         ngraph::get_opset4(), ngraph::get_opset5(), ngraph::get_opset6(),
-        ngraph::get_opset7()};
+        ngraph::get_opset7(), ngraph::get_opset8()};
 
     auto special_opset = get_special_opset_for_op(n->get_type_info());
     if (!special_opset.empty()) {
@@ -490,6 +495,7 @@ std::string get_opset_name(
 std::string get_precision_name(const ngraph::element::Type & elem_type) {
     switch (elem_type) {
     case ::ngraph::element::Type_t::undefined:
+    case ::ngraph::element::Type_t::dynamic:
         return "UNSPECIFIED";
     case ::ngraph::element::Type_t::f16:
         return "FP16";
@@ -636,8 +642,6 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
                            [](const Dimension& d) -> Dimension {
                                return d.get_max_length();
                            });
-            NGRAPH_CHECK(PartialShape(out_shape).is_static(),
-                         "Dynamic dimension cannot be resolved in ", op);
             return out_shape;
         };
 
@@ -679,6 +683,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
 
+    // TODO remove resolve_dynamic_shapes function completely when support for -1 will be implemented in the MO
     bool has_dynamic_shapes = resolve_dynamic_shapes(f);
 
     const bool exec_graph = is_exec_graph(f);
@@ -699,28 +704,12 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
 
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
-        XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler);
-        NGRAPH_CHECK(node->visit_attributes(visitor), "Visitor API is not supported in ", node);
-        rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
-
-        if (exec_graph) {
-            visit_exec_graph_node(layer, node);
-        }
-
-        const bool data_attr_size =
-            data.attributes().begin() == data.attributes().end();
-        if (data_attr_size) {
-            layer.remove_child(data);
-        }
 
         int port_id = 0;
         // <layers/input>
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
             for (const auto & i : node->inputs()) {
-                NGRAPH_CHECK(i.get_partial_shape().is_static(),
-                             "Unsupported dynamic input shape in ", node);
-
                 // WA for LSTMCellv0, peephole input shall not be serialized
                 if (i.get_index() == 6 && dynamic_cast<opset1::LSTMCell *>(node)) {
                     port_id++;
@@ -731,10 +720,14 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
                         .set_value(get_precision_name(i.get_element_type()).c_str());
-                for (auto d : i.get_shape()) {
+                for (auto d : i.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
-                    dim.append_child(pugi::xml_node_type::node_pcdata)
-                        .set_value(std::to_string(d).c_str());
+                    if (d.is_dynamic()) {
+                        dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");
+                    } else {
+                        dim.append_child(pugi::xml_node_type::node_pcdata)
+                                .set_value(std::to_string(d.get_length()).c_str());
+                    }
                 }
             }
 
@@ -746,9 +739,6 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
             for (const auto & o : node->outputs()) {
-                NGRAPH_CHECK(o.get_partial_shape().is_static(),
-                             "Unsupported dynamic output shape in ", node);
-
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
@@ -769,15 +759,34 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                     port.append_attribute("names").set_value(names.c_str());
                 }
 
-                for (auto d : o.get_shape()) {
+                for (auto d : o.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
-                    dim.append_child(pugi::xml_node_type::node_pcdata)
-                        .set_value(std::to_string(d).c_str());
+                    if (d.is_dynamic()) {
+                        dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");
+                    } else {
+                        dim.append_child(pugi::xml_node_type::node_pcdata)
+                                .set_value(std::to_string(d.get_length()).c_str());
+                    }
                 }
             }
             if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
                 layer.insert_move_after(output, layer.first_child());
             }
+        }
+
+        // fill <data> general attributes
+        XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler);
+        NGRAPH_CHECK(node->visit_attributes(visitor), "Visitor API is not supported in ", node);
+        rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
+
+        if (exec_graph) {
+            visit_exec_graph_node(layer, node);
+        }
+
+        const bool data_attr_size =
+            data.attributes().begin() == data.attributes().end();
+        if (data_attr_size) {
+            layer.remove_child(data);
         }
     }
     // <edges>
@@ -843,7 +852,7 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
 
         try {
             serializeFunc(xml_file, bin_file);
-        } catch (const ngraph::CheckFailure& e) {
+        } catch (const ngraph::CheckFailure&) {
             // optimization decission was made to create .bin file upfront and
             // write to it directly instead of buffering its content in memory,
             // hence we need to delete it here in case of failure

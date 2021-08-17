@@ -6,9 +6,7 @@ import pytest
 
 import ngraph as ng
 from tests.runtime import get_runtime
-from tests import (xfail_issue_36486,
-                   xfail_issue_36487,
-                   xfail_issue_44976)
+from tests import (xfail_issue_36486, xfail_issue_44976)
 
 
 def test_elu_operator_with_scalar_and_array():
@@ -424,14 +422,14 @@ def test_hard_sigmoid_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_36487
 def test_mvn_operator():
     runtime = get_runtime()
 
     data_shape = [3, 3, 3, 1]
-    across_channels = True
+    axes = [0, 2, 3]
     normalize_variance = True
     eps = np.float32(1e-9)
+    eps_mode = "outside_sqrt"
 
     data_value = np.array(
         [
@@ -456,7 +454,7 @@ def test_mvn_operator():
 
     parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
 
-    model = ng.mvn(parameter_data, across_channels, normalize_variance, eps)
+    model = ng.mvn(parameter_data, axes, normalize_variance, eps, eps_mode)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
@@ -464,21 +462,22 @@ def test_mvn_operator():
     expected = np.array(
         [
             [
-                [[0.9951074], [0.14548765], [-1.410561]],
-                [[-1.4999886], [-1.1923014], [-0.03975919]],
-                [[0.8463296], [1.2926502], [1.3340596]],
+                [[1.3546423], [0.33053496], [-1.5450814]],
+                [[-1.2106764], [-0.8925952], [0.29888135]],
+                [[0.38083088], [0.81808794], [0.85865635]],
             ],
             [
-                [[-1.0463363], [-0.1747985], [-0.7784088]],
-                [[0.47672555], [-1.5383], [0.32375798]],
-                [[1.2404392], [1.3878832], [-1.2228798]],
+                [[-1.1060555], [-0.05552877], [-0.78310335]],
+                [[0.83281356], [-1.250282], [0.67467856]],
+                [[0.7669372], [0.9113869], [-1.6463585]],
             ],
             [
-                [[-0.3228847], [1.2063044], [0.22751297]],
-                [[0.91956615], [0.81839436], [-1.2279599]],
-                [[0.5312334], [0.067952], [-1.3592235]],
+                [[-0.23402764], [1.6092131], [0.42940593]],
+                [[1.2906139], [1.1860244], [-0.92945826]],
+                [[0.0721334], [-0.38174], [-1.7799333]],
             ],
         ],
+        dtype=np.float32,
     )
 
     assert np.allclose(result, expected)

@@ -140,7 +140,7 @@ def get_output_node_names_list(graph_def, user_defined_output_node_names_list: l
 
 
 def deducing_metagraph_path(meta_graph_file: str):
-    match = re.search('^(.*)\.(data-\d*-of-\d*|index|meta)$', meta_graph_file)
+    match = re.search(r'^(.*)\.(data-\d*-of-\d*|index|meta)$', meta_graph_file)
     if match is not None:
         deduced_meta_graph_file = match.group(1) + '.meta'
         if not os.path.isfile(deduced_meta_graph_file):
@@ -173,7 +173,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                       user_output_node_names_list: list = []):
     # As a provisional solution, use a native TF methods to load a model protobuf
     graph_def = tf_v1.GraphDef()
-    if isinstance(graph_file_name, str) and (re.match('.*\.(ckpt|meta)$', graph_file_name)):
+    if isinstance(graph_file_name, str) and (re.match(r'.*\.(ckpt|meta)$', graph_file_name)):
         print('[ WARNING ] The value for the --input_model command line parameter ends with ".ckpt" or ".meta" '
               'extension.\n'
               'It means that the model is not frozen.\n'
@@ -208,7 +208,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
             # pylint: disable=no-member
             with tf_v1.Session() as sess:
                 restorer = tf_v1.train.import_meta_graph(input_meta_graph_def)
-                restorer.restore(sess, re.sub('\.meta$', '', meta_graph_file))
+                restorer.restore(sess, re.sub(r'\.meta$', '', meta_graph_file))
                 outputs = get_output_node_names_list(input_meta_graph_def.graph_def, user_output_node_names_list)
                 graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, input_meta_graph_def.graph_def,
                                                                             outputs)

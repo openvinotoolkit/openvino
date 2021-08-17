@@ -35,13 +35,13 @@ public:
                 const std::map<std::string, std::string> &config) override;
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    ImportNetworkImpl(std::istream& networkModel,
+    ImportNetwork(std::istream& networkModel,
         const std::map<std::string, std::string>& config) override;
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    ImportNetworkImpl(std::istream& networkModel,
-                      const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-                      const std::map<std::string, std::string>& config) override;
+    ImportNetwork(std::istream& networkModel,
+        const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+        const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::Parameter GetMetric(const std::string& name,
                         const std::map<std::string, InferenceEngine::Parameter>& options) const override;
@@ -51,7 +51,7 @@ public:
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
 
-    void SetCore(InferenceEngine::ICore* core) noexcept override;
+    void SetCore(std::weak_ptr<InferenceEngine::ICore> core) noexcept override;
 
     void SetName(const std::string& name) noexcept override;
 

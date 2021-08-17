@@ -126,32 +126,60 @@ const auto GatherAxes4i8b2 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Gather7Axes4i4b1,
         Gather7LayerTest,
         GatherAxes4i4b1,
         Gather7LayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Gather7Axes4i4b2,
         Gather7LayerTest,
         GatherAxes4i4b1,
         Gather7LayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Gather7Axes4i8b1,
         Gather7LayerTest,
         GatherAxes4i8b1,
         Gather7LayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Gather7Axes4i8b2,
         Gather7LayerTest,
         GatherAxes4i8b2,
         Gather7LayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Gather7Axes4i4b1,
+        Gather8LayerTest,
+        GatherAxes4i4b1,
+        Gather8LayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Gather7Axes4i4b2,
+        Gather8LayerTest,
+        GatherAxes4i4b1,
+        Gather8LayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Gather7Axes4i8b1,
+        Gather8LayerTest,
+        GatherAxes4i8b1,
+        Gather8LayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Gather7Axes4i8b2,
+        Gather8LayerTest,
+        GatherAxes4i8b2,
+        Gather8LayerTest::getTestCaseName
 );
 
 const std::vector<std::vector<int>> indices = {
@@ -232,7 +260,7 @@ const auto GatherAxes4 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_GatherAxes4,
         GatherLayerTest,
         GatherAxes4,
@@ -252,7 +280,7 @@ const auto Gather6dAxes4 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Gather6dAxes4,
         GatherLayerTest,
         Gather6dAxes4,
@@ -300,7 +328,7 @@ const auto GatherAxes3 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_GatherAxes3,
         GatherLayerTest,
         GatherAxes3,
@@ -320,7 +348,7 @@ const auto Gather6dAxes3 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Gather6dAxes3,
         GatherLayerTest,
         Gather6dAxes3,
@@ -369,7 +397,7 @@ const auto GatherAxes2 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_GatherAxes2,
         GatherLayerTest,
         GatherAxes2,
@@ -389,7 +417,7 @@ const auto Gather6dAxes2 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Gather6dAxes2,
         GatherLayerTest,
         Gather6dAxes2,
@@ -439,7 +467,7 @@ const auto GatherAxes1 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_GatherAxes1,
         GatherLayerTest,
         GatherAxes1,
@@ -459,7 +487,7 @@ const auto Gather6dAxes1 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Gather6dAxes1,
         GatherLayerTest,
         Gather6dAxes1,
@@ -510,7 +538,7 @@ const auto GatherAxes0 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_GatherAxes0,
         GatherLayerTest,
         GatherAxes0,
@@ -530,7 +558,7 @@ const auto Gather6dAxes0 = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Gather6dAxes0,
         GatherLayerTest,
         Gather6dAxes0,

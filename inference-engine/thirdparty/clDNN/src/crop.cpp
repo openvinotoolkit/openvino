@@ -4,8 +4,8 @@
 
 #include "crop_inst.h"
 #include "primitive_type_base.h"
-#include "memory_impl.h"
-#include "error_handler.h"
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -68,7 +68,7 @@ std::string crop_inst::to_string(crop_node const& node) {
     return primitive_description.str();
 }
 
-crop_inst::typed_primitive_inst(network_impl& network, crop_node const& node) : parent(network, node) {
+crop_inst::typed_primitive_inst(network& network, crop_node const& node) : parent(network, node) {
     const auto& ref_in_sizes = argument.reference_input;
     const auto in_layout = node.input().get_output_layout();
     const auto& in_sizes = in_layout.size;

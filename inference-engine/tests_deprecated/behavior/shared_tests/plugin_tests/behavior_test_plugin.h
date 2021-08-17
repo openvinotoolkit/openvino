@@ -10,9 +10,7 @@
 #include <inference_engine.hpp>
 #include <ie_plugin_config.hpp>
 #include <vpu/vpu_plugin_config.hpp>
-#include <vpu/private_plugin_config.hpp>
 #include <gna/gna_config.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <common_test_utils/test_assertions.hpp>
 #include <memory>
 #include <fstream>

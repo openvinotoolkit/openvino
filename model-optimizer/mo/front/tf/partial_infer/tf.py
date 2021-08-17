@@ -108,7 +108,7 @@ def get_subgraph_output_tensors(node: Node):
             tf_v1.import_graph_def(graph_def, name='')
             all_constants, feed_dict = generate_feed_dict(graph, node)
             for out_port, out_tensor_name in enumerate(node['output_tensors_names']):
-                if not match('.*:\d+', out_tensor_name):
+                if not match(r'.*:\d+', out_tensor_name):
                     out_tensor_name = out_tensor_name + ":" + str(out_port)
                 result_tensor = sess.run(graph.get_tensor_by_name(out_tensor_name), feed_dict=feed_dict)
                 result[out_port] = result_tensor

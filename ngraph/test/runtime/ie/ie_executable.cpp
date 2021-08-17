@@ -8,7 +8,6 @@
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "pass/opset1_upgrade.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -63,7 +62,7 @@ namespace
         memcpy(blob_ptr, data, data_size * elem_type.size());
         return blob;
     }
-}
+} // namespace
 
 namespace
 {
@@ -78,21 +77,18 @@ namespace
         ie_ops.insert(opset4.begin(), opset4.end());
         auto& opset5 = get_opset5().get_type_info_set();
         ie_ops.insert(opset5.begin(), opset5.end());
-        auto& opset6= get_opset6().get_type_info_set();
+        auto& opset6 = get_opset6().get_type_info_set();
         ie_ops.insert(opset6.begin(), opset6.end());
-        auto& opset7= get_opset7().get_type_info_set();
+        auto& opset7 = get_opset7().get_type_info_set();
         ie_ops.insert(opset7.begin(), opset7.end());
         return ie_ops;
     }
-}
+} // namespace
 
 runtime::ie::IE_Executable::IE_Executable(shared_ptr<Function> func, string device)
     : m_device{device}
 {
     static std::set<NodeTypeInfo> ie_ops = get_ie_ops();
-    pass::Manager passes;
-    passes.register_pass<pass::Opset1Upgrade>();
-    passes.run_passes(func);
 
     for (const auto& node : func->get_ops())
     {

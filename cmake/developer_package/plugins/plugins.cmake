@@ -123,8 +123,7 @@ function(ie_add_plugin)
         ie_cpack_add_component(${install_component} REQUIRED DEPENDS core)
 
         install(TARGETS ${IE_PLUGIN_NAME}
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${install_component}
-            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${install_component})
+                LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${install_component})
     endif()
 endfunction()
 

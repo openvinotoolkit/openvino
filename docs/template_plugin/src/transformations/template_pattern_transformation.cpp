@@ -8,6 +8,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/cc/ngraph/itt.hpp>
 
 #include "transformations/template_function_transformation.hpp"
 
@@ -18,6 +19,7 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DecomposeDivideMatcher, "DecomposeDivideMatcher", 0);
 
 ngraph::pass::DecomposeDivideMatcher::DecomposeDivideMatcher() {
+    MATCHER_SCOPE(DecomposeDivideMatcher);
     // Pattern example
     auto input0 = pattern::any_input();
     auto input1 = pattern::any_input();
@@ -31,7 +33,9 @@ ngraph::pass::DecomposeDivideMatcher::DecomposeDivideMatcher() {
         }
 
         // Decompose Divide into Multiply with Power operations
-        auto pow = std::make_shared<ngraph::opset3::Power>(div->input_value(1), opset3::Constant::create(div->get_input_element_type(1), Shape {1}, {-1}));
+        auto pow = std::make_shared<ngraph::opset3::Power>(
+            div->input_value(1),
+            opset3::Constant::create(div->get_input_element_type(1), Shape{1}, {-1}));
 
         auto mul = std::make_shared<ngraph::opset3::Multiply>(div->input_value(0), pow);
 
@@ -59,6 +63,7 @@ ngraph::pass::DecomposeDivideMatcher::DecomposeDivideMatcher() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReluReluFusionMatcher, "ReluReluFusionMatcher", 0);
 
 ngraph::pass::ReluReluFusionMatcher::ReluReluFusionMatcher() {
+    MATCHER_SCOPE(ReluReluFusionMatcher);
     auto m_relu1 = ngraph::pattern::wrap_type<ngraph::opset3::Relu>(pattern::consumers_count(1));
     auto m_relu2 = ngraph::pattern::wrap_type<ngraph::opset3::Relu>({m_relu1});
 
@@ -67,7 +72,8 @@ ngraph::pass::ReluReluFusionMatcher::ReluReluFusionMatcher() {
         auto& node_to_output = m.get_pattern_value_map();
 
         // Create new Relu operation and add register it for additional execution
-        auto new_relu = register_new_node<ngraph::opset3::Relu>(node_to_output.at(m_relu1).get_node_shared_ptr()->input_value(0));
+        auto new_relu =
+            register_new_node<ngraph::opset3::Relu>(node_to_output.at(m_relu1).get_node_shared_ptr()->input_value(0));
 
         // Copy runtime info attributes to newly created operation
         ngraph::copy_runtime_info(m.get_matched_nodes(), new_relu);

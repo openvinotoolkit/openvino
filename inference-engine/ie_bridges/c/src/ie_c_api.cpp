@@ -235,9 +235,8 @@ IEStatusCode ie_core_create(const char *xml_config_file, ie_core_t **core) {
 
     IEStatusCode status = IEStatusCode::OK;
     try {
-        std::unique_ptr<ie_core_t> tmp(new ie_core_t);
-        tmp->object = IE::Core(xml_config_file);
-        *core = tmp.release();
+        auto object = IE::Core(xml_config_file);
+        *core = new ie_core_t { std::move(object) };
     } CATCH_IE_EXCEPTIONS
 
     return status;

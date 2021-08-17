@@ -33,7 +33,7 @@ const std::vector<InferenceEngine::Precision> iPrecisions = {
         InferenceEngine::Precision::I32
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_GatherElements1, GatherElementsLayerTestVPU,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherElements1, GatherElementsLayerTestVPU,
                         ::testing::Combine(
                             ::testing::Values(std::vector<size_t>({2, 2})),   // Data shape
                             ::testing::Values(std::vector<size_t>({2, 2})),   // Indices shape
@@ -43,7 +43,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GatherElements1, GatherElementsLayerTestVPU,
                             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         GatherElementsLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GatherElements2, GatherElementsLayerTestVPU,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherElements2, GatherElementsLayerTestVPU,
                         ::testing::Combine(
                             ::testing::Values(std::vector<size_t>({2, 65, 300})),  // Data shape
                             ::testing::Values(std::vector<size_t>({2, 65, 64})),   // Indices shape

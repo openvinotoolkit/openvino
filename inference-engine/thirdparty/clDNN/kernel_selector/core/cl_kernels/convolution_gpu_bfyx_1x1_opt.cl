@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #define SIMD_SIZE 8
 __attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
 KERNEL(convolution)(
-    __global INPUT0_TYPE* input, 
-    __global OUTPUT_TYPE* output, 
-    __global FILTER_TYPE* weights, 
+    __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output,
+    __global FILTER_TYPE* weights,
 #if BIAS_TERM
     __global BIAS_TYPE* biases,
 #endif
@@ -83,7 +84,7 @@ KERNEL(convolution)(
     //--------------------------------------------------------------------
     // second sub_group in workgroup task
     //--------------------------------------------------------------------
-    
+
     if(ifm_part == 1)
     {
         for(uint bd = 0; bd < OUT_BLOCK_DEPTH/2; bd++)
@@ -103,7 +104,7 @@ KERNEL(convolution)(
     //--------------------------------------------------------------------
     // first sub_group in workgroup task
     //--------------------------------------------------------------------
-    
+
     if(ifm_part == 0)
     {
         for(uint bd = 0; bd < OUT_BLOCK_DEPTH/2; bd++)
@@ -132,7 +133,7 @@ KERNEL(convolution)(
     //--------------------------------------------------------------------
     // add bias phase
     //--------------------------------------------------------------------
-    
+
     #if BIAS_TERM
     for(uint bd = 0; bd < OUT_BLOCK_DEPTH/2; bd++)
     {
@@ -152,7 +153,7 @@ KERNEL(convolution)(
     //--------------------------------------------------------------------
     // sum sub-group results + activation phase
     //--------------------------------------------------------------------
-    
+
     for(uint bd = 0; bd < OUT_BLOCK_DEPTH/2; bd++)
     {
         for(uint br = 0; br < OUT_BLOCK_HEIGHT; br++)

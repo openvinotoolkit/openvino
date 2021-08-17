@@ -31,19 +31,18 @@ macro(ie_parse_ci_build_number)
         set(IE_VERSION_MAJOR ${CMAKE_MATCH_1})
         set(IE_VERSION_MINOR ${CMAKE_MATCH_2})
         set(IE_VERSION_PATCH ${CMAKE_MATCH_3})
-        set(has_ci_version ON)
-    else()
-        set(IE_VERSION_MAJOR 0)
-        set(IE_VERSION_MINOR 0)
-        set(IE_VERSION_PATCH 0)
     endif()
 
     if(NOT DEFINED repo_root)
         message(FATAL_ERROR "repo_root is not defined")
     endif()
 
-    if(DEFINED IEDevScripts_DIR AND DEFINED IE_MAIN_SOURCE_DIR AND NOT DEFINED custom_build)
-        set(ie_version_hpp "${IE_MAIN_SOURCE_DIR}/include/ie_version.hpp")
+    macro(ie_get_hpp_version)
+        if(NOT DEFINED OpenVINO_SOURCE_DIR)
+            return()
+        endif()
+
+        set(ie_version_hpp "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/ie/ie_version.hpp")
         if(NOT EXISTS ${ie_version_hpp})
             message(FATAL_ERROR "File ie_version.hpp with IE_VERSION definitions is not found")
         endif()
@@ -57,6 +56,13 @@ macro(ie_parse_ci_build_number)
         string(REGEX REPLACE ".+IE_VERSION_PATCH[ ]+([0-9]+).*" "\\1"
                IE_VERSION_PATCH_HPP "${IE_VERSION_PARTS}")
 
+        set(ie_hpp_version_is_found ON)
+    endmacro()
+
+    # detect OpenVINO version via ie_version.hpp
+    ie_get_hpp_version()
+
+    if(ie_hpp_version_is_found)
         foreach(var IE_VERSION_MAJOR IE_VERSION_MINOR IE_VERSION_PATCH)
             if(DEFINED ${var} AND NOT ${var} EQUAL ${var}_HPP)
                 message(FATAL_ERROR "${var} parsed from CI_BUILD_NUMBER (${${var}}) \
@@ -66,19 +72,11 @@ macro(ie_parse_ci_build_number)
                 set(${var} ${${var}_HPP})
             endif()
         endforeach()
-    elseif(has_ci_version)
-        message(WARNING "IE_MAIN_SOURCE_DIR is not defined. No way to compare versions")
-    else()
-        message(WARNING "No way to detect OpenVINO version. Supposing 0.0.0.0")
     endif()
 
     set(IE_VERSION "${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}")
+    message(STATUS "OpenVINO version is ${IE_VERSION}")
 endmacro()
-
-# WA for DL Benchmark
-if(DEFINED ENV{CI_BUILD_NUMBER} AND "$ENV{CI_BUILD_NUMBER}" STREQUAL "1")
-    unset(ENV{CI_BUILD_NUMBER})
-endif()
 
 if (DEFINED ENV{CI_BUILD_NUMBER})
     set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})

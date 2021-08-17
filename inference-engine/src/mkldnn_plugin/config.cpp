@@ -26,8 +26,13 @@ Config::Config() {
     // for the TBB code-path, additional configuration depending on the OS and CPU types
     #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         #if defined(__APPLE__) || defined(_WIN32)
-        // 'CORES' is not implemented for Win/MacOS; so the 'NUMA' is default
-        streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
+        // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
+        auto numaNodes = getAvailableNUMANodes();
+        if (numaNodes.size() > 1) {
+            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
+        } else {
+            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
+        }
         #endif
 
         if (getAvailableCoresTypes().size() > 1 /*Hybrid CPU*/) {
@@ -82,7 +87,9 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DYN_BATCH_ENABLED
                 << ". Expected only YES/NO";
+            IE_SUPPRESS_DEPRECATED_START
         } else if (key.compare(PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT) == 0) {
+            IE_SUPPRESS_DEPRECATED_END
             // empty string means that dumping is switched off
             dumpToDot = val;
         } else if (key.compare(PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE) == 0) {
@@ -92,10 +99,6 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 lpTransformsMode = LPTransformsMode::On;
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;
-        } else if (key.compare(PluginConfigParams::KEY_DUMP_QUANTIZED_GRAPH_AS_DOT) == 0) {
-            dumpQuantizedGraphToDot = val;
-        } else if (key.compare(PluginConfigParams::KEY_DUMP_QUANTIZED_GRAPH_AS_IR) == 0) {
-            dumpQuantizedGraphToIr = val;
         } else if (key == PluginConfigParams::KEY_ENFORCE_BF16) {
             if (val == PluginConfigParams::YES) {
                 if (with_cpu_x86_avx512_core()) {
@@ -153,7 +156,9 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_DYN_BATCH_LIMIT, std::to_string(batchLimit) });
         _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
         _config.insert({ PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads) });
+        IE_SUPPRESS_DEPRECATED_START
         _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
+        IE_SUPPRESS_DEPRECATED_END
         if (enforceBF16)
             _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
         else

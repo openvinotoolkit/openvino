@@ -121,7 +121,7 @@ const auto StridedSliceParamsPlain2D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::Values(emptyCPUSpec));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Plain_2D, StridedSliceLayerCPUTest, StridedSliceParamsPlain2D, StridedSliceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_2D, StridedSliceLayerCPUTest, StridedSliceParamsPlain2D, StridedSliceLayerCPUTest::getTestCaseName);
 
 const std::vector<StridedSliceSpecificParams> testCasesCommon4D = {
         StridedSliceSpecificParams{ { 1, 5, 32, 32 }, { 0, 2, 5, 4 }, { 1, 4, 28, 27 }, { 1, 1, 1, 1 },
@@ -162,7 +162,7 @@ const auto StridedSliceParamsCommon4D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::ValuesIn(CPUParamsCommon4D));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Common_4D, StridedSliceLayerCPUTest, StridedSliceParamsCommon4D, StridedSliceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_4D, StridedSliceLayerCPUTest, StridedSliceParamsCommon4D, StridedSliceLayerCPUTest::getTestCaseName);
 
 const std::vector<StridedSliceSpecificParams> testCasesBlocked4D = {
         StridedSliceSpecificParams{ { 1, 16, 32, 32 }, { 0, 0, 5, 4 }, { 1, 16, 28, 27 }, { 1, 1, 1, 1 },
@@ -207,7 +207,7 @@ const auto StridedSliceParamsBlocked4D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::ValuesIn(CPUParamsBlocked4D));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Blocked_4D, StridedSliceLayerCPUTest, StridedSliceParamsBlocked4D, StridedSliceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Blocked_4D, StridedSliceLayerCPUTest, StridedSliceParamsBlocked4D, StridedSliceLayerCPUTest::getTestCaseName);
 
 const std::vector<StridedSliceSpecificParams> testCasesCommon5D = {
         StridedSliceSpecificParams{ { 1, 5, 20, 32, 32 }, { 0, 2, 0, 5, 4 }, { 1, 4, 5, 28, 27 }, { 1, 1, 1, 1, 1 },
@@ -250,7 +250,7 @@ const auto StridedSliceParamsCommon5D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::ValuesIn(CPUParamsCommon5D));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Common_5D, StridedSliceLayerCPUTest, StridedSliceParamsCommon5D, StridedSliceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_5D, StridedSliceLayerCPUTest, StridedSliceParamsCommon5D, StridedSliceLayerCPUTest::getTestCaseName);
 
 const std::vector<StridedSliceSpecificParams> testCasesBlocked5D = {
         StridedSliceSpecificParams{ { 1, 16, 20, 32, 32 }, { 0, 0, 0, 5, 4 }, { 1, 16, 5, 28, 27 }, { 1, 1, 1, 1, 1 },
@@ -297,7 +297,7 @@ const auto StridedSliceParamsBlocked5D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::ValuesIn(CPUParamsBlocked5D));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Blocked_5D, StridedSliceLayerCPUTest, StridedSliceParamsBlocked5D, StridedSliceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Blocked_5D, StridedSliceLayerCPUTest, StridedSliceParamsBlocked5D, StridedSliceLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

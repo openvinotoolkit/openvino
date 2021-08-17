@@ -8,6 +8,7 @@
 #include "myriad_executable_network.h"
 #include "myriad_mvnc_wrapper.h"
 #include "myriad_metrics.h"
+#include "vpu/configuration/plugin_configuration.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -38,10 +39,6 @@ public:
     using ie::IInferencePlugin::ImportNetwork;
 
     ie::IExecutableNetworkInternal::Ptr ImportNetwork(
-            const std::string& modelFileName,
-            const std::map<std::string, std::string>& config) override;
-
-    ie::IExecutableNetworkInternal::Ptr ImportNetwork(
             std::istream& model,
             const std::map<std::string, std::string>& config) override;
 
@@ -54,7 +51,7 @@ public:
             const std::map<std::string, ie::Parameter>& options) const override;
 
 private:
-    MyriadConfig _parsedConfig;
+    PluginConfiguration _parsedConfig;
     std::vector<DevicePtr> _devicePool;
     std::shared_ptr<IMvnc> _mvnc;
     std::shared_ptr<MyriadMetrics> _metrics;

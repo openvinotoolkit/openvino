@@ -220,7 +220,7 @@ const std::vector<CPUSpecificParams> CPUParams_GEMM_2D = {
         conv_gemm_2D_nspc
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_GEMM_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_FP32, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_GEMM_2D,
@@ -236,7 +236,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_GEMM_FP32, ConvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_GEMM_BF16, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_BF16, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_GEMM_2D,
@@ -252,7 +252,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_GEMM_BF16, ConvolutionLayerCPUTest,
         ::testing::Values(cpuBF16PluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_GEMM_I8, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_I8, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_GEMM_2D,
@@ -284,7 +284,7 @@ const std::vector<CPUSpecificParams> CPUParams_GEMM_3D = {
         conv_gemm_3D_nspc
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_GEMM_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_FP32, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_GEMM_3D,
@@ -300,7 +300,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_GEMM_FP32, ConvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_GEMM_BF16, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_BF16, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_GEMM_3D,
@@ -316,7 +316,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_GEMM_BF16, ConvolutionLayerCPUTest,
         ::testing::Values(cpuBF16PluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_GEMM_I8, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_I8, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_GEMM_3D,
@@ -352,7 +352,7 @@ const std::vector<CPUSpecificParams> CPUParams_2D = {
         conv_avx512_2D_nspc
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_FP32, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_2D,
@@ -368,7 +368,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_FP32, ConvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_BF16, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_BF16, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_2D,
@@ -384,7 +384,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_BF16, ConvolutionLayerCPUTest,
         ::testing::Values(cpuBF16PluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_I8, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_I8, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_2D,
@@ -406,7 +406,7 @@ const std::vector<CPUSpecificParams> CPUParams_2D_plain_to_blocked = {
         conv_avx512_plain_to_blocked_2D,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_PlainToBlocked_2D_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_2D_FP32, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_2D,
@@ -422,7 +422,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_PlainToBlocked_2D_FP32, ConvolutionLayerCPUTe
         ::testing::Values(cpuEmptyPluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_PlainToBlocked_2D_BF16, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_2D_BF16, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_2D,
@@ -457,7 +457,7 @@ const std::vector<CPUSpecificParams> CPUParams_3D = {
             conv_avx512_3D_nspc
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_FP32, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_3D,
@@ -473,7 +473,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_FP32, ConvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_BF16, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_BF16, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_3D,
@@ -489,7 +489,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_BF16, ConvolutionLayerCPUTest,
         ::testing::Values(cpuBF16PluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_3D_I8, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_I8, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_3D,
@@ -510,7 +510,7 @@ const std::vector<CPUSpecificParams> CPUParams_3D_plain_to_blocked = {
         conv_avx512_plain_to_blocked_3D,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_PlainToBlocked_3D_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_3D_FP32, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_3D,
@@ -526,7 +526,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_PlainToBlocked_3D_FP32, ConvolutionLayerCPUTe
         ::testing::Values(cpuEmptyPluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_PlainToBlocked_3D_BF16, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_3D_BF16, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_3D,
@@ -563,7 +563,7 @@ const std::vector<CPUSpecificParams> CPUParams_1x1_2D = {
     conv_avx512_2D_1x1_nspc
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_1x1_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_FP32, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_1x1_2D,
@@ -579,7 +579,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_1x1_FP32, ConvolutionLayerCPUTest,
         ::testing::Values(cpuEmptyPluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_1x1_BF16, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_BF16, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_1x1_2D,
@@ -595,7 +595,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_1x1_BF16, ConvolutionLayerCPUTest,
         ::testing::Values(cpuBF16PluginConfig)),
     ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_2D_1x1_I8, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_I8, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_ExplicitPadding_1x1_2D,
@@ -635,7 +635,7 @@ const std::vector<CPUSpecificParams> CPUParams_1D = {
         conv_avx512_1D
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_1D, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_1D,
@@ -670,7 +670,7 @@ const auto convParams_Planar_ExplicitPadding_2D = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_Jit_Planar_2D_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Jit_Planar_2D_FP32, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_Planar_ExplicitPadding_2D,
@@ -703,7 +703,7 @@ const auto convParams_Planar_ExplicitPadding_3D = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_Jit_Planar_3D_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Jit_Planar_3D_FP32, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_Planar_ExplicitPadding_3D,
@@ -752,7 +752,7 @@ const auto convParams_2D = ::testing::Combine(
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv_winograd, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_winograd, ConvolutionLayerCPUTest,
     ::testing::Combine(
         ::testing::Combine(
             convParams_2D,

@@ -7,10 +7,12 @@ import sys
 import errno
 import subprocess  # nosec
 import typing
+from fnmatch import fnmatchcase
 from pathlib import Path
-from shutil import copyfile
+from shutil import copyfile, rmtree
 from distutils.command.install import install
 from distutils.command.build import build
+from distutils.command.clean import clean
 from distutils.errors import DistutilsSetupError
 from distutils.file_util import copy_file
 from distutils import log
@@ -59,6 +61,12 @@ LIB_INSTALL_CFG = {
     },
     'multi_plugin': {
         'name': 'multi',
+        'prefix': 'libs.plugins',
+        'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
+    },
+    'auto_plugin': {
+        'name': 'auto',
         'prefix': 'libs.plugins',
         'install_dir': PLUGINS_LIBS_DIR,
         'rpath': LIBS_RPATH,
@@ -113,6 +121,16 @@ class CustomBuild(build):
     def run(self):
         self.run_command('build_clib')
         build.run(self)
+        # Copy extra package_data content filtered by find_packages
+        dst = Path(self.build_lib)
+        src = Path(get_package_dir(PY_INSTALL_CFG))
+        exclude = ignore_patterns('*ez_setup*', '*__pycache__*', '*.egg-info*')
+        for path in src.glob('**/*'):
+            if path.is_dir() or exclude(str(path)):
+                continue
+            path_rel = path.relative_to(src)
+            (dst / path_rel.parent).mkdir(exist_ok=True, parents=True)
+            copyfile(path, dst / path_rel)
 
 
 class CustomInstall(install):
@@ -154,6 +172,7 @@ class PrepareLibs(build_clib):
         # additional blacklist filter, just to fix cmake install issues
         blacklist = ['.lib', '.pdb', '_debug.dll', '_debug.dylib']
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
+
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
             for file_path in local_base_dir.rglob('*'):
@@ -189,6 +208,29 @@ class CopyExt(build_ext):
                 set_rpath(rpath, os.path.realpath(src))
 
             copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
+
+
+class CustomClean(clean):
+    """Clean up staging directories"""
+
+    def clean(self, install_cfg):
+        for comp, comp_data in install_cfg.items():
+            install_prefix = comp_data.get('prefix')
+            self.announce(f'Cleaning {comp}: {install_prefix}', level=3)
+            if os.path.exists(install_prefix):
+                rmtree(install_prefix)
+
+    def run(self):
+        self.clean(LIB_INSTALL_CFG)
+        self.clean(PY_INSTALL_CFG)
+        clean.run(self)
+
+
+def ignore_patterns(*patterns):
+    """
+    Filter names by given patterns
+    """
+    return lambda name: any(fnmatchcase(name, pat=pat) for pat in patterns)
 
 
 def is_tool(name):
@@ -324,7 +366,7 @@ package_license = config('WHEEL_LICENSE', '')
 if os.path.exists(package_license):
     copyfile(package_license, 'LICENSE')
 
-packages = find_namespace_packages(','.join(get_dir_list(PY_INSTALL_CFG)))
+packages = find_namespace_packages(get_package_dir(PY_INSTALL_CFG))
 package_data: typing.Dict[str, list] = {}
 
 setup(
@@ -344,6 +386,7 @@ setup(
         'install': CustomInstall,
         'build_clib': PrepareLibs,
         'build_ext': CopyExt,
+        'clean': CustomClean,
     },
     ext_modules=find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)),
     packages=packages,

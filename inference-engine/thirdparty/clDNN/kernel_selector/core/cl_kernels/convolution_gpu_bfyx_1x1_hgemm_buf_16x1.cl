@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 #include "include/gemm_common.cl"
 
 #define MULT(C_, A_, i_)                   \
@@ -41,7 +42,7 @@ KERNEL(convolution_gpu_bfyx_1x1_hgemm_buf_16x1)(
 
     uint lxd4 = local_x >> 2;
     uint lxm4 = local_x % 4;
-    
+
     uint i = TILE_M * group_y + local_y * 16 + lxd4;
 
     __global const half8 *A_load = (__global const half8*)&input[batch * INPUT0_BATCH_PITCH + i*K + (lxm4<<3)];
@@ -92,7 +93,7 @@ KERNEL(convolution_gpu_bfyx_1x1_hgemm_buf_16x1)(
 
     uint y0 = group_y * TILE_M + (local_y << 4);
     __global half *C_write = &output[batch * OUTPUT_BATCH_PITCH + group_x * TILE_N + y0 * N + local_x];
-  
+
     if (group_y < NUM_WHOLE_GROUPS_Y || local_y < NUM_WHOLE_SUBGROUPS_Y) {
         C_write[0*N] = ACTIVATION(C0.s0, ACTIVATION_PARAMS);
         C_write[1*N] = ACTIVATION(C0.s1, ACTIVATION_PARAMS);

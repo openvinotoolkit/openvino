@@ -29,7 +29,7 @@ namespace {
 
 class MulAddToScaleshiftOrPowerParams {
 public:
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     ngraph::builder::subgraph::DequantizationOperations::Multiply mulValues;
     ngraph::builder::subgraph::Add addValues;
     ngraph::element::Type precisionAfterOperation;
@@ -135,7 +135,7 @@ const std::vector<MulAddToScaleshiftOrPowerParams> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     MulAddToScaleshiftOrPowerTransformation,
     ::testing::Combine(

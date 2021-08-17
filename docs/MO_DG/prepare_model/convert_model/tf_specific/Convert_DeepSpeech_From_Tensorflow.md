@@ -2,66 +2,81 @@
 
 [DeepSpeech project](https://github.com/mozilla/DeepSpeech) provides an engine to train speech-to-text models.
 
-## Download the Pre-Trained DeepSpeech Model
+## Download the Pretrained DeepSpeech Model
 
-[Pre-trained English speech-to-text model](https://github.com/mozilla/DeepSpeech#getting-the-pre-trained-model)
-is publicly available. To download the model, please follow the instruction below:
+Create a directory where model and metagraph with pretrained weights will be stored:
+```
+mkdir deepspeech
+cd deepspeech
+```
+[Pretrained English speech-to-text model](https://github.com/mozilla/DeepSpeech/releases/tag/v0.8.2) is publicly available. 
+To download the model, follow the instruction below:
 
 * For UNIX*-like systems, run the following command:
 ```
-wget -O - https://github.com/mozilla/DeepSpeech/releases/download/v0.3.0/deepspeech-0.3.0-models.tar.gz | tar xvfz -
+wget -O - https://github.com/mozilla/DeepSpeech/archive/v0.8.2.tar.gz | tar xvfz -
+wget -O - https://github.com/mozilla/DeepSpeech/releases/download/v0.8.2/deepspeech-0.8.2-checkpoint.tar.gz | tar xvfz -
 ```
 * For Windows* systems:
-  1. Download the archive from the DeepSpeech project repository: [https://github.com/mozilla/DeepSpeech/releases/download/v0.3.0/deepspeech-0.3.0-models.tar.gz](https://github.com/mozilla/DeepSpeech/releases/download/v0.3.0/deepspeech-0.3.0-models.tar.gz).
-  2. Unpack it with a file archiver application.
+  1. Download the archive with the model: [https://github.com/mozilla/DeepSpeech/archive/v0.8.2.tar.gz](https://github.com/mozilla/DeepSpeech/archive/v0.8.2.tar.gz).
+  2. Download the TensorFlow\* MetaGraph with pretrained weights: [https://github.com/mozilla/DeepSpeech/releases/download/v0.8.2/deepspeech-0.8.2-checkpoint.tar.gz](https://github.com/mozilla/DeepSpeech/releases/download/v0.8.2/deepspeech-0.8.2-checkpoint.tar.gz).
+  3. Unpack it with a file archiver application.
 
-After you unpack the archive with the pre-trained model, you will have the new `models` directory with the
-following files:
+## Freeze the Model into a *.pb File
+
+After unpacking the archives above, you have to freeze the model. Note that this requires 
+TensorFlow* version 1 which is not available under Python 3.8, so you need Python 3.7 or lower.
+Before freezing, deploy a virtual environment and install the required packages:
 ```
-alphabet.txt  
-lm.binary
-output_graph.pb  
-output_graph.pbmm  
-output_graph.rounded.pb  
-output_graph.rounded.pbmm  
-trie
+virtualenv --python=python3.7 venv-deep-speech
+source venv-deep-speech/bin/activate
+cd DeepSpeech-0.8.2
+pip3 install -e .
 ```
+Freeze the model with the following command:
+```
+python3 DeepSpeech.py --checkpoint_dir ../deepspeech-0.8.2-checkpoint --export_dir ../
+```
+After that, you will get the pretrained frozen model file `output_graph.pb` in the directory `deepspeech` created at 
+the beginning. The model contains the preprocessing and main parts. The first preprocessing part performs conversion of input 
+spectrogram into a form useful for speech recognition (mel). This part of the model is not convertible into 
+IR because it contains unsupported operations `AudioSpectrogram` and `Mfcc`.
 
-Pre-trained frozen model file is `output_graph.pb`.
+The main and most computationally expensive part of the model converts the preprocessed audio into text. 
+There are two specificities with the supported part of the model. 
 
-![DeepSpeech model view](../../../img/DeepSpeech.png)
+The first is that the model contains an input with sequence length. So the model can be converted with 
+a fixed input length shape, thus the model is not reshapeable. 
+Refer to the [Using Shape Inference](../../../../IE_DG/ShapeInference.md).
 
-As you can see, the frozen model still has two variables: `previous_state_c` and
-`previous_state_h`. It means that the model keeps training those variables at each inference.
+The second is that the frozen model still has two variables: `previous_state_c` and `previous_state_h`, figure 
+with the frozen *.pb model is below. It means that the model keeps training these variables at each inference. 
 
-At the first inference of this graph, the variables are initialized by zero tensors. After executing the `lstm_fused_cell` nodes, cell state and hidden state, which are the results of the `BlockLSTM` execution, are assigned to these two variables.
+![DeepSpeech model view](../../../img/DeepSpeech-0.8.2.png)
 
-With each inference of the DeepSpeech graph, initial cell state and hidden state data for `BlockLSTM` is taken from previous inference from variables. Outputs (cell state and hidden state) of `BlockLSTM` are reassigned to the same variables.
+At the first inference the variables are initialized with zero tensors. After executing, the results of the `BlockLSTM` 
+are assigned to cell state and hidden state, which are these two variables.
 
-It helps the model to remember the context of the words that it takes as input.
+## Convert the Main Part of DeepSpeech Model into IR
 
-## Convert the TensorFlow* DeepSpeech Model to IR
-
-The Model Optimizer assumes that the output model is for inference only. That is why you should cut those variables off and resolve keeping cell and hidden states on the application level.
+Model Optimizer assumes that the output model is for inference only. That is why you should cut `previous_state_c` 
+and `previous_state_h` variables off and resolve keeping cell and hidden states on the application level.
 
 There are certain limitations for the model conversion:
 - Time length (`time_len`) and sequence length (`seq_len`) are equal.
 - Original model cannot be reshaped, so you should keep original shapes.
 
-To generate the DeepSpeech Intermediate Representation (IR), provide the TensorFlow DeepSpeech model to the Model Optimizer with the following parameters:
+To generate the IR, run the Model Optimizer with the following parameters:
 ```sh
-python3 ./mo_tf.py                                                      \
---input_model path_to_model/output_graph.pb                             \
---freeze_placeholder_with_value input_lengths->[16]                     \
---input input_node,previous_state_h/read,previous_state_c/read          \
---input_shape [1,16,19,26],[1,2048],[1,2048]                            \
---output raw_logits,lstm_fused_cell/GatherNd,lstm_fused_cell/GatherNd_1 \
+python3 {path_to_mo}/mo_tf.py                            \
+--input_model output_graph.pb                            \
+--input "input_lengths->[16],input_node[1 16 19 26],previous_state_h[1 2048],previous_state_c[1 2048]"   \
+--output "cudnn_lstm/rnn/multi_rnn_cell/cell_0/cudnn_compatible_lstm_cell/GatherNd_1,cudnn_lstm/rnn/multi_rnn_cell/cell_0/cudnn_compatible_lstm_cell/GatherNd,logits" \
 --disable_nhwc_to_nchw
 ```
 
 Where:
-* `--freeze_placeholder_with_value input_lengths->[16]` freezes sequence length
-* `--input input_node,previous_state_h/read,previous_state_c/read` and
-`--input_shape [1,16,19,26],[1,2048],[1,2048]` replace the variables with a placeholder
-* `--output raw_logits,lstm_fused_cell/GatherNd,lstm_fused_cell/GatherNd_1` gets data for the next model
-execution.
+* `input_lengths->[16]` Replaces the input node with name "input_lengths" with a constant tensor of shape [1] with a 
+  single integer value 16. This means that the model now can consume input sequences of length 16 only.
+* `input_node[1 16 19 26],previous_state_h[1 2048],previous_state_c[1 2048]` replaces the variables with a placeholder.
+* `--output ".../GatherNd_1,.../GatherNd,logits" ` output node names.

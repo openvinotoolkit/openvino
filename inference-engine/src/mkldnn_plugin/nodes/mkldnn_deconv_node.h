@@ -17,8 +17,8 @@ public:
     MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
-    void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
+    void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
+                          const std::vector<const MemoryDesc*>& outputDesc) override;
     void createPrimitive() override;
     void filterSupportedPrimitiveDescriptors() override;
     void filterSupportedDescriptors();
@@ -31,12 +31,13 @@ public:
         return static_cast<size_t>(getParentEdges().size());
     }
 
-    MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::unique_ptr<MKLDNNMemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::unique_ptr<MKLDNNMemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    bool canFuse(const MKLDNNNodePtr& node) const override;
 
 private:
     bool withGroups = false;
@@ -60,7 +61,7 @@ private:
 
     std::string errorPrefix;
 
-    bool canBeExecutedInInt8();
+    bool canBeExecutedInInt8() const;
     InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
 };
 

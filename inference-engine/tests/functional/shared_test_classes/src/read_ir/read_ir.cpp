@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <pugixml.hpp>
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
 #include "functional_test_utils/layer_test_utils/op_info.hpp"

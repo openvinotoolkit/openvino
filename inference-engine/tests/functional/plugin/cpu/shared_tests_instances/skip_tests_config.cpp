@@ -7,6 +7,7 @@
 
 #include <ie_system_conf.h>
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "ie_parallel.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
@@ -24,11 +25,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
         R"(.*(RangeNumpyAddSubgraphTest).*netPRC=FP16.*)",
         // TODO: Issue: 43793
-        R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
-        R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
         R"(.*PreprocessDynamicallyInSetBlobTest.*iPRC=0.*_iLT=1.*)",
         R"(.*PreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
         // TODO: Issue: 34348
@@ -38,10 +34,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
-        // TODO: Issue: 34805
-        R"(.*ActivationLayerTest.*Ceiling.*)",
-        // TODO: Issue: 32032
-        R"(.*ActivationParamLayerTest.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
@@ -52,9 +44,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*BinaryConvolutionLayerTest.*)",
         R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
         R"(.*ClampLayerTest.*netPrc=U64.*)",
-        // TODO: 42538. Unexpected application crash
-        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetwork.t.*)",
-        R"(.*CoreThreadingTestsWithIterations\.smoke_LoadNetworkAccuracy.*AUTO.*)",
         // TODO: 53618. BF16 gemm ncsp convolution crash
         R"(.*_GroupConv.*_inPRC=BF16.*_inFmts=nc.*_primitive=jit_gemm.*)",
         // TODO: 53578. fork DW bf16 convolution does not support 3d cases yet
@@ -63,13 +52,18 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvolutionLayerCPUTest.*BF16.*_inFmts=(ndhwc|nhwc).*)",
         // TODO: 56827. Sporadic test failures
         R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.IS=\(1\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
-
-        // incorrect reference implementation
-        R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
         // lpt transformation produce the same names for MatMul and Multiply
         R"(.*MatMulTransformation.*)",
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
         R"(.*smoke_Convolution3D.*D=\(1.2.1\)_O=1.*)",
+
+        // TODO: Issue: 35627. CPU Normalize supports from 2D to 4D blobs
+        R"(.*NormalizeL2_1D.*)",
+        R"(.*NormalizeL2_5D.*)",
+        // Issue: 59788. mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+        R"(.*NormalizeL2_.*axes=\(1.2.*_eps=100.*)",
+        R"(.*NormalizeL2_.*axes=\(2.1.*_eps=100.*)",
+        R"(.*NormalizeL2_.*axes=\(3.1.2.*_eps=100.*)",
 
         // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
         R"(.*BF16NetworkRestore1.*)",
@@ -77,21 +71,20 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: 55656 AUTO plugin and QueryNetwork
         R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
-        // TODO: 54718 Accuracy mismatch
-        R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(1\.1\).*primitive=jit_avx512_dw.*)",
-        R"(.*GroupDeconv_2D_DW_BF16.*K\(3\.3\)_S\(2\.2\).*primitive=jit_avx512_dw.*)",
-        // reference doesn't cover I8, U8 cases. Issue: 55842
-        R"(.*Gather7LayerTest.*netPRC=I8.*)",
+        // Unsupported config KEY_ENFORCE_BF16 for AUTO plugin
+        R"(.*smoke_SetBlobOfKindAUTO.*SetBlobOfKindTest.CompareWithRefs.*)",
+        // TODO: 57562 No dynamic output shape support
+        R"(.*NonZeroLayerTest.*)",
+        // need to implement Export / Import
+        R"(.*IEClassImportExportTestP.*)",
+        // azure is failing after #6199
+        R"(.*/NmsLayerTest.*)"
     };
-        // TODO: 54718 Accuracy mismatch
-#ifdef _WIN32
-        retVector.insert(retVector.end(), {
-              R"(.*GroupDeconv_3D_Planar_BF16.*K\(3\.3\.3\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
-              R"(.*GroupDeconv_3D_Planar_BF16.*K\(3\.3\.3\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
-              R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(1\.1\.1\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
-              R"(.*GroupDeconv_3D_Planar_BF16.*K\(1\.1\.1\)_S\(2\.2\.2\).*inFmts=ncdhw_outFmts=ncdhw_primitive=jit_gemm_PluginConf.*)",
-        });
+
+#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+    retVector.emplace_back(R"(.*ReusableCPUStreamsExecutor.*)");
 #endif
+
 #ifdef __APPLE__
         // TODO: Issue 55717
         //retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");

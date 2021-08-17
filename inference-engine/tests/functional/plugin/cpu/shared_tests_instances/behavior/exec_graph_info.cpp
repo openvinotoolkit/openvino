@@ -3,8 +3,7 @@
 //
 
 #include "behavior/exec_graph_info.hpp"
-#include "multi-device/multi_device_config.hpp"
-#include "auto_plugin/auto_config.hpp"
+#include "ie_plugin_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -20,24 +19,24 @@ namespace {
             {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
     };
     const std::vector<std::map<std::string, std::string>> autoConfigs = {
-            {{ InferenceEngine::AutoConfigParams::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU}}
+            {{ InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_CPU}}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, ExecGraphTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecGraphTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(configs)),
                             ExecGraphTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, ExecGraphTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, ExecGraphTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
                             ExecGraphTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, ExecGraphTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecGraphTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),

@@ -120,7 +120,7 @@ typedef std::tuple<
  *  TEST_P(ScaleshiftConv_x3_Eltwise, CompareWithRefImpl) {
     test();
 };
- *  3. INSTANTIATE_TEST_CASE_P(smoke_bfloat16_NoReshape, ScaleshiftConv_x3_Eltwise,
+ *  3. INSTANTIATE_TEST_SUITE_P(smoke_bfloat16_NoReshape, ScaleshiftConv_x3_Eltwise,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::FP32),
@@ -199,7 +199,6 @@ public:
             options[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] = InferenceEngine::PluginConfigParams::NO;
         }
         options[InferenceEngine::PluginConfigParams::KEY_PERF_COUNT] = InferenceEngine::PluginConfigParams::YES;
-        options[InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT] = "egraph_test";
 
         auto exec_net1 = ie.LoadNetwork(cnnNet, targetDevice, options);
         auto req1 = exec_net1.CreateInferRequest();

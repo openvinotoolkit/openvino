@@ -87,21 +87,21 @@ LSTM_DynamicTimeloopKernelBase::DispatchData LSTM_DynamicTimeloopKernelBase::Set
 
 void kernel_selector::LSTM_DynamicTimeloopKernelBase::SetKernelArguments(const lstm_dynamic_timeloop_params& params, clKernelData& kernel) const {
     uint32_t input_idx = 0;
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
-    kernel.arguments.push_back({ ArgumentDescriptor::Types::RECURRENT, 0 });
+    kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
+    kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
+    kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
+    kernel.params.arguments.push_back({ ArgumentDescriptor::Types::RECURRENT, 0 });
     if (params.has_hidden) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::HIDDEN, 0 });
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::HIDDEN, 0 });
     }
     if (params.has_cell) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::CELL, 0 });
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::CELL, 0 });
     }
     if (params.has_last_hidden_output) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
     }
     if (params.has_last_cell_output) {
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
+        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, input_idx++ });
     }
 }
 
@@ -118,13 +118,13 @@ KernelsData LSTM_DynamicTimeloopKernelBase::GetCommonKernelsData(const Params& p
     KernelData k_data = KernelData::Default<lstm_dynamic_timeloop_params>(params, 1);
 
     auto cldnn_jit = GetJitConstants(org_params);
-    auto entry_point = GetEntryPoint(kernelName, org_params.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, org_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
-    kernel.workGroups.global = dispatchData.gws;
-    kernel.workGroups.local  = dispatchData.lws;
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local  = dispatchData.lws;
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
     SetKernelArguments(org_params, kernel);
     return {k_data};
 }

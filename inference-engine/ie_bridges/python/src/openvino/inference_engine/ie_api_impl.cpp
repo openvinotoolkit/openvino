@@ -4,16 +4,21 @@
 
 #include "ie_api_impl.hpp"
 
-#include "hetero/hetero_plugin_config.hpp"
 #include "ie_iinfer_request.hpp"
 #include "ie_plugin_config.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
-std::map<std::string, InferenceEngine::Precision> precision_map = {
-    {"FP32", InferenceEngine::Precision::FP32}, {"FP64", InferenceEngine::Precision::FP64}, {"FP16", InferenceEngine::Precision::FP16},
-    {"I8", InferenceEngine::Precision::I8},     {"I16", InferenceEngine::Precision::I16},   {"I32", InferenceEngine::Precision::I32},
-    {"I64", InferenceEngine::Precision::I64},   {"U8", InferenceEngine::Precision::U8},     {"U16", InferenceEngine::Precision::U16},
-    {"U32", InferenceEngine::Precision::U32},   {"U64", InferenceEngine::Precision::U64}};
+std::map<std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
+                                                                   {"FP64", InferenceEngine::Precision::FP64},
+                                                                   {"FP16", InferenceEngine::Precision::FP16},
+                                                                   {"I8", InferenceEngine::Precision::I8},
+                                                                   {"I16", InferenceEngine::Precision::I16},
+                                                                   {"I32", InferenceEngine::Precision::I32},
+                                                                   {"I64", InferenceEngine::Precision::I64},
+                                                                   {"U8", InferenceEngine::Precision::U8},
+                                                                   {"U16", InferenceEngine::Precision::U16},
+                                                                   {"U32", InferenceEngine::Precision::U32},
+                                                                   {"U64", InferenceEngine::Precision::U64}};
 
 std::map<std::string, InferenceEngine::Layout> layout_map = {{"ANY", InferenceEngine::Layout::ANY},
                                                              {"NCHW", InferenceEngine::Layout::NCHW},
@@ -201,15 +206,8 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string
     return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
-InferenceEnginePython::IENetwork::IENetwork(const std::string& model, const std::string& weights) {
-    InferenceEngine::Core reader;
-    auto net = reader.ReadNetwork(model, weights);
-    actual = std::make_shared<InferenceEngine::CNNNetwork>(net);
-    name = actual->getName();
-    batch_size = actual->getBatchSize();
-}
-
-InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork>& cnn_network): actual(cnn_network) {
+InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork>& cnn_network)
+    : actual(cnn_network) {
     if (actual == nullptr)
         IE_THROW() << "IENetwork was not initialized.";
     name = actual->getName();
@@ -226,16 +224,6 @@ InferenceEnginePython::IENetwork::IENetwork(PyObject* network) {
     InferenceEngine::CNNNetwork cnnNetwork(*function_sp);
     actual = std::make_shared<InferenceEngine::CNNNetwork>(cnnNetwork);
     name = actual->getName();
-    batch_size = actual->getBatchSize();
-}
-
-void InferenceEnginePython::IENetwork::load_from_buffer(const char* xml, size_t xml_size, uint8_t* bin, size_t bin_size) {
-    InferenceEngine::Core reader;
-    InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {bin_size}, InferenceEngine::Layout::C);
-    auto weights_blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, bin, bin_size);
-    auto net = reader.ReadNetwork(std::string(xml, xml + xml_size), weights_blob);
-    name = net.getName();
-    actual = std::make_shared<InferenceEngine::CNNNetwork>(net);
     batch_size = actual->getBatchSize();
 }
 
@@ -276,15 +264,6 @@ const std::map<std::string, InferenceEngine::InputInfo::Ptr> InferenceEnginePyth
     return inputs;
 }
 
-const std::map<std::string, InferenceEngine::DataPtr> InferenceEnginePython::IENetwork::getInputs() {
-    std::map<std::string, InferenceEngine::DataPtr> inputs;
-    const InferenceEngine::InputsDataMap& inputsInfo = actual->getInputsInfo();
-    for (auto& in : inputsInfo) {
-        inputs[in.first] = in.second->getInputData();
-    }
-    return inputs;
-}
-
 const std::map<std::string, InferenceEngine::DataPtr> InferenceEnginePython::IENetwork::getOutputs() {
     std::map<std::string, InferenceEngine::DataPtr> outputs;
     const InferenceEngine::OutputsDataMap& outputsInfo = actual->getOutputsInfo();
@@ -314,7 +293,9 @@ void InferenceEnginePython::IENetwork::reshape(const std::map<std::string, std::
     actual->reshape(input_shapes);
 }
 
-InferenceEnginePython::IEExecNetwork::IEExecNetwork(const std::string& name, size_t num_requests): infer_requests(num_requests), name(name) {
+InferenceEnginePython::IEExecNetwork::IEExecNetwork(const std::string& name, size_t num_requests)
+    : infer_requests(num_requests),
+      name(name) {
     request_queue_ptr = std::make_shared<IdleInferRequestQueue>();
 }
 
@@ -324,32 +305,23 @@ void InferenceEnginePython::IEExecNetwork::infer() {
 }
 
 InferenceEnginePython::IENetwork InferenceEnginePython::IEExecNetwork::GetExecGraphInfo() {
-    return IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(actual.GetExecGraphInfo()));
+    return IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(actual->GetExecGraphInfo()));
 }
 
 PyObject* InferenceEnginePython::IEExecNetwork::getMetric(const std::string& metric_name) {
-    return parse_parameter(actual.GetMetric(metric_name));
+    return parse_parameter(actual->GetMetric(metric_name));
 }
 
 PyObject* InferenceEnginePython::IEExecNetwork::getConfig(const std::string& name) {
-    return parse_parameter(actual.GetConfig(name));
+    return parse_parameter(actual->GetConfig(name));
 }
 
 void InferenceEnginePython::IEExecNetwork::exportNetwork(const std::string& model_file) {
-    actual.Export(model_file);
-}
-
-std::map<std::string, InferenceEngine::DataPtr> InferenceEnginePython::IEExecNetwork::getInputs() {
-    InferenceEngine::ConstInputsDataMap inputsDataMap = actual.GetInputsInfo();
-    std::map<std::string, InferenceEngine::DataPtr> pyInputs;
-    for (const auto& item : inputsDataMap) {
-        pyInputs[item.first] = item.second->getInputData();
-    }
-    return pyInputs;
+    actual->Export(model_file);
 }
 
 std::map<std::string, InferenceEngine::InputInfo::CPtr> InferenceEnginePython::IEExecNetwork::getInputsInfo() {
-    InferenceEngine::ConstInputsDataMap inputsDataMap = actual.GetInputsInfo();
+    InferenceEngine::ConstInputsDataMap inputsDataMap = actual->GetInputsInfo();
     std::map<std::string, InferenceEngine::InputInfo::CPtr> pyInputs;
     for (const auto& item : inputsDataMap) {
         pyInputs[item.first] = item.second;
@@ -358,12 +330,16 @@ std::map<std::string, InferenceEngine::InputInfo::CPtr> InferenceEnginePython::I
 }
 
 std::map<std::string, InferenceEngine::CDataPtr> InferenceEnginePython::IEExecNetwork::getOutputs() {
-    InferenceEngine::ConstOutputsDataMap outputsDataMap = actual.GetOutputsInfo();
+    InferenceEngine::ConstOutputsDataMap outputsDataMap = actual->GetOutputsInfo();
     std::map<std::string, InferenceEngine::CDataPtr> pyOutputs;
     for (const auto& item : outputsDataMap) {
         pyOutputs[item.first] = item.second;
     }
     return pyOutputs;
+}
+
+std::shared_ptr<InferenceEngine::ExecutableNetwork> InferenceEnginePython::IEExecNetwork::getPluginLink() {
+    return actual;
 }
 
 void InferenceEnginePython::InferRequestWrap::setBlob(const std::string& blob_name,
@@ -377,13 +353,13 @@ void InferenceEnginePython::InferRequestWrap::setBlob(const std::string& blob_na
     request_ptr.SetBlob(blob_name.c_str(), blob_ptr, info);
 }
 
-const InferenceEngine::PreProcessInfo&
-InferenceEnginePython::InferRequestWrap::getPreProcess(const std::string& blob_name) {
+const InferenceEngine::PreProcessInfo& InferenceEnginePython::InferRequestWrap::getPreProcess(
+    const std::string& blob_name) {
     return request_ptr.GetPreProcess(blob_name.c_str());
 }
 
 InferenceEngine::Blob::Ptr InferenceEnginePython::InferRequestWrap::getBlobPtr(const std::string& blob_name) {
-   return request_ptr.GetBlob(blob_name.c_str());
+    return request_ptr.GetBlob(blob_name.c_str());
 }
 
 void InferenceEnginePython::InferRequestWrap::setBatch(int size) {
@@ -400,7 +376,6 @@ std::vector<InferenceEnginePython::CVariableState> InferenceEnginePython::InferR
     }
     return memoryStates;
 }
-
 
 void InferenceEnginePython::InferRequestWrap::setCyCallback(cy_callback callback, void* data) {
     user_callback = callback;
@@ -429,7 +404,8 @@ int InferenceEnginePython::InferRequestWrap::wait(int64_t timeout) {
     return static_cast<int>(code);
 }
 
-std::map<std::string, InferenceEnginePython::ProfileInfo> InferenceEnginePython::InferRequestWrap::getPerformanceCounts() {
+std::map<std::string, InferenceEnginePython::ProfileInfo>
+InferenceEnginePython::InferRequestWrap::getPerformanceCounts() {
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perf_counts = request_ptr.GetPerformanceCounts();
     std::map<std::string, InferenceEnginePython::ProfileInfo> perf_map;
 
@@ -458,7 +434,6 @@ std::map<std::string, InferenceEnginePython::ProfileInfo> InferenceEnginePython:
     return perf_map;
 }
 
-
 std::string InferenceEnginePython::get_version() {
     auto version = InferenceEngine::GetInferenceEngineVersion();
     return version->buildNumber;
@@ -468,7 +443,8 @@ InferenceEnginePython::IECore::IECore(const std::string& xmlConfigFile) {
     actual = InferenceEngine::Core(xmlConfigFile);
 }
 
-std::map<std::string, InferenceEngine::Version> InferenceEnginePython::IECore::getVersions(const std::string& deviceName) {
+std::map<std::string, InferenceEngine::Version> InferenceEnginePython::IECore::getVersions(
+    const std::string& deviceName) {
     return actual.GetVersions(deviceName);
 }
 
@@ -512,7 +488,7 @@ int InferenceEnginePython::IdleInferRequestQueue::getIdleRequestId() {
 
 void InferenceEnginePython::IEExecNetwork::createInferRequests(int num_requests) {
     if (0 == num_requests) {
-        num_requests = getOptimalNumberOfRequests(actual);
+        num_requests = getOptimalNumberOfRequests(*actual);
     }
     infer_requests.resize(num_requests);
 
@@ -521,15 +497,18 @@ void InferenceEnginePython::IEExecNetwork::createInferRequests(int num_requests)
         infer_request.index = i;
         request_queue_ptr->setRequestIdle(i);
         infer_request.request_queue_ptr = request_queue_ptr;
-        infer_request.request_ptr = actual.CreateInferRequest();
+        infer_request.request_ptr = actual->CreateInferRequest();
 
-        infer_request.request_ptr.SetCompletionCallback<std::function<void(InferenceEngine::InferRequest r,
-                                                                            InferenceEngine::StatusCode)>>(
+        infer_request.request_ptr
+            .SetCompletionCallback<std::function<void(InferenceEngine::InferRequest r, InferenceEngine::StatusCode)>>(
                 [&](InferenceEngine::InferRequest request, InferenceEngine::StatusCode code) {
                     if (code != InferenceEngine::StatusCode::OK) {
-                        IE_EXCEPTION_SWITCH(code, ExceptionType,
-                                    InferenceEngine::details::ThrowNow<ExceptionType> {} <<=
-                                            std::stringstream {} << IE_LOCATION << InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
+                        IE_EXCEPTION_SWITCH(code,
+                                            ExceptionType,
+                                            InferenceEngine::details::ThrowNow<ExceptionType>{} <<=
+                                            std::stringstream{}
+                                            << IE_LOCATION
+                                            << InferenceEngine::details::ExceptionTraits<ExceptionType>::string());
                     }
 
                     auto end_time = Time::now();
@@ -543,12 +522,15 @@ void InferenceEnginePython::IEExecNetwork::createInferRequests(int num_requests)
     }
 }
 
-InferenceEnginePython::IENetwork InferenceEnginePython::IECore::readNetwork(const std::string& modelPath, const std::string& binPath) {
+InferenceEnginePython::IENetwork InferenceEnginePython::IECore::readNetwork(const std::string& modelPath,
+                                                                            const std::string& binPath) {
     InferenceEngine::CNNNetwork net = actual.ReadNetwork(modelPath, binPath);
     return IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
-InferenceEnginePython::IENetwork InferenceEnginePython::IECore::readNetwork(const std::string& model, const uint8_t* bin, size_t bin_size) {
+InferenceEnginePython::IENetwork InferenceEnginePython::IECore::readNetwork(const std::string& model,
+                                                                            const uint8_t* bin,
+                                                                            size_t bin_size) {
     InferenceEngine::MemoryBlob::Ptr weights_blob;
     if (bin_size != 0) {
         InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {bin_size}, InferenceEngine::Layout::C);
@@ -560,44 +542,58 @@ InferenceEnginePython::IENetwork InferenceEnginePython::IECore::readNetwork(cons
     return IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
-std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IECore::loadNetwork(IENetwork network, const std::string& deviceName,
-                                                                                                 const std::map<std::string, std::string>& config,
-                                                                                                 int num_requests) {
-    auto exec_network = InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(network.name, num_requests);
-    exec_network->actual = actual.LoadNetwork(*network.actual, deviceName, config);
+std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IECore::loadNetwork(
+    IENetwork network,
+    const std::string& deviceName,
+    const std::map<std::string, std::string>& config,
+    int num_requests) {
+    auto exec_network =
+        InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(network.name, num_requests);
+    exec_network->actual =
+        std::make_shared<InferenceEngine::ExecutableNetwork>(actual.LoadNetwork(*network.actual, deviceName, config));
     exec_network->createInferRequests(num_requests);
 
     return exec_network;
 }
 
-std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IECore::loadNetworkFromFile(const std::string& modelPath,
-                                                                                                         const std::string& deviceName,
-                                                                                                         const std::map<std::string, std::string>& config,
-                                                                                                         int num_requests) {
-    auto exec_network = InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(modelPath, num_requests);
-    exec_network->actual = actual.LoadNetwork(modelPath, deviceName, config);
+std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IECore::loadNetworkFromFile(
+    const std::string& modelPath,
+    const std::string& deviceName,
+    const std::map<std::string, std::string>& config,
+    int num_requests) {
+    auto exec_network =
+        InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(modelPath, num_requests);
+    exec_network->actual =
+        std::make_shared<InferenceEngine::ExecutableNetwork>(actual.LoadNetwork(modelPath, deviceName, config));
     exec_network->createInferRequests(num_requests);
 
     return exec_network;
 }
 
-std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IECore::importNetwork(const std::string& modelFIle, const std::string& deviceName,
-                                                                                                   const std::map<std::string, std::string>& config,
-                                                                                                   int num_requests) {
-    auto exec_network = InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(EXPORTED_NETWORK_NAME, num_requests);
-    exec_network->actual = actual.ImportNetwork(modelFIle, deviceName, config);
+std::unique_ptr<InferenceEnginePython::IEExecNetwork> InferenceEnginePython::IECore::importNetwork(
+    const std::string& modelFIle,
+    const std::string& deviceName,
+    const std::map<std::string, std::string>& config,
+    int num_requests) {
+    auto exec_network =
+        InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(EXPORTED_NETWORK_NAME, num_requests);
+    exec_network->actual =
+        std::make_shared<InferenceEngine::ExecutableNetwork>(actual.ImportNetwork(modelFIle, deviceName, config));
     exec_network->createInferRequests(num_requests);
 
     return exec_network;
 }
 
-std::map<std::string, std::string> InferenceEnginePython::IECore::queryNetwork(InferenceEnginePython::IENetwork network, const std::string& deviceName,
-                                                                               const std::map<std::string, std::string>& config) {
+std::map<std::string, std::string> InferenceEnginePython::IECore::queryNetwork(
+    InferenceEnginePython::IENetwork network,
+    const std::string& deviceName,
+    const std::map<std::string, std::string>& config) {
     auto res = actual.QueryNetwork(*network.actual, deviceName, config);
     return res.supportedLayersMap;
 }
 
-void InferenceEnginePython::IECore::setConfig(const std::map<std::string, std::string>& config, const std::string& deviceName) {
+void InferenceEnginePython::IECore::setConfig(const std::map<std::string, std::string>& config,
+                                              const std::string& deviceName) {
     actual.SetConfig(config, deviceName);
 }
 
