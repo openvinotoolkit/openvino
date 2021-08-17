@@ -3,19 +3,16 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
-TEST(attributes, unsqueeze_op)
-{
+TEST(attributes, unsqueeze_op) {
     using namespace opset1;
 
     auto param = make_shared<op::Parameter>(element::f32, Shape{4, 1, 4, 1, 8});

@@ -463,7 +463,14 @@ std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter
             }
 
             auto newInput = multiply->input_value(1 - constant1->output(0).get_target_inputs().begin()->get_index());
-            auto newConst = fold<opset1::Multiply>(constant1, constant2);
+            auto multiplyResult = fold<opset1::Multiply>(constant1, constant2);
+            {
+                // optimize constant shape: used in rfcn-resnet101-coco
+                const auto multiplyResultConstant = as_type_ptr<opset1::Constant>(multiplyResult);
+                if ((multiplyResultConstant != nullptr) && NetworkHelper::isScalarLike(multiplyResultConstant)) {
+                    multiplyResult = NetworkHelper::toScalar(multiplyResultConstant);
+                }
+            }
             auto inputPrecision0 = nextMultiply->get_origin_input_type(0);
             auto inputPrecision1 = nextMultiply->get_origin_input_type(1);
             auto outputPrecision = nextMultiply->get_overridden_output_type(0);
@@ -472,7 +479,7 @@ std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter
                             std::vector<element::Type>{ inputPrecision0, inputPrecision1 },
                             std::vector<element::Type>{ outputPrecision },
                             ngraph::op::TemporaryReplaceOutputType(newInput, inputPrecision0).get(),
-                            ngraph::op::TemporaryReplaceOutputType(newConst, inputPrecision1).get());
+                            ngraph::op::TemporaryReplaceOutputType(multiplyResult, inputPrecision1).get());
             copy_runtime_info(multiply, newMultiply);
             replace_node(nextMultiply, newMultiply);
             return newMultiply;
@@ -1560,14 +1567,14 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
         if (updatePrecision) {
             op->set_overridden_output_type(newOperation->get_input_element_type(0));
         } else if (dequantization.multiply) {
-            op->set_overridden_output_type(dequantization.multiply->get_input_element_type(1));
+            op->set_overridden_output_type(dequantization.multiplyConstant->get_element_type());
         } else if (dequantization.subtract) {
-            op->set_overridden_output_type(dequantization.subtract->get_input_element_type(1));
+            op->set_overridden_output_type(dequantization.subtractConstant->get_element_type());
         }
         std::dynamic_pointer_cast<ngraph::Node>(newOperation)->validate_and_infer_types();
     }
 
-    const element::Type deqPrecision = dequantization.multiply->get_input_node_shared_ptr(1)->get_output_element_type(0);
+    const element::Type deqPrecision = dequantization.multiplyConstant->get_element_type();
     const bool shouldConvert = (newOperation->get_output_element_type(0) != deqPrecision);
 
     auto parent = newOperation;
@@ -1582,11 +1589,11 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     if (moveSubtract && (dequantization.subtract != nullptr)) {
         if (dequantization.subtractConvert == nullptr) {
             const element::Type parentPrecision = parent->get_output_element_type(0);
-            if (parentPrecision.bitwidth() < dequantization.subtractConstant->output(0).get_element_type().bitwidth()) {
+            if (parentPrecision.bitwidth() < dequantization.subtractConstant->get_element_type().bitwidth()) {
                 THROW_IE_LPT_EXCEPTION(*parent) <<
                     "unexpected precisions: on data " << parent->get_friendly_name() << ":" << parentPrecision <<
                     ", subtract dequantization constant " << dequantization.subtractConstant->get_friendly_name() << ":" <<
-                    dequantization.subtractConstant->output(0).get_element_type();
+                    dequantization.subtractConstant->get_element_type();
             }
 
             parent = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
@@ -1604,12 +1611,12 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     }
 
     if (dequantization.multiply != nullptr) {
-        auto multiplyConstant = dequantization.multiply->get_input_node_shared_ptr(1);
+        auto multiplyConstant = dequantization.multiplyConstant;
         const element::Type parentPrecision = parent->get_output_element_type(0);
-        if (parentPrecision.bitwidth() < multiplyConstant->output(0).get_element_type().bitwidth()) {
+        if (parentPrecision.bitwidth() < multiplyConstant->get_element_type().bitwidth()) {
             THROW_IE_LPT_EXCEPTION(*parent) <<
                 "unexpected precisions: on data " << parent->get_friendly_name() << ":" << parentPrecision <<
-                ", multiply dequantization constant " << multiplyConstant->get_friendly_name() << ":" << multiplyConstant->output(0).get_element_type();
+                ", multiply dequantization constant " << multiplyConstant->get_friendly_name() << ":" << multiplyConstant->get_element_type();
         }
 
         parent = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(

@@ -25,24 +25,23 @@ static void BinaryConvolutionTest(const std::vector<T_IN>& inputs,
                                   const Strides& strides,
                                   const CoordinateDiff& padding,
                                   const Strides& dilations,
-                                  const float pad_value = 0.0f)
-{
+                                  const float pad_value = 0.0f) {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
 
     auto inputs_param = make_shared<op::Parameter>(element::from<T_IN>(), inputs_shape);
     auto filters_const = make_shared<op::Constant>(element::u1, filters_shape, &filters[0]);
-    auto bin_conv = make_shared<op::v1::BinaryConvolution>(
-        inputs_param,
-        filters_const,
-        strides,
-        pads_begin,
-        pads_end,
-        dilations,
-        op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
-        pad_value,
-        auto_pad);
+    auto bin_conv =
+        make_shared<op::v1::BinaryConvolution>(inputs_param,
+                                               filters_const,
+                                               strides,
+                                               pads_begin,
+                                               pads_end,
+                                               dilations,
+                                               op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
+                                               pad_value,
+                                               auto_pad);
     auto f = make_shared<Function>(bin_conv, ParameterVector{inputs_param});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -65,16 +64,20 @@ static void ConvolutionTest(const std::vector<T_IN>& inputs,
                             const Shape outputs_shape,
                             const Strides& strides,
                             const CoordinateDiff& padding,
-                            const Strides& dilations)
-{
+                            const Strides& dilations) {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
 
     auto inputs_param = make_shared<op::Parameter>(element::from<T_IN>(), inputs_shape);
     auto filters_param = make_shared<op::Parameter>(element::from<T_IN>(), filters_shape);
-    auto conv = make_shared<op::v1::Convolution>(
-        inputs_param, filters_param, strides, pads_begin, pads_end, dilations, auto_pad);
+    auto conv = make_shared<op::v1::Convolution>(inputs_param,
+                                                 filters_param,
+                                                 strides,
+                                                 pads_begin,
+                                                 pads_end,
+                                                 dilations,
+                                                 auto_pad);
     auto f = make_shared<Function>(conv, ParameterVector{inputs_param, filters_param});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
