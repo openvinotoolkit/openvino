@@ -8,8 +8,8 @@
 multi-directional broadcast rules.
 
 **Detailed description**
-Before performing comparison operation, input tensors *a* and *b* are broadcasted if their shapes are different and
-`auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+Before performing comparison operation, input tensors *a* and *b* are broadcasted if their shapes are different.
+Broadcasting is performed according to `auto_broadcast` value.
 
 After broadcasting *NotEqual* does the following with the input tensors *a* and *b*:
 
