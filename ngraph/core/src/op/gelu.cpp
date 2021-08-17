@@ -13,9 +13,8 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
-constexpr NodeTypeInfo op::Gelu::type_info;
+// ------------------------------ V0 ------------------------------
+NGRAPH_RTTI_DEFINITION(op::v0::Gelu, "Gelu", 0);
 
 op::v0::Gelu::Gelu() : Op() {}
 

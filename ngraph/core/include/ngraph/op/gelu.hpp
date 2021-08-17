@@ -6,7 +6,6 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ngraph {
@@ -16,10 +15,8 @@ namespace v0 {
 /// f(x) = 0.5 * x * (1 + erf( x / sqrt(2) )
 class NGRAPH_API Gelu : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"Gelu", 0};
-    const NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    NGRAPH_RTTI_DECLARATION;
+
     Gelu();
     /// \brief Constructs a Gelu operation.
     ///
