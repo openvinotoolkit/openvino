@@ -36,11 +36,11 @@ InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Varian
     }
     if (variants.size() > 0 && is_type<VariantWrapper<std::istream*>>(variants[0])) {
         auto stream = as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
-        return std::make_shared<InputModelONNX>(*stream);
         if (variants.size() > 1 && is_type<VariantWrapper<std::string>>(variants[1])) {
             const auto path = as_type_ptr<VariantWrapper<std::string>>(variants[1])->get();
             return std::make_shared<InputModelONNX>(*stream, path);
         }
+        return std::make_shared<InputModelONNX>(*stream);
     }
     return nullptr;
 }
@@ -68,11 +68,11 @@ std::string FrontEndONNX::get_name() const {
 bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
     if (variants.size() > 0 && is_type<VariantWrapper<std::string>>(variants[0])) {
         const auto path = as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
-        if (file_util::get_file_ext(path) == ".onnx") {
-            std::ifstream model_stream(path, std::ios::in | std::ifstream::binary);
-            model_stream.seekg(0, model_stream.beg);
-            return onnx_common::is_valid_model(model_stream, onnx_common::onnx_format{});
-        }
+        std::ifstream model_stream(path, std::ios::in | std::ifstream::binary);
+        model_stream.seekg(0, model_stream.beg);
+        const bool is_valid_model = onnx_common::is_valid_model(model_stream, onnx_common::onnx_format{});
+        model_stream.close();
+        return is_valid_model;
     }
     if (variants.size() > 0 && is_type<VariantWrapper<std::istream*>>(variants[0])) {
         auto stream = as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();

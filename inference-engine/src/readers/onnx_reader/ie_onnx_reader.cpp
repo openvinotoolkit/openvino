@@ -38,26 +38,14 @@ private:
 };
 } // namespace
 
-static ngraph::frontend::FrontEndManager manager; // TODO move to ctor
+// after full Readers-FE API integration manager can be passed by ctor
+static ngraph::frontend::FrontEndManager manager;
 
 bool ONNXReader::supportModel(std::istream& model) const {
     StreamRewinder rwd{model};
 
-    const auto model_path = readPathFromStream(model);
-
-    const auto is_valid_onnx_fe = [](const ngraph::frontend::FrontEnd::Ptr& onnx_fe) {
-        if (onnx_fe && onnx_fe->get_name() == "onnx") {
-            return true;
-        }
-        return false;
-    };
-
-    if (model_path.empty()) {
-        if (is_valid_onnx_fe(manager.load_by_model(&model))) {
-            return true;
-        }
-
-    } else if (is_valid_onnx_fe(manager.load_by_model(model_path))) {
+    const auto onnx_fe = manager.load_by_model(&model);
+    if (onnx_fe && onnx_fe->get_name() == "onnx") {
         return true;
     }
     return false;
