@@ -8,7 +8,7 @@
     constexpr VariantTypeInfo VariantWrapper<TYPE>::type_info; \
     template class ngraph::VariantImpl<TYPE>;
 
-namespace ngraph {
+namespace ov {
 NGRAPH_VARIANT_DEFINITION(int32_t)
 NGRAPH_VARIANT_DEFINITION(std::vector<int32_t>)
 NGRAPH_VARIANT_DEFINITION(float)
@@ -16,5 +16,4 @@ NGRAPH_VARIANT_DEFINITION(std::vector<float>)
 NGRAPH_VARIANT_DEFINITION(bool)
 NGRAPH_VARIANT_DEFINITION(ngraph::element::Type)
 NGRAPH_VARIANT_DEFINITION(std::vector<int64_t>)
-
-}  // namespace ngraph
+}  // namespace ov

@@ -5,6 +5,7 @@
 #include "ngraph/attribute_visitor.hpp"
 
 #include "ngraph/attribute_adapter.hpp"
+#include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 
 using namespace std;

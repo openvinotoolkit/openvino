@@ -83,7 +83,7 @@ struct Ship {
     int16_t y;
 };
 
-namespace ngraph {
+namespace ov {
 template <>
 class VariantWrapper<Ship> : public VariantImpl<Ship> {
 public:
@@ -95,7 +95,7 @@ public:
 };
 
 constexpr VariantTypeInfo VariantWrapper<Ship>::type_info;
-}  // namespace ngraph
+}  // namespace ov
 
 TEST(op, variant) {
     shared_ptr<Variant> var_std_string = make_variant<std::string>("My string");

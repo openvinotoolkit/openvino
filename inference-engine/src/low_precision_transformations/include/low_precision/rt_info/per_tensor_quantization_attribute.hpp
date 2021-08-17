@@ -16,11 +16,14 @@
 namespace ngraph {
 class LP_TRANSFORMATIONS_API PerTensorQuantizationAttribute {
 };
+} // namespace ngraph
 
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<PerTensorQuantizationAttribute>;
+namespace ov {
+
+extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<ngraph::PerTensorQuantizationAttribute>;
 
 template<>
-class LP_TRANSFORMATIONS_API VariantWrapper<PerTensorQuantizationAttribute> : public VariantImpl<PerTensorQuantizationAttribute> {
+class LP_TRANSFORMATIONS_API VariantWrapper<ngraph::PerTensorQuantizationAttribute> : public VariantImpl<ngraph::PerTensorQuantizationAttribute> {
 public:
     static constexpr VariantTypeInfo type_info { "LowPrecision::PerTensorQuantization", 0 };
 
@@ -30,4 +33,5 @@ public:
         return type_info;
     }
 };
-} // namespace ngraph
+
+} // namespace ov

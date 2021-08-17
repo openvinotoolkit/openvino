@@ -93,6 +93,9 @@ struct FrontEndPluginInfo {
 };
 
 }  // namespace frontend
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
 class FRONTEND_API VariantWrapper<std::istream*> : public VariantImpl<std::istream*> {
@@ -116,4 +119,4 @@ public:
 };
 #endif
 
-}  // namespace ngraph
+}  // namespace ov

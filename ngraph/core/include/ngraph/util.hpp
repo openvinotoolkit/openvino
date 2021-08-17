@@ -28,7 +28,6 @@
 
 namespace ngraph {
 class Node;
-class Function;
 class stopwatch;
 
 namespace runtime {

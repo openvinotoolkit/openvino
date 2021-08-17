@@ -25,7 +25,6 @@
 namespace ngraph
 {
     class Node;
-    class Function;
     class TestOpMultiOut : public op::Op
     {
     public:
@@ -53,7 +52,7 @@ namespace ngraph
         bool evaluate(const HostTensorVector& outputs,
                       const HostTensorVector& inputs) const override;
     };
-}
+} // namespace ngraph
 
 bool validate_list(const std::vector<std::shared_ptr<ngraph::Node>>& nodes);
 std::shared_ptr<ngraph::Function> make_test_graph();

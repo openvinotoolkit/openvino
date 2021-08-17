@@ -8,6 +8,7 @@
 #include <string>
 
 using namespace ngraph;
+using namespace ov;
 
 PrecisionPreservedAttribute::PrecisionPreservedAttribute(const bool value) {
     sharedValue->value = value;

@@ -61,24 +61,6 @@ public:
     std::vector<std::string> getVectorNames() const;
 };
 
-extern template class TRANSFORMATIONS_API VariantImpl<FusedNames>;
-
-template<>
-class TRANSFORMATIONS_API VariantWrapper<FusedNames> : public VariantImpl<FusedNames> {
-public:
-    static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::FusedNames", 0};
-
-    const VariantTypeInfo &get_type_info() const override {
-        return type_info;
-    }
-
-    VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
-
-    std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector & nodes) override;
-
-    std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
-};
-
 /**
  * @ingroup ie_runtime_attr_api
  * @brief getFusedNames return string with operation names separated by coma in alphabetical order
@@ -95,3 +77,24 @@ TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ngraph::Node
 TRANSFORMATIONS_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> & node);
 
 }  // namespace ngraph
+
+namespace ov {
+
+extern template class TRANSFORMATIONS_API VariantImpl<ngraph::FusedNames>;
+
+template<>
+class TRANSFORMATIONS_API VariantWrapper<ngraph::FusedNames> : public VariantImpl<ngraph::FusedNames> {
+public:
+    static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::FusedNames", 0};
+
+    const VariantTypeInfo &get_type_info() const override {
+        return type_info;
+    }
+
+    VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
+
+    std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector & nodes) override;
+
+    std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
+};
+}  // namespace ov

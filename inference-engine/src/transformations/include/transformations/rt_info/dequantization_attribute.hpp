@@ -46,11 +46,21 @@ public:
      */
     std::string getDequantizationAttr() const;
 };
+/**
+ * @ingroup ie_runtime_attr_api
+ * @brief getDequantization return string with dequantization value
+ * @param[in] node The node will be used to get Dequantization attribute
+ */
+TRANSFORMATIONS_API std::string getDequantization(const std::shared_ptr<ngraph::Node>& node);
 
-extern template class TRANSFORMATIONS_API VariantImpl<DequantizationAttr>;
+}  // namespace ngraph
+
+namespace ov {
+
+extern template class TRANSFORMATIONS_API VariantImpl<ngraph::DequantizationAttr>;
 
 template<>
-class TRANSFORMATIONS_API VariantWrapper<DequantizationAttr> : public VariantImpl<DequantizationAttr> {
+class TRANSFORMATIONS_API VariantWrapper<ngraph::DequantizationAttr> : public VariantImpl<ngraph::DequantizationAttr> {
 public:
     static constexpr VariantTypeInfo type_info{"DEQUANTIZATION", 0};
 
@@ -65,11 +75,4 @@ public:
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
 };
 
-/**
- * @ingroup ie_runtime_attr_api
- * @brief getDequantization return string with dequantization value
- * @param[in] node The node will be used to get Dequantization attribute
- */
-TRANSFORMATIONS_API std::string getDequantization(const std::shared_ptr<ngraph::Node>& node);
-
-}  // namespace ngraph
+}  // namespace ov

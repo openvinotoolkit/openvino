@@ -5,12 +5,12 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/output_vector.hpp>
-#include <ngraph/variant.hpp>
 #include <unordered_map>
 
 #include "ngraph/op/util/variable.hpp"
 #include "ngraph/op/util/variable_value.hpp"
+#include "ngraph/output_vector.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph {
 using VariableValuePtr = std::shared_ptr<VariableValue>;
@@ -70,9 +70,11 @@ private:
     /// The values associated with a particular Variable.
     VariableMap m_variable_values;
 };
+}  // namespace ngraph
 
+namespace ov {
 template <>
-class NGRAPH_API VariantWrapper<VariableContext> : public VariantImpl<VariableContext> {
+class NGRAPH_API VariantWrapper<ngraph::VariableContext> : public VariantImpl<ngraph::VariableContext> {
 public:
     static constexpr VariantTypeInfo type_info{"Variant::EvaluationContext::VariableContext", 0};
 
@@ -86,5 +88,4 @@ private:
     using Variant::init;
     using Variant::merge;
 };
-
-}  // namespace ngraph
+}  // namespace ov
