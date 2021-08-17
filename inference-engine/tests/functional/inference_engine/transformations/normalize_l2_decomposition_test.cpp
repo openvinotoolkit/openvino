@@ -23,7 +23,7 @@ TEST(TransformationTests, NormalizeL2DecomositionFusionWithMax) {
     const float eps_value = 0.000099f;
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(3));
-        auto axes_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
+        auto axes_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 2});
         auto normalize_l2 = std::make_shared<ngraph::opset8::NormalizeL2>(input, axes_const, eps_value, ngraph::op::EpsMode::MAX);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{normalize_l2}, ngraph::ParameterVector{input});
@@ -39,8 +39,8 @@ TEST(TransformationTests, NormalizeL2DecomositionFusionWithMax) {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(3));
         auto exp = ngraph::opset8::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.f});
         auto pow = std::make_shared<ngraph::opset8::Power>(input, exp);
-        auto axes_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
-        auto reduce_sum = std::make_shared<ngraph::opset8::ReduceSum>(pow, axes_const);
+        auto axes_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 2});
+        auto reduce_sum = std::make_shared<ngraph::opset8::ReduceSum>(pow, axes_const, true);
         auto eps_const = ngraph::opset8::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
         auto max = std::make_shared<ngraph::opset8::Maximum>(reduce_sum, eps_const);
         auto sqrt = std::make_shared<ngraph::opset8::Sqrt>(max);
@@ -76,7 +76,7 @@ TEST(TransformationTests, NormalizeL2DecomositionFusionWithAdd) {
         auto exp = ngraph::opset8::Constant::create(ngraph::element::f16, ngraph::Shape{}, {2.f});
         auto pow = std::make_shared<ngraph::opset8::Power>(input, exp);
         auto axes_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {0, 1});
-        auto reduce_sum = std::make_shared<ngraph::opset8::ReduceSum>(pow, axes_const);
+        auto reduce_sum = std::make_shared<ngraph::opset8::ReduceSum>(pow, axes_const, true);
         auto eps_const = ngraph::opset8::Constant::create(ngraph::element::f16, ngraph::Shape{}, {eps_value});
         auto max = std::make_shared<ngraph::opset8::Add>(reduce_sum, eps_const);
         auto sqrt = std::make_shared<ngraph::opset8::Sqrt>(max);
