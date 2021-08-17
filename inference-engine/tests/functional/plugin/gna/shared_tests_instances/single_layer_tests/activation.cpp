@@ -47,6 +47,7 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
         {{1, 4, 4, 128}, {{}}},
         {{8}, {{}}},
         {{5}, {{}}},
+        {{1, 936, 513}, {{}}}
 };
 
 const auto basicCases = ::testing::Combine(
