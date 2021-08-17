@@ -16,7 +16,7 @@ The <code>mo.py</code> script is the universal entry point that can deduce the f
 * `.onnx` - ONNX\* models
 * `.nnet` - Kaldi\* models.
 
-If the model files do not have standard extensions, you can use the ``--framework {tf,caffe,kaldi,onnx,mxnet}`` option to specify the framework type explicitly. 
+If the model files do not have standard extensions, you can use the ``--framework {tf,caffe,kaldi,onnx,mxnet,paddle}`` option to specify the framework type explicitly. 
 
 For example, the following commands are equivalent: 
 ```sh
@@ -33,6 +33,7 @@ Framework-specific parameters for:
 * [MXNet](Convert_Model_From_MxNet.md),
 * [ONNX](Convert_Model_From_ONNX.md),
 * [Kaldi](Convert_Model_From_Kaldi.md).
+* [Paddle](Convert_Model_From_Paddle.md).
 
 
 ## See Also
