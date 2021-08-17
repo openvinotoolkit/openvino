@@ -715,6 +715,10 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         assert len(end_nodes) >= 1
         end_node = Node(graph, end_nodes[0])
 
+        parameter = graph.get_op_nodes(op='Parameter')[0]
+        end_node.out_port(0).get_connection().set_source(parameter.out_port(0))
+        return
+
         # determine nodes between specified input and output nodes to check if there is a Loop op among them
         sub_graph_node_ids = sub_graph_between_nodes(graph, start_nodes, end_nodes, include_control_flow=False,
                                                      allow_non_reachable_end_nodes=True)
