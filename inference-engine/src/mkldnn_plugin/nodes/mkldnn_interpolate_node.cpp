@@ -2008,7 +2008,9 @@ void MKLDNNInterpolateNode::createPrimitive() {
     jcp.ID = srcDimPad5d[2];
     jcp.spatial_dim_size = spatialDimSize;
 
-    if (getChildEdgeAt(0)->getMemory().GetDesc().isPlainFormat()) {
+    // TODO: the result of isPlainFormat() methods for child edges is currently incorrect in inplace cases,
+    //  because of strides overwriting
+    if (PartialBlkDesc::makePlain(dstDim) == PartialBlkDesc::extractFrom(getChildEdgeAt(0)->getMemory().GetDesc())) {
         jcp.layout = InterpolateLayoutType::planar;
     } else if (getChildEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
         jcp.layout = InterpolateLayoutType::block;
