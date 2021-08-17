@@ -331,6 +331,32 @@ INSTANTIATE_TEST_SUITE_P(
                       Shape{},
                       Shape{2, 2},
                       op::PadType::EXPLICIT,
-                      2)),  // axis: 2
+                      2),  // axis: 2
+        MaxPoolParams(Shape{1, 1, 2, 2},
+                      element::i32,
+                      std::vector<int32_t>{1, 2, 3, 4},
+                      std::vector<int32_t>{1, 2, 3, 4},
+                      element::i32,
+                      std::vector<int32_t>{0, 1, 2, 3},
+                      Strides{1, 1},
+                      Strides{1, 1},
+                      Shape{},
+                      Shape{},
+                      Shape{1, 1}),  // kernel: 1x1
+        /*************************************************/
+        /***************** 3D test cases *****************/
+        /*************************************************/
+        MaxPoolParams(Shape{1, 1, 3, 3, 3},
+                      element::i32,
+                      std::vector<int32_t>{0,  1,  2,  3,  4,  5, 6, 7, 8,   10,  20, 30, 40, -20,
+                                           60, 70, 80, 50, 50, 1, 2, 3, -15, -10, 50, 30, 81},
+                      std::vector<int32_t>{40, 60, 80, 80, 50, 60, 80, 81},
+                      element::i32,
+                      std::vector<int32_t>{12, 14, 16, 16, 18, 14, 16, 26},
+                      Strides{1, 1, 1},
+                      Strides{1, 1, 1},
+                      Shape{},
+                      Shape{},
+                      Shape{2, 2, 2})),
 
     ReferenceMaxPoolLayerTest::getTestCaseName);

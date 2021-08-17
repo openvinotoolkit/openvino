@@ -134,6 +134,75 @@ void validate_max_pool_kernel_params(const size_t dims,
                  pads_end);
 }
 
+template <typename T>
+struct Coord : public std::vector<T> {
+    Coord(const Shape& pads_begin) {
+        std::vector<T>::reserve(pads_begin.size());
+        for (const auto axis_padding : pads_begin) {
+            std::vector<T>::push_back(0 - axis_padding);
+        }
+    }
+
+    Coord(std::initializer_list<T>&& values) : std::vector<T>{std::move(values)} {}
+};
+
+bool elem_in_padding_area(const Coord<int>& kernel_position,
+                          const Coord<size_t>& kernel_offset,
+                          const Shape& data_shape) {
+    for (size_t dim = 0; dim < data_shape.size() - 2; ++dim) {
+        if (kernel_position[dim] + kernel_offset[dim] < 0 ||
+            kernel_position[dim] + kernel_offset[dim] >= data_shape[dim + 2]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+template <typename T>
+Coord<T> next_kernel_position_2D(Coord<T> kernel_position,
+                                 const Shape& kernel,
+                                 const Strides& kernel_strides,
+                                 const Strides& kernel_dilations,
+                                 const Shape& data_shape,
+                                 const Shape& pads_begin,
+                                 const Shape& pads_end) {
+    // move the kernel horizontally one stride to the right
+    kernel_position[1] += kernel_strides[1];
+
+    // if the top-right corner of the kernel is outside of the padding area,
+    // move it back to the left and one stride down
+    if (kernel_position[1] + (kernel[1] - 1) * kernel_dilations[1] >= data_shape[3] + pads_end[1]) {
+        kernel_position[1] = 0 - pads_begin[1];
+        kernel_position[0] += kernel_strides[0];
+    }
+
+    return kernel_position;
+}
+
+template <typename T>
+Coord<T> next_kernel_position_3D(Coord<T> kernel_position,
+                                 const Shape& kernel,
+                                 const Strides& kernel_strides,
+                                 const Strides& kernel_dilations,
+                                 const Shape& data_shape,
+                                 const Shape& pads_begin,
+                                 const Shape& pads_end) {
+    kernel_position[2] += kernel_strides[2];
+
+    if (kernel_position[2] + (kernel[2] - 1) * kernel_dilations[2] >= data_shape[4] + pads_end[2]) {
+        kernel_position[2] = 0 - pads_begin[2];
+        kernel_position[1] += kernel_strides[1];
+        if (kernel_position[1] + (kernel[1] - 1) * kernel_dilations[1] >= data_shape[3] + pads_end[1]) {
+            kernel_position[1] = 0 - pads_begin[1];
+            kernel_position[0] += kernel_strides[0];
+        }
+    }
+
+    return kernel_position;
+}
+
+namespace kernel {
 template <typename Values_t, typename Indices_t>
 void max_pool_1d(const Values_t* data,
                  Values_t* values,
@@ -167,52 +236,6 @@ void max_pool_1d(const Values_t* data,
         indices[out_idx] = max_elem_idx + indices_offset;
         kernel_position += kernel_stride;
     }
-}
-
-template <typename T>
-struct Coord : public std::vector<T> {  // TODO: switch to std::array with N meaning the number of dims
-    Coord(const Shape& pads_begin) {
-        std::vector<T>::reserve(pads_begin.size());
-        for (const auto axis_padding : pads_begin) {
-            std::vector<T>::push_back(0 - axis_padding);
-        }
-    }
-
-    Coord(std::initializer_list<T>&& values) : std::vector<T>{std::move(values)} {}
-};
-
-bool elem_in_padding_area(const Coord<int>& kernel_position,
-                          const Coord<size_t>& kernel_offset,
-                          const Shape& data_shape) {
-    for (size_t dim = 0; dim < data_shape.size() - 2; ++dim) {
-        if (kernel_position[dim] + kernel_offset[dim] < 0 ||
-            kernel_position[dim] + kernel_offset[dim] >= data_shape[dim + 2]) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-template <typename T>
-Coord<T> next_kernel_position(Coord<T> kernel_position,
-                              const Shape& kernel,
-                              const Strides& kernel_strides,
-                              const Strides& kernel_dilations,
-                              const Shape& data_shape,
-                              const Shape& pads_begin,
-                              const Shape& pads_end) {
-    // move the kernel horizontally one stride to the right
-    kernel_position[1] += kernel_strides[1];
-
-    // if the top-right corner of the kernel is outside of the padding area,
-    // move it back to the left and one stride down
-    if (kernel_position[1] + (kernel[1] - 1) * kernel_dilations[1] >= data_shape[3] + pads_end[1]) {
-        kernel_position[1] = 0 - pads_begin[1];
-        kernel_position[0] += kernel_strides[0];
-    }
-
-    return kernel_position;
 }
 
 template <typename Values_t, typename Indices_t>
@@ -261,13 +284,13 @@ void max_pool_2d(const Values_t* data,
         values[out_idx] = max_elem;
         indices[out_idx] = max_elem_idx + indices_offset;
 
-        kernel_position = next_kernel_position(kernel_position,
-                                               kernel,
-                                               kernel_strides,
-                                               kernel_dilations,
-                                               data_shape,
-                                               pads_begin,
-                                               pads_end);
+        kernel_position = next_kernel_position_2D(kernel_position,
+                                                  kernel,
+                                                  kernel_strides,
+                                                  kernel_dilations,
+                                                  data_shape,
+                                                  pads_begin,
+                                                  pads_end);
     }
 }
 
@@ -275,17 +298,63 @@ template <typename Values_t, typename Indices_t>
 void max_pool_3d(const Values_t* data,
                  Values_t* values,
                  Indices_t* indices,
-                 const size_t data_elems,
-                 const size_t out_elems,
-                 const Shape kernel,
+                 const Shape& data_shape,
+                 const Shape& out_shape,
+                 const Shape& kernel,
                  const Strides& kernel_strides,
                  const Strides& kernel_dilations,
                  const Shape& pads_begin,
                  const Shape& pads_end,
                  const size_t indices_offset) {
     validate_max_pool_kernel_params(3, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
-    throw std::runtime_error("Not implemented yet");
+
+    Coord<int> kernel_position{pads_begin};
+
+    const size_t out_elems = shape_size(std::begin(out_shape) + 2, std::end(out_shape));
+
+    // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
+    for (size_t out_idx = 0; out_idx < out_elems; ++out_idx) {
+        Values_t max_elem = std::numeric_limits<Values_t>::lowest();
+        Indices_t max_elem_idx = Indices_t{0};
+
+        for (size_t kernel_channel = 0; kernel_channel < kernel[0]; ++kernel_channel) {
+            for (size_t kernel_row = 0; kernel_row < kernel[1]; ++kernel_row) {
+                for (size_t kernel_col = 0; kernel_col < kernel[2]; ++kernel_col) {
+                    // offset from the top-left corner of the kernel for a given row and col
+                    const Coord<size_t> kernel_offset{kernel_channel * kernel_dilations[0],
+                                                      kernel_row * kernel_dilations[1],
+                                                      kernel_col * kernel_dilations[2]};
+
+                    // ignore the elements in the padding area
+                    if (elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
+                        continue;
+                    }
+
+                    // index of the flattened tensor element under the current row & column of the kernel
+                    const size_t data_elem_index =
+                        data_shape[2] * data_shape[3] * (kernel_offset[0] + kernel_position[0]) +
+                        data_shape[3] * (kernel_offset[1] + kernel_position[1]) + kernel_offset[2] + kernel_position[2];
+
+                    if (data[data_elem_index] > max_elem) {
+                        max_elem = data[data_elem_index];
+                        max_elem_idx = data_elem_index;
+                    }
+                }
+            }
+        }
+        values[out_idx] = max_elem;
+        indices[out_idx] = max_elem_idx + indices_offset;
+
+        kernel_position = next_kernel_position_3D(kernel_position,
+                                                  kernel,
+                                                  kernel_strides,
+                                                  kernel_dilations,
+                                                  data_shape,
+                                                  pads_begin,
+                                                  pads_end);
+    }
 }
+}  // namespace kernel
 }  // namespace
 
 template <typename Values_t, typename Indices_t>
@@ -320,41 +389,41 @@ void max_pool(const Values_t* data,
             const Indices_t indices_offset = batch_indices_offset + channel_indices_offset;
 
             if (data_shape.size() == 3) {
-                max_pool_1d<Values_t, Indices_t>(data_channel_first_elem,
-                                                 out_channel_first_elem,
-                                                 indices_channel_first_elem,
-                                                 data_shape[2],
-                                                 out_shape[2],
-                                                 kernel[0],
-                                                 strides[0],
-                                                 dilations[0],
-                                                 pads_begin[0],
-                                                 pads_end[0],
-                                                 indices_offset);
+                kernel::max_pool_1d<Values_t, Indices_t>(data_channel_first_elem,
+                                                         out_channel_first_elem,
+                                                         indices_channel_first_elem,
+                                                         data_shape[2],
+                                                         out_shape[2],
+                                                         kernel[0],
+                                                         strides[0],
+                                                         dilations[0],
+                                                         pads_begin[0],
+                                                         pads_end[0],
+                                                         indices_offset);
             } else if (data_shape.size() == 4) {
-                max_pool_2d<Values_t, Indices_t>(data_channel_first_elem,
-                                                 out_channel_first_elem,
-                                                 indices_channel_first_elem,
-                                                 data_shape,
-                                                 out_shape,
-                                                 kernel,
-                                                 strides,
-                                                 dilations,
-                                                 pads_begin,
-                                                 pads_end,
-                                                 indices_offset);
+                kernel::max_pool_2d<Values_t, Indices_t>(data_channel_first_elem,
+                                                         out_channel_first_elem,
+                                                         indices_channel_first_elem,
+                                                         data_shape,
+                                                         out_shape,
+                                                         kernel,
+                                                         strides,
+                                                         dilations,
+                                                         pads_begin,
+                                                         pads_end,
+                                                         indices_offset);
             } else if (data_shape.size() == 5) {
-                max_pool_3d<Values_t, Indices_t>(data_channel_first_elem,
-                                                 out_channel_first_elem,
-                                                 indices_channel_first_elem,
-                                                 data_channel_elems,
-                                                 out_channel_elems,
-                                                 kernel,
-                                                 strides,
-                                                 dilations,
-                                                 pads_begin,
-                                                 pads_end,
-                                                 indices_offset);
+                kernel::max_pool_3d<Values_t, Indices_t>(data_channel_first_elem,
+                                                         out_channel_first_elem,
+                                                         indices_channel_first_elem,
+                                                         data_shape,
+                                                         out_shape,
+                                                         kernel,
+                                                         strides,
+                                                         dilations,
+                                                         pads_begin,
+                                                         pads_end,
+                                                         indices_offset);
             } else {
                 NGRAPH_CHECK(false,
                              "Unsupported input shape ",
