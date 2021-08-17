@@ -11,6 +11,9 @@
 using namespace SubgraphTestsDefinitions;
 
 namespace {
+using InferenceEngine::GNAConfigParams::KEY_GNA_COMPILE_TARGET;
+using InferenceEngine::GNAConfigParams::KEY_GNA_EXEC_TARGET;
+using InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16,
@@ -18,7 +21,11 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 const std::vector<std::map<std::string, std::string>> configs = {
         {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
-        // {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}} TODO: enable when issue 62399 fully resolved
+        // TODO: enable GNA_TARGET_3_0 when issue 62399 fully resolved
+        {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+         {KEY_GNA_COMPILE_TARGET, GNA_TARGET_2_0},
+         {KEY_GNA_EXEC_TARGET, GNA_TARGET_2_0},
+        }
 };
 
 const std::vector<std::vector<size_t>> inputShapes = {
