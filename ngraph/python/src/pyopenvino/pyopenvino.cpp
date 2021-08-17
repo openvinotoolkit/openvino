@@ -57,7 +57,7 @@ PYBIND11_MODULE(pyopenvino, m)
         .value("STATUS_ONLY", InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY)
         .export_values();
 
-    regclass_IECore(m);
+    regclass_Core(m);
     regclass_IENetwork(m);
 
     regclass_Data(m);

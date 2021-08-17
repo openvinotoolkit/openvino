@@ -13,7 +13,7 @@ Note: Utilizes API without callbacks.
 import numpy as np
 import time
 
-from openvino.inference_engine import IECore
+from openvino.inference_engine import Core
 from openvino.inference_engine import StatusCode
 from openvino.inference_engine import InferQueue
 
@@ -32,7 +32,7 @@ ref_engine, ref_connection, ref_metadata, ref_tab = \
 ref_metadata.create_all(ref_engine)
 
 # Read and Load of network
-ie = IECore()
+ie = Core()
 ie_network = ie.read_network(
     helpers.get_example_model_path(),
     helpers.get_example_weights_path())

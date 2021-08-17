@@ -1,7 +1,7 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.inference_engine import IECore, IENetwork, ExecutableNetwork, InputInfoPtr, DataPtr, TensorDesc
+from openvino.inference_engine import Core, IENetwork, ExecutableNetwork, InputInfoPtr, DataPtr, TensorDesc
 from ..conftest import model_path
 
 import os
@@ -12,7 +12,7 @@ test_net_xml, test_net_bin = model_path()
 
 
 def get_input_info():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     return net.input_info["data"]
 
@@ -26,7 +26,7 @@ def test_input_data():
 
 
 def test_input_data_setter():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     input_info = net.input_info["data"]
     other_input_data = net.outputs["fc_out"]

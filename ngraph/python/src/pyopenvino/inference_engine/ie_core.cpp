@@ -17,9 +17,9 @@ std::string to_string(py::handle handle) {
 
 }
 
-void regclass_IECore(py::module m)
+void regclass_Core(py::module m)
 {
-    py::class_<InferenceEngine::Core, std::shared_ptr<InferenceEngine::Core>> cls(m, "IECore");
+    py::class_<InferenceEngine::Core, std::shared_ptr<InferenceEngine::Core>> cls(m, "Core");
     cls.def(py::init());
     cls.def(py::init<const std::string&>());
 

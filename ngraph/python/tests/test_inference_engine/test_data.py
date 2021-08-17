@@ -5,14 +5,14 @@ import pytest
 import warnings
 import os
 
-from openvino.inference_engine import IECore, DataPtr
+from openvino.inference_engine import Core, DataPtr
 from ..conftest import model_path
 
 test_net_xml, test_net_bin = model_path()
 
 
 def layer_out_data():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     return net.layers['19/Fused_Add_'].out_data[0]
 
@@ -33,7 +33,7 @@ def test_precision(recwarn):
 
 def test_precision_setter(recwarn):
     warnings.simplefilter("always")
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.layers['19/Fused_Add_'].out_data[0].precision = "I8"
     assert net.layers['19/Fused_Add_'].out_data[0].precision == "I8", "Incorrect precision for layer '19/Fused_Add_'"

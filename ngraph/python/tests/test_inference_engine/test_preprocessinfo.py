@@ -4,7 +4,7 @@
 import pytest
 import os
 
-from openvino.inference_engine import PreProcessInfo, IECore, TensorDesc, Blob, \
+from openvino.inference_engine import PreProcessInfo, Core, TensorDesc, Blob, \
     MeanVariant, ResizeAlgorithm, ColorFormat, PreProcessChannel
 from ..conftest import model_path
 
@@ -12,20 +12,20 @@ test_net_xml, test_net_bin = model_path()
 
 
 def test_preprocess_info():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     assert isinstance(net.input_info["data"].preprocess_info, PreProcessInfo)
 
 
 def test_color_format():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     preprocess_info = net.input_info["data"].preprocess_info
     assert preprocess_info.color_format == ColorFormat.RAW
 
 
 def test_color_format_setter():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     preprocess_info = net.input_info["data"].preprocess_info
     preprocess_info.color_format = ColorFormat.BGR
@@ -33,14 +33,14 @@ def test_color_format_setter():
 
 
 def test_resize_algorithm():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     preprocess_info = net.input_info["data"].preprocess_info
     assert preprocess_info.resize_algorithm == ResizeAlgorithm.NO_RESIZE
 
 
 def test_resize_algorithm_setter():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     preprocess_info = net.input_info["data"].preprocess_info
     preprocess_info.resize_algorithm = ResizeAlgorithm.RESIZE_BILINEAR
@@ -48,14 +48,14 @@ def test_resize_algorithm_setter():
 
 
 def test_mean_variant():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     preprocess_info = net.input_info["data"].preprocess_info
     assert preprocess_info.mean_variant == MeanVariant.NONE
 
 
 def test_mean_variant_setter():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     preprocess_info = net.input_info["data"].preprocess_info
     preprocess_info.mean_variant = MeanVariant.MEAN_IMAGE
@@ -63,20 +63,20 @@ def test_mean_variant_setter():
 
 
 def test_get_number_of_channels():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     assert net.input_info["data"].preprocess_info.get_number_of_channels() == 0
 
 
 def test_init():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     net.input_info['data'].preprocess_info.init(5)
     assert net.input_info["data"].preprocess_info.get_number_of_channels() == 5
 
 
 def test_set_mean_image():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     tensor_desc = TensorDesc("FP32", [0, 127, 127], "CHW")
     mean_image_blob = Blob(tensor_desc)
@@ -86,7 +86,7 @@ def test_set_mean_image():
 
 
 def test_get_pre_process_channel():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     preprocess_info = net.input_info["data"].preprocess_info
     preprocess_info.init(1)
@@ -95,7 +95,7 @@ def test_get_pre_process_channel():
 
 
 def test_set_mean_image_for_channel():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     tensor_desc = TensorDesc("FP32", [127, 127], "HW")
     mean_image_blob = Blob(tensor_desc)
@@ -109,7 +109,7 @@ def test_set_mean_image_for_channel():
 
 
 def test_resize_algorithm_set(device):
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     preprocess_info = net.input_info["data"].preprocess_info
     preprocess_info.resize_algorithm = ResizeAlgorithm.RESIZE_BILINEAR

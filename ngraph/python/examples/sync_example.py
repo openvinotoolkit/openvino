@@ -10,7 +10,7 @@ synchronous Infer Request.
 
 import numpy as np
 
-from openvino.inference_engine import IECore
+from openvino.inference_engine import Core
 from openvino.inference_engine import TensorDesc
 from openvino.inference_engine import Blob
 
@@ -20,7 +20,7 @@ import helpers
 img = helpers.generate_random_images(num=1)[0]
 
 # Read and Load of network
-ie = IECore()
+ie = Core()
 ie_network = ie.read_network(
     helpers.get_example_model_path(),
     helpers.get_example_weights_path())

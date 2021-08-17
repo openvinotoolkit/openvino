@@ -5,7 +5,7 @@ import numpy as np
 import os
 import pytest
 
-from openvino.inference_engine import IECore, Blob, TensorDesc, PreProcessInfo, MeanVariant, ResizeAlgorithm
+from openvino.inference_engine import Core, Blob, TensorDesc, PreProcessInfo, MeanVariant, ResizeAlgorithm
 
 def image_path():
     path_to_repo = os.environ["DATA_PATH"]
@@ -42,7 +42,7 @@ test_net_xml, test_net_bin = model_path(is_myriad)
 path_to_img = image_path()
 
 def test_get_perf_counts(device):
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     ie_core.set_config({"PERF_COUNT": "YES"}, device)
     exec_net = ie_core.load_network(net, device)
@@ -64,7 +64,7 @@ def test_get_perf_counts(device):
                     reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
                            "Dynamic batch fully supported only on CPU")
 def test_set_batch_size(device):
-    ie_core = IECore()
+    ie_core = Core()
     ie_core.set_config({"DYN_BATCH_ENABLED": "YES"}, device)
     net = ie_core.read_network(test_net_xml, test_net_bin)
     net.batch_size = 10
@@ -84,7 +84,7 @@ def test_set_batch_size(device):
 
 
 def test_set_zero_batch_size(device):
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device)
     request = exec_net.create_infer_request()
@@ -97,7 +97,7 @@ def test_set_zero_batch_size(device):
 
 
 def test_set_negative_batch_size(device):
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(net, device)
     request = exec_net.create_infer_request()
@@ -110,7 +110,7 @@ def test_set_negative_batch_size(device):
 
 
 def test_getting_preprocess(device):
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(network=net, device_name=device)
     request = exec_net.create_infer_request()
@@ -120,7 +120,7 @@ def test_getting_preprocess(device):
 
 
 def test_resize_algorithm_work(device):
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net_1 = ie_core.load_network(network=net, device_name=device)
     request1 = exec_net_1.create_infer_request()
@@ -159,7 +159,7 @@ def test_resize_algorithm_work(device):
 
 
 def test_blob_setter(device):
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net_1 = ie_core.load_network(network=net, device_name=device)
 
@@ -186,7 +186,7 @@ def test_blob_setter(device):
 
 
 def test_blob_setter_with_preprocess(device):
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net = ie_core.load_network(network=net, device_name=device)
 
