@@ -163,9 +163,9 @@ Standard TensorFlow\* operations:
 | ArgMax | No |
 | ArgMin | No |
 | Asinh | No |
-| Assert | No |
-| Assign | No |
-| AssignSub | No |
+| Assert | Not needed for inference |
+| Assign | Not needed for inference |
+| AssignSub | Not needed for inference |
 | Atanh | No |
 | AvgPool | No |
 | AvgPoolV2 | Supported only for constant-foldable kernel_size and strides inputs |
