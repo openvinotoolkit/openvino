@@ -84,6 +84,13 @@ namespace {
             ::testing::ValuesIn(multiconf)),
             CorrectConfigAPITests::getTestCaseName);
 
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigAPITests,
+            ::testing::Combine(
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+            ::testing::ValuesIn(multiconf)),
+            CorrectConfigAPITests::getTestCaseName);
+
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
