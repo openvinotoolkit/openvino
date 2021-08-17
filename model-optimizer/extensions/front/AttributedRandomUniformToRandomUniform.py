@@ -40,7 +40,7 @@ class AttributedRandomUniformToRandomUniform(FrontReplacementPattern):
                 else:
                     port_value_dict.update({0: attr_random_uniform.shape})
 
-            attrs = {'seed': attr_random_uniform.soft_get('seed', 0), 'seed2': attr_random_uniform.soft_get('seed2', 0),
+            attrs = {'global_seed': attr_random_uniform.soft_get('global_seed', 0), 'op_seed': attr_random_uniform.soft_get('op_seed', 0),
                      'output_type': output_type}
 
             new_random_uniform = create_op_with_const_inputs(graph, op=RandomUniform, port_value_dict=port_value_dict,
