@@ -106,35 +106,3 @@ class TestStridedSliceReplacer(unittest.TestCase):
         ReplaceStridedSliceWithSqueezeUnsqueeze().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
-
-    def test_replace_with_squeeze_unsqueeze(self):
-        graph = build_graph(
-            nodes_attrs=nodes,
-            edges=pattern_edges,
-            update_attributes={
-                'strided_slice': {'shrink_axis_mask': [1, 0, 0, 0], 'new_axis_mask': [0, 0, 1, 0]},
-                'strided_slice_d': {'shape': [3, 1, 5, 5]}
-            },
-            nodes_with_edges_only=True
-        )
-
-        ref_graph = build_graph(
-            nodes_attrs=nodes,
-            edges=[
-                *connect('input', '0:unsqueeze'),
-                *connect('unsqueeze_axes', '1:unsqueeze'),
-                *connect('unsqueeze', '0:squeeze'),
-                *connect('squeeze_axes', '1:squeeze'),
-                *connect('squeeze', 'result')
-            ],
-            update_attributes={
-                'squeeze_axes_d': {'value': [0]},
-                'unsqueeze_axes_d': {'value': [1]},
-                'squeeze_d': {'shape': [3, 1, 5, 5]},
-            },
-            nodes_with_edges_only=True
-        )
-
-        ReplaceStridedSliceWithSqueezeUnsqueeze().find_and_replace_pattern(graph)
-        (flag, resp) = compare_graphs(graph, ref_graph, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)

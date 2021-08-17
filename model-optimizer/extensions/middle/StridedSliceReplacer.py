@@ -56,24 +56,8 @@ class ReplaceStridedSliceWithSqueezeUnsqueeze(MiddleReplacementPattern):
             is_new_axis_mask = any(x == 1 for x in new_axis_mask)
 
             if is_shrink_axis_mask and is_new_axis_mask:
-                # StridedSlice will be replaced with Unsqueeze->Squeeze sequence
-                # The same logic is in TF StridedSlice
-                unsqueeze_axes = np.where(new_axis_mask == 1)[0]
-                squeeze_axes = np.where(shrink_axis_mask == 1)[0]
-                assert np.all(unsqueeze_axes != squeeze_axes), 'new_axis_mask and shrink_axis_mask are' \
-                                                               'inconsistent for the node {}: {} and {}'.format(
-                    node.soft_get('name', node.id), new_axis_mask, shrink_axis_mask)
-
-                node_name = node.soft_get('name', node.id)
-                unsqueeze_node = create_op_node_with_second_input(graph, Unsqueeze, unsqueeze_axes,
-                                                                  op_attrs=dict(name=node_name + '/Unsqueeze'))
-                squeeze_node = create_op_node_with_second_input(graph, Squeeze, squeeze_axes,
-                                                                input_node=unsqueeze_node)
-                node.in_port(0).get_connection().set_destination(unsqueeze_node.in_port(0))
-                node.out_port(0).get_connection().set_source(squeeze_node.out_port(0))
-
-                rename_nodes([(node, node_name + '/ShouldBeDeleted'), (squeeze_node, node_name)])
-
+                # TODO: make it in a separate ticket
+                continue
             elif is_shrink_axis_mask and not is_new_axis_mask:
                 replace_strided_slice(node, shrink_axis_mask, Squeeze)
             elif not is_shrink_axis_mask and is_new_axis_mask:
