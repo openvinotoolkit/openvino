@@ -3,7 +3,6 @@
 //
 
 #include "primitive_inst.h"
-#include "impls/ocl/primitive_base.hpp"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "generic_layer_inst.h"
@@ -181,6 +180,36 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         } else {
             _output = allocate_output();
         }
+    }
+}
+
+void primitive_inst::allocate_internal_buffers(void) {
+    if (_impl == nullptr) return;
+    const auto& ibuf_info = _impl->get_internal_buffer_info();
+    if (ibuf_info.sizes.empty()) return;
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+        GPU_DEBUG_COUT << "[" << _node.id() << ": internal buf]" << std::endl;
+    }
+
+    auto& engine = get_network().get_engine();
+    auto alloc_type = allocation_type::usm_host;
+
+    for (size_t i = 0; i < dependencies().size(); ++i) {
+        if (dep_memory(i).get_allocation_type() == allocation_type::usm_device) {
+            std::cout << "allocating to usm_device" << std::endl;
+            alloc_type = allocation_type::usm_device;
+            break;
+        }
+    }
+
+    for (auto size : ibuf_info.sizes) {
+        const auto bpp = data_type_traits::size_of(ibuf_info.dtype);
+        layout expected_layout = {ibuf_info.dtype,
+                                  format::bfyx,  // simple linear format (flatten to x channel)
+                                  {1, 1, 1, (tensor::value_type)(size / bpp)}};
+        _intermediates_memory.push_back(engine.allocate_memory(expected_layout, alloc_type));
     }
 }
 

@@ -29,6 +29,11 @@ class primitive_inst;
 template <class PType>
 class typed_primitive_inst;
 
+struct internal_buffer_info {
+    data_types dtype;
+    std::vector<size_t> sizes;
+    internal_buffer_info() : dtype(cldnn::data_types::i8), sizes({}) {}
+};
 /*
     Base class for all implementations.
 */
@@ -46,7 +51,7 @@ struct primitive_impl {
         : _weights_reorder_params(params), _kernel_name(kernel_name) {}
     virtual ~primitive_impl() = default;
 
-    virtual void allocate_internal_buffers(primitive_inst& instance) = 0;
+    virtual internal_buffer_info get_internal_buffer_info() = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     virtual bool validate(const primitive_inst& instance) const = 0;
@@ -116,12 +121,6 @@ public:
     void init_kernels();
     void set_arguments();
 
-    void allocate_internal_buffers() {
-        if (_impl) {
-            _impl->allocate_internal_buffers(*this);
-        }
-    }
-
     bool validate() const {
         if (_impl == nullptr)
             throw std::invalid_argument("[Internal cldnn error].  Validation method for nullptr impl is not allowed.");
@@ -152,6 +151,10 @@ public:
         return _node.is_output();
     }
 
+    void allocate_internal_buffers();
+
+    std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
@@ -177,6 +180,8 @@ protected:
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
     memory::ptr _output;
+
+    std::vector<memory::cptr> _intermediates_memory;
 
     bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
     bool _has_valid_input =
@@ -218,16 +223,13 @@ private:
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    void allocate_internal_buffers(primitive_inst& instance) override {
-        if (instance.type() != PType::type_id())
-            throw std::invalid_argument("Implementation type does not match primitive type");
-        if (instance.get_impl() != this)
-            throw std::invalid_argument(
-                "Trying to allocate internal buffers for primitive implementation with mismatching primitive instance");
-        return allocate_internal_buffers_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
+    internal_buffer_info get_internal_buffer_info() override {
+        return get_internal_buffer_info_impl();
     }
 
-    virtual void allocate_internal_buffers_impl(typed_primitive_inst<PType>&) {}
+    virtual internal_buffer_info get_internal_buffer_info_impl() {
+        return internal_buffer_info();
+    }
 
     void set_arguments(primitive_inst& instance) override {
         if (instance.type() != PType::type_id())

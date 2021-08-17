@@ -23,7 +23,7 @@ public:
 
     void init_kernels() override {}
     void set_arguments(primitive_inst& /*instance*/) override {}
-    void allocate_internal_buffers(primitive_inst& /*instance*/) override {}
+    internal_buffer_info get_internal_buffer_info() override { return internal_buffer_info(); }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();

@@ -30,15 +30,13 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
-    std::vector<memory::cptr> _intermediates_memory;
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name)
     , _outer(other._outer)
     , _kernel_data(other._kernel_data)
     , _kernel_ids(other._kernel_ids)
-    , _kernels({})
-    , _intermediates_memory({}) {
+    , _kernels({}) {
         _kernels.reserve(other._kernels.size());
         for (size_t k = 0; k < other._kernels.size(); ++k) {
             _kernels.emplace_back(other._kernels[k]->clone());
@@ -111,30 +109,11 @@ protected:
         }
     }
 
-    void allocate_internal_buffers_impl(typed_primitive_inst<PType>& instance) override {
-        if (_kernel_data.internalBufferSizes.empty()) return;
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _kernel_data.params->layerID << ": internal buf]" << std::endl;
-        }
-
-        auto& engine = _outer.get_program().get_engine();
-        auto alloc_type = allocation_type::usm_host;
-        for (size_t i = 0; i < instance.dependencies().size(); ++i) {
-            if (instance.dep_memory(i).get_allocation_type() == allocation_type::usm_device) {
-                std::cout << "allocating to usm_device" << std::endl;
-                alloc_type = allocation_type::usm_device;
-                break;
-            }
-        }
-        for (auto size : _kernel_data.internalBufferSizes) {
-            auto dtype = from_data_type(_kernel_data.internalBufferDataType);
-            const auto bpp = data_type_traits::size_of(dtype);
-            layout expected_layout = {dtype,
-                                      format::bfyx,  // simple linear format (flatten to x channel)
-                                      {1, 1, 1, (tensor::value_type)(size / bpp)}};
-            _intermediates_memory.push_back(engine.allocate_memory(expected_layout, alloc_type));
-        }
+    internal_buffer_info get_internal_buffer_info_impl() override {
+        internal_buffer_info info;
+        info.dtype = from_data_type(_kernel_data.internalBufferDataType);
+        info.sizes = _kernel_data.internalBufferSizes;
+        return std::move(info);
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
@@ -153,7 +132,7 @@ protected:
                 args.scalars = &_kernel_data.kernels[k].params.scalars;
                 args.split = i;
 
-                for (const auto& m : _intermediates_memory) {
+                for (const auto& m : instance.get_intermediates_memories()) {
                     args.intermediates.push_back(m);
                 }
 
@@ -188,7 +167,7 @@ protected:
                 args.scalars = &_kernel_data.kernels[k].params.scalars;
                 args.split = i;
 
-                for (const auto& m : _intermediates_memory) {
+                for (const auto& m : instance.get_intermediates_memories()) {
                     args.intermediates.push_back(m);
                 }
 
