@@ -32,21 +32,19 @@ from scripts.run_memorytest import run_memorytest
 from test_runner.utils import compare_with_references
 
 
-def test(instance, executable, niter, cl_cache_dir, model_cache_dir, temp_dir, validate_test_case,
-         prepare_db_info):
+def test(instance, executable, niter, temp_dir, omz_models_conversion, validate_test_case, prepare_db_info):
     """Parameterized test.
 
     :param instance: test instance. Should not be changed during test run
     :param executable: test executable to run
     :param niter: number of times to run executable
-    :param cl_cache_dir: directory to store OpenCL cache
-    :param model_cache_dir: directory to store IE model cache
     :param temp_dir: path to a temporary directory. Will be cleaned up after test run
     :param validate_test_case: custom pytest fixture. Should be declared as test argument to be enabled
     :param prepare_db_info: custom pytest fixture. Should be declared as test argument to be enabled
+    :param omz_models_conversion: custom pytest fixture. Should be declared as test argument to be enabled
     """
     # Prepare model to get model_path
-    model_path = instance["instance"]["model"].get("path")
+    model_path = instance["instance"]["model"].get("full_path")
     assert model_path, "Model path is empty"
     model_path = Path(expand_env_vars(model_path))
 
@@ -62,14 +60,6 @@ def test(instance, executable, niter, cl_cache_dir, model_cache_dir, temp_dir, v
         "device": instance["instance"]["device"]["name"],
         "niter": niter
     }
-    logging.info("Run test once to generate any cache")
-    retcode, msg, _, _ = run_memorytest({**exe_args, "niter": 1}, log=logging)
-    assert retcode == 0, f"Run of executable for warm up failed: {msg}"
-    if cl_cache_dir:
-        assert os.listdir(cl_cache_dir), "cl_cache isn't generated"
-    if model_cache_dir:
-        assert os.listdir(model_cache_dir), "model_cache isn't generated"
-
     retcode, msg, aggr_stats, raw_stats = run_memorytest(exe_args, log=logging)
     assert retcode == 0, f"Run of executable failed: {msg}"
 

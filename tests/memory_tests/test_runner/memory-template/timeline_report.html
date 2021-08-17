@@ -14,7 +14,7 @@
     {% for timeline in timelines %}
     {% for step_name in timeline['references'] %}
     <div class="w3-container">
-        <h4> {{ timeline['model']['name'][0]|e }} {{ timeline['test_name'][0]|e }} {{ step_name }} </h4>
+        <h4> {{ timeline['model']['name'][0]|e }} - {{ timeline['model']['precision'][0]|e }} - {{ timeline['device']['name'][0]|e }}- {{ step_name }} </h4>
         <div class={{ '"w3-text-green"' if timeline['status'] else '"w3-text-red"' }}>
             {{ "PASS" if timeline["status"] else "FAIL" }}
         </div>

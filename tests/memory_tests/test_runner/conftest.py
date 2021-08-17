@@ -25,6 +25,7 @@ import sys
 import pytest
 import yaml
 from copy import deepcopy
+from inspect import getsourcefile
 
 from pathlib import Path
 from jsonschema import validate, ValidationError
@@ -34,6 +35,7 @@ sys.path.insert(0, str(UTILS_DIR))
 
 from plugins.conftest import *
 from path_utils import check_positive_int
+from proc_utils import cmd_exec
 from platform_utils import get_os_name, get_os_version, get_cpu_info
 from utils import upload_data, metadata_from_manifest, DATABASES, DB_COLLECTIONS
 
@@ -41,6 +43,16 @@ MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(MEMORY_TESTS_DIR)
 
 from test_runner.utils import query_memory_timeline, REFS_FACTOR
+
+
+OMZ_NUM_ATTEMPTS = 1
+
+
+def abs_path(relative_path):
+    """Return absolute path given path relative to the current file.
+    """
+    return os.path.realpath(
+        os.path.join(os.path.dirname(getsourcefile(lambda: 0)), relative_path))
 
 
 # -------------------- CLI options --------------------
@@ -67,6 +79,30 @@ def pytest_addoption(parser):
         type=check_positive_int,
         help="number of iterations to run executable and aggregate results",
         default=3
+    )
+    omz_args_parser = parser.getgroup("test with omz models")
+    omz_args_parser.addoption(
+        "--omz_repo",
+        type=Path,
+        help="Path to Open Model Zoo (OMZ) repository. It will be used to skip cloning step.",
+    )
+    omz_args_parser.addoption(
+        "--omz_models_out_dir",
+        type=Path,
+        default=abs_path('../_omz_out/models'),
+        help="Directory to put test data into.",
+    )
+    omz_args_parser.addoption(
+        '--omz_cache_dir',
+        type=Path,
+        default=abs_path('../_omz_out/cache'),
+        help='Directory with test data cache. Required for OMZ downloader.py only.'
+    )
+    omz_args_parser.addoption(
+        '--omz_irs_out_dir',
+        type=Path,
+        default=abs_path('../_omz_out/irs'),
+        help='Directory to put test data into. Required for OMZ converter.py only.'
     )
     helpers_args_parser = parser.getgroup("test helpers")
     helpers_args_parser.addoption(
@@ -138,45 +174,81 @@ def niter(request):
 
 # -------------------- CLI options --------------------
 
-
-@pytest.fixture(scope="function")
-def cl_cache_dir(pytestconfig, instance):
-    """Generate directory to save OpenCL cache before test run and clean up after run.
-
-    Folder `cl_cache` should be created in a directory where tests were run. In this case
-    cache will be saved correctly. This behaviour is OS independent.
-    More: https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#how-can-cl_cache-be-enabled
+def clone_omz_repo():
+    """Prepare Open Model Zoo repository
     """
-    if instance["instance"]["device"]["name"] == "GPU":
-        cl_cache_dir = pytestconfig.invocation_dir / "cl_cache"
-        # if cl_cache generation to a local `cl_cache` folder doesn't work, specify
-        # `cl_cache_dir` environment variable in an attempt to fix it (Linux specific)
-        os.environ["cl_cache_dir"] = str(cl_cache_dir)
-        if cl_cache_dir.exists():
-            shutil.rmtree(cl_cache_dir)
-        cl_cache_dir.mkdir()
-        logging.info("cl_cache will be created in {}".format(cl_cache_dir))
-        yield cl_cache_dir
-        shutil.rmtree(cl_cache_dir)
-    else:
-        yield None
+    omz_path = Path(abs_path('..')) / "_open_model_zoo"
+    # clone Open Model Zoo into temporary path
+    if omz_path.exists():
+        shutil.rmtree(str(omz_path))
+    cmd = 'git clone --single-branch --branch develop' \
+          ' https://github.com/openvinotoolkit/open_model_zoo {omz_path}'.format(omz_path=omz_path)
+    cmd_exec(cmd)
+    return omz_path
 
 
 @pytest.fixture(scope="function")
-def model_cache_dir(pytestconfig, instance):
+def omz_models_conversion(pytestconfig, request):
     """
-    Generate directory to IE model cache before test run and clean up after run.
+    Fixture for preparing omz models and updating test config with new paths
     """
-    if instance["instance"].get("use_model_cache"):
-        model_cache_dir = pytestconfig.invocation_dir / "models_cache"
-        if model_cache_dir.exists():
-            shutil.rmtree(model_cache_dir)
-        model_cache_dir.mkdir()
-        logging.info("model_cache will be created in {}".format(model_cache_dir))
-        yield model_cache_dir
-        shutil.rmtree(model_cache_dir)
+    omz_repo = request.config.getoption("omz_repo")
+    if omz_repo:
+        omz_path = Path(omz_repo).resolve()
     else:
-        yield None
+        omz_path = clone_omz_repo()
+
+    cache_dir = request.config.getoption("omz_cache_dir")
+    omz_models_out_dir = request.config.getoption("omz_models_out_dir")
+    omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
+
+    downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
+    converter_path = omz_path / "tools" / "downloader" / "converter.py"
+    info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
+
+    records = [rec for rec in pytestconfig.session_info]
+
+    for record in records:
+        if record["instance"]["model"]["source"] != "omz":
+            continue
+        model_name = record["instance"]["model"]["name"]
+        model_precision = record["instance"]["model"]["precision"]
+
+        # get full model info
+        cmd = f'"{sys.executable}" "{info_dumper_path}" --name {model_name}'
+        _, info = cmd_exec([cmd], shell=True, log=logging)
+
+        model_info = json.loads(info)[0]
+
+        if model_precision not in model_info['precisions']:
+            logging.error(f"Please specify precision for the model "
+                          f"{model_name} from the list: {model_info['precisions']}")
+            continue
+
+        model_path = str(Path(model_info["subdirectory"]) / model_precision / (model_name + ".xml"))
+        model_full_path = str(omz_irs_out_dir / model_info["subdirectory"] / model_precision / (model_name + ".xml"))
+
+        # prepare models and convert models to IRs
+        cmd = f'{sys.executable} {downloader_path}' \
+              f' --name {model_name}' \
+              f' --precisions={model_precision}' \
+              f' --num_attempts {OMZ_NUM_ATTEMPTS}' \
+              f' --output_dir {omz_models_out_dir}' \
+              f' --cache_dir {cache_dir}'
+        # cmd_exec([cmd], shell=True, log=logging)
+
+        cmd = f'{sys.executable} {converter_path}' \
+              f' --name {model_name}' \
+              f' -p {sys.executable}' \
+              f' --precisions={model_precision}' \
+              f' --output_dir {omz_irs_out_dir}' \
+              f' --download_dir {omz_models_out_dir}' \
+              f' --mo {Path(abs_path("../../../model-optimizer/mo.py")).resolve()}'
+        # cmd_exec([cmd], shell=True, log=logging)
+
+        record["instance"]["model"]["framework"] = model_info["framework"]
+        record["instance"]["model"]["path"] = model_path
+        record["instance"]["model"]["full_path"] = model_full_path
 
 
 @pytest.fixture(scope="function")
@@ -200,9 +272,9 @@ def validate_test_case(request):
             "model": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string"}
+                    "name": {"type": "string"}
                 },
-                "required": ["path"]
+                "required": ["name"]
             }
         },
         "required": ["device", "model"],
@@ -254,7 +326,7 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
         "error_msg": "",
         "results": {},
         "raw_results": {},
-        "references": instance["instance"].get("references", {}),   # upload actual references that were used
+        "references": instance["instance"].get("references", {}),  # upload actual references that were used
         "ref_factor": REFS_FACTOR,
     }
     info['_id'] = hashlib.sha256(
@@ -284,7 +356,7 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
                     "precision": {"type": "string"},
                     "framework": {"type": "string"}
                 },
-                "required": ["path", "name", "precision", "framework"]
+                "required": ["name", "precision"]
             },
             "run_id": {"type": "string"},
             "test_exe": {"type": "string"},
@@ -354,7 +426,7 @@ def manifest_metadata(request):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def prepare_timeline_report(pytestconfig):  # records, args.db_url, args.db_collection, args.timeline_report
+def prepare_timeline_report(pytestconfig):
     """ Create memcheck timeline HTML report for records.
     """
     yield
@@ -363,7 +435,6 @@ def prepare_timeline_report(pytestconfig):  # records, args.db_url, args.db_coll
         db_url = pytestconfig.getoption("db_url")
         db_name = pytestconfig.getoption("db_name")
         db_collection = pytestconfig.getoption("db_collection")
-
         records = [rec["db"] for rec in pytestconfig.session_info]
         records.sort(
             key=lambda item: f"{item['status']}{item['device']['name']}{item['model']['name']}{item['test_name']}")
@@ -392,13 +463,25 @@ def prepare_tconf_with_refs(pytestconfig):
 
         upd_cases = []
         steps_to_dump = {"create_exenetwork", "first_inference"}
+        vm_metrics_to_dump = {"vmhwm", "vmpeak", "vmrss", "vmsize"}
+        stat_metrics_to_dump = {"avg"}
 
         for record in pytestconfig.session_info:
             rec_i = deepcopy(record["orig_instance"])
             rec_i["references"] = deepcopy(record["results"])
-            for step in rec_i["references"].copy():
-                if step not in steps_to_dump:
-                    del rec_i["references"][step]
+
+            for step_name, vm_records in rec_i["references"].copy().items():
+                if step_name not in steps_to_dump:
+                    del rec_i["references"][step_name]
+                    continue
+                for vm_metric, stat_metrics in vm_records.copy().items():
+                    if vm_metric not in vm_metrics_to_dump:
+                        del rec_i["references"][step_name][vm_metric]
+                        continue
+                    for stat_metric_name, _ in stat_metrics.copy().items():
+                        if stat_metric_name not in stat_metrics_to_dump:
+                            del rec_i["references"][step_name][vm_metric][stat_metric_name]
+                            continue
             upd_cases.append(rec_i)
 
         with open(new_tconf_path, "w") as tconf:
@@ -418,7 +501,7 @@ def pytest_generate_tests(metafunc):
             "instance": case,
             "orig_instance": deepcopy(case),
             "results": {},
-            "raw_results": {}
+            "raw_results": {},
         } for case in test_cases]
         metafunc.parametrize("instance", test_cases)
         setattr(metafunc.config, "session_info", test_cases)
@@ -469,5 +552,6 @@ def pytest_runtest_makereport(item, call):
         instance["db"]["results"] = instance["results"]
         instance["db"]["raw_results"] = instance["raw_results"]
         logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, db_name, db_collection, instance["db"]))
+
         # TODO: upload to new DB (memcheck -> memory_tests)
         # upload_data(data, db_url, db_name, db_collection)

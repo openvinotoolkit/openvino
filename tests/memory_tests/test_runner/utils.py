@@ -40,6 +40,7 @@ def query_memory_timeline(records, db_url, db_name, db_collection, max_items=20,
     def timeline_key(item):
         """ Defines order for timeline report entries
         """
+        order = 0
         for step_name, _ in item['results'].items():
             if len(item['results'][step_name]['vmhwm']) <= 1:
                 return 1
