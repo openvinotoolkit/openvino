@@ -34,7 +34,7 @@ All index values are expected to be within bounds \f$[0, s - 1]\f$ along axis of
 same output location then the order of updating the values is undefined. If an index points to non-existing output
 tensor element or is negative then an exception is raised. **Required.**
 
-*   **3**: `updates` tensor of type *T*. **Required.**
+*   **3**: `updates` tensor of type *T* and rank equal to rank(indices) + rank(data) - 1 **Required.**
 
 *   **4**: `axis` tensor with scalar or 1D tensor with one element of type *T_AXIS* specifying axis for scatter.
 The value can be in range \f$[-r, r - 1]\f$ where `r` is the rank of `data`. **Required.**
