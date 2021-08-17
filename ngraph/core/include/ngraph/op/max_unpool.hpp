@@ -21,13 +21,15 @@ namespace ngraph
                    const ngraph::Output<ngraph::Node>& shape);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                // void validate_and_infer_types() override;
+                void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
+                bool has_evaluate() const override;
             };
 
         } // namespace v8
