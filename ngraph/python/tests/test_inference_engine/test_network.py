@@ -1,7 +1,7 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.inference_engine import IECore, IENetwork, DataPtr, \
+from openvino.inference_engine import Core, IENetwork, DataPtr, \
     InputInfoPtr, InputInfoCPtr, PreProcessInfo
 
 import os
@@ -12,19 +12,19 @@ test_net_xml, test_net_bin = model_path()
 
 
 def test_name():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     assert net.name == "test_model"
 
 
 def test_batch_size_getter():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     assert net.batch_size == 1
 
 
 def test_batch_size_setter():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.batch_size = 4
     assert net.batch_size == 4
@@ -32,13 +32,13 @@ def test_batch_size_setter():
 
 
 def test_reshape():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.reshape({"data": (2, 3, 32, 32)})
 
 
 def test_batch_size_after_reshape():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.reshape({'data': [4, 3, 32, 32]})
     assert net.batch_size == 4
@@ -48,7 +48,7 @@ def test_batch_size_after_reshape():
     assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
 
 def test_outputs():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     assert isinstance(net.outputs['fc_out'], DataPtr)
     assert net.outputs['fc_out'].layout == "NC"
@@ -57,7 +57,7 @@ def test_outputs():
 
 
 def test_output_precision_setter():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     assert net.outputs['fc_out'].precision == "FP32"
     net.outputs['fc_out'].precision = "I8"
@@ -65,14 +65,14 @@ def test_output_precision_setter():
 
 
 def test_add_output():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.add_output('28/Reshape')
     assert sorted(net.outputs) == ['28/Reshape', 'fc_out']
 
 
 def test_add_outputs():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.add_outputs("28/Reshape")
     net.add_outputs(['29/WithoutBiases'])
@@ -80,7 +80,7 @@ def test_add_outputs():
 
 
 def test_add_outputs_with_port():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.add_outputs(('28/Reshape', 0))
     net.add_outputs([('29/WithoutBiases', 0)])
@@ -88,7 +88,7 @@ def test_add_outputs_with_port():
 
 
 def test_add_outputs_with_and_without_port():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.add_outputs('28/Reshape')
     net.add_outputs([('29/WithoutBiases', 0)])
@@ -98,7 +98,7 @@ def test_add_outputs_with_and_without_port():
 def test_multi_out_data():
     # Regression test CVS-23965
     # Check that DataPtr for all output layers not copied between outputs map  items
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.add_outputs(['28/Reshape'])
     assert "28/Reshape" in net.outputs and "fc_out" in net.outputs
@@ -111,7 +111,7 @@ def test_multi_out_data():
 
 def test_serialize():
     import ngraph as ng
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.serialize("./serialized_net.xml", "./serialized_net.bin")
     serialized_net = ie.read_network(model="./serialized_net.xml", weights="./serialized_net.bin")
@@ -176,7 +176,7 @@ def test_tensor_names():
                 </edges>
             </net>
             """
-    ie = IECore()
+    ie = Core()
     weights = b''
     net = ie.read_network(model=model.encode('utf-8'), weights=weights, init_from_buffer=True)
     assert net.get_ov_name_for_tensor("relu_t") == "activation"
@@ -185,7 +185,7 @@ def test_tensor_names():
 
 
 def test_output_unsupported_precision_setter():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(ValueError) as e:
         net.outputs['fc_out'].precision = "BLA"
@@ -193,7 +193,7 @@ def test_output_unsupported_precision_setter():
 
 
 def test_input_unsupported_precision_setter():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(ValueError) as e:
         net.input_info['data'].precision = "BLA"
@@ -201,7 +201,7 @@ def test_input_unsupported_precision_setter():
 
 
 def test_input_unsupported_layout_setter():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(ValueError) as e:
         net.input_info['data'].layout = "BLA"
@@ -209,7 +209,7 @@ def test_input_unsupported_layout_setter():
 
 
 def test_input_info_precision_setter():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     assert net.input_info['data'].layout == "NCHW"
     net.input_info['data'].layout = "NHWC"
@@ -217,7 +217,7 @@ def test_input_info_precision_setter():
 
 
 def test_input_input_info_layout_setter():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     assert net.input_info['data'].precision == "FP32"
     net.input_info['data'].precision = "I8"
@@ -225,7 +225,7 @@ def test_input_input_info_layout_setter():
 
 
 def test_input_info():
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     assert not(isinstance(net.input_info['data'], InputInfoCPtr))
     assert isinstance(net.input_info['data'], InputInfoPtr)

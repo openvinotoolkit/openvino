@@ -7,4 +7,4 @@
 
 namespace py = pybind11;
 
-void regclass_IECore(py::module m);
+void regclass_Core(py::module m);

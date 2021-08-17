@@ -1,7 +1,7 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.pyopenvino import IECore
+from openvino.pyopenvino import Core
 from openvino.pyopenvino import IENetwork
 from openvino.pyopenvino import ExecutableNetwork
 from openvino.pyopenvino import Version

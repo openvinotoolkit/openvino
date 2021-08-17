@@ -5,7 +5,7 @@ import numpy as np
 import ngraph as ng
 from ngraph.impl.op import Parameter
 from ngraph.impl import Function, Shape, Type
-from openvino.inference_engine import IECore, TensorDesc, Blob, IENetwork, ExecutableNetwork
+from openvino.inference_engine import Core, TensorDesc, Blob, IENetwork, ExecutableNetwork
 from openvino.inference_engine.ie_api import blob_from_file
 from ..conftest import model_path, model_onnx_path, model_prototxt_path, plugins_path
 import os
@@ -48,7 +48,7 @@ def test_ie_core_class():
     capsule = Function.to_capsule(func)
     cnn_network = IENetwork(capsule)
 
-    ie_core = IECore()
+    ie_core = Core()
     ie_core.set_config({}, device_name='CPU')
     executable_network = ie_core.load_network(cnn_network, 'CPU', {})
 
@@ -72,14 +72,14 @@ def test_ie_core_class():
 
 
 def test_load_network(device):
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.load_network(net, device)
     assert isinstance(exec_net, ExecutableNetwork)
 
 
 def test_read_network():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     assert isinstance(net, IENetwork)
 
@@ -88,7 +88,7 @@ def test_read_network():
 
 
 def test_read_network_from_blob():
-    ie_core = IECore()
+    ie_core = Core()
     model = open(test_net_xml).read()
     blob = blob_from_file(test_net_bin)
     net = ie_core.read_network(model=model, blob=blob)
@@ -96,7 +96,7 @@ def test_read_network_from_blob():
 
 
 def test_read_network_from_blob_valid():
-    ie_core = IECore()
+    ie_core = Core()
     model = open(test_net_xml).read()
     blob = blob_from_file(test_net_bin)
     net = ie_core.read_network(model=model, blob=blob)
@@ -112,7 +112,7 @@ def test_read_network_from_blob_valid():
 
 
 def test_read_network_as_path():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=Path(test_net_xml), weights=Path(test_net_bin))
     assert isinstance(net, IENetwork)
 
@@ -124,31 +124,31 @@ def test_read_network_as_path():
 
 
 def test_read_network_from_onnx():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_onnx)
     assert isinstance(net, IENetwork)
 
 
 def test_read_network_from_onnx_as_path():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=Path(test_net_onnx))
     assert isinstance(net, IENetwork)
 
 
 def test_read_network_from_prototxt():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=test_net_prototxt)
     assert isinstance(net, IENetwork)
 
 
 def test_read_network_from_prototxt_as_path():
-    ie_core = IECore()
+    ie_core = Core()
     net = ie_core.read_network(model=Path(test_net_prototxt))
     assert isinstance(net, IENetwork)
 
 
 def test_read_net_from_buffer():
-    ie_core = IECore()
+    ie_core = Core()
     with open(test_net_bin, 'rb') as f:
         bin = f.read()
     with open(model_path()[0], 'rb') as f:
@@ -158,7 +158,7 @@ def test_read_net_from_buffer():
 
 
 def test_net_from_buffer_valid():
-    ie_core = IECore()
+    ie_core = Core()
     with open(test_net_bin, 'rb') as f:
         bin = f.read()
     with open(model_path()[0], 'rb') as f:
@@ -176,7 +176,7 @@ def test_net_from_buffer_valid():
 
 
 def test_get_version(device):
-    ie = IECore()
+    ie = Core()
     version = ie.get_versions(device)
     assert isinstance(version, dict), "Returned version must be a dictionary"
     assert device in version, "{} plugin version wasn't found in versions"
@@ -187,13 +187,13 @@ def test_get_version(device):
 
 
 def test_available_devices(device):
-    ie = IECore()
+    ie = Core()
     devices = ie.available_devices
     assert device in devices, "Current device '{}' is not listed in available devices '{}'".format(device,
                                                                                                    ', '.join(devices))
 
 def test_get_config():
-    ie = IECore()
+    ie = Core()
     conf = ie.get_config("CPU", "CPU_BIND_THREAD")
     assert conf == "YES"
 
@@ -201,7 +201,7 @@ def test_get_config():
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_list_of_str():
-    ie = IECore()
+    ie = Core()
     param = ie.get_metric("CPU", "OPTIMIZATION_CAPABILITIES")
     assert isinstance(param, list), "Parameter value for 'OPTIMIZATION_CAPABILITIES' " \
                                     f"metric must be a list but {type(param)} is returned"
@@ -213,7 +213,7 @@ def test_get_metric_list_of_str():
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_tuple_of_two_ints():
-    ie = IECore()
+    ie = Core()
     param = ie.get_metric("CPU", "RANGE_FOR_STREAMS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_STREAMS' " \
                                      f"metric must be tuple but {type(param)} is returned"
@@ -224,7 +224,7 @@ def test_get_metric_tuple_of_two_ints():
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_tuple_of_three_ints():
-    ie = IECore()
+    ie = Core()
     param = ie.get_metric("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_ASYNC_INFER_REQUESTS' " \
                                      f"metric must be tuple but {type(param)} is returned"
@@ -235,7 +235,7 @@ def test_get_metric_tuple_of_three_ints():
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_str():
-    ie = IECore()
+    ie = Core()
     param = ie.get_metric("CPU", "FULL_DEVICE_NAME")
     assert isinstance(param, str), "Parameter value for 'FULL_DEVICE_NAME' " \
                                    f"metric must be string but {type(param)} is returned"
@@ -243,7 +243,7 @@ def test_get_metric_str():
 
 def test_query_network(device):
     import ngraph as ng
-    ie = IECore()
+    ie = Core()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     query_res = ie.query_network(network=net, device_name=device)
     func_net = ng.function_from_cnn(net)
@@ -256,7 +256,7 @@ def test_query_network(device):
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugin():
-    ie = IECore()
+    ie = Core()
     ie.register_plugin("MKLDNNPlugin", "BLA")
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.load_network(net, "BLA")
@@ -265,7 +265,7 @@ def test_register_plugin():
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugins():
-    ie = IECore()
+    ie = Core()
     if platform == "linux" or platform == "linux2":
         ie.register_plugins(plugins_xml)
     elif platform == "darwin":
