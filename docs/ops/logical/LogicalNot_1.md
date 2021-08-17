@@ -29,7 +29,6 @@ a_{i} = \lnot a_{i}
 \f[
 a_{i} = \lnot a_{i}
 \f]
->>>>>>> upstream/master
 
 
 **Example**
