@@ -6,7 +6,7 @@ import logging as log
 from extensions.ops.ctc_greedy_decoder_seq_len import CTCGreedyDecoderSeqLenOp
 from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.front.common.replacement import FrontReplacementSubgraph, FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
 from mo.ops.result import Result
@@ -55,7 +55,7 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
     @staticmethod
     def pattern(**kwargs):
         return dict(
-            nodes=[('decoder', dict(op='CTCGreedyDecoderSeqLen')),
+            nodes=[('decoder', dict(op='CTCGreedyDecoderSeqLen', output_sparse_format=True)),
                    ('cast', dict(op='Cast')),
                    ('sparse_to_dense', dict(op='SparseToDense'))
                    ],
@@ -80,7 +80,7 @@ class CTCGreedyDecoderWithSparseToDenseShapeReplacement(FrontReplacementSubgraph
     @staticmethod
     def pattern(**kwargs):
         return dict(
-            nodes=[('decoder', dict(op='CTCGreedyDecoderSeqLen')),
+            nodes=[('decoder', dict(op='CTCGreedyDecoderSeqLen', output_sparse_format=True)),
                    ('cast', dict(op='Cast')),
                    ('sparse_to_dense', dict(op='SparseToDense'))
                    ],
@@ -94,7 +94,7 @@ class CTCGreedyDecoderWithSparseToDenseShapeReplacement(FrontReplacementSubgraph
         replace_ctc_greedy_decoder(graph, match)
 
 
-class CTCGreedyDecoderSingleReplacement(FrontReplacementSubgraph):
+class CTCGreedyDecoderSingleReplacement(FrontReplacementPattern):
     """
     TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by Inference Engine, and
     Inference Engine's CTCGreedyDecoderSeqLen has a different output that is in a dense format. So this transformation
@@ -103,27 +103,29 @@ class CTCGreedyDecoderSingleReplacement(FrontReplacementSubgraph):
     enabled = True
 
     def run_after(self):
-        # from extensions.front.pass_separator import FrontStart
         return [CTCGreedyDecoderReplacement, CTCGreedyDecoderWithSparseToDenseShapeReplacement]
 
     def find_and_replace_pattern(self, graph: Graph):
         for ctc_greedy_decoder_tf in graph.get_op_nodes(op='CTCGreedyDecoderSeqLen', output_sparse_format=True):
             ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
 
-            assert not ctc_greedy_decoder_tf.out_port(0).disconnected(), ''
-            if ctc_greedy_decoder_tf.out_port(0).get_destination().node.soft_get('op') != 'Result':
-                return
-            if ctc_greedy_decoder_tf.out_port(1).disconnected():
-                # Create Result operation and connect it to the second output if it is not connected
-                # to any other operation
-                second_result = Result(graph,
-                                       {'name': ctc_greedy_decoder_tf_name + '/seq_lengths_output'}).create_node()
-                ctc_greedy_decoder_tf.out_port(1).connect(second_result.in_port(0))
+            for port_num in range(4):  # TF CTCGreedyDecoder have 4 output tensors
+                if port_num in ctc_greedy_decoder_tf.out_ports():
+                    if ctc_greedy_decoder_tf.out_port(port_num).disconnected():
+                        # Create Result operation and connect it to the output if it is not connected
+                        # to any other operation
+                        second_result = Result(graph,
+                                               {'name': ctc_greedy_decoder_tf_name + '/seq_lengths_output'}
+                                               ).create_node()
+                        ctc_greedy_decoder_tf.out_port(1).connect(second_result.in_port(0))
+                    elif ctc_greedy_decoder_tf.out_port(port_num).get_destination().node.soft_get('op') != 'Result':
+                        return
 
             # For normalizing input channel needs to transpose input data from [T, N, C] to [N, T, C]
             # which supported CTCGreedyDecoderSeqLen op.
-            log.warning('Found CTCGreedyDecoder operation at the end of network. '
-                        'PLEASE NOTE, appropriate network output will have dense format, not sparse format!')
+            log.warning('Found TF CTCGreedyDecoder operation at the end of network. '
+                        'PLEASE NOTE, appropriate network output operation CTCGreedyDecoderSeqLen {} '
+                        'will have dense format, not sparse format!'.format(ctc_greedy_decoder_tf_name))
             ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
                                                            {'name': ctc_greedy_decoder_tf_name + '/ctc_data_permute'})
 
@@ -135,4 +137,9 @@ class CTCGreedyDecoderSingleReplacement(FrontReplacementSubgraph):
             ctc_greedy_decoder_tf.in_port(0).disconnect()
             ctc_data_permute.out_port(0).connect(ctc_greedy_decoder_tf.in_port(0))
 
-            ctc_greedy_decoder_tf.output_sparse_format = False
+            del ctc_greedy_decoder_tf['output_sparse_format']
+
+            for port_num in [2, 3]:  # MO CTCGreedyDecoderSeqLen may have 2 outputs
+                if port_num in ctc_greedy_decoder_tf.out_ports():
+                    if not ctc_greedy_decoder_tf.out_port(port_num).disconnected():
+                        ctc_greedy_decoder_tf.out_port(port_num).disconnect()
