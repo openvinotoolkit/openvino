@@ -343,11 +343,11 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {
                 {},
                 {{ 128.f, 128.f, 128.f, 128.f, 128.f, 128.f }, ngraph::element::f32, { 1, 6, 1, 1 }, false},
-                {{0.1f}, ngraph::element::f32, { 1, 1, 1, 1 } } },
+                {{0.1f}, ngraph::element::f32, {} } },
             {
                 {},
                 {{128.f, 128.f, 128.f}, ngraph::element::f32, { 1, 3, 1, 1 }, false},
-                {{0.1f}, ngraph::element::f32, { 1, 1, 1, 1 } } }
+                {{0.1f}, ngraph::element::f32, {} } }
         },
         "convolution",
         "convolution"
