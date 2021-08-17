@@ -273,6 +273,11 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
                 continue;
         }
 
+        if (type == Subgraph) {
+            if (op->get_output_shape(0).size() > 1 && op->get_input_shape(0)[0] == op->get_output_shape(0)[0])
+                continue;
+        }
+
         if (type != Input &&
             type != Output &&
             type != Convolution &&
