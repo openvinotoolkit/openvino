@@ -418,8 +418,6 @@ grn_2d_with_bias
 erf
 divide_adjoint_stability
 notequal
-greater
-greatereq
 less
 sum_3d_to_scalar_int32
 sum_2d_to_scalar_int8
@@ -459,7 +457,6 @@ gather_axis_0_int64
 gather_axis_0_uint16
 gather_axis_0_uint64
 concat_matrix_int64
-greater_int64
 broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
