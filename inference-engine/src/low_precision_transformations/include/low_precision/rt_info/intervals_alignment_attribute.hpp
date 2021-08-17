@@ -62,12 +62,15 @@ public:
 };
 
 using IntervalsAlignmentAttributePtr = std::shared_ptr<IntervalsAlignmentAttribute>;
+} // namespace ngraph
 
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<IntervalsAlignmentAttributePtr>;
+namespace ov {
+
+extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<ngraph::IntervalsAlignmentAttributePtr>;
 
 template<>
-class LP_TRANSFORMATIONS_API VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>> :
-    public VariantImpl<std::shared_ptr<IntervalsAlignmentAttribute>> {
+class LP_TRANSFORMATIONS_API VariantWrapper<std::shared_ptr<ngraph::IntervalsAlignmentAttribute>> :
+    public VariantImpl<std::shared_ptr<ngraph::IntervalsAlignmentAttribute>> {
 public:
     static constexpr VariantTypeInfo type_info{ "LowPrecision::IntervalsAlignment", 0 };
 
@@ -77,12 +80,13 @@ public:
 
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 
-    std::shared_ptr<IntervalsAlignmentAttribute> get() const { return this->m_value; }
+    std::shared_ptr<ngraph::IntervalsAlignmentAttribute> get() const { return this->m_value; }
 
-    static std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> create(
+    static std::shared_ptr<VariantWrapper<std::shared_ptr<ngraph::IntervalsAlignmentAttribute>>> create(
         const std::shared_ptr<ngraph::Node>& node,
         const AttributeParameters& params);
-    void merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>>>& attributes);
+    void merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<ngraph::IntervalsAlignmentAttribute>>>>& attributes);
     std::string to_string() override;
 };
-} // namespace ngraph
+
+}  // namespace ov
