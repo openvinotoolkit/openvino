@@ -129,11 +129,11 @@ class If(Op):
         outputs_mapping = {}
         outputs_number = len(if_node.out_ports())
 
-        if outputs_number == 0 and len(if_node.out_ports(control_=True)) != 0:
+        if outputs_number == 0 and len(if_node.out_ports(control_flow=True)) != 0:
             # Some models have if with control flow outputs.
             # These shape inference for such ifs
             # TODO: need to rethink and redo support for control flow edges in if operation
-            for node in if_node.out_nodes(True).values():
+            for node in if_node.out_nodes(control_flow=True).values():
                 node.shape = int64_array([])
             return
 
@@ -141,7 +141,7 @@ class If(Op):
             outputs_mapping[port_id] = {}
         port_ids = outputs_mapping.keys()
 
-        # variable then_contains_fake_outputs/else_contains_fake_outputs contains True value
+        # variables then_contains_fake_outputs/else_contains_fake_outputs contains True value
         # if all outputs from then_body/else_body have shape [0]. It means then_body/else_body does not return data
         # and further shape_inference for this branch is not possible.
         # TODO: exclude support fake_outputs from this code when we will support shape_inference with empty tensors
