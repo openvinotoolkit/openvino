@@ -175,7 +175,7 @@ void random_uniform(const uint64_t* out_shape,
     // corresponding type so we have 4 result values. For f64 and i64 we use
     // a pair of values for conversion, so we have 2 result values.
     // Step indicates how many values we generate in one iteration.
-    size_t step = elem_type.size() > 4 ? 2 : 4;
+    const size_t step = elem_type.size() > 4 ? 2 : 4;
 
     for (size_t k = 0; k < elem_count; k += step) {
         // generate 4 random uint32 values using Philox algorithm
