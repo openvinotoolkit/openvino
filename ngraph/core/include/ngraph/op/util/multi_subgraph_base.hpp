@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <ngraph/function.hpp>
 #include <ngraph/op/parameter.hpp>
 
 #include "ngraph/op/op.hpp"
