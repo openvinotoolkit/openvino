@@ -6,7 +6,7 @@
 
 **Short description**: Performs the max pooling operation on input.
 
-**Detailed description**: Input shape can be either 3D, 4D, or 5D. The max pooling operation is performed with respect to input shape from the third dimension to the last dimension. If paddings are used, during the pooling calculation their values are `-inf`. The max pooling operation involves sliding a filter over each channel of a feature map and downsampling by choosing the largest value within the region covered by the filter. [Article about max pooling in Convolutional Networks](https://deeplizard.com/learn/video/ZjM_XQa5s6s).
+**Detailed description**: Input shape can be either 3D, 4D, or 5D. The max pooling operation is performed with respect to input shape from the third dimension to the last dimension. If paddings are used, during the pooling calculation their values are `-inf`. The max pooling operation involves sliding a filter over each channel of a feature map and downsampling by choosing the largest value within the region covered by the filter.
 
 **Attributes**: *Pooling* attributes are specified in the `data` node, which is a child of the layer node.
 
@@ -27,7 +27,7 @@
 
 * *pads_begin*
 
-  * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal to "1,2" means adding 1 pixel to the top of the input and 2 to the left of the input.
+  * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal to "1,2" means adding 1 pixel to the top of the input and 2 to the left of the input. All added padding values are equal to negative infinity.
   * **Range of values**: integer values starting from 0
   * **Type**: int[]
   * **Required**: *yes*
@@ -35,7 +35,7 @@
 
 * *pads_end*
 
-  * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal to "1,2" means adding 1 pixel to the bottom of the input and 2 to the right of the input.
+  * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal to "1,2" means adding 1 pixel to the bottom of the input and 2 to the right of the input. All added padding values are equal to negative infinity.
   * **Range of values**: integer values starting from 0
   * **Type**: int[]
   * **Required**: *yes*
