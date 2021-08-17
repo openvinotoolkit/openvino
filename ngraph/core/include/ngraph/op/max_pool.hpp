@@ -122,7 +122,7 @@ public:
 
 private:
     Strides m_dilations;
-    element::Type m_index_element_type{element::i32};
+    element::Type m_index_element_type{element::i64};
     int64_t m_axis{0};
 };
 }  // namespace v8
