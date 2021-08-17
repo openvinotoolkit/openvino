@@ -59,7 +59,8 @@ size_t shape_size(const SHAPE_TYPE& shape) {
 
 template <typename ForwardIt>
 size_t shape_size(ForwardIt start_dim, const ForwardIt end_dim) {
-    static_assert(std::is_arithmetic<typename std::iterator_traits<ForwardIt>::value_type>::value);
+    static_assert(std::is_arithmetic<typename std::iterator_traits<ForwardIt>::value_type>::value,
+                  "shape_size expects 2 forward iterators as inputs");
 
     size_t size = 1;
     while (start_dim != end_dim) {
