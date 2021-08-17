@@ -194,7 +194,7 @@ bool contains_onnx_model_keys(const std::string& model, const size_t expected_ke
 
 namespace ngraph {
 namespace onnx_common {
-bool is_valid_model(std::istream& model, onnx_format) {
+bool is_valid_model(std::istream& model) {
     // the model usually starts with a 0x08 byte indicating the ir_version value
     // so this checker expects at least 2 valid ONNX keys to be found in the validated model
     const unsigned int EXPECTED_FIELDS_FOUND = 2u;
@@ -214,17 +214,6 @@ bool is_valid_model(std::istream& model, onnx_format) {
     } catch (...) {
         return false;
     }
-}
-
-bool is_valid_model(std::istream& model, prototxt_format) {
-    std::array<char, 512> head_of_file;
-
-    model.seekg(0, model.beg);
-    model.read(head_of_file.data(), head_of_file.size());
-    model.clear();
-    model.seekg(0, model.beg);
-
-    return detail::prototxt::contains_onnx_model_keys(std::string{std::begin(head_of_file), std::end(head_of_file)}, 2);
 }
 }  // namespace onnx_common
 }  // namespace ngraph

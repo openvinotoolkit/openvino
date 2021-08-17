@@ -70,13 +70,13 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         const auto path = as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
         std::ifstream model_stream(path, std::ios::in | std::ifstream::binary);
         model_stream.seekg(0, model_stream.beg);
-        const bool is_valid_model = onnx_common::is_valid_model(model_stream, onnx_common::onnx_format{});
+        const bool is_valid_model = onnx_common::is_valid_model(model_stream);
         model_stream.close();
         return is_valid_model;
     }
     if (variants.size() > 0 && is_type<VariantWrapper<std::istream*>>(variants[0])) {
         auto stream = as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
-        return onnx_common::is_valid_model(*stream, onnx_common::onnx_format{});
+        return onnx_common::is_valid_model(*stream);
     }
     return false;
 }
