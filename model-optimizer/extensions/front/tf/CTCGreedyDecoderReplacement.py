@@ -107,13 +107,23 @@ class CTCGreedyDecoderSingleReplacement(FrontReplacementSubgraph):
         return [CTCGreedyDecoderReplacement, CTCGreedyDecoderWithSparseToDenseShapeReplacement]
 
     def find_and_replace_pattern(self, graph: Graph):
-        for ctc_greedy_decoder_tf in graph.get_op_nodes(op='CTCGreedyDecoderSeqLen'):
+        for ctc_greedy_decoder_tf in graph.get_op_nodes(op='CTCGreedyDecoderSeqLen', output_sparse_format=True):
             ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
+
+            assert not ctc_greedy_decoder_tf.out_port(0).disconnected(), ''
+            if ctc_greedy_decoder_tf.out_port(0).get_destination().node.soft_get('op') != 'Result':
+                return
+            if ctc_greedy_decoder_tf.out_port(1).disconnected():
+                # Create Result operation and connect it to the second output if it is not connected
+                # to any other operation
+                second_result = Result(graph,
+                                       {'name': ctc_greedy_decoder_tf_name + '/seq_lengths_output'}).create_node()
+                ctc_greedy_decoder_tf.out_port(1).connect(second_result.in_port(0))
 
             # For normalizing input channel needs to transpose input data from [T, N, C] to [N, T, C]
             # which supported CTCGreedyDecoderSeqLen op.
             log.warning('Found CTCGreedyDecoder operation at the end of network. '
-                        'PLEASE NOTE, appropriate network output will have dense format, not sparse format')
+                        'PLEASE NOTE, appropriate network output will have dense format, not sparse format!')
             ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
                                                            {'name': ctc_greedy_decoder_tf_name + '/ctc_data_permute'})
 
@@ -125,9 +135,4 @@ class CTCGreedyDecoderSingleReplacement(FrontReplacementSubgraph):
             ctc_greedy_decoder_tf.in_port(0).disconnect()
             ctc_data_permute.out_port(0).connect(ctc_greedy_decoder_tf.in_port(0))
 
-            if ctc_greedy_decoder_tf.out_port(1).disconnected():
-                # Create Result operation and connect it to the second output if it is not connected
-                # to any other operation
-                second_result = Result(graph,
-                                       {'name': ctc_greedy_decoder_tf_name + '/seq_lengths_output'}).create_node()
-                ctc_greedy_decoder_tf.out_port(1).connect(second_result.in_port(0))
+            ctc_greedy_decoder_tf.output_sparse_format = False
