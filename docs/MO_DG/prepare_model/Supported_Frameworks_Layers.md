@@ -25,7 +25,7 @@ Standard Caffe\* layers:
 | Input | No |
 | LRN | No |
 | Normalize | No |
-| Python | No |
+| Python | Supported only for Python Proposal operation |
 | Permute | No |
 | Pooling | No |
 | Power | No |
