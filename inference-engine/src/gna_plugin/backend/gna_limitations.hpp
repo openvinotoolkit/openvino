@@ -6,6 +6,8 @@
 
 #include "dnn_types.h"
 #include <cstdint>
+#include <ie_algorithm.hpp>
+#include <ie_data.h>
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -105,5 +107,10 @@ public:
         const uint32_t strideH, const uint32_t strideW) const;
 };
 } // namespace Cnn2D
+
+inline size_t GetMinBatchToFitInBuffer(InferenceEngine::DataPtr input) {
+    auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));
+    return total_size / bufferMaxSize + 1;
+}
 } // namespace GNALimitations
 } // namespace GNAPluginNS
