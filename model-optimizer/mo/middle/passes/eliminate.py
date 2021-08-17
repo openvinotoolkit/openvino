@@ -8,7 +8,7 @@ from collections import deque
 import networkx as nx
 import numpy as np
 
-from mo.front.common.partial_infer.utils import is_fully_defined
+from mo.front.common.partial_infer.utils import is_fully_defined, strict_compare_tensors
 from mo.utils.error import Error
 from mo.utils.utils import deprecated_api
 
@@ -163,7 +163,7 @@ def shape_inference(graph):
             new_out_shapes = [port.data.get_shape() for port in node.out_ports().values() if not port.disconnected()]
             if not node.has_and_set('override_output_shape'):
                 for shape1, shape2 in zip(old_out_shapes, new_out_shapes):
-                    if shape1 is not None and not np.array_equal(shape1, shape2):
+                    if shape1 is not None and not strict_compare_tensors(shape1, shape2):
                         raise Error("After partial shape inference were found shape collision for node {} (old shape: "
                                     "{}, new shape: {})".format(node.name, shape1, shape2))
             else:
