@@ -78,12 +78,12 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
     const std::vector<int64_t> axesByChannels = { 1, 2, 3 };
 
     std::vector<int64_t> axesValues = axes->cast_vector<int64_t>();
-    if (!(axesValues == axesAcrossSpatial || axesValues == axesByChannels)) {
+    if ((axesValues != axesAcrossSpatial) && (axesValues != axesByChannels)) {
         return false;
     }
 
-    const ngraph::Shape outputShape = scalesConst->get_output_shape(0);
-    const size_t size = ngraph::shape_size(outputShape);
+    const Shape outputShape = scalesConst->get_shape();
+    const size_t size = shape_size(outputShape);
     if (size != 1ul) {
         const auto channelsInterval = operation->get_output_partial_shape(0)[1];
         if (channelsInterval.is_dynamic() || static_cast<size_t>(channelsInterval.get_length()) != size) {
