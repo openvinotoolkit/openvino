@@ -45,7 +45,8 @@ def create_test_onnx_models():
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, split, relu, mul], "test_graph", input_tensors, output_tensors)
-    models["input_model.onnx"] = make_model(graph, producer_name="ONNX Importer")
+    models["input_model.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph
     input_tensors = [
@@ -56,7 +57,8 @@ def create_test_onnx_models():
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph.onnx"] = make_model(graph, producer_name="ONNX Importer")
+    models["extract_subgraph.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                 opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph 2
     input_tensors = [
@@ -69,7 +71,8 @@ def create_test_onnx_models():
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, relu], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph_2.onnx"] = make_model(graph, producer_name="ONNX Importer")
+    models["extract_subgraph_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph 3
     input_tensors = [
@@ -82,7 +85,8 @@ def create_test_onnx_models():
     expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"],
                                            outputs=["out1", "out2"], name="split1", axis=0)
     graph = make_graph([expected_split], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph_3.onnx"] = make_model(graph, producer_name="ONNX Importer")
+    models["extract_subgraph_3.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph 4
     input_tensors = [
@@ -100,7 +104,8 @@ def create_test_onnx_models():
     expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
                                          outputs=["out4"])
     graph = make_graph([expected_split, expected_mul], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph_4.onnx"] = make_model(graph, producer_name="ONNX Importer")
+    models["extract_subgraph_4.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_outputs
     input_tensors = [
@@ -113,7 +118,8 @@ def create_test_onnx_models():
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, relu], "test_graph", input_tensors, output_tensors)
-    models["test_override_all_outputs.onnx"] = make_model(graph, producer_name="ONNX Importer")
+    models["test_override_all_outputs.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                          opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_outputs 2
     input_tensors = [
@@ -124,7 +130,8 @@ def create_test_onnx_models():
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, mul], "test_graph", input_tensors, output_tensors)
-    models["test_override_all_outputs_2.onnx"] = make_model(graph, producer_name="ONNX Importer")
+    models["test_override_all_outputs_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_inputs
     input_tensors = [
@@ -144,7 +151,8 @@ def create_test_onnx_models():
     expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
                                          outputs=["out4"])
     graph = make_graph([expected_split, relu, expected_mul], "test_graph", input_tensors, output_tensors)
-    models["test_override_all_inputs.onnx"] = make_model(graph, producer_name="ONNX Importer")
+    models["test_override_all_inputs.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                         opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # test partial shape
     input_tensors = [
@@ -159,7 +167,8 @@ def create_test_onnx_models():
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (8, 16)),
     ]
     graph = make_graph([add, split, relu, mul], "test_graph", input_tensors, output_tensors)
-    models["test_partial_shape.onnx"] = make_model(graph, producer_name="ONNX Importer")
+    models["test_partial_shape.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     return models
 
@@ -528,6 +537,45 @@ def test_is_equal():
     assert not place1.is_equal(place2)
     assert not place6.is_equal(place7)
     assert not place8.is_equal(place2)
+
+
+def test_is_equal_data():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    place1 = model.get_place_by_tensor_name(tensorName="in1")
+    assert place1.is_equal_data(place1)
+
+    place2 = model.get_place_by_tensor_name(tensorName="add_out")
+    assert place2.is_equal_data(place2)
+
+    place3 = model.get_place_by_tensor_name(tensorName="in2")
+    assert not place1.is_equal_data(place3)
+    assert not place2.is_equal_data(place1)
+
+    place4 = place2.get_producing_port()
+    assert place2.is_equal_data(place4)
+
+    place5 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=0)
+    assert place2.is_equal_data(place5)
+    assert place4.is_equal_data(place5)
+
+    place6 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=1)
+    assert place6.is_equal_data(place5)
+
+    place7 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
+    assert place7.is_equal_data(place7)
+
+    place8 = model.get_place_by_tensor_name(tensorName="out1")
+    place9 = model.get_place_by_tensor_name(tensorName="out2")
+    place10 = place8.get_producing_port()
+    assert not place8.is_equal_data(place9)
+    assert not place9.is_equal_data(place10)
+    assert place8.is_equal_data(place10)
 
 
 def test_get_place_by_tensor_name():
