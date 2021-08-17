@@ -47,11 +47,21 @@ public:
      */
     std::string getPrimitivesPriority() const;
 };
+/**
+ * @ingroup ie_runtime_attr_api
+ * @brief getPrimitivesPriority return string with primitive priorities value
+ * @param[in] node The node will be used to get PrimitivesPriority attribute
+ */
+TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
 
-extern template class TRANSFORMATIONS_API VariantImpl<PrimitivesPriority>;
+}  // namespace ngraph
+
+namespace ov {
+
+extern template class TRANSFORMATIONS_API VariantImpl<ngraph::PrimitivesPriority>;
 
 template<>
-class TRANSFORMATIONS_API VariantWrapper<PrimitivesPriority> : public VariantImpl<PrimitivesPriority> {
+class TRANSFORMATIONS_API VariantWrapper<ngraph::PrimitivesPriority> : public VariantImpl<ngraph::PrimitivesPriority> {
 public:
     static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::PrimitivesPriority", 0};
 
@@ -61,16 +71,9 @@ public:
 
     VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
 
-    std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector & nodes) override;
+    std::shared_ptr<ov::Variant> merge(const ngraph::NodeVector & nodes) override;
 
-    std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
+    std::shared_ptr<ov::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
 };
 
-/**
- * @ingroup ie_runtime_attr_api
- * @brief getPrimitivesPriority return string with primitive priorities value
- * @param[in] node The node will be used to get PrimitivesPriority attribute
- */
-TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
-
-}  // namespace ngraph
+}  // namespace ov
