@@ -5,7 +5,6 @@
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
 BASE_DIR="$( dirname "$SCRIPT_DIR" )"
-TEST_PKG_DIR="$( dirname "$BASE_DIR" )/test_pkg"
 
 INSTALLDIR="${BASE_DIR}"
 
@@ -108,11 +107,6 @@ fi
 
 if [ -z "$python_version" ]; then
     python_version=$(python3 -c 'import sys; print(str(sys.version_info[0])+"."+str(sys.version_info[1]))')
-fi
-
-if [ -e "$TEST_PKG_DIR/layer_tests" ]; then
-    export MO_ROOT="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer"
-    export PYTHONPATH="$TEST_PKG_DIR/layer_tests:$MO_ROOT:$PYTHONPATH"
 fi
 
 OS_NAME=""
