@@ -364,7 +364,7 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
                 log.warning('Operation {} is not found in MO operations, please check it! '
                             'Simple shape infer function is used'.format(op_type))
                 node = Op(new_graph, op.attrs()).create_node()
-                node['infer'] = Extender.const_shape_infer
+                node['infer'] = Extender.use_shapes_from_ir
                 if 'ir_data_attrs' in op:
                     node['IE'] = [('layer',
                                    [('id', lambda node: node.node), 'name', 'type', 'version'],

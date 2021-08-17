@@ -36,11 +36,13 @@ class Extender(object):
             node[attribute] = [node[attribute]]
 
     @staticmethod
-    def const_shape_infer(node: Node):
-        # Check equality of old (restored from IR) and new (calculated while shape inference) input shapes
+    def use_shapes_from_ir(node: Node):
+        # This function used instead of operation shape inference function to set all output shapes the same as
+        # restored from IR. Firstly, check equality of old (restored from IR) and
+        # new (calculated while shape inference) input shapes
         node['new_input_shapes'] = list()
         for n in node.in_ports():
-            if not node.in_port(n).disconnected(): # We use such condition to handle optional inputs
+            if not node.in_port(n).disconnected():  # We use such condition to handle optional inputs
                 node.new_input_shapes.append(node.in_port(n).data.get_shape())
         assert len(node.new_input_shapes) == len(node.old_input_shapes), \
             'Something wrong happened while {} node with type {} copy shape inference!'.format(node.name, node.type)
@@ -48,9 +50,13 @@ class Extender(object):
             assert np.array_equal(new_input_shape, old_input_shape), \
                 'Something wrong happened while {} node with type {} copy shape inference!'.format(node.name, node.type)
 
-        # We need to use number of input nodes instead of number of input ports to avoid errors with numbering
-        # in node.ports dictionary, where used numbers of nodes
-        i = len(node.in_nodes())
+        # We need to use number of connected input ports to avoid errors with numbering
+        # in node.ports dictionary, where used numbers of input nodes
+        connected_input_ports = []
+        for n in node.in_ports():
+            if not node.in_port(n).disconnected():
+                connected_input_ports.append(node.in_port(n))
+        i = len(connected_input_ports)
 
         # Set all output shapes the same as restored from IR
         for num in node.out_ports():

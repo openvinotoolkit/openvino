@@ -50,4 +50,4 @@ def common_backpropdata_extender(op: Node):
 
 
 def backpropdata_infer(op: Node):
-    Extender.const_shape_infer(op)
+    Extender.use_shapes_from_ir(op)
