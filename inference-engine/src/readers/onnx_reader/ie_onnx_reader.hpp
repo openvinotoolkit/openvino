@@ -5,11 +5,16 @@
 #pragma once
 
 #include <ie_reader.hpp>
+#include "frontend_manager/frontend_manager.hpp"
 
 namespace InferenceEngine {
 
 class ONNXReader: public IReader {
 public:
+    /**
+     * @brief Initializes ONNX Frontend
+     */
+    ONNXReader();
     /**
      * @brief Checks that reader supports format of the model
      * @param model stream with model
@@ -39,6 +44,9 @@ public:
     std::vector<std::string> getDataFileExtensions() const override {
         return {};
     }
+
+    private:
+        ngraph::frontend::FrontEnd::Ptr m_onnx_fe;
 };
 
 }  // namespace InferenceEngine

@@ -120,7 +120,6 @@ void registerReaders() {
         create_if_exists("ONNX", std::string("inference_engine_onnx_reader") + std::string(IE_BUILD_POSTFIX));
     if (onnxReader) {
         readers.emplace("onnx", onnxReader);
-        readers.emplace("prototxt", onnxReader);
     }
 
     // try to load IR reader v10 if library exists

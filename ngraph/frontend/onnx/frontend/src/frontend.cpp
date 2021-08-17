@@ -65,6 +65,28 @@ std::string FrontEndONNX::get_name() const {
     return "onnx";
 }
 
+namespace {
+/**
+ * This helper struct uses RAII to rewind/reset the stream so that it points to the beginning
+ * of the underlying resource (string, file, ...). It works similarily to std::lock_guard
+ * which releases a mutex upon destruction.
+ *
+ * This makes sure that the stream is always reset (exception, successful and unsuccessful
+ * model validation).
+ */
+struct StreamRewinder {
+    StreamRewinder(std::istream& stream) : m_stream(stream) {
+        m_stream.seekg(0, m_stream.beg);
+    }
+    ~StreamRewinder() {
+        m_stream.seekg(0, m_stream.beg);
+    }
+
+private:
+    std::istream& m_stream;
+};
+}  // namespace
+
 bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
     if (variants.size() > 0 && is_type<VariantWrapper<std::string>>(variants[0])) {
         const auto path = as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
@@ -76,6 +98,7 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
     }
     if (variants.size() > 0 && is_type<VariantWrapper<std::istream*>>(variants[0])) {
         auto stream = as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
+        StreamRewinder rwd{*stream};
         return onnx_common::is_valid_model(*stream);
     }
     return false;
