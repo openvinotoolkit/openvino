@@ -26,10 +26,12 @@ void register_implementations() {
     REGISTER_OCL(deformable_conv);
     REGISTER_OCL(deformable_interp);
     REGISTER_OCL(depth_to_space);
+    REGISTER_OCL(detection_output);
     REGISTER_OCL(batch_to_space);
     REGISTER_OCL(eltwise);
     REGISTER_OCL(fully_connected);
     REGISTER_OCL(gather);
+    REGISTER_OCL(gather_elements);
     REGISTER_OCL(gather_nd);
     REGISTER_OCL(gemm);
     REGISTER_OCL(lrn);

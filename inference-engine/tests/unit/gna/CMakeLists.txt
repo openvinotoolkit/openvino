@@ -8,6 +8,8 @@ addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
+            PRIVATE
+                ngraphFunctions
             gmock
             commonTestUtils_s
             GNAPlugin_test_static

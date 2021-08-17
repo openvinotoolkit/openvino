@@ -9,192 +9,141 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, multiclass_nms_incorrect_boxes_rank)
-{
-    try
-    {
+TEST(type_prop, multiclass_nms_incorrect_boxes_rank) {
+    try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
 
         make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
-    }
-    catch (const NodeValidationFailure& error)
-    {
+    } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Expected a 3D tensor for the 'boxes' input");
     }
 }
 
-TEST(type_prop, multiclass_nms_incorrect_scores_rank)
-{
-    try
-    {
+TEST(type_prop, multiclass_nms_incorrect_scores_rank) {
+    try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2});
 
         make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
-    }
-    catch (const NodeValidationFailure& error)
-    {
+    } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Expected a 3D tensor for the 'scores' input");
     }
 }
 
-TEST(type_prop, multiclass_nms_incorrect_scheme_num_batches)
-{
-    try
-    {
+TEST(type_prop, multiclass_nms_incorrect_scheme_num_batches) {
+    try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 2, 3});
 
         make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "The first dimension of both 'boxes' and 'scores' must match");
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "The first dimension of both 'boxes' and 'scores' must match");
     }
 }
 
-TEST(type_prop, multiclass_nms_incorrect_scheme_num_boxes)
-{
-    try
-    {
+TEST(type_prop, multiclass_nms_incorrect_scheme_num_boxes) {
+    try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
 
         make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
-    }
-    catch (const NodeValidationFailure& error)
-    {
+    } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "'boxes' and 'scores' input shapes must match at the second and third "
                              "dimension respectively");
     }
 }
 
-TEST(type_prop, multiclass_nms_incorrect_boxes_rank2)
-{
-    try
-    {
+TEST(type_prop, multiclass_nms_incorrect_boxes_rank2) {
+    try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 2, 2});
 
         make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "The third dimension of the 'boxes' must be 4");
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "The third dimension of the 'boxes' must be 4");
     }
 }
 
-TEST(type_prop, multiclass_nms_incorrect_output_type)
-{
-    try
-    {
+TEST(type_prop, multiclass_nms_incorrect_output_type) {
+    try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
         op::v8::MulticlassNms::Attributes attrs;
         attrs.output_type = ngraph::element::f32;
 
         make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Output type must be i32 or i64");
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "Output type must be i32 or i64");
     }
 }
 
-TEST(type_prop, multiclass_nms_incorrect_nms_topk)
-{
-    try
-    {
+TEST(type_prop, multiclass_nms_incorrect_nms_topk) {
+    try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
         op::v8::MulticlassNms::Attributes attrs;
         attrs.nms_top_k = -2;
 
         make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "The 'nms_top_k' must be great or equal -1");
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "The 'nms_top_k' must be great or equal -1");
     }
 }
 
-TEST(type_prop, multiclass_nms_incorrect_keep_topk)
-{
-    try
-    {
+TEST(type_prop, multiclass_nms_incorrect_keep_topk) {
+    try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
         op::v8::MulticlassNms::Attributes attrs;
         attrs.keep_top_k = -2;
 
         make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "The 'keep_top_k' must be great or equal -1");
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "The 'keep_top_k' must be great or equal -1");
     }
 }
 
-TEST(type_prop, multiclass_nms_incorrect_background_class)
-{
-    try
-    {
+TEST(type_prop, multiclass_nms_incorrect_background_class) {
+    try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
         op::v8::MulticlassNms::Attributes attrs;
         attrs.background_class = -2;
 
         make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "The 'background_class' must be great or equal -1");
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "The 'background_class' must be great or equal -1");
     }
 }
 
-TEST(type_prop, multiclass_nms_incorrect_eta)
-{
-    try
-    {
+TEST(type_prop, multiclass_nms_incorrect_eta) {
+    try {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
         op::v8::MulticlassNms::Attributes attrs;
         attrs.nms_eta = 2.0f;
 
         make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "The 'nms_eta' must be in close range [0, 1.0]");
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "The 'nms_eta' must be in close range [0, 1.0]");
     }
 }
 
-TEST(type_prop, multiclass_nms_output_shape_1dim_dynamic)
-{
+TEST(type_prop, multiclass_nms_output_shape_1dim_dynamic) {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{5, 2, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{5, 3, 2});
 
     const auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
 
-    ASSERT_TRUE(
-        nms->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 6}));
-    ASSERT_TRUE(
-        nms->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 1}));
+    ASSERT_TRUE(nms->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 6}));
+    ASSERT_TRUE(nms->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 1}));
 
     EXPECT_EQ(nms->get_output_shape(2), (Shape{5}));
 }
 
-TEST(type_prop, multiclass_nms_output_shape_1dim_max_out)
-{
+TEST(type_prop, multiclass_nms_output_shape_1dim_max_out) {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
 
@@ -210,8 +159,7 @@ TEST(type_prop, multiclass_nms_output_shape_1dim_max_out)
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
-TEST(type_prop, multiclass_nms_output_shape_1dim_nms_topk)
-{
+TEST(type_prop, multiclass_nms_output_shape_1dim_nms_topk) {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
     op::v8::MulticlassNms::Attributes attrs;
@@ -228,8 +176,7 @@ TEST(type_prop, multiclass_nms_output_shape_1dim_nms_topk)
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
-TEST(type_prop, multiclass_nms_output_shape_1dim_keep_topk)
-{
+TEST(type_prop, multiclass_nms_output_shape_1dim_keep_topk) {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
     op::v8::MulticlassNms::Attributes attrs;
@@ -247,8 +194,7 @@ TEST(type_prop, multiclass_nms_output_shape_1dim_keep_topk)
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
-TEST(type_prop, multiclass_nms_output_shape_i32)
-{
+TEST(type_prop, multiclass_nms_output_shape_i32) {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
     op::v8::MulticlassNms::Attributes attrs;
@@ -265,8 +211,7 @@ TEST(type_prop, multiclass_nms_output_shape_i32)
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
-TEST(type_prop, multiclass_nms_dynamic_boxes_and_scores)
-{
+TEST(type_prop, multiclass_nms_dynamic_boxes_and_scores) {
     const auto boxes = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     const auto scores = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
 

@@ -52,6 +52,11 @@ add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_P
 
 add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend_proto)
 
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                    ADDITIONAL_INCLUDE_DIRECTORIES
+                        $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+
 target_include_directories(${TARGET_NAME}
         PUBLIC
             $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
@@ -68,10 +73,10 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
 endif()
 
-link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
+link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 
-target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager
-                                     PRIVATE ngraph::builder)
+target_link_libraries(${TARGET_NAME} PRIVATE ngraph::frontend_manager::static
+                                     PRIVATE ngraph::builder inference_engine_transformations)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})

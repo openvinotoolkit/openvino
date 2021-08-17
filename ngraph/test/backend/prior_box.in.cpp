@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/prior_box.hpp"
-
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
@@ -16,8 +14,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, prior_box)
-{
+NGRAPH_TEST(${BACKEND_NAME}, prior_box) {
     op::PriorBoxAttrs attrs;
     attrs.min_size = {2.0f};
     attrs.aspect_ratio = {1.5f};

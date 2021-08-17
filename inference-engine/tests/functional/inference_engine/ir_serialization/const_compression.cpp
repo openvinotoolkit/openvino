@@ -11,10 +11,6 @@
 #include <ngraph/function.hpp>
 #include <transformations/serialize.hpp>
 
-#ifndef IR_SERIALIZATION_MODELS_PATH // should be already defined by cmake
-#define IR_SERIALIZATION_MODELS_PATH ""
-#endif
-
 class SerializatioConstantCompressionTest : public ::testing::Test {
 protected:
     std::string test_name =

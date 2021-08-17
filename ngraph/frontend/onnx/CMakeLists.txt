@@ -3,4 +3,4 @@
 #
 
 add_subdirectory(onnx_common)
-add_subdirectory(onnx_import)
+add_subdirectory(frontend)

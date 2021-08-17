@@ -4,6 +4,7 @@
 VERIFIED_OP_REFERENCES = [
     'Abs-1',
     'Acos-1',
+    'Acosh-3',
     'Add-1',
     'Asin-1',
     'Asinh-3',
@@ -30,6 +31,8 @@ VERIFIED_OP_REFERENCES = [
     'DepthToSpace-1',
     'DetectionOutput-1',
     'Divide-1',
+    'Equal-1',
+    'Erf-1',
     'ExperimentalDetectronDetectionOutput-6',
     'ExperimentalDetectronGenerateProposalsSingleImage-6',
     'ExperimentalDetectronPriorGridGenerator-6',
@@ -43,6 +46,7 @@ VERIFIED_OP_REFERENCES = [
     'GatherElements-6',
     'GatherND-5',
     'Gelu-7',
+    'Greater-1'
     'GRN-1',
     'GroupConvolution-1',
     'GroupConvolutionBackpropData-1',
@@ -51,11 +55,17 @@ VERIFIED_OP_REFERENCES = [
     'HSwish-4',
     'HardSigmoid-1',
     'Interpolate-4',
+    'Less-1',
+    'LessEqual-1'
     'LRN-1',
     'LSTMCell-4',
     'LSTMSequence-5',
+    'LogicalAnd-1'
+    'LogicalOr-1'
+    'LogicalXor-1'
     'LogSoftmax-5',
     'Loop-5',
+    'MVN-1',
     'MVN-6',
     'Maximum-1',
     'MaxPool-1',
