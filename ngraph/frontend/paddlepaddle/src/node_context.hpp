@@ -18,7 +18,7 @@
         VariantWrapper<TYPE>(const value_type& value) : VariantImpl<value_type>(value) {} \
     }
 
-namespace ngraph {
+namespace ov {
 NGRAPH_VARIANT_DECLARATION(int32_t, "Variant::int32");
 NGRAPH_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
 NGRAPH_VARIANT_DECLARATION(float, "Variant::float");
@@ -26,7 +26,9 @@ NGRAPH_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
 NGRAPH_VARIANT_DECLARATION(bool, "Variant::bool");
 NGRAPH_VARIANT_DECLARATION(ngraph::element::Type, "Variant::element_type");
 NGRAPH_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
+}  // namespace ov
 
+namespace ngraph {
 namespace frontend {
 namespace pdpd {
 using InPortName = std::string;

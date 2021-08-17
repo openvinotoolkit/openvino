@@ -12,10 +12,6 @@
 
 namespace ngraph {
 
-template class ngraph::VariantImpl<Mask::Ptr>;
-
-constexpr VariantTypeInfo VariantWrapper<Mask::Ptr>::type_info;
-
 Mask::Ptr getMask(const Output<const Node> & output) {
     auto &rtInfo = output.get_rt_info();
     using MaskWrapper = VariantWrapper<Mask::Ptr>;
@@ -57,6 +53,12 @@ std::ostream & operator<< (std::ostream & out, const Mask & mask) {
     return out;
 }
 
-
-
 }  // namespace ngraph
+
+namespace ov {
+
+template class ngraph::VariantImpl<ngraph::Mask::Ptr>;
+
+constexpr VariantTypeInfo VariantWrapper<ngraph::Mask::Ptr>::type_info;
+
+}  // namespace ov

@@ -24,10 +24,14 @@ public:
     DisableConstantFolding() = default;
 };
 
-extern template class TRANSFORMATIONS_API VariantImpl<DisableConstantFolding>;
+TRANSFORMATIONS_API void disable_constant_folding(const std::shared_ptr<Node>& node);
+}  // namespace ngraph
+
+namespace ov {
+extern template class TRANSFORMATIONS_API VariantImpl<ngraph::DisableConstantFolding>;
 
 template<>
-class TRANSFORMATIONS_API VariantWrapper<DisableConstantFolding> : public VariantImpl<DisableConstantFolding> {
+class TRANSFORMATIONS_API VariantWrapper<ngraph::DisableConstantFolding> : public VariantImpl<ngraph::DisableConstantFolding> {
 public:
     static constexpr VariantTypeInfo type_info{"DISABLED_CONSTANT_FOLDING", 0};
 
@@ -40,5 +44,4 @@ public:
     bool is_copyable() const override { return false; }
 };
 
-TRANSFORMATIONS_API void disable_constant_folding(const std::shared_ptr<Node>& node);
-}  // namespace ngraph
+}  // namespace ov

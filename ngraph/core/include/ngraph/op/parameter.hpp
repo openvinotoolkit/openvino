@@ -7,7 +7,6 @@
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
-class Function;
 namespace op {
 namespace v0 {
 /// \brief A function parameter.
@@ -30,7 +29,7 @@ public:
 
     void validate_and_infer_types() override;
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool is_relevant_to_shapes() const;
     void set_is_relevant_to_shapes(bool is_relevant);

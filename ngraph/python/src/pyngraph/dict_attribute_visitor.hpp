@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/variable.hpp"
 
@@ -127,4 +128,4 @@ namespace util
     protected:
         py::dict m_attributes;
     };
-}
+} // namespace util
