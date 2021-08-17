@@ -115,6 +115,7 @@ std::vector<CumSumParams> generateCumSumParams(const element::Type& type) {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<CumSumParams> opParams {
         // Default axis input and attributes
+        CumSumParams(PartialShape {1}, type, std::vector<T> {3}, std::vector<T> {3}),
         CumSumParams(PartialShape {6}, type, std::vector<T> {1, 2, 3, 4, 5, 6}, std::vector<T> {1, 3, 6, 10, 15, 21}),
         CumSumParams(PartialShape {2, 4}, type, std::vector<T> {0, 1, 2, 3, 4, 5, 6, 7}, std::vector<T> {0, 1, 2, 3, 4, 6, 8, 10}),
         // Custom axis input and attributes
@@ -122,6 +123,12 @@ std::vector<CumSumParams> generateCumSumParams(const element::Type& type) {
                      PartialShape {}),  // axis i32
         CumSumParams(PartialShape {6}, type, std::vector<T> {1, 2, 3, 4, 5, 6}, std::vector<T> {1, 3, 6, 10, 15, 21}, false, false, element::i64, int64_t(0),
                      PartialShape {}),  // axis i64
+        CumSumParams(PartialShape {6}, type, std::vector<T> {1, 2, 3, 4, 5, 6}, std::vector<T> {21, 20, 18, 15, 11, 6}, false, true, element::i64, int64_t(0),
+                     PartialShape {}),
+        CumSumParams(PartialShape {6}, type, std::vector<T> {1, 2, 3, 4, 5, 6}, std::vector<T> {0, 1, 3, 6, 10, 15}, true, false, element::i64, int64_t(0),
+                     PartialShape {}),
+        CumSumParams(PartialShape {6}, type, std::vector<T> {1, 2, 3, 4, 5, 6}, std::vector<T> {20, 18, 15, 11, 6, 0}, true, true, element::i64, int64_t(0),
+                     PartialShape {}),
 
         CumSumParams(PartialShape {2, 4}, type, std::vector<T> {0, 1, 2, 3, 4, 5, 6, 7}, std::vector<T> {0, 1, 2, 3, 4, 6, 8, 10}, false, false, element::i32,
                     int32_t(0), PartialShape {}),
@@ -168,7 +175,7 @@ std::vector<CumSumParams> generateCumSumParams(const element::Type& type) {
     return opParams;
 }
 
-std::vector<CumSumParams> generateGrnCombinedParams() {
+std::vector<CumSumParams> generateCumSumCombinedParams() {
     const std::vector<std::vector<CumSumParams>> opTypeParams {
         generateCumSumParams<element::Type_t::bf16>(element::bf16), generateCumSumParams<element::Type_t::f16>(element::f16),
         generateCumSumParams<element::Type_t::f32>(element::f32),   generateCumSumParams<element::Type_t::i32>(element::i32),
@@ -181,6 +188,6 @@ std::vector<CumSumParams> generateGrnCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_CumSum_With_Hardcoded_Refs, ReferenceCumSumLayerTest, ::testing::ValuesIn(generateGrnCombinedParams()),
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum_With_Hardcoded_Refs, ReferenceCumSumLayerTest, ::testing::ValuesIn(generateCumSumCombinedParams()),
                          ReferenceCumSumLayerTest::getTestCaseName);
 }  // namespace
