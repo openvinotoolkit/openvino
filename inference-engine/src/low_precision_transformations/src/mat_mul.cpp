@@ -94,7 +94,10 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
             Shape(dequantization1.subtract->get_output_partial_shape(0).rank().get_length(), 1) :
             dequantization1.subtractConstant->get_shape();
 
-        const auto weightsShape = newMatMul->get_input_shape(1);
+        const auto weightsPShape = newMatMul->get_input_partial_shape(1);
+        assert(weightsPShape.is_static());
+        const auto weightsShape = weightsPShape.to_shape();
+
         const size_t firstWeightsIdx = matMul->get_transpose_b() ? weightsShape.size() - 1ul : weightsShape.size() - 2ul;
         const size_t lastDataIdx = matMul->get_transpose_a() ? broadcastShape.size() - 2 : broadcastShape.size() - 1;
         broadcastShape[lastDataIdx] = weightsShape[firstWeightsIdx];
@@ -118,8 +121,8 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         parent = newSubtract;
     }
 
-    auto transpose = [](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
-        const Shape outputShape = node->get_output_shape(0);
+    auto transpose = [](const std::shared_ptr<opset1::Constant>& node) -> std::shared_ptr<Node> {
+        const Shape outputShape = node->get_shape();
         if (outputShape.size() < 2ul) {
             return node;
         }
@@ -153,7 +156,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         }
     }
 
-    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<ngraph::opset1::Multiply>(
+    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<opset1::Multiply>(
             mulConst1,
             foldConvert(mulConst2, element::f32)));
 
