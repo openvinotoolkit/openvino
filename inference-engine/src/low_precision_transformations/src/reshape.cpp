@@ -47,7 +47,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
     auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<opset1::Constant>& originalConstant) {
         // reshape for element-wise constant is not required
         auto constantShape = originalConstant->get_shape();
-        if (shape_size(constantShape) == 1ul) {
+        if (NetworkHelper::isScalarLike(originalConstant)) {
             if (!constantShape.empty()) {
                 const auto newConstant = NetworkHelper::toScalar(originalConstant);
                 replace_node(originalConstant, newConstant);

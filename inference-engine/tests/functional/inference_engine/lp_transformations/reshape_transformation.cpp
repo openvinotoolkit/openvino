@@ -332,6 +332,26 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             }
         }
     },
+    // U8: no subtract 4D -> 3D: rfcn-resnet101-coco
+    {
+        { 100, 4, 1, 1 },
+        { -1, 1, 400},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32}, {}, {{0.1f, 0.1f, 0.1f, 0.1f}, ngraph::element::f32, {1, 4, 1, 1}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}
+            }
+        }
+    },
     // U8: no subtract 4D -> 6D: channels are not affected: no subtract
     {
         { 1, 3, 4, 5 },
