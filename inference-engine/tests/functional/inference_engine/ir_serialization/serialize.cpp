@@ -78,7 +78,7 @@ INSTANTIATE_TEST_SUITE_P(IRSerialization, SerializationTest,
                         std::make_tuple("loop_2d_add.xml", "loop_2d_add.bin"),
                         std::make_tuple("nms5_dynamism.xml", "nms5_dynamism.bin")));
 
-#ifdef NGRAPH_ONNX_IMPORT_ENABLE
+#ifdef NGRAPH_ONNX_FRONTEND_ENABLE
 
 INSTANTIATE_TEST_SUITE_P(ONNXSerialization, SerializationTest,
         testing::Values(std::make_tuple("add_abc.onnx", ""),
