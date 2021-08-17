@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+cmake_minimum_required(VERSION 3.13)
+
 project(layer_tests)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/ DESTINATION tests/layer_tests_openvino COMPONENT tests EXCLUDE_FROM_ALL)
