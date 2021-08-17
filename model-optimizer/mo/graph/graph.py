@@ -9,7 +9,6 @@ from typing import List
 import networkx as nx
 import numpy as np
 
-from mo.front.common.partial_infer.utils import dynamic_dimension_value
 from mo.graph.port import Port
 from mo.middle.passes.eliminate import mark_output_reachable_nodes, shape_inference, mark_undead_nodes, \
     mark_const_producer_nodes, eliminate_dead_nodes, add_constant_operations

@@ -87,4 +87,4 @@ class LSTMCell(Op):
         assert input_shape is not None
         assert compatible_dims(hidden_shape[0], cell_shape[0]) and \
                compatible_dims(cell_shape[0], input_shape[0]), 'States are not broadcast-able by batch for node {}' \
-                                                                  ''.format(node.soft_get('name', node.id))
+                                                               ''.format(node.soft_get('name', node.id))
