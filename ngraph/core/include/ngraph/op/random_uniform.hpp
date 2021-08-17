@@ -65,6 +65,8 @@ public:
 
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
 
+    bool has_evaluate() const override;
+
 protected:
     ngraph::element::Type m_output_type;
     uint64_t m_global_seed;

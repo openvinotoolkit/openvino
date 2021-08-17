@@ -117,7 +117,7 @@ bool op::v8::RandomUniform::visit_attributes(AttributeVisitor& visitor) {
 }
 
 shared_ptr<Node> op::v8::RandomUniform::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v8_Roll_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v8_RandomUniform_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v8::RandomUniform>(new_args[0],
                                           new_args[1],
@@ -128,7 +128,7 @@ shared_ptr<Node> op::v8::RandomUniform::clone_with_new_inputs(const OutputVector
 }
 
 bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v8_Roll_evaluate);
+    NGRAPH_OP_SCOPE(v8_RandomUniform_evaluate);
     const uint64_t* out_shape;
     std::vector<uint64_t> out_shape_uint64(shape_size(inputs[0]->get_shape()));
 
@@ -191,4 +191,24 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const Host
                                        get_global_seed(),
                                        get_op_seed());
     return true;
+}
+
+bool op::v8::RandomUniform::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v8_RandomUniform_has_evaluate);
+    if (get_input_element_type(0) != ngraph::element::i32 && get_input_element_type(0) != ngraph::element::i64) {
+        return false;
+    }
+
+    switch (get_out_type()) {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::f16:
+    case ngraph::element::bf16:
+    case ngraph::element::f32:
+    case ngraph::element::f64:
+        return true;
+    default:
+        break;
+    }
+    return false;
 }
