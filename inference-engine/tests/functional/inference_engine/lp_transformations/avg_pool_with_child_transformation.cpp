@@ -137,7 +137,7 @@ const std::vector<AvgPoolWithChildTransformationTestValues> testValues = {
             {},
             ngraph::element::u8,
             {},
-            {{}, {}, {std::vector<float>{0.0002f}, element::f32, {1, 6, 1, 1}}}
+            {{}, {}, {std::vector<float>{0.0002f}, element::f32, {}}}
         }
     },
     // U8 per tensor quantization

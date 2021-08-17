@@ -162,7 +162,7 @@ const std::vector<AlignConcatQuantizationParametersTransformationTestValues> tes
             ngraph::element::f32,
             {{}, {std::vector<float>(6, 128.f), element::f32, {1, 6, 1, 1}}, {}},
             ngraph::element::f32,
-            {{}, {}, {std::vector<float>(9, 0.0001f), element::f32, {1, 9, 1, 1}}}
+            {{}, {}, {{0.0001f}, element::f32, {}}}
         }
     }
 };
