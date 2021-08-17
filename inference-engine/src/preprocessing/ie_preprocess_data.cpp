@@ -71,7 +71,7 @@ void PreProcessData::execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &
     }
 
     // Shape preprocessed tensor if needed; it is required here due to dynamic input shapes
-    if (algorithm == NO_RESIZE) {
+    if (algorithm == NO_RESIZE && preprocessedBlob->size() == 0) {
         // Compete copy of shape
         preprocessedBlob->setShape(_userBlob->getTensorDesc().getDims());
     } else {
