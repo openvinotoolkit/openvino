@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, compare_dimensions
+from mo.front.common.partial_infer.utils import int64_array, compatible_dims
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
@@ -68,7 +68,7 @@ class CTCGreedyDecoderSeqLenOp(Op):
 
         assert len(sequence_len_shape) == 1, \
             'Incorrect rank of sequence length tensor for {} node'.format(node_name)
-        assert compare_dimensions(logits_shape[0], sequence_len_shape[0]), \
+        assert compatible_dims(logits_shape[0], sequence_len_shape[0]), \
             'Batch dimensions of input tensors must be the same for {} node'.format(node_name)
 
         batch_size = logits_shape[0]

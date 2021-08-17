@@ -7,7 +7,7 @@ import numpy as np
 from generator import generator, generate
 
 from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value, \
-    dynamic_dimension, shape_array, compare_shapes, shape_delete, shape_insert, strict_compare_tensors
+    dynamic_dimension, shape_array, compatible_shapes, shape_delete, shape_insert, strict_compare_tensors
 from mo.utils.error import Error
 
 
@@ -74,7 +74,7 @@ class CompareShapesTest(unittest.TestCase):
                 (np.array([1, 2]), np.array([3, 2]), False),
                 ])
     def test_compare_shapes(self, input1, input2, result):
-        self.assertEqual(compare_shapes(input1, input2), result)
+        self.assertEqual(compatible_shapes(input1, input2), result)
 
 
 @generator

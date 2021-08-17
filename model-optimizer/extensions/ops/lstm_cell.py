@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import mark_input_bins, compare_dimensions
+from mo.front.common.partial_infer.utils import mark_input_bins, compatible_dims
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -85,6 +85,6 @@ class LSTMCell(Op):
 
         input_shape = node.in_node(0).shape
         assert input_shape is not None
-        assert compare_dimensions(hidden_shape[0], cell_shape[0]) and \
-               compare_dimensions(cell_shape[0], input_shape[0]), 'States are not broadcast-able by batch for node {}' \
+        assert compatible_dims(hidden_shape[0], cell_shape[0]) and \
+               compatible_dims(cell_shape[0], input_shape[0]), 'States are not broadcast-able by batch for node {}' \
                                                                   ''.format(node.soft_get('name', node.id))

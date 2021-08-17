@@ -6,7 +6,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, shape_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array, strict_compare_tensors
 from mo.graph.connection import Connection
 from mo.utils.error import Error
 
@@ -101,7 +101,7 @@ class Port:
             else:
                 data_node = self.node.out_node(self.idx, control_flow=self.control_flow)
                 assert data_node.value is None or \
-                       np.ma.allequal(data_node.soft_get('force_shape', data_node.shape), shape_array(shape))
+                       strict_compare_tensors(data_node.soft_get('force_shape', data_node.shape), shape_array(shape))
                 self.node.out_node(self.idx, control_flow=self.control_flow).shape = shape_array(shape)
 
     def _get_value(self):

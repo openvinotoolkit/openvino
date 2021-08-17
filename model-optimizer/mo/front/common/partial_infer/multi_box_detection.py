@@ -3,7 +3,7 @@
 
 import logging as log
 
-from mo.front.common.partial_infer.utils import is_fully_defined, compare_dimensions
+from mo.front.common.partial_infer.utils import is_fully_defined, compatible_dims
 from mo.graph.graph import Node
 from mo.utils.error import Error
 
@@ -38,11 +38,11 @@ def multi_box_detection_infer(node: Node):
     if node.has_and_set('share_location') and node.share_location:
         num_loc_classes = 1
 
-    if not compare_dimensions(num_priors * num_loc_classes * 4, loc_shape[-1]):
+    if not compatible_dims(num_priors * num_loc_classes * 4, loc_shape[-1]):
         raise Error('Locations and prior boxes shapes mismatch: "{}" vs "{}" for node "{}"'
                     ''.format(loc_shape, prior_boxes_shape, node_name))
 
-    if not node.variance_encoded_in_target and not compare_dimensions(prior_boxes_shape[-2], 2):
+    if not node.variance_encoded_in_target and not compatible_dims(prior_boxes_shape[-2], 2):
         raise Error('The "-2" dimension of the prior boxes must be 2 but it is "{}" for node "{}".'
                     ''.format(prior_boxes_shape[-2], node_name))
 

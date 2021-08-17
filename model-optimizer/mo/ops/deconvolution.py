@@ -4,7 +4,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import mark_input_bins, assign_dims_to_weights, tf_window_op_pad_infer, \
-    shape_array, compare_shapes
+    shape_array, compatible_shapes
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
@@ -67,7 +67,7 @@ class Deconvolution(Op):
         node.pad_spatial_shape, input_spatial_for_check = tf_window_op_pad_infer(
             output_spatial, node.kernel_spatial, stride_spatial, node.auto_pad)
 
-        assert compare_shapes(input_spatial_for_check, node.in_node(0).shape[spatial_dims])
+        assert compatible_shapes(input_spatial_for_check, node.in_node(0).shape[spatial_dims])
 
         pad = np.zeros((len(output_shape), 2), dtype=np.int64)
         pad[spatial_dims] = node.pad_spatial_shape

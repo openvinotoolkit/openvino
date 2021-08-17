@@ -746,8 +746,7 @@ class Graph(nx.MultiDiGraph):
             if not data_node.has('shape'):
                 data_nodes_with_wrong_shapes.append((data_node.name, "no shape attribute"))
                 continue
-            if data_node.shape is not None and not isinstance(data_node.shape, np.ndarray) and \
-                    dynamic_dimension_value not in data_node.shape:
+            if data_node.shape is not None and not isinstance(data_node.shape, np.ndarray):
                 data_nodes_with_wrong_shapes.append((data_node.name, type(data_node.shape)))
         if len(data_nodes_with_wrong_shapes) > 0:
             raise Error("Graph contains data nodes ({}) with inconsistent shapes: {}".format(

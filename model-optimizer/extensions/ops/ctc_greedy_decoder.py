@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import int64_array, compare_dimensions
+from mo.front.common.partial_infer.utils import int64_array, compatible_dims
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -46,9 +46,9 @@ class CTCGreedyDecoderOp(Op):
             'Incorrect rank of logits for {} node'.format(node_name)
         assert len(sequence_mask_shape) == 2, \
             'Incorrect rank of sequence length tensor for {} node'.format(node_name)
-        assert compare_dimensions(logits_shape[1], sequence_mask_shape[1]), \
+        assert compatible_dims(logits_shape[1], sequence_mask_shape[1]), \
             'Batch dimensions of input tensors must be the same for {} node'.format(node_name)
-        assert compare_dimensions(logits_shape[0], sequence_mask_shape[0]), \
+        assert compatible_dims(logits_shape[0], sequence_mask_shape[0]), \
             'Time dimensions of input tensors must be the same for {} node'.format(node_name)
 
         batch_size = logits_shape[1]

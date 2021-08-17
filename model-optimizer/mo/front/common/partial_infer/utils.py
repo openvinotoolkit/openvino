@@ -16,14 +16,14 @@ dynamic_dimension_value = -1000000007
 
 
 def shape_array(value, dtype=np.int64):
-    # if the input already have masked values then we need to explicitly convert to dynamic_dimension_value and create
+    # if the input already has masked values then we need to explicitly convert to dynamic_dimension_value and create
     # masked array from scratch, because otherwise method masked_equal will convert masked elements to "nan" value
     if isinstance(value, Iterable) and (not isinstance(value, np.ndarray) or value.ndim != 0):
         value = [item if item is not dynamic_dimension else dynamic_dimension_value for item in value]
     return np.ma.masked_equal(value, dynamic_dimension_value).astype(dtype=dtype)
 
 
-def compare_dimensions(dim1, dim2):
+def compatible_dims(dim1, dim2):
     """
     Compare if dim1 is equal to dim2 or any of them is dynamic
 
@@ -34,7 +34,7 @@ def compare_dimensions(dim1, dim2):
     return dim1 is dynamic_dimension or dim2 is dynamic_dimension or dim1 == dim2
 
 
-def compare_shapes(shape1, shape2):
+def compatible_shapes(shape1, shape2):
     """
     Compares two shape tensors. The shapes are considered equal if they have the same rank and the corresponding
     dimensions are either equal or at least one of them is dynamic.
@@ -48,7 +48,7 @@ def compare_shapes(shape1, shape2):
     if shape1.size != shape2.size:
         return False
     for d1, d2 in zip(shape1, shape2):
-        if not compare_dimensions(d1, d2):
+        if not compatible_dims(d1, d2):
             return False
     return True
 
@@ -76,10 +76,9 @@ def strict_compare_tensors(tensor1, tensor2):
     if not np.array_equal(tensor1.shape, tensor2.shape):
         return False
     for d1, d2 in zip(tensor1.flatten(), tensor2.flatten()):
-        if d1 is not dynamic_dimension and d2 is not dynamic_dimension:
-            if d1 != d2:
-                return False
-        elif d1 is not dynamic_dimension or d2 is not dynamic_dimension:
+        if (d1 is not dynamic_dimension) ^ (d2 is not dynamic_dimension):
+            return False
+        elif d1 is not dynamic_dimension and d1 != d2:
             return False
     return True
 
@@ -101,6 +100,7 @@ def shape_delete(shape: np.ma.masked_array, obj: [int, list]):
         result = shape.copy()
         obj = [item if item >= 0 else len(shape) + item for item in obj]
         for index in sorted(obj, reverse=True):
+            assert 0 <= index < len(result), 'Incorrect element index {} to remove from {}'.format(index, result)
             result = np.ma.concatenate((result[:index], result[index + 1:]))
         return result
     else:

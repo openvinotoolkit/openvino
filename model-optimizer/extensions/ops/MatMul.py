@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import assign_dims_to_weights, int64_array, compare_dimensions, compare_shapes, \
+from mo.front.common.partial_infer.utils import assign_dims_to_weights, int64_array, compatible_dims, compatible_shapes, \
     shape_array, is_fully_defined, shape_delete, shape_insert
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
@@ -84,7 +84,7 @@ class MatMul(Op):
                 if B_shape[i] == 1:
                     B_shape[i] = A_shape[i]
 
-        assert compare_shapes(A_shape[:-2], B_shape[:-2]), \
+        assert compatible_shapes(A_shape[:-2], B_shape[:-2]), \
             "MatMul input shapes are incorrect. BATCH_DIMs are not equal. Node: {}. Aligned shapes: {}" \
             "".format(node_name, transformed_shapes)
 
@@ -127,17 +127,17 @@ class MatMul(Op):
         A_shape, B_shape = MatMul.shape_alignment(node)
         log.debug('MatMul `{}` aligned input shapes: {}'.format(name, [A_shape, B_shape]))
 
-        assert compare_dimensions(A_shape[-1], B_shape[-2]), \
+        assert compatible_dims(A_shape[-1], B_shape[-2]), \
             "MatMul input shapes are incorrect. COL_INDEX_DIMs are not equal. Node: {}. Shapes: {}" \
             "".format(name, [A_shape, B_shape])
 
         output_shape = np.ma.concatenate((A_shape[:-1], B_shape[-1:]))
 
         if node.in_port(0).data.get_shape().size == 1:
-            assert compare_dimensions(output_shape[-2], 1)
+            assert compatible_dims(output_shape[-2], 1)
             output_shape = shape_delete(output_shape, -2)
         if node.in_port(1).data.get_shape().size == 1:
-            assert compare_dimensions(output_shape[-1], 1)
+            assert compatible_dims(output_shape[-1], 1)
             output_shape = shape_delete(output_shape, -1)
 
         node.out_port(0).data.set_shape(output_shape)
@@ -216,7 +216,7 @@ class FullyConnected(Op):
             'Incorrect FullyConnected input shapes. Node: {}. Shapes: {}'.format(name, [input_shape, weights_shape])
         assert weights_shape.size == 2
         out_size = node.soft_get('out-size')
-        assert compare_dimensions(weights_shape[0], out_size), \
+        assert compatible_dims(weights_shape[0], out_size), \
             'weights_shape={}, out-size={}'.format(weights_shape, out_size)
 
         if 2 in connected_in_ports:
@@ -224,7 +224,7 @@ class FullyConnected(Op):
             bias_shape = node.in_port(2).data.get_shape()
             assert bias_shape is not None, 'Shape was not inferred for biases of FullyConnected {}'.format(name)
             assert bias_value is not None, 'Value was not inferred for biases of FullyConnected {}'.format(name)
-            assert compare_shapes(bias_shape, [out_size]) or compare_shapes(bias_shape, [1, out_size]), \
+            assert compatible_shapes(bias_shape, [out_size]) or compatible_shapes(bias_shape, [1, out_size]), \
                 'Incorrect FullyConnected bias shape `{}` for node {}. `out-size`={}'.format(bias_shape, node, out_size)
 
         node.out_port(0).data.set_shape([*input_shape[:-1], out_size])
