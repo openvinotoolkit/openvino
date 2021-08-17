@@ -23,7 +23,6 @@ struct RefLogicalParams {
     Tensor expected;
 };
 
-
 struct Builder : ParamsBuilder<RefLogicalParams> {
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, opType);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, input1);
