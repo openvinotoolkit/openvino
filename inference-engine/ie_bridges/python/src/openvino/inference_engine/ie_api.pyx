@@ -1452,15 +1452,24 @@ cdef class IENetwork:
     #  net.reshape({input_layer: (n, c, h*2, w*2)})
     #  ```
     def reshape(self, input_shapes: dict):
-        cdef map[string, vector[size_t]] c_input_shapes
-        cdef vector[size_t] c_shape
+        cdef map[string, vector[vector[int64_t]]] c_input_shapes
+        cdef vector[vector[int64_t]] c_shape
+        cdef vector[int64_t] dim
         net_inputs = self.input_info
         for input, shape in input_shapes.items():
             c_shape = []
             if input not in net_inputs:
                 raise AttributeError(f"Specified '{input}' layer not in network inputs '{net_inputs}'! ")
             for v in shape:
-                c_shape.push_back(v)
+                if isinstance(v, list) or isinstance(v, tuple):
+                    if len(v) < 1 or len(v) > 2:
+                        raise AttributeError(f"Incorrect PartialShape dimension definition '{v}' in shape '{shape}', expected one or two values for a dimension! ")
+                    for d in v:
+                        dim.push_back(d)
+                else:
+                    dim.push_back(v)
+                c_shape.push_back(dim)
+                dim.clear()
             c_input_shapes[input.encode()] = c_shape
         self.impl.reshape(c_input_shapes)
 

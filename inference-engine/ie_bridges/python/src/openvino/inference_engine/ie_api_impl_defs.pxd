@@ -178,7 +178,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         size_t getBatch() except +
         void setLayerParams(map[string, map[string, string]] params_map) except +
         void serialize(const string& path_to_xml, const string& path_to_bin) except +
-        void reshape(map[string, vector[size_t]] input_shapes) except +
+        void reshape(map[string, vector[vector[int64_t]]] input_shapes) except +
         object getFunction() except +
         void convertToOldRepresentation() except +
         string getOVNameForTensor(const string &) except +

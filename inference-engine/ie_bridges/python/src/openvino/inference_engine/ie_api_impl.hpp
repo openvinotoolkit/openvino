@@ -62,7 +62,7 @@ struct IENetwork {
 
     const std::map<std::string, InferenceEngine::DataPtr> getOutputs();
 
-    void reshape(const std::map<std::string, std::vector<size_t>>& input_shapes);
+    void reshape(const std::map <std::string, std::vector<std::vector<int64_t>>>& input_shapes);
 
     void serialize(const std::string& path_to_xml, const std::string& path_to_bin);
 
