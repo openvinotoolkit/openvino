@@ -24,7 +24,7 @@ Upon start-up, the application reads command-line parameters and loads a network
 
 Device-specific execution parameters (number of streams, threads, and so on) can be either explicitly specified through the command line
 or left default. In the last case, the sample logic will select the values for the optimal throughput.
-While playing individual parameters allows to find the performance sweet-spot, usually the parameters are not very performance portable,
+While experimenting with individual parameters allows to find the performance sweet spot, usually, the parameters are not very performance-portable,
 so the values from one machine or device are not necessarily optimal for another.
 From that perspective, the most 'portable' way is playing only the 'performance hints', please see section on the command-line params below.
 
