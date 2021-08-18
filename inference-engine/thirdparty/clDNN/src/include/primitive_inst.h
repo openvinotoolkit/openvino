@@ -29,11 +29,6 @@ class primitive_inst;
 template <class PType>
 class typed_primitive_inst;
 
-struct internal_buffer_info {
-    data_types dtype;
-    std::vector<size_t> sizes;
-    internal_buffer_info() : dtype(cldnn::data_types::i8), sizes({}) {}
-};
 /*
     Base class for all implementations.
 */
@@ -51,7 +46,7 @@ struct primitive_impl {
         : _weights_reorder_params(params), _kernel_name(kernel_name) {}
     virtual ~primitive_impl() = default;
 
-    virtual internal_buffer_info get_internal_buffer_info() = 0;
+    virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     virtual bool validate(const primitive_inst& instance) const = 0;
@@ -223,12 +218,12 @@ private:
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    internal_buffer_info get_internal_buffer_info() override {
-        return get_internal_buffer_info_impl();
+    std::vector<layout> get_internal_buffer_layouts() const override {
+        return get_internal_buffer_layouts_impl();
     }
 
-    virtual internal_buffer_info get_internal_buffer_info_impl() {
-        return internal_buffer_info();
+    virtual std::vector<layout> get_internal_buffer_layouts_impl() const {
+        return {};
     }
 
     void set_arguments(primitive_inst& instance) override {

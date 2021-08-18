@@ -109,11 +109,19 @@ protected:
         }
     }
 
-    internal_buffer_info get_internal_buffer_info_impl() override {
-        internal_buffer_info info;
-        info.dtype = from_data_type(_kernel_data.internalBufferDataType);
-        info.sizes = _kernel_data.internalBufferSizes;
-        return std::move(info);
+    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+        if (_kernel_data.internalBufferSizes.empty())
+            return {};
+
+        std::vector<layout> layouts;
+        auto dtype = from_data_type(_kernel_data.internalBufferDataType);
+        const auto bpp = data_type_traits::size_of(dtype);
+        for (auto size : _kernel_data.internalBufferSizes) {
+            layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
+                                    {1, 1, 1, (tensor::value_type)(size / bpp)}};
+            layouts.push_back(inbuf_layout);
+        }
+        return layouts;
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {

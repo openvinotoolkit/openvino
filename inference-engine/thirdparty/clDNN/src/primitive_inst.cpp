@@ -185,8 +185,8 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
 
 void primitive_inst::allocate_internal_buffers(void) {
     if (_impl == nullptr) return;
-    const auto& ibuf_info = _impl->get_internal_buffer_info();
-    if (ibuf_info.sizes.empty()) return;
+    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+    if (ibuf_layouts.empty()) return;
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->verbose >= 2) {
@@ -194,9 +194,13 @@ void primitive_inst::allocate_internal_buffers(void) {
     }
 
     auto& engine = get_network().get_engine();
-    auto alloc_type = allocation_type::usm_host;
+    auto alloc_type = engine.get_lockable_preffered_memory_allocation_type();
+    auto layout_acc = [&](size_t a, layout b) { return a + b.bytes_count(); };
 
-    if (std::accumulate(ibuf_info.sizes.begin(), ibuf_info.sizes.end(), 0) <= engine.get_device_info().max_alloc_mem_size * 0.85) {
+    // NOTE: Currently the ocl driver aborts at runtime when there are layers using device memory close to max size within multiple streams.
+    // Decided the limitation as 85 % empirically, but still it needs further investigation.
+    if (engine.supports_allocation(allocation_type::usm_device) &&
+        (std::accumulate(ibuf_layouts.begin(), ibuf_layouts.end(), 0, layout_acc) <= engine.get_device_info().max_alloc_mem_size * 0.85)) {
         for (size_t i = 0; i < dependencies().size(); ++i) {
             if (dep_memory(i).get_allocation_type() == allocation_type::usm_device) {
                 alloc_type = allocation_type::usm_device;
@@ -204,13 +208,8 @@ void primitive_inst::allocate_internal_buffers(void) {
             }
         }
     }
-
-    for (auto size : ibuf_info.sizes) {
-        const auto bpp = data_type_traits::size_of(ibuf_info.dtype);
-        layout expected_layout = {ibuf_info.dtype,
-                                  format::bfyx,  // simple linear format (flatten to x channel)
-                                  {1, 1, 1, (tensor::value_type)(size / bpp)}};
-        _intermediates_memory.push_back(engine.allocate_memory(expected_layout, alloc_type));
+    for (auto layout : ibuf_layouts) {
+        _intermediates_memory.push_back(engine.allocate_memory(layout, alloc_type));
     }
 }
 
