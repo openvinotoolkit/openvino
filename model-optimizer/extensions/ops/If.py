@@ -116,6 +116,31 @@ class If(Op):
                           .format(node.soft_get('name', node.soft_get('id')), node.shape))
 
     @staticmethod
+    def results_mapping_and_finding_fake_outputs(output_nodes_in_subgraph, branch_name, outputs_mapping):
+        """
+        This method checked result nodes in subgraph and set map between output from If operation and internal subgraph
+        result. Also This method return True if internal graph has fake results.
+
+        :param output_nodes_in_subgraph: Result node with attribute 'output_id'
+        :param branch_name: name of subgraph
+        :param outputs_mapping: map between If operation output ID and subgraph results
+
+        :return: True if all results of subgraph are empty tensors
+        """
+        graph_contain_fake_outputs = True
+
+        for output_node in output_nodes_in_subgraph:
+            assert output_node.soft_get('type') == 'Result'
+            port_id = output_node['output_id']
+            assert port_id in outputs_mapping.keys(), 'Incorrect mapping then_graph outputs with {0} outputs! ' \
+                                                      'Can\'t find port with ID {1} in If operation.' \
+                .format(output_node.name, port_id)
+            outputs_mapping[port_id][branch_name] = output_node
+            out_node_shape = output_node.in_port(0).data.get_shape()
+            graph_contain_fake_outputs = graph_contain_fake_outputs and np.any(out_node_shape == 0)
+        return graph_contain_fake_outputs
+
+    @staticmethod
     def update_if_output_ports_shape(if_node: Node):
         """
         Update shape and values for If output ports.
@@ -139,34 +164,16 @@ class If(Op):
 
         for port_id in if_node.out_ports().keys():
             outputs_mapping[port_id] = {}
-        port_ids = outputs_mapping.keys()
 
         # variables then_contains_fake_outputs/else_contains_fake_outputs contains True value
         # if all outputs from then_body/else_body have shape [0]. It means then_body/else_body does not return data
         # and further shape_inference for this branch is not possible.
         # TODO: exclude support fake_outputs from this code when we will support shape_inference with empty tensors
-        then_contains_fake_outputs = True
-        else_contains_fake_outputs = True
 
-        for then_output_node in then_outputs:
-            assert then_output_node.soft_get('type') == 'Result'
-            port_id = then_output_node['output_id']
-            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with {0} outputs! ' \
-                                        'Can\'t find port with ID {1} in If operation.' \
-                .format(then_output_node.name, port_id)
-            outputs_mapping[port_id]['then_graph'] = then_output_node
-            then_shape = then_output_node.in_port(0).data.get_shape()
-            then_contains_fake_outputs = then_contains_fake_outputs and np.any(then_shape == 0)
-
-        for else_output_node in else_outputs:
-            assert else_output_node.soft_get('type') == 'Result'
-            port_id = else_output_node['output_id']
-            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with {0} outputs! ' \
-                                        'Can\'t find port with ID {1} in If operation.' \
-                .format(else_output_node.name, port_id)
-            outputs_mapping[port_id]['else_graph'] = else_output_node
-            else_shape = else_output_node.in_port(0).data.get_shape()
-            else_contains_fake_outputs = else_contains_fake_outputs and np.any(else_shape == 0)
+        then_contains_fake_outputs = \
+            If.results_mapping_and_finding_fake_outputs(then_outputs, 'then_graph', outputs_mapping)
+        else_contains_fake_outputs = \
+            If.results_mapping_and_finding_fake_outputs(else_outputs, 'else_graph', outputs_mapping)
 
         # use_then_shape is True when else_body or when both bodies do not return data. If use_then_shape is True If's
         # outputs will have the same shapes as then_body results
