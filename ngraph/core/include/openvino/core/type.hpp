@@ -12,17 +12,17 @@
 #include <utility>
 #include <vector>
 
-#include "ngraph/ngraph_visibility.hpp"
+#include "openvino/core/core_visibility.hpp"
 
-namespace ngraph {
-/// Supports three functions, is_type<Type>, as_type<Type>, and as_type_ptr<Type> for type-safe
+namespace ov {
+/// Supports three functions, ov::is_type<Type>, ov::as_type<Type>, and ov::as_type_ptr<Type> for type-safe
 /// dynamic conversions via static_cast/static_ptr_cast without using C++ RTTI.
 /// Type must have a static type_info member and a virtual get_type_info() member that
 /// returns a reference to its type_info member.
 
 /// Type information for a type system without inheritance; instances have exactly one type not
 /// related to any other type.
-struct NGRAPH_API DiscreteTypeInfo {
+struct OPENVINO_API DiscreteTypeInfo {
     const char* name;
     uint64_t version;
     // A pointer to a parent type info; used for casting and inheritance traversal, not for
@@ -76,7 +76,7 @@ template <typename Type, typename Value>
 typename std::enable_if<std::is_convertible<decltype(static_cast<Type*>(std::declval<Value>())), Type*>::value,
                         Type*>::type
 as_type(Value value) {
-    return is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
+    return ov::is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
 }
 
 /// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type
@@ -86,13 +86,13 @@ typename std::enable_if<
     std::is_convertible<decltype(std::static_pointer_cast<Type>(std::declval<Value>())), std::shared_ptr<Type>>::value,
     std::shared_ptr<Type>>::type
 as_type_ptr(Value value) {
-    return is_type<Type>(value) ? std::static_pointer_cast<Type>(value) : std::shared_ptr<Type>();
+    return ov::is_type<Type>(value) ? std::static_pointer_cast<Type>(value) : std::shared_ptr<Type>();
 }
-}  // namespace ngraph
+}  // namespace ov
 
 namespace std {
 template <>
-struct NGRAPH_API hash<ngraph::DiscreteTypeInfo> {
-    size_t operator()(const ngraph::DiscreteTypeInfo& k) const;
+struct OPENVINO_API hash<ov::DiscreteTypeInfo> {
+    size_t operator()(const ov::DiscreteTypeInfo& k) const;
 };
 }  // namespace std
