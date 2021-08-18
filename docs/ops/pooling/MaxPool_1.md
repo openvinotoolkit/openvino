@@ -163,7 +163,7 @@ strides = [1, 1]
 kernel = [2, 2]
 rounding_type = "floor"
 auto_pad = "same_upper"
-output = [[[[5, 5, -6],
+output = [[[[5, 5, 3],
             [8, 9, 9]
             [8, 9, 9]],
            [[6, 5, 5],
