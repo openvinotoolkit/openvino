@@ -34,9 +34,9 @@ void ConversionLayerTest::SetUp() {
     std::tie(conversionOpType, inputShape, inputPrecision, targetPrecision, inLayout, outLayout, targetDevice) =
         GetParam();
 
-    auto ngPrc1 = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     auto targetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(targetPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc1, inputShape);
+    auto params = ngraph::builder::makeParams(ngPrc, inputShape);
     auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, conversionOpType);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(conversion)};
