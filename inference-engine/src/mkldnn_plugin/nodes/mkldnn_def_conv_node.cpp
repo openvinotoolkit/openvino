@@ -1157,6 +1157,8 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
 
     const int channel_per_deformable_group = (IC * G) / DG;
 
+    const size_t group_wei_stride = wei_strides[0] * OC;
+
     const bool with_bi_pad = jcp.with_bi_pad;
     auto ker = [=](int g, int mb, int oc, int oh, int ow) {
         float d = 0;
@@ -1223,8 +1225,8 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
                             modulation_scalar = modulation_offset_ptr[modulation_index];
                         }
 
-                        const float weight = with_groups ? weights[(g + oc / G) * wei_strides[0] + ic * wei_strides[1] + kh * wei_strides[2] +
-                                                             kw * wei_strides[3]]
+                        const float weight = with_groups ? weights[g * group_wei_stride + oc * wei_strides[0] + ic * wei_strides[1] +
+                                                                   kh * wei_strides[2] + kw * wei_strides[3]]
                                                          : weights[oc * wei_strides[0] + ic * wei_strides[1] + kh * wei_strides[2] + kw * wei_strides[3]];
                         d += val * weight * modulation_scalar;
                     }
