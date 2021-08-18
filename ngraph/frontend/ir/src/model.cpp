@@ -468,7 +468,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
 #else
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
         std::vector<size_t> result;
-        if (!getParameters<size_t>(node.child("data"), name, result))
+        if (!getParameters<size_t>(m_node.child("data"), name, result))
             return;
         a->set(result);
 #endif
