@@ -241,9 +241,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     }
     // check if it is -d AUTO or -d AUTO:xPU use case
     if (workMode != fullConfig.end()) {
-        auto targetDevice = SelectDevice(metaDevices, networkPrecision);
-        // std::cout << "!!! DEBUG: select device is " << targetDevice.deviceName << std::endl;
-        metaDevices = { targetDevice };
+        // select the device
+        auto device = SelectDevice(metaDevices, networkPrecision).deviceName;
+        // parse the config for the device
+        metaDevices = ParseMetaDevices(SelectDevice(metaDevices, networkPrecision).deviceName, fullConfig);
     }
 
     DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
