@@ -49,7 +49,17 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
                              ],
                             ['Preprocessor',
                              'ssd_mobile_net_v2keras_feature_extractor',
-                             'Postprocessor'],),
+                             'Postprocessor'],
+                            ['Preprocessor',
+                             'ssd_mobile_net_v1fpn_keras_feature_extractor',
+                             'Postprocessor'],
+                            ['Preprocessor',
+                             'ssd_mobile_net_v2fpn_keras_feature_extractor',
+                             'Postprocessor'],
+                            ['Preprocessor',
+                             'ResNet50V1_FPN',
+                             'Postprocessor']
+                            ),
                     }
 
     file_patterns = {'MaskRCNN': 'mask_rcnn_support.*\\.json',
@@ -62,9 +72,9 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
         tf_1_names = ['image_tensor', 'detection_classes', 'detection_boxes', 'detection_scores']
         tf_1_cond = all([name in graph.nodes() for name in tf_1_names])
 
-        tf_2_names = ['input_tensor', 'Identity', 'Identity_1', 'Identity_2', 'Identity_3', 'Identity_4', 'Identity_5',
-                      'Identity_6', 'Identity_7']
-        tf_2_cond = all([name in graph.nodes() for name in tf_2_names])
+        tf_2_names = ['input_tensor', 'output_control_node', 'Identity']
+        tf_2_cond = all([any([node.soft_get('name').find(scope) != -1 for node in graph.get_op_nodes()])
+                         for scope in tf_2_names])
 
         if not tf_1_cond and not tf_2_cond:
             log.debug('The model does not contain nodes that must exist in the TF OD API models')
