@@ -26,7 +26,9 @@ static LoadFromFEParam getTestData() {
 }
 
 TEST_P(FrontEndLoadFromTest, testLoadFromStreamAndPassPath) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     const auto path = file_util::path_join(TEST_ONNX_MODELS_DIRNAME, "external_data/external_data.onnx");
+    NGRAPH_SUPPRESS_DEPRECATED_END
     std::ifstream ifs(path, std::ios::in | std::ios::binary);
     ASSERT_TRUE(ifs.is_open());
     std::istream* is = &ifs;
