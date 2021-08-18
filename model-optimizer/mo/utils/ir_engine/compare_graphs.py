@@ -66,7 +66,7 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
                 ref_node_type = node_ref.type if node_ref.has_valid("type") else None
                 for attr in graph_ref.node[node_ref.id]:
                     if graph_ref.node[node_ref.id][attr] is None or attr in ['name', 'id', '_in_ports', '_out_ports',
-                                                                             'infer', 'IE', 'biases', 'weights', 'custom', 'offset']:
+                                                                             'infer', 'IE', 'biases', 'weights', 'custom', 'offset', 'ir_data_attrs']:
                         continue
                     if attr not in graph.node[node.id]:
                         stderr.append('Current node "{}" with type {} has missing attribute {}'.format(node.id, cur_node_type, attr))
