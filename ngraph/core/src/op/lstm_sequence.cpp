@@ -16,13 +16,11 @@
 using namespace ngraph;
 using namespace std;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 NGRAPH_RTTI_DEFINITION(op::v0::LSTMSequence, "LSTMSequence", 0);
 NGRAPH_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5);
 
 op::v0::LSTMSequence::LSTMSequence()
-    : FusedOp(),
+    : Op(),
       m_activations_alpha(),
       m_activations_beta(),
       m_activations(),
@@ -48,7 +46,7 @@ op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
                                    const std::vector<std::string> activations,
                                    const float clip_threshold,
                                    const bool input_forget)
-    : FusedOp({X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B, P}),
+    : Op({X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B, P}),
       m_activations_alpha(activations_alpha),
       m_activations_beta(activations_beta),
       m_activations(activations),
@@ -108,24 +106,6 @@ bool op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("input_forget", m_input_forget);
     visitor.on_attribute("weights_format", m_weights_format);
     return true;
-}
-
-OutputVector op::v0::LSTMSequence::decompose_op() const {
-    OutputVector results;
-    if (m_direction == direction::FORWARD || m_direction == direction::REVERSE) {
-        results = lstm_pass(m_direction == direction::REVERSE);
-    }
-    if (m_direction == direction::BIDIRECTIONAL) {
-        OutputVector fwd_results{lstm_pass()};
-        OutputVector rev_results{lstm_pass(true)};
-
-        // Stack together respective outputs from both forward and reverse passess.
-        shared_ptr<Node> Y{make_shared<opset1::Concat>(OutputVector{fwd_results.at(0), rev_results.at(0)}, 1)};
-        shared_ptr<Node> Y_h{make_shared<opset1::Concat>(OutputVector{fwd_results.at(1), rev_results.at(1)}, 1)};
-        shared_ptr<Node> Y_c{make_shared<opset1::Concat>(OutputVector{fwd_results.at(2), rev_results.at(2)}, 1)};
-        results = OutputVector{Y, Y_h, Y_c};
-    }
-    return results;
 }
 
 shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const {

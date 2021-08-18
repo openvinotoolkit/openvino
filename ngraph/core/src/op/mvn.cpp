@@ -7,36 +7,26 @@
 #include <algorithm>
 
 #include "itt.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/builder/reduce_ops.hpp"
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/divide.hpp"
-#include "ngraph/op/sqrt.hpp"
-#include "ngraph/op/subtract.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 // ------------------------------ V0 ------------------------------
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 NGRAPH_RTTI_DEFINITION(op::v0::MVN, "MVN", 0);
 
-op::MVN::MVN() : FusedOp(), m_across_channels(), m_normalize_variance(), m_reduction_axes() {}
+op::v0::MVN::MVN() : Op(), m_across_channels(), m_normalize_variance(), m_reduction_axes() {}
 
-op::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
-    : FusedOp({data}),
+op::v0::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
+    : Op({data}),
       m_eps{eps},
       m_across_channels{across_channels},
       m_normalize_variance{normalize_variance} {
     constructor_validate_and_infer_types();
 }
 
-op::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_variance, double eps)
-    : FusedOp({data}),
+op::v0::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_variance, double eps)
+    : Op({data}),
       m_eps{eps},
       m_across_channels{false},
       m_normalize_variance{normalize_variance},
@@ -46,10 +36,7 @@ op::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_va
     m_across_channels = (m_reduction_axes.count(chanelAxis) > 0);
 }
 
-// decompose_op() relies on knowing the data type of input data which might
-// not be available at shape inference time. So do direct shape inference
-// instead of relying on op decomposition.
-void op::MVN::validate_and_infer_types() {
+void op::v0::MVN::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_MVN_validate_and_infer_types);
     // if m_across_channels is true we should calculate mean and variance per batch
     // else we calculate these per channel
@@ -65,40 +52,16 @@ void op::MVN::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-OutputVector op::MVN::decompose_op() const {
-    auto data = input_value(0);
-    auto data_shape = data.get_shape();  // assume that data has n and c channels.
-
-    // calculate mean normalization
-    auto mean = builder::opset1::mean(data, m_reduction_axes);
-    auto mean_normalization =
-        std::make_shared<op::v1::Subtract>(data, builder::opset1::make_broadcast(mean, data_shape, m_reduction_axes));
-
-    if (!m_normalize_variance) {
-        return {mean_normalization};
-    } else {
-        // calculate variance
-        auto variance = builder::opset1::variance(data, m_reduction_axes);
-        // add epsilon
-        auto eps_node =
-            op::Constant::create(data.get_element_type(), Output<Node>(variance).get_shape(), vector<double>{m_eps});
-        variance = std::make_shared<op::Sqrt>(std::make_shared<op::v1::Add>(variance, eps_node));
-        return OutputVector{
-            std::make_shared<op::v1::Divide>(mean_normalization,
-                                             builder::opset1::make_broadcast(variance, data_shape, m_reduction_axes))};
-    }
-}
-
-shared_ptr<Node> op::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<Node> op::v0::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_MVN_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           new_args.size() == 1,
                           "Expected 1 element in new_args for the MVN op but got ",
                           new_args.size());
-    return make_shared<MVN>(new_args.at(0), m_reduction_axes, m_normalize_variance, m_eps);
+    return std::make_shared<op::v0::MVN>(new_args.at(0), m_reduction_axes, m_normalize_variance, m_eps);
 }
 
-bool op::MVN::visit_attributes(AttributeVisitor& visitor) {
+bool op::v0::MVN::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_MVN_visit_attributes);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("across_channels", m_across_channels);
