@@ -10,57 +10,58 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    const std::vector<ngraph::element::Type> netPrecisions = {
-        ngraph::element::f32,
-        ngraph::element::f16
-    };
+const std::vector<ngraph::element::Type> netPrecisions = {
+    ngraph::element::f32,
+    ngraph::element::f16
+};
 
     const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
+       LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
+       LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
     };
 
     const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> params = {
        {
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            "",
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
-            {},
-            {},
-            "Concatenation",
-            "U8"
-        },
-        {
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            "relu",
-            { 256ul, {}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
-            {},
-            {},
-            "Concatenation",
-            "U8"
-        },
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        "",
+        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+        {},
+        {},
+        "Concatenation",
+        "U8"
+    },
+    {
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        "relu",
+        { 256ul, {}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
+        {},
+        {},
+        "Concatenation",
+        "U8"
+    },
     };
 
     const std::vector<ngraph::Shape> shapes = {
-        { 1, 3, 16, 16 },
-        { 4, 3, 16, 16 }
+    { 1, 3, 16, 16 },
+    { 4, 3, 16, 16 }
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
-        ::testing::Combine(
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::ValuesIn(shapes),
-            ::testing::Values(CommonTestUtils::DEVICE_GPU),
-            ::testing::ValuesIn(trasformationParamValues),
-            ::testing::ValuesIn(params)),
-        MoveFakeQuantizeTransformation::getTestCaseName);
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(shapes),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(params)),
+    MoveFakeQuantizeTransformation::getTestCaseName);
 }  // namespace
