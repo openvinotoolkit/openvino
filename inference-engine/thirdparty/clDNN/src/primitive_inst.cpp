@@ -196,11 +196,12 @@ void primitive_inst::allocate_internal_buffers(void) {
     auto& engine = get_network().get_engine();
     auto alloc_type = allocation_type::usm_host;
 
-    for (size_t i = 0; i < dependencies().size(); ++i) {
-        if (dep_memory(i).get_allocation_type() == allocation_type::usm_device) {
-            std::cout << "allocating to usm_device" << std::endl;
-            alloc_type = allocation_type::usm_device;
-            break;
+    if (std::accumulate(ibuf_info.sizes.begin(), ibuf_info.sizes.end(), 0) <= engine.get_device_info().max_alloc_mem_size * 0.85) {
+        for (size_t i = 0; i < dependencies().size(); ++i) {
+            if (dep_memory(i).get_allocation_type() == allocation_type::usm_device) {
+                alloc_type = allocation_type::usm_device;
+                break;
+            }
         }
     }
 
