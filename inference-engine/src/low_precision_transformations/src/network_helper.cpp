@@ -306,9 +306,13 @@ void NetworkHelper::copyInfo(
     ngraph::copy_runtime_info(sources, targets);
 
     for (const auto& target : targets) {
-        const std::string friendlyName = sources[0]->get_friendly_name();
+        std::string friendlyName = sources[0]->get_friendly_name();
         if (!friendlyName.empty()) {
-            target->set_friendly_name(friendlyName);
+            if (strcmp(target->get_type_name(), sources[0]->get_type_name()) != 0) {
+                std::string type(target->get_type_name());
+                friendlyName += "/" + type;
+            }
+            target->set_friendly_name(friendlyName); // posibly it's bad idea
         }
 
         {
