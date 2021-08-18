@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <map>
-#include <vector>
-
-#include <ngraph/variant.hpp>
-
 #include <ir_frontend/frontend.hpp>
 #include <ir_frontend/model.hpp>
 #include <ir_frontend/utility.hpp>
+#include <map>
+#include <ngraph/variant.hpp>
+#include <vector>
 
 using namespace ngraph;
 
@@ -24,7 +22,7 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
 
     bool has_xml_node{false}, has_weights{false}, has_exts{false};
 
-    for (const auto & variant : variants) {
+    for (const auto& variant : variants) {
         if (is_type<VariantWrapper<pugi::xml_node>>(variant)) {
             has_xml_node = true;
         } else if (is_type<VariantWrapper<InferenceEngine::Blob::CPtr>>(variant)) {
@@ -43,7 +41,7 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
     InferenceEngine::Blob::CPtr weights;
     std::vector<InferenceEngine::IExtensionPtr> exts;
 
-    for (const auto & variant : variants) {
+    for (const auto& variant : variants) {
         if (is_type<VariantWrapper<pugi::xml_node>>(variant)) {
             root = as_type_ptr<VariantWrapper<pugi::xml_node>>(variant)->get();
         } else if (is_type<VariantWrapper<InferenceEngine::Blob::CPtr>>(variant)) {

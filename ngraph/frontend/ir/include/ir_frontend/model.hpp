@@ -4,15 +4,11 @@
 
 #pragma once
 
-#include <memory>
-
-#include <ngraph/ngraph.hpp>
-
-#include <inference_engine.hpp>
-
 #include <frontend_manager/frontend_manager.hpp>
+#include <inference_engine.hpp>
 #include <ir_frontend/utility.hpp>
-
+#include <memory>
+#include <ngraph/ngraph.hpp>
 #include <pugixml.hpp>
 
 namespace ngraph {
@@ -28,9 +24,9 @@ public:
     explicit InputModelIR(const pugi::xml_node& root,
                           const InferenceEngine::Blob::CPtr& weights,
                           const std::vector<InferenceEngine::IExtensionPtr>& exts)
-        : m_root(root)
-        , m_weights(weights)
-        , m_exts(exts) {}
+        : m_root(root),
+          m_weights(weights),
+          m_exts(exts) {}
 
     std::shared_ptr<Function> convert();
 };

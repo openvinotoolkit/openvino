@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <ngraph/variant.hpp>
-
 #include <frontend_manager/frontend_manager.hpp>
-#include <pugixml.hpp>
 #include <inference_engine.hpp>
+#include <ngraph/variant.hpp>
+#include <pugixml.hpp>
 
 #include "utility.hpp"
 
@@ -29,10 +28,6 @@ public:
     ///
     /// \return IR frontend name.
     std::string get_name() const override;
-
-//    InputModel::Ptr load(const pugi::xml_node & xml_node) const {
-//        return load_impl({make_variant(xml_node)});
-//    }
 
 protected:
     /// \brief Check if FrontEndPDPD can recognize model from given parts
@@ -75,7 +70,8 @@ public:
 };
 
 template <>
-class IR_API VariantWrapper<std::vector<InferenceEngine::IExtensionPtr>> : public VariantImpl<std::vector<InferenceEngine::IExtensionPtr>> {
+class IR_API VariantWrapper<std::vector<InferenceEngine::IExtensionPtr>>
+    : public VariantImpl<std::vector<InferenceEngine::IExtensionPtr>> {
 public:
     static constexpr VariantTypeInfo type_info{"Variant::Extensions", 0};
     const VariantTypeInfo& get_type_info() const override {
