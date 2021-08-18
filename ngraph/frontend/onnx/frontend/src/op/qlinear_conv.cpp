@@ -59,8 +59,6 @@ OutputVector qlinear_conv(const Node& node) {
 
     auto result = detail::conv(node, x, w, B)[0];
 
-    // TODO: Quantize result instead of just Convert -- the code IS NOT CORRECT, IT IS A STUB
-    // result = std::make_shared<opset6::Convert>(result, inputs[0].get_element_type());
     result = set_13::detail::quantize_linear(result, y_scale, y_zero_point, 1, node)[0];
 
     return {result};

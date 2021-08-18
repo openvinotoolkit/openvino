@@ -66,8 +66,6 @@ OutputVector conv(const Node& node,
     // in the current implementation we assume that the data input rank is static
     // and only the 'batch' dimension can be dynamic
     const OutputVector& inputs = node.get_ng_inputs();
-    // const auto data = inputs.at(0);
-    // const auto filters = inputs.at(1);
     const auto groups = node.get_attribute_value<int64_t>("group", 1);
 
     NGRAPH_CHECK(data.get_partial_shape().rank().is_static(), "The input data tensor's rank has to be known (static)");
