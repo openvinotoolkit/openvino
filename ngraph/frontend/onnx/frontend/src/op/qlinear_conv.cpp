@@ -12,10 +12,10 @@
 #include <vector>
 
 #include "conv.hpp"
-#include "core/null_node.hpp"
 #include "dequantize_linear.hpp"
 #include "exceptions.hpp"
 #include "ngraph/opsets/opset6.hpp"
+#include "onnx_import/core/null_node.hpp"
 #include "quantize_linear.hpp"
 
 namespace ngraph {

@@ -8,12 +8,12 @@
 #include <memory>
 #include <vector>
 
-#include "core/null_node.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "onnx_import/core/null_node.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
