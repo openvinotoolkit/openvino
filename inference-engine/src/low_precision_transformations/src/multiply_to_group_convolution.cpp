@@ -164,17 +164,17 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
 
     Shape constShape;
     int inputIndex;
-    if (is_type<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
+    if (const auto constant = as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
         inputIndex = 0;
-        constShape = operation->get_input_shape(1);
+        constShape = constant->get_shape();
         if (is_type<opset1::Constant>(operation->get_input_node_shared_ptr(0)) ||
-            (is_type<opset1::Subtract>(operation->get_input_node_shared_ptr(0))  &&
+            (is_type<opset1::Subtract>(operation->get_input_node_shared_ptr(0)) &&
             is_type<opset1::Constant>(operation->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0)))) {
             return false;
         }
-    } else if (is_type<opset1::Constant>(operation->get_input_node_shared_ptr(0))) {
+    } else if (const auto constant = as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(0))) {
         inputIndex = 1;
-        constShape = operation->get_input_shape(0);
+        constShape = constant->get_shape();
     } else {
         return false;
     }

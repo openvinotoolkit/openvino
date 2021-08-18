@@ -7,6 +7,7 @@
 #include "dnn_types.h"
 #include <cstdint>
 #include <cpp/ie_cnn_network.h>
+#include <ie_algorithm.hpp>
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -113,6 +114,11 @@ public:
 } // namespace Cnn2D
 
 bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
+
+inline size_t GetMinBatchToFitInBuffer(InferenceEngine::DataPtr input) {
+    auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));
+    return total_size / bufferMaxSize + 1;
+}
 
 } // namespace GNALimitations
 } // namespace GNAPluginNS

@@ -47,8 +47,6 @@ class Output;
 class AttributeVisitor;
 class Node;
 
-class Function;
-
 namespace runtime {
 class HostTensor;
 }
@@ -475,12 +473,16 @@ public:
     /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
     Output<const Node> output(size_t output_index) const;
 
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    NGRAPH_DEPRECATED("This method is deprecated and will be removed soon.")
     void set_op_annotations(std::shared_ptr<ngraph::op::util::OpAnnotations> op_annotations) {
         m_op_annotations = op_annotations;
     }
+    NGRAPH_DEPRECATED("This method is deprecated and will be removed soon.")
     std::shared_ptr<ngraph::op::util::OpAnnotations> get_op_annotations() const {
         return m_op_annotations;
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
     virtual bool match_value(pattern::Matcher* matcher,
                              const Output<Node>& pattern_value,
@@ -503,7 +505,9 @@ private:
     std::set<std::shared_ptr<Node>> m_provenance_group;
     std::deque<descriptor::Input> m_inputs;
     std::deque<descriptor::Output> m_outputs;
+    NGRAPH_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
+    NGRAPH_SUPPRESS_DEPRECATED_END
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
 };
 
