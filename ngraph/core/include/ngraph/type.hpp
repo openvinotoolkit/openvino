@@ -37,4 +37,3 @@ as_type_ptr(Value value) {
     return ov::as_type_ptr<Type>(value);
 }
 }  // namespace ngraph
-

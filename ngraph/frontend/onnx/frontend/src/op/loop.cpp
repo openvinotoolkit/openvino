@@ -87,8 +87,8 @@ OutputVector loop(const Node& node) {
     {
         termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
     } else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
-               ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(1).get_node_shared_ptr())->cast_vector<bool>()[0] ==
-                   false) {
+               ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(1).get_node_shared_ptr())
+                       ->cast_vector<bool>()[0] == false) {
         // no iteration is performed so initial values are returned
         OutputVector node_outputs;
         // final values

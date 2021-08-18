@@ -197,7 +197,8 @@ void op::v5::Loop::validate_and_infer_types() {
 
         auto body_value = m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
 
-        if (auto concat_output_description = ov::as_type_ptr<TensorIterator::ConcatOutputDescription>(output_description)) {
+        if (auto concat_output_description =
+                ov::as_type_ptr<TensorIterator::ConcatOutputDescription>(output_description)) {
             const auto& body_value_partial_shape = body_value.get_partial_shape();
             auto out_shape = body_value_partial_shape;
             if (zero_number_of_iter) {
