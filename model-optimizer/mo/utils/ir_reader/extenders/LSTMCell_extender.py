@@ -12,4 +12,4 @@ class LSTMCell_extender(Extender):
     def extend(op: Node):
         if not op.has_valid('activations'):
             op['activations'] = None
-        op['infer'] = Extender.const_shape_infer
+        op['infer'] = Extender.use_shapes_from_ir
