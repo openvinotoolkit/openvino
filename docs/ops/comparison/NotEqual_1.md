@@ -11,7 +11,7 @@ multi-directional broadcast rules.
 Before performing comparison operation, input tensors *a* and *b* are broadcasted if their shapes are different.
 Broadcasting is performed according to `auto_broadcast` value.
 
-After broadcasting *NotEqual* does the following with the input tensors *a* and *b*:
+After broadcasting, *NotEqual* does the following with the input tensors *a* and *b*:
 
 \f[
 o_{i} = a_{i} != b_{i}
