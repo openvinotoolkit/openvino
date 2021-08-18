@@ -96,6 +96,7 @@ function update_onnx_models() {
 
     if [[ ! -d $ONNX_MODELS_DIR ]] ; then
         touch $MODEL_ZOO_DIR/executing_$ONNX_SHA
+        trap "rm -f $MODEL_ZOO_DIR/executing_$ONNX_SHA" EXIT INT TERM
         echo "The ONNX Model Zoo repository doesn't exist on your filesystem then will be cloned"
         git clone https://github.com/onnx/models.git "$ONNX_MODELS_DIR"
         cd "$ONNX_MODELS_DIR"
