@@ -5,7 +5,7 @@
 **Category**: Comparison binary operation
 
 **Short description**: *NotEqual* performs element-wise comparison operation with two given tensors applying
-multi-directional broadcast rules.
+multi-directional broadcast rules specified in the `auto_broadcast` attribute.
 
 **Detailed description**
 Before performing comparison operation, input tensors *a* and *b* are broadcasted if their shapes are different.
