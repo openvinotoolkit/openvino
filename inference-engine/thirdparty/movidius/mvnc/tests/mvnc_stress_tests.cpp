@@ -19,7 +19,6 @@ TEST_P(MvncStressTests, OpenClose1001) {
     ncDeviceHandle_t *deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = _deviceProtocol;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     for (int i = 0; i < iterations; ++i) {
         printf("Iteration %d of %d\n", i, iterations);
@@ -36,7 +35,6 @@ TEST_P(MvncStressTests, AllocateDeallocateGraph1001) {
     const int iterations = 1001;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = _deviceProtocol;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     // Load graph
     const std::string blobPath = "bvlc_googlenet_fp16.blob";
@@ -79,7 +77,6 @@ TEST_P(MvncStressTests, FullCycleOfWork101Times) {
     const int iterations = 101;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = _deviceProtocol;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     const std::string blobPath = "bvlc_googlenet_fp16.blob";
     std::vector<char> blob;

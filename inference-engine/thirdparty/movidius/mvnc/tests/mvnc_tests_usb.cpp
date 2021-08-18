@@ -24,7 +24,6 @@ TEST_F(MvncOpenUSBDevice, ShouldOpenDeviceAfterChangeConnectTimeoutFromZero) {
     std::string actDeviceName;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = NC_ANY_PROTOCOL;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     ASSERT_NO_ERROR(ncSetDeviceConnectTimeout(0));
     ASSERT_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
@@ -175,19 +174,10 @@ TEST_F(MvncOpenUSBDevice, CheckErrorWhenPlatformConflictWithName) {
     if (availableDevices_ == 0)
         GTEST_SKIP();
 
-    ncDevicePlatform_t wrongPlatform = NC_ANY_PLATFORM;
     auto availableDevices = getDevicesList();
 
     ASSERT_TRUE(availableDevices.size());
-
-    if(isMyriadXUSBDevice(availableDevices[0])) {
-        wrongPlatform = NC_MYRIAD_2;
-    } else {
-        wrongPlatform = NC_MYRIAD_X;
-    }
-
     strncpy(deviceDesc_.name, availableDevices[0].c_str(), NC_MAX_NAME_SIZE);
-    deviceDesc_.platform = wrongPlatform;
 
     ASSERT_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
 }
@@ -236,7 +226,7 @@ TEST_P(MvncDevicePlatform, OpenAndClose) {
     unsigned int size = MAX_DEV_NAME;
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle_, NC_RO_DEVICE_NAME, deviceName, &size));
 
-    EXPECT_TRUE(isSamePlatformUSBDevice(deviceName, devicePlatform_));
+    EXPECT_TRUE(isSamePlatformUSBDevice(deviceName));
 
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_, m_watchdogHndl));
 

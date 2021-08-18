@@ -51,7 +51,7 @@ public:
         ASSERT_NO_THROW(_network = InferenceEngine::CNNNetwork(fn_ptr));
 
         auto log = std::make_shared<Logger>("GraphCompiler", LogLevel::None, consoleOutput());
-        _compiledGraph = compileNetwork(_network, ncDevicePlatform_t::NC_MYRIAD_X, createConfiguration(), log, _mockCore);
+        _compiledGraph = compileNetwork(_network, createConfiguration(), log, _mockCore);
     }
 
     CNNNetwork _network;

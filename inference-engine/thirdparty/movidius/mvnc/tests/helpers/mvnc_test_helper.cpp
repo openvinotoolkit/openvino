@@ -10,11 +10,9 @@
 //      Implementations of helpers - counters
 //------------------------------------------------------------------------------
 int getAmountOfDevices(const ncDeviceProtocol_t deviceProtocol,
-                                        const ncDevicePlatform_t devicePlatform,
                                         const XLinkDeviceState_t state) {
     deviceDesc_t req_deviceDesc = {};
     req_deviceDesc.protocol = convertProtocolToXlink(deviceProtocol);
-    req_deviceDesc.platform = convertPlatformToXlink(devicePlatform);
 
     deviceDesc_t deviceDescArray[NC_MAX_DEVICES] = {};
     unsigned int foundDevices = 0;
@@ -22,22 +20,6 @@ int getAmountOfDevices(const ncDeviceProtocol_t deviceProtocol,
             state, req_deviceDesc, deviceDescArray, NC_MAX_DEVICES, &foundDevices);
 
     return foundDevices;
-}
-
-long getAmountOfMyriadXDevices(ncDeviceProtocol_t deviceProtocol) {
-    return getAmountOfDevices(deviceProtocol, NC_MYRIAD_X);
-}
-
-long getAmountOfMyriad2Devices(ncDeviceProtocol_t deviceProtocol) {
-    return getAmountOfDevices(deviceProtocol, NC_MYRIAD_2);
-}
-
-long getAmountOfBootedDevices(ncDeviceProtocol_t deviceProtocol) {
-    return getAmountOfDevices(deviceProtocol, NC_ANY_PLATFORM, X_LINK_BOOTED);
-}
-
-long getAmountOfNotBootedDevices(ncDeviceProtocol_t deviceProtocol) {
-    return getAmountOfDevices(deviceProtocol, NC_ANY_PLATFORM, X_LINK_UNBOOTED);
 }
 
 long getAmountOfPCIeDevices() {
@@ -52,12 +34,10 @@ long getAmountOfUSBDevices() {
 //      Implementations of helpers - get devices
 //------------------------------------------------------------------------------
 std::vector<std::string> getDevicesList(const ncDeviceProtocol_t deviceProtocol,
-                                                         const ncDevicePlatform_t devicePlatform,
                                                          const XLinkDeviceState_t state) {
 
     deviceDesc_t req_deviceDesc = {};
     req_deviceDesc.protocol = convertProtocolToXlink(deviceProtocol);
-    req_deviceDesc.platform = convertPlatformToXlink(devicePlatform);
 
     deviceDesc_t deviceDescArray[NC_MAX_DEVICES] = {};
     unsigned int foundDevices = 0;
@@ -112,16 +92,8 @@ bool isSameProtocolDevice(const std::string &deviceName, const ncDeviceProtocol_
 }
 
 bool
-isSamePlatformUSBDevice(const std::string &deviceName, const ncDevicePlatform_t expectedPlatform) {
-    switch (expectedPlatform) {
-        case NC_MYRIAD_2:  return isMyriad2USBDevice(deviceName);
-        case NC_MYRIAD_X:  return isMyriadXUSBDevice(deviceName);
-        case NC_ANY_PLATFORM:
-            return isMyriad2USBDevice(deviceName) || isMyriadXUSBDevice(deviceName);
-        default:
-            std::cout << "Unknown device platform" << std::endl;
-            return false;
-    }
+isSamePlatformUSBDevice(const std::string &deviceName) {
+    return isMyriadXUSBDevice(deviceName);
 }
 
 //------------------------------------------------------------------------------
