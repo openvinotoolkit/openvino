@@ -32,6 +32,14 @@ void remove_redundant_reorders::run(program& p) {
         node.set_selected_impl(std::move(new_impl));
     };
 
+    auto user_optimized_of_input = [&](program_node* node) {
+        for (auto& user : node->get_dependency(0).get_users()) {
+            if (user != node && user->can_be_optimized())
+                return true;
+        }
+        return false;
+    };
+
     // Fuse reorders into primitives
     auto itr = p.get_processing_order().begin();
     if (enable_reorder_fusing) {
@@ -327,6 +335,9 @@ void remove_redundant_reorders::run(program& p) {
         if (!same_data_type)
             continue;
 
+        if (user_optimized_of_input(&node) && node.get_output_layout().data_padding)
+            continue;
+
         dep.merge_output_padding(node.get_output_layout().data_padding);
         p.replace_all_usages(node, dep);
         p.add_optimized_primitive_info(node.id());
@@ -346,6 +357,9 @@ void remove_redundant_reorders::run(program& p) {
              (dep.get_output_layout().format != format::bfyx) ||
              (usr->get_output_layout().format != format::fs_b_yx_fsv32))
             return;
+
+        if (user_optimized_of_input(node) && node->get_output_layout().data_padding)
+            continue;
 
         if (dep.is_type<input_layout>())
             return;

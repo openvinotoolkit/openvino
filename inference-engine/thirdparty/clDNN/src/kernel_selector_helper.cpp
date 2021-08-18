@@ -190,6 +190,8 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
 
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
     switch (f) {
+        case format::os_iyx_osv32__ai32:
+            return kernel_selector::weights_layout::os_iyx_osv32__ai32;
         case format::bfyx:
         case format::oiyx:
             return kernel_selector::weights_layout::oiyx;
