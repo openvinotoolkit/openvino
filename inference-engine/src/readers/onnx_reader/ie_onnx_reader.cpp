@@ -38,7 +38,7 @@ CNNNetwork ONNXReader::read(std::istream& model, const std::vector<IExtensionPtr
         const auto input_model = m_onnx_fe->load(&model, readPathFromStream(model));
         return CNNNetwork(m_onnx_fe->convert(input_model), exts);
     }
-    throw InferenceEngine::NetworkNotRead("Not available ONNX Frontend");
+    throw InferenceEngine::NetworkNotRead("ONNX Frontend not available.");
 }
 
 INFERENCE_PLUGIN_API(void) InferenceEngine::CreateReader(std::shared_ptr<IReader>& reader) {
