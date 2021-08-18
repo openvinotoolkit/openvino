@@ -22,7 +22,7 @@ Upon start-up, the application reads command-line parameters and loads a network
   For more information about the argument, refer to **When to Reverse Input Channels** section of
   [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
-Device specific execution parameters (number of streams, threads, etc) can be either specified explicitly thru the command-line,
+Device-specific execution parameters (number of streams, threads, and so on) can be either explicitly specified through the command line
 or left default (and the sample's logic will select the values for the optimal throughput).
 While playing individual parameters allows to find the performance sweet-spot, usually the parameters are not very performance portable,
 so the values from one machine or device are not necessarily optimal for another.
