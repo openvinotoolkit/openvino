@@ -632,9 +632,8 @@ int main(int argc, char* argv[]) {
 
             auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
             if (numInputFiles != scaleFactorInput.size()) {
-                std::string errMessage(
-                    "Incorrect command line for multiple inputs: " + std::to_string(scaleFactorInput.size()) +
-                    " scale factors provided for " + std::to_string(numInputFiles) + " input files.");
+                std::string errMessage("Incorrect command line for multiple inputs: " + std::to_string(scaleFactorInput.size()) +
+                                       " scale factors provided for " + std::to_string(numInputFiles) + " input files.");
                 throw std::logic_error(errMessage);
             }
 
