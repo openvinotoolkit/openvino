@@ -28,6 +28,7 @@ const std::vector<InferenceEngine::Precision> intPrecisions = {
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
         {Sigmoid,               {}},
+        {Tan,                   {}},
         {Tanh,                  {}},
         {Relu,                  {}},
         {Exp,                   {}},
@@ -37,7 +38,9 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Clamp,                 {{-2.0f, 2.0f}}},
         {Negative,              {}},
         {Acos,                  {}},
+        {Acosh,                  {}},
         {Asin,                  {}},
+        {Asinh,                 {}},
         {Atan,                  {}},
         {Cos,                   {}},
         {Cosh,                  {}},
@@ -57,7 +60,6 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {HSigmoid,              {}},
         {RoundHalfToEven,       {}},
         {RoundHalfAwayFromZero, {}},
-        {Erf,                   {}},
         {GeluErf,               {}},
         {GeluTanh,              {}},
         {Swish,                 {{0.4f}}}
@@ -65,9 +67,17 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 
 // List of operations that should be tested also with integer precision
 const std::map<ActivationTypes, std::vector<std::vector<float>>> intActivationTypes = {
+        {Acosh,                 {}},
+        {Asinh,                 {}},
+        {Atan,                  {}},
         {Negative,              {}},
         {Ceiling,               {}},
+        {Cos,                   {}},
+        {Cosh,                  {}},
+        {Sign,                  {}},
+        {Sinh,                  {}},
         {Sqrt,                  {}},
+        {Tan,                   {}},
         {Tanh,                  {}},
 };
 

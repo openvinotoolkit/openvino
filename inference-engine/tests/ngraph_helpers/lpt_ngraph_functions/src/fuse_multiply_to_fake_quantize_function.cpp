@@ -20,10 +20,10 @@ namespace subgraph {
 using namespace ngraph::pass;
 
 std::shared_ptr<ngraph::Function> FuseMultiplyToFakeQuantizeFunction::get(
-    const ngraph::Shape& inputShape,
-    const FakeQuantizeOnData& fqOnData,
+    const ngraph::PartialShape& inputShape,
+    const FakeQuantizeOnDataWithConstant& fqOnData,
     const DequantizationOperations& dequantization) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, inputShape);
 
     const auto fakeQuantize = makeFakeQuantize(input, ngraph::element::f32, fqOnData);
     const auto lastDequantization = makeDequantization(fakeQuantize, dequantization);

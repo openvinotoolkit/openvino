@@ -19,6 +19,7 @@
 #include <ie_core.hpp>
 #include "ie_common.h"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include <threading/ie_executor_manager.hpp>
@@ -82,6 +83,17 @@ namespace BehaviorTestsDefinitions {
         ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
     }
 
+    TEST_P(CorrectConfigTests, CanUseCache) {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        // Create CNNNetwork from ngrpah::Function
+        InferenceEngine::CNNNetwork cnnNet(function);
+        ie->SetConfig({ { CONFIG_KEY(CACHE_DIR), "./test_cache" } });
+        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        CommonTestUtils::removeDir("./test_cache");
+    }
+
     using CorrectSingleOptionCustomValueConfigTests = BehaviorTestsUtils::BehaviorTestsSingleOptionCustom;
 
     TEST_P(CorrectSingleOptionCustomValueConfigTests, CheckCustomValueOfConfig) {
@@ -128,15 +140,8 @@ namespace BehaviorTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         // Create CNNNetwork from ngrpah::Function
         InferenceEngine::CNNNetwork cnnNet(function);
-        if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-            targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
-            ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-            ASSERT_THROW(ie->SetConfig(configuration, targetDevice),
-                         InferenceEngine::Exception);
-        } else {
-            ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-            ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
-        }
+        ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+        ASSERT_THROW(ie->SetConfig(configuration, targetDevice), InferenceEngine::Exception);
     }
 
     TEST_P(IncorrectConfigTests, CanNotLoadNetworkWithIncorrectConfig) {
@@ -144,12 +149,8 @@ namespace BehaviorTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         // Create CNNNetwork from ngrpah::Function
         InferenceEngine::CNNNetwork cnnNet(function);
-        if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) != std::string::npos) {
-            GTEST_SKIP();
-        } else {
-            ASSERT_THROW(auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration),
-                         InferenceEngine::Exception);
-        }
+        ASSERT_THROW(auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration),
+                        InferenceEngine::Exception);
     }
 
     using IncorrectConfigSingleOptionTests = BehaviorTestsUtils::BehaviorTestsSingleOption;
@@ -174,9 +175,7 @@ namespace BehaviorTestsDefinitions {
         if (targetDevice.find(CommonTestUtils::DEVICE_GNA) != std::string::npos) {
             ASSERT_THROW(ie->SetConfig(configuration, targetDevice), InferenceEngine::NotFound);
         } else {
-            try {
-                ie->SetConfig(configuration, targetDevice);
-            } catch (InferenceEngine::Exception &) {}
+            ASSERT_THROW(ie->SetConfig(configuration, targetDevice), InferenceEngine::Exception);
         }
     }
 
@@ -196,10 +195,8 @@ namespace BehaviorTestsDefinitions {
             ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
         }
         // Load CNNNetwork to target plugins
-        if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos) {
-            auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
-            execNet.CreateInferRequest();
-        }
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
+        execNet.CreateInferRequest();
 
         if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
             ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
@@ -227,10 +224,8 @@ namespace BehaviorTestsDefinitions {
             ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
         }
         // Load CNNNetwork to target plugins
-        if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos) {
-            auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
-            execNet.CreateInferRequest();
-        }
+        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
+        execNet.CreateInferRequest();
 
         if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
             (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
@@ -260,10 +255,8 @@ namespace BehaviorTestsDefinitions {
                 ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
             }
             // Load CNNNetwork to target plugins
-            if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos) {
-                auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
-                execNet.CreateInferRequest();
-            }
+            auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
+            execNet.CreateInferRequest();
 
             if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
                 (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {

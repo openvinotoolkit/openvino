@@ -31,21 +31,14 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, log)
-{
+NGRAPH_TEST(${BACKEND_NAME}, log) {
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Log>(A), ParameterVector{A});
 
     std::vector<float> a{0.125f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f, 16.f};
-    std::vector<float> loga{-2.07944154f,
-                            -1.38629436f,
-                            -0.69314718f,
-                            0.00000000f,
-                            0.69314718f,
-                            1.38629436f,
-                            2.07944154f,
-                            2.77258872f};
+    std::vector<float>
+        loga{-2.07944154f, -1.38629436f, -0.69314718f, 0.00000000f, 0.69314718f, 1.38629436f, 2.07944154f, 2.77258872f};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(shape, a);

@@ -21,10 +21,10 @@ KERNEL(softmax)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 
     const uint in_depth_offset  = batch*INPUT0_BATCH_PITCH + other2*INPUT0_OTHER2_PITCH + other1*INPUT0_OTHER1_PITCH + other0*INPUT0_OTHER0_PITCH + INPUT0_OFFSET;
     const uint out_depth_offset = batch*OUTPUT_BATCH_PITCH + other2*OUTPUT_OTHER2_PITCH + other1*OUTPUT_OTHER1_PITCH + other0*OUTPUT_OTHER0_PITCH + OUTPUT_OFFSET;
-    
+
     UNIT_TYPE max_value = UNIT_VAL_MIN;
     UNIT_TYPE data[INPUT0_CLASS_NUM];
-    
+
     for (uint cls = 0; cls < INPUT0_CLASS_NUM; ++cls)
     {
         const uint index = in_depth_offset + cls*INPUT0_CLASS_PITCH;
@@ -40,7 +40,7 @@ KERNEL(softmax)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
         data[cls] = native_exp(data[cls] - max_value);;
         denominator += data[cls];
     }
-    
+
     for (uint cls = 0; cls < INPUT0_CLASS_NUM; ++cls)
     {
         const UNIT_TYPE res = data[cls] / (UNIT_TYPE)denominator;

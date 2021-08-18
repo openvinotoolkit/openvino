@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 #include "include/sub_group.cl"
 
 #define TILE_M          2
@@ -105,11 +106,11 @@ KERNEL(convolution_f32)(
 
             float blockA00[FILTER_SIZE_X];
             float blockA01[FILTER_SIZE_X];
-            
+
             // in case the data is not aligned to sizeof(T)*FILTER_SIZE_X we need to use vload or set the data in a loop
             {
                 unsigned i = 0;
-                LOOP(FILTER_SIZE_X, i, 
+                LOOP(FILTER_SIZE_X, i,
                 {
 #if LEFTOVERS == 1
                     if(src0_read_offset0_const + (FILTER_SIZE_Y - 1) * INPUT0_Y_PITCH + (FILTER_IFM_NUM - 1) * (INPUT0_FEATURE_PITCH - ( FILTER_SIZE_Y * INPUT0_Y_PITCH )) >= INPUT0_BATCH_NUM * INPUT0_BATCH_PITCH)
@@ -220,7 +221,7 @@ KERNEL(convolution_f32)(
     #if BIAS_TERM
     __global float8* biasPtr = (__global float8*) (bias + group_x * TILE_N + g * FILTER_OFM_NUM);
     #endif
-    
+
     if( global_y * TILE_M < OUTPUT_SIZE_X * OUTPUT_SIZE_Y )
     {
         if ( ( FILTER_OFM_NUM % TILE_N ) == 0 )

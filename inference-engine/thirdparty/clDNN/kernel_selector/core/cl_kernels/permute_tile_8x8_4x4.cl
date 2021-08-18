@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/fetch.cl"
-#include "include/common.cl"
+#include "include/fetch_data.cl"
 #include "include/data_types.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
@@ -28,7 +27,7 @@ KERNEL (permute_tile_8x8_4x4)(
 #elif INPUT0_DIMS == 5
     //|dim2:bf|dim1:yz|dim0:x
     const uint z = get_global_id(1) / INPUT0_SIZE_Y;
-    const uint y = get_global_id(1) % INPUT0_SIZE_Y;   
+    const uint y = get_global_id(1) % INPUT0_SIZE_Y;
 #elif INPUT0_DIMS == 6
     //|dim2:bf|dim1:wyz|dim0:x
     const uint y = get_global_id(1) % INPUT0_SIZE_Y;
@@ -120,7 +119,7 @@ KERNEL (permute_tile_8x8_4x4)(
     }
 #endif
 #if defined(X_REMAINDER_ITEM) && defined(F_REMAINDER_ITEM)
-     else if (f == F_REMAINDER_ITEM && x == X_REMAINDER_ITEM) { 
+     else if (f == F_REMAINDER_ITEM && x == X_REMAINDER_ITEM) {
         // point by point
         for (int lh = 0; lh < F_REMAINDER_SIZE; ++lh) {
             // read

@@ -3,14 +3,12 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -18,15 +16,12 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-template<class T>
-class BatchNormAttrTest : public ::testing::Test
-{
-};
+template <class T>
+class BatchNormAttrTest : public ::testing::Test {};
 
-TYPED_TEST_CASE_P(BatchNormAttrTest);
+TYPED_TEST_SUITE_P(BatchNormAttrTest);
 
-TYPED_TEST_P(BatchNormAttrTest, batch_norm_inference_op)
-{
+TYPED_TEST_P(BatchNormAttrTest, batch_norm_inference_op) {
     PartialShape in_shape{1, 10};
     PartialShape ch_shape{in_shape[1]};
     element::Type et = element::f32;
@@ -47,10 +42,8 @@ TYPED_TEST_P(BatchNormAttrTest, batch_norm_inference_op)
     EXPECT_EQ(g_batch_norm->get_eps_value(), batch_norm->get_eps_value());
 }
 
-REGISTER_TYPED_TEST_CASE_P(
-    BatchNormAttrTest,
-    batch_norm_inference_op);
+REGISTER_TYPED_TEST_SUITE_P(BatchNormAttrTest, batch_norm_inference_op);
 
 using Types = ::testing::Types<op::v0::BatchNormInference, op::v5::BatchNormInference>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(attributes, BatchNormAttrTest, Types);
+INSTANTIATE_TYPED_TEST_SUITE_P(attributes, BatchNormAttrTest, Types);

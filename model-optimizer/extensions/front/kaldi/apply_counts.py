@@ -51,7 +51,7 @@ def apply_biases_to_last_layer(graph, counts):
     outputs_ids = find_outputs(graph)
     for output in outputs_ids.copy():
         node = Node(graph, output)
-        if node.op != 'Assign':
+        if node.op != 'Assign' and node.op != "MemoryOffset":
             continue
         outputs_ids.remove(output)
 
@@ -82,6 +82,11 @@ def read_counts_file(file_path):
     except TypeError:
         raise Error('Expect counts file to contain list of floats.' +
                     refer_to_faq_msg(90))
+
+    return counts
+
+
+def counts_to_priors(counts):
     cutoff = 1.00000001e-10
     cutoff_idxs = np.where(counts < cutoff)
     counts[cutoff_idxs] = cutoff
@@ -111,10 +116,21 @@ class ApplyCountsFilePattern(FrontReplacementSubgraph):
                 ]
 
     def find_and_replace_pattern(self, graph: Graph):
-        try:
-            counts = read_counts_file(graph.graph['cmd_params'].counts)
-        except Exception as e:
-            raise Error('Model Optimizer is not able to read counts file {}'.format(graph.graph['cmd_params'].counts) +
-                        refer_to_faq_msg(92)) from e
+        # if empty string is in counts, read priors from model itself (on loader stage)
+        if graph.graph['cmd_params'].counts == "":
+            assert isinstance(graph.graph['priors'], (list, np.ndarray)) and len(graph.graph['priors']) != 0, \
+                "Model file does not contain Priors tag with counts values, use separate file instead"
+            counts = graph.graph['priors'].copy()
+        else:
+            # read counts from given file
+            try:
+                counts = read_counts_file(graph.graph['cmd_params'].counts)
+            except Exception as e:
+                raise Error('Model Optimizer is not able to read counts file {}'.format(graph.graph['cmd_params'].counts) +
+                            refer_to_faq_msg(92)) from e
 
+        # calculate normalized counts as follows:
+        # c_i=log(c_i/sum(c_j))
+        # set max_float/2 for almost zero c_i (< 1.e-10)
+        counts = counts_to_priors(counts)
         apply_biases_to_last_layer(graph, counts)

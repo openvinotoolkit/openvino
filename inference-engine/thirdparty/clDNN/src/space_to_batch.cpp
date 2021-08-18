@@ -77,7 +77,7 @@ std::string space_to_batch_inst::to_string(space_to_batch_node const& node) {
     return primitive_description.str();
 }
 
-space_to_batch_inst::typed_primitive_inst(network_impl& network, space_to_batch_node const& node)
+space_to_batch_inst::typed_primitive_inst(network& network, space_to_batch_node const& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

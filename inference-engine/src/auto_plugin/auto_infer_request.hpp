@@ -17,6 +17,8 @@
 #include <utility>
 #include <vector>
 
+#include "auto_exec_network.hpp"
+
 namespace AutoPlugin {
 
 class AutoInferRequest : public InferenceEngine::IInferRequestInternal {
@@ -25,7 +27,9 @@ public:
     explicit AutoInferRequest(const InferenceEngine::InputsDataMap&             networkInputs,
                               const InferenceEngine::OutputsDataMap&            networkOutputs,
                               const InferenceEngine::SoIInferRequestInternal&   inferRequest,
-                              bool                                              enablePerfCount);
+                              const InferenceEngine::IExecutableNetworkInternal::Ptr executeNetwork,
+                              bool alreadyActualNetwork,
+                              bool enablePerfCount);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     void InferImpl() override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
@@ -37,8 +41,15 @@ public:
     void SetCallback(Callback callback) override;
 
 private:
+    void HotSwapRequests();
+    void SetBlobsToDeviceRequest();
+
+private:
     InferenceEngine::SoIInferRequestInternal _inferRequest;
-    bool                                     _enablePerfCount;
+    AutoPlugin::AutoExecutableNetwork::Ptr _autoExecutableNetwork;
+    Callback _callback; // need to save the callback for hot-swap of the requests
+    bool _alreadyActualNetwork{ false };
+    bool _enablePerfCount { false };
 };
 
 }  // namespace AutoPlugin

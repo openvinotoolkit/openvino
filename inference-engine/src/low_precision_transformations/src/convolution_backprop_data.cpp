@@ -10,6 +10,8 @@
 #include <vector>
 #include <cassert>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
@@ -18,41 +20,48 @@ namespace pass {
 namespace low_precision {
 
 ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(const Params& params) : WeightableLayerTransformation(params) {
-}
+    auto matcher = std::make_shared<pattern::op::Or>(OutputVector{
+        pattern::wrap_type<opset1::ConvolutionBackpropData>({
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::Multiply>()
+        }),
+        ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>({
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::FakeQuantize>()
+        }),
+        ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>({
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::Constant>()
+        }),
+        ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>({
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::FakeQuantize>(),
+            pattern::wrap_type<opset1::Constant>()
+        }),
+    });
 
-void ConvolutionBackpropDataTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::ConvolutionBackpropData>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>() }));
-    addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::ConvolutionBackpropData>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>() }));
-    addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::ConvolutionBackpropData>(
-                    { make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
-    addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::ConvolutionBackpropData>(
-                    { make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>(), make_op_label<opset1::Constant>() }));
-}
-
-bool ConvolutionBackpropDataTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
-    if (deconvolutionSpecificChannelsRatio) {
-        size_t inputChannels = layer->get_input_shape(0)[1];
-        size_t outputChannels = layer->get_output_shape(0)[1];
-        if (inputChannels % 4 != 0 || outputChannels % 16 != 0) {
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
             return false;
         }
-    }
-    return WeightableLayerTransformation::isQuantized(layer, false);
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ConvolutionBackpropDataTransformation");
+    this->register_matcher(m, callback);
 }
 
-bool ConvolutionBackpropDataTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+bool ConvolutionBackpropDataTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+    return ConvolutionBackpropDataTransformation::isQuantizedStatic(layer);
+}
+
+bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+    return WeightableLayerTransformation::isQuantizedStatic(layer, false);
+}
+
+bool ConvolutionBackpropDataTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
     auto convolutionBackpropData = m.get_match_root();
 
     if (!canBeTransformed(context, convolutionBackpropData)) {
@@ -63,14 +72,22 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
                          NetworkHelper::getDequantization(reshapeFromWeights);
         if (dequantization.empty()) {
             const auto fqOnWeights = getFakeQuantizeOnWeights(convolutionBackpropData);
-            std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
+            auto constantShape = fqOnWeights->input(1).get_partial_shape();
+            if (constantShape.is_dynamic() || constantShape.rank().is_dynamic()) {
+                return false;
+            }
+
+            std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(
+                fqOnWeights,
+                false,
+                (constantShape.rank().get_length() < 2) || constantShape[1] != 1ul ? 1ul : 0ul);
             if (reshapeFromWeights != nullptr) {
                 resultConstant = fold_reshape<opset1::Reshape>(
                         resultConstant,
                         reshapeFromWeights->input_value(1),
                         false);
             }
-            if (as_type_ptr<opset1::Constant>(resultConstant)) {
+            if (is_type<opset1::Constant>(resultConstant)) {
                 replace_node(weightsInput, resultConstant);
             }
         } else {
@@ -83,16 +100,14 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolutionBackpropData);
     {
         if (dequantization.subtract != nullptr) {
-            std::shared_ptr<ngraph::Node> layer = dequantization.subtract;
-            ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(layer);
-
+            NetworkHelper::cleanRunTimeInfo(dequantization.subtract->shared_from_this());
             NetworkHelper::optimizeSubtract(dequantization.subtract);
         }
-        std::shared_ptr<opset1::Constant> reducedConstant = as_type_ptr<opset1::Constant>(dequantization.multiplyConstant);
+
         std::shared_ptr<Node> newMultiplyAfterConst = std::make_shared<opset1::Constant>(
-                reducedConstant->get_output_element_type(0),
-                Shape{ 1 },
-                reducedConstant->cast_vector<float>()[0]);
+            dequantization.multiplyConstant->get_element_type(),
+            Shape{ 1 },
+            dequantization.multiplyConstant->cast_vector<float>()[0]);
         auto inputs = convolutionBackpropData->input_values();
         inputs[0] = dequantization.multiply->input_value(0);
         const auto copyNode = convolutionBackpropData->copy_with_new_inputs(inputs);
@@ -109,7 +124,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
             ngraph::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
 
         replace_node(convolutionBackpropData, newMultiplyAfter);
-        convolutionBackpropData = newMultiplyAfter->input_value(0).get_node_shared_ptr();
+        convolutionBackpropData = newMultiplyAfter->get_input_node_shared_ptr(0);
         inputs[0] = convolutionBackpropData->get_input_node_ptr(0)->input_value(0);
         if (is_type<opset1::Convert>(convolutionBackpropData->get_input_node_ptr(0))) {
             auto newConvolution = convolutionBackpropData->copy_with_new_inputs(inputs);
@@ -120,7 +135,6 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 
     {
         decomposeFakeQuantizeForWeightsPath(convolutionBackpropData, 1ul);
-
         dequantization = NetworkHelper::getDequantization(convolutionBackpropData, 1ul);
 
         if (is_type<opset1::FakeQuantize>(dequantization.data.get_node())) {
@@ -135,7 +149,10 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         std::shared_ptr<opset1::Subtract> subtractFromWeights = as_type_ptr<opset1::Subtract>(multiplyFromWeights->get_input_node_shared_ptr(0));
 
         {
-            Shape newScaleShape = multiplyFromWeights->get_input_shape(1);
+            const auto newScalePShape = multiplyFromWeights->get_input_partial_shape(1);
+            assert(newScalePShape.is_static());
+            Shape newScaleShape = newScalePShape.to_shape();
+
             auto inputs = convolutionBackpropData->input_values();
             inputs[1] = multiplyFromWeights->input_value(0);
             auto newMultiplyAfter = std::make_shared<DequantizationMultiply>(
@@ -147,7 +164,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
                         false),
                     convolutionBackpropData->get_output_element_type(0)));
             replace_node(convolutionBackpropData, newMultiplyAfter);
-            convolutionBackpropData = newMultiplyAfter->input_value(0).get_node_shared_ptr();
+            convolutionBackpropData = newMultiplyAfter->get_input_node_shared_ptr(0);
         }
 
         if (subtractFromWeights != nullptr) {
@@ -158,9 +175,12 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
             } else {
                 subtractFromWeights = as_type_ptr<opset1::Subtract>(optimizedSubtract);
 
-                const Shape weightsShape = subtractFromWeights->input(0).get_shape();
-                Shape zeroPointShape(weightsShape.size(), 1ul);
-                zeroPointShape[1] = weightsShape[1];
+                const auto weightsPShape = subtractFromWeights->get_input_partial_shape(0);
+                assert(weightsPShape.is_static());
+
+                const size_t weightsRankValue = weightsPShape.rank().get_length();
+                Shape zeroPointShape(weightsRankValue, 1ul);
+                zeroPointShape[1] = static_cast<size_t>(weightsPShape[1].get_length());
 
                 auto zeroPointConstant = fold<opset1::Broadcast>(
                         subtractFromWeights->get_input_node_shared_ptr(1),
@@ -202,14 +222,6 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 }
 
 bool ConvolutionBackpropDataTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (deconvolutionSpecificChannelsRatio) {
-        size_t inputChannels = op->get_input_shape(0)[1];
-        size_t outputChannels = op->get_output_shape(0)[1];
-        if (inputChannels % 4 != 0 || outputChannels % 16 != 0) {
-            return false;
-        }
-    }
-
     return canConvolutionBeTransformed(context, op);
 }
 

@@ -21,6 +21,8 @@ except ImportError:
 
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from mo.back.ie_ir_ver_2.emitter import append_ir_info
+from mo.moc_frontend.pipeline import moc_pipeline
+from mo.moc_frontend.serialize import moc_emit_ir
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
@@ -40,6 +42,9 @@ from mo.utils.utils import refer_to_faq_msg
 from mo.utils.telemetry_utils import send_params_info, send_framework_info
 from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
+
+# pylint: disable=no-name-in-module,import-error
+from ngraph.frontend import FrontEndManager
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -92,11 +97,32 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 
 
 def prepare_ir(argv: argparse.Namespace):
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
+    fem = argv.feManager
+    available_moc_front_ends = []
+    moc_front_end = None
+
+    # TODO: in future, check of 'use_legacy_frontend' in argv can be added here (issue 61973)
+    force_use_legacy_frontend = False
+
+    if fem and not force_use_legacy_frontend:
+        available_moc_front_ends = fem.get_available_front_ends()
+        if argv.input_model:
+            if not argv.framework:
+                moc_front_end = fem.load_by_model(argv.input_model)
+                if moc_front_end:
+                    argv.framework = moc_front_end.get_name()
+            elif argv.framework in available_moc_front_ends:
+                moc_front_end = fem.load_by_framework(argv.framework)
+
+    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
+        deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
-        raise Error('Framework {} is not a valid target. Please use --framework with one from the list: caffe, tf, '
-                    'mxnet, kaldi, onnx. ' + refer_to_faq_msg(15), argv.framework)
+        frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
+        frameworks = list(set(frameworks + available_moc_front_ends))
+        if argv.framework not in frameworks:
+            raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
+                        refer_to_faq_msg(15), argv.framework, frameworks)
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
@@ -160,7 +186,9 @@ def prepare_ir(argv: argparse.Namespace):
     if argv.legacy_ir_generation and len(argv.transform) != 0:
         raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
 
-    ret_code = check_requirements(framework=argv.framework)
+    use_legacy_fe = argv.framework not in available_moc_front_ends
+    # For C++ frontends there is no specific python installation requirements, thus check only generic ones
+    ret_code = check_requirements(framework=argv.framework if use_legacy_fe else None)
     if ret_code:
         raise Error('check_requirements exit with return code {}'.format(ret_code))
 
@@ -247,14 +275,24 @@ def prepare_ir(argv: argparse.Namespace):
         send_framework_info('onnx')
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    graph = unified_pipeline(argv)
-    return graph
+
+    graph = None
+    ngraph_function = None
+
+    if argv.framework not in available_moc_front_ends:
+        graph = unified_pipeline(argv)
+    else:
+        ngraph_function = moc_pipeline(argv, moc_front_end)
+    return graph, ngraph_function
 
 
 def emit_ir(graph: Graph, argv: argparse.Namespace):
     NormalizeTI().find_and_replace_pattern(graph)
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
+
+    if 'feManager' in argv:
+        del argv.feManager
 
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
     input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
@@ -328,7 +366,11 @@ def driver(argv: argparse.Namespace):
 
     start_time = datetime.datetime.now()
 
-    ret_res = emit_ir(prepare_ir(argv), argv)
+    graph, ngraph_function = prepare_ir(argv)
+    if graph is not None:
+        ret_res = emit_ir(graph, argv)
+    else:
+        ret_res = moc_emit_ir(ngraph_function, argv)
 
     if ret_res != 0:
         return ret_res
@@ -348,7 +390,7 @@ def driver(argv: argparse.Namespace):
     return ret_res
 
 
-def main(cli_parser: argparse.ArgumentParser, framework: str):
+def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: str):
     telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
@@ -359,9 +401,9 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
 
         argv = cli_parser.parse_args()
         send_params_info(argv, cli_parser)
-
         if framework:
             argv.framework = framework
+        argv.feManager = fem
 
         ov_update_message = None
         if not hasattr(argv, 'silent') or not argv.silent:
@@ -404,4 +446,5 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
 
 if __name__ == "__main__":
     from mo.utils.cli_parser import get_all_cli_parser
-    sys.exit(main(get_all_cli_parser(), None))
+    fe_manager = FrontEndManager()
+    sys.exit(main(get_all_cli_parser(fe_manager), fe_manager, None))

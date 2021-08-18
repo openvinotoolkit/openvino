@@ -62,8 +62,9 @@ protected:
                                  const bool usePermuteMerging,
                                  Blob::Ptr& outputBlob) {
         PrepareGraphCompilation();
-        _configuration.compileConfig().detectBatch = false;
-        _configuration.compileConfig().enablePermuteMerging = usePermuteMerging;
+        _configuration.set(InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, InferenceEngine::PluginConfigParams::NO);
+        _configuration.set(InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING, usePermuteMerging
+            ? InferenceEngine::PluginConfigParams::YES : InferenceEngine::PluginConfigParams::NO);
 
         IE_ASSERT(permutationVectors.size() >= 2);
 

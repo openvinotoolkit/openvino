@@ -12,11 +12,10 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <low_precision/transformer.hpp>
 #include <low_precision/avg_pool.hpp>
 #include <low_precision/concat.hpp>
-#include <low_precision/concat_multi_channels.hpp>
 #include <low_precision/max_pool.hpp>
+#include <low_precision/fake_quantize_decomposition.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"
@@ -61,7 +60,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationRes
 
 class ConcatTransformationTestValues {
 public:
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool multiChannels;
     ConcatTransformationActualValues actual;
     ConcatTransformationResultValues result;
@@ -73,7 +72,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationTes
 
 typedef std::tuple <
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     ConcatTransformationTestValues
 > ConcatTransformationParams;
 
@@ -81,7 +80,7 @@ class ConcatWithIntermediatePrecisionSelectionTransformation : public LayerTrans
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
+        const ngraph::PartialShape shape = std::get<1>(GetParam());
         ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::ConcatFunction::getOriginalWithIntermediateAvgPool(
@@ -90,14 +89,21 @@ public:
             testValues.actual.fakeQuantize1,
             testValues.actual.fakeQuantize2);
 
-        SimpleLowPrecisionTransformer transform;
-        if (testValues.multiChannels) {
-            transform.addBranchSpecific<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, ngraph::opset1::Concat>(testValues.params);
-        } else {
-            transform.addBranchSpecific<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
-        }
+        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
+            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
+        });
+
+        auto quantizationRestrictions = testValues.multiChannels ?
+            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
+            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
+                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::AvgPool>()
+            });
+
+        SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation, quantizationRestrictions);
+        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
         transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithIntermediateAvgPool(
@@ -115,7 +121,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
         const ngraph::element::Type precision = std::get<0>(obj.param);
-        const ngraph::Shape shape = std::get<1>(obj.param);
+        const ngraph::PartialShape shape = std::get<1>(obj.param);
         const ConcatTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
@@ -130,13 +136,19 @@ public:
 
 TEST_P(ConcatWithIntermediatePrecisionSelectionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, false, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, false, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
     // ngraph::element::f16
+};
+
+const std::vector<ngraph::PartialShape> shapes = {
+    { 1, 3, 9, 9 },
+    { 4, 3, 9, 9 },
+    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
 };
 
 const std::vector<ConcatTransformationTestValues> testValues = {
@@ -299,11 +311,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { {}, {}, { 0.005f } }
         }
     }
-};
-
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 3, 9, 9 },
-    { 4, 3, 9, 9 }
 };
 
 INSTANTIATE_TEST_SUITE_P(

@@ -46,7 +46,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::InterpolateLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
@@ -144,28 +144,28 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
-        ngraph::op::v4::Interpolate::ShapeCalcMode::sizes,
-        ngraph::op::v4::Interpolate::ShapeCalcMode::scales,
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
-        ngraph::op::v4::Interpolate::NearestMode::simple,
-        ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
-        ngraph::op::v4::Interpolate::NearestMode::floor,
-        ngraph::op::v4::Interpolate::NearestMode::ceil,
-        ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil,
+        ngraph::op::v4::Interpolate::NearestMode::SIMPLE,
+        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
+        ngraph::op::v4::Interpolate::NearestMode::FLOOR,
+        ngraph::op::v4::Interpolate::NearestMode::CEIL,
+        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::NearestMode> defNearestModes = {
-        ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
+        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
 };
 
 const std::vector<std::vector<size_t>> pads = {
