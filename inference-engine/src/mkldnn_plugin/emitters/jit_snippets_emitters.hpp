@@ -36,8 +36,13 @@ private:
         auto tile_rank = in[0]; // count of tile dimensions
         auto nparams = in[1];
         int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
-        Xbyak::Reg64 param    { dnnl::impl::cpu::x64::abi_param1 }; // RDI
-        Xbyak::Reg64 schedule { dnnl::impl::cpu::x64::abi_param3 }; // RDX
+        Xbyak::Reg64 param    { dnnl::impl::cpu::x64::abi_param1 }; // RDI | RCX
+        Xbyak::Reg64 temp     { dnnl::impl::cpu::x64::abi_param3 }; // RDX | R8
+
+        // to avoid register conflicts on x32 systems. Because abi_param3 is R8
+        // on x32 systems. Moreover, R8 is register for first input ptr
+        Xbyak::Reg64 schedule { dnnl::impl::cpu::x64::abi_not_param1 }; // RCX | RDI
+        h->mov(schedule, temp);
 
         if (tile_rank != 2)
             IE_THROW() << "Kernel of codegen supports only Tile2D" << std::endl;
@@ -90,8 +95,8 @@ private:
         auto dim = in[2]; // number of tile dimension
         const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
         Xbyak::Reg64 amount = Xbyak::Reg64(reg64_tmp_start + nparams); // amount
-        Xbyak::Reg64 offsets { dnnl::impl::cpu::x64::abi_param2 }; // RSI
-        Xbyak::Reg64 shedule { dnnl::impl::cpu::x64::abi_param3 }; // RDX
+        Xbyak::Reg64 offsets  { dnnl::impl::cpu::x64::abi_param2 };     // RSI | RDX
+        Xbyak::Reg64 schedule { dnnl::impl::cpu::x64::abi_not_param1 }; // RCX | RDI
 
         std::vector<Xbyak::Reg64> regs(nparams);
         if (dim > 0) {
@@ -106,7 +111,7 @@ private:
 
         // internal full tile should to have new full work amount after every iteration of external tile
         if (dim == 0 && inc != 1)
-            h->mov(amount, h->ptr[shedule + dim * sizeof(int64_t)]);
+            h->mov(amount, h->ptr[schedule + dim * sizeof(int64_t)]);
 
         h->cmp(amount, inc);
         h->jl(for_body[1], Xbyak::CodeGenerator::T_NEAR);
