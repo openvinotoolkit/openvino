@@ -111,9 +111,6 @@ public:
         {
             _requests[handle]._request.SetCompletionCallback([this, handle /* ... */]() {
                 _requests[handle]._endTime = Time::now();
-                _latencies.push_back(_requests[handle].getLatency());
-                // Acquire GIL
-                py::gil_scoped_acquire acquire;
                 // Add idle handle to queue
                 _idle_handles.push(handle);
                 // Notify locks in getIdleRequestId() or waitAll() functions
@@ -134,7 +131,6 @@ public:
                 {
                     statusCode = InferenceEngine::StatusCode::OK;
                 }
-                _latencies.push_back(_requests[handle].getLatency());
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
                 f_callback(_requests[handle], statusCode, _user_ids[handle]);
@@ -147,7 +143,6 @@ public:
     }
 
     std::vector<InferRequestWrapper> _requests;
-    std::vector<double> _latencies;
     std::queue<size_t> _idle_handles;
     std::vector<py::object> _user_ids; // user ID can be any Python object
     size_t _last_id;
@@ -193,7 +188,7 @@ void regclass_InferQueue(py::module m)
         if (!inputs.empty()) {
             Common::set_request_blobs(self._requests[handle]._request, inputs);
         }
-        // Now GIL can be released
+        // Now GIL can be released - we are NOT working with Python objects in this block
         {
             py::gil_scoped_release release;
             self._requests[handle]._startTime = Time::now();
@@ -222,8 +217,6 @@ void regclass_InferQueue(py::module m)
         py::keep_alive<0, 1>()); /* Keep set alive while iterator is used */
 
     cls.def("__getitem__", [](InferQueue& self, size_t i) { return self._requests[i]; });
-
-    cls.def_property_readonly("latencies", [](InferQueue& self) { return self._latencies; });
 
     cls.def_property_readonly("userdata", [](InferQueue& self) { return self._user_ids; });
 }
