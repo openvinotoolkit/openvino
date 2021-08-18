@@ -54,8 +54,7 @@ public:
     ie::IInferRequestInternal::Ptr CreateInferRequestImpl(ie::InputsDataMap networkInputs,
                                                          ie::OutputsDataMap networkOutputs) override {
         if (!_isNetworkConstant && (_device == nullptr || !_device->isBooted())) {
-            IE_THROW() << "Can not create infer request: there is no available devices with platform "
-                               << _device->_platform;
+            IE_THROW() << "Can not create infer request: there is no available devices with platform ";
         }
 
         return std::make_shared<MyriadInferRequest>(_graphDesc, networkInputs, networkOutputs,
@@ -66,8 +65,7 @@ public:
 
     ie::IInferRequestInternal::Ptr CreateInferRequest() override {
         if (!_isNetworkConstant && (_device == nullptr || !_device->isBooted())) {
-            IE_THROW() << "Can not create infer request: there is no available devices with platform "
-                               << _device->_platform;
+            IE_THROW() << "Can not create infer request: there is no available devices with platform ";
         }
 
         auto syncRequestImpl = std::make_shared<MyriadInferRequest>(_graphDesc, _networkInputs, _networkOutputs,

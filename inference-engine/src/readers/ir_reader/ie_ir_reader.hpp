@@ -20,10 +20,6 @@ class xml_node;
 class xml_document;
 }  // namespace pugi
 
-namespace ngraph {
-class Function;
-}  // namespace ngraph
-
 namespace InferenceEngine {
 
 /**
