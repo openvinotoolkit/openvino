@@ -23,6 +23,7 @@ class ImportNetworkTestBase : public testing::WithParamInterface<exportImportNet
 public:
     static std::string getTestCaseName(testing::TestParamInfo<exportImportNetworkParams> obj);
     void Run() override;
+    void TestRun(bool isModelChanged);
 
 protected:
     std::map<std::string, std::string> exportConfiguration;
