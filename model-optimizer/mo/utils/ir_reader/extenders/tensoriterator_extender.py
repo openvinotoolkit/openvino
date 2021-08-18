@@ -40,4 +40,4 @@ class TensorIterator_extender(Extender):
             del(edge['from-layer'])
             del(edge['to-layer'])
 
-        op['infer'] = Extender.const_shape_infer
+        op['infer'] = Extender.use_shapes_from_ir

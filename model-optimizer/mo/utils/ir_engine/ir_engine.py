@@ -208,6 +208,7 @@ class IREngine(object):
         for attr in layer:
             if attr.tag == 'data':
                 new_attrs = self.__normalize_attrs(attr.attrib)
+                new_attrs['ir_data_attrs'] = attr.attrib
                 if layer.attrib['type'] == 'Const':
                     assert 'offset' in new_attrs and 'size' in new_attrs, \
                         'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(), ['offset', 'size'])
