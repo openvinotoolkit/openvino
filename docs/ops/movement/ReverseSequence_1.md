@@ -30,17 +30,17 @@
 
 **Inputs**
 
-* **1**: `data` - Input data to reverse. A tensor of type *T* and rank greater or equal to 2. **Required.**
-* **2**: `seq_lengths` - Sequence lengths to reverse in the input tensor `data`. A 1D tensor comprising `data_shape[batch_axis]` elements of type *T_INT*. All element values must be within the range `[1, data_shape[seq_axis]]`. Value `1` means, no elements are reversed. **Required.**
+* **1**: `data` - Input data to reverse. A tensor of type *T1* and rank greater or equal to 2. **Required.**
+* **2**: `seq_lengths` - Sequence lengths to reverse in the input tensor `data`. A 1D tensor comprising `data_shape[batch_axis]` elements of type *T2*. All element values must be integer values within the range `[1, data_shape[seq_axis]]`. Value `1` means, no elements are reversed. **Required.**
 
 **Outputs**
 
-* **1**: The result of slice and reverse `data` input tensor. A tensor of type *T* and the same shape as `data` input tensor.
+* **1**: The result of slice and reverse `data` input tensor. A tensor of type *T1* and the same shape as `data` input tensor.
 
 **Types**
 
-* *T*: any supported data type.
-* *T_INT*: any supported integer type.
+* *T1*: any supported type.
+* *T2*: any supported numerical type.
 
 **Example**
 
