@@ -172,21 +172,21 @@ namespace {
 
 /* COMMON PARAMS */
 const std::vector<fusingSpecificParams> fusingParamsSet{
-        emptyFusingSpec,
-        // eltwise
-        fusingRelu,
-        fusingPRelu1D,
-        fusingPReluPerChannel,
-        // depthwise
-        fusingReluScaleShift,
-        // fake quantize
+//        emptyFusingSpec,
+//        // eltwise
+//        fusingRelu,
+//        fusingPRelu1D,
+//        fusingPReluPerChannel,
+//        // depthwise
+//        fusingReluScaleShift,
+//        // fake quantize
         fusingFakeQuantizePerTensorRelu,
-        fusingFakeQuantizePerChannelRelu,
-        // sum
-        fusingSumEluFQ,
-        fusingSum,
-        // bias
-        fusingAddPerChannel
+//        fusingFakeQuantizePerChannelRelu,
+//        // sum
+//        fusingSumEluFQ,
+//        fusingSum,
+//        // bias
+//        fusingAddPerChannel
 };
 
 const std::vector<fusingSpecificParams> fusingParamsSetBF16{
@@ -206,7 +206,7 @@ const std::map<std::string, std::string> cpuEmptyPluginConfig;
 const std::map<std::string, std::string> cpuBF16PluginConfig = { { PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES } };
 
 /* ============= Convolution params (GEMM layout) ============= */
-const SizeVector numOutChannels_Gemm = { 6, 33 };
+const SizeVector numOutChannels_Gemm = { /*6,*/ 33 };
 
 /* ============= Convolution params (blocked and nspc layout) ============= */
 const SizeVector numOutChannels = { 64, 63 };
@@ -256,7 +256,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_FP32, ConvolutionLayerCPUTest,
             ::testing::Values(Precision::UNSPECIFIED),
             ::testing::Values(Layout::ANY),
             ::testing::Values(Layout::ANY),
-            ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
+            ::testing::Values(/*std::vector<size_t >({ 1, 12, 7, 7 }),*/
+                              std::vector<size_t >({ 2, 12, 7, 7 })),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
         ::testing::ValuesIn(fusingParamsSet),
