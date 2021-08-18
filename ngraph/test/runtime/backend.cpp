@@ -38,7 +38,9 @@ static string find_my_pathname()
     wstring ws(wpath);
     string path(ws.begin(), ws.end());
     replace(path.begin(), path.end(), '\\', '/');
+    NGRAPH_SUPPRESS_DEPRECATED_START
     path = file_util::get_directory(path);
+    NGRAPH_SUPPRESS_DEPRECATED_END
     path += "/";
     return path;
 #elif defined(__linux) || defined(__APPLE__)

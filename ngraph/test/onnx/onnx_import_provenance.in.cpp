@@ -12,6 +12,8 @@
 #include "util/test_control.hpp"
 #include "util/type_prop.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace ngraph;
 using namespace ngraph::onnx_import;
 
