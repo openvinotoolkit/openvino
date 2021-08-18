@@ -56,6 +56,7 @@ jobs:
       sudo mkdir -p $(MODELS_DIR)
       sudo apt --assume-yes install nfs-common
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(MODELS_DIR) -o vers=4,minorversion=1,sec=sys
+      touch $(MODELS_DIR)/test_file
       ls -latr $(MODELS_DIR)
       ls -latr $(MODELS_DIR)/msft
     displayName: 'Make dirs'
