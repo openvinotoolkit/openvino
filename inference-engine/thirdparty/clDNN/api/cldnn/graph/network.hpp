@@ -2,30 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
+#include "cldnn/graph/topology.hpp"
+#include "cldnn/graph/program.hpp"
 #include "cldnn/runtime/compounds.hpp"
 #include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/engine.hpp"
 #include "cldnn/runtime/event.hpp"
 #include "cldnn/runtime/stream.hpp"
-#include "program.hpp"
 
-#include <cstdint>
-#include <algorithm>
 #include <map>
 #include <vector>
-#include <utility>
+#include <unordered_map>
 #include <string>
+#include <memory>
+#include <list>
+#include <set>
 
 namespace cldnn {
-
-/// @addtogroup cpp_api C++ API
-/// @{
-
-/// @defgroup cpp_network Network Execution
-/// @{
 
 /// @brief Represents network output returned by @ref network::get_output().
 struct network_output {
@@ -52,101 +47,76 @@ private:
     friend struct network;
 };
 
-struct network_impl;
+class primitive_inst;
 
-/// @brief Executable network allocated from @ref program.
 struct network {
-    /// @brief Allocate network
-    /// @param program The program object which contains compiled primitives this network should allocate memory for.
-    /// @param stream_id Stream ID of this network. 0 is for primary stream, the others are secondary.
-    /// Used to determine whether an extra copy of primitive's memory needed.
-    explicit network(program const& program, uint16_t stream_id);
-
-    /// @brief Constructs network object from implicitly created program object. This is a shorthand for network(program(engine, topology, options))
-    /// @param engine
-    /// @param topology
-    /// @param options
-    /// @param options
+public:
+    using ptr = std::shared_ptr<network>;
+    explicit network(program::ptr program, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
     network(engine& engine,
-            const topology& topology,
+            const topology& topo,
             const build_options& options = build_options(),
-            uint16_t stream_id = 0)
-        : network(program(engine, topology, options), stream_id) {}
+            bool is_internal = false);
+    network(engine& engine,
+            const std::set<std::shared_ptr<program_node>>& nodes,
+            const build_options& options,
+            bool is_internal);
 
-    /// @brief Constructs network object from C API @ref cldnn_network.
-    explicit network(std::shared_ptr<network_impl> impl) : _impl(impl) {
-        if (_impl == nullptr)
-            throw std::invalid_argument("implementation pointer should not be null");
+    network(program::ptr program,
+            uint16_t stream_id = 0);
+
+    ~network();
+
+
+    static ptr build_network(engine& engine,
+                             const topology& topology,
+                             const build_options& options = build_options(),
+                             bool is_internal = false);
+    static ptr build_network(engine& engine,
+                             const std::set<std::shared_ptr<program_node>>& nodes,
+                             const build_options& options,
+                             bool is_internal);
+
+    static ptr allocate_network(stream::ptr stream,
+                                program::ptr program,
+                                bool is_internal = false,
+                                bool is_primary_stream = false);
+
+    static ptr allocate_network(engine& engine,
+                                program::ptr program,
+                                bool is_internal = false,
+                                bool is_primary_stream = false);
+    program::cptr get_program() const { return _program; }
+    program::ptr get_program() { return _program; }
+    engine& get_engine() const { return _program->get_engine(); }
+
+    void reset_execution(bool wait = true);
+    void set_input_data(const primitive_id& id, memory::ptr data);
+    void set_output_memory(const primitive_id& id, memory::ptr mem);
+
+    std::vector<std::shared_ptr<primitive_inst>> const& get_outputs() { return _outputs; }
+
+    const std::vector<std::shared_ptr<const primitive_inst>>& get_outputs() const {
+        return reinterpret_cast<const std::vector<std::shared_ptr<const primitive_inst>>&>(_outputs);
     }
 
-    /// @brief Copy construction.
-    network(const network& other) : _impl(other._impl) { }
-
-    /// @brief Copy assignment.
-    network& operator=(const network& other) {
-        if (_impl == other._impl)
-            return *this;
-        _impl = other._impl;
-        return *this;
-    }
-
-    friend bool operator==(const network& lhs, const network& rhs) { return lhs._impl == rhs._impl; }
-    friend bool operator!=(const network& lhs, const network& rhs) { return !(lhs == rhs); }
-
-    /// @brief Returns @ref engine by which network was built.
-    engine& get_engine() const;
-
-    /// @brief Returns network internal @ref program.
-    program get_program() const;
-
-    /// @brief Provides @ref memory for @ref input_layout primitives defined by user in source @ref topology.
-    void set_input_data(const primitive_id& id, memory::ptr mem) const;
-
-    /// @brief Provides user-supplied @ref memory for output primitives defined by user in source @ref topology.
-    void set_output_memory(const primitive_id& id, memory::ptr mem) const;
-
-    /// @brief Return stream id.
-    uint16_t get_stream_id();
-
-    stream& get_stream() const;
-
-    stream::ptr get_stream_ptr() const;
-
-    /// @brief Return internal network id.
-    uint32_t get_id();
-
-    std::string get_primitive_info(const primitive_id& id) const;
-
-    /// @brief Returns description of final runtime graph
-    std::vector<primitive_info> get_primitives_info();
-
-    /// @brief Returns description of all optimization stages
-    std::vector<std::pair<std::string, std::vector<primitive_info>>> get_optimization_steps_info();
-
-    /// @brief Returns the list of executed primitives.
-    std::vector<primitive_id> get_executed_primitive_ids() const;
-
-    /// @brief Returns the list of all primitives ids in network.
-    std::vector<primitive_id> get_all_primitive_ids() const;
-
-    /// @brief Returns the list of all primitives ids in network before graph optimization.
-    std::vector<primitive_id> get_all_primitive_org_ids() const;
-
-    /// @brief Returns the list of network inputs.
-    std::vector<primitive_id> get_input_ids() const;
-
-    /// @brief Returns the list of available network outputs.
-    std::vector<primitive_id> get_output_ids() const;
-
-    /// @brief Returns @ref memory object for particular @p output. Can be called before network execution
-    memory::ptr get_output_memory(const primitive_id& output_id) const;
-
-    /// @brief Returns @ref event object for particular @p primitive. Can't be called before network execution
-    event::ptr get_primitive_event(const primitive_id& output_id) const;
-
-    /// @brief Returns @ref network_output object for particular @p output. Can't be called before network execution
-    network_output get_output(const primitive_id& output_id) const {
+    network_output get_output(const primitive_id& output_id) {
         return network_output(get_primitive_event(output_id), get_output_memory(output_id), get_stream_ptr());
+    }
+
+    memory::ptr get_output_memory(const primitive_id& output_id);
+
+    /// @brief Returns the list of primitive ids before and after graph optimization.
+    /// @details If primitive was not optimized, the old and actual id will be the same.
+    /// @n If primitive was optimized during graph optimization, the actual id will be "_optimized_".
+    std::map<primitive_id, primitive_id> get_all_primitives() const {
+        auto primitive_ids = get_all_primitive_ids();
+        auto primitive_org_ids = get_all_primitive_org_ids();
+        std::map<primitive_id, primitive_id> result;
+        for (decltype(primitive_org_ids.size()) i = 0; i < primitive_org_ids.size(); i++) {
+            result.emplace(primitive_org_ids[i], primitive_ids[i]);
+        }
+        return result;
     }
 
     /// @brief Returns the list of @ref event for the primitives that were executed in network.
@@ -168,32 +138,75 @@ struct network {
         return result;
     }
 
-    /// @brief Returns the list of primitive ids before and after graph optimization.
-    /// @details If primitive was not optimized, the old and actual id will be the same.
-    /// @n If primitive was optimized during graph optimization, the actual id will be "_optimized_".
-    std::map<primitive_id, primitive_id> get_all_primitives() const {
-        auto primitive_ids = get_all_primitive_ids();
-        auto primitive_org_ids = get_all_primitive_org_ids();
-        std::map<primitive_id, primitive_id> result;
-        for (decltype(primitive_org_ids.size()) i = 0; i < primitive_org_ids.size(); i++) {
-            result.emplace(primitive_org_ids[i], primitive_ids[i]);
-        }
-        return result;
-    }
+    std::vector<primitive_id> get_output_ids() const;
+    std::vector<primitive_id> get_input_ids() const;
+    std::vector<primitive_id> get_executed_primitive_ids() const;
+    std::vector<primitive_id> get_all_primitive_ids() const;
+    std::vector<primitive_id> get_all_primitive_org_ids() const;
+    const program::primitives_info& get_primitives_info() const;
+    const program::graph_optimizer_info& get_optimizer_passes_info() const;
+    void execute_impl(const std::vector<event::ptr>& events);
 
     /// @brief Executes network and returns the list of @ref network_output.
     /// @param dependencies List of @ref event objects to be waited before network execution.
     /// @note User should call set_input_data() for every @ref input_layout defined in source @ref topology
     /// before network execution.
-    std::map<primitive_id, network_output> execute(const std::vector<event::ptr>& dependencies = {}) const;
+    std::map<primitive_id, network_output> execute(const std::vector<event::ptr>& dependencies = {});
 
-    /// @brief Returns wrapped C API @ref cldnn_network handler.
-    network_impl* get() const { return _impl.get(); }
+    void validate_primitives();
+    void set_arguments();
+    // Implementation specific calls
+    std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
+    std::string get_primitive_info(const primitive_id& id) const;
+    const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
+    bool has_event(const primitive_id& id) const { return _events.count(id); }
+    std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<primitive_id>& ids);
+    std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<program_node*>& nodes);
+    void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
+                           const std::vector<event::ptr>& events);
+    void allocate_primitives();
+    void build_insts_deps();
+    uint32_t get_id() const { return net_id; }
+    stream& get_stream() const { return *_stream; }
+    stream::ptr get_stream_ptr() const { return _stream; }
+    bool is_internal() const { return _internal; }
+    bool is_primary_stream() { return _is_primary_stream; }
+
+    /// Create memory object with specified @p layout and allocation @p type for primitive with @p id
+    /// Underlying memory handle can be reused with other primitives from memory pool based on @p dependencies
+    memory_ptr get_memory_from_pool(const layout& layout,
+                                    primitive_id id,
+                                    std::set<primitive_id> dependencies,
+                                    allocation_type type,
+                                    bool reusable = true);
 
 private:
-    std::shared_ptr<network_impl> _impl;
+    using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
+    uint32_t net_id = 0;
+    program::ptr _program;
+    stream::ptr _stream;
+    std::unique_ptr<memory_pool> _memory_pool;
+    bool _internal;
+    bool _is_primary_stream;
+    bool _reset_arguments;
+
+    std::map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
+    std::vector<std::shared_ptr<primitive_inst>> _inputs;
+    std::vector<std::shared_ptr<primitive_inst>> _outputs;
+    std::list<std::shared_ptr<primitive_inst>> _exec_order;
+    std::list<std::shared_ptr<primitive_inst>> _data_outputs;
+
+    std::unordered_map<primitive_id, event::ptr> _events;
+    output_chains_map _output_chains;
+
+    void build_exec_order();
+    void allocate_primitive_instance(program_node const& node);
+    void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
+    void add_to_exec_order(const primitive_id& id);
+    std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id);
+    std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id);
+    void check_names();
+    void add_default_output_chains();
+    output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
 };
-CLDNN_API_CLASS(network)
-/// @}
-/// @}
 }  // namespace cldnn

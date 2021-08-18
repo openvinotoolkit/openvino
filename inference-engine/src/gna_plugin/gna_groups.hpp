@@ -15,7 +15,9 @@ namespace GNAPluginNS {
  * @param input a pointer to data to be reshaped
  * @param maxZeroDimSize the maximum size of zero dimension
  */
-inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input, size_t maxZeroDimSize) {
+inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input, size_t minZeroDimSize,
+    size_t maxZeroDimSize) {
+    IE_ASSERT(minZeroDimSize > 0);
     auto dims = input->getDims();
     uint32_t numRowsIn = InferenceEngine::details::product(begin(dims), end(dims));
     uint32_t numColumnsIn = 1;
@@ -23,7 +25,7 @@ inline InferenceEngine::DataPtr Get2DReshapedData(InferenceEngine::DataPtr input
     if (numRowsIn % 8 == 0) {
         if (dims.size() >= 2 || dims[0] >= maxZeroDimSize) {
             size_t indexDivide = maxZeroDimSize;
-            while (indexDivide > 1) {
+            while (indexDivide > minZeroDimSize) {
                 if ((numRowsIn / 8) % indexDivide == 0) break;
                 --indexDivide;
             }
@@ -55,4 +57,5 @@ inline bool HasTo2DReshapeData(InferenceEngine::CNNLayerPtr layer) {
     // Don't reshape diagonallayers with bias connection
     return !GNAPluginNS::LayerInfo(getCreatorLayer(layer->insData.front().lock()).lock()).has32BOutput();
 }
+
 } // namespace GNAPluginNS

@@ -37,6 +37,7 @@ def run_function(function, *inputs, expected):
 
 fem = FrontEndManager()
 onnx_model_filename = "model.onnx"
+ONNX_FRONTEND_NAME = "onnx_experimental"
 
 
 def setup_module():
@@ -49,14 +50,14 @@ def teardown_module():
 
 def skip_if_onnx_frontend_is_disabled():
     front_ends = fem.get_available_front_ends()
-    if "onnx" not in front_ends:
+    if ONNX_FRONTEND_NAME not in front_ends:
         pytest.skip()
 
 
 def test_convert():
     skip_if_onnx_frontend_is_disabled()
 
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load(onnx_model_filename)
@@ -74,7 +75,7 @@ def test_convert():
 def test_decode_and_convert():
     skip_if_onnx_frontend_is_disabled()
 
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load(onnx_model_filename)
@@ -86,12 +87,12 @@ def test_decode_and_convert():
         assert op.get_type_name() in ["Parameter", "Constant", "ONNXFrameworkNode",
                                       "ONNXSubgraphFrameworkNode", "Result"]
 
-    function = fe.convert(decoded_function)
-    assert function
-    for op in function.get_ordered_ops():
+    fe.convert(decoded_function)
+    assert decoded_function
+    for op in decoded_function.get_ordered_ops():
         assert op.get_type_name() not in ["ONNXFrameworkNode", "ONNXSubgraphFrameworkNode"]
 
     a = np.array([[1, 2], [3, 4]], dtype=np.float32)
     b = np.array([[2, 3], [4, 5]], dtype=np.float32)
     expected = np.array([[1.5, 5], [10.5, 18]], dtype=np.float32)
-    run_function(function, a, b, expected=[expected])
+    run_function(decoded_function, a, b, expected=[expected])

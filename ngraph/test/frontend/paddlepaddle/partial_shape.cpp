@@ -4,15 +4,14 @@
 
 #include "partial_shape.hpp"
 
+#include "paddle_utils.hpp"
+
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-static const auto PDPD = "pdpd";
-
 using PDPDPartialShapeTest = FrontEndPartialShapeTest;
 
-static PartShape getTestShape_2in_2out()
-{
+static PartShape getTestShape_2in_2out() {
     PartShape res;
     res.m_modelName = "2in_2out/2in_2out.pdmodel";
     res.m_tensorName = "inputX1";
@@ -21,8 +20,7 @@ static PartShape getTestShape_2in_2out()
     return res;
 }
 
-static PartShape getTestShape_2in_2out_dynbatch()
-{
+static PartShape getTestShape_2in_2out_dynbatch() {
     PartShape res;
     res.m_modelName = "2in_2out_dynbatch/2in_2out_dynbatch.pdmodel";
     res.m_tensorName = "inputX1";
@@ -31,8 +29,7 @@ static PartShape getTestShape_2in_2out_dynbatch()
     return res;
 }
 
-static PartShape getTestShape_conv2d()
-{
+static PartShape getTestShape_conv2d() {
     PartShape res;
     res.m_modelName = "conv2d_s/conv2d.pdmodel";
     res.m_tensorName = "x";
@@ -41,8 +38,7 @@ static PartShape getTestShape_conv2d()
     return res;
 }
 
-static PartShape getTestShape_conv2d_setDynamicBatch()
-{
+static PartShape getTestShape_conv2d_setDynamicBatch() {
     PartShape res;
     res.m_modelName = "conv2d_s/conv2d.pdmodel";
     res.m_tensorName = "x";
@@ -51,8 +47,7 @@ static PartShape getTestShape_conv2d_setDynamicBatch()
     return res;
 }
 
-static PartShape getTestShape_conv2d_relu()
-{
+static PartShape getTestShape_conv2d_relu() {
     PartShape res;
     res.m_modelName = "conv2d_relu/conv2d_relu.pdmodel";
     res.m_tensorName = "xxx";
@@ -61,14 +56,13 @@ static PartShape getTestShape_conv2d_relu()
     return res;
 }
 
-INSTANTIATE_TEST_SUITE_P(PDPDPartialShapeTest,
-                         FrontEndPartialShapeTest,
-                         ::testing::Combine(::testing::Values(BaseFEParam{
-                                                PDPD, std::string(TEST_PDPD_MODELS_DIRNAME)}),
-                                            ::testing::ValuesIn(std::vector<PartShape>{
-                                                getTestShape_2in_2out(),
-                                                getTestShape_conv2d_relu(),
-                                                getTestShape_conv2d(),
-                                                getTestShape_conv2d_setDynamicBatch(),
-                                                getTestShape_2in_2out_dynbatch()})),
-                         FrontEndPartialShapeTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    PDPDPartialShapeTest,
+    FrontEndPartialShapeTest,
+    ::testing::Combine(::testing::Values(BaseFEParam{PADDLE_FE, std::string(TEST_PADDLE_MODELS_DIRNAME)}),
+                       ::testing::ValuesIn(std::vector<PartShape>{getTestShape_2in_2out(),
+                                                                  getTestShape_conv2d_relu(),
+                                                                  getTestShape_conv2d(),
+                                                                  getTestShape_conv2d_setDynamicBatch(),
+                                                                  getTestShape_2in_2out_dynbatch()})),
+    FrontEndPartialShapeTest::getTestCaseName);

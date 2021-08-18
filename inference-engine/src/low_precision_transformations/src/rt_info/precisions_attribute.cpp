@@ -14,6 +14,7 @@
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph;
+using namespace ov;
 
 // order defines default precision
 const std::vector<ngraph::element::Type> PrecisionsAttribute::defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 };

@@ -54,15 +54,10 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
+    // at least one branch quantization is mandatory
     if ((dequantization1.data.get_node() == nullptr) ||
-        (dequantization1.empty() && !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
-                                    !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()))) {
-        return false;
-    }
-
-    if ((dequantization2.data.get_node() == nullptr) ||
-        (dequantization2.empty() && !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()) &&
-                                    !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()))) {
+        (dequantization2.data.get_node() == nullptr) ||
+        (dequantization1.empty() && dequantization2.empty())) {
         return false;
     }
 
@@ -101,13 +96,37 @@ static bool isBranchHaveMultipleConsumers(const std::shared_ptr<Node> branchData
 // return branch index with FP32 precision after eltwise transformation
 int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise) const {
     const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(eltwise, 0ul);
-    if (dequantization1.empty() || as_type<opset1::Constant>(dequantization1.data.get_node())) {
+    if (as_type<opset1::Constant>(dequantization1.data.get_node())) {
         return -1;
     }
 
     const FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(eltwise, 1ul);
-    if (dequantization2.empty() || as_type<opset1::Constant>(dequantization2.data.get_node())) {
+    if (as_type<opset1::Constant>(dequantization2.data.get_node())) {
         return -1;
+    }
+
+    if (!dequantization1.empty() && dequantization1.isLowPrecision() && (dequantization2.empty() || !dequantization2.isLowPrecision())) {
+        return 1;
+    }
+
+    if ((dequantization1.empty() || !dequantization1.isLowPrecision()) && !dequantization2.empty() && dequantization2.isLowPrecision()) {
+        return 0;
+    }
+
+    if (!updatePrecisions) {
+        // If result is still not defined, then handle special cases for updatePrecisions == false, assumption for one branch quantization:
+        //    1. branch with dequantization operations is quantized,
+        //    2. empty branch is not quantized.
+        // As result: move dequantization operations to empty branch.
+        // Note: keep comparisions uppper as is: low precision can be used in updatePrecisions == false case
+        // if FakeQuantize operations were decomposed before LPT.
+        if (!dequantization1.empty() && dequantization2.empty()) {
+            return 1;
+        }
+
+        if (dequantization1.empty() || !dequantization2.empty()) {
+            return 0;
+        }
     }
 
     const std::shared_ptr<opset1::FakeQuantize> fakeQuantize1 =

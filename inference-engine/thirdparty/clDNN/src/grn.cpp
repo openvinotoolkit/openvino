@@ -38,5 +38,5 @@ std::string grn_inst::to_string(grn_node const& node) {
     return primitive_description.str();
 }
 
-grn_inst::typed_primitive_inst(network_impl& network, grn_node const& node) : parent(network, node) {}
+grn_inst::typed_primitive_inst(network& network, grn_node const& node) : parent(network, node) {}
 }  // namespace cldnn
