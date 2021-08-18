@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdio>
+#include <numeric>
 #include <vector>
 
 #include "ngraph/attribute_adapter.hpp"
@@ -62,11 +63,10 @@ size_t shape_size(ForwardIt start_dim, const ForwardIt end_dim) {
     static_assert(std::is_arithmetic<typename std::iterator_traits<ForwardIt>::value_type>::value,
                   "shape_size expects 2 forward iterators as inputs");
 
-    size_t size = 1;
-    while (start_dim != end_dim) {
-        size *= *start_dim++;
-    }
-    return size;
+    return std::accumulate(start_dim,
+                           end_dim,
+                           typename std::iterator_traits<ForwardIt>::value_type{1},
+                           std::multiplies<typename std::iterator_traits<ForwardIt>::value_type>());
 }
 
 /// Row-major strides for a shape
