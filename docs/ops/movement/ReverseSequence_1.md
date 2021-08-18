@@ -8,13 +8,13 @@
 
 **Detailed description**
 
-*ReverseSequence* slices a given input tensor `data` along the dimension specified in the *batch_axis* attribute. For each slice *i*, it reverses the first `seq_lengths[i]` elements along the dimension specified in the *seq_axis* attribute.
+*ReverseSequence* slices a given input tensor `data` along the dimension specified in the *batch_axis* attribute. For each slice `i`, it reverses the first `seq_lengths[i]` elements along the dimension specified in the *seq_axis* attribute.
 
 **Attributes**
 
 * *batch_axis*
 
-  * **Description**: *batch_axis* is the index of the batch dimension along which input tensor `data` is sliced.
+  * **Description**: *batch_axis* is the index of the batch dimension along which `data` input tensor is sliced.
   * **Range of values**: an integer within the range `[-rank(data), rank(data) - 1]`
   * **Type**: `int`
   * **Default value**: `0`
@@ -22,7 +22,7 @@
 
 * *seq_axis*
 
-  * **Description**: *seq_axis* is the index of the sequence dimension along which elements of input tensor `data` are reversed.
+  * **Description**: *seq_axis* is the index of the sequence dimension along which elements of `data` input tensor are reversed.
   * **Range of values**: an integer within the range `[-rank(data), rank(data) - 1]`
   * **Type**: `int`
   * **Default value**: `1`
