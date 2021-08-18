@@ -449,7 +449,7 @@ TEST(memory_pool, shared_dep_two_output) {
 
     network network(*engine, topo, bo);
     auto outputs = network.execute();
-    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)256);
+    EXPECT_EQ(engine->get_max_used_device_memory(), (uint64_t)192);
 }
 
 TEST(memory_pool, non_opt_intermidate_opt_after) {
