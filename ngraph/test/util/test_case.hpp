@@ -80,15 +80,19 @@ namespace ngraph
                                      const std::string& basepath,
                                      const std::string& filename)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 const auto filepath = ngraph::file_util::path_join(basepath, filename);
                 add_input_from_file<T>(shape, filepath);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>
             void add_input_from_file(const std::string& basepath, const std::string& filename)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 const auto filepath = ngraph::file_util::path_join(basepath, filename);
                 add_input_from_file<T>(filepath);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>
@@ -144,8 +148,10 @@ namespace ngraph
                                                const std::string& basepath,
                                                const std::string& filename)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 const auto filepath = ngraph::file_util::path_join(basepath, filename);
                 add_expected_output_from_file<T>(expected_shape, filepath);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>

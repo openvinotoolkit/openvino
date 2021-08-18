@@ -6,8 +6,8 @@
 
 #include <ie_system_conf.h>
 
-#include <string>
-#include <vector>
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "ie_parallel.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
@@ -79,6 +79,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IEClassImportExportTestP.*)",
         // azure is failing after #6199
         R"(.*/NmsLayerTest.*)"};
+
+#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+    retVector.emplace_back(R"(.*ReusableCPUStreamsExecutor.*)");
+#endif
+
 #ifdef __APPLE__
     // TODO: Issue 55717
     // retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
