@@ -89,8 +89,7 @@ public:
             const op::RoundingType rounding_type = op::RoundingType::FLOOR,
             const PadType auto_pad = op::PadType::EXPLICIT,
             const element::Type index_element_type = element::i64,
-            const int64_t axis = 0,
-            const float pads_value = -std::numeric_limits<float>::infinity());
+            const int64_t axis = 0);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -121,19 +120,10 @@ public:
         m_axis = axis;
     }
 
-    // \return The value stored in the padding cells.
-    float get_pads_value() const {
-        return m_pads_value;
-    }
-    void set_pads_value(const float pads_value) {
-        m_pads_value = pads_value;
-    }
-
 private:
     Strides m_dilations;
-    element::Type m_index_element_type{element::i32};
+    element::Type m_index_element_type{element::i64};
     int64_t m_axis{0};
-    float m_pads_value{-std::numeric_limits<float>::infinity()};
 };
 }  // namespace v8
 }  // namespace op
