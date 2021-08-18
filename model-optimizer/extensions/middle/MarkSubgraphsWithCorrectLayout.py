@@ -25,7 +25,8 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
     3. Marks nodes along the weight path of convolutions as in correct layout to not permute them from NHWC to NCHW
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC']
+    # can't be turned on for Kaldi until permutation logic will be aligned
+    graph_condition = [lambda graph: graph.graph['fw'] != 'kaldi']
     op_conditions = [lambda n: n.soft_get('op') == 'MatMul' and
                                any([len(port.data.get_shape()) in (4, 5) for port in n.in_ports().values()]),
                      ]
