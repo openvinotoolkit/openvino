@@ -25,7 +25,7 @@ static const char model_message[] =
 /// @brief message for performance hint
 static const char hint_message[] =
     "Optional. Performance hint (optimize for latency or throughput). "
-    "The hint let the OpenVINO device to select the right (network-specific) settings,"
+    "The hint allows the OpenVINO device to select the right network-specific settings,"
     "as opposite to just accepting specific values from the sample command line."
     "So you can specify only the hint without setting  explicit 'nstreams' or other device-specific options";
 
