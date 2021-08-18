@@ -62,7 +62,7 @@ def test_cc_collect(test_id, models, openvino_ref, test_info,
 def test_minimized_pkg(test_id, models, openvino_root_dir, artifacts):  # pylint: disable=unused-argument
     """Build and install OpenVINO package with collected conditional compilation statistics."""
     out = artifacts / test_id
-    install_prefix = out / "install_pkg"
+    install_prefix = out
     build_dir = openvino_root_dir / "build_minimized"
 
     out_csv = glob.glob(f"{out / test_id}.pid*.csv")
@@ -84,8 +84,8 @@ def test_minimized_pkg(test_id, models, openvino_root_dir, artifacts):  # pylint
 def test_infer(test_id, models, artifacts):
     """Test inference with conditional compiled binaries."""
     out = artifacts / test_id
-    minimized_pkg = out / "install_pkg"
-    infer_out_dir_cc =  out / "inference_result_cc/"
+    minimized_pkg = out
+    infer_out_dir_cc = out / "inference_result_cc/"
 
     return_code, output = run_infer(models, infer_out_dir_cc, minimized_pkg)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
@@ -95,7 +95,7 @@ def test_infer(test_id, models, artifacts):
 def test_verify(test_id, models, openvino_ref, artifacts, tolerance=1e-6):  # pylint: disable=too-many-arguments
     """Test verifying that inference results are equal."""
     out = artifacts / test_id
-    minimized_pkg = out / "install_pkg"
+    minimized_pkg = out
 
     infer_out_dir_cc = out / "inference_result_cc/"
     infer_out_dir = out / "inference_result/"
@@ -124,7 +124,7 @@ def test_verify(test_id, models, openvino_ref, artifacts, tolerance=1e-6):  # py
 def test_libs_size(test_id, models, openvino_ref, artifacts):  # pylint: disable=unused-argument
     """Test if libraries haven't increased in size after conditional compilation."""
     libraries = ["inference_engine_transformations", "MKLDNNPlugin", "ngraph"]
-    minimized_pkg = artifacts / test_id / "install_pkg"
+    minimized_pkg = artifacts / test_id
     ref_libs_size = get_lib_sizes(openvino_ref, libraries)
     lib_sizes = get_lib_sizes(minimized_pkg, libraries)
 
