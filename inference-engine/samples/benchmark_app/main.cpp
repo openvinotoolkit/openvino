@@ -59,7 +59,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
-    if (FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency") {
+    if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency") {
         throw std::logic_error("Incorrect performance hint. Please set -hint option to"
                                "either `throughput`(tput) or `latency' value.");
     }

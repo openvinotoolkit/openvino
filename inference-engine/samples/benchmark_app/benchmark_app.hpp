@@ -22,9 +22,12 @@ static const char model_message[] =
     "Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with "
     "a trained compiled model.";
 
-/// @brief message for execution performance mode
-static const char mode_message[] =
-    "Optional. Selects OpenVINO Performance Mode/Preset. Default value is \"throughput (tput)\".";
+/// @brief message for performance hint
+static const char hint_message[] =
+    "Optional. Performance hint (optimize for latency or throughput). "
+    "The hint let the OpenVINO device to select the right (network-specific) settings,"
+    "as opposite to just accepting specific values (from the sample's the command-line)."
+    "So you can specify only the hint without setting  explicit 'nstreams' or other device-specific options";
 
 /// @brief message for execution mode
 static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";
@@ -198,7 +201,7 @@ DEFINE_string(i, "", input_message);
 DEFINE_string(m, "", model_message);
 
 /// @brief Define execution mode
-DEFINE_string(hint, "", mode_message);
+DEFINE_string(hint, "", hint_message);
 
 /// @brief Define execution mode
 DEFINE_string(api, "async", api_message);
