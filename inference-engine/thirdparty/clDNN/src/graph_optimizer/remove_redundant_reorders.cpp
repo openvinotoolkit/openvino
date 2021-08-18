@@ -349,6 +349,17 @@ void remove_redundant_reorders::run(program& p) {
              (dep.get_output_layout().format != format::bfyx))
             continue;
 
+        bool skip = false;
+        for (auto& user : dep.get_users()) {
+            if (user != node && user->can_be_optimized()) {
+                skip = true;
+                break;
+            }
+        }
+
+        if (skip)
+            continue;
+            
         if (dep.is_type<input_layout>())
             continue;
 
