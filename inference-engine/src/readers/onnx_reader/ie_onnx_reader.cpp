@@ -18,11 +18,8 @@ std::string readPathFromStream(std::istream& stream) {
 }
 } // namespace
 
-// after full Readers-FE API integration manager can be passed by ctor
-static ngraph::frontend::FrontEndManager manager;
-
 ONNXReader::ONNXReader()
-: m_onnx_fe{manager.load_by_framework("onnx_experimental")}
+: m_onnx_fe{m_manager.load_by_framework("onnx_experimental")}
 {
 }
 

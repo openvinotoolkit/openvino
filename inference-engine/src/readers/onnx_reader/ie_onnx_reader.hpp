@@ -46,6 +46,8 @@ public:
     }
 
     private:
+        // m_manager should be released after m_onnx_fe
+        ngraph::frontend::FrontEndManager m_manager;
         ngraph::frontend::FrontEnd::Ptr m_onnx_fe;
 };
 
