@@ -91,7 +91,7 @@ Options:
                                 Optional. Performance hint (optimize for latency or throughput).
                                 The hint allows the OpenVINO device to select the right network-specific settings,
                                 as opposite to just accepting specific values (from the sample's the command-line).
-                                So you can specify only the hint without setting  explicit 'nstreams' or other device-specific options.
+                                So you can specify only the hint without setting explicit 'nstreams' or other device-specific options.
     -api "<sync/async>"         Optional (deprecated). Enable Sync/Async API. Default value is "async".
     -niter "<integer>"          Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
     -nireq "<integer>"          Optional. Number of infer requests. Default value is determined automatically for a device.
