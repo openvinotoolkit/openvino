@@ -27,6 +27,7 @@ bool ngraph::op::v0::HardSigmoid::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v0::HardSigmoid::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v0_HardSigmoid_validate_and_infer_types);
     const auto& alpha_pshape = get_input_partial_shape(1);
     const auto& beta_pshape = get_input_partial_shape(2);
 

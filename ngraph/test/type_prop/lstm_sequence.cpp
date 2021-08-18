@@ -7,7 +7,6 @@
 #include "ngraph/opsets/opset5.hpp"
 #include "util/type_prop.hpp"
 
-
 using namespace std;
 using namespace ngraph;
 
