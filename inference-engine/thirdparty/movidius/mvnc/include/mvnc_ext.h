@@ -16,14 +16,14 @@ extern "C"
  * @param devicePlatform Platform to boot
  * @param customFirmwareDir Path to directory with firmware to load. If NULL, use default
  */
-MVNC_EXPORT_API ncStatus_t ncDeviceLoadFirmware(const ncDevicePlatform_t devicePlatform, const char* customFirmwareDir);
+MVNC_EXPORT_API ncStatus_t ncDeviceLoadFirmware(const char* customFirmwareDir);
 
 /**
  * @brief Reset all devices
  */
 MVNC_EXPORT_API ncStatus_t ncDeviceResetAll();
 
-MVNC_EXPORT_API char* ncPlatformToStr(ncDevicePlatform_t devicePlatform);
+MVNC_EXPORT_API char* ncPlatformToStr();
 MVNC_EXPORT_API char* ncProtocolToStr(ncDeviceProtocol_t deviceProtocol);
 
 #ifdef __cplusplus
