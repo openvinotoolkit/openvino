@@ -359,7 +359,7 @@ void remove_redundant_reorders::run(program& p) {
 
         if (skip)
             continue;
-            
+
         if (dep.is_type<input_layout>())
             continue;
 

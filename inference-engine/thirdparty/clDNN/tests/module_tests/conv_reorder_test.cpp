@@ -6,14 +6,12 @@
 
 #include "cldnn/runtime/engine.hpp"
 
-#include "program_impl.h"
 #include "data_inst.h"
 #include "eltwise_inst.h"
-#include "network_impl.h"
 #include "reshape_inst.h"
 #include "pass_manager.h"
 
-#include "program_impl_wrapper.h"
+#include "program_wrapper.h"
 
 #include <memory>
 
@@ -64,17 +62,16 @@ std::map<primitive_id, network_output> test_conv_reorder()
     topology.add(convolution("conv2", "conv1", { "weights2" }, {1, 1, 1, 1}, {0, 0, -1, -1, 0, 0}));
     topology.add(reorder("reorder2", "conv2",  {data_types::f16, format::bfwzyx,{ 2,16,8,8,1,1 } }));
     topology.add(reshape("reshape2", "reorder2", tensor(batch(2), feature(16), spatial(2, 2, 4, 4))));
-    program_impl::ptr prog = program_impl::build_program(engine, *topology.get(), build_opt, false, false);
+    program::ptr prog = program::build_program(engine, topology, build_opt, false, false);
 
-    program_impl_wrapper::run_graph_compilation(*prog);
-    program_impl_wrapper::prepare_memory_dependencies(*prog);
-    program_impl_wrapper::compile(*prog);
-    program_impl_wrapper::init_kernels(*prog);
-    std::shared_ptr<cldnn::network_impl> net = network_impl::allocate_network(engine, prog);
-    network network(net);
-    network.set_input_data("input", input);
+    program_wrapper::run_graph_compilation(*prog);
+    program_wrapper::prepare_memory_dependencies(*prog);
+    program_wrapper::compile(*prog);
+    program_wrapper::init_kernels(*prog);
+    network::ptr network = network::allocate_network(engine, prog);
+    network->set_input_data("input", input);
 
-    return network.execute();
+    return network->execute();
 }
 
 /*
