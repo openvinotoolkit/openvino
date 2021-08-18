@@ -77,8 +77,9 @@ protected:
 TEST_P(InferRequestConfigTest, canSetExclusiveAsyncRequests) {
     ASSERT_EQ(0ul, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     ASSERT_NO_THROW(createInferRequestWithConfig());
-    if (targetDevice != CommonTestUtils::DEVICE_AUTO || targetDevice != CommonTestUtils::DEVICE_MULTI ||
-        targetDevice != CommonTestUtils::DEVICE_HETERO) {
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         ASSERT_EQ(streamExecutorNumber, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
 }
@@ -86,8 +87,9 @@ TEST_P(InferRequestConfigTest, canSetExclusiveAsyncRequests) {
 TEST_P(InferRequestConfigTest, withoutExclusiveAsyncRequests) {
     ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     ASSERT_NO_THROW(createInferRequestWithConfig());
-    if (targetDevice != CommonTestUtils::DEVICE_AUTO || targetDevice != CommonTestUtils::DEVICE_MULTI ||
-        targetDevice != CommonTestUtils::DEVICE_HETERO) {
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         ASSERT_EQ(streamExecutorNumber, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
 }
