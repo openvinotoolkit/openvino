@@ -56,8 +56,8 @@ jobs:
       sudo apt --assume-yes install nfs-common
       sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(MODELS_DIR) -o vers=4,minorversion=1,sec=sys
       mkdir -p $(MODELS_DIR)/models_data
-      ls -latr $(MODELS_DIR)/models_data/
-      rm -f $(MODELS_DIR)/models_data/executing_$(ONNX_MODEL_ZOO_SHA)
+      ls -latr $(MODELS_DIR)/models_data/model_zoo
+      rm -f $(MODELS_DIR)/models_data/model_zoo/executing_$(ONNX_MODEL_ZOO_SHA)
     displayName: 'Make dirs'
 
   - checkout: self
