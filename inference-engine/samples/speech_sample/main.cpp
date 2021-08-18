@@ -621,8 +621,7 @@ int main(int argc, char* argv[]) {
 
             for (size_t i = 0; i < scaleFactorInput.size(); ++i) {
                 slog::info << "For input " << i << " using scale factor of " << scaleFactorInput[i] << slog::endl;
-                std::string scaleFactorConfigKey =
-                    GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
+                std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
                 gnaPluginConfig[scaleFactorConfigKey] = scaleFactorInput[i];
             }
         } else {
