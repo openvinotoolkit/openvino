@@ -89,7 +89,7 @@ Options:
     -c "<absolute_path>"        Required for GPU custom kernels. Absolute path to an .xml file with the kernels description.
     -hint "<throughput(or just 'tput')/latency">
                                 Optional. Performance hint (optimize for latency or throughput).
-                                The hint let the OpenVINO device to select the right (network-specific) settings,
+                                The hint allows the OpenVINO device to select the right network-specific settings,
                                 as opposite to just accepting specific values (from the sample's the command-line).
                                 So you can specify only the hint without setting  explicit 'nstreams' or other device-specific options.
     -api "<sync/async>"         Optional (deprecated). Enable Sync/Async API. Default value is "async".
