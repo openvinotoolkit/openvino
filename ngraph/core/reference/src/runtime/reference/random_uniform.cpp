@@ -179,58 +179,58 @@ void random_uniform(const uint64_t* out_shape,
 
     for (size_t k = 0; k < elem_count; k += step) {
         // generate 4 random uint32 values using Philox algorithm
-        std::vector<uint32_t> res(4);
-        run_philox(key, counter, n, 10, res);
+        std::vector<uint32_t> res(step);
+        run_philox(key, counter, n, rounds_number, res);
 
         // convert values to corresponding output_type
         switch (elem_type) {
         case ngraph::element::Type_t::f32: {
-            float res_float[step];
-            std::transform(res.data(), res.data() + step, res_float, uint32_to_float);
+            std::vector<float> res_float(step);
+            std::transform(res.data(), res.data() + step, res_float.data(), uint32_to_float);
             float mn[1];
             float mx[1];
             memcpy(mn, min_val, elem_type.size());
             memcpy(mx, max_val, elem_type.size());
             // convert uint32 values to float32 and normalize to range
             // [min_val, max_val)
-            std::transform(res.data(), res.data() + step, res_float, [&mn, &mx](uint32_t elem) {
+            std::transform(res.data(), res.data() + step, res_float.data(), [&mn, &mx](uint32_t elem) {
                 return uint32_to_float(elem) * (mx[0] - mn[0]) + mn[0];
             });
 
-            memcpy(out + k * elem_type.size(), res_float, std::min(step, elem_count - k) * elem_type.size());
+            memcpy(out + k * elem_type.size(), res_float.data(), std::min(step, elem_count - k) * elem_type.size());
             break;
         }
         case ngraph::element::Type_t::f16: {
-            float16 res_float16[step];
+            std::vector<float16> res_float16(step);
             // convert uint32 values to float16 and normalize to range
             // [min_val, max_val)
-            std::transform(res.data(), res.data() + step, res_float16, uint32_to_float16);
+            std::transform(res.data(), res.data() + step, res_float16.data(), uint32_to_float16);
             float16 mn[1];
             float16 mx[1];
             memcpy(mn, min_val, elem_type.size());
             memcpy(mx, max_val, elem_type.size());
-            std::transform(res.data(), res.data() + step, res_float16, [&mn, &mx](uint32_t elem) {
+            std::transform(res.data(), res.data() + step, res_float16.data(), [&mn, &mx](uint32_t elem) {
                 return uint32_to_float16(elem) * (mx[0] - mn[0]) + mn[0];
             });
-            memcpy(out + k * elem_type.size(), res_float16, std::min(step, elem_count - k) * elem_type.size());
+            memcpy(out + k * elem_type.size(), res_float16.data(), std::min(step, elem_count - k) * elem_type.size());
             break;
         }
         case ngraph::element::Type_t::bf16: {
-            bfloat16 res_bfloat16[step];
+            std::vector<bfloat16> res_bfloat16(step);
             bfloat16 mn[1];
             bfloat16 mx[1];
             memcpy(mn, min_val, elem_type.size());
             memcpy(mx, max_val, elem_type.size());
             // convert uint32 values to bfloat16 and normalize to range
             // [min_val, max_val)
-            std::transform(res.data(), res.data() + step, res_bfloat16, [&mn, &mx](uint32_t elem) {
+            std::transform(res.data(), res.data() + step, res_bfloat16.data(), [&mn, &mx](uint32_t elem) {
                 return uint32_to_bfloat16(elem) * (mx[0] - mn[0]) + mn[0];
             });
-            memcpy(out + k * elem_type.size(), res_bfloat16, std::min(step, elem_count - k) * elem_type.size());
+            memcpy(out + k * elem_type.size(), res_bfloat16.data(), std::min(step, elem_count - k) * elem_type.size());
             break;
         }
         case ngraph::element::Type_t::f64: {
-            double res_double[step];
+            std::vector<double> res_double(step);
             double mn[1];
             double mx[1];
             memcpy(mn, min_val, elem_type.size());
@@ -240,25 +240,25 @@ void random_uniform(const uint64_t* out_shape,
             // range [min_val, max_val)
             res_double[0] = uint32_to_double(res[0], res[1]) * (mx[0] - mn[0]) + mn[0];
             res_double[1] = uint32_to_double(res[2], res[3]) * (mx[0] - mn[0]) + mn[0];
-            memcpy(out + k * elem_type.size(), res_double, std::min(step, elem_count - k) * elem_type.size());
+            memcpy(out + k * elem_type.size(), res_double.data(), std::min(step, elem_count - k) * elem_type.size());
             break;
         }
         case ngraph::element::Type_t::i32: {
-            int res_int[step];
+            std::vector<int> res_int(step);
             int mn[1];
             int mx[1];
             memcpy(mn, min_val, elem_type.size());
             memcpy(mx, max_val, elem_type.size());
             // convert uint32 values to int32 values and normalize to range
             // [min_val, max_val)
-            std::transform(res.data(), res.data() + step, res_int, [&mn, &mx](uint32_t elem) {
+            std::transform(res.data(), res.data() + step, res_int.data(), [&mn, &mx](uint32_t elem) {
                 return elem % (mx[0] - mn[0]) + mn[0];
             });
-            memcpy(out + k * elem_type.size(), res_int, std::min(step, elem_count - k) * elem_type.size());
+            memcpy(out + k * elem_type.size(), res_int.data(), std::min(step, elem_count - k) * elem_type.size());
             break;
         }
         case ngraph::element::Type_t::i64: {
-            int64_t res_int64[step];
+            std::vector<int64_t> res_int64(step);
             int64_t mn[1];
             int64_t mx[1];
             memcpy(mn, min_val, elem_type.size());
@@ -267,7 +267,7 @@ void random_uniform(const uint64_t* out_shape,
             // range [min_val, max_val)
             res_int64[0] = uint32_to_uint64(res[0], res[1]) % (mx[0] - mn[0]) + mn[0];
             res_int64[1] = uint32_to_uint64(res[2], res[3]) % (mx[0] - mn[0]) + mn[0];
-            memcpy(out + k * elem_type.size(), res_int64, std::min(step, elem_count - k) * elem_type.size());
+            memcpy(out + k * elem_type.size(), res_int64.data(), std::min(step, elem_count - k) * elem_type.size());
             break;
         }
         default:
