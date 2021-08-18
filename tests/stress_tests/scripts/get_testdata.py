@@ -44,7 +44,7 @@ class VirtualEnv:
         if sys.platform.startswith('linux') or sys.platform == 'darwin':
             self.venv_executable = self.venv_dir / "bin" / "python3"
         else:
-            self.venv_executable = self.venv_dir / "Scripts" / "python3.exe"
+            self.venv_executable = self.venv_dir / "Scripts" / "python.exe"
 
     def get_venv_executable(self):
         """Returns path to executable from virtual environment."""
@@ -56,7 +56,7 @@ class VirtualEnv:
 
     def create(self):
         """Creates virtual environment."""
-        cmd = '{executable} -m venv {venv}'.format(executable=sys.executable,
+        cmd = '"{executable}" -m venv {venv}'.format(executable=sys.executable,
                                                    venv=self.get_venv_dir())
         run_in_subprocess(cmd)
         self.is_created = True
@@ -65,10 +65,10 @@ class VirtualEnv:
         """Installs provided requirements. Creates virtual environment if it hasn't been created."""
         if not self.is_created:
             self.create()
-        cmd = '{executable} -m pip install --upgrade pip'.format(executable=self.get_venv_executable())
+        cmd = '"{executable}" -m pip install --upgrade pip'.format(executable=self.get_venv_executable())
         for req in requirements:
             # Don't install requirements via one `pip install` call to prevent "ERROR: Double requirement given"
-            cmd += ' && {executable} -m pip install -r {req}'.format(executable=self.get_venv_executable(), req=req)
+            cmd += ' && "{executable}" -m pip install -r {req}'.format(executable=self.get_venv_executable(), req=req)
         run_in_subprocess(cmd)
 
     def create_n_install_requirements(self, *requirements):
@@ -192,8 +192,8 @@ def main():
         # convert models to IRs
         converter_path = omz_path / "tools" / "downloader" / "converter.py"
         # NOTE: remove --precisions if both precisions (FP32 & FP16) required
-        cmd = '{executable} {converter_path} --name {model_name}' \
-              ' -p {executable}' \
+        cmd = '"{executable}" {converter_path} --name {model_name}' \
+              ' -p "{executable}"' \
               ' --precisions={precision}' \
               ' --output_dir {irs_dir}' \
               ' --download_dir {models_dir}' \
