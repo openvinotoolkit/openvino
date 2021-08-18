@@ -11,7 +11,6 @@ extensions/back/__init__.py
 extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
 extensions/back/CellNormalizer.py
-extensions/back/ChangeCastOutputType.py
 extensions/back/ChangeOutputTypeAttributes.py
 extensions/back/ChangeRandomUniformOutputType.py
 extensions/back/ClampNormalizer.py
