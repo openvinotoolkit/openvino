@@ -368,7 +368,6 @@ extensions/front/scatter_normalizer.py
 extensions/front/SizeReplacer.py
 extensions/front/softmax.py
 extensions/front/softsign_replacer.py
-extensions/front/sparse_to_dense_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/SqueezeNormalize.py
 extensions/front/sub.py
@@ -495,6 +494,7 @@ extensions/front/tf/sparse_fill_empty_rows_ext.py
 extensions/front/tf/sparse_segment_mean_ext.py
 extensions/front/tf/sparse_segment_sqrtn_ext.py
 extensions/front/tf/sparse_segment_sum_ext.py
+extensions/front/tf/sparse_to_dense_replacer.py
 extensions/front/tf/split_ext.py
 extensions/front/tf/ssd_support.json
 extensions/front/tf/ssd_support_api_v1.14.json
