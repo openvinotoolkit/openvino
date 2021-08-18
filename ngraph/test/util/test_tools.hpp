@@ -308,7 +308,7 @@ template<typename T = int32_t>
 std::vector<T> gen_range(const size_t elements, const T start = T{0})
 {
     std::vector<T> range;
-    range.reserve(elements);
+    range.resize(elements);
     std::iota(range.begin(), range.end(), start);
 
     return range;

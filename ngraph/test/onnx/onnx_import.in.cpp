@@ -4026,7 +4026,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_3d) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_3d.prototxt"));
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_3d.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<int32_t>(Shape{1, 3, 3}, {-1, 0, 1, 20, -20, 10, 0, 2, 1});
@@ -4038,7 +4038,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_3d) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_ceil_mode) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_ceil_mode.prototxt"));
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_ceil_mode.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<int32_t>(Shape{1, 1, 4, 4}, gen_range<int32_t>(16, 1));
@@ -4050,7 +4050,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_ceil_mode) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_dilations) {
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_dilations.prototxt"));
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_dilations.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<int32_t>(Shape{1, 1, 4, 4}, {9, 10, 11, 12, 1, 2, 3, 4, 16, 14, 15, 13, 5, 6, 8, 7});
@@ -4065,7 +4065,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_4d_strides) {
     // strides: 3, 3
     // explicit pads: 2, 2, 2, 2
     const auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_strides.prototxt"));
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/max_pool_4d_strides.onnx"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<int8_t>(Shape{1, 1, 5, 5}, gen_range<int8_t>(25, 1));
