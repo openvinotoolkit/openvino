@@ -13,11 +13,6 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}}
     };
 
-    const std::vector<std::map<std::string, std::string>> autoconfigs = {
-            {{InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_GPU}},
-            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
-    };
-
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestWaitTests,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
@@ -33,7 +28,7 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestWaitTests,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoconfigs)),
+                                    ::testing::ValuesIn(configs)),
                             InferRequestWaitTests::getTestCaseName);
 
 }  // namespace

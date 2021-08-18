@@ -14,14 +14,6 @@ const std::vector<std::map<std::string, std::string>> multiConfigs = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
 };
 
-const std::vector<std::map<std::string, std::string>> autoConfigs = {
-        {{ AUTO_CONFIG_KEY(DEVICE_LIST) , CommonTestUtils::DEVICE_GPU}}
-};
-
-const std::vector<std::map<std::string, std::string>> auto_cpu_gpu_conf = {
-    {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestCallbackTests,
         ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_GPU),
@@ -37,12 +29,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestCallbackTests,
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestCallbackTests,
                         ::testing::Combine(
                             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                            ::testing::ValuesIn(autoConfigs)),
-                        InferRequestCallbackTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoCG_BehaviorTests, InferRequestCallbackTests,
-                        ::testing::Combine(
-                            ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                            ::testing::ValuesIn(auto_cpu_gpu_conf)),
+                            ::testing::ValuesIn(multiConfigs)),
                         InferRequestCallbackTests::getTestCaseName);
 }  // namespace

@@ -16,10 +16,6 @@ const std::vector<std::map<std::string, std::string>> multiConfigs = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
 };
 
-const std::vector<std::map<std::string, std::string>> autoConfigs = {
-        {{ AUTO_CONFIG_KEY(DEVICE_LIST) , CommonTestUtils::DEVICE_CPU}}
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestCallbackTests,
         ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -35,6 +31,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestCallbackTests,
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestCallbackTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                ::testing::ValuesIn(autoConfigs)),
+                ::testing::ValuesIn(multiConfigs)),
         InferRequestCallbackTests::getTestCaseName);
 }  // namespace

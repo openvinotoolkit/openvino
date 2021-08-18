@@ -63,7 +63,8 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice != CommonTestUtils::DEVICE_MULTI &&
+    if (targetDevice != CommonTestUtils::DEVICE_AUTO &&
+        targetDevice != CommonTestUtils::DEVICE_MULTI &&
         targetDevice != CommonTestUtils::DEVICE_TEMPLATE &&
         targetDevice != CommonTestUtils::DEVICE_GNA) {
         // Load CNNNetwork to target plugins
@@ -131,7 +132,8 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice != CommonTestUtils::DEVICE_MULTI &&
+    if (targetDevice != CommonTestUtils::DEVICE_AUTO &&
+        targetDevice != CommonTestUtils::DEVICE_MULTI &&
         targetDevice != CommonTestUtils::DEVICE_TEMPLATE &&
         targetDevice != CommonTestUtils::DEVICE_GNA) {
         // Load CNNNetwork to target plugins
@@ -212,7 +214,8 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice != CommonTestUtils::DEVICE_MULTI &&
+    if (targetDevice != CommonTestUtils::DEVICE_AUTO &&
+        targetDevice != CommonTestUtils::DEVICE_MULTI &&
         targetDevice != CommonTestUtils::DEVICE_TEMPLATE &&
         targetDevice != CommonTestUtils::DEVICE_GNA) {
         // Load CNNNetwork to target plugins
