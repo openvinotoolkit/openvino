@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-namespace ngraph {
+namespace ov {
 template <element::Type_t>
 struct element_type_traits {};
 
@@ -92,4 +92,4 @@ template <>
 struct element_type_traits<element::Type_t::u64> {
     using value_type = uint64_t;
 };
-}  // namespace ngraph
+}  // namespace ov

@@ -17,11 +17,11 @@
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/deprecated.hpp"
 #include "ngraph/except.hpp"
-#include "ngraph/ngraph_visibility.hpp"
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
+#include "openvino/core/core_visibility.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace element {
 enum class Type_t {
     undefined,
@@ -44,9 +44,9 @@ enum class Type_t {
     u64
 };
 
-class NGRAPH_API Type {
+class OPENVINO_API Type {
 public:
-    Type() : m_type{element::Type_t::undefined} {}
+    Type() = default;
     Type(const Type&) = default;
     constexpr Type(const Type_t t) : m_type{t} {}
     Type(size_t bitwidth, bool is_real, bool is_signed, bool is_quantized, const std::string& cname);
@@ -70,7 +70,7 @@ public:
     size_t bitwidth() const;
     // The name of this type, the enum name of this type
     const std::string& get_type_name() const;
-    friend NGRAPH_API std::ostream& operator<<(std::ostream&, const Type&);
+    friend OPENVINO_API std::ostream& operator<<(std::ostream&, const Type&);
     static std::vector<const Type*> get_known_types();
 
     /// \brief Checks whether this element type is merge-compatible with `t`.
@@ -107,7 +107,7 @@ private:
     Type_t m_type{Type_t::undefined};
 };
 
-typedef std::vector<Type> TypeVector;
+using TypeVector = std::vector<Type>;
 
 constexpr Type undefined(Type_t::undefined);
 constexpr Type dynamic(Type_t::dynamic);
@@ -133,42 +133,49 @@ Type from() {
     throw std::invalid_argument("Unknown type");
 }
 template <>
-NGRAPH_API Type from<char>();
+OPENVINO_API Type from<char>();
 template <>
-NGRAPH_API Type from<bool>();
+OPENVINO_API Type from<bool>();
 template <>
-NGRAPH_API Type from<float>();
+OPENVINO_API Type from<float>();
 template <>
-NGRAPH_API Type from<double>();
+OPENVINO_API Type from<double>();
 template <>
-NGRAPH_API Type from<int8_t>();
+OPENVINO_API Type from<int8_t>();
 template <>
-NGRAPH_API Type from<int16_t>();
+OPENVINO_API Type from<int16_t>();
 template <>
-NGRAPH_API Type from<int32_t>();
+OPENVINO_API Type from<int32_t>();
 template <>
-NGRAPH_API Type from<int64_t>();
+OPENVINO_API Type from<int64_t>();
 template <>
-NGRAPH_API Type from<uint8_t>();
+OPENVINO_API Type from<uint8_t>();
 template <>
-NGRAPH_API Type from<uint16_t>();
+OPENVINO_API Type from<uint16_t>();
 template <>
-NGRAPH_API Type from<uint32_t>();
+OPENVINO_API Type from<uint32_t>();
 template <>
-NGRAPH_API Type from<uint64_t>();
+OPENVINO_API Type from<uint64_t>();
 template <>
-NGRAPH_API Type from<ngraph::bfloat16>();
+OPENVINO_API Type from<ov::bfloat16>();
 template <>
-NGRAPH_API Type from<ngraph::float16>();
+OPENVINO_API Type from<ov::float16>();
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& out, const ngraph::element::Type& obj);
+OPENVINO_API
+std::ostream& operator<<(std::ostream& out, const ov::element::Type& obj);
 }  // namespace element
 
+/// \brief Return the number of bytes in the compile-time representation of the element type.
+size_t compiler_byte_size(element::Type_t et);
+
+}  // namespace ov
+
+namespace ngraph {
+
 template <>
-class NGRAPH_API AttributeAdapter<element::Type_t> : public EnumAttributeAdapterBase<element::Type_t> {
+class OPENVINO_API AttributeAdapter<ov::element::Type_t> : public EnumAttributeAdapterBase<ov::element::Type_t> {
 public:
-    AttributeAdapter(element::Type_t& value) : EnumAttributeAdapterBase<element::Type_t>(value) {}
+    AttributeAdapter(ov::element::Type_t& value) : EnumAttributeAdapterBase<ov::element::Type_t>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<element::Type_t>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
@@ -177,9 +184,9 @@ public:
 };
 
 template <>
-class NGRAPH_API AttributeAdapter<element::Type> : public ValueAccessor<std::string> {
+class OPENVINO_API AttributeAdapter<ov::element::Type> : public ValueAccessor<std::string> {
 public:
-    AttributeAdapter(element::Type& value) : m_ref(value) {}
+    AttributeAdapter(ov::element::Type& value) : m_ref(value) {}
 
     const std::string& get() override;
     void set(const std::string& value) override;
@@ -188,14 +195,11 @@ public:
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
-    operator element::Type&() {
+    operator ov::element::Type&() {
         return m_ref;
     }
 
 protected:
-    element::Type& m_ref;
+    ov::element::Type& m_ref;
 };
-
-/// \brief Return the number of bytes in the compile-time representation of the element type.
-size_t compiler_byte_size(element::Type_t et);
 }  // namespace ngraph

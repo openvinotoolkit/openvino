@@ -11,12 +11,12 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/ngraph_visibility.hpp"
+#include "openvino/core/core_visibility.hpp"
 
 #define ROUND_MODE_TO_NEAREST_EVEN
 
-namespace ngraph {
-class NGRAPH_API float16 {
+namespace ov {
+class OPENVINO_API float16 {
 public:
     constexpr float16() : m_value{0} {}
 
@@ -158,23 +158,23 @@ template <typename T>
 float16 float16::operator/=(const T& other) {
     return *this = *this / other;
 }
-}  // namespace ngraph
+}  // namespace ov
 
 namespace std {
-bool NGRAPH_API isnan(ngraph::float16 x);
+bool OPENVINO_API isnan(ov::float16 x);
 
 template <>
-class numeric_limits<ngraph::float16> {
+class numeric_limits<ov::float16> {
 public:
     static constexpr bool is_specialized = true;
-    static constexpr ngraph::float16 min() noexcept {
-        return ngraph::float16::from_bits(0x0200);
+    static constexpr ov::float16 min() noexcept {
+        return ov::float16::from_bits(0x0200);
     }
-    static constexpr ngraph::float16 max() noexcept {
-        return ngraph::float16::from_bits(0x7BFF);
+    static constexpr ov::float16 max() noexcept {
+        return ov::float16::from_bits(0x7BFF);
     }
-    static constexpr ngraph::float16 lowest() noexcept {
-        return ngraph::float16::from_bits(0xFBFF);
+    static constexpr ov::float16 lowest() noexcept {
+        return ov::float16::from_bits(0xFBFF);
     }
     static constexpr int digits = 11;
     static constexpr int digits10 = 3;
@@ -182,11 +182,11 @@ public:
     static constexpr bool is_integer = false;
     static constexpr bool is_exact = false;
     static constexpr int radix = 2;
-    static constexpr ngraph::float16 epsilon() noexcept {
-        return ngraph::float16::from_bits(0x1200);
+    static constexpr ov::float16 epsilon() noexcept {
+        return ov::float16::from_bits(0x1200);
     }
-    static constexpr ngraph::float16 round_error() noexcept {
-        return ngraph::float16::from_bits(0x3C00);
+    static constexpr ov::float16 round_error() noexcept {
+        return ov::float16::from_bits(0x3C00);
     }
     static constexpr int min_exponent = -13;
     static constexpr int min_exponent10 = -4;
@@ -197,17 +197,17 @@ public:
     static constexpr bool has_signaling_NaN = true;
     static constexpr float_denorm_style has_denorm = denorm_absent;
     static constexpr bool has_denorm_loss = false;
-    static constexpr ngraph::float16 infinity() noexcept {
-        return ngraph::float16::from_bits(0x7C00);
+    static constexpr ov::float16 infinity() noexcept {
+        return ov::float16::from_bits(0x7C00);
     }
-    static constexpr ngraph::float16 quiet_NaN() noexcept {
-        return ngraph::float16::from_bits(0x7FFF);
+    static constexpr ov::float16 quiet_NaN() noexcept {
+        return ov::float16::from_bits(0x7FFF);
     }
-    static constexpr ngraph::float16 signaling_NaN() noexcept {
-        return ngraph::float16::from_bits(0x7DFF);
+    static constexpr ov::float16 signaling_NaN() noexcept {
+        return ov::float16::from_bits(0x7DFF);
     }
-    static constexpr ngraph::float16 denorm_min() noexcept {
-        return ngraph::float16::from_bits(0);
+    static constexpr ov::float16 denorm_min() noexcept {
+        return ov::float16::from_bits(0);
     }
     static constexpr bool is_iec559 = false;
     static constexpr bool is_bounded = false;
