@@ -23,6 +23,7 @@ void CommonReferenceTest::Exec() {
 }
 
 void CommonReferenceTest::LoadNetwork() {
+    function->validate_nodes_and_infer_types();
     InferenceEngine::CNNNetwork cnnNetwork(function);
     auto inputInfo = cnnNetwork.getInputsInfo();
     auto outputInfo = cnnNetwork.getOutputsInfo();
