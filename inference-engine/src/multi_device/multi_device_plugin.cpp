@@ -58,7 +58,7 @@ namespace {
     }
     std::vector<std::string> supported_configKeys = {
         MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-        PluginConfigParams::KEY_WORK_MODE
+        CONFIG_KEY_INTERNAL(WORK_MODE)
     };
 }  // namespace
 
@@ -185,7 +185,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetwork(const st
 IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
                                                                                const std::map<std::string, std::string>& config) {
     if (network.getFunction() == nullptr) {
-        IE_THROW() << "AUTO device supports just ngraph network representation";
+        IE_THROW() << "MULTI device supports just ngraph network representation";
     }
 
     auto networkPrecision = GetNetworkPrecision(network);
@@ -208,12 +208,12 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
-    auto workMode = fullConfig.find(PluginConfigParams::KEY_WORK_MODE);
+    auto workMode = fullConfig.find(CONFIG_KEY_INTERNAL(WORK_MODE));
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
 
     // not found device priorities for -d AUTO use case
     if (priorities == fullConfig.end()) {
-        if (workMode != fullConfig.end() && workMode->second == PluginConfigParams::AUTO) {
+        if (workMode != fullConfig.end()) {
             std::string allDevices;
             auto availableDevices = GetCore()->GetAvailableDevices();
             if (availableDevices.empty()) {
@@ -233,7 +233,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         multiNetworkConfig.insert(*priorities);
     }
     // check if it is -d AUTO or -d AUTO:xPU use case
-    if (workMode != fullConfig.end() && workMode->second == PluginConfigParams::AUTO) {
+    if (workMode != fullConfig.end()) {
         auto targetDevice = SelectDevice(metaDevices, networkPrecision);
         // std::cout << "!!! DEBUG: select device is " << targetDevice.deviceName << std::endl;
         metaDevices = { targetDevice };

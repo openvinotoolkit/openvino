@@ -284,16 +284,6 @@ DECLARE_CONFIG_VALUE(CPU_THROUGHPUT_AUTO);
 DECLARE_CONFIG_KEY(PERF_COUNT);
 
 /**
- * @brief The name for setting work mode in MULTI device plugin option.
- *
- * It is passed to Core::SetConfig(), this option should be used with value only:
- * PluginConfigParams::AUTO or PluginConfigParams::MULTI
- */
-DECLARE_CONFIG_KEY(WORK_MODE);
-DECLARE_CONFIG_VALUE(AUTO);   // fixme: correct me with more meaningful name, thanks!
-DECLARE_CONFIG_VALUE(MULTI);  // fixme: correct me with more meaningful name, thanks!
-
-/**
  * @brief The key defines dynamic limit of batch processing.
  *
  * Specified value is applied to all following Infer() calls. Inference Engine processes
