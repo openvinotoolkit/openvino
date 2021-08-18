@@ -103,13 +103,18 @@ const std::vector<size_t> single_deform_groups = {3};
 
 const auto deformableConv2DParams_SingleTestCase = ::testing::Combine(
     ::testing::ValuesIn(single_deform_vals),
-    ::testing::ValuesIn(single_kernel), ::testing::ValuesIn(strides),
-    ::testing::ValuesIn(padBegins), ::testing::ValuesIn(padEnds),
-    ::testing::ValuesIn(dilations), ::testing::ValuesIn(groups),
-    ::testing::ValuesIn(single_deform_groups), ::testing::ValuesIn(numOutChannels),
+    ::testing::ValuesIn(single_kernel),
+    ::testing::ValuesIn(strides),
+    ::testing::ValuesIn(padBegins),
+    ::testing::ValuesIn(padEnds),
+    ::testing::ValuesIn(dilations),
+    ::testing::ValuesIn(groups),
+    ::testing::ValuesIn(single_deform_groups),
+    ::testing::ValuesIn(numOutChannels),
     ::testing::Values(ngraph::op::PadType::EXPLICIT),
     ::testing::ValuesIn(with_bilinear_interpolation_pad),
-    ::testing::ValuesIn(with_modulated_scalar));
+    ::testing::ValuesIn(with_modulated_scalar)
+);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_DeformableConvolution2D_SingleTestCase, DeformableConvolutionLayerTest,

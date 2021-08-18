@@ -22,8 +22,6 @@ struct jit_def_conv_params {
     int kd, kh, kw;
     int stride_d, stride_h, stride_w;
     int dilate_d, dilate_h, dilate_w;
-    bool with_bias;
-    bool with_sum;
     int nthr;
     int nb_ic, ic_block;
     int nb_oc, oc_block;
@@ -32,13 +30,19 @@ struct jit_def_conv_params {
     int ur_w_tail;
     int typesize_in;
     int typesize_off;
+    int typesize_modulation;
     int typesize_bia;
     int typesize_out;
+    bool with_bias;
+    bool with_sum;
+    bool with_modulation;
+    bool with_bi_pad;
 };
 
 struct jit_def_conv_call_args {
     const void *src;
     const void *off;
+    const void *modulation;
     const void *filt;
     const void *bias;
     const void *dst;
@@ -75,11 +79,13 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
+    bool enforceRef = false;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
 private:
     size_t group = 1;
+    bool with_bilinear_pad = false;
     std::vector<ptrdiff_t> stride = {};
     std::vector<ptrdiff_t> dilation = {};
     std::vector<ptrdiff_t> paddingL = {};
@@ -92,10 +98,10 @@ private:
 
     void executeReference(const float* src, const float* offsets, const float* weights, float* dst,
                           const std::vector<size_t>& src_strides, const std::vector<size_t>& off_strides,
-                          const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides);
+                          const std::vector<size_t>& wei_strides, const std::vector<size_t>& dst_strides,
+                          const float* modulation = nullptr, const std::vector<size_t>& modulation_strides = {});
     void executeOptimized(const float* src, const float* offsets, const float* weights, float* dst,
-                          const std::vector<size_t>& src_strides, const std::vector<size_t>& off_strides,
-                          const std::vector<size_t>& dst_strides);
+                          const std::vector<size_t>& src_strides, const std::vector<size_t>& off_strides, const std::vector<size_t>& dst_strides);
 };
 
 }  // namespace MKLDNNPlugin
