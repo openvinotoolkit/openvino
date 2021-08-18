@@ -7,7 +7,7 @@ from mo.utils.graph import Node
 from mo.utils.ir_reader.extender import Extender
 
 
-class RangeExtender(Extender):
+class RandomUniformExtender(Extender):
     op = 'RandomUniform'
 
     @staticmethod
