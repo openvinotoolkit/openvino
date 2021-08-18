@@ -796,7 +796,10 @@ cdef class DataPtr:
     ## Shape (dimensions) of the data object
     @property
     def shape(self):
-        return deref(self._ptr).getDims()
+        if deref(self._ptr).isDynamic():
+            return C.getPartialShape(self._ptr)
+        else:
+            return deref(self._ptr).getDims()
 
     ## Layout of the data object
     @property

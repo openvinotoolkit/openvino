@@ -47,6 +47,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const Layout getLayout() except +
         void setLayout(Layout layout) except +
         const bool isInitialized() except +
+        bool isDynamic() except +
 
     ctypedef shared_ptr[Data] DataPtr
     ctypedef weak_ptr[Data] DataWeakPtr
@@ -226,3 +227,5 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef string get_version()
 
     cdef IENetwork read_network(string path_to_xml, string path_to_bin)
+
+    cdef vector[int64_t] getPartialShape(DataPtr)

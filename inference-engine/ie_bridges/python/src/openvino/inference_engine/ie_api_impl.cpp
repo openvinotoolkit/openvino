@@ -207,6 +207,20 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string
     return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
+std::vector<int64_t> InferenceEnginePython::getPartialShape(InferenceEngine::DataPtr data){
+    ngraph::PartialShape pShape = data->getPartialShape();
+    std::vector<int64_t> py_shape;
+    for(auto const& d : pShape){
+        if(d.is_dynamic()){
+            py_shape.push_back(-1);
+        }
+        else{
+            py_shape.push_back(d.get_length());
+        }
+    }
+    return py_shape;
+}
+
 InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork>& cnn_network)
     : actual(cnn_network) {
     if (actual == nullptr)
