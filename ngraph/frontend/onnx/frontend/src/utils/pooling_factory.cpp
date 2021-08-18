@@ -55,14 +55,15 @@ OutputVector PoolingFactory::make_max_pool() const {
 }
 
 OutputVector PoolingFactory::make_max_pool_with_indices() const {
-    return {std::make_shared<op::v8::MaxPool>(m_inputs.at(0),
-                                              m_strides,
-                                              m_dilations,
-                                              m_padding_below,
-                                              m_padding_above,
-                                              m_kernel_shape,
-                                              m_rounding_type,
-                                              m_auto_pad)};
+    const auto max_pool = std::make_shared<op::v8::MaxPool>(m_inputs.at(0),
+                                                            m_strides,
+                                                            m_dilations,
+                                                            m_padding_below,
+                                                            m_padding_above,
+                                                            m_kernel_shape,
+                                                            m_rounding_type,
+                                                            m_auto_pad);
+    return max_pool->outputs();
 }
 }  // namespace pooling
 }  // namespace onnx_import
