@@ -71,7 +71,6 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
 
     if (isDynamic && (config.inConfs[0].desc->getShape().getRank() != config.outConfs[0].desc->getShape().getRank()))
         IE_THROW() << "Reorder node doesn't support case when input and output shapes have different rank and dynamic";
-
     if (!isOptimized) {
         const auto &inShape = getInputShapeAtPort(0);
         if (MKLDNNPlugin::one_of(inShape.getRank(), 4, 5) &&
@@ -88,7 +87,7 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
                    config.inConfs[0].desc->getPrecision() == config.outConfs[0].desc->getPrecision() &&
                    config.inConfs[0].desc->getPrecision().size() == 1) {
             // oneDNN doesn't provide JIT reorder impl for non-avx2 targets so we fallback on simple c++ implementation which shows better perf
-            canUseNcsp2Nspc = true;
+            isNcsp2NspcCase = true;
         }
     }
 }
@@ -116,14 +115,39 @@ void MKLDNNReorderNode::prepareParams() {
         if (getSelectedPrimitiveDescriptor() == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
 
-        if (isNspc2NcspCase) {
+        const auto&  childDesc = dstMemPtr->getDesc();
+        if ((isNspc2NcspCase || isNcsp2NspcCase) && (childDesc.getType() == MemoryDescType::Blocked)) {
             const auto &inDims = srcMemPtr->getStaticDims();
-            canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
-                              (srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128;
+            const auto ndims = inDims.size();
+            const auto P_size = inDims[ndims-1];
+            const auto SxP_size = inDims[ndims-2] * P_size;
+            const auto GxSxP_size = (ndims == 5) ? inDims[ndims-3] * SxP_size : 0;
+            const auto& dst_strides = childDesc.as<BlockedMemoryDesc>()->getStrides();
+            if (isNspc2NcspCase) {
+                // If child is inplace check that its strides are consistent with parent dims
+                auto checkChildStrides = [&](){
+                        return (!getChildEdgeAt(0)->getChild()->isInplace()) ||
+                               ( (dst_strides[ndims-1] == 1) &&
+                                 (dst_strides[ndims-2] == P_size) &&
+                                 (dst_strides[ndims-3] == SxP_size) &&
+                                 (GxSxP_size != 0 && dst_strides[ndims-4] == GxSxP_size) );
+                };
+                canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
+                                  (srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount() /
+                                   inDims[1]) >= 128 &&
+                                  checkChildStrides();
+            } else if (isNcsp2NspcCase) {
+                auto checkChildStrides = [&](){
+                    return (!getChildEdgeAt(0)->getChild()->isInplace()) ||
+                            ( (dst_strides[ndims-1] == 1) &&
+                              (dst_strides[ndims-3] == dst_strides[ndims-2] * P_size) &&
+                              (dst_strides[ndims-4] == dst_strides[ndims-2] * SxP_size) &&
+                              (GxSxP_size != 0 && dst_strides[ndims-5] == dst_strides[ndims-2] * GxSxP_size) );
+                };
+                canUseNcsp2Nspc = checkChildStrides();
+            }
         }
         if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
-            auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-            auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
             if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
                 IE_THROW() << "Destination memory didn't allocate.";
             if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
@@ -207,6 +231,7 @@ void MKLDNNReorderNode::optimizedNcsp2Nspc() {
     auto childEdge = getChildEdgeAt(0);
 
     auto inDims = parentEdge->getMemory().GetShape().getStaticDims();
+    const auto dstStrides = childEdge->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getStrides();
     const size_t ndims = inDims.size();
     const size_t DIM0 = inDims[0];
     const size_t DIM1 = inDims[1];
@@ -217,18 +242,20 @@ void MKLDNNReorderNode::optimizedNcsp2Nspc() {
     auto src_data = reinterpret_cast<const uint8_t *>(parentEdge->getMemoryPtr()->GetPtr());
     auto dst_data = reinterpret_cast<uint8_t *>(childEdge->getMemoryPtr()->GetPtr());
 
-    const size_t stride0 = DIM1 * DIM2 * DIM3 * DIM4;
+    const size_t src_batch_stride = DIM1 * DIM2 * DIM3 * DIM4;
+    const size_t dst_batch_stride = childEdge->getChild()->isInplace() ? dstStrides[0] : src_batch_stride;
+    const size_t dst_channel_stride = childEdge->getChild()->isInplace() ? dstStrides[ndims-2] : DIM1;
     const size_t stride1 = DIM2 * DIM3 * DIM4;
     const size_t stride2 = DIM2 * DIM3;
 
     parallel_for3d(DIM0, DIM1, stride2, [&](size_t dim0, size_t dim1, size_t j) {
-        size_t src_off = dim0 * stride0 + j * DIM4 + dim1 * stride1;
-        size_t dst_off = dim0 * stride0 + j * DIM4 * DIM1 + dim1;
+        size_t src_off = dim0 * src_batch_stride + j * DIM4 + dim1 * stride1;
+        size_t dst_off = dim0 * dst_batch_stride + j * DIM4 * dst_channel_stride + dim1;
 
         for (size_t dim4 = 0; dim4 < DIM4; ++dim4) {
             dst_data[dst_off] = src_data[src_off];
             src_off++;
-            dst_off += DIM1;
+            dst_off += dst_channel_stride;
         }
     });
 }
@@ -248,15 +275,17 @@ void MKLDNNReorderNode::optimizedNspc2Ncsp() {
     auto src_data = reinterpret_cast<const float *>(parentEdge->getMemoryPtr()->GetPtr());
     auto dst_data = reinterpret_cast<float *>(childEdge->getMemoryPtr()->GetPtr());
 
-    const size_t stride1 = DIM2 * DIM3 * DIM4;
-    const size_t stride0 = stride1 * DIM1;
-    parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
-        auto src_off = b*stride0 + j*DIM1;
-        auto dst_off = b*stride0 + j;
+    const auto dstStrides = childEdge->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>().getStrides();
+    const size_t block_size = DIM2 * DIM3 * DIM4;
+    const size_t src_batch_stride = block_size * DIM1;
+    const size_t dst_batch_stride = childEdge->getChild()->isInplace() ? dstStrides[0] : src_batch_stride;
+    parallel_for2d(DIM0, block_size, [&](size_t b, size_t j) {
+        auto src_off = b * src_batch_stride + j * DIM1;
+        auto dst_off = b * dst_batch_stride + j;
         for (size_t dim1 = 0; dim1 < DIM1; ++dim1) {
             dst_data[dst_off] = src_data[src_off];
             src_off++;
-            dst_off += stride1;
+            dst_off += block_size;
         }
     });
 }
