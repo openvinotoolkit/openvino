@@ -60,6 +60,13 @@ namespace {
                                     ::testing::ValuesIn(multiConfigs)),
                             InferConfigTests::getTestCaseName);
 
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferConfigTests,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                             ::testing::ValuesIn(multiConfigs)),
+                         InferConfigTests::getTestCaseName);
+
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferConfigInTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
@@ -73,5 +80,12 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(MultiInConfigs)),
                             InferConfigInTests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferConfigInTests,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(netPrecisions),
+                             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                             ::testing::ValuesIn(MultiInConfigs)),
+                         InferConfigInTests::getTestCaseName);
 
 }  // namespace
