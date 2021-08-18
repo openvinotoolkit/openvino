@@ -30,7 +30,7 @@ jobs:
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
     INSTALL_DIR: $(WORK_DIR)/install_pkg
-    TEST_DIR: $(WORK_DIR)/developer_pkg/tests
+    TESTS_DIR: $(WORK_DIR)/tests_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
 
@@ -242,9 +242,9 @@ jobs:
       python3 -m pip install -r requirements.txt
       . $(SETUPVARS) -pyver 3.6
       export MO_ROOT="$(INSTALL_DIR)/deployment_tools/model_optimizer"
-      export PYTHONPATH="$(TEST_DIR)/layer_tests_openvino:$MO_ROOT:$PYTHONPATH
+      export PYTHONPATH="$(TESTS_DIR)/layer_tests_openvino:$MO_ROOT:$PYTHONPATH
       python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xmlTEST
-    workingDirectory: $(TEST_DIR)/layer_tests
+    workingDirectory: $(TESTS_DIR)/layer_tests
     displayName: 'Layer Tests'
     continueOnError: false
 
