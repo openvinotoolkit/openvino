@@ -49,6 +49,7 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds) {
 }
 
 TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     std::string fePath =
         ngraph::file_util::get_directory(ngraph::runtime::Backend::get_backend_shared_library_search_directory());
     fePath = fePath + FrontEndPathSeparator + "someInvalidPath";
@@ -61,6 +62,7 @@ TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
     ASSERT_NO_THROW(fe = fem.load_by_framework("mock1"));
     ASSERT_EQ(fe->get_name(), "mock1");
     set_test_env("OV_FRONTEND_PATH", "");
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 TEST(FrontEndManagerTest, testDefaultFrontEnd) {

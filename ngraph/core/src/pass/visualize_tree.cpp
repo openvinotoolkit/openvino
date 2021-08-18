@@ -511,6 +511,7 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node) {
 }
 
 void pass::VisualizeTree::render() const {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     string ext = file_util::get_file_ext(m_name);
     string output_format = ext.substr(1);
     string dot_file = m_name;
@@ -536,4 +537,5 @@ void pass::VisualizeTree::render() const {
 #endif
         }
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

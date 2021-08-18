@@ -11,6 +11,8 @@
 #include "onnx_import/onnx.hpp"
 #include "util/type_prop.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace ngraph;
 
 TEST(onnx_importer, exception_throws_ngraph_error) {

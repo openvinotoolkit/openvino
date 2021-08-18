@@ -37,6 +37,7 @@ using namespace ngraph::frontend;
 
 // TODO: change to std::filesystem for C++17
 static std::vector<std::string> list_files(const std::string& path) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     std::vector<std::string> res;
     try {
         ngraph::file_util::iterate_files(
@@ -61,6 +62,7 @@ static std::vector<std::string> list_files(const std::string& path) {
         // Ignore exceptions
     }
     return res;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 std::vector<PluginData> ngraph::frontend::load_plugins(const std::string& dir_name) {
