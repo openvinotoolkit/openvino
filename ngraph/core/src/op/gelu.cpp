@@ -8,51 +8,23 @@
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/builder/make_constant.hpp"
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/divide.hpp"
-#include "ngraph/op/erf.hpp"
-#include "ngraph/op/exp.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/negative.hpp"
-#include "ngraph/op/subtract.hpp"
 #include "ngraph/runtime/reference/gelu.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
+// ------------------------------ V0 ------------------------------
+NGRAPH_RTTI_DEFINITION(op::v0::Gelu, "Gelu", 0);
 
-constexpr NodeTypeInfo op::Gelu::type_info;
+op::v0::Gelu::Gelu() : Op() {}
 
-op::v0::Gelu::Gelu() : FusedOp() {}
-
-op::v0::Gelu::Gelu(const Output<Node>& data) : FusedOp({data}) {
+op::v0::Gelu::Gelu(const Output<Node>& data) : Op({data}) {
     constructor_validate_and_infer_types();
 }
 
 bool op::v0::Gelu::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_Gelu_visit_attributes);
     return true;
-}
-
-// f(x) = 0.5 * x * (1.0 + erf( x / sqrt(2.0) )
-OutputVector op::Gelu::decompose_op() const {
-    auto data = input_value(0);
-
-    shared_ptr<ngraph::Node> half = builder::make_constant(data.get_element_type(), data.get_shape(), 0.5);
-
-    shared_ptr<ngraph::Node> one = builder::make_constant(data.get_element_type(), data.get_shape(), 1.0);
-
-    shared_ptr<ngraph::Node> sqrt_two =
-        builder::make_constant(data.get_element_type(), data.get_shape(), std::sqrt(2.0));
-
-    shared_ptr<ngraph::Node> add =
-        std::make_shared<op::v1::Add>(one,
-                                      make_shared<ngraph::op::Erf>(std::make_shared<op::v1::Divide>(data, sqrt_two)));
-    shared_ptr<ngraph::Node> multiply = std::make_shared<op::v1::Multiply>(half, data);
-
-    return {std::make_shared<op::v1::Multiply>(multiply, add)};
 }
 
 shared_ptr<Node> op::v0::Gelu::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -63,7 +35,8 @@ shared_ptr<Node> op::v0::Gelu::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<op::v0::Gelu>(new_args.at(0));
 }
 
-void op::v0::Gelu::pre_validate_and_infer_types() {
+void op::v0::Gelu::validate_and_infer_types() {
+    NGRAPH_OP_SCOPE(v0_Gelu_validate_and_infer_types);
     element::Type input_element_type = get_input_element_type(0);
     PartialShape input_pshape = get_input_partial_shape(0);
 

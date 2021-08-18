@@ -6,16 +6,14 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/fused_op.hpp"
 
 namespace ngraph {
 namespace op {
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace v0 {
 /// \brief Operator performing Mean Variance Normalization
 ///
-class NGRAPH_API MVN : public ngraph::op::util::FusedOp {
+class NGRAPH_API MVN : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -42,8 +40,6 @@ public:
     ///            normalizing the value
     ///
     MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_variance = true, double eps = 1e-9);
-
-    virtual OutputVector decompose_op() const override;
 
     virtual void validate_and_infer_types() override;
 
@@ -75,8 +71,6 @@ private:
 };
 }  // namespace v0
 using v0::MVN;
-
-NGRAPH_SUPPRESS_DEPRECATED_END
 
 /// \brief Specifies how eps is applied in MVN
 enum class MVNEpsMode {
