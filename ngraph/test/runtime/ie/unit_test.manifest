@@ -467,6 +467,11 @@ onnx_constant_integer_array
 adaptive_max_pool_1d
 adaptive_max_pool_2d
 adaptive_max_pool_3d
+onnx_dyn_shapes_max_pool_with_indices_output
+onnx_model_max_pool_3d
+onnx_model_max_pool_4d_ceil_mode
+onnx_model_max_pool_4d_dilations
+onnx_model_max_pool_4d_strides
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
@@ -1592,4 +1597,3 @@ IE_GPU.deformable_convolution_opset8_2D_neg_offsets_groups_and_deforgroups_mask
 # results missmatch, ticket: 59600
 IE_GPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
 IE_GPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
-
