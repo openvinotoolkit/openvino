@@ -92,7 +92,6 @@ TEST_F(MvncTestsCommon, OpenUSBThenPCIEAndClose) {
     std::string actDeviceName;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = NC_USB;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_USB, deviceDesc, m_ncDeviceOpenParams));
 
@@ -127,7 +126,6 @@ TEST_F(MvncTestsCommon, OpenPCIEThenUSBAndClose) {
     std::string actDeviceName;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = NC_PCIE;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     // Open PCIe device
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_PCIe, deviceDesc, m_ncDeviceOpenParams));
@@ -164,7 +162,6 @@ TEST_P(MvncOpenDevice, OpenAndClose) {
     std::string         deviceName;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = _deviceProtocol;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
@@ -190,7 +187,6 @@ TEST_P(MvncOpenDevice, AllHandleFieldsInitialized) {
     ncDeviceHandle_t*   deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = _deviceProtocol;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
@@ -217,7 +213,6 @@ TEST_P(MvncOpenDevice, OpenTwiceSameHandler) {
     ncDeviceHandle_t *deviceHandle = nullptr;
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = _deviceProtocol;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     char dev_addr_first_open[MAX_DEV_NAME];
     unsigned int data_length_first = MAX_DEV_NAME;
@@ -254,7 +249,6 @@ TEST_P(MvncOpenDevice, DISABLED_OpenSameDeviceTwiceDifferentHandlers) {
 
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = _deviceProtocol;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle1, deviceDesc, m_ncDeviceOpenParams));
 
@@ -278,7 +272,6 @@ TEST_P(MvncOpenDevice, OpenTwiceWithOneXLinkInitializion) {
 
     ncDeviceDescr_t deviceDesc = {};
     deviceDesc.protocol = _deviceProtocol;
-    deviceDesc.platform = NC_ANY_PLATFORM;
 
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
@@ -304,8 +297,7 @@ TEST_P(MvncOpenDevice, WatchdogShouldResetDeviceWithoutConnection) {
     deviceDesc_t deviceDescToBoot = {};
     deviceDesc_t in_deviceDesc = {};
     in_deviceDesc.protocol = convertProtocolToXlink(_deviceProtocol);
-    in_deviceDesc.platform = convertPlatformToXlink(NC_ANY_PLATFORM);
-    int expectAvailableDevices = getAmountOfDevices(_deviceProtocol, NC_ANY_PLATFORM, X_LINK_UNBOOTED);
+    int expectAvailableDevices = getAmountOfDevices(_deviceProtocol, X_LINK_UNBOOTED);
 
     XLinkError_t rc = X_LINK_ERROR;
     auto waittm = std::chrono::system_clock::now() + std::chrono::seconds(5);
@@ -321,11 +313,11 @@ TEST_P(MvncOpenDevice, WatchdogShouldResetDeviceWithoutConnection) {
 
     std::this_thread::sleep_for(5_sec);
     ASSERT_EQ(expectAvailableDevices - 1,
-        getAmountOfDevices(_deviceProtocol, NC_ANY_PLATFORM, X_LINK_UNBOOTED));
+        getAmountOfDevices(_deviceProtocol, X_LINK_UNBOOTED));
 
     std::this_thread::sleep_for(15_sec);
     ASSERT_EQ(expectAvailableDevices,
-        getAmountOfDevices(_deviceProtocol, NC_ANY_PLATFORM, X_LINK_UNBOOTED));
+        getAmountOfDevices(_deviceProtocol, X_LINK_UNBOOTED));
 }
 
 //------------------------------------------------------------------------------

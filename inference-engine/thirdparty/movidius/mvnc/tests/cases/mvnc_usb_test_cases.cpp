@@ -14,7 +14,6 @@ void MvncOpenUSBDevice::SetUp() {
     availableDevices_ = getAmountOfNotBootedDevices(NC_USB);
 
     deviceDesc_.protocol = NC_USB;
-    deviceDesc_.platform = NC_ANY_PLATFORM;
 }
 
 //------------------------------------------------------------------------------

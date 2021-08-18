@@ -56,7 +56,6 @@ extern "C" void initialize_usb_boot();
      * @param[in] deviceProtocol Count only platform specific devices
      */
 int getAmountOfDevices(const ncDeviceProtocol_t deviceProtocol = NC_ANY_PROTOCOL,
-                              const ncDevicePlatform_t devicePlatform = NC_ANY_PLATFORM,
                               const XLinkDeviceState_t state = X_LINK_ANY_STATE);
 
 long getAmountOfMyriadXDevices(ncDeviceProtocol_t deviceProtocol = NC_ANY_PROTOCOL);
@@ -79,7 +78,6 @@ long getAmountOfUSBDevices();
  */
 std::vector<std::string> getDevicesList(
         const ncDeviceProtocol_t deviceProtocol = NC_ANY_PROTOCOL,
-        const ncDevicePlatform_t devicePlatform = NC_ANY_PLATFORM,
         const XLinkDeviceState_t state = X_LINK_ANY_STATE);
 
 //------------------------------------------------------------------------------
@@ -107,8 +105,7 @@ bool isSameProtocolDevice(const std::string &deviceName,
 /**
 * @brief Check that device matches the specified platform for USB
 */
-bool isSamePlatformUSBDevice(const std::string &deviceName,
-                                    const ncDevicePlatform_t expectedPlatform);
+bool isSamePlatformUSBDevice(const std::string &deviceName);
 
 //------------------------------------------------------------------------------
 //      Helpers - file loader

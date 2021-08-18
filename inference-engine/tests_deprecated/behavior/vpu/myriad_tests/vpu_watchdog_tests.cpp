@@ -84,7 +84,6 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 
         ncDeviceDescr_t deviceDesc = {};
         deviceDesc.protocol = NC_ANY_PROTOCOL;
-        deviceDesc.platform = NC_ANY_PLATFORM;
 
         ncDeviceOpenParams_t deviceOpenParams = {};
         deviceOpenParams.watchdogHndl = m_watchdogHndl;

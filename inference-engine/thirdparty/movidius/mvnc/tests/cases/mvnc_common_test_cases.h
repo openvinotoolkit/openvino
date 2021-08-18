@@ -137,12 +137,6 @@ static const std::vector<ncDeviceProtocol_t> myriadProtocols = {
         NC_PCIE
 };
 
-static const std::vector<ncDevicePlatform_t> myriadPlatforms = {
-        NC_MYRIAD_2,
-        NC_MYRIAD_X
-};
-
-
 namespace {
     /**
      * @brief   Converter from enum to string
@@ -153,9 +147,8 @@ namespace {
             return ncProtocolToStr(info.param);
         }
 
-        std::string operator()(
-                const ::testing::TestParamInfo<ncDevicePlatform_t> &info) const {
-            return std::string("USB_") + ncPlatformToStr(info.param);
+        std::string operator()() const {
+            return std::string("USB_");
         }
     };
 }

@@ -28,11 +28,9 @@ MyriadDevicesInfo::MyriadDevicesInfo() {
 
 std::vector<std::string> MyriadDevicesInfo::getDevicesList(
                     const ncDeviceProtocol_t deviceProtocol,
-                    const ncDevicePlatform_t devicePlatform,
                     const XLinkDeviceState_t state) {
         deviceDesc_t req_deviceDesc = {};
         req_deviceDesc.protocol = convertProtocolToXlink(deviceProtocol);
-        req_deviceDesc.platform = convertPlatformToXlink(devicePlatform);
 
         deviceDesc_t deviceDescArray[NC_MAX_DEVICES] = {};
         unsigned int foundDevices = 0;
@@ -49,11 +47,9 @@ std::vector<std::string> MyriadDevicesInfo::getDevicesList(
 
 int MyriadDevicesInfo::getAmountOfDevices(
                             const ncDeviceProtocol_t deviceProtocol,
-                            const ncDevicePlatform_t devicePlatform,
                             const XLinkDeviceState_t state) {
     deviceDesc_t req_deviceDesc = {};
     req_deviceDesc.protocol = convertProtocolToXlink(deviceProtocol);
-    req_deviceDesc.platform = convertPlatformToXlink(devicePlatform);
 
     deviceDesc_t deviceDescArray[NC_MAX_DEVICES] = {};
     unsigned int foundDevices = 0;
