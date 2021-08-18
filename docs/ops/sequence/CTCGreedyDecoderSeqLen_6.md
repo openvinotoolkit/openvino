@@ -2,7 +2,7 @@
 
 **Versioned name**: *CTCGreedyDecoderSeqLen-6*
 
-**Category**: Sequence processing
+**Category**: *Sequence processing*
 
 **Short description**: *CTCGreedyDecoderSeqLen* performs greedy decoding of the logits provided as the first input. The sequence lengths are provided as the second input.
 

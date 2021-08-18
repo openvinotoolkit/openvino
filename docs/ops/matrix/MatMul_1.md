@@ -2,7 +2,7 @@
 
 **Versioned name**: *MatMul-1*
 
-**Category**: Matrix multiplication
+**Category**: *Matrix multiplication*
 
 **Short description**: Generalized matrix multiplication
 

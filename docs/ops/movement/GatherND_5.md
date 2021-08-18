@@ -2,7 +2,7 @@
 
 **Versioned name**: *GatherND-5*
 
-**Category**: Data movement operations
+**Category**: *Data movement*
 
 **Short description**: *GatherND* gathers slices from input tensor into a tensor of a shape specified by indices.
 
