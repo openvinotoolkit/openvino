@@ -66,16 +66,14 @@ TEST(type_prop, reverse_sequence_invalid_seq_lengths_et) {
     int64_t seq_axis = 1;
     std::vector<element::Type> invalid_et{element::bf16, element::f16, element::f32, element::boolean};
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{4, 3, 2});
-    for (auto& et : invalid_et) {
-        try {
-            auto seq_lengths = make_shared<op::Parameter>(et, PartialShape{4});
-            auto reverse_seq = make_shared<op::ReverseSequence>(data, seq_lengths, batch_axis, seq_axis);
-            FAIL() << "Invalid element type of seq_lengths input not detected";
-        } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), std::string("Sequence lengths element type must be of integer type."));
-        } catch (...) {
-            FAIL() << "Element type validation check of seq_lengths input failed for unexpected reason";
-        }
+    auto seq_lengths = make_shared<op::Parameter>(element::boolean, PartialShape{4});
+    try {
+        auto reverse_seq = make_shared<op::ReverseSequence>(data, seq_lengths, batch_axis, seq_axis);
+        FAIL() << "Invalid element type of seq_lengths input not detected";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Sequence lengths element type must be numeric type."));
+    } catch (...) {
+        FAIL() << "Element type validation check of seq_lengths input failed for unexpected reason";
     }
 }
 

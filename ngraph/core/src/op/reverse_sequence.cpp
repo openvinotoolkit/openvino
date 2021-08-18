@@ -54,8 +54,8 @@ void op::ReverseSequence::validate_and_infer_types() {
     const auto& seq_lengths_rank = seq_lengths_pshape.rank();
 
     NODE_VALIDATION_CHECK(this,
-                          seq_lengths_et.is_integral_number(),
-                          "Sequence lengths element type must be of integer type. Got: ",
+                          seq_lengths_et.is_real() || seq_lengths_et.is_integral_number(),
+                          "Sequence lengths element type must be numeric type. Got: ",
                           seq_lengths_et);
 
     NODE_VALIDATION_CHECK(this,
