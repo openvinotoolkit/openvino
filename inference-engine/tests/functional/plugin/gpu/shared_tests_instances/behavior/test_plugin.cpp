@@ -31,14 +31,6 @@ namespace {
             {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
     };
 
-    const std::vector<std::map<std::string, std::string>> AutoConfigs = {
-            {{ AUTO_CONFIG_KEY(DEVICE_LIST) , CommonTestUtils::DEVICE_GPU}}
-    };
-
-    const std::vector<std::map<std::string, std::string>> auto_cpu_gpu_conf = {
-            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
-    };
-
     const std::vector<std::map<std::string, std::string>> configsInput = {
             {},
             {{InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
@@ -73,14 +65,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(AutoConfigs)),
-                            BehaviorTestOutput::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_AutoCG_BehaviorTests, BehaviorTestOutput,
-                            ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(auto_cpu_gpu_conf)),
+                                    ::testing::ValuesIn(MultiConfigsInputOutput)),
                             BehaviorTestOutput::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTests,
@@ -101,14 +86,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(AutoConfigs)),
-                            BehaviorTests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_AutoCG_BehaviorTests, BehaviorTests,
-                            ::testing::Combine(
-                                ::testing::Values(InferenceEngine::Precision::FP32),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(auto_cpu_gpu_conf)),
+                                    ::testing::ValuesIn(MultiConfigs)),
                             BehaviorTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTestInput,
@@ -129,15 +107,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(AutoConfigs)),
-                            BehaviorTestInput::getTestCaseName);
-
-
-    INSTANTIATE_TEST_SUITE_P(smoke_AutoCG_BehaviorTests, BehaviorTestInput,
-                            ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisionsForAutoCG),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(auto_cpu_gpu_conf)),
+                                    ::testing::ValuesIn(MultiConfigsInputOutput)),
                             BehaviorTestInput::getTestCaseName);
 
 }  // namespace

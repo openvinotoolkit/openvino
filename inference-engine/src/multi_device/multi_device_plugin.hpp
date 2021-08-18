@@ -41,9 +41,11 @@ protected:
                                                           const MultiDevicePlugin::DeviceName & deviceName) const;
 
 private:
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const std::string& modelPath,
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(const std::string& modelPath,
                                                                        InferenceEngine::CNNNetwork network,
-                                                                       const std::map<std::string, std::string>& config);
+                                                                       const std::map<std::string, std::string>& config,
+                                                                       const std::string &networkPrecision = METRIC_VALUE(FP32));
+    DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
 };
 
 }  // namespace MultiDevicePlugin
