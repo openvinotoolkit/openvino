@@ -30,5 +30,5 @@ If a Paddle model contains dynamic shapes for input, use the `CNNNetwork::reshap
 
 * Paddle [`inference model`](https://github.com/PaddlePaddle/PaddleOCR/blob/release/2.1/doc/doc_en/inference_en.md) mainly contains two kinds of files `model.pdmodel`(model file) and `model.pdiparams`(params file), which are used for inference.
 * Supported Paddle models list and how to export these models are described in [Convert a Paddle Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Paddle.md).
-* To use paddle Model which is set `Normalize` type, the input data should be in FP32 format.
-* When reading paddle models from Paddle format, make sure that `model.pdmodel` and `model.pdiparams` are in the same folder directory.
+* For `Normalize` Paddle Models, the input data should be in FP32 format.
+* When reading Paddle models from Paddle format, make sure that `model.pdmodel` and `model.pdiparams` are in the same folder directory.
