@@ -36,7 +36,7 @@ A number of execution steps is defined by one of the following parameters:
 
 During the execution, the application calculates latency (if applicable) and overall throughput:
 * By default, the median latency value is reported
-* Throughput is calculated as overall_inference_time/number_of_processed_requests. Notice that the throughput value also depends on batch size.
+* Throughput is calculated as overall_inference_time/number_of_processed_requests. Note that the throughput value also depends on batch size.
 
 The application also collects per-layer Performance Measurement (PM) counters for each executed infer request if you
 enable statistics dumping by setting the `-report_type` parameter to one of the possible values:
