@@ -1616,8 +1616,15 @@ void MKLDNNFakeQuantizeNode::appendPostOps(mkldnn::post_ops& ops, bool initAsBin
 
         if (initAsBinary) {
             auto appendBinary = [&](const mkldnn::algorithm alg, const size_t dataSize, MKLDNNMemoryPtr &memPtr, const void *data) {
-                MKLDNNMemoryDesc memoryDesc({1, dataSize}, mkldnn::memory::data_type::f32);
+                auto outShape = outputShapes[0].getStaticDims();
+                auto chIdx = outputShapes[0].getRank() > 1 ? 1 : 0;
+
+                std::vector<size_t> binaryShape(outShape.size(), 1);
+                binaryShape[chIdx] = dataSize;
+
+                MKLDNNMemoryDesc memoryDesc(binaryShape, mkldnn::memory::data_type::f32);
                 ops.append_binary(alg, memoryDesc);
+
                 if (initBinaryMemory) {
                     memPtr.reset(new MKLDNNMemory(getEngine()));
                     memPtr->Create(memoryDesc, data);

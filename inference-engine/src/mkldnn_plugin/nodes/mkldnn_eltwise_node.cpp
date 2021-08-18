@@ -1708,7 +1708,13 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, bool initAsBinary, 
                 if (data.empty())
                     IE_THROW() << errorPrefix << "cannot be performed since buffers are not allocated";
 
-                MKLDNNMemoryDesc memoryDesc({1, scalesSize}, mkldnn::memory::data_type::f32);
+                auto outShape = outputShapes[0].getStaticDims();
+                auto chIdx = outputShapes[0].getRank() > 1 ? 1 : 0;
+
+                std::vector<size_t> binaryShape(outShape.size(), 1);
+                binaryShape[chIdx] = outShape[chIdx];
+
+                MKLDNNMemoryDesc memoryDesc(binaryShape, mkldnn::memory::data_type::f32);
                 ops.append_binary(alg, memoryDesc);
 
                 if (initBinaryMemory) {
