@@ -165,9 +165,6 @@ OPENVINO_API
 std::ostream& operator<<(std::ostream& out, const ov::element::Type& obj);
 }  // namespace element
 
-/// \brief Return the number of bytes in the compile-time representation of the element type.
-size_t compiler_byte_size(element::Type_t et);
-
 }  // namespace ov
 
 namespace ngraph {
