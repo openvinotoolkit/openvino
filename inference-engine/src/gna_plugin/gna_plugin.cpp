@@ -54,6 +54,7 @@
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "transformations/remove_extra_reshapes.hpp"
@@ -704,6 +705,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SplitConvolution>();
         manager.register_pass<HandleTransposesAroundMatMul>();
         manager.register_pass<SwapInputMatMul>();
+        manager.register_pass<SwapInputMatMulWithBias>();
+        manager.register_pass<SwapInputMatMulWithFq>();
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
@@ -725,6 +728,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::ReluFakeQuantizeFusion>();
         // Consider to enable after per-channel quantization on FakeQuantize layer is supported in GNAPlugin, see issue 52034
         pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
+        // TransposeReduction can be enabled when Transpose-Conv-Transpose patterns will be handled in ngraph transformations
+        pass_config->disable<ngraph::pass::TransposeReduction>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
     }
