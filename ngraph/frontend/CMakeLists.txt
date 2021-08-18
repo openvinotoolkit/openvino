@@ -13,3 +13,5 @@ endif()
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
     add_subdirectory(paddlepaddle)
 endif()
+
+add_subdirectory(ir)
