@@ -159,11 +159,13 @@ NGRAPH_API uint8_t parse_string<uint8_t>(const std::string& s);
 template <typename T>
 NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 std::vector<T> parse_string(const std::vector<std::string>& ss) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     std::vector<T> result(ss.size());
     std::transform(ss.begin(), ss.end(), result.begin(), [](const std::string& s) {
         return parse_string<T>(s);
     });
     return result;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 template <typename T>
