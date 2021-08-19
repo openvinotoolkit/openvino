@@ -72,8 +72,6 @@ xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5
 xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger"
                                       "and QLinearMatMul"
                                       "Input0 scale and input0 zero point shape must be same and 1")
-xfail_issue_38723 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "QLinearConv")
 xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>':"
                                       "tf_crop_and_resize - this type of coordinate transformation mode"
                                       "is not supported. Choose one of the following modes:"
