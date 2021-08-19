@@ -95,7 +95,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             }
             // missing scale factors are set to be 1.0f
             if (inputScaleFactors.size() <= input_index) {
-                inputScaleFactors.resize(input_index + 1, 1.f);
+                inputScaleFactors.resize(input_index + 1, GNAPluginNS::kScaleFactorDefault);
             }
             inputScaleFactors[input_index] = InferenceEngine::CNNLayer::ie_parse_float(value);
         } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)) {
