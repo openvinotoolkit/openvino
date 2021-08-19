@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 #include "include/sub_group.cl"
 
 __attribute__((reqd_work_group_size(8, 1, 1)))

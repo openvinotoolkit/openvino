@@ -23,7 +23,7 @@ std::vector<float> clip{0.f, 0.7f};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                         InferenceEngine::Precision::FP16};
 
-INSTANTIATE_TEST_CASE_P(LSTMCellCommon, LSTMCellTest,
+INSTANTIATE_TEST_SUITE_P(LSTMCellCommon, LSTMCellTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(should_decompose),
                                 ::testing::ValuesIn(batch),
@@ -35,7 +35,7 @@ INSTANTIATE_TEST_CASE_P(LSTMCellCommon, LSTMCellTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         LSTMCellTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_LSTMCellCommon, LSTMCellTest,
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMCellCommon, LSTMCellTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(should_decompose),
                                 ::testing::ValuesIn(batch),

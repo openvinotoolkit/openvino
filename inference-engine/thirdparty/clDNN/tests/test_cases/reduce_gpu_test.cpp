@@ -2,20 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include <api/input_layout.hpp>
-#include "api/reduce.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <api/data.hpp>
-#include "test_utils/float16.h"
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/reduce.hpp>
+#include <cldnn/primitives/data.hpp>
+
 #include <cmath>
 #include <algorithm>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 template <typename InputT>
 struct accumulator_type {
@@ -432,7 +429,7 @@ struct output_data_type<data_types::u8> {
 template <data_types InputT, data_types OutputT>
 class ReduceTestBase : public ::testing::TestWithParam<TestParamType_general_reduce_gpu> {
 protected:
-    cldnn::engine engine = get_test_engine();
+    cldnn::engine& engine = get_test_engine();
     int batch_num, input_f, input_w, input_z, input_y, input_x;
     cldnn::format input_format = format::any;
     cldnn::reduce_mode reduce_mode;
@@ -480,10 +477,10 @@ public:
         auto input_size = tensor(batch(batch_num), feature(input_f), spatial(input_x, input_y, input_z, input_w));
         auto input_data = generate_random_6d<input_t>(batch_num, input_f, input_x, input_y, input_z, input_w, 1, 10);
         auto input_lay = layout(input_dt, layout_format, input_size);
-        auto input_mem = memory::allocate(engine, input_lay);
+        auto input_mem = engine.allocate_memory(input_lay);
 
         {
-            auto input_ptr = input_mem.pointer<input_t>();
+            cldnn::mem_lock<input_t> input_ptr(input_mem, get_test_stream());
             for (int fi = 0; fi < input_f; fi++)
                 for (int wi = 0; wi < input_w; wi++)
                     for (int zi = 0; zi < input_z; zi++)
@@ -505,7 +502,7 @@ public:
         if (force_output_dt) {
             red.output_data_type = output_dt;
         }
-        topology.add(input_layout("input", input_mem.get_layout()));
+        topology.add(input_layout("input", input_mem->get_layout()));
         topology.add(red);
         build_options options;
         options.set_option(build_option::optimize_data(true));
@@ -517,8 +514,8 @@ public:
         network.execute();
 
         auto out_mem = network.get_output("reduce").get_memory();
-        auto out_ptr = out_mem.pointer<output_t>();
-        auto out_lay = out_mem.get_layout();
+        cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
+        auto out_lay = out_mem->get_layout();
 
         ASSERT_EQ(out_lay.size.sizes()[0], reference_result.size());                 // b
         ASSERT_EQ(out_lay.size.sizes()[1], reference_result[0].size());              // f
@@ -543,11 +540,11 @@ public:
                                     std::cout << "Reference value at batch: " << bi << " output_f: " << fi
                                               << " y: " << yi << " x: " << xi << " = " << val_ref << " Val = " << val
                                               << std::endl;
-                                
+
                                 EXPECT_TRUE(equal);
 
                                 if (!equal)
-                                    break;    
+                                    break;
                             }
                         }
     }
@@ -562,7 +559,7 @@ TEST_P(general_reduce_gpu_i8_f32, base) { execute(); }
 class general_reduce_gpu_f32_f32 : public ReduceTestBase<data_types::f32, data_types::f32> {};
 TEST_P(general_reduce_gpu_f32_f32, base) { execute(); }
 
-INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
+INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                         general_reduce_gpu_i8_i8,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(2, 12, 1, 1, 3, 2, format::b_fs_yx_fsv16, reduce_mode::logical_or, {reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, true, data_types::i8),
@@ -574,7 +571,7 @@ INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                             ),
                             general_reduce_gpu::PrintToStringParamName);
 
- INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_f32,
+ INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_i8_f32,
                         general_reduce_gpu_i8_f32,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(3, 3, 1, 1, 3, 2, format::b_fs_yx_fsv16, reduce_mode::sum, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, false, data_types::f32),
@@ -614,7 +611,7 @@ INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                             ),
                             general_reduce_gpu::PrintToStringParamName);
 
- INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_f32_f32,
+ INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_f32_f32,
                         general_reduce_gpu_f32_f32,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(7, 3, 1, 1, 13, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {reduce::along_x, reduce::along_y, reduce::along_f, reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, false, data_types::f32),
@@ -657,7 +654,7 @@ INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                         ),
                         general_reduce_gpu::PrintToStringParamName);
 
- INSTANTIATE_TEST_CASE_P(reduce_gpu_ref_f32_f32,
+ INSTANTIATE_TEST_SUITE_P(reduce_gpu_ref_f32_f32,
                         general_reduce_gpu_f32_f32,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(2, 4, 4, 5, 8, 8, format::bfwzyx, reduce_mode::mean, {reduce::along_f, reduce::along_y, reduce::along_w, reduce::along_z}, "reduce_ref", false, data_types::f32, false, data_types::f32),
@@ -713,7 +710,7 @@ INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                             TestParamType_general_reduce_gpu(17, 4, 1, 1, 12, 15, format::bfyx, reduce_mode::mean, {reduce::along_b}, "reduce_ref", true, data_types::f32, false, data_types::f32)
                         ), general_reduce_gpu::PrintToStringParamName);
 
-INSTANTIATE_TEST_CASE_P(DISABLED_reduce_gpu_ref_f32_f32,
+INSTANTIATE_TEST_SUITE_P(DISABLED_reduce_gpu_ref_f32_f32,
                         general_reduce_gpu_f32_f32,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(1, 7, 1, 1, 4, 3,format::bfyx, reduce_mode::mean, {reduce::along_b, reduce::along_f, reduce::along_y}, "reduce_ref", false, data_types::f32, false, data_types::f32),
@@ -752,13 +749,13 @@ INSTANTIATE_TEST_CASE_P(DISABLED_reduce_gpu_ref_f32_f32,
                         general_reduce_gpu::PrintToStringParamName);
 
 TEST(reduce_gpu, common_bfyx) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
     set_values(input, {1.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::sum, {cldnn::reduce::along_b}, 0));
 
     network network(engine, topology);
@@ -774,7 +771,7 @@ TEST(reduce_gpu, common_bfyx) {
 
     std::vector<float> ref_data = {1.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -782,13 +779,13 @@ TEST(reduce_gpu, common_bfyx) {
 }
 
 TEST(reduce_gpu, common_bfyx_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 3, 4, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 3, 4, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::sum, {cldnn::reduce::along_x, cldnn::reduce::along_y}, 1));
 
     network network(engine, topology);
@@ -804,7 +801,7 @@ TEST(reduce_gpu, common_bfyx_keepdims) {
 
     std::vector<float> ref_data = {6.0f, 22.0f, 38.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -812,13 +809,13 @@ TEST(reduce_gpu, common_bfyx_keepdims) {
 }
 
 TEST(reduce_gpu, regr_bfyx_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, {1, 3, 2, 2} });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {1, 3, 2, 2} });
 
     set_values(input, { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::sum, { cldnn::reduce::along_b, cldnn::reduce::along_x }, 1));
 
     network network(engine, topology);
@@ -834,7 +831,7 @@ TEST(reduce_gpu, regr_bfyx_keepdims) {
 
     std::vector<float> ref_data = { 1.0f, 5.0f, 9.0f, 13.0f, 17.0f, 21.0f };
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -842,13 +839,13 @@ TEST(reduce_gpu, regr_bfyx_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfzyx) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfzyx, {1, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, {1, 1, 1, 1, 1}});
 
     set_values(input, {1.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::sum, {cldnn::reduce::along_b}, 0));
 
     network network(engine, topology);
@@ -864,7 +861,7 @@ TEST(reduce_gpu, common_bfzyx) {
 
     std::vector<float> ref_data = {1.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -872,13 +869,13 @@ TEST(reduce_gpu, common_bfzyx) {
 }
 
 TEST(reduce_gpu, common_bfzyx_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfzyx, {1, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, {1, 1, 1, 1, 1}});
 
     set_values(input, {1.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::sum, {cldnn::reduce::along_b}, 1));
 
     network network(engine, topology);
@@ -894,7 +891,7 @@ TEST(reduce_gpu, common_bfzyx_keepdims) {
 
     std::vector<float> ref_data = {1.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -902,13 +899,13 @@ TEST(reduce_gpu, common_bfzyx_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, tensor(format::bfwzyx, {1, 3, 4, 1, 1, 1})});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor(format::bfwzyx, {1, 3, 4, 1, 1, 1})});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::sum, {cldnn::reduce::along_w, cldnn::reduce::along_z, cldnn::reduce::along_y, cldnn::reduce::along_x}, 0));
 
     network network(engine, topology);
@@ -924,7 +921,7 @@ TEST(reduce_gpu, common_bfwzyx) {
 
     std::vector<float> ref_data = {6.0f, 22.0f, 38.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -932,13 +929,13 @@ TEST(reduce_gpu, common_bfwzyx) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, tensor(format::bfwzyx, {1, 3, 4, 1, 1, 1})});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, tensor(format::bfwzyx, {1, 3, 4, 1, 1, 1})});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::sum, {cldnn::reduce::along_f, cldnn::reduce::along_w, cldnn::reduce::along_z}, 1));
 
     network network(engine, topology);
@@ -954,7 +951,7 @@ TEST(reduce_gpu, common_bfwzyx_keepdims) {
 
     std::vector<float> ref_data = {66.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -962,14 +959,14 @@ TEST(reduce_gpu, common_bfwzyx_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_max_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 4, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 4, 1, 1, 1}});
 
     set_values(input, {0.0f,  1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f, 11.0f,
                        12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::max, {cldnn::reduce::along_b, cldnn::reduce::along_f}, 1));
 
     network network(engine, topology);
@@ -985,7 +982,7 @@ TEST(reduce_gpu, common_bfwzyx_max_keepdims) {
 
     std::vector<float> ref_data = {20.0f, 21.0f, 22.0f, 23.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -993,13 +990,13 @@ TEST(reduce_gpu, common_bfwzyx_max_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_min) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::min, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 0));
 
     network network(engine, topology);
@@ -1015,7 +1012,7 @@ TEST(reduce_gpu, common_bfwzyx_min) {
 
     std::vector<float> ref_data = {0.0f, 3.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1023,13 +1020,13 @@ TEST(reduce_gpu, common_bfwzyx_min) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_min_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::min, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 1));
 
     network network(engine, topology);
@@ -1045,7 +1042,7 @@ TEST(reduce_gpu, common_bfwzyx_min_keepdims) {
 
     std::vector<float> ref_data = {0.0f, 3.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1053,13 +1050,13 @@ TEST(reduce_gpu, common_bfwzyx_min_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_mean) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::mean, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 0));
 
     network network(engine, topology);
@@ -1075,7 +1072,7 @@ TEST(reduce_gpu, common_bfwzyx_mean) {
 
     std::vector<float> ref_data = {1.0f, 4.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1083,13 +1080,13 @@ TEST(reduce_gpu, common_bfwzyx_mean) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_mean_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::mean, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 1));
 
     network network(engine, topology);
@@ -1105,7 +1102,7 @@ TEST(reduce_gpu, common_bfwzyx_mean_keepdims) {
 
     std::vector<float> ref_data = {1.0f, 4.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1113,13 +1110,13 @@ TEST(reduce_gpu, common_bfwzyx_mean_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_prod) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::prod, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 0));
 
     network network(engine, topology);
@@ -1135,7 +1132,7 @@ TEST(reduce_gpu, common_bfwzyx_prod) {
 
     std::vector<float> ref_data = {0.0f, 60.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1143,13 +1140,13 @@ TEST(reduce_gpu, common_bfwzyx_prod) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_prod_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::prod, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 1));
 
     network network(engine, topology);
@@ -1165,7 +1162,7 @@ TEST(reduce_gpu, common_bfwzyx_prod_keepdims) {
 
     std::vector<float> ref_data = {0.0f, 60.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1173,14 +1170,14 @@ TEST(reduce_gpu, common_bfwzyx_prod_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_sum_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 4, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 4, 1, 1, 1}});
 
     set_values(input, {0.0f,  1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f, 11.0f,
                        12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::sum, {cldnn::reduce::along_b, cldnn::reduce::along_f}, 1));
 
     network network(engine, topology);
@@ -1196,7 +1193,7 @@ TEST(reduce_gpu, common_bfwzyx_sum_keepdims) {
 
     std::vector<float> ref_data = {60.0f, 66.0f, 72.0f, 78.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1204,13 +1201,13 @@ TEST(reduce_gpu, common_bfwzyx_sum_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_logical_and) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::logical_and, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 0));
 
     network network(engine, topology);
@@ -1226,7 +1223,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_and) {
 
     std::vector<char> ref_data = {0, 1};
 
-    auto output_ptr = output.pointer<char>();
+    cldnn::mem_lock<char> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1234,13 +1231,13 @@ TEST(reduce_gpu, common_bfwzyx_logical_and) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_logical_and_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::logical_and, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 1));
 
     network network(engine, topology);
@@ -1256,7 +1253,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_and_keepdims) {
 
     std::vector<char> ref_data = {0, 1};
 
-    auto output_ptr = output.pointer<char>();
+    cldnn::mem_lock<char> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1264,13 +1261,13 @@ TEST(reduce_gpu, common_bfwzyx_logical_and_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_logical_or) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::logical_or, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 0));
 
     network network(engine, topology);
@@ -1286,7 +1283,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_or) {
 
     std::vector<char> ref_data = {1, 1};
 
-    auto output_ptr = output.pointer<char>();
+    cldnn::mem_lock<char> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1294,13 +1291,13 @@ TEST(reduce_gpu, common_bfwzyx_logical_or) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_logical_or_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::logical_or, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 1));
 
     network network(engine, topology);
@@ -1316,7 +1313,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_or_keepdims) {
 
     std::vector<char> ref_data = {1, 1};
 
-    auto output_ptr = output.pointer<char>();
+    cldnn::mem_lock<char> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1324,13 +1321,13 @@ TEST(reduce_gpu, common_bfwzyx_logical_or_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_sum_square) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::sum_square, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 0));
 
     network network(engine, topology);
@@ -1346,7 +1343,7 @@ TEST(reduce_gpu, common_bfwzyx_sum_square) {
 
     std::vector<float> ref_data = {5.0f, 50.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1354,13 +1351,13 @@ TEST(reduce_gpu, common_bfwzyx_sum_square) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_sum_square_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::sum_square, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 1));
 
     network network(engine, topology);
@@ -1376,7 +1373,7 @@ TEST(reduce_gpu, common_bfwzyx_sum_square_keepdims) {
 
     std::vector<float> ref_data = {5.0f, 50.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1384,13 +1381,13 @@ TEST(reduce_gpu, common_bfwzyx_sum_square_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_l1) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, -2.0f, 3.0f, 4.0f, -5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::l1, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 0));
 
     network network(engine, topology);
@@ -1406,7 +1403,7 @@ TEST(reduce_gpu, common_bfwzyx_l1) {
 
     std::vector<float> ref_data = {3.0f, 12.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1414,13 +1411,13 @@ TEST(reduce_gpu, common_bfwzyx_l1) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_l1_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, -2.0f, 3.0f, 4.0f, -5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::l1, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 1));
 
     network network(engine, topology);
@@ -1436,7 +1433,7 @@ TEST(reduce_gpu, common_bfwzyx_l1_keepdims) {
 
     std::vector<float> ref_data = {3.0f, 12.0f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1444,13 +1441,13 @@ TEST(reduce_gpu, common_bfwzyx_l1_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_l2) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, -2.0f, 3.0f, 4.0f, -5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::l2, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 0));
 
     network network(engine, topology);
@@ -1466,7 +1463,7 @@ TEST(reduce_gpu, common_bfwzyx_l2) {
 
     std::vector<float> ref_data = {2.236067977f, 7.071067812f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1474,13 +1471,13 @@ TEST(reduce_gpu, common_bfwzyx_l2) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_l2_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, -2.0f, 3.0f, 4.0f, -5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::l2, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 1));
 
     network network(engine, topology);
@@ -1496,7 +1493,7 @@ TEST(reduce_gpu, common_bfwzyx_l2_keepdims) {
 
     std::vector<float> ref_data = {2.236067977f, 7.071067812f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1504,13 +1501,13 @@ TEST(reduce_gpu, common_bfwzyx_l2_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_log_sum) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::log_sum, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 0));
 
     network network(engine, topology);
@@ -1526,7 +1523,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum) {
 
     std::vector<float> ref_data = {1.0986122887f, 2.4849066498f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1534,13 +1531,13 @@ TEST(reduce_gpu, common_bfwzyx_log_sum) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_log_sum_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::log_sum, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 1));
 
     network network(engine, topology);
@@ -1556,7 +1553,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_keepdims) {
 
     std::vector<float> ref_data = {1.0986122887f, 2.4849066498f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1564,13 +1561,13 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_keepdims) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_log_sum_exp) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::log_sum_exp, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 0));
 
     network network(engine, topology);
@@ -1586,7 +1583,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp) {
 
     std::vector<float> ref_data = {2.407605964f, 5.407605964f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1594,13 +1591,13 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp) {
 }
 
 TEST(reduce_gpu, common_bfwzyx_log_sum_exp_keepdims) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
 
     set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", "input", reduce_mode::log_sum_exp, {cldnn::reduce::along_f, cldnn::reduce::along_w}, 1));
 
     network network(engine, topology);
@@ -1616,7 +1613,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp_keepdims) {
 
     std::vector<float> ref_data = {2.407605964f, 5.407605964f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
@@ -1626,7 +1623,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp_keepdims) {
 template <data_types InputT, data_types OutputT>
 class ReduceXYWithBigTensorTestBase : public ::testing::TestWithParam<TestParamType_general_reduce_gpu> {
 protected:
-    cldnn::engine engine = get_test_engine();
+    cldnn::engine& engine = get_test_engine();
     int batch_num, input_f, input_w, input_z, input_y, input_x;
     cldnn::format input_format = format::any;
     cldnn::reduce_mode reduce_mode;
@@ -1675,10 +1672,11 @@ public:
         auto input_size = tensor(batch(batch_num), feature(input_f), spatial(input_x, input_y, input_z, input_w));
         auto input_data = generate_random_6d<input_t>(batch_num, input_f, input_x, input_y, input_z, input_w, 1, 5, 9);
         auto input_lay = layout(input_dt, layout_format, input_size);
-        auto input_mem = memory::allocate(engine, input_lay);
+        auto input_mem = engine.allocate_memory(input_lay);
 
         {
-            auto input_ptr = input_mem.pointer<input_t>();
+            cldnn::mem_lock<input_t> input_ptr(input_mem, get_test_stream());
+
             for (int fi = 0; fi < input_f; fi++)
                 for (int wi = 0; wi < input_w; wi++)
                     for (int zi = 0; zi < input_z; zi++)
@@ -1718,7 +1716,7 @@ public:
             if (force_output_dt) {
                 red.output_data_type = output_dt;
             }
-            topology.add(input_layout("input", input_mem.get_layout()));
+            topology.add(input_layout("input", input_mem->get_layout()));
             topology.add(red);
             build_options options;
             options.set_option(build_option::optimize_data(true));
@@ -1730,8 +1728,8 @@ public:
             network.execute();
 
             auto out_mem = network.get_output("reduce").get_memory();
-            auto out_ptr = out_mem.pointer<output_t>();
-            auto out_lay = out_mem.get_layout();
+            cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
+            auto out_lay = out_mem->get_layout();
 
             ASSERT_EQ(out_lay.size.sizes()[0], reference_result.size());                 // b
             ASSERT_EQ(out_lay.size.sizes()[1], reference_result[0].size());              // f
@@ -1777,7 +1775,7 @@ TEST_P(general_reduce_gpu_xy_f32, base) { execute(); }
 class general_reduce_gpu_xy_i8 : public ReduceXYWithBigTensorTestBase<data_types::i8, data_types::i8> {};
 TEST_P(general_reduce_gpu_xy_i8, base) { execute(); }
 
-INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_xy_f32,
+INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_xy_f32,
                         general_reduce_gpu_xy_f32,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(1, 32, 1, 1,  18,  18, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, true, data_types::f32),
@@ -1785,7 +1783,7 @@ INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_xy_f32,
                         ),
                         general_reduce_gpu::PrintToStringParamName);
 
-INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_xy_i8,
+INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_xy_i8,
                         general_reduce_gpu_xy_i8,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(1, 32, 1, 1,  18,  18, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, true, data_types::i8),

@@ -11,8 +11,7 @@
 #include <gmock/gmock.h>
 
 #include "ie_input_info.hpp"
-#include "ie_icnn_network.hpp"
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
 
@@ -32,4 +31,7 @@ public:
     MOCK_CONST_METHOD1(GetConfig, Parameter(const std::string &name));
     MOCK_CONST_METHOD1(GetMetric, Parameter(const std::string &name));
     MOCK_CONST_METHOD0(GetContext, RemoteContext::Ptr(void));
+    void WrapOstreamExport(std::ostream& networkModel) {
+        IExecutableNetworkInternal::Export(networkModel);
+    }
 };

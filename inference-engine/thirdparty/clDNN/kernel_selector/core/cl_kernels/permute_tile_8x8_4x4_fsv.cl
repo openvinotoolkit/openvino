@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/fetch.cl"
-#include "include/common.cl"
+#include "include/fetch_data.cl"
 #include "include/data_types.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
@@ -55,7 +54,11 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
 
 #ifdef REORDERED_OUTPUT_TILED_ORDER
     if (F_NO_REMAINDER_CONDITION) {
-        unroll_for (uint lh = 0; lh < TILE_SIZE/*8*/; ++lh) {
+#ifdef YZ_REMAINDER_CONDITION
+        unroll_for (uint lh = 0; lh < (((YZ_REMAINDER_CONDITION)) ? YZ_REMAINDER_SIZE : TILE_SIZE); ++lh) {
+#else
+        unroll_for (uint lh = 0; lh < TILE_SIZE; ++lh) {
+#endif
             // read
             const uint input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
             INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
@@ -77,7 +80,11 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
     }
 #ifdef F_REMAINDER_CONDITION
     else if (F_REMAINDER_CONDITION) {
-        unroll_for (uint lh = 0; lh < TILE_SIZE/*8*/; ++lh) {
+#ifdef YZ_REMAINDER_CONDITION
+        unroll_for (uint lh = 0; lh < (((YZ_REMAINDER_CONDITION)) ? YZ_REMAINDER_SIZE : TILE_SIZE); ++lh) {
+#else
+        unroll_for (uint lh = 0; lh < TILE_SIZE; ++lh) {
+#endif
             unroll_for (uint lw = 0; lw < F_REMAINDER_SIZE; ++lw) {
                 // read
                 const uint input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);

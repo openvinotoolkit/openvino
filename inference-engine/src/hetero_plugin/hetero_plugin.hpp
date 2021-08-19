@@ -6,7 +6,7 @@
 
 #include "description_buffer.hpp"
 #include "ie_icore.hpp"
-#include "cpp_interfaces/impl/ie_plugin_internal.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include <memory>
 #include <string>
 #include <map>
@@ -16,14 +16,14 @@
 
 namespace HeteroPlugin {
 
-class Engine : public InferenceEngine::InferencePluginInternal {
+class Engine : public InferenceEngine::IInferencePlugin {
 public:
     using Configs = std::map<std::string, std::string>;
     using DeviceMetaInformationMap = std::unordered_map<std::string, Configs>;
 
     Engine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr
+    InferenceEngine::IExecutableNetworkInternal::Ptr
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const Configs &config) override;
 
     void SetConfig(const Configs &config) override;
@@ -37,10 +37,11 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string,
                                          InferenceEngine::Parameter> & options) const override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr ImportNetworkImpl(std::istream& heteroModel, const Configs& config) override;
+    InferenceEngine::IExecutableNetworkInternal::Ptr
+    ImportNetwork(std::istream& heteroModel, const std::map<std::string, std::string>& config) override;
 
     DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback,
-        const Configs & localConfig) const;
+                                              const Configs & localConfig) const;
 
 private:
     Configs GetSupportedConfig(const Configs& config, const std::string & deviceName) const;

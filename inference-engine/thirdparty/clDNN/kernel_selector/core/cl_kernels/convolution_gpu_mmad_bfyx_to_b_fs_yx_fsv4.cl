@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-
 #include "include/data_types.cl"
-
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 #include "include/imad.cl"
 
 #define CEIL_DIV(x, y) (1 + ((x) - 1) / (y))

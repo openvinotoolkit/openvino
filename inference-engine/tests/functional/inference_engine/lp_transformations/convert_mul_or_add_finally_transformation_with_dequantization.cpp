@@ -41,7 +41,7 @@ public:
     std::vector<float> multiplyConstValues;
     ngraph::Shape inputShape;
     ngraph::element::Type inputPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
 };
 
 using TestValuesType = ConvertMulOrAddFinallyTransformationWithDequantizationTestValues;
@@ -109,7 +109,7 @@ std::vector<ConvertMulOrAddFinallyTransformationWithDequantizationTestValues> te
     }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ConvertMulOrAddFinallyTransformationWithDequantization,
     ::testing::ValuesIn(testValues),

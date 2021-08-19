@@ -6,7 +6,7 @@
 #include <precision_utils.h>
 #include <gtest/gtest.h>
 #include "deconv_ref.hpp"
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
 using namespace InferenceEngine;
 

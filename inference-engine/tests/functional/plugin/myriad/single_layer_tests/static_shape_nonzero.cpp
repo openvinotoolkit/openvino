@@ -64,9 +64,10 @@ protected:
         return FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 4, -2, 2);
     }
 
-    void Compare(const std::vector<std::vector<std::uint8_t>>& expectedOutput, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override {
-        const auto expectedIndicesPtr = reinterpret_cast<const int32_t*>(expectedOutput[0].data());
-        const auto expectedDimsPtr = reinterpret_cast<const int32_t*>(expectedOutput[1].data());
+    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutput,
+                 const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override {
+        const auto expectedIndicesPtr = reinterpret_cast<const int32_t*>(expectedOutput[0].second.data());
+        const auto expectedDimsPtr = reinterpret_cast<const int32_t*>(expectedOutput[1].second.data());
 
         const auto actualIndices = actualOutputs[0];
         const auto actualDims = actualOutputs[1];
@@ -110,7 +111,7 @@ std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::I32,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_accuracy, StaticShapeNonZeroLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_accuracy, StaticShapeNonZeroLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputDims),
                                 ::testing::ValuesIn(inputPrecisions),

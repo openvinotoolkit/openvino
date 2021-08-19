@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/lstm.hpp"
+#include "cldnn/primitives/lstm.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {
@@ -41,9 +42,9 @@ public:
     static std::string to_string(lstm_elt_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, lstm_elt_node const& node);
+    typed_primitive_inst(network& network, lstm_elt_node const& node);
 
-    memory_impl& cell_memory() const { return dep_memory(1); }
+    memory::ptr cell_memory() const { return dep_memory_ptr(1); }
     bool cell_term() const { return !argument.cell.empty(); }
     lstm_weights_order offset_order() const { return argument.offset_order; }
     float clip() const {

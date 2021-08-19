@@ -20,8 +20,7 @@ enum class ScatterUpdateMode {
 
 class MKLDNNScatterUpdateNode : public MKLDNNNode {
 public:
-    MKLDNNScatterUpdateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNScatterUpdateNode() override = default;
+    MKLDNNScatterUpdateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -31,6 +30,8 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
+
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
@@ -48,6 +49,8 @@ private:
     bool axisRelaxed = false;
     size_t dataSize, indicesSize, axisSize;
     InferenceEngine::Precision dataPrec, indicesPrec, axisPrec;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

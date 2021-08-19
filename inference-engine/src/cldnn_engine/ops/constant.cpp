@@ -17,7 +17,7 @@
 #include "ngraph/op/variadic_split.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
-#include "api/data.hpp"
+#include "cldnn/primitives/data.hpp"
 
 namespace CLDNNPlugin {
 
@@ -163,14 +163,16 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
     cldnn::primitive_id constPrimID;
     auto data = op->get_data_ptr<char>();
 
-    auto bufIter = p.blobMemCache.find(data);
+
+    auto bufIter = p.blobMemCache.find(std::make_pair(data, constDims));
 
     if (bufIter != p.blobMemCache.end()) {
         constPrimID = bufIter->second;
     } else {
-        auto mem = cldnn::memory::allocate(p.GetEngine(), constLayout, 0, false);
-        auto tmpPointer = mem.pointer<char>();  // implicitly maps buffer - unmap in destructor
-        auto buf = tmpPointer.data();
+        cldnn::memory::ptr mem = p.GetEngine().allocate_memory(constLayout, false);
+        auto& stream = p.GetEngine().get_program_stream();
+        cldnn::mem_lock<char> lock{mem, stream};
+        auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();
 
         // Do actual weights reorder and change O and I channels order
@@ -198,7 +200,7 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
             std::memcpy(&buf[0], &data[0], bufSize);
         }
         p.AddPrimitive(cldnn::data(initialconstPrimID, mem));
-        p.blobMemCache[data] = initialconstPrimID;
+        p.blobMemCache[std::make_pair(data, constDims)] = initialconstPrimID;
         constPrimID = initialconstPrimID;
     }
 

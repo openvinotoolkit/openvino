@@ -3,7 +3,6 @@
 //
 
 #include "mkldnn_roi_align_node.h"
-#include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
@@ -14,6 +13,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include "ie_parallel.hpp"
 #include <mkldnn_selective_build.h>
+#include <ngraph/opsets/opset3.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -21,63 +21,83 @@ using namespace mkldnn;
 using namespace mkldnn::impl::cpu;
 using namespace mkldnn::impl::cpu::x64;
 
-MKLDNNROIAlignNode::MKLDNNROIAlignNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                                       MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+using ngPoolingMode = ngraph::op::v3::ROIAlign::PoolingMode;
+
+bool MKLDNNROIAlignNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto roiAlign = std::dynamic_pointer_cast<const ngraph::opset3::ROIAlign>(op);
+        if (!roiAlign) {
+            errorMessage = "Only opset3 ROIAlign operation is supported";
+            return false;
+        }
+
+        const ngPoolingMode mode = roiAlign->get_mode();
+        if (mode != ngPoolingMode::AVG && mode != ngPoolingMode::MAX) {
+            errorMessage = "Doesn't support mode: " + ngraph::as_string(mode);
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNROIAlignNode::MKLDNNROIAlignNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
+                                       MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
+
+        const auto roiAlign = std::dynamic_pointer_cast<const ngraph::opset3::ROIAlign>(op);
+        pooledH = roiAlign->get_pooled_h();
+        pooledW = roiAlign->get_pooled_w();
+        spatialScale = roiAlign->get_spatial_scale();
+        samplingRatio = roiAlign->get_sampling_ratio();
+        const ngPoolingMode m = roiAlign->get_mode();
+        if (m == ngPoolingMode::MAX) {
+            algorithm = Algorithm::ROIAlignMax;
+        } else if (m == ngPoolingMode::AVG) {
+            algorithm = Algorithm::ROIAlignAvg;
+        }
+    } else {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+}
 
 void MKLDNNROIAlignNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
-
-    class CNNLayer *genericLayer = getCnnLayer().get();
-    if (genericLayer == nullptr)
-        IE_THROW() << "Cannot convert ROIPooling layer.";
-
-    std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
     if (getParentEdges().size() != 3)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 
-    if (getParentEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+    if (getParentEdgeAt(0)->getShape().getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getShape().getRank();
     }
 
-    if (getParentEdgeAt(1)->getDims().ndims() != 2) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+    if (getParentEdgeAt(1)->getShape().getRank() != 2) {
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getShape().getRank();
     }
 
-    if (getParentEdgeAt(2)->getDims().ndims() != 1) {
-        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getParentEdgeAt(2)->getDims().ndims();
+    if (getParentEdgeAt(2)->getShape().getRank() != 1) {
+        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getParentEdgeAt(2)->getShape().getRank();
     }
 
-    if (getChildEdgeAt(0)->getDims().ndims() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getDims().ndims();
+    if (getChildEdgeAt(0)->getShape().getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getShape().getRank();
     }
 
-    if (getParentEdgeAt(1)->getDims()[1] != 4) {
+    if (getParentEdgeAt(1)->getShape().getStaticDims()[1] != 4) {
         IE_THROW() << errorPrefix << "has invalid shape on 1st input: ["
-                           << getParentEdgeAt(1)->getDims()[0] << "," << getParentEdgeAt(1)->getDims()[1] << "]";
+                           << getParentEdgeAt(1)->getShape().getStaticDims()[0] << "," << getParentEdgeAt(1)->getShape().getStaticDims()[1] << "]";
     }
 
-    if (getParentEdgeAt(1)->getDims()[0] != getParentEdgeAt(2)->getDims()[0]) {
+    if (getParentEdgeAt(1)->getShape().getStaticDims()[0] != getParentEdgeAt(2)->getShape().getStaticDims()[0]) {
         IE_THROW() << errorPrefix << "has different sizes of inputs for proposals ("
-                           << getParentEdgeAt(1)->getDims()[0] << ") and indexes ("
-                           << getParentEdgeAt(2)->getDims()[0] << ")";
-    }
-
-    pooledH = genericLayer->GetParamAsInt("pooled_h");
-    pooledW = genericLayer->GetParamAsInt("pooled_w");
-    spatialScale = genericLayer->GetParamAsFloat("spatial_scale");
-    samplingRatio = genericLayer->GetParamAsInt("sampling_ratio");
-    std::string m = genericLayer->GetParamAsString("mode");
-    if (m == "max") {
-        opType = ROIAlignOpType::Max;
-    } else if (m == "avg") {
-        opType = ROIAlignOpType::Avg;
-    } else {
-        IE_THROW() << errorPrefix << "doesn't support roi pooling method: " << m;
+                           << getParentEdgeAt(1)->getShape().getStaticDims()[0] << ") and indexes ("
+                           << getParentEdgeAt(2)->getShape().getStaticDims()[0] << ")";
     }
 }
 
@@ -85,8 +105,8 @@ void MKLDNNROIAlignNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inputPrec0 = getCnnLayer()->insData[0].lock()->getPrecision();
-    Precision outputPrec = getCnnLayer()->outData[0]->getPrecision();
+    Precision inputPrec0 = getOriginalInputPrecisionAtPort(0);
+    Precision outputPrec = getOriginalOutputPrecisionAtPort(0);
 
     if (!mayiuse(avx512_core)) {
         if (outputPrec == Precision::BF16 || inputPrec0 == Precision::BF16)
@@ -96,7 +116,7 @@ void MKLDNNROIAlignNode::initSupportedPrimitiveDescriptors() {
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrec0);
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrec);
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(3);
     config.outConfs.resize(1);
@@ -109,11 +129,13 @@ void MKLDNNROIAlignNode::initSupportedPrimitiveDescriptors() {
     };
 
     for (auto fmts : supportedFormats) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmts.first);
-        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), memory::data_type::f32, memory::format_tag::nc);
-        config.inConfs[2].desc = MKLDNNMemoryDesc(getParentEdgeAt(2)->getDims(), memory::data_type::s32, memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmts.second);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmts.second});
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(), inputDataType, fmts.first);
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticDims(), memory::data_type::f32,
+                                                               memory::format_tag::nc);
+        config.inConfs[2].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticDims(), memory::data_type::s32,
+                                                               memory::format_tag::x);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType, fmts.second);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     }
 }
 
@@ -158,8 +180,8 @@ void MKLDNNROIAlignNode::executeSpecified() {
     auto dstBlockDesc = dstMemory.GetDescriptor().data.format_desc.blocking;
 
     int blockSize = srcBlockDesc.inner_nblks > 0 ? srcBlockDesc.inner_blks[0] : 1;
-    auto isPlainFmt = srcMemory0.GetDesc().isPlainFormat();
-    auto isNhwcFmt = srcMemory0.GetDesc().isTailCFormat();
+    auto isPlainFmt = srcMemory0.GetDesc().hasLayoutType(LayoutType::ncsp);
+    auto isNhwcFmt = srcMemory0.GetDesc().hasLayoutType(LayoutType::nspc);
 
     const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
@@ -291,8 +313,8 @@ void MKLDNNROIAlignNode::executeSpecified() {
                                     pointVector[sampleIndex + 3].second * wInputStride + blockResidual_;
                 float part4 = srcData[part4Index];
 
-                switch (opType) {
-                    case ROIAlignOpType::Max:
+                switch (getAlgorithm()) {
+                    case Algorithm::ROIAlignMax:
                     {
                         float sampleValue = std::max(
                                 {weightVector[sampleIndex] * part1,
@@ -302,7 +324,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
                         pooledValue = sampleValue > pooledValue ? sampleValue : pooledValue;
                         break;
                     }
-                    case ROIAlignOpType::Avg:
+                    case Algorithm::ROIAlignAvg:
                     default:
                     {
                         float sampleValue =

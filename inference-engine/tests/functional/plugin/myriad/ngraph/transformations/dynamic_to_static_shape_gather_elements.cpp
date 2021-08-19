@@ -128,6 +128,6 @@ protected:
 TEST_P(DynamicToStaticShapeGatherElements, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeGatherElements, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeGatherElements, combinations);
 
 }  // namespace

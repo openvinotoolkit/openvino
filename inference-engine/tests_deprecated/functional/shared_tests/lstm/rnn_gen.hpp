@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
+#include "xml_net_builder.hpp"
 #include "rnn_referee.hpp"
 #include <cpp/ie_cnn_network.h>
 

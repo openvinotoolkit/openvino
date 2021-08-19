@@ -121,13 +121,20 @@ class Op(object):
         if attrs is None:
             attrs = dict()
         new_node = self.add_node(attrs)
-        # Missed careful handling of debug information
         for i, inp in enumerate(inputs):
             edge_attr = {'in': i, 'out': inp[1],
                          'in_attrs': ['in', 'permutation'],
                          'out_attrs': ['out', 'permutation'],
                          'data_attrs': []} if not inp[0].has_valid('kind') or inp[0].kind == 'op' \
                 else {'in': i, 'in_attrs': ['in', 'permutation']}
+
+            # handling of debug information
+            if inp[0].has_port('out', inp[1]):
+                debug_info = inp[0].out_port(inp[1]).get_tensor_debug_info()
+                if debug_info is not None and len(debug_info) > 0:
+                    edge_attr.update({'fw_tensor_debug_info': debug_info})
+                    edge_attr['data_attrs'].append('fw_tensor_debug_info')
+
             if edge_attrs is not None:
                 edge_attr.update(edge_attrs)
             new_node.add_input_port(i, skip_if_exist=True)

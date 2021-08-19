@@ -29,9 +29,12 @@ import yaml
 from pathlib import Path
 from jsonschema import validate, ValidationError
 
+TIME_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(TIME_TESTS_DIR)
+
 from scripts.run_timetest import check_positive_int
 from test_runner.utils import upload_timetest_data, metadata_from_manifest, get_os_name, get_os_version, \
-    DATABASE, DB_COLLECTIONS
+    get_cpu_info, DATABASE, DB_COLLECTIONS
 
 
 # -------------------- CLI options --------------------
@@ -322,10 +325,11 @@ def manifest_metadata(request):
                 "repo_url": {"type": "string"},
                 "commit_sha": {"type": "string"},
                 "commit_date": {"type": "string"},
+                "branch": {"type": "string"},
                 "target_branch": {"type": "string"},
                 "version": {"type": "string"}
             },
-            "required": ["product_type", "repo_url", "commit_sha", "commit_date", "target_branch", "version"],
+            "required": ["product_type", "repo_url", "commit_sha", "commit_date", "branch", "target_branch", "version"],
             "additionalProperties": false
         }
         """
@@ -384,6 +388,7 @@ def pytest_runtest_makereport(item, call):
     data = item._request.test_info["db_info"].copy()
     data["results"] = item._request.test_info["results"].copy()
     data["raw_results"] = item._request.test_info["raw_results"].copy()
+    data["cpu_info"] = get_cpu_info()
     data["status"] = "not_finished"
     data["error_msg"] = ""
 

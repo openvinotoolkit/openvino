@@ -66,7 +66,7 @@ FP32TestParams gna_fp32_test_params[] = {
     {32, FP32TestParams::eSumm}
 };
 
-INSTANTIATE_TEST_CASE_P(GNAFP32Tests, GNAFP32ParametricTest,
+INSTANTIATE_TEST_SUITE_P(GNAFP32Tests, GNAFP32ParametricTest,
     ::testing::ValuesIn(gna_fp32_test_params), getTestName);
 
 TEST_F(FP32NonQuantizedTest, SplitFollowedByFCAndEltwiseOnCPU) {

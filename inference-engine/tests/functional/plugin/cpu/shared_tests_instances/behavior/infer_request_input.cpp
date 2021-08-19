@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
-
 #include "behavior/infer_request_input.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -27,17 +25,24 @@ namespace {
              {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestInputTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestInputTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(configs)),
                             InferRequestInputTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, InferRequestInputTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestInputTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                    ::testing::ValuesIn(multiConfigs)),
+                            InferRequestInputTests::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestInputTests,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(multiConfigs)),
                             InferRequestInputTests::getTestCaseName);
 

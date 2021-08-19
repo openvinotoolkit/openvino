@@ -41,15 +41,15 @@ class must not exceed `max_output_boxes_per_class`.
 
 **Inputs**:
 
-*   **1**: `boxes` - floating point tensor of shape `[num_batches, num_boxes, 4]` with box coordinates. Required.
+*   **1**: `boxes` - floating-point tensor of shape `[num_batches, num_boxes, 4]` with box coordinates. **Required.**
 
-*   **2**: `scores` - floating point tensor of shape `[num_batches, num_classes, num_boxes]` with box scores. Required.
+*   **2**: `scores` - floating-point tensor of shape `[num_batches, num_classes, num_boxes]` with box scores. **Required.**
 
 *   **3**: `max_output_boxes_per_class` - integer scalar tensor specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
 
-*   **4**: `iou_threshold` - floating point scalar tensor specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
+*   **4**: `iou_threshold` - floating-point scalar tensor specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
 
-*   **5**: `score_threshold` - floating point scalar tensor specifying minimum score to consider box for the processing. Optional with default value 0.
+*   **5**: `score_threshold` - floating-point scalar tensor specifying minimum score to consider box for the processing. Optional with default value 0.
 
 **Outputs**:
 

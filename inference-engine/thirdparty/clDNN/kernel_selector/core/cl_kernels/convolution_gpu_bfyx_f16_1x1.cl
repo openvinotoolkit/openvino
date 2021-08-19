@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 #include "include/unit_type.cl"
-#include "include/mmad.cl"
 
 #if X_BLOCK_SIZE > 1
 #   define GET_SRC(data, id)    AS_TYPE(MAKE_VECTOR_TYPE(UNIT_TYPE, X_BLOCK_SIZE),                             \

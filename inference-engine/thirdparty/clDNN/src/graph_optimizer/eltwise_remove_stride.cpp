@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/tensor.hpp"
+#include "cldnn/runtime/tensor.hpp"
 
 #include "pass_manager.h"
 
@@ -15,7 +15,7 @@
 
 using namespace cldnn;
 
-void eltwise_remove_stride::conv_stride_extend(program_impl& p, program_node& node, cldnn::tensor& tensor) {
+void eltwise_remove_stride::conv_stride_extend(program& p, program_node& node, cldnn::tensor& tensor) {
     // make sure we have only 1 user
     if (node.get_users().size() > 1)
         return;
@@ -51,7 +51,7 @@ void eltwise_remove_stride::conv_stride_extend(program_impl& p, program_node& no
     }
 }
 
-void eltwise_remove_stride::run(program_impl& p) {
+void eltwise_remove_stride::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (node->is_type<eltwise>()) {
             // TODO: make fp16 work

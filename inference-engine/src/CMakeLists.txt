@@ -21,7 +21,7 @@ if(ENABLE_CLDNN)
 endif()
 
 if(ENABLE_VPU)
-  add_subdirectory(vpu)
+    add_subdirectory(vpu)
 endif()
 
 if(ENABLE_GNA)
@@ -29,6 +29,8 @@ if(ENABLE_GNA)
 endif()
 
 add_subdirectory(hetero_plugin)
+
+add_subdirectory(auto_plugin)
 
 add_subdirectory(multi_device)
 
@@ -50,6 +52,6 @@ add_custom_target(ie_libraries ALL
                           inference_engine_ir_v7_reader inference_engine_ir_reader
                           inference_engine_lp_transformations inference_engine_snippets)
 
-if(NGRAPH_ONNX_IMPORT_ENABLE)
+if(NGRAPH_ONNX_FRONTEND_ENABLE)
     add_dependencies(ie_libraries inference_engine_onnx_reader)
 endif()

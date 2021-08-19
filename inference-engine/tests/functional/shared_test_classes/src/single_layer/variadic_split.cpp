@@ -30,7 +30,6 @@ namespace LayerTestsDefinitions {
     }
 
     void VariadicSplitLayerTest::SetUp() {
-        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
         size_t axis;
         std::vector<size_t> inputShape, numSplits;
         InferenceEngine::Precision netPrecision;

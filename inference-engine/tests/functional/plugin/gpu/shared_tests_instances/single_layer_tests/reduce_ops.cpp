@@ -169,56 +169,56 @@ const auto params_ReductionTypesLogical = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceOneAxis,
         ReduceOpsLayerTest,
         paramsOneAxis,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceLogicalOneAxis,
         ReduceOpsLayerTest,
         paramsOneAxisLogical,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_Precisions,
         ReduceOpsLayerTest,
         params_Precisions,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_InputShapes,
         ReduceOpsLayerTest,
         params_InputShapes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_Axes,
         ReduceOpsLayerTest,
         params_Axes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_ReductionTypes,
         ReduceOpsLayerTest,
         params_ReductionTypes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceLogical_ReductionTypes,
         ReduceOpsLayerTest,
         params_ReductionTypesLogical,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce,
         ReduceOpsLayerWithSpecificInputTest,
         testing::Combine(

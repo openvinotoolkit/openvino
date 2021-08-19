@@ -5,11 +5,13 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.split import AttributedSplit, AttributedVariadicSplit
+from extensions.ops.split import AttributedSplit, AttributedVariadicSplit, VariadicSplit
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
+
+from generator import generator, generate
 
 
 class TestSplitOp(unittest.TestCase):
@@ -188,3 +190,81 @@ class TestAttributedVariadicSplitOp(unittest.TestCase):
         self.assertTrue(node.out_port(4).disconnected())
         self.assertTrue(node.out_port(3).disconnected())
         self.assertTrue(np.all(node.split_lengths == np.array([2, 13, 10])))
+
+
+@generator
+class TestVariadicSplitOp(unittest.TestCase):
+    nodes = {
+        'input': {'kind': 'op'},
+        'split_input_data': {'kind': 'data', 'shape': None, 'value': None},
+        'split_axis': {'kind': 'op', 'op': 'Const'},
+        'split_axis_data': {'kind': 'data', 'shape': None, 'value': None},
+        'split_lengths': {'kind': 'op', 'op': 'Const'},
+        'split_lengths_data': {'kind': 'data', 'shape': None, 'value': None},
+        'split_op': {'kind': 'op', 'op': 'VariadicSplit'},
+        'split_output_0_data': {'kind': 'data', 'shape': None, 'value': None},
+        'output_0': {'kind': 'op'},
+        'split_output_1_data': {'kind': 'data', 'shape': None, 'value': None},
+        'output_1': {'kind': 'op'},
+        'split_output_2_data': {'kind': 'data', 'shape': None, 'value': None},
+        'output_2': {'kind': 'op'},
+    }
+    edges = [
+        ('input', 'split_input_data'),
+        ('split_input_data', 'split_op'),
+        ('split_axis', 'split_axis_data'),
+        ('split_axis_data', 'split_op'),
+        ('split_lengths', 'split_lengths_data'),
+        ('split_lengths_data', 'split_op'),
+        ('split_op', 'split_output_0_data'),
+        ('split_output_0_data', 'output_0'),
+        ('split_op', 'split_output_1_data'),
+        ('split_output_1_data', 'output_1'),
+        ('split_op', 'split_output_2_data'),
+        ('split_output_2_data', 'output_2'),
+    ]
+
+    @generate(*[int64_array(2),
+                int64_array([2])])
+    def test_variadic_split_axis(self, axis):
+        lengths = int64_array([2, 13, 10])
+        graph = build_graph(self.nodes, self.edges,
+                            {
+                                'split_input_data': {'shape': int64_array([2, 12, 25, 30])},
+                                'split_axis_data': {'value': axis},
+                                'split_lengths_data': {'value': lengths},
+                                'split_op': {'out_ports_count': 4},
+                            }
+                            )
+        node = Node(graph, 'split_op')
+        for p in range(len(node.out_edges()), node.out_ports_count):
+            node.add_output_port(p)
+
+        VariadicSplit.infer(node)
+
+        ont_nodes_count = len(node.out_edges())
+        self.assertTrue(ont_nodes_count == 3)
+        for out in range(ont_nodes_count):
+            self.assertTrue(np.all(node.out_node(out).shape == int64_array([2, 12, lengths[out], 30])))
+
+    @generate(*[int64_array([[2], [2]]),
+                int64_array([2, 2])])
+    def test_negative_variadic_split_axis(self, axis):
+        lengths = int64_array([2, 13, 10])
+        graph = build_graph(self.nodes, self.edges,
+                            {
+                                'split_input_data': {'shape': int64_array([2, 12, 25, 30])},
+                                'split_axis_data': {'value': axis},
+                                'split_lengths_data': {'value': lengths},
+                                'split_op': {'out_ports_count': 4},
+                            }
+                            )
+        node = Node(graph, 'split_op')
+        for p in range(len(node.out_edges()), node.out_ports_count):
+            node.add_output_port(p)
+
+        try:
+            VariadicSplit.infer(node)
+        except AssertionError as e:
+            self.assertTrue(e.args[0] == 'VariadicSplit `axis` should be scalar or tensor with shape [1], '
+                                         'but it`s not for node split_op')

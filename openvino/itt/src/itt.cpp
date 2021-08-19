@@ -40,7 +40,7 @@ void taskBegin(domain_t d, handle_t t) {
 }
 
 void taskEnd(domain_t d) {
-    if (!callStackDepth() || call_stack_depth-- > 0)
+    if (!callStackDepth() || --call_stack_depth < callStackDepth())
         __itt_task_end(reinterpret_cast<__itt_domain*>(d));
 }
 

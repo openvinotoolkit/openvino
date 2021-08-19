@@ -66,7 +66,7 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
                 ref_node_type = node_ref.type if node_ref.has_valid("type") else None
                 for attr in graph_ref.node[node_ref.id]:
                     if graph_ref.node[node_ref.id][attr] is None or attr in ['name', 'id', '_in_ports', '_out_ports',
-                                                                             'infer', 'IE', 'biases', 'weights', 'custom', 'offset']:
+                                                                             'infer', 'IE', 'biases', 'weights', 'custom', 'offset', 'ir_data_attrs']:
                         continue
                     if attr not in graph.node[node.id]:
                         stderr.append('Current node "{}" with type {} has missing attribute {}'.format(node.id, cur_node_type, attr))
@@ -133,12 +133,18 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
             if in_node.id not in checked_nodes_ref and in_node.id not in q_ref:
                 q_ref.append(in_node.id)
 
-        out_nodes = node.out_nodes().values() if node.kind == 'op' else sorted_by_name(node.out_nodes())
+        if node.kind == 'op':
+            out_nodes = sorted_by_name([Node(graph, v) for v, _ in node.get_outputs()])
+        else:
+            out_nodes = sorted_by_name(node.out_nodes())
         for out_node in out_nodes:
             if out_node.id not in checked_nodes and out_node.id not in q:
                 q.append(out_node.id)
 
-        out_nodes = node_ref.out_nodes().values() if node_ref.kind == 'op' else sorted_by_name(node_ref.out_nodes())
+        if node_ref.kind == 'op':
+            out_nodes = sorted_by_name([Node(graph_ref, v) for v, _ in node_ref.get_outputs()])
+        else:
+            out_nodes = sorted_by_name(node_ref.out_nodes())
         for out_node in out_nodes:
             if out_node.id not in checked_nodes_ref and out_node.id not in q_ref:
                 q_ref.append(out_node.id)

@@ -10,12 +10,10 @@
 std::vector<std::string> disabledTestPatterns() {
     return {
         ".*ExclusiveAsyncRequests.*",
-        ".*reusableCPUStreamsExecutor.*",
+        ".*ReusableCPUStreamsExecutor.*",
         R"(.*SplitLayerTest.*numSplits\=30.*)",
-        // CVS-44774
-        ".*PreprocessTest.*",
         // CVS-51758
-        ".*PreprocessConversionTest.*oPRC=U8.*",
-        ".*PreprocessConversionTest.*oLT=NHWC.*"
+        ".*PreprocessConversionTest.*oLT=NHWC.*",
+        ".*PreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*",
     };
 }

@@ -6,7 +6,7 @@
 #include "fused_conv_eltwise_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -250,7 +250,7 @@ std::string fused_conv_eltwise_inst::to_string(fused_conv_eltwise_node const& no
     return primitive_description.str();
 }
 
-fused_conv_eltwise_inst::typed_primitive_inst(network_impl& network, fused_conv_eltwise_node const& node)
+fused_conv_eltwise_inst::typed_primitive_inst(network& network, fused_conv_eltwise_node const& node)
     : parent(network, node) {
     auto stride = argument.conv.stride;
 

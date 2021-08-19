@@ -8,12 +8,17 @@ set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type")
 
 project(time_tests)
 
+set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
+# Search OpenVINO Inference Engine installed
 find_package(InferenceEngine)
-if (NOT InferenceEngine_FOUND)
-    set (HAVE_SYS_STAT_H 1)
-    set (HAVE_INTTYPES_H 1)
-    set (INTTYPES_FORMAT C99)
+
+if(NOT InferenceEngine_FOUND)
+    # Define directory where artifacts will be placed
+    set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+
+    # Search OpenVINO Inference Engine via InferenceEngineDeveloperPackage_DIR
+    # in order to provide backward compatibility with old OpenVINO packages
     find_package(InferenceEngineDeveloperPackage REQUIRED)
 endif()
 

@@ -31,7 +31,7 @@ namespace {
         return funcs;
     }
 
-    INSTANTIATE_TEST_CASE_P(smoke_CachingSupportCase_Myriad, LoadNetworkCacheTestBase,
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_Myriad, LoadNetworkCacheTestBase,
                             ::testing::Combine(
                                     ::testing::ValuesIn(smoke_functions()),
                                     ::testing::ValuesIn(smoke_precisionsMyriad),
@@ -39,7 +39,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(nightly_CachingSupportCase_Myriad, LoadNetworkCacheTestBase,
+    INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_Myriad, LoadNetworkCacheTestBase,
                             ::testing::Combine(
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(nightly_precisionsMyriad),

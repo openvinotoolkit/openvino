@@ -45,7 +45,7 @@ cd a10_gx_pac_ias_1_2_pv_rte_installer
 4. Select **Y** to install OPAE and accept license and when asked, specify `/home/<user>/tools/intelrtestack` as the absolute install path. During the installation there should be a message stating the directory already exists as it was created in the first command above.  Select **Y** to install to this directory. If this message is not seen, it suggests that there was a typo when entering the install location.
 
 5. Tools are installed to the following directories:
-   * OpenCL™ Run-time Environment: `~/tools/intelrtestack/opencl_rte/aclrte-linux64`
+   * OpenCL™ Runtime Environment: `~/tools/intelrtestack/opencl_rte/aclrte-linux64`
    * Intel® Acceleration Stack for FPGAs: `~/tools/intelrtestack/a10_gx_pac_ias_1_2_pv`
   
 7. Check the version of the FPGA Interface Manager firmware on the PAC board.

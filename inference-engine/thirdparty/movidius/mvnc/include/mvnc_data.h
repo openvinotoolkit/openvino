@@ -16,8 +16,7 @@ extern "C"
 XLinkProtocol_t convertProtocolToXlink(const ncDeviceProtocol_t ncProtocol);
 ncDeviceProtocol_t convertProtocolToNC(const XLinkProtocol_t xLinkProtocol);
 
-XLinkPlatform_t convertPlatformToXlink(const ncDevicePlatform_t ncProtocol);
-ncDevicePlatform_t convertPlatformToNC(const XLinkPlatform_t xLinkProtocol);
+XLinkPlatform_t convertPlatformToXlink();
 
 int copyNcDeviceDescrToXLink(
     const struct ncDeviceDescr_t *in_ncDeviceDesc, deviceDesc_t *out_deviceDesc);

@@ -320,7 +320,7 @@ std::vector<PrecisionType> BlobCopy_PrecisionParams = {
 
 }  // namespace
 
-INSTANTIATE_TEST_CASE_P(accuracy, BlobCopyTest,
+INSTANTIATE_TEST_SUITE_P(accuracy, BlobCopyTest,
                         ::testing::Combine(::testing::ValuesIn(BlobCopy_srcLayoutParam),
                            ::testing::ValuesIn(BlobCopy_dstLayoutParam),
                            ::testing::ValuesIn(BlobCopy_BatchNum),
@@ -468,7 +468,7 @@ TEST_P(BlobCopySetLayoutTest, BlobCopyWithNCHW_To_NHWC_After_setLayout) {
     ASSERT_TRUE(IsEqualBlobCopy(ref, dst)) << "'blob_copy' after setLayout function is not correct";
 }
 
-INSTANTIATE_TEST_CASE_P(accuracy, BlobCopySetLayoutTest,
+INSTANTIATE_TEST_SUITE_P(accuracy, BlobCopySetLayoutTest,
     ::testing::Combine(::testing::ValuesIn(BlobCopySetLayout_Dims),
                        ::testing::ValuesIn(BlobCopySetLayout_Precisions)));
 

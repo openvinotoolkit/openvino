@@ -20,8 +20,8 @@
 
 **Inputs**
 
-* **1**: A tensor of type T. **Required.**
-* **2**: A tensor of type T. **Required.**
+* **1**: A tensor of type *T*. **Required.**
+* **2**: A tensor of type *T*. **Required.**
 
 **Outputs**
 
@@ -37,10 +37,10 @@ Before performing arithmetic operation, input tensors *a* and *b* are broadcaste
 After broadcasting *NotEqual* does the following with the input tensors *a* and *b*:
 
 \f[
-o_{i} = a_{i} != b_{i}
+o_{i} = a_{i} \neq b_{i}
 \f]
 
-**Examples** 
+**Examples**
 
 *Example 1*
 

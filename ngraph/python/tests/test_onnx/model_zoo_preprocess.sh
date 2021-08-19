@@ -63,7 +63,7 @@ function pull_and_postprocess_onnx_model_zoo() {
     git fetch
     git reset HEAD --hard
 
-    git checkout $ONNX_SHA
+    git checkout -f $ONNX_SHA
 
     echo "Pulling models data via Git LFS for onnx model zoo repository"
     git lfs pull --include="*" --exclude="*.onnx"
@@ -96,6 +96,7 @@ function update_onnx_models() {
 
     if [[ ! -d $ONNX_MODELS_DIR ]] ; then
         touch $MODEL_ZOO_DIR/executing_$ONNX_SHA
+        trap "rm -f $MODEL_ZOO_DIR/executing_$ONNX_SHA" EXIT INT TERM
         echo "The ONNX Model Zoo repository doesn't exist on your filesystem then will be cloned"
         git clone https://github.com/onnx/models.git "$ONNX_MODELS_DIR"
         cd "$ONNX_MODELS_DIR"

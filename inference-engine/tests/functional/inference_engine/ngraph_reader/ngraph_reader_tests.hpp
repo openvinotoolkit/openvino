@@ -18,16 +18,13 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "functional_test_utils/network_utils.hpp"
+#include "network_utils.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
 
 class NGraphReaderTests : public CommonTestUtils::TestsCommon {
 protected:
-    void TearDown() override {}
-    void SetUp() override {}
-
     void compareIRs(const std::string& modelV10, const std::string& oldModel, size_t weightsSize = 0, const std::function<void(Blob::Ptr&)>& fillBlob = {}) {
         Core ie;
         Blob::Ptr weights;

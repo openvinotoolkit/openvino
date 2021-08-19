@@ -4,8 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/reorder.hpp"
+
+#include "cldnn/primitives/reorder.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 #include <memory>
 
@@ -16,7 +18,7 @@ struct typed_program_node<reorder> : public typed_program_node_base<reorder> {
     using parent = typed_program_node_base<reorder>;
 
 public:
-    typed_program_node(const std::shared_ptr<reorder> prim, program_impl& prog) : parent(prim, prog) {
+    typed_program_node(const std::shared_ptr<reorder> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
     }
 
@@ -49,9 +51,9 @@ public:
     static std::string to_string(reorder_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, reorder_node const& node);
-    memory_impl& mean_nv12_memory() const { return dep_memory(2); }
-    memory_impl& mean_memory() const { return dep_memory(1); }
+    typed_primitive_inst(network& network, reorder_node const& node);
+    memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
+    memory::ptr mean_memory() const { return dep_memory_ptr(1); }
 
     bool has_mean() const { return !argument.mean.empty(); }
 

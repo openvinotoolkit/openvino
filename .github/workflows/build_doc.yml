@@ -3,6 +3,7 @@ on: [push, pull_request]
 
 jobs:
   Build_Doc:
+    if: github.repository == 'openvinotoolkit/openvino'
     runs-on: ubuntu-20.04
     steps:
       - name: Clone OpenVINO
@@ -38,6 +39,7 @@ jobs:
         working-directory: build
 
       - name: 'Upload doc'
+        if: github.event_name == 'push'
         uses: actions/upload-artifact@v2
         with:
           name: openvino_doc

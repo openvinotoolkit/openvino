@@ -7,7 +7,7 @@
 #include "convolution_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -311,7 +311,7 @@ std::string convolution_inst::to_string(convolution_node const& node) {
     return primitive_description.str();
 }
 
-convolution_inst::typed_primitive_inst(network_impl& network, convolution_node const& node) : parent(network, node) {
+convolution_inst::typed_primitive_inst(network& network, convolution_node const& node) : parent(network, node) {
     auto stride = argument.stride;
 
     auto input_inst = node.input().get_output_layout();

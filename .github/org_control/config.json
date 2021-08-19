@@ -6,7 +6,9 @@
         "openvino-ci",
         "openvino-pushbot",
         "lab-nerval",
-        "lab-nerval-onnx-ci"
+        "lab-nerval-onnx-ci",
+        "onnx-watchdog-agent",
+        "dependabot"
     ],
     "EMAILS_FILE_PATH": "dev_emails-test.txt",
     "PROXIES": {
@@ -31,6 +33,7 @@
         "openvino-mo-maintainers": "category: MO",
         "openvino-ngraph-maintainers": "category: nGraph",
         "openvino-tests-maintainers": "category: IE Tests",
-        "openvino-tools-maintainers": "category: tools"
+        "openvino-tools-maintainers": "category: tools",
+        "openvino-configuration-mgmt": "category: dependency_changes"
     }
 }
