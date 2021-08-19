@@ -5,7 +5,7 @@ Starting from the 2022.1 release, OpenVINO™ supports reading native Paddle mod
 
 ## Read Paddle Models from IR
 
-After [Convert a Paddle Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Paddle.md) to [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md), it can be read as recommended. Example:
+After [Converting a Paddle Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Paddle.md) to [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md), it can be read as recommended. Example:
 
 ```cpp
 InferenceEngine::Core core;
