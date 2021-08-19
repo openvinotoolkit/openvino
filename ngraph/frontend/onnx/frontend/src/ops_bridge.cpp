@@ -61,6 +61,7 @@
 #include "op/greater.hpp"
 #include "op/gru.hpp"
 #include "op/hard_sigmoid.hpp"
+#include "op/hard_swish.hpp"
 #include "op/hardmax.hpp"
 #include "op/identity.hpp"
 #include "op/image_scaler.hpp"
@@ -327,6 +328,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
     REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
+    REGISTER_OPERATOR("HardSwish", 1, hard_swish);
     REGISTER_OPERATOR("Identity", 1, identity);
     REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
     REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
