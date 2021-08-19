@@ -4,29 +4,29 @@
 
 #pragma once
 
-#include <utility>
+#include <vector>
 #include <memory>
 
 #include <transformations_visibility.hpp>
+
+#include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API NormalizeL2Fusion;
+class TRANSFORMATIONS_API NormalizeL2Decomposition;
 
 }  // namespace pass
 }  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief NormalizeL2Fusion transformation replaces various sub-graphs with a NormalizeL2 op:
- * x/(max(sqrt(sum(x[j0, ..., jN]**2), eps)) with a NormalizeL2 op.
- * x/(add(sqrt(sum(x[j0, ..., jN]**2), eps)) with a NormalizeL2 op.
+ * @brief Decomposes NormalizeL2 into subgraph
  */
-class ngraph::pass::NormalizeL2Fusion: public ngraph::pass::MatcherPass {
+class ngraph::pass::NormalizeL2Decomposition: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    NormalizeL2Fusion();
+    NormalizeL2Decomposition();
 };
