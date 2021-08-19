@@ -148,7 +148,7 @@ static NamedOutputs interpolate(const NodeContext& node,
 }
 
 NamedOutputs linear_interp_v2(const NodeContext& node) {
-    const auto mode = Interpolate::InterpolateMode::LINEAR_ONNX;
+    const auto mode = Interpolate::InterpolateMode::LINEAR;
     return interpolate(node, mode, 1);
 }
 

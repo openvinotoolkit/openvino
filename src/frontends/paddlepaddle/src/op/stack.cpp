@@ -18,7 +18,7 @@ NamedOutputs stack(const NodeContext& node) {
     auto data_type = datas[0].get_element_type();
     OutputVector node_datas_reshape;
 
-    auto axis_const = std::make_shared<Constant>(element::i64, Shape{}, axis);
+    auto axis_const = std::make_shared<Constant>(element::i64, Shape{1}, axis);
     if (data_shape.rank().is_static())
         PDPD_OP_VALIDATION_CHECK(
             node,
