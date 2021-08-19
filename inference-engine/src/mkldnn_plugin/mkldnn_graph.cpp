@@ -1214,12 +1214,13 @@ void MKLDNNGraph::EnforceBF16() {
     /* list of node types that must be forced to be executed in BF16 precision
      * because of performance gains */
     static const std::unordered_set<Type> significantNodes {
-        Convolution,
-        FullyConnected,
-        RNNCell,
-        RNNSeq,
-        MatMul,
-        ROIPooling,
+        Convolution,    // conv nets
+        FullyConnected, // conv / bert nets
+        RNNCell,        // recurent nets
+        RNNSeq,         // recurent nets
+        MatMul,         // bert nets
+        ROIPooling,     // object detection nets
+        Interpolate,    // super resolution nets
     };
 
     std::function<void(const MKLDNNNodePtr&, std::unordered_set<MKLDNNNodePtr>& skipNodes)> searchForNodesToSkip;
