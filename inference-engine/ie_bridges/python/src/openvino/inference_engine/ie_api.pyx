@@ -271,6 +271,9 @@ cdef class Blob:
         tensor_desc = TensorDesc(precision, dims, layout_int_to_str_map[layout])
         return tensor_desc
 
+    def setShape(self, new_shape):
+        deref(self._ptr).setShape(new_shape)
+
 ## This class represents an Inference Engine entity and allows you to manipulate with plugins using unified interfaces.
 cdef class IECore:
     ## Class constructor
@@ -817,6 +820,10 @@ cdef class DataPtr:
     @property
     def initialized(self):
         return deref(self._ptr).isInitialized()
+
+    @property
+    def dynamic(self):
+        return deref(self._ptr).isDynamic()
 
 
 ## This class is the layer constant data representation. Provides same interface as DataPtr object except properties setters

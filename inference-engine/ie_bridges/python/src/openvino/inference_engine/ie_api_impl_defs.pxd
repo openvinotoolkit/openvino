@@ -23,6 +23,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const CTensorDesc& getTensorDesc()  except +
         size_t element_size()  except +
         void allocate()
+        void setShape(const SizeVector& dims) except +
 
     cdef TBlob[Type].Ptr make_shared_blob[Type](const CTensorDesc& tensorDesc)
 
