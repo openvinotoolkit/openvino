@@ -11,7 +11,8 @@ op::v8::MaxPoolGrad::MaxPoolGrad(const ngraph::Output<ngraph::Node>& poolInp,
                    const ngraph::Output<ngraph::Node>& shape): Op({poolInp, poolOut, inp, shape}) 
 {
     constructor_validate_and_infer_types();
-    std::cout<< "MAX_UNPOOL" << std::endl;
+    poolInpDims = poolInp.get_shape();
+    poolOutDims = poolOut.get_shape();
 }
 
 bool op::v8::MaxPoolGrad::visit_attributes(ngraph::AttributeVisitor &visitor) {
@@ -42,27 +43,17 @@ bool op::v8::MaxPoolGrad::evaluate(const HostTensorVector& outputs,
     const float* poolOut = inputs[1]->get_data_ptr<float>();
     const float* inp     = inputs[2]->get_data_ptr<float>();
     float* out = outputs[0]->get_data_ptr<float>();
+    Shape outDims = get_default_output().get_shape();
 
-    // const float* poolInp = inputs[0]->cbuffer().as<float*>();
-    // const float* poolOut = inputs[1]->cbuffer().as<float*>();
-    // const float* inp     = inputs[2]->cbuffer().as<float*>();
-    // float* out = outputs[0]->buffer().as<float*>();
-
-    // std::vector<size_t> poolInpDims = inputs[0]->getTensorDesc().getDims();
-    // std::vector<size_t> poolOutDims = inputs[1]->getTensorDesc().getDims();
-    // std::vector<size_t> inpDims = inputs[2]->getTensorDesc().getDims();
-    // std::vector<size_t> outDims = outputs[0]->getTensorDesc().getDims();
-
-    const size_t batch    = 5;
-    const size_t channels = 4;
-    const size_t height   = 6;
-    const size_t width    = 8;
-    const size_t outHeight = 6;
-    const size_t outWidth  = 8;
-    const size_t poolOutHeight = 3;
-    const size_t poolOutWidth  = 4;
+    const size_t batch    = poolInpDims[0];
+    const size_t channels = poolInpDims[1];
+    const size_t height   = poolInpDims[2];
+    const size_t width    = poolInpDims[3];
+    const size_t outHeight = outDims[2];
+    const size_t outWidth  = outDims[3];
+    const size_t poolOutHeight = poolOutDims[2];
+    const size_t poolOutWidth  = poolOutDims[3];
     
-    // InferenceEngine::parallel_for(batch*channels, [&](size_t d)
     for (size_t d = 0; d < batch*channels; ++d) {
         for (int y = height - 1; y >= 0; --y) {
             for (int x = width - 1; x >= 0; --x) {
