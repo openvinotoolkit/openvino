@@ -822,7 +822,7 @@ cdef class DataPtr:
         return deref(self._ptr).isInitialized()
 
     @property
-    def dynamic(self):
+    def is_dynamic(self):
         return deref(self._ptr).isDynamic()
 
 
@@ -1318,6 +1318,7 @@ cdef class InferRequest:
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():
             assert k in self._inputs_list, f"No input with name {k} found in network"
+            self.input_blobs[k].setShape(v.shape)
             if self.input_blobs[k].tensor_desc.precision == "FP16":
                 self.input_blobs[k].buffer[:] = v.view(dtype=np.int16)
             else:

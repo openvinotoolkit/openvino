@@ -6,7 +6,7 @@ import pytest
 import warnings
 
 from openvino.inference_engine import IECore, IENetwork, DataPtr, InputInfoPtr, PreProcessInfo
-from conftest import model_path
+from conftest import model_path, create_ngraph_function
 
 
 test_net_xml, test_net_bin = model_path()
@@ -158,6 +158,29 @@ def test_reshape():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.reshape({"data": (2, 3, 32, 32)})
+    assert net.input_info["data"].input_data.shape == [2, 3, 32, 32]
+
+
+@pytest.mark.parametrize("shape, refShape", [
+    ([1, 3, 22, 22], [1, 3, -1, 25]),
+    ([1, 3, 22, 22], [-1, -1, -1, -1]),
+    ([1, 3, -1, 25], [1, 3, 22, -1])
+])
+def test_reshapePartial(shape, refShape):
+    import ngraph as ng
+    function = create_ngraph_function(shape)
+    net = ng.function_to_cnn(function)
+    net.reshape({"data": refShape})
+    changedFunction = ng.Function.from_capsule(net._get_function_capsule())
+    refShape = ng.impl.PartialShape(refShape)
+    assert changedFunction.get_parameters()[0].get_partial_shape().is_dynamic
+    assert changedFunction.get_results()[0].get_output_partial_shape(0).is_dynamic
+    assert function.get_parameters()[0].get_partial_shape().is_dynamic
+    assert function.get_results()[0].get_output_partial_shape(0).is_dynamic
+    assert changedFunction.get_parameters()[0].get_partial_shape() == refShape
+    assert changedFunction.get_results()[0].get_output_partial_shape(0) == refShape
+    assert function.get_parameters()[0].get_partial_shape() == refShape
+    assert function.get_results()[0].get_output_partial_shape(0) == refShape
 
 
 def test_net_from_buffer_valid():

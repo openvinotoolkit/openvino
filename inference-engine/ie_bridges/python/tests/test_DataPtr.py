@@ -4,7 +4,7 @@
 import pytest
 
 from openvino.inference_engine import IECore, DataPtr
-from conftest import model_path
+from conftest import model_path, create_ngraph_function
 
 
 test_net_xml, test_net_bin = model_path()
@@ -43,3 +43,13 @@ def test_layout():
 
 def test_initialized():
     assert layer_out_data().initialized, "Incorrect value for initialized property for layer 'fc_out'"
+
+def test_is_dynamic():
+    import ngraph as ng
+    function = create_ngraph_function([-1, 3, 20, 20])
+    net = ng.function_to_cnn(function)
+    assert net.input_info["data"].input_data.is_dynamic
+    ie = IECore()
+    ie.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie.load_network(net, "TEMPLATE")
+    assert exec_net.input_info["data"].input_data.is_dynamic

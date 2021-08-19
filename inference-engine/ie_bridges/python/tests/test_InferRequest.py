@@ -9,7 +9,7 @@ import threading
 from datetime import datetime
 
 from openvino.inference_engine import ie_api as ie
-from conftest import model_path, image_path
+from conftest import model_path, image_path, create_ngraph_function
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -565,3 +565,81 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
 
         assert np.allclose(res['MemoryAdd'], expected_res, atol=1e-6), \
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
+
+
+@pytest.mark.parametrize("shape, pShape, refShape", [
+    ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
+    ([1, 4, 20, 20], [(0,5), 4, 20, 20], [3, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 3, 20, 20], [2, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 3, 20, 20], [6, 4, 20, 20]),
+])
+def test_infer_dynamic_network_with_setShape(shape, pShape, refShape):
+    import ngraph as ng
+    function = create_ngraph_function(shape)
+    net = ng.function_to_cnn(function)
+    pShape = {"data": pShape}
+    net.reshape(pShape)
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    exec_net.requests[0].input_blobs["data"].setShape(refShape)
+    #assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == refShape
+    #exec_net.infer({"data": np.ones(refShape)})
+    exec_net.infer()
+    request = exec_net.requests[0]
+    request.async_infer()
+    status = request.wait(ie.WaitMode.RESULT_READY)
+    assert status == ie.StatusCode.OK
+    assert request.output_blobs['out'].tensor_desc.dims == refShape
+
+
+@pytest.mark.parametrize("shape, pShape, refShape", [
+    ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
+    ([1, 4, 20, 20], [(0,5), 4, 20, 20], [3, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 3, 20, 20], [2, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 3, 20, 20], [6, 4, 20, 20]),
+])
+def test_infer_dynamic_network_without_setShape(shape, pShape, refShape):
+    import ngraph as ng
+    function = create_ngraph_function(shape)
+    net = ng.function_to_cnn(function)
+    pShape = {"data": pShape}
+    net.reshape(pShape)
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    #assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == refShape
+    #exec_net.infer({"data": np.ones(refShape)})
+    #request = exec_net.requests[0]
+    #request.async_infer({"data": np.ones(refShape)})
+    #status = request.wait(ie.WaitMode.RESULT_READY)
+    #assert status == ie.StatusCode.OK
+    #assert request.output_blobs['out'].tensor_desc.dims == refShape
+
+
+@pytest.mark.parametrize("shape, pShape, refShape", [
+    ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
+    ([1, 4, 20, 20], [(0,5), 4, 20, 20], [3, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 3, 20, 20], [2, 4, 20, 20]),
+    ([1, 4, 20, 20], [(3,5), 3, 20, 20], [6, 4, 20, 20]),
+])
+def test_infer_dynamic_network_with_setBlob(shape, pShape, refShape):
+    import ngraph as ng
+    function = create_ngraph_function(shape)
+    net = ng.function_to_cnn(function)
+    pShape = {"data": pShape}
+    net.reshape(pShape)
+    ie_core = ie.IECore()
+    ie_core.register_plugin("templatePlugin", "TEMPLATE")
+    exec_net = ie_core.load_network(net, "TEMPLATE")
+    tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
+    tensor_desc.dims = refShape
+    blob = ie.Blob(tensor_desc)
+    exec_net.requests[0].set_blob("data", blob)
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == refShape
+    exec_net.infer({"data": np.ones(refShape)})
+    request = exec_net.requests[0]
+    request.async_infer({"data": np.ones(refShape)})
+    status = request.wait(ie.WaitMode.RESULT_READY)
+    assert status == ie.StatusCode.OK
+    assert request.output_blobs["out"].tensor_desc.dims == refShape
