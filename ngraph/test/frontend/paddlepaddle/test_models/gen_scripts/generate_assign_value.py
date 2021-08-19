@@ -27,8 +27,6 @@ def pdpd_assign_value(name, test_x):
 
         saveModel(name, exe, feedkeys=['x'], fetchlist=[result], inputs=[test_x], outputs=[outs[0]], target_dir=sys.argv[1])
 
-    print(outs[0])
-
 
 def compare():
 

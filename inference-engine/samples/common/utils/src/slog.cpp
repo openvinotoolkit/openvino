@@ -12,7 +12,7 @@ LogStream info("INFO", std::cout);
 LogStream warn("WARNING", std::cout);
 LogStream err("ERROR", std::cerr);
 
-LogStream::LogStream(const std::string& prefix, std::ostream& log_stream): _prefix(prefix), _new_line(true) {
+LogStream::LogStream(const std::string& prefix, std::ostream& log_stream) : _prefix(prefix), _new_line(true) {
     _log_stream = &log_stream;
 }
 

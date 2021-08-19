@@ -23,9 +23,7 @@ OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, "../.."))
 # Change current working dircectory to ngraph/python
 os.chdir(PYNGRAPH_ROOT_DIR)
 
-
-NGRAPH_LIBS = ["ngraph", "onnx_importer", "inference_engine"]
-
+NGRAPH_LIBS = ["ngraph", "onnx_ngraph_frontend", "inference_engine"]
 
 packages = [
     "ngraph",
@@ -165,7 +163,7 @@ class BuildCMakeExt(build_ext):
                     "-DCMAKE_BUILD_TYPE={}".format(self.config),
                     "-DPYTHON_EXECUTABLE={}".format(sys.executable),
                     "-DNGRAPH_PYTHON_BUILD_ENABLE=ON",
-                    "-DNGRAPH_ONNX_IMPORT_ENABLE=ON"] + ext_args)
+                    "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)
 

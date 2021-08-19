@@ -16,8 +16,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, node_name)
-{
+NGRAPH_TEST(${BACKEND_NAME}, node_name) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -37,6 +36,6 @@ NGRAPH_TEST(${BACKEND_NAME}, node_name)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-                                  (test::NDArray<float, 2>({{6, 8}, {10, 12}})).get_vector()));
+    EXPECT_TRUE(
+        test::all_close_f(read_vector<float>(result), (test::NDArray<float, 2>({{6, 8}, {10, 12}})).get_vector()));
 }

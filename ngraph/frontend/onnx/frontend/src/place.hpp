@@ -4,75 +4,78 @@
 
 #pragma once
 
-#include <memory>
+#include <editor.hpp>
 #include <frontend_manager/place.hpp>
-#include <onnx_editor/editor.hpp>
+#include <memory>
 
-namespace ngraph
-{
-    namespace frontend
-    {
-        class PlaceInputEdgeONNX : public Place
-        {
-        public:
-            PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge,
-                               std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+namespace ngraph {
+namespace frontend {
+class PlaceInputEdgeONNX : public Place {
+public:
+    PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
-            onnx_editor::InputEdge get_input_edge() const;
+    onnx_editor::InputEdge get_input_edge() const;
 
-            bool is_input() const override;
+    bool is_input() const override;
 
-            bool is_output() const override;
+    bool is_output() const override;
 
-            bool is_equal(Place::Ptr another) const override;
+    bool is_equal(Place::Ptr another) const override;
 
-        private:
-            onnx_editor::InputEdge m_edge;
-            const std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
-        };
+    bool is_equal_data(Place::Ptr another) const override;
 
-        class PlaceOutputEdgeONNX : public Place
-        {
-        public:
-            PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge,
-                                std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    Place::Ptr get_source_tensor() const override;
 
-            onnx_editor::OutputEdge get_output_edge() const;
+private:
+    onnx_editor::InputEdge m_edge;
+    const std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+};
 
-            bool is_input() const override;
+class PlaceOutputEdgeONNX : public Place {
+public:
+    PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
-            bool is_output() const override;
+    onnx_editor::OutputEdge get_output_edge() const;
 
-            bool is_equal(Place::Ptr another) const override;
+    bool is_input() const override;
 
-        private:
-            onnx_editor::OutputEdge m_edge;
-            std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
-        };
+    bool is_output() const override;
 
-        class PlaceTensorONNX : public Place
-        {
-        public:
-            PlaceTensorONNX(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
+    bool is_equal(Place::Ptr another) const override;
 
-            std::vector<std::string> get_names() const override;
+    bool is_equal_data(Place::Ptr another) const override;
 
-            Place::Ptr get_producing_port() const override;
+    Place::Ptr get_target_tensor() const override;
 
-            std::vector<Place::Ptr> get_consuming_ports() const override;
+private:
+    onnx_editor::OutputEdge m_edge;
+    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+};
 
-            Ptr get_input_port(int input_port_index) const override;
+class PlaceTensorONNX : public Place {
+public:
+    PlaceTensorONNX(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
-            bool is_input() const override;
+    std::vector<std::string> get_names() const override;
 
-            bool is_output() const override;
+    Place::Ptr get_producing_port() const override;
 
-            bool is_equal(Place::Ptr another) const override;
+    std::vector<Place::Ptr> get_consuming_ports() const override;
 
-        private:
-            std::string m_name;
-            std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
-        };
-    } // namespace frontend
+    Ptr get_input_port(int input_port_index) const override;
 
-} // namespace ngraph
+    bool is_input() const override;
+
+    bool is_output() const override;
+
+    bool is_equal(Place::Ptr another) const override;
+
+    bool is_equal_data(Place::Ptr another) const override;
+
+private:
+    std::string m_name;
+    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+};
+}  // namespace frontend
+
+}  // namespace ngraph

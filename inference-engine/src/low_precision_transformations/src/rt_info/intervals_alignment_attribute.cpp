@@ -12,6 +12,7 @@
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph;
+using namespace ov;
 using namespace ngraph::pass::low_precision;
 
 IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(
