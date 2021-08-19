@@ -30,7 +30,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 25533
-        R"(.*ConvertionLayerTest.*ConvertLike.*)",
+        R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",

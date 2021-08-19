@@ -7,9 +7,7 @@
 #include "shared_test_classes/single_layer/conversion.hpp"
 
 namespace LayerTestsDefinitions {
-
 TEST_P(ConversionLayerTest, CompareWithRefs) {
     Run();
 };
-
 }  // namespace LayerTestsDefinitions

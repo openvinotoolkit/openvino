@@ -17,10 +17,10 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
     std::tie(conversionOpType, inputShape, inputPrecision, targetPrecision, inLayout, outLayout, targetName) =
         obj.param;
     std::ostringstream result;
-    result << "convertionOpType=" << conversionNames[conversionOpType] << "_";
+    result << "conversionOpType=" << conversionNames[conversionOpType] << "_";
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "targetPRC=" << targetPrecision.name() << "_";
     result << "inputPRC=" << inputPrecision.name() << "_";
+    result << "targetPRC=" << targetPrecision.name() << "_";
     result << "inL=" << inLayout << "_";
     result << "outL=" << outLayout << "_";
     result << "trgDev=" << targetName;
