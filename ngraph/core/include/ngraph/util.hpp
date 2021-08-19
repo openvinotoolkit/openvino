@@ -77,7 +77,7 @@ std::string locale_string(T x) {
     return ss.str();
 }
 
-class NGRAPH_API stopwatch {
+class NGRAPH_API NGRAPH_DEPRECATED("It is obsolete structure and will be removed soon") stopwatch {
 public:
     void start() {
         if (m_active == false) {
