@@ -156,7 +156,7 @@ struct IfDynamismCaseWithStaticInputs : public IfFunctionalBase {
 struct IfConditionIsScalar : public IfFunctionalBase {
     std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 2!");
+        NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3!");
         NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1!");
 
         auto X = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
@@ -298,5 +298,4 @@ INSTANTIATE_TEST_SUITE_P(
                                 Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
                                 Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
             std::vector<Tensor>{Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
-            "if_condition_is_scalar_cond_false")
-        ));
+            "if_condition_is_scalar_cond_false")));
