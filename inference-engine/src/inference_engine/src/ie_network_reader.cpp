@@ -115,13 +115,6 @@ void registerReaders() {
         return std::make_shared<Reader>(name, library_name);
     };
 
-    // try to load ONNX reader if library exists
-    auto onnxReader =
-        create_if_exists("ONNX", std::string("inference_engine_onnx_reader") + std::string(IE_BUILD_POSTFIX));
-    if (onnxReader) {
-        readers.emplace("onnx", onnxReader);
-    }
-
     // try to load IR reader v10 if library exists
     auto irReaderv10 =
         create_if_exists("IRv10", std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
