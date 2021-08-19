@@ -67,6 +67,7 @@ shared_ptr<Node> op::v1::GreaterEqual::clone_with_new_inputs(const OutputVector&
 
 bool op::v1::GreaterEqual::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_GreaterEqual_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
     return greater_equalop::evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
