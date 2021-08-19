@@ -75,6 +75,48 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
                 for (auto &device : devices)
                     for (int i = 0; i < models.size(); i++)
                         tests_cases.push_back(TestCase(numprocesses, numthreads, numiters, device, models[i], models_names[i], precisions[i]));
+                    return tests_cases;
+}
+
+std::vector<TestCase> generateTestsParamsMemLeaks(std::initializer_list<std::string> fields) {
+    std::vector<TestCase> tests_cases;
+    const pugi::xml_document & test_config = Environment::Instance().getTestConfig();
+
+    int numprocesses = 1, numthreads = 1, numiterations = 1;
+    std::string device = "NULL";
+
+
+    pugi::xml_node models;
+    pugi::xml_node cases;
+    cases = test_config.child("cases").child("device");
+
+    for (pugi::xml_node device = cases.first_child(); device; device = device.next_sibling()) {
+        name = device.attribute("name").as_string();
+        numprocesses = device.attribute("processes").as_int();
+        numthreads = device.attribute("threads").as_int();
+        numiterations = device.attribute("iterations").as_int();
+
+        std::vector<std::string> models, models_names, precisions;
+        for (pugi::xml_node model = device.first_child(); model; model = model.next_sibling()){
+            std::string full_path = model.attribute("full_path").as_string();
+            std::string path = model.attribute("path").as_string();
+            if (full_path.empty() || path.empty())
+                throw std::logic_error("One of the 'model' records from test config doesn't contain 'full_path' or 'path' attributes");
+            else {
+                models.push_back(full_path);
+                models_names.push_back(path);
+            }
+            std::string precision = model.attribute("precision").as_string();
+            precisions.push_back(precision);
+        }
+        // Initialize variables with default value if it weren't filled
+        models = !models.empty() ? models : std::vector<std::string>{"NULL"};
+        precisions = !precisions.empty() ? precisions : std::vector<std::string>{"NULL"};
+        models_names = !models_names.empty() ? models_names : std::vector<std::string>{"NULL"};
+
+        tests_cases.push_back(TestCase(numprocesses, numthreads, numiters, device, models, models_names, precisions))
+    }
+
     return tests_cases;
 }
 
