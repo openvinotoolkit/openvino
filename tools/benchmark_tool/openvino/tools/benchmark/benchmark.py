@@ -6,7 +6,7 @@ from datetime import datetime
 from math import ceil
 import numpy as np
 
-from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
+from openvino.inference_engine import IENetwork, Core, get_version, StatusCode
 
 from .utils.constants import CPU_DEVICE_NAME, GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
 from .utils.logging import logger
@@ -20,7 +20,7 @@ class Benchmark:
     def __init__(self, device: str, number_infer_requests: int = None, number_iterations: int = None,
                  duration_seconds: int = None, api_type: str = 'async', mode : str = "cython"):
         self.device = device
-        self.ie = IECore()
+        self.ie = Core()
         self.nireq = number_infer_requests
         self.niter = number_iterations
         self.duration_seconds = get_duration_seconds(duration_seconds, self.niter, self.device)
@@ -138,6 +138,8 @@ class Benchmark:
                     if not(req_info['status'] == StatusCode.OK or
                            req_info['status'] == StatusCode.INFER_NOT_STARTED):
                         raise Exception('Idle request', req_info['id'], 'failed!')
+                    else:
+                        times += [infer_requests[req_info['id']].latency]
                     infer_requests.async_infer()
                 else:
                     infer_request_id = exe_network.get_idle_request_id()
@@ -183,7 +185,8 @@ class Benchmark:
 
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
         if self.mode == 'pybind' and self.api_type == "async":
-            times = infer_requests.latencies
+            for infer_request_id in range(0, len(infer_requests)):
+                times.append(infer_requests[infer_request_id].latency)
         else:
             for infer_request_id in in_fly:
                 times.append(infer_requests[infer_request_id].latency)
