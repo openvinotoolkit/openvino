@@ -1,0 +1,43 @@
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <openvino/cc/ngraph/itt.hpp>
+
+#include "transformations/remove_single_input_concat.hpp"
+
+#include <memory>
+
+#include <ngraph/opsets/opset7.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
+#include <ngraph/rt_info.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <ie_common.h>
+#include "utils/transformation_helper.hpp"
+
+namespace GNAPluginNS
+{
+    NGRAPH_RTTI_DEFINITION(RemoveSingleInputConcat, "RemoveSingleInputConcat", 0);
+
+    RemoveSingleInputConcat::RemoveSingleInputConcat() {
+        MATCHER_SCOPE(RemoveSingleInputConcat);
+
+        auto concat_operation = ngraph::pattern::wrap_type<ngraph::opset7::Concat>();
+
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+            const auto& pattern_map = m.get_pattern_value_map();
+            const auto concat_operation_node = pattern_map.at(concat_operation).get_node_shared_ptr();
+            
+            if (concat_operation_node->get_input_size() != 1 || !concat_operation_node->get_output_size())
+                return false;
+
+            // TODO: rebase all inputs to output
+
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(concat_operation, matcher_name);
+        this->register_matcher(m, callback);
+    }
+}
