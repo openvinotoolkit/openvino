@@ -128,11 +128,26 @@ class ModelQuantizer {
                     k--;
                 }
 
-                if ((infiniteLoopHistory.size() - i) % 2 == 0 && (infiniteLoopHistory.size() - i) / 2 == infiniteLoopHistory.size() - k) {
+                // for similar records, we will increase the pattern length to 4
+                if ((infiniteLoopHistory.size() - i) % 2 == 0 &&
+                    (infiniteLoopHistory.size() - i) / 2 == infiniteLoopHistory.size() - k &&
+                    ((infiniteLoopHistory.size() - i) / 2 > 1 ||
+                        std::distance(infiniteLoopHistory.rbegin(),
+                            std::find_if_not(infiniteLoopHistory.rbegin(), infiniteLoopHistory.rend(),
+                                [&infiniteLoopHistory](const std::string& str) { return str == infiniteLoopHistory.back(); })) > 3)) {
+                    gnalog() << "infiniteLoopPattern:\n";
+                    for (const auto& s : infiniteLoopPattern) {
+                        gnalog() << "\t " << s << '\n';
+                    }
                     infiniteLoopPattern.clear();
                     int patternLength = (infiniteLoopHistory.size() - i)/2;
+                    gnalog() << "patternLength: " << patternLength << '\n';
                     for (int j = 0; j < patternLength; j++) {
                         infiniteLoopPattern.emplace_back(infiniteLoopHistory[infiniteLoopHistory.size() - patternLength + j]);
+                    }
+                    gnalog() << "infiniteLoopHistory:\n";
+                    for (const auto& s : infiniteLoopHistory) {
+                        gnalog() << "\t " << s << '\n';
                     }
                     infiniteLoopHistory.clear();
                     gnalog() << "infinite loop detected\n";
