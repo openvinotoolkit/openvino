@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "default_opset.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/opsets/opset8.hpp"
 #include "ngraph/validation_util.hpp"
 #include "onnx_import/core/node.hpp"
 
@@ -21,7 +21,7 @@ inline OutputVector gather(const Node& node) {
     auto indices = ng_inputs.at(1);
     auto axis = node.get_attribute_value<int64_t>("axis", 0);
 
-    return {std::make_shared<default_opset::Gather>(data,
+    return {std::make_shared<ngraph::opset8::Gather>(data,
                                                     indices,
                                                     default_opset::Constant::create(element::i64, Shape{}, {axis}))};
 }
