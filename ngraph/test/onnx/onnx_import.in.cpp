@@ -2733,6 +2733,39 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_float_1D) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_int16_3D_axis_1) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_int16_3D_axis_1.onnx"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // clang-format off
+    test_case.add_input<int32_t>(Shape{2, 2, 2},
+        {   1, 2,
+            3, 4,
+
+            5, 6,
+            7, 8    });
+    test_case.add_input<int32_t>(Shape{4, 1},
+        {   0,
+            1,
+            1,
+            0       });
+    test_case.add_expected_output<int32_t>(Shape{2, 4, 1, 2},
+        {   1, 2,
+            3, 4,
+            3, 4,
+            1, 2,
+
+            5, 6,
+            7, 8,
+            7, 8,
+            5, 6     });
+    // clang-format on
+
+    test_case.run();
+}
+
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_float_1D) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_float_1D.onnx"));
