@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <memory>
+#include <stdexcept>
 
 namespace cldnn {
 
