@@ -9,18 +9,67 @@
 #include <cstring>
 #include <vector>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+#include <tlhelp32.h>
+#else
+#include <sys/unistd.h>
+#include <sys/wait.h>
+#endif
+
 #include "statistics_writer.h"
 
 namespace MemoryTest {
 #ifdef _WIN32
+static PROCESS_MEMORY_COUNTERS getMemoryInfo() {
+    static PROCESS_MEMORY_COUNTERS pmc;
+    pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
+    GetProcessMemoryInfo(GetCurrentProcess(),&pmc, pmc.cb);
+    return pmc;
+}
+
 size_t getVmSizeInKB() {
-                // TODO rewrite for Virtual Memory
-                PROCESS_MEMORY_COUNTERS pmc;
-                pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
-                GetProcessMemoryInfo(GetCurrentProcess(),&pmc, pmc.cb);
-                return pmc.WorkingSetSize;
-	    }
+    return getMemoryInfo().PagefileUsage / 1024;
+    }
+
+size_t getVmPeakInKB() {
+    return getMemoryInfo().PeakPagefileUsage / 1024;
+    }
+
+size_t getVmRSSInKB() {
+    return getMemoryInfo().WorkingSetSize / 1024;
+    }
+
+size_t getVmHWMInKB() {
+    return getMemoryInfo().PeakWorkingSetSize / 1024;
+    }
+
+size_t getThreadsNum() {
+    // first determine the id of the current process
+    DWORD const  id = GetCurrentProcessId();
+
+    // then get a process list snapshot.
+    HANDLE const  snapshot = CreateToolhelp32Snapshot( TH32CS_SNAPALL, 0 );
+
+    // initialize the process entry structure.
+    PROCESSENTRY32 entry = { 0 };
+    entry.dwSize = sizeof( entry );
+
+    // get the first process info.
+    BOOL  ret = true;
+    ret = Process32First( snapshot, &entry );
+    while( ret && entry.th32ProcessID != id ) {
+        ret = Process32Next( snapshot, &entry );
+    }
+    CloseHandle( snapshot );
+    return ret
+        ?   entry.cntThreads
+        :   -1;
+    }
+
 #else
+
 /// Parses number from provided string
 static int parseLine(std::string line) {
     std::string res = "";

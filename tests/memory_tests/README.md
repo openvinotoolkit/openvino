@@ -23,10 +23,6 @@ If you don't have OpenVINO™ installed you need to have the `build` folder, whi
 is created when you configure and build OpenVINO™ from sources:
 
 ``` bash
-cmake .. -DInferenceEngine_DIR=$(realpath ../../../build) && make memory_tests
-```
-For old versions of OpenVINO? from sources use `-DInferenceEngineDeveloperPackage_DIR`:
-``` bash
 cmake .. -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../../build) && make memory_tests
 ```
 
