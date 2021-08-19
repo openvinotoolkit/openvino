@@ -800,7 +800,7 @@ bool Node::evaluate_upper(const HostTensorVector& output_values) const {
 }
 
 bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Node::constant_fold");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
 
     if (m_rt_info.count("DISABLED_CONSTANT_FOLDING")) {
         return false;
