@@ -150,8 +150,6 @@ private:
     void SetActualNetworkReadyStatus();
     void GenerateWorkers(const std::string& device, const InferenceEngine::SoExecutableNetworkInternal& executableNetwork);
     void WaitForActualDevice() const;
-    bool TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork);
-    void SetAutoModeConfig(const std::map<std::string, InferenceEngine::Parameter> &config);
 
 private:
     MultiDeviceInferencePlugin* _multiPlugin;

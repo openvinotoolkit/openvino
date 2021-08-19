@@ -289,21 +289,6 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     _workerRequests.clear();
 }
 
-bool MultiDeviceExecutableNetwork::TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork) {
-    // if already get actual network
-    if (_alreadyActualNetwork) {
-        soExecNetwork = _networkActualNeeded;
-        // reapply config to actual network
-        // fixme: GPU doesn't support SetConfig and throw exception
-        try {
-            _networkActualNeeded->SetConfig(_cacheConfig);
-        } catch (...) {
-        }
-        return true;
-    }
-    return false;
-}
-
 void MultiDeviceExecutableNetwork::WaitForActualDevice() const {
     if (_alreadyActualNetwork) {
         return;
