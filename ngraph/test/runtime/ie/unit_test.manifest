@@ -418,8 +418,6 @@ grn_2d_with_bias
 erf
 divide_adjoint_stability
 notequal
-greater
-greatereq
 less
 sum_3d_to_scalar_int32
 sum_2d_to_scalar_int8
@@ -459,7 +457,6 @@ gather_axis_0_int64
 gather_axis_0_uint16
 gather_axis_0_uint64
 concat_matrix_int64
-greater_int64
 broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
@@ -1567,7 +1564,17 @@ onnx_upsample6_dynamic
 # random values returned from the plugin: ticket 51762
 onnx_model_deformable_conv_2d
 
-# DeformableConvolution groups attribute: ticket 53312
+# DeformableConvolution groups attribute: ticket 53312 (fixed, but reproduced after v8->v1 conversion was enabled)
+IE_CPU.deformable_convolution_opset8_2D_zeroed_offsets_groups_basic
+IE_CPU.deformable_convolution_opset8_2D_zeroed_offsets_groups_complex
+IE_CPU.deformable_convolution_opset8_2D_zeroed_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_opset8_2D_integral_offsets_groups_basic
+IE_CPU.deformable_convolution_opset8_2D_integral_offsets_groups_complex
+IE_CPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_opset8_2D_real_offsets_groups_basic
+IE_CPU.deformable_convolution_opset8_2D_real_offsets_groups_complex
+IE_CPU.deformable_convolution_opset8_2D_real_offsets_groups_and_deforgroups
+
 IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_basic
 IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_complex
 IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_and_deforgroups

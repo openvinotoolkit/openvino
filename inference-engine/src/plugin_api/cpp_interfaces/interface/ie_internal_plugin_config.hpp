@@ -45,6 +45,15 @@ DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
  */
 DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);
 
+/**
+ * @brief The name for setting work mode internal in MULTI device plugin option.
+ *
+ * This option should be used with value only:
+ * PluginConfigInternalParams::MULTI_MODE_AUTO or PluginConfigInternalParams::MULTI_MODE_LEGACY
+ */
+DECLARE_CONFIG_KEY(WORK_MODE);
+DECLARE_CONFIG_VALUE(MULTI_MODE_AUTO);
+
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine
