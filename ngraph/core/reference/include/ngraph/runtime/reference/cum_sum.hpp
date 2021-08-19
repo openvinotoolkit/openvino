@@ -27,12 +27,12 @@ void cumsum(const T* arg,
     const auto reverse_shift = reverse ? -1 : 1;
     const auto element_shift = exclusive ? size_after_axis * reverse_shift : 0;
 
-    for (auto i = 0; i < size_before_axis; ++i) {
+    for (size_t i = 0; i < size_before_axis; ++i) {
         const auto slice_idx = i * axis_dim * size_after_axis + reverse * size_after_axis * (axis_dim - 1);
-        for (auto j = 0; j < size_after_axis; ++j) {
+        for (size_t j = 0; j < size_after_axis; ++j) {
             const auto sequence_start_idx = slice_idx + j;
             out[sequence_start_idx] = exclusive ? static_cast<T>(0) : arg[sequence_start_idx];
-            for (auto k = 1; k < axis_dim; ++k) {
+            for (size_t k = 1; k < axis_dim; ++k) {
                 const auto element_idx = sequence_start_idx + (k * size_after_axis) * reverse_shift;
                 const auto in_idx = element_idx - element_shift;
                 const auto previous_sum_idx = element_idx - size_after_axis * reverse_shift;
