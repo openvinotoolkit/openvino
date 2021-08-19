@@ -62,18 +62,17 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
     } else if (deviceName_.find("MULTI:") == 0) {
         deviceName_ = "MULTI";
         config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
-    } else if (deviceName_.find("AUTO") == 0) {
-        deviceName_ = "AUTO";
-        if (deviceName.size() > std::string("AUTO").size()) {
-            std::string deviceList = deviceName.substr(std::string("AUTO:").size());
-            if (deviceList.find("AUTO") != std::string::npos) {
-                IE_THROW() << "Device list for AUTO should not be AUTO";
-            }
-            config_[InferenceEngine::KEY_AUTO_DEVICE_LIST] = deviceName.substr(std::string("AUTO:").size());
+    } else if (deviceName.find("AUTO") == 0) {
+        deviceName_ = "MULTI";
+        if (deviceName.find("AUTO:") == 0) {
+            config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] =
+                deviceName.substr(std::string("AUTO:").size());
         }
+        config_.insert({CONFIG_KEY_INTERNAL(WORK_MODE), ""});
     } else {
-        if (deviceName_.empty()) {
-            deviceName_ = "AUTO";
+        if (deviceName_ == "AUTO") {
+            deviceName_ = "MULTI";
+            config_.insert({CONFIG_KEY_INTERNAL(WORK_MODE), ""});
         }
         InferenceEngine::DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
@@ -579,7 +578,21 @@ public:
             }
         }
 
-        auto parsed = parseDeviceNameIntoConfig(deviceName);
+        // AUTO case
+        {
+            if (deviceName.find("AUTO:") == 0) {
+                IE_THROW()
+                    << "You can get specific metrics with the GetMetric only for the MULTI itself (without devices). "
+                       "To get individual devices's metrics call GetMetric for each device separately";
+            }
+        }
+
+        std::string pluginName = deviceName;
+        if (pluginName == "AUTO") {
+            pluginName = "MULTI";
+        }
+
+        auto parsed = parseDeviceNameIntoConfig(pluginName);
 
         // we need to return a copy of Parameter object which is created on Core side,
         // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
@@ -629,11 +642,14 @@ public:
      * @param deviceName A name of device
      * @return Reference to a CPP plugin wrapper
      */
-    InferenceEngine::InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
+    InferenceEngine::InferencePlugin GetCPPPluginByName(const std::string& pluginName) const {
         OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "CoreImpl::GetCPPPluginByName");
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
-
+        auto deviceName = pluginName;
+        if (deviceName == "AUTO") {
+            deviceName = "MULTI";
+        }
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
             IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
@@ -856,9 +872,9 @@ public:
             } else if (deviceName.find("AUTO") == 0) {
                 auto pos = deviceName.find_first_of(":");
                 if (pos != std::string::npos) {
-                    deviceNames = InferenceEngine::DeviceIDParser::getHeteroDevices(deviceName.substr(pos + 1));
+                    deviceNames = InferenceEngine::DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
                 }
-                deviceNames.emplace_back("AUTO");
+                deviceNames.emplace_back("MULTI");
             } else {
                 deviceNames.push_back(deviceName);
             }
