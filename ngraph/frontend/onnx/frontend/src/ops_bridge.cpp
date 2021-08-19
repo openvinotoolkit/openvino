@@ -38,6 +38,7 @@
 #include "op/conv_transpose.hpp"
 #include "op/cos.hpp"
 #include "op/cosh.hpp"
+#include "op/crop.hpp"
 #include "op/cum_sum.hpp"
 #include "op/depth_to_space.hpp"
 #include "op/dequantize_linear.hpp"
@@ -427,6 +428,7 @@ OperatorsBridge::OperatorsBridge() {
 
     // deprecated ops
     REGISTER_OPERATOR("Affine", 1, affine);
+    REGISTER_OPERATOR("Crop", 1, crop);
     REGISTER_OPERATOR("Scatter", 1, scatter_elements);
     REGISTER_OPERATOR("Upsample", 1, upsample);
     REGISTER_OPERATOR("Upsample", 7, upsample);
