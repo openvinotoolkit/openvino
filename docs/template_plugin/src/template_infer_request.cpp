@@ -344,11 +344,6 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
             data = it->second->getRoiBlob();
         } else {
             data = _inputs[name];
-            if (foundInput->getInputData()->isDynamic() && data) {
-                auto rank = foundInput->getInputData()->getPartialShape().rank();
-                SizeVector dims = rank.is_dynamic() ? SizeVector{0} : SizeVector(rank.get_length(), 0);
-                data->setShape(dims);
-            }
             SizeVector dims;
             if (!data) {
                 auto&& parameters = _executableNetwork->_function->get_parameters();
@@ -368,11 +363,6 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
             }
             checkBlob(data, name, true, foundInput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
             auto& devBlob = _deviceInputs[name];
-            if (foundInput->getInputData()->isDynamic() && devBlob) {
-                auto rank = foundInput->getInputData()->getPartialShape().rank();
-                SizeVector dims = rank.is_dynamic() ? SizeVector{0} : SizeVector(rank.get_length(), 0);
-                devBlob->setShape(dims);
-            }
             if (preProcessingRequired(foundInput, data, devBlob)) {
                 // if no devBlob, performs inplace
                 addInputPreProcessingFor(name, data, devBlob ? devBlob : _inputs[name]);

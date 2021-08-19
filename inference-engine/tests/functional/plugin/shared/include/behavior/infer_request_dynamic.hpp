@@ -220,6 +220,30 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetBlob2times) {
     ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape2);
 }
 
+
+TEST_P(InferRequestDynamicTests, GetSameBlob2times) {
+    const std::string param_name = "Param_1";
+    const InferenceEngine::SizeVector refShape = {1, 4, 20, 20};
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+    std::map<std::string, ngraph::PartialShape> shapes;
+    shapes[param_name] = {ngraph::Dimension::dynamic(), 4, 20, 20};
+    cnnNet.reshape(shapes);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    InferenceEngine::InferRequest req;
+    InferenceEngine::Blob::Ptr blob;
+    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+    ASSERT_NO_THROW(blob->setShape(refShape));
+    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
+    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
+}
+
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetBlob) {
     const std::string param_name = "Param_1";
     const InferenceEngine::SizeVector refShape = {1, 4, 20, 20};
