@@ -55,8 +55,10 @@ std::string vector_to_string(const T& v) {
 }
 
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 size_t hash_combine(const std::vector<size_t>& list);
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 void dump(std::ostream& out, const void*, size_t);
 NGRAPH_API
 std::string to_lower(const std::string& s);
@@ -330,6 +332,7 @@ private:
 ///
 /// \note Throws a runtime_error if there is an error during parsing
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 void parse_version_string(std::string version, size_t& major, size_t& minor, size_t& patch, std::string& extra);
 
 template <typename T>
