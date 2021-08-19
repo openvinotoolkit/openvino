@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/skip_tests_config.hpp"
+#include <vector>
+#include <string>
 
 #include <ie_system_conf.h>
-
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "ie_parallel.hpp"
 
@@ -78,21 +78,22 @@ std::vector<std::string> disabledTestPatterns() {
         // need to implement Export / Import
         R"(.*IEClassImportExportTestP.*)",
         // azure is failing after #6199
-        R"(.*/NmsLayerTest.*)"};
+        R"(.*/NmsLayerTest.*)"
+    };
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
     retVector.emplace_back(R"(.*ReusableCPUStreamsExecutor.*)");
 #endif
 
 #ifdef __APPLE__
-    // TODO: Issue 55717
-    // retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
+        // TODO: Issue 55717
+        //retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");
 #endif
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
-        retVector.emplace_back(R"(.*BF16.*)");
-        retVector.emplace_back(R"(.*bfloat16.*)");
+       retVector.emplace_back(R"(.*BF16.*)");
+       retVector.emplace_back(R"(.*bfloat16.*)");
     }
 
     return retVector;
