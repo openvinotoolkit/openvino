@@ -191,12 +191,12 @@ size_t NetworkHelper::getInputChannelsCount(std::shared_ptr<Node> layer) {
 }
 
 size_t NetworkHelper::getGroupsCount(std::shared_ptr<Node> layer) {
-    if (as_type_ptr<opset1::Convolution>(layer)) {
+    if (is_type<opset1::Convolution>(layer)) {
         return 1;
-    } else if (auto group_convolution = as_type_ptr<opset1::GroupConvolution>(layer)) {
-        return layer->get_input_shape(1)[0];    // input weights for opset1::GC is in format GOI..., see the specification
+    } else if (is_type<opset1::GroupConvolution>(layer)) {
+        return layer->get_input_partial_shape(1)[0].get_length();    // input weights for opset1::GC is in format GOI..., see the specification
     } else {
-        THROW_TRANSFORMATION_EXCEPTION << "Invalid layer type of " << layer->get_friendly_name() << "; expected Convolutino or GroupConvolution";
+        THROW_TRANSFORMATION_EXCEPTION << "Invalid layer type of " << layer->get_friendly_name() << "; expected Convolution or GroupConvolution";
     }
 }
 
@@ -239,9 +239,15 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     auto b = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0);
     std::shared_ptr<Node> bDivA;
 
-    if (shape_size(b->get_output_shape(0)) == 1 ||
-        shape_size(a->get_output_shape(0)) == 1 ||
-        shape_size(b->get_output_shape(0)) == shape_size(a->get_output_shape(0))) {
+    const auto aPShape = a->get_output_partial_shape(0);
+    assert(aPShape.is_static());
+    const auto aShape = aPShape.to_shape();
+
+    const auto bPShape = b->get_output_partial_shape(0);
+    assert(bPShape.is_static());
+    const auto bShape = bPShape.to_shape();
+
+    if ((shape_size(bShape) == 1) || (shape_size(aShape) == 1) || (shape_size(bShape) == shape_size(aShape))) {
         // safely division to avoid NaN
         const std::vector<float> bValues = as_type_ptr<opset1::Constant>(b)->cast_vector<float>();
         const std::vector<float> aValues = as_type_ptr<opset1::Constant>(a)->cast_vector<float>();
@@ -263,7 +269,7 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
         auto aPrecision = a->get_output_element_type(0);
         bDivA = std::make_shared<opset1::Constant>(
                 aPrecision,
-                aBroadcasted ? b->get_output_shape(0) : a->get_output_shape(0),
+                aBroadcasted ? bShape : aShape,
                 bDivAValues);
     } else {
         b = foldConvert(b, element::f32);
@@ -741,9 +747,12 @@ std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
     auto constant = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(0));
 
     if (constant) {
-        const bool roundValues = roundValuesWasSet ? roundValuesArg : fq->output(0).get_element_type().is_integral();
+        const bool roundValues = roundValuesWasSet ? roundValuesArg : fq->get_output_element_type(0).is_integral();
 
-        Shape constShape = fq->get_output_shape(0);
+        const auto constPShape = fq->get_output_partial_shape(0);
+        assert(constPShape.is_static());
+        const Shape constShape = constPShape.to_shape();
+
         if (constShape.empty() || constShape.size() > 5lu) {
             THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected dimensions count " << constShape.size();
         }
@@ -1124,7 +1133,7 @@ FakeQuantizeDequantization NetworkHelper::makeDequantization(
     const float dequantizationMul,
     const float dequantizationSub,
     const ngraph::element::Type originalPrecision,
-    const ngraph::PartialShape dataNodeOutputShape,
+    const ngraph::PartialShape& dataNodeOutputShape,
     element::Type precision,
     const ngraph::element::Type deqPrecision,
     std::shared_ptr<ngraph::Node> input) {
@@ -1774,7 +1783,9 @@ std::vector<element::Type> NetworkHelper::precisionIntersection(
 
 bool NetworkHelper::isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq) {
     const auto pInputShape = fq->get_input_partial_shape(0);
-    auto olShape = fq->get_input_shape(3);
+    const auto olPShape = fq->get_input_partial_shape(3);
+    assert(olPShape.is_static());
+    auto olShape = olPShape.to_shape();
 
     if (shape_size(olShape) > 1ul) {
         if (pInputShape.rank().is_dynamic()) {
