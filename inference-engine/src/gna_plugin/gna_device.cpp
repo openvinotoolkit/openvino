@@ -155,7 +155,7 @@ void GNADeviceHelper::releaseModel(const uint32_t model_id) {
 
 bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
     const auto compileTargetDevice = getTargetDevice(false);
-    return isGnaLibVersion2_1 && isUpTo20HwGnaDevice(compileTargetDevice);
+    return (isGnaLibVersion3_0 || isGnaLibVersion2_1) && isUpTo20HwGnaDevice(compileTargetDevice);
 }
 
 namespace {
@@ -169,7 +169,7 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
         THROW_GNA_EXCEPTION << "Unsupported " << key << " = \"" << target << "\"" << extraSuffix;
     };
     if (target == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
-        if (!isGnaLibVersion2_1)
+        if (!isGnaLibVersion2_1 && !isGnaLibVersion3_0)
             throwUnsupportedGnaTarget(", when GNA Library version is 2.0.X.Y");
         parsed = Gna2DeviceVersion3_0;
     } else if (target != InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
@@ -180,7 +180,7 @@ Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const
 
 Gna2DeviceVersion GNADeviceHelper::getDefaultTarget() const {
     if (detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation)
-        return isGnaLibVersion2_1 ? Gna2DeviceVersion3_0 : Gna2DeviceVersion2_0;
+        return (isGnaLibVersion3_0 ||  isGnaLibVersion2_1) ? Gna2DeviceVersion3_0 : Gna2DeviceVersion2_0;
     return detectedGnaDevVersion;
 }
 
@@ -439,7 +439,7 @@ GNADeviceHelper::DumpResult GNADeviceHelper::dumpXnn(const uint32_t modelId) {
     checkStatus();
 #else
     r.model.reset(
-        ExportSueLegacyUsingGnaApi2(modelId, &r.header),
+        ExportSueLegacyUsingGnaApi2(modelId, nGnaDeviceIndex, &r.header),
         gnaUserFree);
 #endif
 
@@ -458,7 +458,7 @@ void GNADeviceHelper::dumpXnnForDeviceVersion(
     const Gna2DeviceVersion targetDeviceVersion) {
 
     Gna2ModelSueCreekHeader sueHeader;
-    auto ptr = ExportSueLegacyUsingGnaApi2(modelId, &sueHeader);
+    auto ptr = ExportSueLegacyUsingGnaApi2(modelId, nGnaDeviceIndex, &sueHeader);
     gnaUserFree(ptr);
 
     ExportGnaDescriptorPartiallyFilled(sueHeader.NumberOfLayers, outStream);
@@ -491,6 +491,7 @@ void GNADeviceHelper::open(uint8_t n_threads) {
 #else
     auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &detectedGnaDevVersion);
     checkGna2Status(status, "Gna2DeviceGetVersion");
+
     status = Gna2DeviceOpen(nGnaDeviceIndex);
     checkGna2Status(status, "Gna2DeviceOpen");
     // TODO: GNA2: uncomment when scratchpad repaired

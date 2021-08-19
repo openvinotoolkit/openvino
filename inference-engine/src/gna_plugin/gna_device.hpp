@@ -56,6 +56,7 @@ class GNADeviceHelper {
     std::string executionTarget;
     std::string compileTarget;
     bool isGnaLibVersion2_1 = false;
+    bool isGnaLibVersion3_0 = false;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -97,6 +98,9 @@ public:
 #if GNA_LIB_VER == 2
         if (gnaLibVersion.rfind("2.1", 0) == 0) {
             isGnaLibVersion2_1 = true;
+        }
+        if (gnaLibVersion.rfind("3.0", 0) == 0) {
+            isGnaLibVersion3_0 = true;
         }
 #endif
 
