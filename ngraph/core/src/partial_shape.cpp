@@ -107,7 +107,7 @@ Shape ngraph::PartialShape::get_shape() const {
     return shape;
 }
 
-PartialShape ngraph::operator+(const PartialShape& s1, const PartialShape& s2) {
+PartialShape ov::operator+(const PartialShape& s1, const PartialShape& s2) {
     if (s1.rank().is_dynamic() || s2.rank().is_dynamic()) {
         return PartialShape::dynamic();
     }
@@ -124,7 +124,7 @@ PartialShape ngraph::operator+(const PartialShape& s1, const PartialShape& s2) {
     return result;
 }
 
-std::ostream& ngraph::operator<<(std::ostream& str, const PartialShape& shape) {
+std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
     if (shape.m_rank_is_static) {
         str << "{";
         bool first = true;
