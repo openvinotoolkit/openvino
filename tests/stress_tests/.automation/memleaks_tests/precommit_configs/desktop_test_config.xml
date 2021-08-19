@@ -1,18 +1,8 @@
-<attributes>
-    <processes>
-        <value>1</value>
-    </processes>
-    <threads>
-        <value>1</value>
-    </threads>
-    <iterations>
-        <value>30</value>
-    </iterations>
-    <devices>
-        <value>CPU</value>
-        <value>GPU</value>
-    </devices>
-    <models>
+<cases>
+    <device name="CPU" processes="1" threads="1" iterations="30">
         <model name="mobilenet-ssd" precision="FP32" source="omz" />
-    </models>
-</attributes>
+    </device>
+    <device name="GPU" processes="1" threads="1" iterations="30">
+        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+    </device>
+</cases>
