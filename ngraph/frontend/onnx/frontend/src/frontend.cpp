@@ -6,9 +6,9 @@
 #include <frontend_manager/frontend_manager.hpp>
 #include <fstream>
 #include <input_model.hpp>
-#include <ngraph/file_util.hpp>
 #include <onnx_frontend/frontend.hpp>
 #include <onnx_import/onnx.hpp>
+#include <sstream>
 #include <utils/onnx_internal.hpp>
 
 #include "onnx_common/onnx_model_validator.hpp"
@@ -34,8 +34,11 @@ InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Varian
         const auto path = as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
         return std::make_shared<InputModelONNX>(path);
     }
-    if (variants.size() > 0 && is_type<VariantWrapper<std::istream*>>(variants[0])) {
-        auto stream = as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
+    if (variants.size() > 0 && (is_type<VariantWrapper<std::istream*>>(variants[0]) ||
+                                is_type<VariantWrapper<std::istringstream*>>(variants[0]))) {
+        std::istream* stream = is_type<VariantWrapper<std::istream*>>(variants[0])
+                                   ? as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get()
+                                   : as_type_ptr<VariantWrapper<std::istringstream*>>(variants[0])->get();
         if (variants.size() > 1 && is_type<VariantWrapper<std::string>>(variants[1])) {
             const auto path = as_type_ptr<VariantWrapper<std::string>>(variants[1])->get();
             return std::make_shared<InputModelONNX>(*stream, path);
@@ -96,8 +99,11 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         model_stream.close();
         return is_valid_model;
     }
-    if (variants.size() > 0 && is_type<VariantWrapper<std::istream*>>(variants[0])) {
-        auto stream = as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
+    if (variants.size() > 0 && (is_type<VariantWrapper<std::istream*>>(variants[0]) ||
+                                is_type<VariantWrapper<std::istringstream*>>(variants[0]))) {
+        std::istream* stream = is_type<VariantWrapper<std::istream*>>(variants[0])
+                                   ? as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get()
+                                   : as_type_ptr<VariantWrapper<std::istringstream*>>(variants[0])->get();
         StreamRewinder rwd{*stream};
         return onnx_common::is_valid_model(*stream);
     }

@@ -251,7 +251,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     }
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return CNNNetwork(ngFunc);
+        return CNNNetwork(ngFunc, exts);
     }
     IE_THROW() << "Unknown model format! Cannot find reader for model format: " << fileExt
                << " and read the model: " << modelPath << ". Please check that reader library exists in your PATH.";
@@ -274,6 +274,19 @@ CNNNetwork details::ReadNetwork(const std::string& model,
             return reader->read(modelStream, exts);
         }
     }
+    // Try to load with FrontEndManager
+    // NOTICE: weights argument is ignored
+    static ngraph::frontend::FrontEndManager manager;
+    ngraph::frontend::FrontEnd::Ptr FE;
+    ngraph::frontend::InputModel::Ptr inputModel;
+    FE = manager.load_by_model(&modelStream);
+    if (FE)
+        inputModel = FE->load(&modelStream);
+    if (inputModel) {
+        auto ngFunc = FE->convert(inputModel);
+        return CNNNetwork(ngFunc, exts);
+    }
+
     IE_THROW() << "Unknown model format! Cannot find reader for the model and read it. Please check that reader "
                   "library exists in your PATH.";
 }
