@@ -36,7 +36,7 @@ TEST(TransformationTests, NormalizeL2FusionWithMax) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NormalizeL2FusionWithMax>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -49,8 +49,9 @@ TEST(TransformationTests, NormalizeL2FusionWithMax) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{normalize_l2}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectExp) {
@@ -71,7 +72,7 @@ TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectExp) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NormalizeL2FusionWithMax>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
         manager.run_passes(f);
     }
 
@@ -89,8 +90,9 @@ TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectExp) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectEpsValueShape) {
@@ -110,7 +112,7 @@ TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectEpsValueShape) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NormalizeL2FusionWithMax>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
         manager.run_passes(f);
     }
 
@@ -128,8 +130,9 @@ TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectEpsValueShape) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, NormalizeL2FusionWithAdd) {
@@ -150,7 +153,7 @@ TEST(TransformationTests, NormalizeL2FusionWithAdd) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NormalizeL2FusionWithAdd>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -163,8 +166,9 @@ TEST(TransformationTests, NormalizeL2FusionWithAdd) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{normalize_l2}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectExp) {
@@ -185,7 +189,7 @@ TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectExp) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NormalizeL2FusionWithAdd>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -204,8 +208,9 @@ TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectExp) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectEpsValueShape) {
@@ -225,7 +230,7 @@ TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectEpsValueShape) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NormalizeL2FusionWithMax>();
+        manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
         manager.run_passes(f);
     }
 
@@ -243,6 +248,7 @@ TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectEpsValueShape) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
