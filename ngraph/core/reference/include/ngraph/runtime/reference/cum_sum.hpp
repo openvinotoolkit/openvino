@@ -31,7 +31,7 @@ void cumsum(const T* arg,
         const auto slice_idx = i * axis_dim * size_after_axis + reverse * size_after_axis * (axis_dim - 1);
         for (size_t j = 0; j < size_after_axis; ++j) {
             const auto sequence_start_idx = slice_idx + j;
-            out[sequence_start_idx] = exclusive ? static_cast<T>(0) : arg[sequence_start_idx];
+            out[sequence_start_idx] = exclusive ? T{0} : arg[sequence_start_idx];
             for (size_t k = 1; k < axis_dim; ++k) {
                 const auto element_idx = sequence_start_idx + (k * size_after_axis) * reverse_shift;
                 const auto in_idx = element_idx - element_shift;
