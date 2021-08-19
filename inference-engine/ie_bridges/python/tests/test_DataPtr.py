@@ -49,6 +49,7 @@ def test_is_dynamic():
     function = create_ngraph_function([-1, 3, 20, 20])
     net = ng.function_to_cnn(function)
     assert net.input_info["data"].input_data.is_dynamic
+    assert net.outputs["out"].is_dynamic
     ie = IECore()
     ie.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie.load_network(net, "TEMPLATE")

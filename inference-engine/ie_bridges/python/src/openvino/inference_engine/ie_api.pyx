@@ -841,7 +841,10 @@ cdef class CDataPtr:
     ## Shape (dimensions) of the data object
     @property
     def shape(self):
-        return deref(self._ptr).getDims()
+        if deref(self._ptr).isDynamic():
+            return C.getPartialShape(self._ptr)
+        else:
+            return deref(self._ptr).getDims()
 
     ## Layout of the data object
     @property
@@ -852,6 +855,10 @@ cdef class CDataPtr:
     @property
     def initialized(self):
         return deref(self._ptr).isInitialized()
+
+    @property
+    def is_dynamic(self):
+        return deref(self._ptr).isDynamic()
 
 
 ## This class represents a network instance loaded to plugin and ready for inference.

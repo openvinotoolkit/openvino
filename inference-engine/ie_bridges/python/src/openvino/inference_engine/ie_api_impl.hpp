@@ -203,6 +203,6 @@ std::string get_version();
 
 InferenceEnginePython::IENetwork read_network(std::string path_to_xml, std::string path_to_bin);
 
-std::vector<int64_t> getPartialShape(InferenceEngine::DataPtr data);
+std::vector<int64_t> getPartialShape(InferenceEngine::CDataPtr data);
 
 };  // namespace InferenceEnginePython

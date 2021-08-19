@@ -207,7 +207,7 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string
     return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
-std::vector<int64_t> InferenceEnginePython::getPartialShape(InferenceEngine::DataPtr data){
+std::vector<int64_t> InferenceEnginePython::getPartialShape(InferenceEngine::CDataPtr data){
     ngraph::PartialShape pShape = data->getPartialShape();
     std::vector<int64_t> py_shape;
     for(auto const& d : pShape){
