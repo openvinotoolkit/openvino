@@ -160,13 +160,13 @@ class Loop(TensorIterator):
             if not execution_condition:  # 0 iterations
                 return 0
         num_iterations = loop_node.in_port(0).data.get_value()
+        if not is_fully_defined(num_iterations):
+            return dynamic_dimension_value
         if num_iterations is not None:
             num_iterations = num_iterations.item(0)
             # in some ONNX models the num_iterations input is equal to max(int64) meaning dynamic number of iterations
             if num_iterations < 0 or num_iterations == np.iinfo(np.int64).max:
                 return dynamic_dimension_value
-        if num_iterations is None:
-            return dynamic_dimension_value
         return num_iterations
 
     @staticmethod
