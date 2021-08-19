@@ -12,8 +12,8 @@ when executing continuously.
 - StressUnitTests executing various Inference Engine use cases in parallel
 threads and processes.
 
-Each test refers to configuration files located in `<test dir>\local_configs`
-folder. The configuration files are installed along with tests on build time.
+Each test refers to configuration files located in `<test dir>\.automation`
+folder. 
 
 ## Getting Started
 
