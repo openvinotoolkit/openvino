@@ -313,6 +313,7 @@ void LayerTestsCommon::LoadNetwork() {
 }
 
 void LayerTestsCommon::GenerateInputs() {
+    inputs.clear();
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
     const auto& functionParams = function->get_parameters();
     for (int i = 0; i < functionParams.size(); ++i) {
