@@ -6,8 +6,8 @@
 
 #include "ngraph/dimension.hpp"
 #include "ngraph/rank.hpp"
-#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ngraph {
-using ov::PartialShape;
+using PartialShape = ov::Shape;
 }  // namespace ngraph

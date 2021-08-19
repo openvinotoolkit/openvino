@@ -335,7 +335,7 @@ size_t Function::get_graph_size() const {
     for (auto node : get_ops()) {
         total_size += sizeof(*node);
         if (node->description() == "Constant") {
-            const Shape& shape = node->get_output_shape(0);
+            const ngraph::Shape& shape = node->get_output_shape(0);
             size_t const_size = node->get_output_element_type(0).size();
             if (shape.size() == 0) {
                 total_size += const_size;
