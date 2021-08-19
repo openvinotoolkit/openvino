@@ -3,24 +3,43 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 
 reduce_map = {
-    'ReduceSum': np.ma.sum,
-    'ReduceProd': np.ma.prod,
-    'ReduceL1': lambda x, axis, keepdims: np.ma.sum(a=np.ma.absolute(x), axis=axis, keepdims=keepdims),
-    'ReduceL2': lambda x, axis, keepdims: np.ma.sqrt(np.ma.sum(a=np.ma.multiply(x, x), axis=axis, keepdims=keepdims)),
-    'ReduceMax': np.ma.max,
-    'ReduceMin': np.ma.min,
-    'ReduceMean': np.ma.mean,
-    'ReduceAnd': np.ma.all,
-    'ReduceLogicalAnd': np.ma.all,
-    'ReduceLogicalOr': np.ma.any,
+    'ReduceSum': np.sum,
+    'ReduceProd': np.prod,
+    'ReduceL1': lambda x, axis, keepdims: np.sum(a=np.absolute(x), axis=axis, keepdims=keepdims),
+    'ReduceL2': lambda x, axis, keepdims: np.sqrt(np.sum(a=np.square(x), axis=axis, keepdims=keepdims)),
+    'ReduceMax': np.max,
+    'ReduceMin': np.min,
+    'ReduceMean': np.mean,
+    'ReduceAnd': np.all,
+    'ReduceLogicalAnd': np.all,
+    'ReduceLogicalOr': np.any,
 }
+
+
+def reduce_helper(func: callable, x: np.array, axis: tuple, keepdims: bool):
+    """
+    Performs the reduction of input data tensor "x" over axis "axis" with function "func" and optionally remove reduced
+    dimensions (if "keepdims" is False). If the input tensor has dynamic values then all elements of the result tensor
+    are changed to be dynamic.
+
+    :param func: numpy reduce function
+    :param x: the data to perform reduction on
+    :param axis: the axis for reduction
+    :param keepdims: flag specifying whether keep reduce dimensions or not
+    :return: the result tensor
+    """
+    result = func(x, axis=axis, keepdims=keepdims)
+    if is_fully_defined(x):
+        return result
+    else:
+        return np.ma.masked_array(result, mask=np.ones(result.shape, dtype=np.bool))
 
 
 def reduce_infer(node: Node):
@@ -47,7 +66,7 @@ def reduce_infer(node: Node):
     in_value = in_data.get_value()
 
     if in_value is not None:
-        value = reduce_map[node.op](in_value.copy(), axis=tuple(axis), keepdims=node.keep_dims)
+        value = reduce_helper(reduce_map[node.op], in_value.copy(), axis=tuple(axis), keepdims=node.keep_dims)
         node.out_port(0).data.set_value(value)
     else:
         used_dims = np.zeros(len(in_shape), dtype=np.bool)
@@ -132,6 +151,7 @@ class ReduceL1(ReduceOp):
     op = 'ReduceL1'
     op_type = 'ReduceL1'
     version = 'opset4'
+
 
 class ReduceL2(ReduceOp):
     op = 'ReduceL2'
