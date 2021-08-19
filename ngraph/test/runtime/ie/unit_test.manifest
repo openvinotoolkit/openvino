@@ -248,10 +248,6 @@ onnx_size_op_graph_middle
 shape_of_vector
 shape_of_matrix
 shape_of_5d
-numeric_float_nan
-numeric_float_inf
-numeric_double_nan
-numeric_double_inf
 
 fake_quantize_pdpd
 IE_GPU.fake_quantize
@@ -421,10 +417,7 @@ max_pool_2d_1channel_1image_overpadded
 grn_2d_with_bias
 erf
 divide_adjoint_stability
-equal
 notequal
-greater
-greatereq
 less
 sum_3d_to_scalar_int32
 sum_2d_to_scalar_int8
@@ -464,7 +457,6 @@ gather_axis_0_int64
 gather_axis_0_uint16
 gather_axis_0_uint64
 concat_matrix_int64
-greater_int64
 broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
@@ -484,8 +476,6 @@ IE_CPU.onnx_roi_align_f32
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 not
-logical_xor
-logical_and
 gather_axis_0_bool
 auto_bcast_binary_elementwise
 auto_bcast_binary_elementwise_pdpd
@@ -1574,7 +1564,17 @@ onnx_upsample6_dynamic
 # random values returned from the plugin: ticket 51762
 onnx_model_deformable_conv_2d
 
-# DeformableConvolution groups attribute: ticket 53312
+# DeformableConvolution groups attribute: ticket 53312 (fixed, but reproduced after v8->v1 conversion was enabled)
+IE_CPU.deformable_convolution_opset8_2D_zeroed_offsets_groups_basic
+IE_CPU.deformable_convolution_opset8_2D_zeroed_offsets_groups_complex
+IE_CPU.deformable_convolution_opset8_2D_zeroed_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_opset8_2D_integral_offsets_groups_basic
+IE_CPU.deformable_convolution_opset8_2D_integral_offsets_groups_complex
+IE_CPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
+IE_CPU.deformable_convolution_opset8_2D_real_offsets_groups_basic
+IE_CPU.deformable_convolution_opset8_2D_real_offsets_groups_complex
+IE_CPU.deformable_convolution_opset8_2D_real_offsets_groups_and_deforgroups
+
 IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_basic
 IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_complex
 IE_CPU.deformable_convolution_2D_zeroed_offsets_groups_and_deforgroups

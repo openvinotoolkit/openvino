@@ -16,8 +16,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, parameter_as_output)
-{
+NGRAPH_TEST(${BACKEND_NAME}, parameter_as_output) {
     Shape shape{3, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(A, ParameterVector{A});

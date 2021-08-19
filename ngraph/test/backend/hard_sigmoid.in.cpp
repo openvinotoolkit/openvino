@@ -18,8 +18,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, hard_sigmoid_1d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, hard_sigmoid_1d) {
     const Shape a_shape{3};
     const auto A = make_shared<op::Parameter>(element::f32, a_shape);
 
@@ -40,8 +39,7 @@ NGRAPH_TEST(${BACKEND_NAME}, hard_sigmoid_1d)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, hard_sigmoid_2d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, hard_sigmoid_2d) {
     const Shape a_shape{2, 5};
     const auto A = make_shared<op::Parameter>(element::f32, a_shape);
 
@@ -58,7 +56,6 @@ NGRAPH_TEST(${BACKEND_NAME}, hard_sigmoid_2d)
     auto test_case = test::TestCase<TestEngine>(f);
 
     test_case.add_input<float>({a});
-    test_case.add_expected_output<float>(
-        a_shape, {0.0f, 0.3f, 0.5f, 0.7f, 1.0f, 0.6f, 0.46f, 1.0f, 1.0f, 0.52f});
+    test_case.add_expected_output<float>(a_shape, {0.0f, 0.3f, 0.5f, 0.7f, 1.0f, 0.6f, 0.46f, 1.0f, 1.0f, 0.52f});
     test_case.run();
 }

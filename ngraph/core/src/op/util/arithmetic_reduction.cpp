@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/util/arithmetic_reduction.hpp"
+
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
@@ -14,40 +15,30 @@ NGRAPH_RTTI_DEFINITION(op::util::ArithmeticReduction, "ArithmeticReduction", 0);
 
 op::util::ArithmeticReduction::ArithmeticReduction() {}
 
-op::util::ArithmeticReduction::ArithmeticReduction(const Output<Node>& arg,
-                                                   const Output<Node>& reduction_axes)
-    : ReductionBase(arg, reduction_axes)
-{
-}
+op::util::ArithmeticReduction::ArithmeticReduction(const Output<Node>& arg, const Output<Node>& reduction_axes)
+    : ReductionBase(arg, reduction_axes) {}
 
-bool op::util::ArithmeticReduction::reduction_axes_constant() const
-{
+bool op::util::ArithmeticReduction::reduction_axes_constant() const {
     return is_type<op::Constant>(input_value(1).get_node());
 }
 
-const AxisSet op::util::ArithmeticReduction::get_reduction_axes() const
-{
+const AxisSet op::util::ArithmeticReduction::get_reduction_axes() const {
     AxisSet axes;
-    if (const auto& const_op = get_constant_from_source(input_value(1)))
-    {
+    if (const auto& const_op = get_constant_from_source(input_value(1))) {
         const auto const_data = const_op->cast_vector<int64_t>();
         const auto input_data_rank = get_input_partial_shape(0).rank();
-        const auto normalized_axes =
-            ngraph::normalize_axes(get_friendly_name(), const_data, input_data_rank);
+        const auto normalized_axes = ngraph::normalize_axes(get_friendly_name(), const_data, input_data_rank);
         axes = AxisSet{normalized_axes};
     }
     return axes;
 }
 
-void op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_axes)
-{
+void op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_axes) {
     this->input(1).replace_source_output(
-        op::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
-            ->output(0));
+        op::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())->output(0));
 }
 
-void op::util::ArithmeticReduction::validate_and_infer_types()
-{
+void op::util::ArithmeticReduction::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_ArithmeticReduction_validate_and_infer_types);
 
     const PartialShape& axes_shape = get_input_partial_shape(1);

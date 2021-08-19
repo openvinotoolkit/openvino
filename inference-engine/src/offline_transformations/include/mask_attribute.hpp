@@ -192,24 +192,6 @@ private:
 
 std::ostream & operator<< (std::ostream & out, const Mask & mask);
 
-extern template class VariantImpl<Mask::Ptr>;
-
-template<>
-class VariantWrapper<Mask::Ptr> : public VariantImpl<Mask::Ptr> {
-public:
-    static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::Mask", 0};
-
-    const VariantTypeInfo &get_type_info() const override {
-        return type_info;
-    }
-
-    static std::shared_ptr<VariantWrapper<Mask::Ptr>> create(const value_type & value) {
-        return std::make_shared<VariantWrapper<Mask::Ptr>>(value);
-    }
-
-    explicit VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
-};
-
 Mask::Ptr getMask(const Output<const Node> & output);
 
 Mask::Ptr getMask(const Output<Node> & output);
@@ -217,3 +199,25 @@ Mask::Ptr getMask(const Output<Node> & output);
 void setMask(Output<Node> output, const Mask::Ptr & mask);
 
 }  // namespace ngraph
+
+namespace ov {
+
+extern template class VariantImpl<ngraph::Mask::Ptr>;
+
+template<>
+class VariantWrapper<ngraph::Mask::Ptr> : public VariantImpl<ngraph::Mask::Ptr> {
+public:
+    static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::Mask", 0};
+
+    const VariantTypeInfo &get_type_info() const override {
+        return type_info;
+    }
+
+    static std::shared_ptr<VariantWrapper<ngraph::Mask::Ptr>> create(const value_type & value) {
+        return std::make_shared<VariantWrapper<ngraph::Mask::Ptr>>(value);
+    }
+
+    explicit VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
+};
+
+}  // namespace ov

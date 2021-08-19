@@ -23,16 +23,20 @@ class Plugin;
 // ! [executable_network:header]
 class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
-    ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function, const InferenceEngine::InputsDataMap& inputInfoMap,
-                      const InferenceEngine::OutputsDataMap& outputsInfoMap, const Configuration& cfg, const std::shared_ptr<Plugin>& plugin);
+    ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                      const InferenceEngine::InputsDataMap& inputInfoMap,
+                      const InferenceEngine::OutputsDataMap& outputsInfoMap,
+                      const Configuration& cfg,
+                      const std::shared_ptr<Plugin>& plugin);
 
     ExecutableNetwork(std::istream& model, const Configuration& cfg, const std::shared_ptr<Plugin>& plugin);
 
     // Methods from a base class ExecutableNetworkThreadSafeDefault
 
     void Export(std::ostream& model) override;
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
+        InferenceEngine::InputsDataMap networkInputs,
+        InferenceEngine::OutputsDataMap networkOutputs) override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::Parameter GetMetric(const std::string& name) const override;
     InferenceEngine::Parameter GetConfig(const std::string& name) const override;
@@ -40,7 +44,8 @@ public:
 private:
     friend class TemplateInferRequest;
 
-    void CompileNetwork(const std::shared_ptr<const ngraph::Function>& function, const InferenceEngine::InputsDataMap& inputInfoMap,
+    void CompileNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                        const InferenceEngine::InputsDataMap& inputInfoMap,
                         const InferenceEngine::OutputsDataMap& outputsInfoMap);
     void InitExecutor();
 

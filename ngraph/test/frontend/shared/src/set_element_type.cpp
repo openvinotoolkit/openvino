@@ -3,42 +3,36 @@
 //
 
 #include "set_element_type.hpp"
+
 #include "utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-std::string
-    FrontEndElementTypeTest::getTestCaseName(const testing::TestParamInfo<SetTypeFEParam>& obj)
-{
+std::string FrontEndElementTypeTest::getTestCaseName(const testing::TestParamInfo<SetTypeFEParam>& obj) {
     std::string res = obj.param.m_frontEndName + "_" + obj.param.m_modelName;
     return FrontEndTestUtils::fileToTestName(res);
 }
 
-void FrontEndElementTypeTest::SetUp()
-{
+void FrontEndElementTypeTest::SetUp() {
     FrontEndTestUtils::setupTestEnv();
-    m_fem = FrontEndManager(); // re-initialize after setting up environment
+    m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }
 
-void FrontEndElementTypeTest::initParamTest()
-{
+void FrontEndElementTypeTest::initParamTest() {
     m_param = GetParam();
-    m_param.m_modelName =
-        FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_modelName);
+    m_param.m_modelName = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_modelName);
 }
 
-void FrontEndElementTypeTest::doLoadFromFile()
-{
+void FrontEndElementTypeTest::doLoadFromFile() {
     std::tie(m_frontEnd, m_inputModel) =
         FrontEndTestUtils::load_from_file(m_fem, m_param.m_frontEndName, m_param.m_modelName);
 }
 
 ///////////////////////////////////////////////////////////////////
 
-TEST_P(FrontEndElementTypeTest, testSetElementType)
-{
+TEST_P(FrontEndElementTypeTest, testSetElementType) {
     ASSERT_NO_THROW(doLoadFromFile());
     Place::Ptr place;
     ASSERT_NO_THROW(place = m_inputModel->get_inputs()[0]);

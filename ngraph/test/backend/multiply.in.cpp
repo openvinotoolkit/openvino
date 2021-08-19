@@ -33,8 +33,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, multiply)
-{
+NGRAPH_TEST(${BACKEND_NAME}, multiply) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -49,8 +48,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiply)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, multiply_overload)
-{
+NGRAPH_TEST(${BACKEND_NAME}, multiply_overload) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -65,18 +63,16 @@ NGRAPH_TEST(${BACKEND_NAME}, multiply_overload)
     test_case.run();
 }
 
-namespace
-{
-    template <typename Value>
-    void multiply_broadcst()
-    {
-        const auto element_type = ngraph::element::from<Value>();
-        const Shape shape_a{3, 2, 1};
-        const Shape shape_b{1, 6};
-        const Shape shape_o{3, 2, 6};
-        std::vector<Value> in_a{12, 24, 36, 48, 60, 72};
-        std::vector<Value> in_b{1, 2, 3, 4, 6, 1};
-        // clang-format off
+namespace {
+template <typename Value>
+void multiply_broadcst() {
+    const auto element_type = ngraph::element::from<Value>();
+    const Shape shape_a{3, 2, 1};
+    const Shape shape_b{1, 6};
+    const Shape shape_o{3, 2, 6};
+    std::vector<Value> in_a{12, 24, 36, 48, 60, 72};
+    std::vector<Value> in_b{1, 2, 3, 4, 6, 1};
+    // clang-format off
         std::vector<Value> out{12,  24,  36,  48,  72,  12,
                                24,  48,  72,  96, 144,  24,
 
@@ -85,37 +81,34 @@ namespace
 
                                60, 120, 180, 240, 360,  60,
                                72, 144, 216, 288, 432,  72};
-        // clang-format on
+    // clang-format on
 
-        auto A = make_shared<op::Parameter>(element_type, shape_a);
-        auto B = make_shared<op::Parameter>(element_type, shape_b);
-        auto f = make_shared<Function>(make_shared<op::v1::Multiply>(A, B), ParameterVector{A, B});
+    auto A = make_shared<op::Parameter>(element_type, shape_a);
+    auto B = make_shared<op::Parameter>(element_type, shape_b);
+    auto f = make_shared<Function>(make_shared<op::v1::Multiply>(A, B), ParameterVector{A, B});
 
-        auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-        // Create some tensors for input/output
-        auto a = backend->create_tensor(element_type, shape_a, in_a.data());
-        auto b = backend->create_tensor(element_type, shape_b, in_b.data());
-        auto result = backend->create_tensor(element_type, shape_o);
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element_type, shape_a, in_a.data());
+    auto b = backend->create_tensor(element_type, shape_b, in_b.data());
+    auto result = backend->create_tensor(element_type, shape_o);
 
-        auto handle = backend->compile(f);
-        handle->call_with_validate({result}, {a, b});
-        EXPECT_EQ(out, read_vector<Value>(result));
-    }
-} // namespace
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b});
+    EXPECT_EQ(out, read_vector<Value>(result));
+}
+}  // namespace
 
-NGRAPH_TEST(${BACKEND_NAME}, multiply_int32_broadcast)
-{
+NGRAPH_TEST(${BACKEND_NAME}, multiply_int32_broadcast) {
     multiply_broadcst<int32_t>();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, multiply_f32_broadcast)
-{
+NGRAPH_TEST(${BACKEND_NAME}, multiply_f32_broadcast) {
     multiply_broadcst<float>();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, multiply_int32_scalar)
-{
+NGRAPH_TEST(${BACKEND_NAME}, multiply_int32_scalar) {
     Shape shape{};
 
     auto A = make_shared<op::Parameter>(element::i32, shape);
@@ -136,8 +129,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiply_int32_scalar)
     EXPECT_EQ(vector<int32_t>{16}, read_vector<int32_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, multiply_f32_scalar)
-{
+NGRAPH_TEST(${BACKEND_NAME}, multiply_f32_scalar) {
     Shape shape{};
 
     auto A = make_shared<op::Parameter>(element::f32, shape);

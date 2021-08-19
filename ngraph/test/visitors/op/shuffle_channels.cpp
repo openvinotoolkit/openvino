@@ -3,18 +3,15 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset3.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
 using ngraph::test::NodeBuilder;
 
-TEST(attributes, shuffle_channels_op)
-{
+TEST(attributes, shuffle_channels_op) {
     using ShuffleChannels = opset3::ShuffleChannels;
 
     NodeBuilder::get_ops().register_factory<ShuffleChannels>();

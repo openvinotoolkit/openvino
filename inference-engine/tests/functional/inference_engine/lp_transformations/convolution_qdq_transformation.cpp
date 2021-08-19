@@ -178,7 +178,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             { std::vector<float>{ 100.f }, ngraph::element::i8},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0006f }, ngraph::element::f32, {1, 1, 1, 1}}}
+            {{}, {}, {{ 0.0006f }, ngraph::element::f32, {}}}
         }
     },
 
@@ -230,7 +230,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             { std::vector<float>{ -125.f }, ngraph::element::i8},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
 
@@ -353,7 +353,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             { std::vector<float>{ 2.f }, ngraph::element::i8},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0006f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0006f }, ngraph::element::f32, {}}}
         }
     },
 
@@ -421,7 +421,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             { std::vector<float>{ 2.f }, ngraph::element::i8},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0006f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0006f }, ngraph::element::f32, {}}}
         }
     },
     // incorrect zero point on activations [not transformed]

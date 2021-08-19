@@ -3,6 +3,7 @@
 //
 
 #include "basic_api.hpp"
+
 #include "paddle_utils.hpp"
 
 using namespace ngraph;
@@ -19,10 +20,9 @@ static const std::vector<std::string> models{
     std::string("2in_2out_dynbatch/2in_2out_dynbatch.pdmodel"),
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    PDPDBasicTest,
-    FrontEndBasicTest,
-    ::testing::Combine(::testing::Values(PADDLE_FE),
-                       ::testing::Values(std::string(TEST_PADDLE_MODELS_DIRNAME)),
-                       ::testing::ValuesIn(models)),
-    FrontEndBasicTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(PDPDBasicTest,
+                         FrontEndBasicTest,
+                         ::testing::Combine(::testing::Values(PADDLE_FE),
+                                            ::testing::Values(std::string(TEST_PADDLE_MODELS_DIRNAME)),
+                                            ::testing::ValuesIn(models)),
+                         FrontEndBasicTest::getTestCaseName);

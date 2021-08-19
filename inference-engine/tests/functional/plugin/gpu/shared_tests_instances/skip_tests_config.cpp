@@ -61,6 +61,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
 
             // Not allowed dynamic loop tests on GPU
-            R"(.*smoke_StaticShapeLoop_dynamic_exit.*)"
+            R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
+
+            // TODO: until issue is xxx-59670 is resolved
+            R"(.*Gather8LayerTest.*)"
     };
 }

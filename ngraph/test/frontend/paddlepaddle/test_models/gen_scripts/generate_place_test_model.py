@@ -35,7 +35,6 @@ def pdpd_rnn_lstm(input_size, hidden_size, layers, direction):
                   fetchlist=[y, h, c, relu_1, relu_2, relu_3],
                   inputs=[np.ones([4, 3, input_size]).astype(np.float32)],
                   outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1])
-        print(outs[0])
     return outs[0]
 
 

@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/lstm_cell.hpp"
+
 #include <cmath>
 #include <functional>
-#include "itt.hpp"
 
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/lstm_cell.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 
@@ -19,10 +20,7 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(op::v0::LSTMCell, "LSTMCell", 0, op::util::RNNCellBase);
 NGRAPH_RTTI_DEFINITION(op::v4::LSTMCell, "LSTMCell", 4, op::util::RNNCellBase);
 
-op::v0::LSTMCell::LSTMCell()
-    : m_input_forget(false)
-    , m_weights_format(LSTMWeightsFormat::IFCO)
-{
+op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
     m_activations = {"sigmoid", "tanh", "tanh"};
     m_activation_f = get_activation_function(0);
     m_activation_g = get_activation_function(1);
@@ -46,13 +44,12 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
                   clip,
                   activations,
                   activations_alpha,
-                  activations_beta)
-    , m_activation_f{get_activation_function(0)}
-    , m_activation_g{get_activation_function(1)}
-    , m_activation_h{get_activation_function(2)}
-    , m_input_forget{input_forget}
-    , m_weights_format{weights_format}
-{
+                  activations_beta),
+      m_activation_f{get_activation_function(0)},
+      m_activation_g{get_activation_function(1)},
+      m_activation_h{get_activation_function(2)},
+      m_input_forget{input_forget},
+      m_weights_format{weights_format} {
     set_argument(5, get_default_bias_input());
     set_argument(6, get_default_peepholes_input());
     constructor_validate_and_infer_types();
@@ -76,13 +73,12 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
                   clip,
                   activations,
                   activations_alpha,
-                  activations_beta)
-    , m_activation_f{get_activation_function(0)}
-    , m_activation_g{get_activation_function(1)}
-    , m_activation_h{get_activation_function(2)}
-    , m_input_forget{input_forget}
-    , m_weights_format{weights_format}
-{
+                  activations_beta),
+      m_activation_f{get_activation_function(0)},
+      m_activation_g{get_activation_function(1)},
+      m_activation_h{get_activation_function(2)},
+      m_input_forget{input_forget},
+      m_weights_format{weights_format} {
     set_argument(6, get_default_peepholes_input());
     constructor_validate_and_infer_types();
 }
@@ -106,18 +102,16 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
                   clip,
                   activations,
                   activations_alpha,
-                  activations_beta)
-    , m_activation_f{get_activation_function(0)}
-    , m_activation_g{get_activation_function(1)}
-    , m_activation_h{get_activation_function(2)}
-    , m_input_forget{input_forget}
-    , m_weights_format{weights_format}
-{
+                  activations_beta),
+      m_activation_f{get_activation_function(0)},
+      m_activation_g{get_activation_function(1)},
+      m_activation_h{get_activation_function(2)},
+      m_input_forget{input_forget},
+      m_weights_format{weights_format} {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
-{
+bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_LSTMCell_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
@@ -130,28 +124,23 @@ bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void op::v0::LSTMCell::validate_and_infer_types()
-{
+void op::v0::LSTMCell::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_LSTMCell_validate_and_infer_types);
 
     // There should be 7 inputs, if no, it's possible the op can be fixed by
     // generating default ones for input 6 and 7 (bias input, peepholes)
 
     // missing both bias_input and peepholes
-    if (get_input_size() == 5)
-    {
+    if (get_input_size() == 5) {
         set_argument(5, get_default_bias_input());
     }
     // missing peepholes
-    if (get_input_size() == 6)
-    {
+    if (get_input_size() == 6) {
         set_argument(6, get_default_peepholes_input());
     }
 
-    for (const auto& input : inputs())
-    {
-        if (input.get_partial_shape().rank().is_dynamic())
-        {
+    for (const auto& input : inputs()) {
+        if (input.get_partial_shape().rank().is_dynamic()) {
             set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
             set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
             return;
@@ -167,11 +156,9 @@ void op::v0::LSTMCell::validate_and_infer_types()
     // Copy all inputs without peephole (7th input) and initial_cell_state (2nd input)
     // information
     // for further validation
-    for (size_t i = 0; i < get_input_size() - 1; i++)
-    {
+    for (size_t i = 0; i < get_input_size() - 1; i++) {
         // exclude initial_cell_state input
-        if (i != 2)
-        {
+        if (i != 2) {
             input_param.push_back(get_input_partial_shape(i));
         }
     }
@@ -197,92 +184,79 @@ void op::v0::LSTMCell::validate_and_infer_types()
                           "LSTMCell input tensor initial_cell_state shall have dimension 2D.");
 
     // Validate rank and dimension for P input
-    NODE_VALIDATION_CHECK(
-        this, (p_pshape.rank().is_static()), "LSTMCell input tensor P shall have static rank.");
+    NODE_VALIDATION_CHECK(this, (p_pshape.rank().is_static()), "LSTMCell input tensor P shall have static rank.");
 
     NODE_VALIDATION_CHECK(this,
                           (p_pshape.rank().get_length() == 1),
                           "LSTMCell input tensor P shall have dimension 1D.");
 
     // Validate input element types and save result for output type
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(5)),
-        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B do not "
-        "match.");
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(5)),
+                          "Element types for X, initial_hidden_state, initial_cell_state, W, R and B do not "
+                          "match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
-    NODE_VALIDATION_CHECK(
-        this,
-        Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
-            Dimension::merge(merged_batch_size, merged_batch_size, ct_pshape[0]) &&
-            Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]),
-        "Parameter batch_size not matched for X, initial_hidden_state or initial_cell_state "
-        "inputs.");
+    NODE_VALIDATION_CHECK(this,
+                          Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
+                              Dimension::merge(merged_batch_size, merged_batch_size, ct_pshape[0]) &&
+                              Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]),
+                          "Parameter batch_size not matched for X, initial_hidden_state or initial_cell_state "
+                          "inputs.");
 
     // Merge hidden_size dimension across all inputs to evaluate output[1] dimension
-    NODE_VALIDATION_CHECK(
-        this,
-        Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[1]) &&
-            Dimension::merge(merged_hidden_size, merged_hidden_size, ct_pshape[1]) &&
-            Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
-        "Parameter hidden_size not matched for R, initial_hidden_state and initial_cell_state "
-        "inputs.");
+    NODE_VALIDATION_CHECK(this,
+                          Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[1]) &&
+                              Dimension::merge(merged_hidden_size, merged_hidden_size, ct_pshape[1]) &&
+                              Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
+                          "Parameter hidden_size not matched for R, initial_hidden_state and initial_cell_state "
+                          "inputs.");
 
     // Validate hidden_size value for W, R and P inputs
-    if (merged_hidden_size.is_static())
-    {
-        if (w_pshape[0].is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                w_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in W input. Current value is: ",
-                w_pshape[0].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * s_gates_count,
-                ".");
+    if (merged_hidden_size.is_static()) {
+        if (w_pshape[0].is_static()) {
+            NODE_VALIDATION_CHECK(this,
+                                  w_pshape[0].compatible(merged_hidden_size * s_gates_count),
+                                  "Parameter hidden_size mistmatched in W input. Current value is: ",
+                                  w_pshape[0].get_length(),
+                                  ", expected: ",
+                                  merged_hidden_size.get_length() * s_gates_count,
+                                  ".");
         }
 
-        if (r_pshape[0].is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                r_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in R input. Current value is: ",
-                r_pshape[0].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * s_gates_count,
-                ".");
+        if (r_pshape[0].is_static()) {
+            NODE_VALIDATION_CHECK(this,
+                                  r_pshape[0].compatible(merged_hidden_size * s_gates_count),
+                                  "Parameter hidden_size mistmatched in R input. Current value is: ",
+                                  r_pshape[0].get_length(),
+                                  ", expected: ",
+                                  merged_hidden_size.get_length() * s_gates_count,
+                                  ".");
         }
 
-        if (b_pshape[0].is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                b_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in B input. Current value is: ",
-                b_pshape[0].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * s_gates_count,
-                ".");
+        if (b_pshape[0].is_static()) {
+            NODE_VALIDATION_CHECK(this,
+                                  b_pshape[0].compatible(merged_hidden_size * s_gates_count),
+                                  "Parameter hidden_size mistmatched in B input. Current value is: ",
+                                  b_pshape[0].get_length(),
+                                  ", expected: ",
+                                  merged_hidden_size.get_length() * s_gates_count,
+                                  ".");
         }
 
-        if (p_pshape[0].is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                p_pshape[0].compatible(merged_hidden_size * s_peepholes_count),
-                "Parameter hidden_size mistmatched in P input. Current value is: ",
-                p_pshape[0].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * s_peepholes_count,
-                ".");
+        if (p_pshape[0].is_static()) {
+            NODE_VALIDATION_CHECK(this,
+                                  p_pshape[0].compatible(merged_hidden_size * s_peepholes_count),
+                                  "Parameter hidden_size mistmatched in P input. Current value is: ",
+                                  p_pshape[0].get_length(),
+                                  ", expected: ",
+                                  merged_hidden_size.get_length() * s_peepholes_count,
+                                  ".");
         }
     }
 
@@ -298,25 +272,21 @@ void op::v0::LSTMCell::validate_and_infer_types()
     set_output_type(1, result_et, {merged_batch_size, merged_hidden_size});
 }
 
-Output<Node> op::v0::LSTMCell::get_default_bias_input() const
-{
-    return Output<Node>{op::Constant::create(
-        get_input_element_type(0), Shape{s_gates_count * get_hidden_size()}, vector<float>{0.f})};
+Output<Node> op::v0::LSTMCell::get_default_bias_input() const {
+    return Output<Node>{
+        op::Constant::create(get_input_element_type(0), Shape{s_gates_count * get_hidden_size()}, vector<float>{0.f})};
 }
 
-Output<Node> op::v0::LSTMCell::get_default_peepholes_input() const
-{
+Output<Node> op::v0::LSTMCell::get_default_peepholes_input() const {
     return Output<Node>{op::Constant::create(get_input_element_type(0),
                                              Shape{s_peepholes_count * get_hidden_size()},
                                              vector<float>{0.f})};
 }
 
-shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const
-{
+shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_LSTMCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    if (new_args.size() == 5)
-    {
+    if (new_args.size() == 5) {
         return make_shared<op::v0::LSTMCell>(new_args.at(0),
                                              new_args.at(1),
                                              new_args.at(2),
@@ -329,9 +299,7 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                              get_activations_beta(),
                                              get_clip(),
                                              m_input_forget);
-    }
-    else if (new_args.size() == 6)
-    {
+    } else if (new_args.size() == 6) {
         return make_shared<op::v0::LSTMCell>(new_args.at(0),
                                              new_args.at(1),
                                              new_args.at(2),
@@ -345,9 +313,7 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                              get_activations_beta(),
                                              get_clip(),
                                              m_input_forget);
-    }
-    else if (new_args.size() == 7)
-    {
+    } else if (new_args.size() == 7) {
         return make_shared<op::v0::LSTMCell>(new_args.at(0),
                                              new_args.at(1),
                                              new_args.at(2),
@@ -362,38 +328,31 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                              get_activations_beta(),
                                              get_clip(),
                                              m_input_forget);
-    }
-    else
-    {
+    } else {
         throw ngraph_error("Incorrect number of new arguments");
     }
 }
 
-namespace ngraph
-{
-    template <>
-    EnumNames<op::LSTMWeightsFormat>& EnumNames<op::LSTMWeightsFormat>::get()
-    {
-        static auto enum_names =
-            EnumNames<op::LSTMWeightsFormat>("op::LSTMWeightsFormat",
-                                             {{"fico", op::LSTMWeightsFormat::FICO},
-                                              {"icof", op::LSTMWeightsFormat::ICOF},
-                                              {"ifco", op::LSTMWeightsFormat::IFCO},
-                                              {"ifoc", op::LSTMWeightsFormat::IFOC},
-                                              {"iofc", op::LSTMWeightsFormat::IOFC}});
-        return enum_names;
-    }
+namespace ngraph {
+template <>
+EnumNames<op::LSTMWeightsFormat>& EnumNames<op::LSTMWeightsFormat>::get() {
+    static auto enum_names = EnumNames<op::LSTMWeightsFormat>("op::LSTMWeightsFormat",
+                                                              {{"fico", op::LSTMWeightsFormat::FICO},
+                                                               {"icof", op::LSTMWeightsFormat::ICOF},
+                                                               {"ifco", op::LSTMWeightsFormat::IFCO},
+                                                               {"ifoc", op::LSTMWeightsFormat::IFOC},
+                                                               {"iofc", op::LSTMWeightsFormat::IOFC}});
+    return enum_names;
+}
 
-    constexpr DiscreteTypeInfo AttributeAdapter<op::LSTMWeightsFormat>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<op::LSTMWeightsFormat>::type_info;
 
-    std::ostream& operator<<(std::ostream& s, const op::LSTMWeightsFormat& type)
-    {
-        return s << as_string(type);
-    }
-} // namespace ngraph
+std::ostream& operator<<(std::ostream& s, const op::LSTMWeightsFormat& type) {
+    return s << as_string(type);
+}
+}  // namespace ngraph
 
-op::v4::LSTMCell::LSTMCell()
-{
+op::v4::LSTMCell::LSTMCell() {
     m_activations = {"sigmoid", "tanh", "tanh"};
     m_activation_f = get_activation_function(0);
     m_activation_g = get_activation_function(1);
@@ -415,11 +374,10 @@ op::v4::LSTMCell::LSTMCell(const Output<Node>& X,
                   clip,
                   activations,
                   activations_alpha,
-                  activations_beta)
-    , m_activation_f{get_activation_function(0)}
-    , m_activation_g{get_activation_function(1)}
-    , m_activation_h{get_activation_function(2)}
-{
+                  activations_beta),
+      m_activation_f{get_activation_function(0)},
+      m_activation_g{get_activation_function(1)},
+      m_activation_h{get_activation_function(2)} {
     set_argument(5, get_default_bias_input());
     constructor_validate_and_infer_types();
 }
@@ -440,27 +398,22 @@ op::v4::LSTMCell::LSTMCell(const Output<Node>& X,
                   clip,
                   activations,
                   activations_alpha,
-                  activations_beta)
-    , m_activation_f{get_activation_function(0)}
-    , m_activation_g{get_activation_function(1)}
-    , m_activation_h{get_activation_function(2)}
-{
+                  activations_beta),
+      m_activation_f{get_activation_function(0)},
+      m_activation_g{get_activation_function(1)},
+      m_activation_h{get_activation_function(2)} {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v4::LSTMCell::visit_attributes(AttributeVisitor& visitor)
-{
+bool ngraph::op::v4::LSTMCell::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v4_LSTMCell_visit_attributes);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
-void op::v4::LSTMCell::validate_and_infer_types()
-{
+void op::v4::LSTMCell::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_LSTMCell_validate_and_infer_types);
-    for (const auto& input : inputs())
-    {
-        if (input.get_partial_shape().rank().is_dynamic())
-        {
+    for (const auto& input : inputs()) {
+        if (input.get_partial_shape().rank().is_dynamic()) {
             set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
             set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
             return;
@@ -485,72 +438,62 @@ void op::v4::LSTMCell::validate_and_infer_types()
     validate_input_rank_dimension({x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape});
 
     // Validate input element types and save result for output type
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(5)),
-        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B do not "
-        "match.");
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
+                              element::Type::merge(result_et, result_et, get_input_element_type(5)),
+                          "Element types for X, initial_hidden_state, initial_cell_state, W, R and B do not "
+                          "match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
-    NODE_VALIDATION_CHECK(
-        this,
-        Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
-            Dimension::merge(merged_batch_size, merged_batch_size, ct_pshape[0]) &&
-            Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]),
-        "Parameter batch_size not matched for X, initial_hidden_state or initial_cell_state "
-        "inputs.");
+    NODE_VALIDATION_CHECK(this,
+                          Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
+                              Dimension::merge(merged_batch_size, merged_batch_size, ct_pshape[0]) &&
+                              Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]),
+                          "Parameter batch_size not matched for X, initial_hidden_state or initial_cell_state "
+                          "inputs.");
 
     // Merge hidden_size dimension across all inputs to evaluate output[1] dimension
-    NODE_VALIDATION_CHECK(
-        this,
-        Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[1]) &&
-            Dimension::merge(merged_hidden_size, merged_hidden_size, ct_pshape[1]) &&
-            Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
-        "Parameter hidden_size not matched for R, initial_hidden_state and initial_cell_state "
-        "inputs.");
+    NODE_VALIDATION_CHECK(this,
+                          Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[1]) &&
+                              Dimension::merge(merged_hidden_size, merged_hidden_size, ct_pshape[1]) &&
+                              Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
+                          "Parameter hidden_size not matched for R, initial_hidden_state and initial_cell_state "
+                          "inputs.");
 
     // Validate hidden_size value for W, R and P inputs
-    if (merged_hidden_size.is_static())
-    {
-        if (w_pshape[0].is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                w_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in W input. Current value is: ",
-                w_pshape[0].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * s_gates_count,
-                ".");
+    if (merged_hidden_size.is_static()) {
+        if (w_pshape[0].is_static()) {
+            NODE_VALIDATION_CHECK(this,
+                                  w_pshape[0].compatible(merged_hidden_size * s_gates_count),
+                                  "Parameter hidden_size mistmatched in W input. Current value is: ",
+                                  w_pshape[0].get_length(),
+                                  ", expected: ",
+                                  merged_hidden_size.get_length() * s_gates_count,
+                                  ".");
         }
 
-        if (r_pshape[0].is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                r_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in R input. Current value is: ",
-                r_pshape[0].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * s_gates_count,
-                ".");
+        if (r_pshape[0].is_static()) {
+            NODE_VALIDATION_CHECK(this,
+                                  r_pshape[0].compatible(merged_hidden_size * s_gates_count),
+                                  "Parameter hidden_size mistmatched in R input. Current value is: ",
+                                  r_pshape[0].get_length(),
+                                  ", expected: ",
+                                  merged_hidden_size.get_length() * s_gates_count,
+                                  ".");
         }
 
-        if (b_pshape[0].is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                b_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in B input. Current value is: ",
-                b_pshape[0].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * s_gates_count,
-                ".");
+        if (b_pshape[0].is_static()) {
+            NODE_VALIDATION_CHECK(this,
+                                  b_pshape[0].compatible(merged_hidden_size * s_gates_count),
+                                  "Parameter hidden_size mistmatched in B input. Current value is: ",
+                                  b_pshape[0].get_length(),
+                                  ", expected: ",
+                                  merged_hidden_size.get_length() * s_gates_count,
+                                  ".");
         }
     }
 
@@ -566,18 +509,15 @@ void op::v4::LSTMCell::validate_and_infer_types()
     set_output_type(1, result_et, {merged_batch_size, merged_hidden_size});
 }
 
-Output<Node> op::v4::LSTMCell::get_default_bias_input() const
-{
-    return Output<Node>{op::Constant::create(
-        get_input_element_type(0), Shape{s_gates_count * get_hidden_size()}, vector<float>{0.f})};
+Output<Node> op::v4::LSTMCell::get_default_bias_input() const {
+    return Output<Node>{
+        op::Constant::create(get_input_element_type(0), Shape{s_gates_count * get_hidden_size()}, vector<float>{0.f})};
 }
 
-shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const
-{
+shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v4_LSTMCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    if (new_args.size() == 5)
-    {
+    if (new_args.size() == 5) {
         return make_shared<LSTMCell>(new_args.at(0),
                                      new_args.at(1),
                                      new_args.at(2),
@@ -588,9 +528,7 @@ shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                      get_activations_alpha(),
                                      get_activations_beta(),
                                      get_clip());
-    }
-    else if (new_args.size() == 6)
-    {
+    } else if (new_args.size() == 6) {
         return make_shared<LSTMCell>(new_args.at(0),
                                      new_args.at(1),
                                      new_args.at(2),
@@ -602,9 +540,7 @@ shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                      get_activations_alpha(),
                                      get_activations_beta(),
                                      get_clip());
-    }
-    else
-    {
+    } else {
         throw ngraph_error("Incorrect number of new arguments");
     }
 }

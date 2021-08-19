@@ -13,15 +13,17 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_FrontEnd(py::module m)
-{
-    py::class_<ngraph::frontend::FrontEnd, std::shared_ptr<ngraph::frontend::FrontEnd>> fem(
-        m, "FrontEnd", py::dynamic_attr());
+void regclass_pyngraph_FrontEnd(py::module m) {
+    py::class_<ngraph::frontend::FrontEnd, std::shared_ptr<ngraph::frontend::FrontEnd>> fem(m,
+                                                                                            "FrontEnd",
+                                                                                            py::dynamic_attr());
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
 
     fem.def(
         "load",
-        [](ngraph::frontend::FrontEnd& self, const std::string& s) { return self.load(s); },
+        [](ngraph::frontend::FrontEnd& self, const std::string& s) {
+            return self.load(s);
+        },
         py::arg("path"),
         R"(
                 Loads an input model by specified model file path.
@@ -55,12 +57,11 @@ void regclass_pyngraph_FrontEnd(py::module m)
                     Fully converted nGraph function.
              )");
 
-    fem.def(
-        "convert",
-        static_cast<void (ngraph::frontend::FrontEnd::*)(std::shared_ptr<ngraph::Function>) const>(
-            &ngraph::frontend::FrontEnd::convert),
-        py::arg("function"),
-        R"(
+    fem.def("convert",
+            static_cast<void (ngraph::frontend::FrontEnd::*)(std::shared_ptr<ngraph::Function>) const>(
+                &ngraph::frontend::FrontEnd::convert),
+            py::arg("function"),
+            R"(
                 Completely convert the remaining, not converted part of a function.
 
                 Parameters

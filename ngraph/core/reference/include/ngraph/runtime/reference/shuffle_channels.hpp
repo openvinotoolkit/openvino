@@ -10,18 +10,15 @@
 
 #include "ngraph/shape.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        namespace reference
-        {
-            void shuffle_channels(const char* arg,
-                                  char* out,
-                                  const Shape& data_shape,
-                                  size_t elem_size,
-                                  const int64_t axis,
-                                  const int64_t group);
-        } // namespace reference
-    }     // namespace runtime
-} // namespace ngraph
+namespace ngraph {
+namespace runtime {
+namespace reference {
+void shuffle_channels(const char* arg,
+                      char* out,
+                      const Shape& data_shape,
+                      size_t elem_size,
+                      const int64_t axis,
+                      const int64_t group);
+}  // namespace reference
+}  // namespace runtime
+}  // namespace ngraph

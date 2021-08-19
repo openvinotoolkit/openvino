@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/validation_util.hpp>
-#include "itt.hpp"
-
-#include "ngraph/op/constant.hpp"
 #include "ngraph/op/prior_box.hpp"
 
+#include <ngraph/validation_util.hpp>
+
+#include "itt.hpp"
+#include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/prior_box.hpp"
 
@@ -16,17 +16,13 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::v0::PriorBox, "PriorBox", 0);
 
-op::PriorBox::PriorBox(const Output<Node>& layer_shape,
-                       const Output<Node>& image_shape,
-                       const PriorBoxAttrs& attrs)
-    : Op({layer_shape, image_shape})
-    , m_attrs(attrs)
-{
+op::PriorBox::PriorBox(const Output<Node>& layer_shape, const Output<Node>& image_shape, const PriorBoxAttrs& attrs)
+    : Op({layer_shape, image_shape}),
+      m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
-void op::PriorBox::validate_and_infer_types()
-{
+void op::PriorBox::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_PriorBox_validate_and_infer_types);
     // shape node should have integer data type. For now we only allow i64
     auto layer_shape_et = get_input_element_type(0);
@@ -52,8 +48,7 @@ void op::PriorBox::validate_and_infer_types()
 
     set_input_is_relevant_to_shape(0);
 
-    if (auto const_shape = get_constant_from_source(input_value(0)))
-    {
+    if (auto const_shape = get_constant_from_source(input_value(0))) {
         NODE_VALIDATION_CHECK(this,
                               shape_size(const_shape->get_shape()) == 2,
                               "Layer shape must have rank 2",
@@ -63,25 +58,19 @@ void op::PriorBox::validate_and_infer_types()
 
         set_output_type(0,
                         element::f32,
-                        Shape{2,
-                              4 * layer_shape[0] * layer_shape[1] *
-                                  static_cast<size_t>(number_of_priors(m_attrs))});
-    }
-    else
-    {
+                        Shape{2, 4 * layer_shape[0] * layer_shape[1] * static_cast<size_t>(number_of_priors(m_attrs))});
+    } else {
         set_output_type(0, element::f32, PartialShape{2, Dimension::dynamic()});
     }
 }
 
-shared_ptr<Node> op::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const
-{
+shared_ptr<Node> op::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_PriorBox_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PriorBox>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-int64_t op::PriorBox::number_of_priors(const PriorBoxAttrs& attrs)
-{
+int64_t op::PriorBox::number_of_priors(const PriorBoxAttrs& attrs) {
     // Starting with 0 number of prior and then various conditions on attributes will contribute
     // real number of prior boxes as PriorBox is a fat thing with several modes of
     // operation that will be checked in order in the next statements.
@@ -99,8 +88,7 @@ int64_t op::PriorBox::number_of_priors(const PriorBoxAttrs& attrs)
     if (!attrs.fixed_size.empty())
         num_priors = total_aspect_ratios * attrs.fixed_size.size();
 
-    for (auto density : attrs.density)
-    {
+    for (auto density : attrs.density) {
         auto rounded_density = static_cast<int64_t>(density);
         auto density_2d = (rounded_density * rounded_density - 1);
         if (!attrs.fixed_ratio.empty())
@@ -111,12 +99,9 @@ int64_t op::PriorBox::number_of_priors(const PriorBoxAttrs& attrs)
     return num_priors;
 }
 
-std::vector<float> op::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio,
-                                                         bool flip)
-{
+std::vector<float> op::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
     std::set<float> unique_ratios;
-    for (auto ratio : aspect_ratio)
-    {
+    for (auto ratio : aspect_ratio) {
         unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
         if (flip)
             unique_ratios.insert(std::round(1 / ratio * 1e6) / 1e6);
@@ -125,8 +110,7 @@ std::vector<float> op::PriorBox::normalized_aspect_ratio(const std::vector<float
     return std::vector<float>(unique_ratios.begin(), unique_ratios.end());
 }
 
-bool op::PriorBox::visit_attributes(AttributeVisitor& visitor)
-{
+bool op::PriorBox::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_PriorBox_visit_attributes);
     visitor.on_attribute("min_size", m_attrs.min_size);
     visitor.on_attribute("max_size", m_attrs.max_size);
@@ -143,56 +127,47 @@ bool op::PriorBox::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-namespace prior_box
-{
-    template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg0,
-                  const HostTensorPtr& arg1,
-                  const HostTensorPtr& out,
-                  op::PriorBoxAttrs attrs)
-    {
-        runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
-                                      arg1->get_data_ptr<ET>(),
-                                      out->get_data_ptr<float>(),
-                                      out->get_shape(),
-                                      attrs);
-        return true;
-    }
+namespace prior_box {
+template <element::Type_t ET>
+bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& out, op::PriorBoxAttrs attrs) {
+    runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
+                                  arg1->get_data_ptr<ET>(),
+                                  out->get_data_ptr<float>(),
+                                  out->get_shape(),
+                                  attrs);
+    return true;
+}
 
-    bool evaluate_prior_box(const HostTensorPtr& arg0,
-                            const HostTensorPtr& arg1,
-                            const HostTensorPtr& out,
-                            const op::PriorBoxAttrs& attrs)
-    {
-        bool rc = true;
-        switch (arg0->get_element_type())
-        {
-            NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
-            NGRAPH_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs);
-            NGRAPH_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs);
-            NGRAPH_TYPE_CASE(evaluate_prior_box, i64, arg0, arg1, out, attrs);
-            NGRAPH_TYPE_CASE(evaluate_prior_box, u8, arg0, arg1, out, attrs);
-            NGRAPH_TYPE_CASE(evaluate_prior_box, u16, arg0, arg1, out, attrs);
-            NGRAPH_TYPE_CASE(evaluate_prior_box, u32, arg0, arg1, out, attrs);
-            NGRAPH_TYPE_CASE(evaluate_prior_box, u64, arg0, arg1, out, attrs);
-        default: rc = false; break;
-        }
-        return rc;
+bool evaluate_prior_box(const HostTensorPtr& arg0,
+                        const HostTensorPtr& arg1,
+                        const HostTensorPtr& out,
+                        const op::PriorBoxAttrs& attrs) {
+    bool rc = true;
+    switch (arg0->get_element_type()) {
+        NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
+        NGRAPH_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs);
+        NGRAPH_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs);
+        NGRAPH_TYPE_CASE(evaluate_prior_box, i64, arg0, arg1, out, attrs);
+        NGRAPH_TYPE_CASE(evaluate_prior_box, u8, arg0, arg1, out, attrs);
+        NGRAPH_TYPE_CASE(evaluate_prior_box, u16, arg0, arg1, out, attrs);
+        NGRAPH_TYPE_CASE(evaluate_prior_box, u32, arg0, arg1, out, attrs);
+        NGRAPH_TYPE_CASE(evaluate_prior_box, u64, arg0, arg1, out, attrs);
+    default:
+        rc = false;
+        break;
     }
-} // namespace prior_box
+    return rc;
+}
+}  // namespace prior_box
 
-bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs,
-                                const HostTensorVector& inputs) const
-{
+bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_PriorBox_evaluate);
     return prior_box::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }
 
-bool op::v0::PriorBox::has_evaluate() const
-{
+bool op::v0::PriorBox::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_PriorBox_has_evaluate);
-    switch (get_input_element_type(0))
-    {
+    switch (get_input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
     case ngraph::element::i32:
@@ -200,8 +175,10 @@ bool op::v0::PriorBox::has_evaluate() const
     case ngraph::element::u8:
     case ngraph::element::u16:
     case ngraph::element::u32:
-    case ngraph::element::u64: return true;
-    default: break;
+    case ngraph::element::u64:
+        return true;
+    default:
+        break;
     }
     return false;
 }

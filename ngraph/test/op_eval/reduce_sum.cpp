@@ -4,25 +4,22 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/test_control.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
-
+#include "util/test_control.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-TEST(op_eval, reduce_sum_matrix_rows_zero)
-{
+TEST(op_eval, reduce_sum_matrix_rows_zero) {
     Shape shape_a{3, 0};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{3};
     auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -37,14 +34,12 @@ TEST(op_eval, reduce_sum_matrix_rows_zero)
     EXPECT_TRUE(test::all_close_f((vector<float>{0, 0, 0}), read_vector<float>(result)));
 }
 
-TEST(op_eval, reduce_sum_vector_zero)
-{
+TEST(op_eval, reduce_sum_vector_zero) {
     Shape shape_a{0};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{};
     auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -59,16 +54,13 @@ TEST(op_eval, reduce_sum_vector_zero)
     EXPECT_TRUE(test::all_close_f((vector<float>{0}), read_vector<float>(result)));
 }
 
-
-TEST(op_eval, reduce_sum_matrix_cols_zero)
-{
+TEST(op_eval, reduce_sum_matrix_cols_zero) {
     // Now the reduction (g(x:float32[2,2],y:float32[]) = reduce(x,y,f,axes={})).
     Shape shape_a{0, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{2};
     auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -83,14 +75,12 @@ TEST(op_eval, reduce_sum_matrix_cols_zero)
     EXPECT_TRUE(test::all_close_f((vector<float>{0, 0}), read_vector<float>(result)));
 }
 
-TEST(op_eval, reduce_sum_matrix_to_scalar_zero_by_zero)
-{
+TEST(op_eval, reduce_sum_matrix_to_scalar_zero_by_zero) {
     Shape shape_a{0, 0};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{};
     auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -105,14 +95,12 @@ TEST(op_eval, reduce_sum_matrix_to_scalar_zero_by_zero)
     EXPECT_TRUE(test::all_close_f((vector<float>{0}), read_vector<float>(result)));
 }
 
-TEST(op_eval, reduce_sum_3d_eliminate_zero_dim)
-{
+TEST(op_eval, reduce_sum_3d_eliminate_zero_dim) {
     Shape shape_a{3, 0, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{3, 2};
     auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -130,14 +118,12 @@ TEST(op_eval, reduce_sum_3d_eliminate_zero_dim)
     EXPECT_TRUE(test::all_close_f((vector<float>{0, 0, 0, 0, 0, 0}), read_vector<float>(result)));
 }
 
-TEST(op_eval, reduce_sum_3d_eliminate_zero_dim_int32)
-{
+TEST(op_eval, reduce_sum_3d_eliminate_zero_dim_int32) {
     Shape shape_a{3, 0, 2};
     auto A = make_shared<op::Parameter>(element::i32, shape_a);
     Shape shape_rt{3, 2};
     auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, false), ParameterVector{A});
 
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -155,8 +141,7 @@ TEST(op_eval, reduce_sum_3d_eliminate_zero_dim_int32)
     EXPECT_EQ((vector<int32_t>{0, 0, 0, 0, 0, 0}), read_vector<int32_t>(result));
 }
 
-TEST(op_eval, reduce_sum_dynamic)
-{
+TEST(op_eval, reduce_sum_dynamic) {
     // Create a graph for f(x,axes:int32) = Sum(x,Convert<int64>(axes)).
     auto x = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto axes = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
@@ -173,8 +158,7 @@ TEST(op_eval, reduce_sum_dynamic)
 
     auto t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
 
-    std::vector<Shape> x_shapes{
-        Shape{2, 3}, Shape{2, 3}, Shape{2, 3}, Shape{2, 3}, Shape{5}, Shape{5}};
+    std::vector<Shape> x_shapes{Shape{2, 3}, Shape{2, 3}, Shape{2, 3}, Shape{2, 3}, Shape{5}, Shape{5}};
     std::vector<std::vector<int32_t>> axeses{{}, {0}, {1}, {0, 1}, {}, {0}};
     std::vector<std::vector<float>> inputs{{1, 2, 3, 4, 5, 6},
                                            {1, 2, 3, 4, 5, 6},
@@ -182,13 +166,15 @@ TEST(op_eval, reduce_sum_dynamic)
                                            {1, 2, 3, 4, 5, 6},
                                            {1, 2, 3, 4, 5},
                                            {1, 2, 3, 4, 5}};
-    std::vector<Shape> expected_result_shapes{
-        Shape{2, 3}, Shape{3}, Shape{2}, Shape{}, Shape{5}, Shape{}};
-    std::vector<std::vector<float>> expected_results{
-        {1, 2, 3, 4, 5, 6}, {5, 7, 9}, {6, 15}, {21}, {1, 2, 3, 4, 5}, {15}};
+    std::vector<Shape> expected_result_shapes{Shape{2, 3}, Shape{3}, Shape{2}, Shape{}, Shape{5}, Shape{}};
+    std::vector<std::vector<float>> expected_results{{1, 2, 3, 4, 5, 6},
+                                                     {5, 7, 9},
+                                                     {6, 15},
+                                                     {21},
+                                                     {1, 2, 3, 4, 5},
+                                                     {15}};
 
-    for (size_t i = 0; i < x_shapes.size(); i++)
-    {
+    for (size_t i = 0; i < x_shapes.size(); i++) {
         auto t_x = backend->create_tensor(element::f32, x_shapes[i]);
         auto t_axes = backend->create_tensor(element::i32, Shape{axeses[i].size()});
 
@@ -205,14 +191,12 @@ TEST(op_eval, reduce_sum_dynamic)
     }
 }
 
-TEST(op_eval, reduce_sum_keep_matrix_rows_zero)
-{
+TEST(op_eval, reduce_sum_keep_matrix_rows_zero) {
     Shape shape_a{3, 0};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{3, 1};
     auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -227,15 +211,13 @@ TEST(op_eval, reduce_sum_keep_matrix_rows_zero)
     EXPECT_TRUE(test::all_close_f((vector<float>{0, 0, 0}), read_vector<float>(result)));
 }
 
-TEST(op_eval, reduce_sum_keep_matrix_cols_zero)
-{
+TEST(op_eval, reduce_sum_keep_matrix_cols_zero) {
     // Now the reduction (g(x:float32[2,2],y:float32[]) = reduce(x,y,f,axes={})).
     Shape shape_a{0, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{1, 2};
     auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -250,14 +232,12 @@ TEST(op_eval, reduce_sum_keep_matrix_cols_zero)
     EXPECT_TRUE(test::all_close_f((vector<float>{0, 0}), read_vector<float>(result)));
 }
 
-TEST(op_eval, reduce_sum_keep_vector_zero)
-{
+TEST(op_eval, reduce_sum_keep_vector_zero) {
     Shape shape_a{0};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{1};
     auto axes = make_shared<op::Constant>(element::i32, Shape{}, 0);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -272,14 +252,12 @@ TEST(op_eval, reduce_sum_keep_vector_zero)
     EXPECT_TRUE(test::all_close_f((vector<float>{0}), read_vector<float>(result)));
 }
 
-TEST(op_eval, reduce_sum_keep_matrix_to_scalar_zero_by_zero)
-{
+TEST(op_eval, reduce_sum_keep_matrix_to_scalar_zero_by_zero) {
     Shape shape_a{0, 0};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{1, 1};
     auto axes = make_shared<op::Constant>(element::i32, Shape{2}, vector<int32_t>{0, 1});
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -294,14 +272,12 @@ TEST(op_eval, reduce_sum_keep_matrix_to_scalar_zero_by_zero)
     EXPECT_TRUE(test::all_close_f((vector<float>{0}), read_vector<float>(result)));
 }
 
-TEST(op_eval, reduce_sum_keep_3d_eliminate_zero_dim)
-{
+TEST(op_eval, reduce_sum_keep_3d_eliminate_zero_dim) {
     Shape shape_a{3, 0, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_rt{3, 1, 2};
     auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -319,14 +295,12 @@ TEST(op_eval, reduce_sum_keep_3d_eliminate_zero_dim)
     EXPECT_TRUE(test::all_close_f((vector<float>{0, 0, 0, 0, 0, 0}), read_vector<float>(result)));
 }
 
-TEST(op_eval, reduce_sum_keep_3d_eliminate_zero_dim_int32)
-{
+TEST(op_eval, reduce_sum_keep_3d_eliminate_zero_dim_int32) {
     Shape shape_a{3, 0, 2};
     auto A = make_shared<op::Parameter>(element::i32, shape_a);
     Shape shape_rt{3, 1, 2};
     auto axes = make_shared<op::Constant>(element::i32, Shape{}, 1);
-    auto f =
-        make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
+    auto f = make_shared<Function>(make_shared<op::v1::ReduceSum>(A, axes, true), ParameterVector{A});
 
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -344,8 +318,7 @@ TEST(op_eval, reduce_sum_keep_3d_eliminate_zero_dim_int32)
     EXPECT_EQ((vector<int32_t>{0, 0, 0, 0, 0, 0}), read_vector<int32_t>(result));
 }
 
-TEST(op_eval, reduce_sum_keep_dynamic)
-{
+TEST(op_eval, reduce_sum_keep_dynamic) {
     // Create a graph for f(x,axes:int32) = Sum(x,Convert<int64>(axes)).
     auto x = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto axes = make_shared<op::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
@@ -362,8 +335,7 @@ TEST(op_eval, reduce_sum_keep_dynamic)
 
     auto t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
 
-    std::vector<Shape> x_shapes{
-        Shape{2, 3}, Shape{2, 3}, Shape{2, 3}, Shape{2, 3}, Shape{5}, Shape{5}};
+    std::vector<Shape> x_shapes{Shape{2, 3}, Shape{2, 3}, Shape{2, 3}, Shape{2, 3}, Shape{5}, Shape{5}};
     std::vector<std::vector<int32_t>> axeses{{}, {0}, {1}, {0, 1}, {}, {0}};
     std::vector<std::vector<float>> inputs{{1, 2, 3, 4, 5, 6},
                                            {1, 2, 3, 4, 5, 6},
@@ -371,13 +343,15 @@ TEST(op_eval, reduce_sum_keep_dynamic)
                                            {1, 2, 3, 4, 5, 6},
                                            {1, 2, 3, 4, 5},
                                            {1, 2, 3, 4, 5}};
-    std::vector<Shape> expected_result_shapes{
-        Shape{2, 3}, Shape{1, 3}, Shape{2, 1}, Shape{1, 1}, Shape{5}, Shape{1}};
-    std::vector<std::vector<float>> expected_results{
-        {1, 2, 3, 4, 5, 6}, {5, 7, 9}, {6, 15}, {21}, {1, 2, 3, 4, 5}, {15}};
+    std::vector<Shape> expected_result_shapes{Shape{2, 3}, Shape{1, 3}, Shape{2, 1}, Shape{1, 1}, Shape{5}, Shape{1}};
+    std::vector<std::vector<float>> expected_results{{1, 2, 3, 4, 5, 6},
+                                                     {5, 7, 9},
+                                                     {6, 15},
+                                                     {21},
+                                                     {1, 2, 3, 4, 5},
+                                                     {15}};
 
-    for (size_t i = 0; i < x_shapes.size(); i++)
-    {
+    for (size_t i = 0; i < x_shapes.size(); i++) {
         auto t_x = backend->create_tensor(element::f32, x_shapes[i]);
         auto t_axes = backend->create_tensor(element::i32, Shape{axeses[i].size()});
 

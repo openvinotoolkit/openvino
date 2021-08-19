@@ -119,7 +119,7 @@ IE_DO_PRAGMA(warning(disable : 1786))
 #    else
 #        define INFERENCE_PLUGIN_API(type) extern "C" type
 #    endif
-#elif (__GNUC__ >= 4)  // NOLINT
+#elif (__GNUC__ >= 4)
 #    ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 #        define INFERENCE_PLUGIN_API(type) extern "C" __attribute__((visibility("default"))) type
 #    else

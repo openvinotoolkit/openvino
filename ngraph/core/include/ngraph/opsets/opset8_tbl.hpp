@@ -3,8 +3,8 @@
 //
 
 #ifndef NGRAPH_OP
-#warning "NGRAPH_OP not defined"
-#define NGRAPH_OP(x, y)
+#    warning "NGRAPH_OP not defined"
+#    define NGRAPH_OP(x, y)
 #endif
 
 NGRAPH_OP(Abs, ngraph::op::v0)
@@ -163,8 +163,8 @@ NGRAPH_OP(ExperimentalDetectronROIFeatureExtractor, ngraph::op::v6)
 NGRAPH_OP(ExperimentalDetectronTopKROIs, ngraph::op::v6)
 NGRAPH_OP(GatherElements, ngraph::op::v6)
 NGRAPH_OP(MVN, ngraph::op::v6)
-NGRAPH_OP(Assign, ngraph::op::v6)    // new version
-NGRAPH_OP(ReadValue, ngraph::op::v6) // new version
+NGRAPH_OP(Assign, ngraph::op::v6)     // new version
+NGRAPH_OP(ReadValue, ngraph::op::v6)  // new version
 
 // New operations added in opset7
 NGRAPH_OP(DFT, ngraph::op::v7)
@@ -182,3 +182,4 @@ NGRAPH_OP(MatrixNms, ngraph::op::v8)
 NGRAPH_OP(MaxPool, ngraph::op::v8)
 NGRAPH_OP(MulticlassNms, ngraph::op::v8)
 NGRAPH_OP(RandomUniform, ngraph::op::v8)
+NGRAPH_OP(If, ngraph::op::v8)

@@ -52,11 +52,10 @@ add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_P
 
 add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend_proto)
 
-# TODO enable: PDPD_ASSERT is in capital letters while it's a function
-# ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-#                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
-#                     ADDITIONAL_INCLUDE_DIRECTORIES
-#                         $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                    ADDITIONAL_INCLUDE_DIRECTORIES
+                        $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}
         PUBLIC

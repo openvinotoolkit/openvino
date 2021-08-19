@@ -12,7 +12,7 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 After broadcasting *Maximum* does the following with the input tensors *a* and *b*:
 
 \f[
-o_{i} = max(a_{i}, b_{i})
+o_{i} = max(a_{i},\ b_{i})
 \f]
 
 **Attributes**:

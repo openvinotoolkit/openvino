@@ -20,6 +20,7 @@
 # include <limits.h>
 #endif
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace CommonTestUtils {
 
 std::string getExecutableDirectory() {

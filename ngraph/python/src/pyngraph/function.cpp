@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/function.hpp"  // ngraph::Function
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "ngraph/function.hpp"     // ngraph::Function
-#include "ngraph/op/parameter.hpp" // ngraph::op::Parameter
+#include "ngraph/op/parameter.hpp"  // ngraph::op::Parameter
 #include "ngraph/op/sink.hpp"
 #include "pyngraph/function.hpp"
 
@@ -14,8 +15,7 @@ namespace py = pybind11;
 
 static const char* CAPSULE_NAME = "ngraph_function";
 
-void regclass_pyngraph_Function(py::module m)
-{
+void regclass_pyngraph_Function(py::module m) {
     py::class_<ngraph::Function, std::shared_ptr<ngraph::Function>> function(m, "Function");
     function.doc() = "ngraph.impl.Function wraps ngraph::Function";
 
@@ -24,8 +24,7 @@ void regclass_pyngraph_Function(py::module m)
                              const ngraph::ParameterVector& params,
                              const std::string& name) {
                      ngraph::SinkVector sinks;
-                     for (const auto& node : nodes)
-                     {
+                     for (const auto& node : nodes) {
                          auto sink = std::dynamic_pointer_cast<ngraph::op::Sink>(node);
                          NGRAPH_CHECK(sink != nullptr, "Node {} is not instance of Sink");
                          sinks.push_back(sink);
@@ -268,10 +267,8 @@ void regclass_pyngraph_Function(py::module m)
     function.def("__repr__", [](const ngraph::Function& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
         std::stringstream shapes_ss;
-        for (size_t i = 0; i < self.get_output_size(); ++i)
-        {
-            if (i > 0)
-            {
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
                 shapes_ss << ", ";
             }
             shapes_ss << self.get_output_partial_shape(i);
@@ -285,12 +282,9 @@ void regclass_pyngraph_Function(py::module m)
         auto* capsule_ptr = PyCapsule_GetPointer(pybind_capsule_ptr, CAPSULE_NAME);
 
         auto* ngraph_function = static_cast<std::shared_ptr<ngraph::Function>*>(capsule_ptr);
-        if (ngraph_function && *ngraph_function)
-        {
+        if (ngraph_function && *ngraph_function) {
             return *ngraph_function;
-        }
-        else
-        {
+        } else {
             throw std::runtime_error("The provided capsule does not contain an ngraph::Function");
         }
     });
@@ -304,8 +298,7 @@ void regclass_pyngraph_Function(py::module m)
         auto sp_deleter = [](PyObject* capsule) {
             auto* capsule_ptr = PyCapsule_GetPointer(capsule, CAPSULE_NAME);
             auto* function_sp = static_cast<std::shared_ptr<ngraph::Function>*>(capsule_ptr);
-            if (function_sp)
-            {
+            if (function_sp) {
                 delete function_sp;
             }
         };
@@ -317,7 +310,5 @@ void regclass_pyngraph_Function(py::module m)
     });
 
     function.def_property_readonly("name", &ngraph::Function::get_name);
-    function.def_property("friendly_name",
-                          &ngraph::Function::get_friendly_name,
-                          &ngraph::Function::set_friendly_name);
+    function.def_property("friendly_name", &ngraph::Function::get_friendly_name, &ngraph::Function::set_friendly_name);
 }

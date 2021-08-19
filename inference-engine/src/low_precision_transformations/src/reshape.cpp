@@ -47,7 +47,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
     auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<opset1::Constant>& originalConstant) {
         // reshape for element-wise constant is not required
         auto constantShape = originalConstant->get_shape();
-        if (shape_size(constantShape) == 1ul) {
+        if (NetworkHelper::isScalarLike(originalConstant)) {
             if (!constantShape.empty()) {
                 const auto newConstant = NetworkHelper::toScalar(originalConstant);
                 replace_node(originalConstant, newConstant);
@@ -75,19 +75,28 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
             return;
         }
 
-        Shape newOperationConstantBroadcastedShape = originalConstant->output(0).get_shape();
-        // add dimensions to broadcast values
-        if (newOperationConstantBroadcastedShape.size() == 2ul) {
-            newOperationConstantBroadcastedShape.push_back(dimensionsToBroadcast);
-        } else {
-            newOperationConstantBroadcastedShape[2] = dimensionsToBroadcast;
-        }
-        const std::shared_ptr<Node> broadcastedConstant = fold<opset1::Broadcast>(
-            originalConstant,
-            std::make_shared<opset1::Constant>(
+        auto getBCastedConst = [](const std::shared_ptr<opset1::Constant>& constant, size_t dimensionsToBroadcast) -> std::shared_ptr<Node> {
+            if (dimensionsToBroadcast == 1ul) {
+                return constant;
+            }
+
+            Shape newOperationConstantBroadcastedShape = constant->get_shape();
+            // add dimensions to broadcast values
+            if (newOperationConstantBroadcastedShape.size() == 2ul) {
+                newOperationConstantBroadcastedShape.push_back(dimensionsToBroadcast);
+            } else {
+                newOperationConstantBroadcastedShape[2] = dimensionsToBroadcast;
+            }
+
+            const auto targetShapeConstant = opset1::Constant::create(
                 element::i32,
-                Shape({ newOperationConstantBroadcastedShape.size() }),
-                newOperationConstantBroadcastedShape));
+                Shape{ newOperationConstantBroadcastedShape.size() },
+                newOperationConstantBroadcastedShape);
+
+            return fold<opset1::Broadcast>(constant, targetShapeConstant);
+        };
+
+        const std::shared_ptr<Node> broadcastedConstant = getBCastedConst(originalConstant, dimensionsToBroadcast);
 
         std::vector<int> newReshapeConstValues(reshapeOutputRank.get_length(), 1ul);
         newReshapeConstValues[1] = reshapeOutputPShape[1].get_length();
@@ -190,7 +199,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         subtractShapeWithBatch.insert(subtractShapeWithBatch.begin(), 1ul);
     }
 
-    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiply->input(1).get_shape();
+    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiplyConstant->get_shape();
     Shape multiplyShapeWithBatch = multiplyShape;
     if ((dequantization.multiply != nullptr) &&
         (multiplyShapeWithBatch.size() > 1ul) &&

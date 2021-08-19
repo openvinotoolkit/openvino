@@ -18,12 +18,12 @@
 	path = thirdparty/ade
 	url = https://github.com/opencv/ade.git
 	ignore = dirty
-[submodule "thirdparty/gflags"]
-	path = thirdparty/gflags
+[submodule "thirdparty/gflags/gflags"]
+	path = thirdparty/gflags/gflags
 	url = https://github.com/gflags/gflags.git
 	ignore = dirty
-[submodule "thirdparty/gtest"]
-	path = thirdparty/gtest
+[submodule "thirdparty/gtest/gtest"]
+	path = thirdparty/gtest/gtest
 	url = https://github.com/openvinotoolkit/googletest.git
 	ignore = dirty
 [submodule "thirdparty/ocl/icd_loader"]

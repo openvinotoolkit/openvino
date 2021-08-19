@@ -12,7 +12,7 @@ Before performing arithmetic operation, input tensors *a* and *b* are broadcaste
 After broadcasting *LessEqual* does the following with the input tensors *a* and *b*:
 
 \f[
-o_{i} = a_{i} <= b_{i}
+o_{i} = a_{i} \leq b_{i}
 \f]
 
 **Attributes**:

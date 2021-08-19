@@ -141,6 +141,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
         { name<opset1::ReduceMin>() },
         { name<opset1::Relu>() },
         // TODO: there are conditions
+        { name<opset1::Pad>() },
         { name<opset1::Reshape>() },
         { name<opset1::Squeeze>() },
         { name<opset1::Split>() },
@@ -166,7 +167,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
         std::shared_ptr<opset4::Interpolate> interpolate4 = as_type_ptr<opset4::Interpolate>(node);
         if (interpolate4) {
             const auto attrs = interpolate4->get_attrs();
-            return attrs.mode == op::v4::Interpolate::InterpolateMode::nearest;
+            return attrs.mode == op::v4::Interpolate::InterpolateMode::NEAREST;
         }
     }
 
@@ -194,6 +195,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::share
         { name<ngraph::op::MVN>() },
         { name<opset6::MVN>() },
         { name<opset1::NormalizeL2>() },
+        { name<opset1::Pad>() },
         { name<opset1::PRelu>() },
         { name<opset1::ReduceMax>() },
         { name<opset1::ReduceMean>() },

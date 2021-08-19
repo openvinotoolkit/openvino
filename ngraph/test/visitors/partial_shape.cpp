@@ -3,14 +3,12 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -18,8 +16,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, partial_shape)
-{
+TEST(attributes, partial_shape) {
     NodeBuilder builder;
     AttributeVisitor& loader = builder.get_node_loader();
     AttributeVisitor& saver = builder.get_node_saver();
@@ -54,4 +51,3 @@ TEST(attributes, partial_shape)
     loader.on_attribute("general", g_general);
     EXPECT_EQ(general, g_general);
 }
-

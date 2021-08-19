@@ -90,7 +90,7 @@ bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>&
 
     if (!inPShape.rank().is_dynamic()) {
         for (int i = 0; i < inPShape.rank().get_length(); ++i) {
-            if (inPShape[i] != outPShape[i] && !inPShape.is_dynamic()) {
+            if (inPShape[i] != outPShape[i] && !inPShape[i].is_dynamic()) {
                 return false;
             }
         }
@@ -108,7 +108,7 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
         return false;
     }
 
-    const ngraph::Shape constShape = constant->get_output_shape(0);
+    const ngraph::Shape constShape = constant->get_shape();
     if ((constShape.size() > 5ul)) {
         return false;
     }

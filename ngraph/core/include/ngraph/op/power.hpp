@@ -6,13 +6,10 @@
 
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        namespace v1
-        {
-            // clang-format off
+namespace ngraph {
+namespace op {
+namespace v1 {
+// clang-format off
             /// \brief Elementwise exponentiation operation.
             ///
             /// ## Inputs
@@ -27,33 +24,26 @@ namespace ngraph
             /// | Type                   | Description                                                                                                    |
             /// | ---------------------- | -------------------------------------------------------------------------------------------------------------- |
             /// | \f$N[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \texttt{arg0}[i_1,\dots,i_n]^{\texttt{arg1}[i_1,\dots,i_n]}\f$ |
-            // clang-format on
-            class NGRAPH_API Power : public util::BinaryElementwiseArithmetic
-            {
-            public:
-                NGRAPH_RTTI_DECLARATION;
+// clang-format on
+class NGRAPH_API Power : public util::BinaryElementwiseArithmetic {
+public:
+    NGRAPH_RTTI_DECLARATION;
 
-                Power()
-                    : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)
-                {
-                }
+    Power() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
 
-                /// \brief Constructs an exponentiation operation.
-                ///
-                /// \param arg0 Node that produces the first input tensor.
-                /// \param arg1 Node that produces the second input tensor.
-                /// \param auto_broadcast Auto broadcast specification
-                Power(const Output<Node>& arg0,
-                      const Output<Node>& arg1,
-                      const AutoBroadcastSpec& auto_broadcast =
-                          AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+    /// \brief Constructs an exponentiation operation.
+    ///
+    /// \param arg0 Node that produces the first input tensor.
+    /// \param arg1 Node that produces the second input tensor.
+    /// \param auto_broadcast Auto broadcast specification
+    Power(const Output<Node>& arg0,
+          const Output<Node>& arg1,
+          const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override;
-            };
-        } // namespace v1
-    }     // namespace op
-} // namespace ngraph
+    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    bool has_evaluate() const override;
+};
+}  // namespace v1
+}  // namespace op
+}  // namespace ngraph

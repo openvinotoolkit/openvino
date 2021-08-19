@@ -34,8 +34,7 @@ static void DeformableConvolutionTest(const std::vector<float>& inputs,
                                       const Strides& dilations,
                                       const int64_t group = 1,
                                       const int64_t deformable_group = 1,
-                                      const size_t tolerance_bits = 2)
-{
+                                      const size_t tolerance_bits = 2) {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
@@ -52,8 +51,7 @@ static void DeformableConvolutionTest(const std::vector<float>& inputs,
                                                            auto_pad,
                                                            group,
                                                            deformable_group);
-    auto f =
-        make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
+    auto f = make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(inputs);
     test_case.add_input<float>(offsets);

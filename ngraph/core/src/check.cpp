@@ -8,8 +8,7 @@ using namespace ngraph;
 
 std::string CheckFailure::make_what(const CheckLocInfo& check_loc_info,
                                     const std::string& context_info,
-                                    const std::string& explanation)
-{
+                                    const std::string& explanation) {
     // Use relative path only for internal code
     auto getRelativePath = [](const std::string& path) -> std::string {
         // Path to local OpenVINO repository
@@ -21,14 +20,12 @@ std::string CheckFailure::make_what(const CheckLocInfo& check_loc_info,
         return path.substr(project_root.length() + 1);
     };
     std::stringstream ss;
-    ss << "Check '" << check_loc_info.check_string << "' failed at "
-       << getRelativePath(check_loc_info.file) << ":" << check_loc_info.line;
-    if (!context_info.empty())
-    {
+    ss << "Check '" << check_loc_info.check_string << "' failed at " << getRelativePath(check_loc_info.file) << ":"
+       << check_loc_info.line;
+    if (!context_info.empty()) {
         ss << ":" << std::endl << context_info;
     }
-    if (!explanation.empty())
-    {
+    if (!explanation.empty()) {
         ss << ":" << std::endl << explanation;
     }
     ss << std::endl;

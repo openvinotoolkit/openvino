@@ -3,7 +3,9 @@
 //
 
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
+
 #include <ngraph/validation_util.hpp>
+
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
@@ -13,22 +15,16 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::BinaryElementwiseArithmetic, "BinaryElementwiseArithmetic", 0);
 
-op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob)
-    : m_autob(autob)
-{
-}
+op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob) : m_autob(autob) {}
 
 op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const Output<Node>& arg0,
                                                                    const Output<Node>& arg1,
                                                                    const AutoBroadcastSpec& autob)
-    : Op({arg0, arg1})
-    , m_autob(autob)
-{
-}
+    : Op({arg0, arg1}),
+      m_autob(autob) {}
 
 void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic(
-    const op::AutoBroadcastSpec& autob)
-{
+    const op::AutoBroadcastSpec& autob) {
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, autob);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
@@ -42,22 +38,18 @@ void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arith
     set_output_type(0, args_et, args_pshape);
 }
 
-void op::util::BinaryElementwiseArithmetic::validate_and_infer_types()
-{
+void op::util::BinaryElementwiseArithmetic::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_validate_and_infer_types);
     validate_and_infer_elementwise_arithmetic(m_autob);
 }
 
-bool op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor)
-{
+bool op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;
 }
 
-bool op::util::BinaryElementwiseArithmetic::evaluate_upper(
-    const HostTensorVector& output_values) const
-{
+bool op::util::BinaryElementwiseArithmetic::evaluate_upper(const HostTensorVector& output_values) const {
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     HostTensorVector lower_output_tensors;
     for (const auto& output : output_values)
@@ -68,9 +60,7 @@ bool op::util::BinaryElementwiseArithmetic::evaluate_upper(
     return true;
 }
 
-bool op::util::BinaryElementwiseArithmetic::evaluate_lower(
-    const HostTensorVector& output_values) const
-{
+bool op::util::BinaryElementwiseArithmetic::evaluate_lower(const HostTensorVector& output_values) const {
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     HostTensorVector upper_output_tensors;
     for (const auto& output : output_values)

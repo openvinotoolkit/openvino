@@ -78,9 +78,12 @@ private:
             batchData += offset;
 
             std::iota(std::begin(indexes), std::end(indexes), 0);
-            std::partial_sort(std::begin(indexes), std::begin(indexes) + n, std::end(indexes), [&batchData](unsigned l, unsigned r) {
-                return batchData[l] > batchData[r];
-            });
+            std::partial_sort(std::begin(indexes),
+                              std::begin(indexes) + n,
+                              std::end(indexes),
+                              [&batchData](unsigned l, unsigned r) {
+                                  return batchData[l] > batchData[r];
+                              });
             for (unsigned j = 0; j < n; j++) {
                 output.at(i * n + j) = indexes.at(j);
             }
@@ -123,7 +126,10 @@ private:
     }
 
 public:
-    explicit ClassificationResultT(InferenceEngine::Blob::Ptr output_blob, std::vector<strType> image_names = {}, size_t batch_size = 1, size_t num_of_top = 10,
+    explicit ClassificationResultT(InferenceEngine::Blob::Ptr output_blob,
+                                   std::vector<strType> image_names = {},
+                                   size_t batch_size = 1,
+                                   size_t num_of_top = 10,
                                    std::vector<std::string> labels = {})
         : _nTop(num_of_top),
           _outBlob(std::move(output_blob)),
@@ -164,8 +170,8 @@ public:
                 // locked memory holder should be alive all time while access to its buffer happens
                 const auto result =
                     moutputHolder
-                        .as<const InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>()[_results.at(id) +
-                                                                                                                    image_id * (_outBlob->size() / _batchSize)];
+                        .as<const InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>()
+                            [_results.at(id) + image_id * (_outBlob->size() / _batchSize)];
 
                 std::cout << std::setw(static_cast<int>(_classidStr.length())) << std::left << _results.at(id) << " ";
                 std::cout << std::left << std::setw(static_cast<int>(_probabilityStr.length())) << std::fixed << result;
