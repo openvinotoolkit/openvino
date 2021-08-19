@@ -94,11 +94,23 @@ def test_max_pool_basic():
     index_et = "i32"
 
     data_node = ng.parameter(data.shape, name="A", dtype=np.float32)
-    avgpool_node = ng.max_pool(data_node, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_type, auto_pad, index_et)
-    comp = rt.computation(avgpool_node, data_node)
+    maxpool_node = ng.max_pool(
+        data_node,
+        strides,
+        dilations,
+        pads_begin,
+        pads_end,
+        kernel_shape,
+        rounding_type,
+        auto_pad,
+        index_et,
+    )
+    comp = rt.computation(maxpool_node, data_node)
     result = comp(data)
 
-    expected = np.array([[[[5.5, 6.5, 7.5], [9.5, 10.5, 11.5], [13.5, 14.5, 15.5]]]], dtype=np.float32)
+    expected = np.array(
+        [[[[5.5, 6.5, 7.5], [9.5, 10.5, 11.5], [13.5, 14.5, 15.5]]]], dtype=np.float32
+    )
     expected_idx = np.array([[[[5, 6, 7], [9, 10, 11], [13, 14, 15]]]], dtype=np.int32)
     assert np.allclose(result[0], expected)
     assert np.allclose(result[1], expected_idx)
@@ -122,8 +134,18 @@ def test_max_pool_strides():
     index_et = "i32"
 
     data_node = ng.parameter(data.shape, name="A", dtype=np.float32)
-    avgpool_node = ng.max_pool(data_node, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_type, auto_pad, index_et)
-    comp = rt.computation(avgpool_node, data_node)
+    maxpool_node = ng.max_pool(
+        data_node,
+        strides,
+        dilations,
+        pads_begin,
+        pads_end,
+        kernel_shape,
+        rounding_type,
+        auto_pad,
+        index_et,
+    )
+    comp = rt.computation(maxpool_node, data_node)
     result = comp(data)
 
     expected = np.array([[[[5.5, 6.5, 7.5], [13.5, 14.5, 15.5]]]], dtype=np.float32)
@@ -150,12 +172,22 @@ def test_max_pool_kernel_shape1x1():
     index_et = "i32"
 
     data_node = ng.parameter(data.shape, name="A", dtype=np.float32)
-    avgpool_node = ng.max_pool(data_node, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_type, auto_pad, index_et)
-    comp = rt.computation(avgpool_node, data_node)
+    maxpool_node = ng.max_pool(
+        data_node,
+        strides,
+        dilations,
+        pads_begin,
+        pads_end,
+        kernel_shape,
+        rounding_type,
+        auto_pad,
+        index_et,
+    )
+    comp = rt.computation(maxpool_node, data_node)
     result = comp(data)
 
     assert np.allclose(result[0], data)
-    assert np.allclose(result[1], np.arange(0, 16, dtype=np.int32).reshape((1,1,4,4)))
+    assert np.allclose(result[1], np.arange(0, 16, dtype=np.int32).reshape((1, 1, 4, 4)))
 
 
 def test_max_pool_kernel_shape3x3():
@@ -176,8 +208,18 @@ def test_max_pool_kernel_shape3x3():
     index_et = "i32"
 
     data_node = ng.parameter(data.shape, name="A", dtype=np.float32)
-    avgpool_node = ng.max_pool(data_node,  strides, dilations, pads_begin, pads_end, kernel_shape, rounding_type, auto_pad, index_et)
-    comp = rt.computation(avgpool_node, data_node)
+    maxpool_node = ng.max_pool(
+        data_node,
+        strides,
+        dilations,
+        pads_begin,
+        pads_end,
+        kernel_shape,
+        rounding_type,
+        auto_pad,
+        index_et,
+    )
+    comp = rt.computation(maxpool_node, data_node)
     result = comp(data)
 
     expected = np.array([[[[10.5, 11.5], [14.5, 15.5]]]], dtype=np.float32)
@@ -208,8 +250,18 @@ def test_max_pool_non_zero_pads():
     index_et = "i32"
 
     data_node = ng.parameter(data.shape, name="A", dtype=np.float32)
-    avgpool_node = ng.max_pool(data_node, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_type, auto_pad, index_et)
-    comp = rt.computation(avgpool_node, data_node)
+    maxpool_node = ng.max_pool(
+        data_node,
+        strides,
+        dilations,
+        pads_begin,
+        pads_end,
+        kernel_shape,
+        rounding_type,
+        auto_pad,
+        index_et,
+    )
+    comp = rt.computation(maxpool_node, data_node)
     result = comp(data)
 
     expected = np.array(
@@ -267,8 +319,18 @@ def test_max_pool_same_upper_auto_pads():
     index_et = "i32"
 
     data_node = ng.parameter(data.shape, name="A", dtype=np.float32)
-    avgpool_node = ng.max_pool(data_node, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_type, auto_pad, index_et)
-    comp = rt.computation(avgpool_node, data_node)
+    maxpool_node = ng.max_pool(
+        data_node,
+        strides,
+        dilations,
+        pads_begin,
+        pads_end,
+        kernel_shape,
+        rounding_type,
+        auto_pad,
+        index_et,
+    )
+    comp = rt.computation(maxpool_node, data_node)
     result = comp(data)
 
     expected = np.array(
@@ -324,12 +386,31 @@ def test_max_pool_same_lower_auto_pads():
     index_et = "i32"
 
     data_node = ng.parameter(data.shape, name="A", dtype=np.float32)
-    avgpool_node = ng.max_pool(data_node, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_type, auto_pad, index_et)
-    comp = rt.computation(avgpool_node, data_node)
+    maxpool_node = ng.max_pool(
+        data_node,
+        strides,
+        dilations,
+        pads_begin,
+        pads_end,
+        kernel_shape,
+        rounding_type,
+        auto_pad,
+        index_et,
+    )
+    comp = rt.computation(maxpool_node, data_node)
     result = comp(data)
 
     expected = np.array(
-        [[[[0.5, 1.5, 2.5, 3.5], [4.5, 5.5, 6.5, 7.5], [8.5, 9.5, 10.5, 11.5], [12.5, 13.5, 14.5, 15.5]]]],
+        [
+            [
+                [
+                    [0.5, 1.5, 2.5, 3.5],
+                    [4.5, 5.5, 6.5, 7.5],
+                    [8.5, 9.5, 10.5, 11.5],
+                    [12.5, 13.5, 14.5, 15.5],
+                ]
+            ]
+        ],
         dtype=np.float32,
     )
     expected_idx = np.array(
