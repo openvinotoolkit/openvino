@@ -413,9 +413,9 @@ void MKLDNNROIPoolingNode::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
-    config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(), dataType, format);
-    config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticDims(), dataType, memory::format_tag::nc);
-    config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), dataType, format);
+    config.inConfs[0].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(), dataType, format);
+    config.inConfs[1].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticDims(), dataType, memory::format_tag::nc);
+    config.outConfs[0].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), dataType, format);
     supportedPrimitiveDescriptors.push_back({config, impl_type});
 }
 
@@ -481,9 +481,9 @@ void MKLDNNROIPoolingNode::execute() {
         IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
-    auto src_strides = srcMemory0.GetDescWithType<BlockedMemoryDesc>().getStrides();
-    auto dst_strides = dstMemory.GetDescWithType<BlockedMemoryDesc>().getStrides();
-    size_t src_roi_step = srcMemory1.GetDescWithType<BlockedMemoryDesc>().getStrides()[0];
+    auto src_strides = srcMemory0.GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
+    auto dst_strides = dstMemory.GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
+    size_t src_roi_step = srcMemory1.GetDescWithType<CpuBlockedMemoryDesc>().getStrides()[0];
 
     int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
     int MB = jpp.mb;

@@ -32,7 +32,7 @@ public:
         return false;
     }
     InferenceEngine::Precision getRuntimePrecision() const override;
-    std::unique_ptr<MKLDNNMemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::unique_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
     const mkldnn::memory& getWeights() const;
     const mkldnn::memory& getBias() const;

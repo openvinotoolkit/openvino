@@ -988,7 +988,7 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
                                             weiDims[2], weiDims[3], weiFirstDimBlockSize, 32};
         std::vector<size_t> weiOrder = {0, 1, 2, 3, 0, 1};
 
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(Precision::BIN, Shape(weiDims), weiBlockDims, weiOrder);
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(Precision::BIN, Shape(weiDims), weiBlockDims, weiOrder);
 
         //result
         auto outputPrecision = withBinarization ? Precision::BIN : Precision::FP32;
@@ -1071,8 +1071,8 @@ void MKLDNNBinaryConvolutionNode::createPrimitive() {
 
     jcp.nb_oc_blocking = nstl::min(implType == impl_desc_type::jit_sse42 ? 2 : implType == impl_desc_type::jit_avx2 ? 4 : 6, jcp.nb_oc);
 
-    auto srcPrecision = getParentEdgeAt(0)->getMemory().GetDesc().getPrecision();
-    auto dstPrecision = getChildEdgeAt(0)->getMemory().GetDesc().getPrecision();
+    auto srcPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
+    auto dstPrecision = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
     jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(dstPrecision);
     jcp.typesize_in = srcPrecision == Precision::BIN ? 1 : srcPrecision.size();
@@ -1295,21 +1295,21 @@ void MKLDNNBinaryConvolutionNode::execute(mkldnn::stream strm) {
     auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    std::vector<size_t> srcStride(srcDesc.getStrides().size());
+    std::vector<size_t> srcStride(srcDesc->getStrides().size());
     for (int i = 0; i < srcStride.size(); i++) {
-        srcStride[srcDesc.getOrder()[i]] = srcDesc.getStrides()[i];
+        srcStride[srcDesc->getOrder()[i]] = srcDesc->getStrides()[i];
     }
 
     auto weiDesc = getParentEdgeAt(1)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    std::vector<size_t> weightsStride(weiDesc.getShape().getRank());
+    std::vector<size_t> weightsStride(weiDesc->getShape().getRank());
     for (int i = 0; i < weightsStride.size(); i++) {
-        weightsStride[weiDesc.getOrder()[i]] = weiDesc.getStrides()[i];
+        weightsStride[weiDesc->getOrder()[i]] = weiDesc->getStrides()[i];
     }
 
     auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    std::vector<size_t> dstStride(dstDesc.getStrides().size());
+    std::vector<size_t> dstStride(dstDesc->getStrides().size());
     for (int i = 0; i < dstStride.size(); i++) {
-        dstStride[dstDesc.getOrder()[i]] = dstDesc.getStrides()[i];
+        dstStride[dstDesc->getOrder()[i]] = dstDesc->getStrides()[i];
     }
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();

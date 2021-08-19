@@ -129,12 +129,12 @@ void MKLDNNROIAlignNode::initSupportedPrimitiveDescriptors() {
     };
 
     for (auto fmts : supportedFormats) {
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(), inputDataType, fmts.first);
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticDims(), memory::data_type::f32,
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(), inputDataType, fmts.first);
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticDims(), memory::data_type::f32,
                                                                memory::format_tag::nc);
-        config.inConfs[2].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticDims(), memory::data_type::s32,
+        config.inConfs[2].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticDims(), memory::data_type::s32,
                                                                memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType, fmts.second);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType, fmts.second);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     }
 }
@@ -180,8 +180,8 @@ void MKLDNNROIAlignNode::executeSpecified() {
     auto dstBlockDesc = dstMemory.GetDescriptor().data.format_desc.blocking;
 
     int blockSize = srcBlockDesc.inner_nblks > 0 ? srcBlockDesc.inner_blks[0] : 1;
-    auto isPlainFmt = srcMemory0.GetDesc().hasLayoutType(LayoutType::ncsp);
-    auto isNhwcFmt = srcMemory0.GetDesc().hasLayoutType(LayoutType::nspc);
+    auto isPlainFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::ncsp);
+    auto isNhwcFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::nspc);
 
     const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());

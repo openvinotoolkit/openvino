@@ -209,13 +209,13 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MKLDNNPlugin:
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::createInputBlob(const std::string &name) {
-    MKLDNNNodeConstPtr inputNode = graph->GetInputNodeByName(name);
+    MKLDNNNodeConstPtr inputNode = graph->getInputNodeByName(name);
 
     if (inputNode->isDynamicNode() && !m_realShapes.count(name)) {
         IE_THROW() << "Cannot create blob " << name << " with dynamic shapes";
     }
 
-    InferenceEngine::TensorDesc origDesc = MemoryDescUtils::convertToTensorDesc(inputNode->getChildEdgesAtPort(0)[0]->getMemory().GetDesc());
+    InferenceEngine::TensorDesc origDesc = MemoryDescUtils::convertToTensorDesc(inputNode->getChildEdgesAtPort(0)[0]->getMemory().getDesc());
     InferenceEngine::TensorDesc desc = origDesc;
 
     if (_networkInputs.find(name) != _networkInputs.end()) {
@@ -256,14 +256,18 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
         if (_inputs.find(name) == _inputs.end()) {
             createInputBlob(name);
         }
-        MKLDNNNodeConstPtr inputNode = graph->GetInputNodeByName(name);
+        MKLDNNNodeConstPtr inputNode = graph->getInputNodeByName(name);
         if (inputNode->isDynamicNode()) {
             if (!m_realShapes.count(name)) {
                 IE_THROW() << "Cannot get blob " << name << " which contains dynamic shapes";
             }
             if (_inputs[name]->getTensorDesc().getDims() != m_realShapes.at(name)) {
-                // TODO [DS]: reshape without reallocate?
-                createInputBlob(name);
+                if (_inputs[name]->size() >=
+                            std::accumulate(m_realShapes.at(name).begin(), m_realShapes.at(name).end(), (size_t)1, std::multiplies<size_t>())) {
+                    _inputs[name]->getTensorDesc().reshape(m_realShapes.at(name));
+                } else {
+                    createInputBlob(name);
+                }
             }
         }
         data = _inputs[name];
@@ -287,7 +291,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
 
     if (graph->hasOutputWithName(name)) {
         if (_outputs.find(name) == _outputs.end()) {
-            if (graph->GetOutputNodeByName(name)->isDynamicNode()) {
+            if (graph->getOutputNodeByName(name)->isDynamicNode()) {
                 IE_THROW(NotImplemented) << "[DS] Can't get output blob for dynamic shapes before inference";
             }
 
@@ -384,7 +388,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
             // pre-processing
             _preProcData[name]->setRoiBlob(data);
         } else {
-            auto inputNode = graph->GetInputNodeByName(name);
+            auto inputNode = graph->getInputNodeByName(name);
             if (foundInput->getInputData()->getPartialShape().rank().get_length() != data->getTensorDesc().getDims().size()) {
                 IE_THROW(ParameterMismatch) << "Failed to set input blob. Rank mismatch.";
             }
@@ -392,7 +396,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
             if (foundInput->getInputData()->isDynamic()) {
                 const auto &newShape = data->getTensorDesc().getDims();
                 m_realShapes[name] = newShape;
-                inputNode->resetOutputShape({newShape});
+                inputNode->redefineOutputMemory({newShape});
             } else {
                 size_t inputSize = foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR ?
                                    InferenceEngine::details::product(foundInput->getTensorDesc().getDims()) : 1;
@@ -414,7 +418,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
 
             // TODO [DS]: enable inplace for dynamic input/output
             if (!inputNode->isDynamicNode() &&
-                data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(inputNode->getChildEdgesAtPort(0)[0]->getMemory().GetDesc()) &&
+                data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(inputNode->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
                 graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
                 externalPtr[name] = data->buffer();
             } else if (externalPtr.find(name) != externalPtr.end()) {
@@ -591,6 +595,6 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetShape(const std::string& name, const I
 
     m_realShapes[name] = dims;
 
-    auto inputNode = graph->GetInputNodeByName(name);
-    inputNode->resetOutputShape({dims});
+    auto inputNode = graph->getInputNodeByName(name);
+    inputNode->redefineOutputMemory({dims});
 }

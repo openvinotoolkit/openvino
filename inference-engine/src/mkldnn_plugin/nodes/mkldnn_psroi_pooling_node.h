@@ -50,7 +50,7 @@ private:
 
     std::string errorPrefix;
 
-    void unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc,
+    void unpackParams(const CpuBlockedMemoryDesc& srcDesc, const CpuBlockedMemoryDesc& dstDesc,
                       int& hInputStride, int& wInputStride,
                       int& hOutputStride, int& wOutputStride,
                       int& inBlockSize, int& outBlockSize,
@@ -60,12 +60,12 @@ private:
     template <typename inputType, typename outputType>
     void executeAverage(const inputType *srcData, outputType *dstData, const float *bottomRois,
                         const int n, const int roiBatchInd,
-                        const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc);
+                        const CpuBlockedMemoryDesc& srcDesc, const CpuBlockedMemoryDesc& dstDesc);
 
     template <typename inputType, typename outputType>
     void executeBilinear(const inputType *srcData, outputType *dstData, const float *bottomRois,
                          const int currentRoi, const int roiBatchInd,
-                         const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc);
+                         const CpuBlockedMemoryDesc& srcDesc, const CpuBlockedMemoryDesc& dstDesc);
 
     template <typename inputType, typename outputType>
     void executeBilinearDeformable(const inputType *srcData, outputType *dstData, const float *bottomRois,

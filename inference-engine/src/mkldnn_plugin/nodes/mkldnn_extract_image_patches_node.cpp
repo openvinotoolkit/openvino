@@ -434,8 +434,8 @@ void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
     const size_t RH = _rates[0], RW = _rates[1];
     const size_t PT = _pad_top, PL = _pad_left;
 
-    const std::vector<size_t> istrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
-    const std::vector<size_t> ostrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    const std::vector<size_t> istrides = getParentEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
+    const std::vector<size_t> ostrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
     const std::vector<size_t> ostrides_partial = {ostrides[0], KW * IC * ostrides[1], IC * ostrides[1], ostrides[1]};
 
     if (extract_image_patches_kernel) {

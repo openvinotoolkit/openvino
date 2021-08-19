@@ -19,7 +19,8 @@
 #include "ie_parallel.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
-#include <cpu_memory_desc_utils.h>
+#include <memory_desc/cpu_memory_desc_utils.h>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
@@ -1222,12 +1223,12 @@ void MKLDNNFakeQuantizeNode::createPrimitive() {
     jqp.dst_prc = config.outConfs[0].desc->getPrecision();
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    jqp.s_str = srcDesc.getStrides();
+    jqp.s_str = srcDesc->getStrides();
 
     auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    jqp.d_str = dstDesc.getStrides();
+    jqp.d_str = dstDesc->getStrides();
 
-    jqp.is_planar = srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5);
+    jqp.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
 
     jqp.op_type = getAlgorithm();
 
@@ -1259,7 +1260,7 @@ void MKLDNNFakeQuantizeNode::createPrimitive() {
     size_t axisSize = getParentEdgeAt(0)->getShape().getStaticDims()[getAxis()];
     size_t axisPaddedSize = rnd_up(axisSize, 16);
 
-    MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)axisPaddedSize}, memory::data_type::f32, memory::format_tag::x};
+    DnnlBlockedMemoryDesc weightsDataDesc(Shape(InferenceEngine::SizeVector{axisPaddedSize}), memory::data_type::f32, memory::format_tag::x);
 
     if (isBinarization()) {
         auto binarizationThresholdsDataMem = std::make_shared<MKLDNNMemory>(getEngine());
@@ -1459,7 +1460,7 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
     auto output_scale = reinterpret_cast<const float*>(internalBlobMemory[4]->GetData());
     auto output_shift = reinterpret_cast<const float*>(internalBlobMemory[5]->GetData());
 
-    auto& srcDesc = srcMemory->GetDesc();
+    auto& srcDesc = srcMemory->getDesc();
     auto srcDims = srcDesc.getShape().getStaticDims();
 
     bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5);

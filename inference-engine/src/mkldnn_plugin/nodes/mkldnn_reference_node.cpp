@@ -59,7 +59,7 @@ void MKLDNNReferenceNode::createPrimitive() {}
 std::vector<std::vector<size_t>> MKLDNNReferenceNode::shapeInfer() const {
     for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
         opToShapeInfer->get_input_tensor(i).set_partial_shape(
-            getParentEdgesAtPort(i)[0]->getMemory().GetDesc().getShape().toPartialShape());
+            getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape().toPartialShape());
     }
 
     opToShapeInfer->validate_and_infer_types();

@@ -134,15 +134,15 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
     auto srcBlockDesc = srcMemory0.GetDescriptor().data.format_desc.blocking;
 
     int blockSize = srcBlockDesc.inner_nblks > 0 ? srcBlockDesc.inner_blks[0] : 1;
-    auto isPlainFmt = srcMemory0.GetDesc().hasLayoutType(LayoutType::ncsp);
-    auto isTailCFmt = srcMemory0.GetDesc().hasLayoutType(LayoutType::nspc);
+    auto isPlainFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::ncsp);
+    auto isTailCFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::nspc);
 
     const auto *src = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
     auto *dst = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    if (srcMemory1.GetElementsCount() != spatialDimsCount)
-        IE_THROW() << errorPrefix << "has input spatial dimension (" << srcMemory1.GetElementsCount()
+    if (srcMemory1.GetShape().getElementsCount() != spatialDimsCount)
+        IE_THROW() << errorPrefix << "has input spatial dimension (" << srcMemory1.GetShape().getElementsCount()
                    << ") inconsistent with pooling vector size (" << spatialDimsCount << ")";
 
     auto inputDimVector = srcMemory0.GetDims();
@@ -165,8 +165,8 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << errorPrefix << "doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
-    auto srcStrides = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
-    auto dstStrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    auto srcStrides = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
+    auto dstStrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
 
     // unified strides array
     const size_t tailDimsOffset = (isTailCFmt ? -1 : 0);

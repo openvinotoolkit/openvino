@@ -182,7 +182,7 @@ inline float bilinearInterp(const inputType* data, const float x, const float y,
     return value;
 }
 
-void MKLDNNPSROIPoolingNode::unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc,
+void MKLDNNPSROIPoolingNode::unpackParams(const CpuBlockedMemoryDesc& srcDesc, const CpuBlockedMemoryDesc& dstDesc,
                                           int& hInputStride, int& wInputStride,
                                           int& hOutputStride, int& wOutputStride,
                                           int& inBlockSize, int& outBlockSize,
@@ -227,7 +227,7 @@ void MKLDNNPSROIPoolingNode::unpackParams(const BlockedMemoryDesc& srcDesc, cons
 template <typename inputType, typename outputType>
 void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType *dstData, const float *bottomRois,
                                             const int n, const int roiBatchInd,
-                                            const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc) {
+                                            const CpuBlockedMemoryDesc& srcDesc, const CpuBlockedMemoryDesc& dstDesc) {
     int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
     unsigned long inputChannelsPadding, outputChannelsPadding;
     unpackParams(srcDesc, dstDesc, hInputStride, wInputStride, hOutputStride, wOutputStride,
@@ -310,7 +310,7 @@ void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType
 template <typename inputType, typename outputType>
 void MKLDNNPSROIPoolingNode::executeBilinear(const inputType *srcData, outputType *dstData, const float *bottomRois,
                                              const int currentRoi, const int roiBatchInd,
-                                             const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc) {
+                                             const CpuBlockedMemoryDesc& srcDesc, const CpuBlockedMemoryDesc& dstDesc) {
     int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
     unsigned long inputChannelsPadding, outputChannelsPadding;
     unpackParams(srcDesc, dstDesc, hInputStride, wInputStride, hOutputStride, wOutputStride,
@@ -479,8 +479,8 @@ void MKLDNNPSROIPoolingNode::executeSpecified() {
     const auto *bottomRoisBeginning = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
 
     int realRois = 0;
     for (; realRois < nn; realRois++) {
@@ -533,8 +533,8 @@ struct MKLDNNPSROIPoolingNode::PSROIPoolingExecute {
 };
 
 void MKLDNNPSROIPoolingNode::execute(mkldnn::stream strm) {
-    auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().GetDesc().getPrecision();
-    auto outputPrec = getChildEdgesAtPort(0)[0]->getMemory().GetDesc().getPrecision();
+    auto inputPrec = getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
+    auto outputPrec = getChildEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
 
     if (!((inputPrec == Precision::BF16 && outputPrec == Precision::BF16) ||
           (inputPrec == Precision::FP32 && outputPrec == Precision::FP32))) {

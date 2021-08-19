@@ -112,7 +112,7 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
     const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
 
     const bool blocked = srcDesc.hasLayoutType(LayoutType::nCsp8c) || srcDesc.hasLayoutType(LayoutType::nCsp16c);
     const auto dimsSize = inDims.size();
@@ -130,7 +130,7 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
         blockShape.erase(blockShape.begin() + 1);
     }
 
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
 
     const size_t blockSize = blocked ? dstDesc.getBlockDims().back() : 1lu;
     const size_t blockCountInput = srcDesc.getBlockDims()[1];
@@ -224,13 +224,13 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
 }
 
 void MKLDNNBatchToSpaceNode::execute(mkldnn::stream strm) {
-    switch (getParentEdgeAt(0)->getMemory().GetDesc().getPrecision().size()) {
+    switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size()) {
         case 1: batchToSpaceKernel<PrecisionTrait<Precision::U8>::value_type>();  break;
         case 2: batchToSpaceKernel<PrecisionTrait<Precision::U16>::value_type>(); break;
         case 4: batchToSpaceKernel<PrecisionTrait<Precision::I32>::value_type>(); break;
         default:
             IE_THROW() << "BatchToSpace layer does not support precision '" <<
-                std::string(getParentEdgeAt(0)->getMemory().GetDesc().getPrecision().name()) << "'";
+                std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().name()) << "'";
     }
 }
 

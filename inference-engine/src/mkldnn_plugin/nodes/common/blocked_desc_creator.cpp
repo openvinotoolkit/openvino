@@ -13,17 +13,17 @@ constexpr size_t channelsPos = 1lu;
 
 class PlainFormatCreator : public BlockedDescCreator {
 public:
-    BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
+    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
         SizeVector order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
-        return BlockedMemoryDesc(precision, srcShape, srcShape.getDims(), order);
+        return CpuBlockedMemoryDesc(precision, srcShape, srcShape.getDims(), order);
     }
     size_t getMinimalRank() const override { return 0lu; }
 };
 
 class PerChannelCreator : public BlockedDescCreator {
 public:
-    BlockedMemoryDesc createDesc(const InferenceEngine::Precision &precision, const Shape& srcShape) const override {
+    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision &precision, const Shape& srcShape) const override {
         SizeVector order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
         SizeVector blkDims = srcShape.getDims();
@@ -37,7 +37,7 @@ public:
             moveElementBack(blkDims, channelsPos);
         }
 
-        return BlockedMemoryDesc(precision, srcShape, blkDims, order);
+        return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
     }
     size_t getMinimalRank() const override { return 3lu; }
 };
@@ -45,7 +45,7 @@ public:
 class ChannelBlockedCreator : public BlockedDescCreator {
 public:
     ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
-    BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
+    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
         if (srcShape.getRank() < 2) {
             IE_THROW() << "Can't create blocked tensor descriptor!";
         }
@@ -60,7 +60,7 @@ public:
         }
         blkDims.push_back(_blockSize);
 
-        return BlockedMemoryDesc(precision, srcShape, blkDims, order);
+        return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
     }
     size_t getMinimalRank() const override { return 3lu; }
 

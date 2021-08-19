@@ -56,8 +56,8 @@ public:
         auto axis = slice_rule.axis;
         auto stride = slice_rule.stride;
 
-        auto full_dims = full_blob->GetDims();
-        auto part_dims = part_blob->GetDims();
+        auto full_dims = full_blob->GetShape().getStaticDims();
+        auto part_dims = part_blob->GetShape().getStaticDims();
 
         auto abs_stride = std::abs(stride);
         auto sign_of_stride = stride < 0.0f ? -1 : 1;
@@ -68,7 +68,7 @@ public:
         IE_ASSERT(full_dims == part_dims) << "Shape mismatch for tensor iterator port";
 
         // make chunk view
-        auto chunk_desc =  full_blob->GetDescriptor();
+        auto chunk_desc = full_blob->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         chunk_desc.data.dims[axis] = abs_stride;
         chunk_desc.data.padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
 
@@ -132,7 +132,7 @@ public:
     IterCountPortHelper(const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) {
         // Only scalar I32 tensor is supported
         IE_ASSERT(to->GetDataType() == memory::data_type::s32);
-        IE_ASSERT(to->GetDims() == memory::dims{1});
+        IE_ASSERT(to->GetShape() == Shape(InferenceEngine::SizeVector{1}));
         mem_holder_dst = to->GetPrimitive();
     }
 
@@ -150,7 +150,7 @@ class asBoolCheck : public PortChecker {
 public:
     asBoolCheck(const MKLDNNMemoryPtr &mem) {
         IE_ASSERT(mem->GetDataType() == memory::data_type::u8);
-        IE_ASSERT(mem->GetDims() == memory::dims{1});
+        IE_ASSERT(mem->GetShape() == Shape(InferenceEngine::SizeVector{1}));
         mem_holder = mem->GetPrimitive();
     }
 
@@ -167,7 +167,7 @@ class asIntCheck : public PortChecker {
 public:
     asIntCheck(const MKLDNNMemoryPtr &mem) {
         IE_ASSERT(mem->GetDataType() == memory::data_type::s32);
-        IE_ASSERT(mem->GetDims() == memory::dims{1});
+        IE_ASSERT(mem->GetShape() == Shape(InferenceEngine::SizeVector{1}));
         mem_holder = mem->GetPrimitive();
     }
 

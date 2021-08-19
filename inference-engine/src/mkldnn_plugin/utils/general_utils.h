@@ -134,29 +134,4 @@ inline InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::P
     return InferenceEngine::Precision::UNSPECIFIED;
 }
 
-inline std::string dim2str(size_t dim) {
-    return dim == Shape::UNDEFINED_DIM ? "?" : std::to_string(dim);
-}
-
-inline std::string dims2str(const std::vector<size_t>& dims) {
-    std::stringstream output;
-    output << "{";
-
-    auto itr = dims.begin();
-    do {
-        output << dim2str(*itr);
-    } while (++itr != dims.end() && output << ", ");
-
-    output << "}";
-    return output.str();
-}
-
-inline bool isDynamicNgraphNode(const std::shared_ptr<ngraph::Node>& op) {
-    bool ret = op->is_dynamic();
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        ret |= op->get_output_partial_shape(i).is_dynamic();
-    }
-    return ret;
-}
-
 }  // namespace MKLDNNPlugin

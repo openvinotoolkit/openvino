@@ -6,7 +6,8 @@
 #include <string>
 #include <mkldnn_extension_utils.h>
 #include <ngraph/opsets/opset1.hpp>
-#include <cpu_memory_desc_utils.h>
+#include <memory_desc/cpu_memory_desc_utils.h>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -93,18 +94,16 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
     const auto parentStaticDims = parentShape.getStaticDims();
 
     for (auto format : getAvailableFormatsForDims(parentShape)) {
-        auto in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(parentStaticDims, inputDataType, format);
+        auto in_candidate = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(parentStaticDims, inputDataType, format);
         createDescriptor({in_candidate.get()}, {});
     }
 }
 
-std::unique_ptr<MKLDNNMemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::unique_ptr<MemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (idx > 0) {
-        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(idx)->getShape().getStaticDims(),
-                                             MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisions()[idx]),
-                                             MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(idx)->getShape().getRank()));
+        return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getParentEdgeAt(idx)->getShape());
     } else {
-        return MKLDNNNode::getSrcMemDesc(primitive_desc_it, idx);
+        return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
     }
 }
 
@@ -129,7 +128,7 @@ void MKLDNNLrnNode::createDescriptor(const std::vector<const MemoryDesc*> &input
                                      const std::vector<const MemoryDesc*> &outputDesc) {
     mkldnn::algorithm alg = isAcrossMaps ? mkldnn::algorithm::lrn_across_channels : mkldnn::algorithm::lrn_within_channel;
     MKLDNNDescriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
-            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, MemoryDescUtils::convertToMKLDNNMemoryDesc(*inputDesc[0]),
+            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, MemoryDescUtils::convertToDnnlMemoryDesc(*inputDesc[0]),
                                           size, alpha, beta, k)));
     descs.push_back(desc);
 }

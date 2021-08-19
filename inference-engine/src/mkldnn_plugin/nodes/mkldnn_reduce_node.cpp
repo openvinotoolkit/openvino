@@ -1474,11 +1474,11 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
 
     auto pushDesc = [&](memory::format_tag inFormat, memory::format_tag outFormat, memory::data_type inDataType,
             memory::data_type outDataType, impl_desc_type impl_type) {
-        config.inConfs[REDUCE_DATA].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(REDUCE_DATA)->getShape().getStaticDims(),
+        config.inConfs[REDUCE_DATA].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(REDUCE_DATA)->getShape().getStaticDims(),
                                                                                        inDataType, inFormat);
-        config.inConfs[REDUCE_INDEXES].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(REDUCE_INDEXES)->getShape().getStaticDims(),
+        config.inConfs[REDUCE_INDEXES].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(REDUCE_INDEXES)->getShape().getStaticDims(),
                                                                             memory::data_type::s32, memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), outDataType, outFormat);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), outDataType, outFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 
@@ -1490,8 +1490,8 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
             impl_type = impl_desc_type::jit_avx2;
         }
 
-        pushDesc(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(REDUCE_DATA)->getShape().getRank()),
-                 MKLDNNMemory::GetPlainFormatByRank(getChildEdgeAt(0)->getShape().getRank()), inputDataType, outputDataType, impl_type);
+        pushDesc(MKLDNNExtensionUtils::GetPlainFormatByRank(getParentEdgeAt(REDUCE_DATA)->getShape().getRank()),
+                 MKLDNNExtensionUtils::GetPlainFormatByRank(getChildEdgeAt(0)->getShape().getRank()), inputDataType, outputDataType, impl_type);
         if (keep_dims) {
             if (getParentEdgeAt(REDUCE_DATA)->getShape().getRank() == 4 && getParentEdgeAt(REDUCE_DATA)->getShape().getStaticDims()[1] > 1) {
                 if (mayiuse(cpu::x64::avx512_common)) {
@@ -1508,8 +1508,8 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
             }
         }
     } else {
-        pushDesc(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(REDUCE_DATA)->getShape().getRank()),
-                 MKLDNNMemory::GetPlainFormatByRank(getChildEdgeAt(0)->getShape().getRank()),
+        pushDesc(MKLDNNExtensionUtils::GetPlainFormatByRank(getParentEdgeAt(REDUCE_DATA)->getShape().getRank()),
+                 MKLDNNExtensionUtils::GetPlainFormatByRank(getChildEdgeAt(0)->getShape().getRank()),
                  memory::data_type::f32, memory::data_type::f32, impl_desc_type::ref);
     }
 }
@@ -1526,7 +1526,7 @@ void MKLDNNReduceNode::createPrimitive() {
         IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    planar_layout = getParentEdgeAt(REDUCE_DATA)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp);
+    planar_layout = getParentEdgeAt(REDUCE_DATA)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp);
 
     auto jcp = jit_reduce_config_params();
     jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].desc->getPrecision());
@@ -1567,7 +1567,7 @@ void MKLDNNReduceNode::execute(mkldnn::stream strm) {
     const auto idx_data = reinterpret_cast<const int32_t *>(srcIndexesMemPtr->GetData());
     size_t dst_size = dstMemPtr->GetSize();
     src_dims = getParentEdgeAt(REDUCE_DATA)->getShape().getStaticDims();
-    src_strides = getParentEdgeAt(REDUCE_DATA)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    src_strides = getParentEdgeAt(REDUCE_DATA)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
     dims_size = src_dims.size();
     calc_process_dst_dims(idx_data);
 

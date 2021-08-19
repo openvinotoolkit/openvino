@@ -94,7 +94,7 @@ void MKLDNNReverseSequenceNode::execute(mkldnn::stream strm) {
     const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    switch (getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().GetDesc().getPrecision()) {
+    switch (getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision()) {
         case Precision::FP32: {
             float *seq_lengths_data = reinterpret_cast<float *>(getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr()->GetPtr());
             for (i = 0; i < src_dims[batch_axis]; i++) {
@@ -169,7 +169,7 @@ void MKLDNNReverseSequenceNode::execute(mkldnn::stream strm) {
         break;
         default:
             IE_THROW() << "ReverseSequence layer does not support "
-                        << getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().GetDesc().getPrecision()  << " precision";
+                        << getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision()  << " precision";
     }
 }
 

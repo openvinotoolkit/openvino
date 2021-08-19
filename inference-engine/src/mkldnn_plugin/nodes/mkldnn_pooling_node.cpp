@@ -13,7 +13,7 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <utils/general_utils.h>
-#include <cpu_memory_desc_utils.h>
+#include <memory_desc/cpu_memory_desc_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -133,16 +133,16 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         if (outputDataType == memory::data_type::bf16)
             outputDataType = memory::data_type::f32;
         // i8 layers supports only ndhwc and nhwc layouts
-        const auto in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(parentDims, inputDataType, inputRank == 5 ?
+        const auto in_candidate = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(parentDims, inputDataType, inputRank == 5 ?
                                                                  memory::format_tag::ndhwc : memory::format_tag::nhwc);
-        const auto out_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(childDims, outputDataType, inputRank == 5 ?
+        const auto out_candidate = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(childDims, outputDataType, inputRank == 5 ?
                                                                  memory::format_tag::ndhwc : memory::format_tag::nhwc);
         createDescriptor({ in_candidate.get() }, { out_candidate.get() });
     } else if ((inputRank == 4 || inputRank == 5) && parentDims[1] == 1) {
         // WA. We should force planar layout since it provides better performance
-        const auto in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(parentDims, inputDataType, inputRank == 5 ?
+        const auto in_candidate = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(parentDims, inputDataType, inputRank == 5 ?
                                                                 memory::format_tag::ncdhw : memory::format_tag::nchw);
-        const auto out_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(childDims, outputDataType, inputRank == 5 ?
+        const auto out_candidate = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(childDims, outputDataType, inputRank == 5 ?
                                                                 memory::format_tag::ncdhw : memory::format_tag::nchw);
         createDescriptor({ in_candidate.get() }, { out_candidate.get() });
     } else {
@@ -152,8 +152,8 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         }
         // It doesn't support any format
         for (auto format : getAvailableFormatsForDims(getParentEdgeAt(0)->getShape())) {
-            const auto in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(parentDims, inputDataType, format);
-            const auto out_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(childDims, outputDataType, format);
+            const auto in_candidate = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(parentDims, inputDataType, format);
+            const auto out_candidate = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(childDims, outputDataType, format);
             createDescriptor({in_candidate.get()}, {out_candidate.get()});
         }
     }
@@ -181,8 +181,8 @@ bool MKLDNNPoolingNode::created() const {
 
 void MKLDNNPoolingNode::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
                                          const std::vector<const MemoryDesc*> &outputDesc) {
-    MKLDNNMemoryDesc in_candidate =  MemoryDescUtils::convertToMKLDNNMemoryDesc(*inputDesc[0]);
-    MKLDNNMemoryDesc out_candidate = MemoryDescUtils::convertToMKLDNNMemoryDesc(*outputDesc[0]);
+    DnnlMemoryDesc in_candidate =  MemoryDescUtils::convertToDnnlMemoryDesc(*inputDesc[0]);
+    DnnlMemoryDesc out_candidate = MemoryDescUtils::convertToDnnlMemoryDesc(*outputDesc[0]);
 
     mkldnn::algorithm alg;
     if (algorithm == PoolingAvg) {
@@ -253,8 +253,12 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
                 PortConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
-                dataConfig.desc = MemoryDescUtils::applyUndefinedOffset(*getSrcMemDesc(itpd, i));
-                dataConfig.desc = getSrcMemDesc(itpd, i);
+                auto desc = getSrcMemDesc(itpd, i);
+                if (desc->getType() & MemoryDescType::Blocked) {
+                    dataConfig.desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(*desc);
+                } else {
+                    dataConfig.desc = std::move(desc);
+                }
                 config.inConfs.push_back(dataConfig);
             }
 
@@ -262,8 +266,12 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
                 PortConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
-                dataConfig.desc = MemoryDescUtils::applyUndefinedOffset(*getDstMemDesc(itpd, i));
-                dataConfig.desc = getDstMemDesc(itpd, i);
+                auto desc = getDstMemDesc(itpd, i);
+                if (desc->getType() & MemoryDescType::Blocked) {
+                    dataConfig.desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(*desc);
+                } else {
+                    dataConfig.desc = std::move(desc);
+                }
                 config.outConfs.push_back(dataConfig);
             }
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());

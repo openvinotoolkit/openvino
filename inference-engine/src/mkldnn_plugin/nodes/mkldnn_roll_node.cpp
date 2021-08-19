@@ -101,7 +101,7 @@ void MKLDNNRollNode::initSupportedPrimitiveDescriptors() {
         PortConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dims.getStaticDims(), dataType, MKLDNNMemory::GetPlainFormatByRank(dims.getRank()));
+        dataConfig.desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(dims.getStaticDims(), dataType, MKLDNNExtensionUtils::GetPlainFormatByRank(dims.getRank()));
         return dataConfig;
     };
 
@@ -116,7 +116,7 @@ void MKLDNNRollNode::initSupportedPrimitiveDescriptors() {
 
 
 void MKLDNNRollNode::execute(mkldnn::stream strm) {
-    const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().GetDesc().getPrecision();
+    const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().getDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
     switch (dataTypeSize) {
         case sizeof(PrecisionTrait<Precision::I8>::value_type): {
@@ -170,7 +170,7 @@ void MKLDNNRollNode::rollImpl() {
     const size_t elementSize = sizeof(DataType);
 
     const size_t nIterations = totalElements / blockSize;
-    const auto strides = dataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    const auto strides = dataEdge->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
     parallel_for(nIterations, [&](size_t iter) {
         size_t start = iter * blockSize;
         size_t leftBlockStartOffset = start;

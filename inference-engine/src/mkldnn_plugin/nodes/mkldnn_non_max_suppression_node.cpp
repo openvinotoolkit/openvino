@@ -159,8 +159,8 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
         scale = -0.5f / soft_nms_sigma;
     }
 
-    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
-    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
+    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
 
     std::vector<filteredBoxes> filtBoxes(max_output_boxes_per_class * num_batches * num_classes);
 
@@ -197,7 +197,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
 
     auto indicesMemPtr = getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr();
     auto scoresMemPtr =  getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr();
-    auto& maxOutputDims = indicesMemPtr->GetDesc().getShape().getMaxDims();
+    auto& maxOutputDims = indicesMemPtr->getDesc().getShape().getMaxDims();
     const size_t selectedBoxesNum = maxOutputDims[0];
     const size_t validOutputs = std::min(filtBoxes.size(), selectedBoxesNum);
 
@@ -206,7 +206,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     indicesMemPtr->redefineDesc(getOutputMemDescAtPort(NMS_SELECTEDINDICES)->cloneWithNewDims(newDims));
     scoresMemPtr->redefineDesc(getOutputMemDescAtPort(NMS_SELECTEDSCORES)->cloneWithNewDims(newDims));
 
-    int selectedIndicesStride = indicesMemPtr->GetDescWithType<BlockedMemoryDesc>().getStrides()[0];
+    int selectedIndicesStride = indicesMemPtr->GetDescWithType<CpuBlockedMemoryDesc>().getStrides()[0];
 
     int *selectedIndicesPtr = reinterpret_cast<int *>(indicesMemPtr->GetPtr());
     float *selectedScoresPtr = reinterpret_cast<float *>(scoresMemPtr->GetPtr());

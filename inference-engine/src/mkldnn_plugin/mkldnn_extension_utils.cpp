@@ -5,6 +5,7 @@
 #include "mkldnn_extension_utils.h"
 #include "utils/general_utils.h"
 #include <vector>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -75,22 +76,63 @@ InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::d
     }
 }
 
-InferenceEngine::SizeVector MKLDNNExtensionUtils::convertToSizeVector(const memory::dims& dims) {
+Dim MKLDNNExtensionUtils::convertToDim(const dnnl::memory::dim &dim) {
+    return dim == DNNL_RUNTIME_DIM_VAL ?  Shape::UNDEFINED_DIM : static_cast<size_t>(dim);
+}
+dnnl::memory::dim MKLDNNExtensionUtils::convertToDnnlDim(const Dim &dim) {
+    return dim == Shape::UNDEFINED_DIM ? DNNL_RUNTIME_DIM_VAL : static_cast<mkldnn::memory::dim>(dim);
+}
+
+VectorDims MKLDNNExtensionUtils::convertToVectorDims(const memory::dims& dims) {
     std::vector<size_t> vecResult;
     vecResult.reserve(dims.size());
     std::back_insert_iterator<std::vector<size_t>> itr(vecResult);
-    std::transform(dims.begin(), dims.end(), itr, [](memory::dim x) {
-        return x == DNNL_RUNTIME_DIM_VAL ?  Shape::UNDEFINED_DIM : static_cast<size_t>(x);
-    });
+    std::transform(dims.begin(), dims.end(), itr, convertToDim);
     return vecResult;
 }
 
-memory::dims MKLDNNExtensionUtils::convertToDnnlDims(const InferenceEngine::SizeVector& dims) {
+memory::dims MKLDNNExtensionUtils::convertToDnnlDims(const VectorDims& dims) {
     memory::dims vecResult;
     vecResult.reserve(dims.size());
     std::back_insert_iterator<memory::dims> itr(vecResult);
-    std::transform(dims.begin(), dims.end(), itr, [](size_t x) {
-        return x == Shape::UNDEFINED_DIM ? DNNL_RUNTIME_DIM_VAL : static_cast<mkldnn::memory::dim>(x);
-    });
+    std::transform(dims.begin(), dims.end(), itr, convertToDnnlDim);
     return vecResult;
+}
+
+memory::format_tag MKLDNNExtensionUtils::GetPlainFormatByRank(size_t rank) {
+    switch (rank) {
+        case 0:
+        case 1:
+            return memory::format_tag::a;
+        case 2:
+            return memory::format_tag::ab;
+        case 3:
+            return memory::format_tag::abc;
+        case 4:
+            return memory::format_tag::abcd;
+        case 5:
+            return memory::format_tag::abcde;
+        case 6:
+            return memory::format_tag::abcdef;
+        default:
+            return memory::format_tag::undef;
+    }
+}
+
+DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc) {
+    if (desc.data.format_kind == dnnl_blocked) {
+        return std::unique_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
+    } else {
+        return std::unique_ptr<DnnlMemoryDesc>(new DnnlMemoryDesc(desc));
+    }
+}
+
+size_t MKLDNNExtensionUtils::getMemSizeForOneDnnDesc(mkldnn::memory::desc desc) {
+    const auto offset0 = desc.data.offset0;
+    desc.data.offset0 = 0;
+    size_t size = desc.get_size();
+    if (size == DNNL_RUNTIME_SIZE_VAL)
+        return MemoryDesc::UNDEFINED_SIZE;
+    size += offset0 * sizeOfDataType(desc.data_type());
+    return size;
 }

@@ -299,17 +299,17 @@ void MKLDNNRNN::fillCellDesc() {
         out_data_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
     }
 
-    w_data_d   = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
-    w_state_d  = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_data_d   = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(std::vector<size_t>{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_state_d  = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(std::vector<size_t>{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
 
     // Add 5th input
-    w_bias_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
+    w_bias_d = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(std::vector<size_t>{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
 
     copyWeightsData();
 
     // Expected shapes
     std::vector<size_t> D_shape {N, DC}, S_shape {N, SC}, WShape {SC * G, DC}, RShape {SC * G, SC}, BShape {SC * Gb};
-    std::vector<MKLDNNMemoryDesc> in_candidate, out_candidate;
+    std::vector<DnnlMemoryDesc> in_candidate, out_candidate;
     in_candidate.reserve(6);
 
     in_candidate.emplace_back(D_shape, dataType, memory::format_tag::nc);
@@ -328,8 +328,8 @@ void MKLDNNRNN::fillCellDesc() {
 
     std::vector<const MemoryDesc*> in_candidate_ptrs(in_candidate.size());
     std::vector<const MemoryDesc*> out_candidate_ptrs(out_candidate.size());
-    std::transform(in_candidate.begin(), in_candidate.end(), in_candidate_ptrs.begin(), [](const MKLDNNMemoryDesc& item) { return &item; });
-    std::transform(out_candidate.begin(), out_candidate.end(), out_candidate_ptrs.begin(), [](const MKLDNNMemoryDesc& item) { return &item; });
+    std::transform(in_candidate.begin(), in_candidate.end(), in_candidate_ptrs.begin(), [](const DnnlMemoryDesc& item) { return &item; });
+    std::transform(out_candidate.begin(), out_candidate.end(), out_candidate_ptrs.begin(), [](const DnnlMemoryDesc& item) { return &item; });
 
     createDescriptor(in_candidate_ptrs, out_candidate_ptrs);
 }
@@ -400,14 +400,14 @@ void MKLDNNRNN::fillSeqDesc() {
         out_data_d.emplace_back(std::vector<size_t>{S_4D_shape}, memory::data_type::f32, memory::format_tag::ldnc);
     }
 
-    w_data_d  = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
-    w_state_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_data_d  = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(std::vector<size_t>{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_state_d = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(std::vector<size_t>{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
 
-    w_bias_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
+    w_bias_d = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(std::vector<size_t>{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
 
     copyWeightsData();
 
-    std::vector<MKLDNNMemoryDesc> in_candidate;
+    std::vector<DnnlMemoryDesc> in_candidate;
     in_candidate.reserve(7);
 
     if (nativeOrder)
@@ -426,7 +426,7 @@ void MKLDNNRNN::fillSeqDesc() {
     in_candidate.emplace_back(std::vector<size_t>{D, G * SC, SC}, memory::data_type::f32, memory::format_tag::ntc); // R
     in_candidate.emplace_back(std::vector<size_t>{D, Gb * SC}, memory::data_type::f32, memory::format_tag::nc); // B
 
-    std::vector<MKLDNNMemoryDesc> out_candidate;
+    std::vector<DnnlMemoryDesc> out_candidate;
     out_candidate.reserve(3);
 
     if (nativeOrder) {
@@ -444,8 +444,8 @@ void MKLDNNRNN::fillSeqDesc() {
 
     std::vector<const MemoryDesc*> in_candidate_ptrs(in_candidate.size());
     std::vector<const MemoryDesc*> out_candidate_ptrs(out_candidate.size());
-    std::transform(in_candidate.begin(), in_candidate.end(), in_candidate_ptrs.begin(), [](const MKLDNNMemoryDesc& item) { return &item; });
-    std::transform(out_candidate.begin(), out_candidate.end(), out_candidate_ptrs.begin(), [](const MKLDNNMemoryDesc& item) { return &item; });
+    std::transform(in_candidate.begin(), in_candidate.end(), in_candidate_ptrs.begin(), [](const DnnlMemoryDesc& item) { return &item; });
+    std::transform(out_candidate.begin(), out_candidate.end(), out_candidate_ptrs.begin(), [](const DnnlMemoryDesc& item) { return &item; });
 
     createDescriptor(in_candidate_ptrs, out_candidate_ptrs);
 }
@@ -470,8 +470,8 @@ void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t
     w_state_mem->Create(*w_state_d);
     internalBlobMemory.push_back(w_state_mem);
 
-    const size_t ie_w_vec_size = getParentEdgesAtPort(wIdx)[0]->getShape().getElementsCount();
-    const size_t ie_r_vec_size = getParentEdgesAtPort(rIdx)[0]->getShape().getElementsCount();
+    const size_t ie_w_vec_size = getParentEdgesAtPort(wIdx)[0]->getShape().GetShape().getElementsCount();
+    const size_t ie_r_vec_size = getParentEdgesAtPort(rIdx)[0]->getShape().GetShape().getElementsCount();
 
     auto *wInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(wIdx)[0]->getParent().get());
     auto wConstBlob = wInputNode->getMemoryPtr();
@@ -526,7 +526,7 @@ void MKLDNNRNN::fillBiases(const int *gate_map) {
 
     auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
     auto constBlob = constInputNode->getMemoryPtr();
-    auto const elementsCount = constBlob->GetElementsCount();
+    auto const elementsCount = constBlob->GetShape().getElementsCount();
 
     std::vector<dataType> ie_b_vec(elementsCount);
     cpu_convert(constBlob->GetPtr(),

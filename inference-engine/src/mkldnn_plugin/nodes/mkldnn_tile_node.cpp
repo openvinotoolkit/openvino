@@ -133,13 +133,13 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
         m_inner_dim *= batchToProcess();
     }
 
-    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && srcMemory.GetDesc().hasLayoutType(LayoutType::nCsp8c)) {
+    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && srcMemory.getDesc().hasLayoutType(LayoutType::nCsp8c)) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw8c)
          */
         m_inner_dim *= 8;
         m_outer_dim /= 8;
-    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 && srcMemory.GetDesc().hasLayoutType(LayoutType::nCsp16c)) {
+    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 && srcMemory.getDesc().hasLayoutType(LayoutType::nCsp16c)) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw16c)
          */
@@ -147,7 +147,7 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
         m_outer_dim /= 16;
     }
 
-    m_inner_dim *= srcMemory.GetDesc().getPrecision().size();
+    m_inner_dim *= srcMemory.getDesc().getPrecision().size();
     for (int i = 0; i < m_outer_dim; ++i) {
         for (int t = 0; t < tiles; ++t) {
             cpu_memcpy(dst_ptr, src_ptr, m_inner_dim);

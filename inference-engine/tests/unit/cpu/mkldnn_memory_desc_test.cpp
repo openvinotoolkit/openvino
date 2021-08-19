@@ -7,8 +7,10 @@
 #include <gmock/gmock-matchers.h>
 
 #include "mkldnn_memory.h"
-#include "cpu_memory_desc_utils.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/blocked_desc_creator.h"
+#include "mkldnn_extension_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -16,15 +18,18 @@ using namespace testing;
 
 TEST(MemDescTest, Conversion) {
     // Check if conversion keep desc structure
-    // dnnl::memory::desc -> MKLDNNMemoryDesc -> BlockedMemoryDesc -> MKLDNNMemoryDesc -> dnnl::memory::desc
+    // dnnl::memory::desc -> DnnlBlockedMemoryDesc -> CpuBlockedMemoryDesc -> DnnlBlockedMemoryDesc -> dnnl::memory::desc
     auto converted_correctly = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
         dnnl::memory::desc orig_tdesc {dims, dnnl::memory::data_type::u8, fmt};
-        MKLDNNMemoryDesc plg_tdesc {orig_tdesc};
-        BlockedMemoryDesc blk_tdesc = MemoryDescUtils::convertToBlockedDescriptor(plg_tdesc);
-        MKLDNNMemoryDesc plg_tdesc_after = MemoryDescUtils::convertToMKLDNNMemoryDesc(blk_tdesc);
-        dnnl::memory::desc after_tdesc(plg_tdesc_after);
+        DnnlMemoryDescPtr plg_tdesc = MKLDNNExtensionUtils::makeDescriptor(orig_tdesc);
+        BlockedMemoryDescPtr blk_tdesc = MemoryDescUtils::convertToBlockedMemoryDesc(*plg_tdesc);
+        CpuBlockedMemoryDesc cpu_blk_tdesc = CpuBlockedMemoryDesc(blk_tdesc->getPrecision(), blk_tdesc->getShape(), blk_tdesc->getBlockDims(),
+                                                                  blk_tdesc->getOrder(), blk_tdesc->getOffsetPadding(), blk_tdesc->getOffsetPaddingToData(),
+                                                                  blk_tdesc->getStrides());
+        DnnlMemoryDescPtr plg_tdesc_after = MemoryDescUtils::convertToDnnlMemoryDesc(cpu_blk_tdesc);
+        dnnl::memory::desc after_tdesc = plg_tdesc_after->getDnnlDesc();
 
-        return  orig_tdesc == after_tdesc;
+        return orig_tdesc == after_tdesc;
     };
 
     std::pair<dnnl::memory::format_tag, dnnl::memory::dims> payload[] {
@@ -53,27 +58,30 @@ TEST(MemDescTest, UndefinedStateConversion) {
     };
 
     for (auto tag : vecTags) {
-        MKLDNNMemoryDesc mkldnnDesc(cpuShape, mkldnn::memory::data_type::f32, tag);
+        DnnlBlockedMemoryDesc mkldnnDesc(cpuShape, mkldnn::memory::data_type::f32, tag);
 
         ASSERT_FALSE(mkldnnDesc.isDefined());
 
-        auto blockedDesc = MemoryDescUtils::convertToBlockedDescriptor(mkldnnDesc);
+        auto blockedDesc = MemoryDescUtils::convertToBlockedMemoryDesc(mkldnnDesc);
+        CpuBlockedMemoryDesc cpuBlockedDesc = CpuBlockedMemoryDesc(blockedDesc->getPrecision(), blockedDesc->getShape(), blockedDesc->getBlockDims(),
+                                                                    blockedDesc->getOrder(), blockedDesc->getOffsetPadding(),
+                                                                    blockedDesc->getOffsetPaddingToData(), blockedDesc->getStrides());
 
-        ASSERT_TRUE(mkldnnDesc.isCompatible(blockedDesc));
-        ASSERT_TRUE(blockedDesc.isCompatible(mkldnnDesc));
+        ASSERT_TRUE(mkldnnDesc.isCompatible(cpuBlockedDesc));
+        ASSERT_TRUE(cpuBlockedDesc.isCompatible(mkldnnDesc));
 
-        auto reconstructedDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(blockedDesc);
+        auto reconstructedDesc = MemoryDescUtils::convertToDnnlMemoryDesc(cpuBlockedDesc);
 
-        ASSERT_TRUE(mkldnnDesc.isCompatible(reconstructedDesc));
-        ASSERT_TRUE(blockedDesc.isCompatible(reconstructedDesc));
+        ASSERT_TRUE(mkldnnDesc.isCompatible(*reconstructedDesc));
+        ASSERT_TRUE(cpuBlockedDesc.isCompatible(*reconstructedDesc));
 
-        mkldnn::memory::desc dnnlDesc = mkldnnDesc;
-        mkldnn::memory::desc reconstDnnlDesc = reconstructedDesc;
+        mkldnn::memory::desc dnnlDesc = mkldnnDesc.getDnnlDesc();
+        mkldnn::memory::desc reconstDnnlDesc = reconstructedDesc->getDnnlDesc();
 
         ASSERT_EQ(dnnlDesc, reconstDnnlDesc);
 
         auto definedMemDesc = mkldnnDesc.cloneWithNewDims({16, 10, 15, 3});
-        auto definedReconstructedMkldnnDesc = reconstructedDesc.cloneWithNewDims({16, 10, 15, 3});
+        auto definedReconstructedMkldnnDesc = reconstructedDesc->cloneWithNewDims({16, 10, 15, 3});
 
         ASSERT_TRUE(definedMemDesc->isCompatible(*definedReconstructedMkldnnDesc));
     }
@@ -88,22 +96,23 @@ TEST(MemDescTest, TurnToUninit) {
         auto creator = item.second;
 
         auto blockedDesc = creator->createDesc(Precision::FP32, cpuShape);
-        auto mkldnnDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(blockedDesc);
+        auto mkldnnDesc = MemoryDescUtils::convertToDnnlMemoryDesc(blockedDesc);
 
-        auto uninitMkldnnDesc = MemoryDescUtils::applyUndefinedOffset(mkldnnDesc);
+        auto uninitMkldnnDesc = MemoryDescUtils::cloneWithUndefStridesAndOffset(*mkldnnDesc);
 
-        ASSERT_TRUE(uninitMkldnnDesc->isCompatible(mkldnnDesc));
+        ASSERT_TRUE(uninitMkldnnDesc->isCompatible(*mkldnnDesc));
 
         auto strides = blockedDesc.getStrides();
         std::transform(strides.begin(), strides.begin() + cpuShape.getRank(), strides.begin(), [](size_t x) { return x * 3; });
 
-        auto stridedBlockedDesc = BlockedMemoryDesc(blockedDesc.getPrecision(), blockedDesc.getShape(), blockedDesc.getBlockDims(), blockedDesc.getOrder(),
+        auto stridedBlockedDesc = CpuBlockedMemoryDesc(blockedDesc.getPrecision(), blockedDesc.getShape(), blockedDesc.getBlockDims(),
+                                                       blockedDesc.getOrder(),
                                                     100500, blockedDesc.getOffsetPaddingToData(), strides);
 
         ASSERT_FALSE(blockedDesc.isCompatible(stridedBlockedDesc));
         ASSERT_TRUE(uninitMkldnnDesc->isCompatible(stridedBlockedDesc));
 
-        auto initMkldnnDesc = MemoryDescUtils::resetOffset(uninitMkldnnDesc.get());
+        auto initMkldnnDesc = MemoryDescUtils::cloneWithDefaultStridesAndOffset(uninitMkldnnDesc.get());
 
         ASSERT_TRUE(initMkldnnDesc->isCompatible(blockedDesc));
         ASSERT_FALSE(initMkldnnDesc->isCompatible(stridedBlockedDesc));
@@ -113,12 +122,12 @@ TEST(MemDescTest, TurnToUninit) {
 TEST(MemDescTest, CompareWithTensorDescRecomputedStrides) {
     auto converted_correctly = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
         dnnl::memory::desc orig_tdesc {dims, dnnl::memory::data_type::u8, fmt};
-        MKLDNNMemoryDesc plg_tdesc {orig_tdesc};
-        BlockedMemoryDesc blk_tdesc = MemoryDescUtils::convertToBlockedDescriptor(plg_tdesc);
+        DnnlMemoryDescPtr plg_tdesc = MKLDNNExtensionUtils::makeDescriptor(orig_tdesc);
+        BlockedMemoryDescPtr blk_tdesc = MemoryDescUtils::convertToBlockedMemoryDesc(*plg_tdesc);
 
-        BlockedMemoryDesc recomputed_blk_tdesc(blk_tdesc.getPrecision(), blk_tdesc.getShape(), blk_tdesc.getBlockDims(), blk_tdesc.getOrder());
+        CpuBlockedMemoryDesc recomputed_blk_tdesc(blk_tdesc->getPrecision(), blk_tdesc->getShape(), blk_tdesc->getBlockDims(), blk_tdesc->getOrder());
 
-        return  blk_tdesc.isCompatible(recomputed_blk_tdesc);
+        return  plg_tdesc->isCompatible(recomputed_blk_tdesc);
     };
 
     std::pair<dnnl::memory::format_tag, dnnl::memory::dims> payload[] {
@@ -141,9 +150,9 @@ TEST(MemDescTest, isPlainCheck) {
     dnnl::memory::desc permt_tdesc {dims, type, dnnl::memory::format_tag::acdb};
     dnnl::memory::desc blckd_tdesc {dims, type, dnnl::memory::format_tag::aBcd8b};
 
-    ASSERT_TRUE(MKLDNNMemoryDesc(plain_tdesc).hasLayoutType(LayoutType::ncsp));
-    ASSERT_FALSE(MKLDNNMemoryDesc(permt_tdesc).hasLayoutType(LayoutType::ncsp));
-    ASSERT_FALSE(MKLDNNMemoryDesc(blckd_tdesc).hasLayoutType(LayoutType::ncsp));
+    ASSERT_TRUE(MKLDNNExtensionUtils::makeDescriptor(plain_tdesc)->hasLayoutType(LayoutType::ncsp));
+    ASSERT_FALSE(MKLDNNExtensionUtils::makeDescriptor(permt_tdesc)->hasLayoutType(LayoutType::ncsp));
+    ASSERT_FALSE(MKLDNNExtensionUtils::makeDescriptor(blckd_tdesc)->hasLayoutType(LayoutType::ncsp));
 }
 
 TEST(MemDescTest, isBlockedCCheck) {
@@ -154,19 +163,19 @@ TEST(MemDescTest, isBlockedCCheck) {
     dnnl::memory::desc tailc_tdesc {dims, type, dnnl::memory::format_tag::acdb};
     dnnl::memory::desc blck8_tdesc {dims, type, dnnl::memory::format_tag::aBcd8b};
     dnnl::memory::desc blck8_permCD_tdesc {dims, type, dnnl::memory::format_tag::aBdc16b};
-    const MKLDNNMemoryDesc plain_mdesc(plain_tdesc);
-    const MKLDNNMemoryDesc tailc_mdesc(tailc_tdesc);
-    ASSERT_FALSE(plain_mdesc.hasLayoutType(LayoutType::nCsp8c) || plain_mdesc.hasLayoutType(LayoutType::nCsp16c));
-    ASSERT_FALSE(tailc_mdesc.hasLayoutType(LayoutType::nCsp8c) || tailc_mdesc.hasLayoutType(LayoutType::nCsp16c));
-    ASSERT_TRUE(MKLDNNMemoryDesc(blck8_tdesc).hasLayoutType(LayoutType::nCsp8c));
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_tdesc).hasLayoutType(LayoutType::nCsp16c));
+    auto plain_mdesc = MKLDNNExtensionUtils::makeDescriptor(plain_tdesc);
+    auto tailc_mdesc = MKLDNNExtensionUtils::makeDescriptor(tailc_tdesc);
+    ASSERT_FALSE(plain_mdesc->hasLayoutType(LayoutType::nCsp8c) || plain_mdesc->hasLayoutType(LayoutType::nCsp16c));
+    ASSERT_FALSE(tailc_mdesc->hasLayoutType(LayoutType::nCsp8c) || tailc_mdesc->hasLayoutType(LayoutType::nCsp16c));
+    ASSERT_TRUE(MKLDNNExtensionUtils::makeDescriptor(blck8_tdesc)->hasLayoutType(LayoutType::nCsp8c));
+    ASSERT_FALSE(MKLDNNExtensionUtils::makeDescriptor(blck8_permCD_tdesc)->hasLayoutType(LayoutType::nCsp16c));
 
     const auto crop_dims = dnnl::memory::dims {2, 1, 5, 7};
     const auto crop_off = dnnl::memory::dims {1, 0, 0, 0};
     dnnl::memory::desc blck8_crop_tdesc = blck8_tdesc.submemory_desc(crop_dims, crop_off);
     dnnl::memory::desc blck8_permCD_crop_tdesc = blck8_permCD_tdesc.submemory_desc(crop_dims, crop_off);
-    ASSERT_TRUE(MKLDNNMemoryDesc(blck8_crop_tdesc).hasLayoutType(LayoutType::nCsp8c));
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_crop_tdesc).hasLayoutType(LayoutType::nCsp8c));
+    ASSERT_TRUE(MKLDNNExtensionUtils::makeDescriptor(blck8_crop_tdesc)->hasLayoutType(LayoutType::nCsp8c));
+    ASSERT_FALSE(MKLDNNExtensionUtils::makeDescriptor(blck8_permCD_crop_tdesc)->hasLayoutType(LayoutType::nCsp8c));
 }
 
 TEST(MemDescTest, isTailCCheck) {
@@ -177,18 +186,18 @@ TEST(MemDescTest, isTailCCheck) {
     dnnl::memory::desc tailc_tdesc {dims, type, dnnl::memory::format_tag::acdb};
     dnnl::memory::desc permt_tdesc {dims, type, dnnl::memory::format_tag::bcda};
     dnnl::memory::desc blck8_tdesc {dims, type, dnnl::memory::format_tag::aBcd8b};
-    ASSERT_FALSE(MKLDNNMemoryDesc(plain_tdesc).hasLayoutType(LayoutType::nspc));
-    ASSERT_FALSE(MKLDNNMemoryDesc(permt_tdesc).hasLayoutType(LayoutType::nspc));
-    ASSERT_TRUE(MKLDNNMemoryDesc(tailc_tdesc).hasLayoutType(LayoutType::nspc));
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_tdesc).hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(MKLDNNExtensionUtils::makeDescriptor(plain_tdesc)->hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(MKLDNNExtensionUtils::makeDescriptor(permt_tdesc)->hasLayoutType(LayoutType::nspc));
+    ASSERT_TRUE(MKLDNNExtensionUtils::makeDescriptor(tailc_tdesc)->hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(MKLDNNExtensionUtils::makeDescriptor(blck8_tdesc)->hasLayoutType(LayoutType::nspc));
 
     dnnl::memory::desc blck8_permCD_tdesc {dims, type, dnnl::memory::format_tag::aBdc16b};
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_tdesc).hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(MKLDNNExtensionUtils::makeDescriptor(blck8_permCD_tdesc)->hasLayoutType(LayoutType::nspc));
 
     const auto crop_dims = dnnl::memory::dims {2, 1, 5, 7};
     const auto crop_off = dnnl::memory::dims {1, 0, 0, 0};
     dnnl::memory::desc tailc_crop_tdesc = blck8_tdesc.submemory_desc(crop_dims, crop_off);
-    ASSERT_FALSE(MKLDNNMemoryDesc(tailc_crop_tdesc).hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(MKLDNNExtensionUtils::makeDescriptor(tailc_crop_tdesc)->hasLayoutType(LayoutType::nspc));
 }
 
 TEST(MemDescTest, constructWithPlainFormat) {
@@ -213,39 +222,39 @@ TEST(MemDescTest, ComaptibleWithFormat) {
 
 TEST(MKLDNNMemDescTest, KeepOrder) {
     using mkldnn::memory;
-    std::vector<size_t> dims = {7, 3, 1, 5};
+    Shape dims(VectorDims{7, 3, 1, 5});
     memory::data_type dataType = memory::data_type::u8;
-    MKLDNNMemoryDesc descPalanar(dims, dataType);
+    DnnlBlockedMemoryDesc descPalanar(MKLDNNExtensionUtils::DataTypeToIEPrecision(dataType), dims);
     ASSERT_THAT(descPalanar.getOrder(), ElementsAre(0, 1, 2, 3));
 
-    MKLDNNMemoryDesc descTailC(dims, dataType, memory::format_tag::acdb);
+    DnnlBlockedMemoryDesc descTailC(dims, dataType, memory::format_tag::acdb);
     ASSERT_THAT(descTailC.getOrder(), ElementsAre(0, 2, 3, 1));
 
-    MKLDNNMemoryDesc descBlockedC(dims, dataType, memory::format_tag::aBcd16b);
+    DnnlBlockedMemoryDesc descBlockedC(dims, dataType, memory::format_tag::aBcd16b);
     ASSERT_THAT(descBlockedC.getOrder(), ElementsAre(0, 1, 2, 3, 1));
 
-    MKLDNNMemoryDesc descWeightBlocked(dims, dataType, memory::format_tag::ABcd16b16a2b);
+    DnnlBlockedMemoryDesc descWeightBlocked(dims, dataType, memory::format_tag::ABcd16b16a2b);
     ASSERT_THAT(descWeightBlocked.getOrder(), ElementsAre(0, 1, 2, 3, 1, 0, 1));
 
-    auto dnnDims = MKLDNNExtensionUtils::convertToDnnlDims(dims);
+    auto dnnDims = MKLDNNExtensionUtils::convertToDnnlDims(dims.getStaticDims());
 
     memory::desc mkldnnDescPlanar(dnnDims, dataType, memory::format_tag::abcd);
-    ASSERT_THAT(MKLDNNMemoryDesc(mkldnnDescPlanar).getOrder(), ElementsAre(0, 1, 2, 3));
+    ASSERT_THAT(MKLDNNExtensionUtils::makeDescriptor(mkldnnDescPlanar)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3));
 
     memory::desc mkldnnDescTailC(dnnDims, dataType, memory::format_tag::acdb);
-    ASSERT_THAT(MKLDNNMemoryDesc(mkldnnDescTailC).getOrder(), ElementsAre(0, 2, 3, 1));
+    ASSERT_THAT(MKLDNNExtensionUtils::makeDescriptor(mkldnnDescTailC)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 2, 3, 1));
 
     memory::desc mkldnnDescBlockedC(dnnDims, dataType, memory::format_tag::aBcd16b);
-    ASSERT_THAT(MKLDNNMemoryDesc(mkldnnDescBlockedC).getOrder(), ElementsAre(0, 1, 2, 3, 1));
+    ASSERT_THAT(MKLDNNExtensionUtils::makeDescriptor(mkldnnDescBlockedC)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3, 1));
 
     memory::desc mkldnnDescWeightBlocked(dnnDims, dataType, memory::format_tag::ABcd16b16a2b);
-    ASSERT_THAT(MKLDNNMemoryDesc(mkldnnDescWeightBlocked).getOrder(), ElementsAre(0, 1, 2, 3, 1, 0, 1));
+    ASSERT_THAT(MKLDNNExtensionUtils::makeDescriptor(mkldnnDescWeightBlocked)->as<DnnlBlockedMemoryDesc>()->getOrder(), ElementsAre(0, 1, 2, 3, 1, 0, 1));
 }
 
 TEST(MemDescTest, UndefinedState) {
     ngraph::PartialShape ngraphShape({{16}, {-1, -1}, {20, 30}, {7}});
     MKLDNNPlugin::Shape pluginShape(ngraphShape);
-    MKLDNNMemoryDesc memDesc(pluginShape, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::nChw8c);
+    DnnlBlockedMemoryDesc memDesc(pluginShape, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::nChw8c);
 
     ASSERT_FALSE(memDesc.isDefined());
 
@@ -290,12 +299,12 @@ TEST(MemDescTest, MemSize) {
     auto creator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
     auto blockedDescUndef = creator->createDesc(iePrc, pluginShapeUndef);
 
-    ASSERT_EQ(blockedDescUndef.getCurrentSize(), undefSize);
+    ASSERT_EQ(blockedDescUndef.getCurrentMemSize(), undefSize);
     ASSERT_EQ(blockedDescUndef.getMaxMemSize(), undefSize);
 
-    MKLDNNMemoryDesc memDescUndef(pluginShapeUndef, dnnlDataType, mkldnn::memory::format_tag::nhwc);
+    DnnlBlockedMemoryDesc memDescUndef(pluginShapeUndef, dnnlDataType, mkldnn::memory::format_tag::nhwc);
 
-    ASSERT_EQ(memDescUndef.getCurrentSize(), undefSize);
+    ASSERT_EQ(memDescUndef.getCurrentMemSize(), undefSize);
     ASSERT_EQ(memDescUndef.getMaxMemSize(), undefSize);
 
     ngraph::PartialShape ngraphShapeDefUpperBound({{16}, {7, 14}, {20, 30}, {7}});
@@ -303,15 +312,15 @@ TEST(MemDescTest, MemSize) {
 
     auto blockedDescDefUpper = creator->createDesc(iePrc, pluginShapeDefUpperBound);
 
-    ASSERT_EQ(blockedDescDefUpper.getCurrentSize(), undefSize);
+    ASSERT_EQ(blockedDescDefUpper.getCurrentMemSize(), undefSize);
     auto maxElementsCount = std::accumulate(pluginShapeDefUpperBound.getMaxDims().begin(),
                                             pluginShapeDefUpperBound.getMaxDims().end(),
                                             1, std::multiplies<size_t>());
     ASSERT_EQ(blockedDescDefUpper.getMaxMemSize(), maxElementsCount * iePrc.size());
 
-    MKLDNNMemoryDesc memDescDefUpper(pluginShapeDefUpperBound, dnnlDataType, mkldnn::memory::format_tag::nhwc);
+    DnnlBlockedMemoryDesc memDescDefUpper(pluginShapeDefUpperBound, dnnlDataType, mkldnn::memory::format_tag::nhwc);
 
-    ASSERT_EQ(memDescDefUpper.getCurrentSize(), undefSize);
+    ASSERT_EQ(memDescDefUpper.getCurrentMemSize(), undefSize);
     ASSERT_EQ(memDescDefUpper.getMaxMemSize(), maxElementsCount * MKLDNNExtensionUtils::sizeOfDataType(dnnlDataType));
 
     ngraph::PartialShape ngraphShapeDefined({{16}, {16}, {10}, {7}});
@@ -319,24 +328,24 @@ TEST(MemDescTest, MemSize) {
 
     auto blockedDescDefined = creator->createDesc(iePrc, pluginShapeDefined);
 
-    ASSERT_NE(blockedDescDefined.getCurrentSize(), undefSize);
+    ASSERT_NE(blockedDescDefined.getCurrentMemSize(), undefSize);
     ASSERT_NE(blockedDescDefined.getMaxMemSize(), undefSize);
-    ASSERT_EQ(blockedDescDefined.getCurrentSize(), blockedDescDefined.getMaxMemSize());
+    ASSERT_EQ(blockedDescDefined.getCurrentMemSize(), blockedDescDefined.getMaxMemSize());
 
-    MKLDNNMemoryDesc memDescDefined(pluginShapeDefined, dnnlDataType, mkldnn::memory::format_tag::nhwc);
+    DnnlBlockedMemoryDesc memDescDefined(pluginShapeDefined, dnnlDataType, mkldnn::memory::format_tag::nhwc);
 
-    ASSERT_NE(memDescDefined.getCurrentSize(), undefSize);
+    ASSERT_NE(memDescDefined.getCurrentMemSize(), undefSize);
     ASSERT_NE(memDescDefined.getMaxMemSize(), undefSize);
-    ASSERT_EQ(memDescDefined.getCurrentSize(), memDescDefined.getMaxMemSize());
-    ASSERT_EQ(blockedDescDefined.getCurrentSize(), memDescDefined.getCurrentSize());
+    ASSERT_EQ(memDescDefined.getCurrentMemSize(), memDescDefined.getMaxMemSize());
+    ASSERT_EQ(blockedDescDefined.getCurrentMemSize(), memDescDefined.getCurrentMemSize());
 }
 
 
 TEST(isSameMethodTest, CheckTensorWithSameStrides) {
     auto isSameDataFormat = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
         dnnl::memory::desc oneDnnDesc {dims, dnnl::memory::data_type::u8, fmt};
-        MKLDNNMemoryDesc pluginDesc {oneDnnDesc};
-        return pluginDesc.getFormat() == fmt;
+        auto pluginDesc = MKLDNNExtensionUtils::makeDescriptor(oneDnnDesc);
+        return pluginDesc->isSame(fmt);
     };
 
     std::pair<dnnl::memory::format_tag, dnnl::memory::dims> testCases[] {

@@ -7,13 +7,32 @@
 #include <ie_common.h>
 #include <ie_precision.hpp>
 #include "cpu_shape.h"
-#include "utils/general_utils.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+
+/**
+ * @brief
+ *
+ * MemoryDesc - the descriptor of tensor representation in memory. Describes all required information
+ * for proper allocation and handling tensor in some buffer. The real memory is not present, just description.
+ * This object answers on question how and where data with logical index [x1, x2, .. xN] placed in real buffer.
+ * In the simplest case it describe a mapping between "logical offset" and "real offset".
+ *
+ */
 
 namespace MKLDNNPlugin {
 
+class MemoryDesc;
+
+using MemoryDescPtr = std::unique_ptr<MemoryDesc>;
+using MemoryDescConstPtr = std::unique_ptr<const MemoryDesc>;
+
 enum MemoryDescType {
-    Blocked,
-    Mkldnn
+    Undef = 0,
+    Blocked = 1,
+    Mkldnn = 1 << 1,
+
+    DnnlBlocked = Blocked | Mkldnn
 };
 
 enum class LayoutType : unsigned {
@@ -39,13 +58,13 @@ public:
 
     virtual void setPrecision(InferenceEngine::Precision prc) = 0;
 
-    virtual std::unique_ptr<MemoryDesc> clone() const = 0;
+    virtual MemoryDescPtr clone() const = 0;
 
     // clone descriptor with new dims. Throws an exception if some of the new dims conflicts with the internal shape (i.e. its defined dims ,rank, upper bounds)
-    std::unique_ptr<MemoryDesc> cloneWithNewDims(const std::vector<size_t>& dims) const {
+    MemoryDescPtr cloneWithNewDims(const VectorDims& dims) const {
         if (!getShape().isCompatible(dims)) {
             IE_THROW(ParameterMismatch) << "Can not clone with new dims. Descriptor's shape: " << getShape().toString() <<
-                                        " is incompatible with provided dimensions: " << dims2str(dims) << ".";
+                                           " is incompatible with provided dimensions: " << MemoryDescUtils::dims2str(dims) << ".";
         }
 
         return cloneWithNewDimsImp(dims);
@@ -72,10 +91,10 @@ public:
      * @brief Get minimal required memory size in bytes.
      * @return return minimal required memory size in bytes or UNDEFINED_SIZE in case undefined descriptor
      */
-    size_t getCurrentSize() const {
+    size_t getCurrentMemSize() const {
         size_t retVal = UNDEFINED_SIZE;
         if (isDefined()) {
-            retVal = getMemSizeImp();
+            retVal = getCurrentMemSizeImp();
         }
         return retVal;
     }
@@ -103,20 +122,21 @@ public:
     static constexpr size_t UNDEFINED_SIZE = std::numeric_limits<size_t>::max();
 
 protected:
+    MemoryDesc() : type(MemoryDescType::Undef) {}
     MemoryDesc(Shape shape, MemoryDescType type)
             : shape(std::move(shape)), type(type) {}
 
-    MemoryDesc(const std::vector<size_t>& dims, MemoryDescType type)
+    MemoryDesc(const VectorDims& dims, MemoryDescType type)
             : shape(dims), type(type) {}
 
-    virtual size_t getMemSizeImp() const = 0;
+    virtual size_t getCurrentMemSizeImp() const = 0;
 
     // Get offset to the n'th element. Returns physical index of the element by the logical one considering padding, layout, blocking etc.
     virtual size_t getElementOffset(size_t elemNumber) const = 0;
 
     virtual bool isDefinedImp() const = 0;
 
-    virtual std::unique_ptr<MemoryDesc> cloneWithNewDimsImp(const std::vector<size_t>& dims) const = 0;
+    virtual MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const = 0;
 
     MemoryDescType type;
     Shape shape;
@@ -131,8 +151,5 @@ protected:
     // WA: optimizedNspc2Ncsp used getElementOffset inside implementation
     friend class MKLDNNSplitNode;
 };
-
-using MemoryDescPtr = std::unique_ptr<MemoryDesc>;
-using MemoryDescConstPtr = std::unique_ptr<const MemoryDesc>;
 
 }  // namespace MKLDNNPlugin

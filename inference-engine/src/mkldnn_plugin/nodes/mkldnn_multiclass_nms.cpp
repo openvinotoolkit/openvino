@@ -146,8 +146,8 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
 
     int* selected_num = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDNUM)[0]->getMemoryPtr()->GetPtr());
 
-    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
-    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
+    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
 
     if ((nms_eta >= 0) && (nms_eta < 1)) {
         nmsWithEta(boxes, scores, boxesStrides, scoresStrides);

@@ -55,7 +55,8 @@
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 #include "nodes/common/cpu_convert.h"
-#include "cpu_memory_desc_utils.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -474,7 +475,7 @@ bool MKLDNNNode::canBeInPlace() const {
     return true;
 }
 
-void MKLDNNNode::resolveNotAllocatedEdges() {
+void MKLDNNNode::resolveInPlaceEdges() {
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (!selected_pd)
         IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
@@ -502,6 +503,48 @@ void MKLDNNNode::resolveNotAllocatedEdges() {
 
         childEdge->changeStatus(MKLDNNEdge::Status::Allocated);
     }
+}
+
+std::unique_ptr<MemoryDesc> MKLDNNNode::getBaseMemDescAtInputPort(size_t portNum) const {
+    if (auto primDesc = getSelectedPrimitiveDescriptor()) {
+        const auto& inConfs = primDesc->getConfig().inConfs;
+        if (inConfs.size() < portNum) {
+            IE_THROW() << "Can't get input memory desc at port: " << portNum << ", incorrect port number";
+        }
+        return inConfs[portNum].desc->clone();
+    }
+    IE_THROW() << "Can't get input memory desc, primitive descriptor is not selected";
+}
+
+std::unique_ptr<MemoryDesc> MKLDNNNode::getBaseMemDescAtOutputPort(size_t portNum) const {
+    if (auto primDesc = getSelectedPrimitiveDescriptor()) {
+        const auto& outConfs = primDesc->getConfig().outConfs;
+        if (outConfs.size() < portNum) {
+            IE_THROW() << "Can't get output memory desc at port: " << portNum << ", incorrect port number";
+        }
+        return outConfs[portNum].desc->clone();
+    }
+    IE_THROW() << "Can't get output memory desc, primitive descriptor is not selected";
+}
+
+template<>
+DnnlMemoryDescPtr MKLDNNNode::getInputMemDescAtPort<DnnlMemoryDesc, 0, 0>(size_t portNum) const {
+    return MemoryDescUtils::convertToDnnlMemoryDesc(*getBaseMemDescAtInputPort(portNum));
+}
+
+template<>
+BlockedMemoryDescPtr MKLDNNNode::getInputMemDescAtPort<BlockedMemoryDesc, 0, 0>(size_t portNum) const {
+    return MemoryDescUtils::convertToBlockedMemoryDesc(*getBaseMemDescAtInputPort(portNum));
+}
+
+template<>
+DnnlMemoryDescPtr MKLDNNNode::getOutputMemDescAtPort<DnnlMemoryDesc, 0, 0>(size_t portNum) const {
+    return MemoryDescUtils::convertToDnnlMemoryDesc(*getBaseMemDescAtInputPort(portNum));
+}
+
+template<>
+BlockedMemoryDescPtr MKLDNNNode::getOutputMemDescAtPort<BlockedMemoryDesc, 0, 0>(size_t portNum) const {
+    return MemoryDescUtils::convertToBlockedMemoryDesc(*getBaseMemDescAtInputPort(portNum));
 }
 
 std::string MKLDNNNode::getPrimitiveDescriptorType() {
@@ -640,7 +683,8 @@ void MKLDNNNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNNode::executeDynamic(mkldnn::stream strm) {
-    resetOutputShape();
+    const auto newShapes = shapeInfer();
+    redefineOutputMemory(newShapes);
     executeDynamicImpl(strm);
 }
 
@@ -653,17 +697,8 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<std::vector<size_t>> &ne
         IE_THROW() << "Number shapes mismatch with real outputs number for node with name: " << getName();
     }
     for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-        getChildEdgesAtPort(i)[0]->getMemoryPtr()->redefineDesc(getOutputMemDescAtPort(i)->cloneWithNewDims(newShapes[i]));
+        getChildEdgesAtPort(i)[0]->getMemoryPtr()->redefineDesc(getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newShapes[i]));
     }
-}
-
-void MKLDNNNode::resetOutputShape() {
-    const auto newShapes = shapeInfer();
-    redefineOutputMemory(newShapes);
-}
-
-void MKLDNNNode::resetOutputShape(const std::vector<std::vector<size_t>> &newShapes) {
-    redefineOutputMemory(newShapes);
 }
 
 void MKLDNNNode::initSupportedPrimitiveDescriptors() {
@@ -680,7 +715,12 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
                 PortConfig portConfig;
                 portConfig.inPlace = -1;
                 portConfig.constant = false;
-                portConfig.desc = MemoryDescUtils::applyUndefinedOffset(*getSrcMemDesc(itpd, i));
+                auto desc = getSrcMemDesc(itpd, i);
+                if (desc->getType() & MemoryDescType::Blocked) {
+                    portConfig.desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(*desc);
+                } else {
+                    portConfig.desc = std::move(desc);
+                }
                 config.inConfs.push_back(portConfig);
             }
 
@@ -688,7 +728,12 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
                 PortConfig portConfig;
                 portConfig.inPlace = canBeInPlace() ? 0 : -1;
                 portConfig.constant = false;
-                portConfig.desc = MemoryDescUtils::applyUndefinedOffset(*getDstMemDesc(itpd, i));
+                auto desc = getDstMemDesc(itpd, i);
+                if (desc->getType() & MemoryDescType::Blocked) {
+                    portConfig.desc = MemoryDescUtils::cloneWithUndefStridesAndOffset(*desc);
+                } else {
+                    portConfig.desc = std::move(desc);
+                }
                 config.outConfs.push_back(portConfig);
             }
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -703,10 +748,9 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
     // Compare by partial layout descriptor (without particular strides values)
     auto areCompatible = [](const MemoryDesc& desc, mkldnn::memory::format_tag fmt) -> bool {
-        MKLDNNMemoryDesc fmt_tdesc = MKLDNNMemoryDesc{desc.getShape().getStaticDims(),
-                                                      MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
-                                                      fmt};
-
+        auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(),
+                                                 MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
+                                                 fmt);
         return desc.isCompatible(fmt_tdesc);
     };
 
@@ -803,12 +847,12 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
 
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
             if (!selectedConfig.inConfs[i].desc->isCompatible(*config.inConfs[i].desc))
-                IE_THROW() << "Incorrect descriptor for node: " << getName();
+                IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " intput port";
         }
 
         for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
             if (!selectedConfig.outConfs[i].desc->isCompatible(*config.outConfs[i].desc))
-                IE_THROW() << "Incorrect descriptor for node: " << getName();
+                IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " output port";
         }
         rightConfig = config;
     }
@@ -829,7 +873,7 @@ void MKLDNNNode::prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_de
             IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";
     }
-    std::vector<MKLDNNMemoryDesc> intDescs;
+    std::vector<DnnlMemoryDesc> intDescs;
     for (auto &it : internalBlobDesc)
         intDescs.push_back(it(itpd, 0));
 
@@ -839,7 +883,7 @@ void MKLDNNNode::prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_de
 
         auto create = [&] () {
             // TODO [DS]: internal blobs should be removed or rewritten using Memory object
-            auto newDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(internalBlob->getTensorDesc());
+            auto newDesc = *MemoryDescUtils::convertToDnnlBlockedMemoryDesc(internalBlob->getTensorDesc());
 
             MKLDNNMemory memory{ engine };
             memory.Create(newDesc, internalBlob->buffer());
@@ -1005,7 +1049,7 @@ std::unique_ptr<MemoryDesc> MKLDNNNode::getDefinedInputDesc(const NodeConfig &co
         }
     }
 
-    return MemoryDescUtils::resetOffset(config.inConfs[idx].desc.get());
+    return MemoryDescUtils::cloneWithDefaultStridesAndOffset(config.inConfs[idx].desc.get());
 }
 
 std::unique_ptr<MemoryDesc> MKLDNNNode::getDefinedOutputDesc(const NodeConfig &config, size_t idx) const {
@@ -1033,7 +1077,7 @@ std::unique_ptr<MemoryDesc> MKLDNNNode::getDefinedOutputDesc(const NodeConfig &c
         }
     }
 
-    return MemoryDescUtils::resetOffset(config.outConfs[idx].desc.get());
+    return MemoryDescUtils::cloneWithDefaultStridesAndOffset(config.outConfs[idx].desc.get());
 }
 
 void MKLDNNNode::initOptimalPrimitiveDescriptor() {
@@ -1066,12 +1110,12 @@ bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
     return true;
 }
 
-std::unique_ptr<MKLDNNMemoryDesc> MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(primitive_desc_it.src_desc(idx));
+std::unique_ptr<MemoryDesc> MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
 }
 
-std::unique_ptr<MKLDNNMemoryDesc> MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(primitive_desc_it.dst_desc(idx));
+std::unique_ptr<MemoryDesc> MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
 }
 
 int MKLDNNNode::batchToProcess() {
@@ -1326,7 +1370,7 @@ void MKLDNNNode::fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<f
     const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
         auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(constInput.get());
         auto constBlob = constInputNode->getMemoryPtr();
-        auto const elementsCount = constBlob->GetElementsCount();
+        const auto elementsCount = constBlob->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
         cpu_convert(constBlob->GetPtr(),
                     &buffer[0],

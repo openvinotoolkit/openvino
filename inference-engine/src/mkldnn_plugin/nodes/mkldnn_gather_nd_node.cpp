@@ -101,11 +101,11 @@ void MKLDNNGatherNDNode::gatherElementwise() {
     const auto *indices = reinterpret_cast<const int *>(getParentEdgeAt(_indicesIndex)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<dataType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    auto strides = getParentEdgeAt(_dataIndex)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    auto strides = getParentEdgeAt(_dataIndex)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
     const size_t* srcMultipliers = strides.data() + _batchDims;
 
     const size_t cycles = getChildEdgeAt(0)->getShape().getElementsCount() *
-                          getChildEdgeAt(0)->getMemory().GetDesc().getPrecision().size() / (sizeof(dataType) * _batchNum);
+                          getChildEdgeAt(0)->getMemory().getDesc().getPrecision().size() / (sizeof(dataType) * _batchNum);
     const size_t CS = cycles * _sliceRank;
     const size_t CB = cycles * _blockSize;
     const size_t workAmount = _batchNum * cycles;
@@ -150,7 +150,7 @@ void MKLDNNGatherNDNode::gatherBlocks() {
 
     std::vector<size_t> srcMultipliers(_sliceRank);
     for (size_t i = 0; i < _sliceRank ; i++)
-        srcMultipliers[i] = _dataTypeSize * getParentEdgeAt(_dataIndex)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides()[i + _batchDims];
+        srcMultipliers[i] = _dataTypeSize * getParentEdgeAt(_dataIndex)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides()[i + _batchDims];
 
     const size_t batchStep = _batchStep * _dataTypeSize;
     const size_t dataStep = _blockSize * _dataTypeSize;

@@ -159,8 +159,8 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
 
     size_t nDims = srcDims.size();
     const size_t nSpatialDims = nDims - 2;
-    const bool isBlocked = getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c) ||
-                           getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c);
+    const bool isBlocked = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c) ||
+                           getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c);
     const size_t reshapedRank = nDims + nSpatialDims + static_cast<int>(isBlocked) + static_cast<int>(isBlocked && mode == Mode::DEPTH_FIRST);
     const size_t lastIdx = reshapedRank - 1;
     size_t firstSpatialOrder = 2;
@@ -191,8 +191,8 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
     };
 
     if (isBlocked) {
-        SizeVector srcBlockedDims = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>().getBlockDims();
-        SizeVector dstBlockedDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>().getBlockDims();
+        SizeVector srcBlockedDims = getParentEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getBlockDims();
+        SizeVector dstBlockedDims = getChildEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getBlockDims();
 
         size_t orderShiftForBlocks, orderShiftForDims;
         if (mode == Mode::BLOCKS_FIRST) {
@@ -219,7 +219,7 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
         }
 
         reshapeAndSetPermOrder(orderShiftForBlocks, orderShiftForDims, firstSpatialOrder, dstBlockedDims);
-    } else if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc)) {
+    } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
         srcDims.push_back(srcDims[1]);
         dstDims.push_back(dstDims[1]);
         srcDims.erase(srcDims.begin() + 1);

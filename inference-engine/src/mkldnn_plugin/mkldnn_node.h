@@ -29,7 +29,7 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
 #include "cpu_shape.h"
-#include "cpu_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
@@ -455,27 +455,27 @@ public:
         return &supportedPrimitiveDescriptors[selectedPrimitiveDescriptorIndex];
     }
 
-    const MemoryDesc* getOutputMemDescAtPort(size_t portNum) const {
-        if (auto primDesc = getSelectedPrimitiveDescriptor()) {
-            const auto& outConfs = primDesc->getConfig().outConfs;
-            if (outConfs.size() < portNum) {
-                return nullptr;
-            }
-            return outConfs[portNum].desc.get();
-        }
-        return nullptr;
-    }
+    /**
+     * @brief Returns input selected primitive descriptor on the specified port
+     * must be used after selectOptimalPrimitiveDescriptor stage
+     * @param portNum port number
+     * @return selected primitive descriptor with type T
+     */
+    template <typename T,
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+    std::unique_ptr<T> getInputMemDescAtPort(size_t portNum) const;
 
-    const MemoryDesc* getInputMemDescAtPort(size_t portNum) const {
-        if (auto primDesc = getSelectedPrimitiveDescriptor()) {
-            const auto& inConfs = primDesc->getConfig().inConfs;
-            if (inConfs.size() < portNum) {
-                return nullptr;
-            }
-            return inConfs[portNum].desc.get();
-        }
-        return nullptr;
-    }
+    /**
+     * @brief Returns output selected primitive descriptor on the specified port
+     * must be used after selectOptimalPrimitiveDescriptor stage
+     * @param portNum port number
+     * @return selected primitive descriptor with type T
+     */
+    template <typename T,
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+    std::unique_ptr<T> getOutputMemDescAtPort(size_t portNum) const;
 
     void selectPrimitiveDescriptorByIndex(int index) {
         if (index < 0 || index >= supportedPrimitiveDescriptors.size())
@@ -490,7 +490,7 @@ public:
 
     virtual void setDynamicBatchLim(int lim);
 
-    void resolveNotAllocatedEdges();
+    void resolveInPlaceEdges();
 
     virtual void execute(mkldnn::stream strm);
     void executeDynamic(mkldnn::stream strm);
@@ -518,8 +518,7 @@ public:
         return created();
     }
 
-    virtual void resetOutputShape();
-    virtual void resetOutputShape(const std::vector<std::vector<size_t>> &newShapes);
+    void redefineOutputMemory(const std::vector<std::vector<size_t>> &newShapes);
 
     /**
      * @brief Performs Node initialization based on graph context.
@@ -696,7 +695,7 @@ public:
 
 protected:
     virtual std::vector<std::vector<size_t>> shapeInfer() const {
-        IE_THROW() << "MKLDNNNode::shapeInfer is not defined for node with type: " << getTypeStr();
+        IE_THROW(NotImplemented) << "MKLDNNNode::shapeInfer is not defined for node with type: " << getTypeStr();
     }
     virtual void executeDynamicImpl(mkldnn::stream strm);
 
@@ -713,8 +712,8 @@ protected:
 
     virtual std::unique_ptr<MemoryDesc> getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
     virtual std::unique_ptr<MemoryDesc> getDefinedOutputDesc(const NodeConfig &config, size_t idx) const;
-    virtual std::unique_ptr<MKLDNNMemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
-    virtual std::unique_ptr<MKLDNNMemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual std::unique_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual std::unique_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
 
     /**
      * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
@@ -724,7 +723,7 @@ protected:
     virtual void appendPostOps(mkldnn::post_ops& ops);
     virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
 
-    typedef std::function<MKLDNNMemoryDesc (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
+    typedef std::function<DnnlMemoryDesc (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
             GetPrimitiveMemoryFormatFunc;
     std::vector<GetPrimitiveMemoryFormatFunc> internalBlobDesc;
 
@@ -834,7 +833,8 @@ protected:
     }
 
 private:
-    void redefineOutputMemory(const std::vector<std::vector<size_t>> &newShapes);
+    std::unique_ptr<MemoryDesc> getBaseMemDescAtInputPort(size_t portNum) const;
+    std::unique_ptr<MemoryDesc> getBaseMemDescAtOutputPort(size_t portNum) const;
 
     bool isDynamic = false;
 

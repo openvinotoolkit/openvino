@@ -22,7 +22,7 @@ public:
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
-    std::unique_ptr<MKLDNNMemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::unique_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {

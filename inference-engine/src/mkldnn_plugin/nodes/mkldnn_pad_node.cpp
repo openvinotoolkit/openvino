@@ -131,16 +131,16 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize(1);
 
     auto pushSupportedPrimitiveDescriptor = [&](memory::format_tag memoryFormat) {
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticDims(), dataType,
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticDims(), dataType,
                                                                              memoryFormat);
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(PADS_BEGIN_ID)->getShape().getStaticDims(),
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(PADS_BEGIN_ID)->getShape().getStaticDims(),
                                                                              memory::data_type::s32, memory::format_tag::x);
-        config.inConfs[2].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(PADS_END_ID)->getShape().getStaticDims(),
+        config.inConfs[2].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(PADS_END_ID)->getShape().getStaticDims(),
                                                                              memory::data_type::s32, memory::format_tag::x);
         if (isPadValueSpecified)
-            config.inConfs[3].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(PAD_VALUE_ID)->getShape().getStaticDims(),
+            config.inConfs[3].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(PAD_VALUE_ID)->getShape().getStaticDims(),
                                                                                  memory::data_type::f32, memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(DATA_ID)->getShape().getStaticDims(), dataType, memoryFormat);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getChildEdgeAt(DATA_ID)->getShape().getStaticDims(), dataType, memoryFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
     };
 
@@ -149,7 +149,7 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
     else if (numOfDims == 5)
         pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::ndhwc);
 
-    pushSupportedPrimitiveDescriptor(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(0)->getShape().getRank()));
+    pushSupportedPrimitiveDescriptor(MKLDNNExtensionUtils::GetPlainFormatByRank(getParentEdgeAt(0)->getShape().getRank()));
 
     auto canUseBlocked = [=](const size_t blockSize) {
         return (padMode == CONSTANT && padsBegin[1] % blockSize == 0 && padsEnd[1] % blockSize == 0) ||
@@ -181,9 +181,9 @@ void MKLDNNPadNode::createPrimitive() {
 
     params.sizeData = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
 
-    const auto inBlkDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    const auto inBlkDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
     params.srcDims = inBlkDesc.getBlockDims();
-    params.dstDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>().getBlockDims();
+    params.dstDims = getChildEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getBlockDims();
 
     size_t nDims = params.srcDims.size();
     params.srcStrides.resize(nDims, 1);
@@ -193,8 +193,8 @@ void MKLDNNPadNode::createPrimitive() {
         params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
     }
 
-    if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c) ||
-            getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c)) {
+    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c) ||
+            getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c)) {
         padsBegin[1] /= params.srcDims[params.srcDims.size() - 1];
         padsEnd[1] /= params.srcDims[params.srcDims.size() - 1];
         padsBegin.push_back(0);

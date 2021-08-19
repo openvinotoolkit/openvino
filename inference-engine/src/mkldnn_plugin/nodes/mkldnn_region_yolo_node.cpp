@@ -388,8 +388,8 @@ void MKLDNNRegionYoloNode::execute(mkldnn::stream strm) {
         output_size = B * IH * IW * mask_size * (classes + coords + 1);
     }
 
-    if (output_size != getChildEdgeAt(0)->getMemoryPtr()->GetElementsCount())
-        IE_THROW() << "Incorrect layer configuration or output dimensions. " << output_size << " != " << getChildEdgeAt(0)->getMemoryPtr()->GetElementsCount();
+    if (output_size != getChildEdgeAt(0)->getMemoryPtr()->GetShape().getElementsCount())
+        IE_THROW() << "Incorrect layer configuration or output dimensions. " << output_size << " != " << getChildEdgeAt(0)->getMemoryPtr()->GetShape().getElementsCount();
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
     size_t total_size = 2 * IH * IW;
@@ -397,8 +397,8 @@ void MKLDNNRegionYoloNode::execute(mkldnn::stream strm) {
     const auto *src_data = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dst_data = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    cpu_convert(src_data, dst_data, getParentEdgeAt(0)->getMemory().GetDesc().getPrecision(),
-                getChildEdgeAt(0)->getMemory().GetDesc().getPrecision(), output_size);
+    cpu_convert(src_data, dst_data, getParentEdgeAt(0)->getMemory().getDesc().getPrecision(),
+                getChildEdgeAt(0)->getMemory().getDesc().getPrecision(), output_size);
 
     for (int b = 0; b < B; b++) {
         for (int n = 0; n < num_; n++) {

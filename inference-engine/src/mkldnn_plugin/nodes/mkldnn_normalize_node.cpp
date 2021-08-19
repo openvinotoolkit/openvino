@@ -21,6 +21,7 @@
 #include <mkldnn_selective_build.h>
 
 #include <ngraph/opsets/opset1.hpp>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -766,10 +767,10 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
 
     auto pushDesc = [&](memory::format_tag format) {
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA)->getShape().getStaticDims(), inputDataType, format);
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXES)->getShape().getStaticDims(), memory::data_type::s32,
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getParentEdgeAt(DATA)->getShape(), inputDataType, format);
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getParentEdgeAt(AXES)->getShape(), memory::data_type::s32,
                                                                memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA)->getShape().getStaticDims(), outputDataType, format);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getParentEdgeAt(DATA)->getShape(), outputDataType, format);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     };
 
@@ -786,7 +787,7 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     }
     if (canBeInplace)
         config.inConfs[0].inPlace = 0;
-    pushDesc(MKLDNNMemory::GetPlainFormatByRank(getChildEdgeAt(DATA)->getShape().getRank()));
+    pushDesc(MKLDNNExtensionUtils::GetPlainFormatByRank(getChildEdgeAt(DATA)->getShape().getRank()));
 }
 
 bool MKLDNNNormalizeL2Node::canFuse(const MKLDNNNodePtr& node) const {
@@ -833,10 +834,10 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
         jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
 
         jcp.is_nchw = jcp.is_nhwc = jcp.is_blk = false;
-        if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp)) {
+        if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
             jcp.is_nchw = true;
-        } else if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c) ||
-                  getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c)) {
+        } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c) ||
+                  getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c)) {
             jcp.is_blk = true;
         } else {
             jcp.is_nhwc = true;

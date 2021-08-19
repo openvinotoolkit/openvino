@@ -247,8 +247,8 @@ void MKLDNNDFTNode::execute(mkldnn::stream strm) {
     const auto *input = reinterpret_cast<const float*>(inputDataEdge->getMemoryPtr()->GetPtr());
     auto *output = reinterpret_cast<float*>(outputDataEdge->getMemoryPtr()->GetPtr());
 
-    auto inputStrides = inputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
-    auto outputStrides = outputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    auto inputStrides = inputDataEdge->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
+    auto outputStrides = outputDataEdge->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
     if (inputShape != outputShape) {
         copyDataToOutputWithSignalSize(input, inputShape, inputStrides, output, outputShape, outputStrides);
     } else {

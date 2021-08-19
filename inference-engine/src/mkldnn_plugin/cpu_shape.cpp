@@ -4,6 +4,7 @@
 
 #include "cpu_shape.h"
 #include "utils/general_utils.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 
 using namespace MKLDNNPlugin;
 
@@ -37,7 +38,7 @@ std::string Shape::toString() const  {
     size_t i = 0;
     do {
         if (dims[i] == Shape::UNDEFINED_DIM) {
-            output << dim2str(minDims[i]) << " - " << dim2str(maxDims[i]);
+            output << MemoryDescUtils::dim2str(minDims[i]) << " - " << MemoryDescUtils::dim2str(maxDims[i]);
         } else {
             output << dims[i];
         }

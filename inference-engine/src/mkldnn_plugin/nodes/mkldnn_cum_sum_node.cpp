@@ -133,7 +133,7 @@ template <typename dataType>
 void MKLDNNCumSumNode::exec() {
     const auto *input = reinterpret_cast<const dataType *>(getParentEdgeAt(CUM_SUM_DATA)->getMemoryPtr()->GetPtr());
     auto *output = reinterpret_cast<dataType *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
-    const std::vector<size_t> strides = getParentEdgeAt(CUM_SUM_DATA)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    const std::vector<size_t> strides = getParentEdgeAt(CUM_SUM_DATA)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
 
     if (reverse) {
         if (exclusive) {
@@ -248,8 +248,8 @@ inline size_t MKLDNNCumSumNode::getStartOffset(const std::vector<size_t> &forSta
 }
 
 size_t MKLDNNCumSumNode::getAxis(const MKLDNNMemory& _axis, const MKLDNNMemory& _data) const {
-    const auto& axisPrecision = _axis.GetDesc().getPrecision();
-    const int64_t dataShapeSize = static_cast<int64_t>(_data.GetDesc().getShape().getRank());
+    const auto& axisPrecision = _axis.getDesc().getPrecision();
+    const int64_t dataShapeSize = static_cast<int64_t>(_data.getDesc().getShape().getRank());
     int64_t axisValueFromBlob;
     switch (axisPrecision) {
         case Precision::I32 : {

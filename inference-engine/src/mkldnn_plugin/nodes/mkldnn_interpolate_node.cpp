@@ -1916,23 +1916,23 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     auto axesType = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::I32);
 
     auto pushDesc = [&](memory::format_tag dataFormat, impl_desc_type implDetail) {
-        config.inConfs[DATA_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticDims(),
+        config.inConfs[DATA_ID].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticDims(),
                                                                                    inputDataType, dataFormat);
-        config.inConfs[TARGET_SHAPE_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(TARGET_SHAPE_ID)->getShape().getStaticDims(),
+        config.inConfs[TARGET_SHAPE_ID].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(TARGET_SHAPE_ID)->getShape().getStaticDims(),
                                                                              targetShapeType, memory::format_tag::x);
-        config.inConfs[SCALES_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(SCALES_ID)->getShape().getStaticDims(), scalesType,
+        config.inConfs[SCALES_ID].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(SCALES_ID)->getShape().getStaticDims(), scalesType,
                                                                        memory::format_tag::x);
         if (isAxesSpecified)
-            config.inConfs[AXES_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXES_ID)->getShape().getStaticDims(), axesType,
+            config.inConfs[AXES_ID].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(AXES_ID)->getShape().getStaticDims(), axesType,
                                                                          memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType, dataFormat);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType, dataFormat);
         supportedPrimitiveDescriptors.push_back({config, implDetail});
     };
 
     auto channels = getParentEdgeAt(DATA_ID)->getShape().getRank() > 1 ? getParentEdgeAt(DATA_ID)->getShape().getStaticDims()[1] : 1;
 
     if (!mayiuse(cpu::x64::sse41) || mode == InterpolateMode::linear) {
-        pushDesc(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(DATA_ID)->getShape().getRank()), ref);
+        pushDesc(MKLDNNExtensionUtils::GetPlainFormatByRank(getParentEdgeAt(DATA_ID)->getShape().getRank()), ref);
     } else {
         // blk and by_channel JIT kernel on sse41 or above machine
         if (getParentEdgeAt(DATA_ID)->getShape().getRank() == 4) {
@@ -1967,7 +1967,7 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
 
         // planar for 1.ref on machine without sse41(if no sse41, canFuse() is false). 2.JIT kernel for f32 && avx2(gather).(with fuse)
         if (mayiuse(cpu::x64::avx2) && inputPrec == Precision::FP32) {
-            pushDesc(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(DATA_ID)->getShape().getRank()), jit_avx2);
+            pushDesc(MKLDNNExtensionUtils::GetPlainFormatByRank(getParentEdgeAt(DATA_ID)->getShape().getRank()), jit_avx2);
         }
     }
 }
@@ -2011,10 +2011,10 @@ void MKLDNNInterpolateNode::createPrimitive() {
     jcp.ID = srcDimPad5d[2];
     jcp.spatial_dim_size = spatialDimSize;
 
-    if (getChildEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp)) {
+    if (getChildEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
         jcp.layout = InterpolateLayoutType::planar;
-    } else if (getChildEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c) ||
-               getChildEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c)) {
+    } else if (getChildEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c) ||
+               getChildEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c)) {
         jcp.layout = InterpolateLayoutType::block;
     } else {
         jcp.layout = InterpolateLayoutType::by_channel;

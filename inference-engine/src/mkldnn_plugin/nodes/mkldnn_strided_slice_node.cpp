@@ -243,12 +243,12 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
 
     for (auto itr = range.first; itr != range.second; ++itr) {
         config.inConfs[0].desc = itr->second->createUniqueDesc(dataPrecision, getParentEdgeAt(DATA_ID)->getShape().getStaticDims());
-        config.inConfs[BEGIN_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(BEGIN_ID)->getShape().getStaticDims(), beginDataType,
+        config.inConfs[BEGIN_ID].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(BEGIN_ID)->getShape().getStaticDims(), beginDataType,
                                                                       mkldnn::memory::format_tag::x);
-        config.inConfs[END_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(END_ID)->getShape().getStaticDims(), endDataType,
+        config.inConfs[END_ID].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(END_ID)->getShape().getStaticDims(), endDataType,
                                                                     mkldnn::memory::format_tag::x);
         if (hasStrides)
-            config.inConfs[STRIDE_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(STRIDE_ID)->getShape().getStaticDims(),
+            config.inConfs[STRIDE_ID].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(STRIDE_ID)->getShape().getStaticDims(),
                                                               MKLDNNExtensionUtils::IEPrecisionToDataType(stridePrecision),
                                                               mkldnn::memory::format_tag::x);
 
@@ -267,8 +267,8 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has unidentified preferable primitive descriptor.";
 
-    auto srcBlockingDesc = getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    auto dstBlockingDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcBlockingDesc = getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
+    auto dstBlockingDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
     auto srcOrder = srcBlockingDesc.getOrder();
     params.srcDims = srcBlockingDesc.getBlockDims();
     params.dstDims = dstBlockingDesc.getBlockDims();
@@ -278,7 +278,7 @@ void MKLDNNStridedSliceNode::createPrimitive() {
 
     if (params.parametersAreConstant) {
         size_t realNDims = params.dstDims.size();
-        if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp))
+        if (!getParentEdgeAt(DATA_ID)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp))
             orderParametersByLayouts();
 
         SizeVector newSrcDims, newDstDims;
@@ -289,10 +289,10 @@ void MKLDNNStridedSliceNode::createPrimitive() {
 }
 
 void MKLDNNStridedSliceNode::orderParametersByLayouts() {
-    const bool isPerChannelLayout = getParentEdgeAt(DATA_ID)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc);
-    const bool isBlockedLayout = getParentEdgeAt(DATA_ID)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c) ||
-                                 getParentEdgeAt(DATA_ID)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c);
-    auto srcOrder = getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>().getOrder();
+    const bool isPerChannelLayout = getParentEdgeAt(DATA_ID)->getMemory().getDesc().hasLayoutType(LayoutType::nspc);
+    const bool isBlockedLayout = getParentEdgeAt(DATA_ID)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c) ||
+                                 getParentEdgeAt(DATA_ID)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c);
+    auto srcOrder = getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getOrder();
 
     if (isBlockedLayout) {
         const size_t blk = params.srcDims.back();
@@ -620,7 +620,7 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
         if (srcDims.size() > 3 && params.equalDims && ellipsisMaskCounter != 0)
             addHiddenDims(srcDims.size());
 
-        if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp))
+        if (!getParentEdgeAt(DATA_ID)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp))
             orderParametersByLayouts();
 
         SizeVector newSrcDims, newDstDims;

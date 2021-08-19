@@ -86,14 +86,14 @@ public:
         return outputNodesMap;
     }
 
-    MKLDNNNodePtr GetInputNodeByName(const std::string &name) {
+    MKLDNNNodePtr getInputNodeByName(const std::string &name) {
         auto input = inputNodesMap.find(name);
         if (input == inputNodesMap.end())
             IE_THROW() << "CPU execution graph doesn't contain input node with name: " << name;
         return input->second;
     }
 
-    MKLDNNNodePtr GetOutputNodeByName(const std::string &name) {
+    MKLDNNNodePtr getOutputNodeByName(const std::string &name) {
         auto output = outputNodesMap.find(name);
         if (output == outputNodesMap.end())
             IE_THROW() << "CPU execution graph doesn't contain output node with name: " << name;
@@ -239,6 +239,7 @@ protected:
     friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
+    // TODO: change std::map to std::unordered_map
     std::map<std::string, MKLDNNNodePtr> inputNodesMap;
     std::map<std::string, MKLDNNNodePtr> outputNodesMap;
     // these node pointers (from graphNodes) are to avoid regular checking for

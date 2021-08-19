@@ -50,6 +50,8 @@ public:
 
     static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
 
+    static void reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size = 0);
+
 private:
     std::unique_ptr<MemoryDesc> input;
     std::unique_ptr<MemoryDesc> output;

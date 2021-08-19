@@ -92,7 +92,7 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
 
 void MKLDNNRangeNode::execute(mkldnn::stream strm) {
     StatusCode retcode = OK;
-    switch (getParentEdgeAt(0)->getMemory().GetDesc().getPrecision()) {
+    switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
         case Precision::FP32:
             retcode = rangeKernel<float>();
             break;

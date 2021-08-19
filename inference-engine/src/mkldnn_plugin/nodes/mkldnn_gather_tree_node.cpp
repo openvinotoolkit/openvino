@@ -85,7 +85,7 @@ void MKLDNNGatherTreeNode::gatherTreeKernel() noexcept {
     const auto *step_idx = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_STEP_IDX)->getMemoryPtr()->GetPtr());
     const auto * const parent_idx = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemoryPtr()->GetPtr());
     const size_t parent_idx_size = getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getShape().getElementsCount()
-                                   - getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>().getOffsetPadding();
+                                   - getParentEdgeAt(GATHER_TREE_PARENT_IDX)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getOffsetPadding();
     const auto *max_seq_len = reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_MAX_SEQ_LEN)->getMemoryPtr()->GetPtr());
     auto end_token = (reinterpret_cast<DATA_T *>(getParentEdgeAt(GATHER_TREE_END_TOKEN)->getMemoryPtr()->GetPtr()))[0];
     auto * final_idx = reinterpret_cast<DATA_T *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());

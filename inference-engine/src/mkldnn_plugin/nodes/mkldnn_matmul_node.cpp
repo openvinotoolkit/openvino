@@ -142,7 +142,7 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
         PortConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dims, dataType, MKLDNNMemory::GetPlainFormatByRank(dims.size()));
+        dataConfig.desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(dims, dataType, MKLDNNExtensionUtils::GetPlainFormatByRank(dims.size()));
         return dataConfig;
     };
 
@@ -207,7 +207,7 @@ void MKLDNNMatMulNode::createPrimitive() {
     params.shift1 = params.M * params.N * params.MB2;
     params.shift2 = params.M * params.N;
 
-    runtimePrecision = getParentEdgeAt(0)->getMemory().GetDesc().getPrecision();
+    runtimePrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
 }
 
 inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const float *A, int lda,

@@ -40,9 +40,11 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+    static bool isSupportedDesc(const MemoryDesc &desc);
+
 private:
-    std::unique_ptr<MemoryDesc> input;
-    std::unique_ptr<MemoryDesc> output;
+    MemoryDescPtr input;
+    MemoryDescPtr output;
 
     std::string errorPrefix;
 };

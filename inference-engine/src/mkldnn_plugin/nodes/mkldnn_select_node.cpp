@@ -180,8 +180,8 @@ void MKLDNNSelectNode::execute_impl() {
 }
 
 void MKLDNNSelectNode::execute(mkldnn::stream strm) {
-    const size_t condPrecSize = getParentEdgeAt(CONDITION)->getMemory().GetDesc().getPrecision().size();
-    const size_t inputsPrecSize = getParentEdgeAt(THEN)->getMemory().GetDesc().getPrecision().size();
+    const size_t condPrecSize = getParentEdgeAt(CONDITION)->getMemory().getDesc().getPrecision().size();
+    const size_t inputsPrecSize = getParentEdgeAt(THEN)->getMemory().getDesc().getPrecision().size();
 
     switch (condPrecSize) {
         case 1: {
@@ -192,7 +192,7 @@ void MKLDNNSelectNode::execute(mkldnn::stream strm) {
                 case 8: { execute_impl<uint8_t, uint64_t>(); break; }
                 default:
                     IE_THROW() << "Select layer doesn't support 'Then' and 'Else' inputs' precision: "
-                                   + std::string(getParentEdgeAt(THEN)->getMemory().GetDesc().getPrecision().name());
+                                   + std::string(getParentEdgeAt(THEN)->getMemory().getDesc().getPrecision().name());
             }
             break;
         }
@@ -204,13 +204,13 @@ void MKLDNNSelectNode::execute(mkldnn::stream strm) {
                 case 8: { execute_impl<int32_t, uint64_t>(); break; }
                 default:
                     IE_THROW() << "Select layer doesn't support 'Then' and 'Else' inputs' precision: "
-                                  + std::string(getParentEdgeAt(THEN)->getMemory().GetDesc().getPrecision().name());
+                                  + std::string(getParentEdgeAt(THEN)->getMemory().getDesc().getPrecision().name());
             }
             break;
         }
         default: {
                 IE_THROW() << "Select layer doesn't support 'Condition' inputs' precision: "
-                              + std::string(getParentEdgeAt(CONDITION)->getMemory().GetDesc().getPrecision().name());
+                              + std::string(getParentEdgeAt(CONDITION)->getMemory().getDesc().getPrecision().name());
         }
     }
 }

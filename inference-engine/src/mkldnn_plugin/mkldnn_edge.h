@@ -6,7 +6,7 @@
 
 #include <ie_blob.h>
 #include "cpu_shape.h"
-#include "cpu_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "mkldnn_weights_cache.hpp"
 
 #include <map>
@@ -68,7 +68,7 @@ public:
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
-    bool canProvideMaxSize() {
+    bool hasDefinedMaxSize() {
         return getDesc().getMaxMemSize() != MemoryDesc::UNDEFINED_SIZE;
     }
 
