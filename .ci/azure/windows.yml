@@ -121,7 +121,7 @@ jobs:
     continueOnError: true
 
   - publish: $(BUILD_DIR)\BUILD-OpenVINO-IB.ib_mon
-    artifact: BUILD-OpenVINO-IB.xml
+    artifact: BUILD-OpenVINO-IB.ib_mon
     continueOnError: true
 
   - script: dir $(REPO_DIR)\bin\ /s
