@@ -59,7 +59,6 @@ public:
         result << "_updt_pr=" << param.updates.type;
         result << "_axis_sh=" << param.axis.shape;
         result << "_axis_pr=" << param.axis.type;
-        result << "_axis=" << param.axis.data;
         return result.str();
     }
 private:
@@ -105,12 +104,12 @@ INSTANTIATE_TEST_SUITE_P(
                                     Tensor({2, 2}, element::f32, std::vector<float>{10, 20, 30, 40}),   // updates
                                     Tensor({1}, element::i64, std::vector<int64_t>{0}),                 // axis
                                     Tensor({2, 2}, element::f32, std::vector<float>{30, 40, 10, 20})),  // expected
-        // i32
-        ScatterElementsUpdateParams(Tensor({2, 2}, element::i32, std::vector<int32_t>{1, 2, 3, 4}),       // input
-                                    Tensor({2, 2}, element::i32, std::vector<int32_t>{1, 1, 0, 0}),       // indices
-                                    Tensor({2, 2}, element::i32, std::vector<int32_t>{10, 20, 30, 40}),   // updates
-                                    Tensor({1}, element::i32, std::vector<int32_t>{0}),                   // axis
-                                    Tensor({2, 2}, element::i32, std::vector<int32_t>{30, 40, 10, 20})),  // expected
+        // i16
+        ScatterElementsUpdateParams(Tensor({2, 2}, element::i16, std::vector<int16_t>{1, 2, 3, 4}),       // input
+                                    Tensor({2, 2}, element::i16, std::vector<int16_t>{1, 1, 0, 0}),       // indices
+                                    Tensor({2, 2}, element::i16, std::vector<int16_t>{10, 20, 30, 40}),   // updates
+                                    Tensor({1}, element::i16, std::vector<int16_t>{0}),                   // axis
+                                    Tensor({2, 2}, element::i16, std::vector<int16_t>{30, 40, 10, 20})),  // expected
         // i32, axis=1
         ScatterElementsUpdateParams(Tensor({2, 2}, element::i32, std::vector<int32_t>{1, 2, 3, 4}),       // input
                                     Tensor({2, 2}, element::i32, std::vector<int32_t>{1, 1, 0, 0}),       // indices
