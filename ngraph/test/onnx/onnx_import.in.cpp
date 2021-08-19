@@ -2714,6 +2714,25 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatterND_const_i32_indices) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_float_1D) {
+    const auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_float_1D.onnx"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // clang-format off
+    test_case.add_input<float>(Shape{3},
+        {   5, 6, 7 });
+    test_case.add_input<int64_t>(Shape{2, 2},
+        {   0, 1,
+            1, 2    });
+    test_case.add_expected_output<float>(Shape{2, 2},
+        {   5, 6,
+            6, 7    });
+    // clang-format on
+
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_gather_elements_float_1D) {
     const auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_float_1D.onnx"));
