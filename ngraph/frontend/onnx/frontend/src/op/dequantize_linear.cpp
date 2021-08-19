@@ -167,7 +167,7 @@ OutputVector dequantize_linear(const Node& node) {
     auto scale = inputs[1];
     auto zero_point = op::detail::get_zero_point(inputs);
 
-                    // these reshapes make sure that dequantization happens over the specified axis
+    // these reshapes make sure that dequantization happens over the specified axis
     return detail::dequantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
 }  // namespace set_13

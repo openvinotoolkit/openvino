@@ -67,6 +67,9 @@ public:
         m_auto_broadcast = auto_broadcast;
     }
 
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    bool has_evaluate() const override;
+
 private:
     std::size_t m_levels;
     AutoBroadcastSpec m_auto_broadcast = op::AutoBroadcastType::NUMPY;
