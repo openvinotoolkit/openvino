@@ -94,6 +94,52 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
     }
 }
 
+void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, const SoExecutableNetworkInternal& executableNetwork) {
+    auto itNumRequests = std::find_if(_devicePriorities.cbegin(), _devicePriorities.cend(),
+                                      [&device](const DeviceInformation& d){ return d.deviceName == device;});
+    unsigned int optimalNum = 0;
+    try {
+        optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+    } catch (const InferenceEngine::Exception &iie) {
+        IE_THROW()
+            << "Every device used with the Multi-Device should "
+            << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
+            << "Failed to query the metric for the " << device << " with error:" << iie.what();
+    }
+    const auto numRequests = (_devicePriorities.end() == itNumRequests ||
+                              itNumRequests->numRequestsPerDevices == -1) ? optimalNum : itNumRequests->numRequestsPerDevices;
+    auto& workerRequests = _workerRequests[device];
+    auto& idleWorkerRequests = _idleWorkerRequests[device];
+    workerRequests.resize(numRequests);
+    _inferPipelineTasksDeviceSpecific[device] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
+    auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
+    idleWorkerRequests.set_capacity(numRequests);
+    for (auto&& workerRequest : workerRequests) {
+        workerRequest._inferRequest = { executableNetwork, executableNetwork->CreateInferRequest() };
+        auto* workerRequestPtr = &workerRequest;
+        IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
+        workerRequest._inferRequest->SetCallback(
+            [workerRequestPtr, this, device, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
+                IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
+                workerRequestPtr->_exceptionPtr = exceptionPtr;
+                {
+                    auto capturedTask = std::move(workerRequestPtr->_task);
+                    capturedTask();
+                }
+                // try to return the request to the idle list (fails if the overall object destruction has began)
+                if (idleGuard.Release()->try_push(workerRequestPtr)) {
+                    // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
+                    // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
+                    Task t;
+                    if (_inferPipelineTasks.try_pop(t))
+                        ScheduleToWorkerInferRequest(std::move(t));
+                    else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t))
+                        ScheduleToWorkerInferRequest(std::move(t), device);
+                }
+            });
+    }
+}
+
 MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&                         modelPath,
                                                            const InferenceEngine::CNNNetwork&         network,
                                                            const std::map<std::string, std::string>&  config,
@@ -188,52 +234,6 @@ void MultiDeviceExecutableNetwork::SetActualNetworkReadyStatus() {
     try {
         _needPerfCounters = _networkActualNeeded->GetMetric(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() == PluginConfigParams::YES;
     } catch (...) {
-    }
-}
-
-void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, const SoExecutableNetworkInternal& executableNetwork) {
-    auto itNumRequests = std::find_if(_devicePriorities.cbegin(), _devicePriorities.cend(),
-                                      [&device](const DeviceInformation& d){ return d.deviceName == device;});
-    unsigned int optimalNum = 0;
-    try {
-        optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-    } catch (const InferenceEngine::Exception &iie) {
-        IE_THROW()
-            << "Every device used with the Multi-Device should "
-            << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
-            << "Failed to query the metric for the " << device << " with error:" << iie.what();
-    }
-    const auto numRequests = (_devicePriorities.end() == itNumRequests ||
-                              itNumRequests->numRequestsPerDevices == -1) ? optimalNum : itNumRequests->numRequestsPerDevices;
-    auto& workerRequests = _workerRequests[device];
-    auto& idleWorkerRequests = _idleWorkerRequests[device];
-    workerRequests.resize(numRequests);
-    _inferPipelineTasksDeviceSpecific[device] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
-    auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
-    idleWorkerRequests.set_capacity(numRequests);
-    for (auto&& workerRequest : workerRequests) {
-        workerRequest._inferRequest = { executableNetwork, executableNetwork->CreateInferRequest() };
-        auto* workerRequestPtr = &workerRequest;
-        IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
-        workerRequest._inferRequest->SetCallback(
-            [workerRequestPtr, this, device, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
-                IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
-                workerRequestPtr->_exceptionPtr = exceptionPtr;
-                {
-                    auto capturedTask = std::move(workerRequestPtr->_task);
-                    capturedTask();
-                }
-                // try to return the request to the idle list (fails if the overall object destruction has began)
-                if (idleGuard.Release()->try_push(workerRequestPtr)) {
-                    // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
-                    // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
-                    Task t;
-                    if (_inferPipelineTasks.try_pop(t))
-                        ScheduleToWorkerInferRequest(std::move(t));
-                    else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t))
-                        ScheduleToWorkerInferRequest(std::move(t), device);
-                }
-            });
     }
 }
 
