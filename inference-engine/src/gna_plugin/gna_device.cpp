@@ -488,8 +488,13 @@ void GNADeviceHelper::open(uint8_t n_threads) {
     auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &detectedGnaDevVersion);
     checkGna2Status(status, "Gna2DeviceGetVersion");
 
-    status = Gna2DeviceOpen(nGnaDeviceIndex);
-    checkGna2Status(status, "Gna2DeviceOpen");
+    if (useDeviceEmbeddedExport) {
+        status = Gna2DeviceCreateForExport(exportGeneration, &nGnaDeviceIndex);
+        GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport");
+    } else {
+        status = Gna2DeviceOpen(nGnaDeviceIndex);
+        checkGna2Status(status, "Gna2DeviceOpen");
+    }
     // TODO: GNA2: uncomment when scratchpad repaired
     // status = Gna2DeviceSetNumberOfThreads(nGnaDeviceIndex, n_threads);
     // checkGna2Status(status);
