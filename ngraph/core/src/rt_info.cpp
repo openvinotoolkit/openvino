@@ -48,7 +48,7 @@ void assign_runtime_info(const ngraph::Node::RTMap& from, ngraph::Node::RTMap& t
     }
 }
 
-}   // namespace
+}  // namespace
 
 void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to) {
     auto& attrs = to->get_rt_info();

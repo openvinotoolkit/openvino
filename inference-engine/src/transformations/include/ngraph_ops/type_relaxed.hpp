@@ -128,8 +128,11 @@ protected:
         visitor.on_attribute("output_data_types", m_output_data_types);
     }
 
-    void init_rt_info(Node &node) const {
+    typedef struct {} init_rt_result;
+
+    init_rt_result init_rt_info(Node &node) const {
         node.get_rt_info()["opset"] = std::make_shared<ngraph::VariantWrapper<std::string>>("type_relaxed_opset");
+        return {};
     }
 
 protected:
@@ -184,9 +187,9 @@ class TypeRelaxed : public BaseOp, public TypeRelaxedBase {
 public:
     NGRAPH_RTTI_DECLARATION;
 
-    TypeRelaxed() {
-        init_rt_info(*this);
-    }
+    using BaseOp::BaseOp;
+
+    TypeRelaxed() = default;
 
     TypeRelaxed(
             const BaseOp& base_op,
@@ -214,12 +217,6 @@ public:
         init();
     }
 
-    template <typename ... Args>
-    TypeRelaxed(Args ... args) :
-            BaseOp(args...) {
-        init();
-    }
-
     void validate_and_infer_types() override;
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
 
@@ -230,8 +227,9 @@ public:
 private:
     void init() {
         validate_and_infer_types();
-        init_rt_info(*this);
     }
+
+    init_rt_result init_rt = init_rt_info(*this);
 };
 
 template <typename BaseOp>
