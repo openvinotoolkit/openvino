@@ -93,6 +93,12 @@ def pytest_addoption(parser):
         help="Directory to put test data into.",
     )
     omz_args_parser.addoption(
+        "--mo_path",
+        type=Path,
+        default=abs_path("../../../model-optimizer/mo.py"),
+        help="Path to model-optimizer mo.py. Required for OMZ converter.py only",
+    )
+    omz_args_parser.addoption(
         '--omz_cache_dir',
         type=Path,
         default=abs_path('../_omz_out/cache'),
@@ -201,6 +207,7 @@ def omz_models_conversion(pytestconfig, request):
     cache_dir = request.config.getoption("omz_cache_dir")
     omz_models_out_dir = request.config.getoption("omz_models_out_dir")
     omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
+    mo_path = request.config.getoption("mo_path")
 
     downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
     converter_path = omz_path / "tools" / "downloader" / "converter.py"
@@ -235,7 +242,7 @@ def omz_models_conversion(pytestconfig, request):
               f' --num_attempts {OMZ_NUM_ATTEMPTS}' \
               f' --output_dir {omz_models_out_dir}' \
               f' --cache_dir {cache_dir}'
-        # cmd_exec([cmd], shell=True, log=logging)
+        cmd_exec([cmd], shell=True, log=logging)
 
         cmd = f'{sys.executable} {converter_path}' \
               f' --name {model_name}' \
@@ -243,8 +250,8 @@ def omz_models_conversion(pytestconfig, request):
               f' --precisions={model_precision}' \
               f' --output_dir {omz_irs_out_dir}' \
               f' --download_dir {omz_models_out_dir}' \
-              f' --mo {Path(abs_path("../../../model-optimizer/mo.py")).resolve()}'
-        # cmd_exec([cmd], shell=True, log=logging)
+              f' --mo {mo_path}'
+        cmd_exec([cmd], shell=True, log=logging)
 
         record["instance"]["model"]["framework"] = model_info["framework"]
         record["instance"]["model"]["path"] = model_path
