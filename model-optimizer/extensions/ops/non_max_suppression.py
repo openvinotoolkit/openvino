@@ -79,6 +79,11 @@ class NonMaxSuppression(Op):
             log.info('Set default "max_output_boxes_per_class" for node {} to number of boxes'.format(node.name))
             max_output_boxes_per_class = boxes_shape[1]
 
+        # convert the np.array value to a scalar to avoid issue with ragged numpy array generation in the shape
+        # calculation formulas below
+        if isinstance(max_output_boxes_per_class, np.ndarray):
+            max_output_boxes_per_class = max_output_boxes_per_class.item()
+
         num_classes = scores_shape[1]
         num_input_boxes = boxes_shape[1]
         assert scores_shape[2] is dynamic_dimension or scores_shape[2] == num_input_boxes or scores_shape[2] is None \
