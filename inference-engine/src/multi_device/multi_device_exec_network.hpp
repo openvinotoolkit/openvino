@@ -150,6 +150,11 @@ private:
     void SetActualNetworkReadyStatus();
     void GenerateWorkers(const std::string& device, const InferenceEngine::SoExecutableNetworkInternal& executableNetwork);
     void WaitForActualDevice() const;
+    bool TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork);
+
+    static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
+                                NotBusyWorkerRequests& idleWorkerRequests,
+                                const DeviceName& preferred_device);
 
 private:
     MultiDeviceInferencePlugin* _multiPlugin;
@@ -158,9 +163,9 @@ private:
     NetworkFuture                                                       _cpuFuture;
     mutable NetworkFuture                                               _acceleratorFuture;
     mutable std::atomic<bool>                                           _alreadyActualNetwork = {false};
-    bool _workModeIsAUTO { false };
-
-    std::map<std::string, InferenceEngine::Parameter>                   _cacheConfig;
+    bool                                                                _workModeIsAUTO { false };
+    DeviceInformation                                                   _cpuDevice;
+    DeviceInformation                                                   _acceleratorDevice;
 };
 
 }  // namespace MultiDevicePlugin

@@ -190,22 +190,19 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
                                       [=](const DeviceInformation& d)->bool{return d.deviceName.find("CPU") != std::string::npos;});
     if (CPUIter != metaDevices.end()) {
-        // to align with original MULTI
-        _devicePriorities.push_back(*CPUIter);
-        _config.insert(CPUIter->config.begin(), CPUIter->config.end());
-        _cpuFuture = std::async(std::launch::async, LoadNetworkAsync, CPUIter->deviceName);
+        _cpuDevice = *CPUIter;
+        _config.insert(_cpuDevice.config.begin(), _cpuDevice.config.end());
+        _cpuFuture = std::async(std::launch::async, LoadNetworkAsync, _cpuDevice.deviceName);
     }
 
     // start accelerator task, like GPU
     auto networkPrecision = GetNetworkPrecision(network);
-    auto acceleratorDevice = _multiPlugin->SelectDevice(metaDevices, networkPrecision);
+    _acceleratorDevice = _multiPlugin->SelectDevice(metaDevices, networkPrecision);
     bool isAccelerator =
-        acceleratorDevice.deviceName.find("CPU") == std::string::npos;
+        _acceleratorDevice.deviceName.find("CPU") == std::string::npos;
     if (isAccelerator) {
-        // to align with original MULTI
-        _devicePriorities.push_back(acceleratorDevice);
-        _config.insert(acceleratorDevice.config.begin(), acceleratorDevice.config.end());
-        _acceleratorFuture = std::async(std::launch::async, LoadNetworkAsync, acceleratorDevice.deviceName);
+        _config.insert(_acceleratorDevice.config.begin(), _acceleratorDevice.config.end());
+        _acceleratorFuture = std::async(std::launch::async, LoadNetworkAsync, _acceleratorDevice.deviceName);
     }
 
     // both are valid, like AUTO:CPU,GPU
@@ -238,6 +235,38 @@ void MultiDeviceExecutableNetwork::SetActualNetworkReadyStatus() {
 }
 
 void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask, DeviceName preferred_device) {
+    // AUTO work mode
+    if (_workModeIsAUTO) {
+        if (!preferred_device.empty()) {
+            // the preferred_device should be the selected device in AUTO work mode
+            if (preferred_device != _acceleratorDevice.deviceName) {
+                IE_THROW(NotFound) << "The preferred_device should be the selected device";
+            }
+
+            if (!_alreadyActualNetwork) {
+                _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
+                return;
+            }
+
+            auto &idleWorkerRequests = _idleWorkerRequests[preferred_device];
+            if (!RunPipelineTask(inferPipelineTask, idleWorkerRequests, preferred_device)) {
+                // no vacant requests this time, storing the task to the respective queue
+                _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
+            }
+        } else {
+            // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
+            auto &idleWorkerRequests = _alreadyActualNetwork
+                                       ? _idleWorkerRequests[_acceleratorDevice.deviceName]
+                                       : _idleWorkerRequests[_cpuDevice.deviceName];
+            if (!RunPipelineTask(inferPipelineTask, idleWorkerRequests, preferred_device)) {
+                // no vacant requests this time, storing the task to the respective queue
+                _inferPipelineTasks.push(std::move(inferPipelineTask));
+            }
+        }
+        return;
+    }
+
+    // legacy MULTI work mode
     auto devices = [&] {
         std::lock_guard<std::mutex> lock(_mutex);
         return _devicePriorities;
@@ -245,16 +274,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
     for (auto&& device : devices) {
         if (!preferred_device.empty() && (device.deviceName != preferred_device))
             continue;
-        WorkerInferRequest* workerRequestPtr = nullptr;
-        NotBusyWorkerRequests& idleWorkerRequests = _idleWorkerRequests[device.deviceName];
-        if (idleWorkerRequests.try_pop(workerRequestPtr)) {
-            IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
-            _thisWorkerInferRequest = workerRequestPtr;
-            {
-                auto capturedTask = std::move(inferPipelineTask);
-                capturedTask();
-            }
-            idleGuard.Release();
+        if (RunPipelineTask(inferPipelineTask, _idleWorkerRequests[device.deviceName], preferred_device)) {
             return;
         }
     }
@@ -263,6 +283,23 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
         _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
     else
         _inferPipelineTasks.push(std::move(inferPipelineTask));
+}
+
+bool MultiDeviceExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
+                                            NotBusyWorkerRequests& idleWorkerRequests,
+                                            const DeviceName& preferred_device) {
+  WorkerInferRequest *workerRequestPtr = nullptr;
+  if (idleWorkerRequests.try_pop(workerRequestPtr)) {
+      IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
+      _thisWorkerInferRequest = workerRequestPtr;
+      {
+          auto capturedTask = std::move(inferPipelineTask);
+          capturedTask();
+      }
+      idleGuard.Release();
+      return true;
+  }
+  return false;
 }
 
 void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
@@ -287,6 +324,15 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         idleWorker.second.set_capacity(0);
     }
     _workerRequests.clear();
+}
+
+bool MultiDeviceExecutableNetwork::TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork) {
+    // if already get actual network
+    if (_alreadyActualNetwork) {
+        soExecNetwork = _networkActualNeeded;
+        return true;
+    }
+    return false;
 }
 
 void MultiDeviceExecutableNetwork::WaitForActualDevice() const {
@@ -330,6 +376,17 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     auto num = _numRequestsCreated++;
     size_t sum = 0;
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
+
+    if (_workModeIsAUTO) {
+        InferenceEngine::SoExecutableNetworkInternal network;
+        if (TryGetActualNetwork(network)) {
+            request_to_share_blobs_with = {_networkActualNeeded, _networkActualNeeded->CreateInferRequest()};
+        } else {
+            request_to_share_blobs_with = {_networkFirstReady, _networkFirstReady->CreateInferRequest()};
+        }
+        return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
+    }
+
     // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
     // this allows to potentially save on the data-copy later (if the requests are scheduled in the same order)
     for (const auto& device : _devicePrioritiesInitial) {
@@ -353,6 +410,10 @@ IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
 }
 
 void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
+    if (_workModeIsAUTO) {
+        IE_THROW(NotImplemented);
+    }
+
     auto priorities = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (priorities == config.end() || config.size() > 1) {
         IE_THROW() << "The only config supported for the Network's SetConfig is MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES";
