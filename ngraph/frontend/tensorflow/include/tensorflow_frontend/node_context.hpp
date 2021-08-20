@@ -27,30 +27,9 @@
 //#else
 //#define TF_API NGRAPH_HELPER_DLL_IMPORT
 //#endif // paddlepaddle_ngraph_frontend_EXPORTS
-#define NGRAPH_VARIANT_DECLARATION(TYPE, info)                                                     \
-    template <>                                                                                    \
-    class VariantWrapper<TYPE> : public VariantImpl<TYPE>                                          \
-    {                                                                                              \
-    public:                                                                                        \
-        static constexpr VariantTypeInfo type_info{info, 0};                                       \
-        const VariantTypeInfo& get_type_info() const override { return type_info; }                \
-        VariantWrapper<TYPE>(const value_type& value)                                              \
-            : VariantImpl<value_type>(value)                                                       \
-        {                                                                                          \
-        }                                                                                          \
-    }
 
 namespace ngraph
 {
-/*
-    NGRAPH_VARIANT_DECLARATION(int32_t, "Variant::int32");
-    NGRAPH_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
-    NGRAPH_VARIANT_DECLARATION(float, "Variant::float");
-    NGRAPH_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
-    NGRAPH_VARIANT_DECLARATION(bool, "Variant::bool");
-    NGRAPH_VARIANT_DECLARATION(ngraph::element::Type, "Variant::element_type");
-    NGRAPH_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
-*/
 namespace frontend
 {
 namespace tensorflow
