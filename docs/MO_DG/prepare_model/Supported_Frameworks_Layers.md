@@ -25,7 +25,7 @@ Standard Caffe\* layers:
 | Input | No |
 | LRN | No |
 | Normalize | No |
-| Python | Supported only for Python Proposal operation |
+| Python | Supported only for the Python Proposal operation |
 | Permute | No |
 | Pooling | No |
 | Power | No |
@@ -194,7 +194,7 @@ Standard TensorFlow\* operations:
 | CumSum | No |
 | DepthToSpace| No |
 | DepthwiseConv2dNative| No |
-| Einsum | Supported only with equation that does not contain repeated labels within subscript |
+| Einsum | Supported only with equation that does not contain repeated labels within a subscript |
 | Elu | No |
 | Enter | Supported only when it is fused to the TensorIterator layer |
 | Equal | No |
@@ -281,7 +281,7 @@ Standard TensorFlow\* operations:
 | ResizeNearestNeighbor | No |
 | ResourceGather| No |
 | ReverseSequence | No |
-| ReverseV2 | Supported only when can be converted to ReverseSequence operation |
+| ReverseV2 | Supported only when can be converted to the ReverseSequence operation |
 | Roll | No |
 | Round | No |
 | Pow | No |
@@ -484,7 +484,7 @@ Standard ONNX\* operators:
 | Asinh | No |
 | Atan | No |
 | Atanh | No |
-| ATen | Supported only for 'embedding_bag' operator |
+| ATen | Supported only for the 'embedding_bag' operator |
 | AveragePool | No |
 | BatchMatMul | No |
 | BatchNormalization | No |
