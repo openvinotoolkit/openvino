@@ -253,7 +253,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional2DComponentPrivate(intel
 bool GNAPluginNS::backend::AMIntelDNN::isOperationCnnLegacySpecific(const Gna2Operation& op) {
     // GNA compile target GNA_TARGET_3_0 does not support pooling window < pooling stride
     return op.Type == Gna2OperationTypeConvolution &&
-        op.NumberOfParameters > (std::max)(PoolStrideParamIdx, PoolWinParamIdx) &&
+        op.NumberOfParameters > std::max(PoolStrideParamIdx, PoolWinParamIdx) &&
         op.Parameters[PoolStrideParamIdx] != nullptr &&
         op.Parameters[PoolWinParamIdx] != nullptr &&
         static_cast<Gna2Shape*>(op.Parameters[PoolStrideParamIdx])->NumberOfDimensions == 1 &&
