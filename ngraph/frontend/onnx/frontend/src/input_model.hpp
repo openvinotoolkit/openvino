@@ -15,8 +15,8 @@ public:
     InputModelONNX(const std::string& path);
     InputModelONNX(const std::wstring& path);
     InputModelONNX(std::istream& model_stream);
-    // The path can be needed even if the model is passed as stream, because it is required
-    // for onnx external data feature
+    // The path can be required even if the model is passed as a stream because it is necessary
+    // for ONNX external data feature
     InputModelONNX(std::istream& model_stream, const std::string& path);
     InputModelONNX(std::istream& model_stream, const std::wstring& path);
 

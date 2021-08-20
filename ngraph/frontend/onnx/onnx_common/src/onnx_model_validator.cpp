@@ -31,7 +31,7 @@ enum WireType { VARINT = 0, BITS_64 = 1, LENGTH_DELIMITED = 2, START_GROUP = 3, 
 using PbKey = std::pair<char, char>;
 
 // This pair represents a key found in the encoded model and optional size of the payload
-// that follows the key (in bytes). They payload should be skipped for the fast check purposes.
+// that follows the key (in bytes). The payload should be skipped for fast check purposes.
 using ONNXField = std::pair<Field, uint32_t>;
 
 bool is_correct_onnx_field(const PbKey& decoded_key) {
@@ -57,7 +57,7 @@ bool is_correct_onnx_field(const PbKey& decoded_key) {
 
 /**
  * Only 7 bits in each component of a varint count in this algorithm. The components form
- * a decoded number when they are concatenated bitwise in a reverse order. For example:
+ * a decoded number when they are concatenated bitwise in reverse order. For example:
  * bytes = [b1, b2, b3, b4]
  * varint = b4 ++ b3 ++ b2 ++ b1  <== only 7 bits of each byte should be extracted before concat
  *
@@ -65,8 +65,8 @@ bool is_correct_onnx_field(const PbKey& decoded_key) {
  * bytes = [00101100, 00000010]
  *             b2         b1
  * varint = 0000010 ++ 0101100 = 100101100 => decimal: 300
- * Each consecutive varint byte needs to be left shifted "7 x its position in the vector"
- * and bitwise added to the accumulator afterwards.
+ * Each consecutive varint byte needs to be left-shifted "7 x its position in the vector"
+ * and bitwise added to the accumulator afterward.
  */
 uint32_t varint_bytes_to_number(const std::vector<char>& bytes) {
     uint32_t accumulator = 0u;
@@ -90,7 +90,7 @@ uint32_t decode_varint(std::istream& model) {
     char key_component = 0;
     model.get(key_component);
 
-    // keep reading all bytes from the stream which have the MSB on
+    // keep reading all bytes which have the MSB on from the stream
     while (key_component & 0x80 && bytes.size() < MAX_VARINT_BYTES) {
         // drop the most significant bit
         const char component = key_component & ~0x80;
@@ -125,8 +125,8 @@ ONNXField decode_next_field(std::istream& model) {
 
     switch (decoded_key.second) {
     case VARINT: {
-        // the decoded varint is the payload in this case but its value doesnt matter
-        // in the fast check process so we just discard it
+        // the decoded varint is the payload in this case but its value does not matter
+        // in the fast check process so you can discard it
         decode_varint(model);
         return {onnx_field, 0};
     }
