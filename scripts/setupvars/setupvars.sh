@@ -86,8 +86,7 @@ if [ -f "$INTEL_OPENVINO_DIR/data_processing/dl_streamer/bin/setupvars.sh" ]; th
     source "$INTEL_OPENVINO_DIR/data_processing/dl_streamer/bin/setupvars.sh"
 fi
 
-export MO_ROOT="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer"
-export PATH="$MO_ROOT:${PATH:+:$PATH}"
+export PATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PATH:+:$PATH}"
 export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PYTHONPATH:+:$PYTHONPATH}"
 
 
