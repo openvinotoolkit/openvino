@@ -68,6 +68,8 @@ void MoveFakeQuantizeTransformation::Run() {
     if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
         expectedPrecision = "FP16";
     }
+    executableNetwork.GetExecGraphInfo().serialize("C:\\Users\\ndemasho\\models\\forCPU.xml",
+        "C:\\Users\\ndemasho\\models\\forCPU.xml");
     EXPECT_EQ(actualPrecision, expectedPrecision);
 }
 

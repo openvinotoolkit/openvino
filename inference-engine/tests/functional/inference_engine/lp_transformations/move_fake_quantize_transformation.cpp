@@ -41,7 +41,7 @@ using namespace ngraph::pass;
 
 namespace {
 
-class MoveFakeQuantizeActualValues {
+class MoveFakeQuantizeTransformationActualValues {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore1;
     ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore1;
@@ -55,7 +55,7 @@ public:
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeActualValues& values) {
+inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeTransformationActualValues& values) {
     return out << "_" <<
         values.fakeQuantizeBefore1 << "_" <<
         values.convertBefore1.outPrecision << "_" <<
@@ -69,7 +69,7 @@ inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeActualV
         values.dequantizationAfter;
 }
 
-class MoveFakeQuantizeResultValues {
+class MoveFakeQuantizeTransformationResultValues {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore1;
     ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore1;
@@ -85,7 +85,7 @@ public:
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfterNotFQ;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeResultValues& values) {
+inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeTransformationResultValues& values) {
     return out << "_" <<
         values.fakeQuantizeBefore1 << "_" <<
         values.convertBefore1.outPrecision << "_" <<
@@ -100,15 +100,15 @@ inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeResultV
         values.dequantizationAfterNotFQ;
 }
 
-class MoveFakeQuantizeTestValues {
+class MoveFakeQuantizeTransformationTestValues {
 public:
-    MoveFakeQuantizeTestValues() = default;
-    MoveFakeQuantizeTestValues(
+    MoveFakeQuantizeTransformationTestValues() = default;
+    MoveFakeQuantizeTransformationTestValues(
         const TestTransformationParams& params,
         const bool multiChannels,
         const  std::int64_t axis,
-        const MoveFakeQuantizeActualValues& actual,
-        const MoveFakeQuantizeResultValues& result,
+        const MoveFakeQuantizeTransformationActualValues& actual,
+        const MoveFakeQuantizeTransformationResultValues& result,
         const bool addNotPrecisionPreservedOperation = false,
         const bool checkIntervalsAlignmentAttributes = true) :
         params(params),
@@ -122,30 +122,30 @@ public:
     TestTransformationParams params;
     bool multiChannels;
     std::int64_t axis;
-    MoveFakeQuantizeActualValues actual;
-    MoveFakeQuantizeResultValues result;
+    MoveFakeQuantizeTransformationActualValues actual;
+    MoveFakeQuantizeTransformationResultValues result;
     // add not precision preserved operation to set output precision for FakeQuantize
     // don't set to 'true' by default to keep test cases with tested operation as output
     bool addNotPrecisionPreservedOperation;
     bool checkIntervalsAlignmentAttributes;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeTestValues& values) {
+inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeTransformationTestValues& values) {
     return out << "_" << values.multiChannels << "_" << values.actual << "_" << values.result;
 }
 
 typedef std::tuple <
     ngraph::element::Type,
     ngraph::PartialShape,
-    MoveFakeQuantizeTestValues
-> MoveFakeQuantizeParams;
+    MoveFakeQuantizeTransformationTestValues
+> MoveFakeQuantizeTransformationParams;
 
-class MoveFakeQuantize : public LayerTransformation, public testing::WithParamInterface<MoveFakeQuantizeParams> {
+class MoveFakeQuantizeTransformation : public LayerTransformation, public testing::WithParamInterface<MoveFakeQuantizeTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
         const ngraph::PartialShape shape = std::get<1>(GetParam());
-        MoveFakeQuantizeTestValues testValues = std::get<2>(GetParam());
+        MoveFakeQuantizeTransformationTestValues testValues = std::get<2>(GetParam());
 
         // dequantization output precision depends on input precision
         // to avoid huge amount of tests cases let's define dequantization output precision as input precision
@@ -217,10 +217,10 @@ public:
             testValues.axis);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj) {
         const ngraph::element::Type precision = std::get<0>(obj.param);
         const ngraph::PartialShape shape = std::get<1>(obj.param);
-        const MoveFakeQuantizeTestValues testValues = std::get<2>(obj.param);
+        const MoveFakeQuantizeTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
         result <<
@@ -233,7 +233,7 @@ public:
     }
 };
 
-TEST_P(MoveFakeQuantize, CompareFunctions) {
+TEST_P(MoveFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false, true, false);
     ASSERT_TRUE(res.first) << res.second;
@@ -242,7 +242,7 @@ TEST_P(MoveFakeQuantize, CompareFunctions) {
     ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
         "PrecisionsAttribute are not the same";
 
-    MoveFakeQuantizeTestValues testValues = std::get<2>(GetParam());
+    MoveFakeQuantizeTransformationTestValues testValues = std::get<2>(GetParam());
     if (testValues.checkIntervalsAlignmentAttributes) {
         auto operations = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
         operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
@@ -263,7 +263,7 @@ const std::vector<ngraph::PartialShape> shapes = {
     //{ Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
 };
 
-const std::vector<MoveFakeQuantizeTestValues> testValues = {
+const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
     // U8: concat
     {
         LayerTransformation::createParamsU8I8(),
@@ -331,11 +331,11 @@ const std::vector<MoveFakeQuantizeTestValues> testValues = {
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
-    MoveFakeQuantize,
+    MoveFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues)),
-    MoveFakeQuantize::getTestCaseName);
+    MoveFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues1
 } // namespace

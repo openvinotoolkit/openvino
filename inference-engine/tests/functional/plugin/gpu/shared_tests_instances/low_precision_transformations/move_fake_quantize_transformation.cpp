@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
         { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
         {},
         {},
-        "Concatenation",
+        "Concat",
         "U8"
     },
     {
@@ -46,7 +46,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
         { 256ul, {}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
         {},
         {},
-        "Concatenation",
+        "Concat",
         "U8"
     },
     };
