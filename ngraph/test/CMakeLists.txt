@@ -115,6 +115,7 @@ set(SRC
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
+    type_prop/cum_sum.cpp
     type_prop/deformable_convolution.cpp
     type_prop/deformable_convolution_opset8.cpp
     type_prop/deformable_psroi_pooling.cpp
@@ -143,6 +144,7 @@ set(SRC
     type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
+    type_prop/gelu.cpp
     type_prop/grn.cpp
     type_prop/group_convolution.cpp
     type_prop/group_convolution_backprop_data.cpp
@@ -155,6 +157,7 @@ set(SRC
     type_prop/interpolate.cpp
     type_prop/logical_and.cpp
     type_prop/logical_or.cpp
+    type_prop/logical_xor.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
@@ -458,7 +461,6 @@ set(MULTI_TEST_SRC
     backend/log.in.cpp
     backend/log_softmax.in.cpp
     backend/logical_not.in.cpp
-    backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
