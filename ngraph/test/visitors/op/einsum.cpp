@@ -20,6 +20,6 @@ TEST(attributes, einsum_v7_op) {
     std::string equation = "ab,bc->ac";
     auto einsum = make_shared<opset7::Einsum>(OutputVector{input1, input2}, equation);
     NodeBuilder builder(einsum);
-    auto g_einsum = as_type_ptr<opset7::Einsum>(builder.create());
+    auto g_einsum = ov::as_type_ptr<opset7::Einsum>(builder.create());
     EXPECT_EQ(g_einsum->get_equation(), einsum->get_equation());
 }

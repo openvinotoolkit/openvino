@@ -19,7 +19,7 @@ TEST(attributes, adaptive_max_pool_op) {
 
     const auto adaptive_pool = make_shared<opset8::AdaptiveMaxPool>(A, out_shape);
     NodeBuilder builder(adaptive_pool);
-    auto g_adaptive_pool = as_type_ptr<opset8::AdaptiveMaxPool>(builder.create());
+    auto g_adaptive_pool = ov::as_type_ptr<opset8::AdaptiveMaxPool>(builder.create());
 
     const auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

@@ -627,24 +627,21 @@ int main(int argc, char* argv[]) {
 
         if (FLAGS_q.compare("user") == 0) {
             if (!FLAGS_rg.empty()) {
-                slog::warn
-                    << "Custom scale factor will be ignored - using scale factor from provided imported gna model: "
-                    << FLAGS_rg << slog::endl;
-            } else {
-                auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
-                if (numInputFiles != scaleFactorInput.size()) {
-                    std::string errMessage(
-                        "Incorrect command line for multiple inputs: " + std::to_string(scaleFactorInput.size()) +
-                        " scale factors provided for " + std::to_string(numInputFiles) + " input files.");
-                    throw std::logic_error(errMessage);
-                }
+                slog::warn << "Custom scale factor will be used for imported gna model: " << FLAGS_rg << slog::endl;
+            }
 
-                for (size_t i = 0; i < scaleFactorInput.size(); ++i) {
-                    slog::info << "For input " << i << " using scale factor of " << scaleFactorInput[i] << slog::endl;
-                    std::string scaleFactorConfigKey =
-                        GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
-                    gnaPluginConfig[scaleFactorConfigKey] = scaleFactorInput[i];
-                }
+            auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
+            if (numInputFiles != scaleFactorInput.size()) {
+                std::string errMessage(
+                    "Incorrect command line for multiple inputs: " + std::to_string(scaleFactorInput.size()) +
+                    " scale factors provided for " + std::to_string(numInputFiles) + " input files.");
+                throw std::logic_error(errMessage);
+            }
+
+            for (size_t i = 0; i < scaleFactorInput.size(); ++i) {
+                slog::info << "For input " << i << " using scale factor of " << scaleFactorInput[i] << slog::endl;
+                std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
+                gnaPluginConfig[scaleFactorConfigKey] = scaleFactorInput[i];
             }
         } else {
             // "static" quantization with calculated scale factor
