@@ -16,6 +16,12 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
     """
     graph_condition = [lambda graph: graph.graph['fw'] == 'tf']
 
+
+    file_patterns = {'MaskRCNN': 'mask_rcnn_support.*\\.json',
+                     'RFCN': 'rfcn_support.*\\.json',
+                     'FasterRCNN': 'faster_rcnn_support.*\\.json',
+                     'SSD': 'ssd.*_support.*\\.json',
+                     }
     model_scopes = {'MaskRCNN': (['Preprocessor',
                                   'FirstStageFeatureExtractor',
                                   'SecondStageFeatureExtractor',
@@ -43,30 +49,30 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
                                     'SecondStagePostprocessor',
                                     'mask_rcnn_keras_box_predictor',
                                     ],),
-                    'SSD': (['Preprocessor',
-                             'FeatureExtractor',
+                    'SSD': (['FeatureExtractor',
+                             'Preprocessor',
                              'Postprocessor',
                              ],
-                            ['Preprocessor',
-                             'ssd_mobile_net_v2keras_feature_extractor',
+                            ['ssd_mobile_net_v2keras_feature_extractor',
+                             'Preprocessor',
                              'Postprocessor'],
-                            ['Preprocessor',
-                             'ssd_mobile_net_v1fpn_keras_feature_extractor',
+                            ['ssd_mobile_net_v1fpn_keras_feature_extractor',
+                             'Preprocessor',
                              'Postprocessor'],
-                            ['Preprocessor',
-                             'ssd_mobile_net_v2fpn_keras_feature_extractor',
+                            ['ssd_mobile_net_v2fpn_keras_feature_extractor',
+                             'Preprocessor',
                              'Postprocessor'],
-                            ['Preprocessor',
-                             'ResNet50V1_FPN',
+                            ['ResNet50V1_FPN',
+                             'Preprocessor',
+                             'Postprocessor'],
+                            ['ResNet101V1_FPN',
+                             'Preprocessor',
+                             'Postprocessor'],
+                            ['ResNet152V1_FPN',
+                             'Preprocessor',
                              'Postprocessor']
                             ),
                     }
-
-    file_patterns = {'MaskRCNN': 'mask_rcnn_support.*\\.json',
-                     'RFCN': 'rfcn_support.*\\.json',
-                     'FasterRCNN': 'faster_rcnn_support.*\\.json',
-                     'SSD': 'ssd.*_support.*\\.json',
-                     }
 
     def analyze(self, graph: Graph):
         tf_1_names = ['image_tensor', 'detection_classes', 'detection_boxes', 'detection_scores']
