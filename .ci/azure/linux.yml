@@ -30,7 +30,7 @@ jobs:
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
     INSTALL_DIR: $(WORK_DIR)/install_pkg
-    TESTS_DIR: $(WORK_DIR)/tests_pkg
+    TESTS_DIR: $(WORK_DIR)/tests_pkg/tests/
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
 
