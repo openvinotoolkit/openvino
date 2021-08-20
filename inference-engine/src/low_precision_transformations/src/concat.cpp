@@ -297,6 +297,22 @@ bool ConcatTransformation::isHandled(const TransformationContext& context, const
     return false;
 }
 
+bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+    const auto concat = as_type_ptr<const opset1::Concat>(layer);
+    if (concat == nullptr) {
+        return false;
+    }
+
+    const auto axis = concat->get_axis();
+    const auto outputRank = concat->get_output_partial_shape(0).rank();
+    if (axis < 0 && outputRank.is_dynamic()) {
+        return false;
+    }
+
+    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outputRank);
+    return normalizedAxis == 1ul;
+}
+
 } // namespace low_precision
 } // namespace pass
 } // namespace ngraph
