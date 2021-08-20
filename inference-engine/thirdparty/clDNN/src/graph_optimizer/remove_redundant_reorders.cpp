@@ -389,9 +389,6 @@ void remove_redundant_reorders::run(program& p) {
         auto output_layout = node->get_output_layout();
         input.set_output_layout(output_layout, false);
         if (input.type()->does_possible_implementation_exist(input)) {
-            if (node->is_output()) {
-                input.set_output(true);
-            }
             input.set_output_padding(node->get_output_layout().data_padding);
 
             // Add fused_primitive_desc of reorder to convolution which propagate original output layout to jitter
@@ -404,11 +401,10 @@ void remove_redundant_reorders::run(program& p) {
             input.add_fused_primitive(local_desc);
             node->set_input_layout(local_desc.input_layout);
 
-            p.replace_all_usages(*node, input);
-            p.get_processing_order().erase(node);
+            // remove reorder node
+            node->can_be_optimized(true);
             p.add_optimized_primitive_info(node->id());
-            p.remove_all_connections(*node);
-            p.remove_if_dangling(*node);
+            p.extract_and_remove(*node);
         }
     };
 
