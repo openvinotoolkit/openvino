@@ -113,7 +113,7 @@ bool op::DepthToSpace::has_evaluate() const {
     return !get_input_partial_shape(0).is_dynamic();
 }
 
-std::ostream& operator<<(std::ostream& s, const op::DepthToSpace::DepthToSpaceMode& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::DepthToSpace::DepthToSpaceMode& type) {
     return s << as_string(type);
 }
 

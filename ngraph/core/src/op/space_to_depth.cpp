@@ -116,7 +116,7 @@ bool ngraph::op::v0::SpaceToDepth::has_evaluate() const {
     return !get_input_partial_shape(0).is_dynamic();
 }
 
-std::ostream& operator<<(std::ostream& s, const op::v0::SpaceToDepth::SpaceToDepthMode& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v0::SpaceToDepth::SpaceToDepthMode& type) {
     return s << as_string(type);
 }
 

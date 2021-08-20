@@ -815,7 +815,7 @@ void op::v5::NonMaxSuppression::validate_and_infer_types() {
     set_output_type(2, m_output_type, Shape{1});
 }
 
-std::ostream& operator<<(std::ostream& s, const op::v5::NonMaxSuppression::BoxEncodingType& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v5::NonMaxSuppression::BoxEncodingType& type) {
     return s << as_string(type);
 }
 

@@ -64,7 +64,7 @@ bool ngraph::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-std::ostream& operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type) {
     return s << as_string(type);
 }
 

@@ -113,7 +113,7 @@ bool op::v5::Round::has_evaluate() const {
     return false;
 }
 
-std::ostream& operator<<(std::ostream& s, const op::v5::Round::RoundMode& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v5::Round::RoundMode& type) {
     return s << as_string(type);
 }
 

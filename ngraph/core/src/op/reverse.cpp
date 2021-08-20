@@ -197,7 +197,7 @@ bool op::v1::Reverse::has_evaluate() const {
     }
 }
 
-std::ostream& operator<<(std::ostream& s, const op::v1::Reverse::Mode& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v1::Reverse::Mode& type) {
     return s << as_string(type);
 }
 
