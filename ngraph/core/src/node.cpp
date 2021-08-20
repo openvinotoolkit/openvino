@@ -344,6 +344,7 @@ void Node::merge_provenance_tags_from(const std::shared_ptr<const Node>& source)
 }
 
 void Node::transfer_provenance_tags(const shared_ptr<Node>& replacement) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     auto common_args = ngraph::find_common_args(shared_from_this(), replacement);
 
     std::set<string> removed_subgraph_tags;
@@ -362,6 +363,7 @@ void Node::transfer_provenance_tags(const shared_ptr<Node>& replacement) {
     };
 
     traverse_nodes({replacement}, set_prov_new_nodes, common_args);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 Node* Node::get_input_node_ptr(size_t index) const {
@@ -630,7 +632,8 @@ ResultVector ngraph::as_result_vector(const OutputVector& values) {
     ResultVector result;
     for (auto value : values) {
         shared_ptr<Node> node = value.get_node_shared_ptr();
-        result.push_back(is_type<op::Result>(node) ? as_type_ptr<op::Result>(node) : make_shared<op::Result>(value));
+        result.push_back(ov::is_type<op::Result>(node) ? ov::as_type_ptr<op::Result>(node)
+                                                       : make_shared<op::Result>(value));
     }
     return result;
 }
@@ -798,7 +801,7 @@ bool Node::evaluate_upper(const HostTensorVector& output_values) const {
 }
 
 bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Node::constant_fold");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
 
     if (m_rt_info.count("DISABLED_CONSTANT_FOLDING")) {
         return false;
@@ -806,14 +809,15 @@ bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_
 
     // If all the inputs are constants, try to evaluate the outputs
     bool all_constants = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
-        return as_type_ptr<op::v0::Constant>(input.get_node_shared_ptr());
+        return ov::as_type_ptr<op::v0::Constant>(input.get_node_shared_ptr());
     });
     if (!all_constants)
         return false;
 
     HostTensorVector input_tensors;
     for (const auto& input : input_values) {
-        auto host_tensor = make_shared<runtime::HostTensor>(as_type_ptr<op::v0::Constant>(input.get_node_shared_ptr()));
+        auto host_tensor =
+            make_shared<runtime::HostTensor>(ov::as_type_ptr<op::v0::Constant>(input.get_node_shared_ptr()));
         input_tensors.push_back(host_tensor);
     }
     HostTensorVector output_tensors;

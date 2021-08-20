@@ -24,11 +24,11 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& transp
     const auto transposeValues = transpose->get_input_node_shared_ptr(1);
     NGRAPH_CHECK(transposeValues != nullptr, "transpose constant was not found");
 
-    auto elementwiseValuesConvert = as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(1ul));
+    auto elementwiseValuesConvert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(1ul));
     auto elementwiseValues = elementwiseValuesConvert == nullptr ?
         elementwise->get_input_node_shared_ptr(1ul) :
         elementwiseValuesConvert->get_input_node_shared_ptr(0ul);
-    assert(is_type<opset1::Constant>(elementwiseValues));
+    assert(ov::is_type<opset1::Constant>(elementwiseValues));
 
     const auto transposeValuesShape = transposeValues->output(0).get_shape();
     const auto elementwiseValuesShape = elementwiseValues->output(0).get_shape();
@@ -43,17 +43,17 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& transp
                 element::i64,
                 Shape{ shape_size(transposeValuesShape) },
                 std::vector<size_t>(shape_size(transposeValuesShape), 1ul)));
-        assert(is_type<opset1::Constant>(elementwiseValues));
+        assert(ov::is_type<opset1::Constant>(elementwiseValues));
     }
 
-    const std::shared_ptr<opset1::Transpose> newTranspose = as_type_ptr<opset1::Transpose>(transpose->clone_with_new_inputs({
+    const std::shared_ptr<opset1::Transpose> newTranspose = ov::as_type_ptr<opset1::Transpose>(transpose->clone_with_new_inputs({
         elementwise->get_input_node_shared_ptr(0ul),
         transposeValues }));
 
     const auto newElementwiseValues = ngraph::pass::low_precision::fold<opset1::Transpose>(
         elementwiseValues->output(0),
         transposeValues->output(0));
-    assert(is_type<opset1::Constant>(newElementwiseValues));
+    assert(ov::is_type<opset1::Constant>(newElementwiseValues));
 
     const auto newElementwise = elementwise->clone_with_new_inputs({
         newTranspose,
@@ -112,12 +112,12 @@ ngraph::pass::low_precision::PullTransposeThroughDequantization::PullTransposeTh
 
         while (transpose != nullptr) {
             const auto parent = transpose->get_input_node_shared_ptr(0);
-            if (is_type<opset1::Multiply>(parent) || is_type<opset1::Subtract>(parent)) {
+            if (ov::is_type<opset1::Multiply>(parent) || ov::is_type<opset1::Subtract>(parent)) {
                 transpose = pull_transpose_through_dequantization::moveThroughElementwise(transpose, parent);
-            } else if (is_type<opset1::Convert>(parent)) {
+            } else if (ov::is_type<opset1::Convert>(parent)) {
                 transpose = pull_transpose_through_dequantization::moveThroughConvert(transpose, parent);
-            } else if (is_type<opset1::Constant>(parent)) {
-                pull_transpose_through_dequantization::fuseConstant(transpose, as_type_ptr<opset1::Constant>(parent));
+            } else if (ov::is_type<opset1::Constant>(parent)) {
+                pull_transpose_through_dequantization::fuseConstant(transpose, ov::as_type_ptr<opset1::Constant>(parent));
                 transpose = nullptr;
             } else {
                 THROW_IE_LPT_EXCEPTION(*parent) << "unexepcted operation type";

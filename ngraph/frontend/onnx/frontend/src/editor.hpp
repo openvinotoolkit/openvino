@@ -100,8 +100,20 @@ public:
     ///        instance of the model editor.
     std::vector<std::string> model_outputs() const;
 
+    /// \brief     Get name of the tensor which is the source of the input edge.
+    ///
+    /// \note      Empty string is returned if the tensor name is not found.
+    ///
+    std::string get_source_tensor_name(const InputEdge& edge) const;
+
     /// \brief     Returns true if input edge is input of the model. Otherwise false.
     bool is_input(const InputEdge& edge) const;
+
+    /// \brief     Get name of the tensor which is the target of the output edge.
+    ///
+    /// \note      Empty string is returned if the tensor name is not found.
+    ///
+    std::string get_target_tensor_name(const OutputEdge& edge) const;
 
     /// \brief     Returns true if output edge is input of the model. Otherwise false.
     bool is_output(const OutputEdge& edge) const;
