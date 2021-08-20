@@ -78,23 +78,21 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
                     return tests_cases;
 }
 
-std::vector<TestCase> generateTestsParamsMemLeaks(std::initializer_list<std::string> fields) {
+std::vector<TestCaseMemLeaks> generateTestsParamsMemLeaks() {
     std::vector<TestCase> tests_cases;
     const pugi::xml_document & test_config = Environment::Instance().getTestConfig();
 
-    int numprocesses = 1, numthreads = 1, numiterations = 1;
-    std::string device = "NULL";
+    int numprocesses, numthreads, numiteration,
+    std::string device;
 
-
-    pugi::xml_node models;
     pugi::xml_node cases;
     cases = test_config.child("cases").child("device");
 
     for (pugi::xml_node device = cases.first_child(); device; device = device.next_sibling()) {
-        name = device.attribute("name").as_string();
-        numprocesses = device.attribute("processes").as_int();
-        numthreads = device.attribute("threads").as_int();
-        numiterations = device.attribute("iterations").as_int();
+        device_name = device.attribute("name").as_string("NULL");
+        numprocesses = device.attribute("processes").as_int(1);
+        numthreads = device.attribute("threads").as_int(1);
+        numiterations = device.attribute("iterations").as_int(1);
 
         std::vector<std::string> models, models_names, precisions;
         for (pugi::xml_node model = device.first_child(); model; model = model.next_sibling()){
@@ -114,7 +112,7 @@ std::vector<TestCase> generateTestsParamsMemLeaks(std::initializer_list<std::str
         precisions = !precisions.empty() ? precisions : std::vector<std::string>{"NULL"};
         models_names = !models_names.empty() ? models_names : std::vector<std::string>{"NULL"};
 
-        tests_cases.push_back(TestCase(numprocesses, numthreads, numiters, device, models, models_names, precisions))
+        tests_cases.push_back(TestCase(numprocesses, numthreads, numiters, device_name, models, models_names, precisions))
     }
 
     return tests_cases;

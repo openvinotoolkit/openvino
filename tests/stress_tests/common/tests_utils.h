@@ -52,6 +52,36 @@ private:
     }
 };
 
+class TestCaseMemLeaks {
+public:
+    int numprocesses;
+    int numthreads;
+    int numiters;
+    std::string device;
+    std::vector<std::string> models_names;
+    std::vector<std::string> models;
+    std::vector<std::string> precision;|
+    std::string test_case_name;
+
+    TestCase(int _numprocesses, int _numthreads, int _numiters, std::string _device, const std::string& _model, const std::string& _model_name, const std::string& _precision) {
+        numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters, device = _device, model = _model, model_name = _model_name, precision = _precision;
+        test_case_name =
+                "Numprocesses_" + std::to_string(numprocesses) + "_Numthreads_" + std::to_string(numthreads) +
+                "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device) + "_Precision_" +
+                update_item_for_name(precision) + "_Model_" + update_item_for_name(model_name);
+    }
+
+private:
+    std::string update_item_for_name(const std::string &item) {
+        std::string _item(item);
+        for (std::string::size_type index = 0; index < _item.size(); ++index) {
+            if (!isalnum(_item[index]) && _item[index] != '_')
+                _item[index] = '_';
+        }
+        return _item;
+    }
+};
+
 class Environment {
 private:
     pugi::xml_document _test_config;
@@ -71,6 +101,7 @@ public:
 };
 
 std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> items);
+std::vector<TestCaseMemLeaks> generateTestsParamsMemLeaks(std::initializer_list<std::string> items);
 std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj);
 
 void runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);

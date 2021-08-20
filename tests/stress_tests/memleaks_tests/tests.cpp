@@ -131,15 +131,14 @@ TEST_P(MemLeaksTestSuite, inference_with_streams) {
 // tests_pipelines/tests_pipelines.cpp
 
 INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuiteNoModel,
-                        ::testing::ValuesIn(generateTestsParams({"processes", "threads", "iterations", "devices"})),
+                         ::testing::ValuesIn(generateTestsParamsMemLeaks()),
                         getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuiteNoDevice,
-                        ::testing::ValuesIn(generateTestsParams({"processes", "threads", "iterations", "models"})),
+                        ::testing::ValuesIn(generateTestsParamsMemLeaks()),
                         getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuite,
-                        ::testing::ValuesIn(
-                                generateTestsParams({"processes", "threads", "iterations", "devices", "models"})),
+                        ::testing::ValuesIn(generateTestsParamsMemLeaks()),
                         getTestCaseName);
 
