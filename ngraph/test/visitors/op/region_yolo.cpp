@@ -39,7 +39,7 @@ TEST(attributes, region_yolo_op) {
                                                        end_axis,
                                                        anchors);
     NodeBuilder builder(region_yolo);
-    auto g_region_yolo = as_type_ptr<opset1::RegionYolo>(builder.create());
+    auto g_region_yolo = ov::as_type_ptr<opset1::RegionYolo>(builder.create());
 
     EXPECT_EQ(g_region_yolo->get_num_coords(), region_yolo->get_num_coords());
     EXPECT_EQ(g_region_yolo->get_num_classes(), region_yolo->get_num_classes());

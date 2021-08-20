@@ -423,7 +423,7 @@ TEST(attributes, user_op) {
     saver.register_node(data, "data");
     saver.register_node(result, "result");
     builder.save_node(oracle);
-    auto g_oracle = as_type_ptr<Oracle>(builder.create());
+    auto g_oracle = ov::as_type_ptr<Oracle>(builder.create());
 
     EXPECT_EQ(g_oracle->get_turing_model(), oracle->get_turing_model());
     EXPECT_EQ(g_oracle->get_element_type(), oracle->get_element_type());

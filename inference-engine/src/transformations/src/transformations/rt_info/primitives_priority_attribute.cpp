@@ -30,7 +30,7 @@ std::string ngraph::getPrimitivesPriority(const std::shared_ptr<ngraph::Node> &n
     if (!rtInfo.count(PrimitivesPriorityWrapper::type_info.name)) return "";
 
     const auto &attr = rtInfo.at(PrimitivesPriorityWrapper::type_info.name);
-    PrimitivesPriority pp = as_type_ptr<PrimitivesPriorityWrapper>(attr)->get();
+    PrimitivesPriority pp = ov::as_type_ptr<PrimitivesPriorityWrapper>(attr)->get();
     return pp.getPrimitivesPriority();
 }
 

@@ -388,7 +388,7 @@ int64_t Function::get_parameter_index(const std::shared_ptr<op::Parameter>& para
 
 int64_t Function::get_result_index(const Output<Node>& value) const {
     int64_t pos = 0;
-    if (is_type<op::Result>(value.get_node_shared_ptr())) {
+    if (ov::is_type<op::Result>(value.get_node_shared_ptr())) {
         auto result = value.get_node_shared_ptr();
         for (auto r : get_results()) {
             if (r == result) {

@@ -178,7 +178,7 @@ bool ConcatTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noe
 }
 
 bool ConcatTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    std::shared_ptr<opset1::Concat> concat = as_type_ptr<opset1::Concat>(layer);
+    std::shared_ptr<opset1::Concat> concat = ov::as_type_ptr<opset1::Concat>(layer);
     if (concat == nullptr) {
         return false;
     }

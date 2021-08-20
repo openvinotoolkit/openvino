@@ -27,7 +27,7 @@ std::string ngraph::getDequantization(const std::shared_ptr<ngraph::Node>& node)
     if (!rtInfo.count(getDequantizationWrapper::type_info.name)) return "";
 
     const auto& attr = rtInfo.at(getDequantizationWrapper::type_info.name);
-    DequantizationAttr pp = as_type_ptr<getDequantizationWrapper>(attr)->get();
+    DequantizationAttr pp = ov::as_type_ptr<getDequantizationWrapper>(attr)->get();
     return pp.getDequantizationAttr();
 }
 
