@@ -82,6 +82,7 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginalWithDifferentPrecisionOnChildren(
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
+        const std::int64_t axis,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2);
 
@@ -229,10 +230,12 @@ public:
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
         const bool multiChannel,
+        const std::int64_t axis,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
         const ngraph::element::Type precisionBeforeOp,
-        const DequantizationOperations& dequantizationBefore,
+        const DequantizationOperations& dequantizationBefore1,
+        const DequantizationOperations& dequantizationBefore2,
         const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationAfter1,
         const DequantizationOperations& dequantizationAfter2);
