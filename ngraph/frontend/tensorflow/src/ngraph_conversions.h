@@ -22,7 +22,10 @@
 
 //#include "logging/ngraph_log.h"
 #include "default_opset.h"
-#include "ngraph_builder.h"
+//#include "ngraph_builder.h"
+#include "node_context_impl.hpp"
+#include <tensorflow_frontend/utility.hpp>
+
 
 namespace tensorflow {
 namespace ngraph_bridge {

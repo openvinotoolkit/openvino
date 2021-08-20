@@ -15,6 +15,7 @@
  *******************************************************************************/
 
 #include "ngraph_conversions.h"
+#include "ngraph_builder.h"
 
 namespace tensorflow {
 namespace ngraph_bridge {
