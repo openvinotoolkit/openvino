@@ -194,14 +194,6 @@ uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
     auto status = Gna2RequestConfigCreate(model_id, &reqConfId);
     checkGna2Status(status, "Gna2RequestConfigCreate");
 
-    // When the GNA_SW_EXACT mode is chosen inference results should be computed exactly the same way
-    // (bit exactly) as on the selected GNA execution target generation.
-    // See the GNA Plugin's GNA_EXEC_TARGET config option description.
-    if (swExactMode) {
-        const auto consistentDevice = getTargetDevice(true);
-        status = Gna2RequestConfigEnableHardwareConsistency(reqConfId, consistentDevice);
-        checkGna2Status(status, "Gna2RequestConfigEnableHardwareConsistency(" + std::to_string(static_cast<long>(consistentDevice)) + ")");
-    }
     status = Gna2InstrumentationConfigAssignToRequestConfig(instrumentationConfigId, reqConfId);
     checkGna2Status(status, "Gna2InstrumentationConfigAssignToRequestConfig");
 
