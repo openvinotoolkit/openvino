@@ -1,9 +1,3 @@
-# OMZ:
-# Hang:
-.*AvgPool_1199829.*
-.*AvgPool_1201153.*
-.*ROIPooling_1199827.*
-
 # DLB:
 # Hang:
 .*Convolution_1301086.*
