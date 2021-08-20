@@ -223,7 +223,7 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
     // chack that body doesnt have constants for scheduling
     std::vector<std::shared_ptr<opset1::Constant>> constants;
     for (auto op : m_body->get_ordered_ops()) {
-        if (auto constant = as_type_ptr<opset1::Constant>(op)) {
+        if (auto constant = ov::as_type_ptr<opset1::Constant>(op)) {
             if (ngraph::shape_size(constant->get_shape()) != 1 && constant->get_shape() != Shape()) {
                 constants.push_back(constant);
             }

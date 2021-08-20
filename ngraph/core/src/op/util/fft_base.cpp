@@ -73,7 +73,7 @@ void op::util::FFTBase::validate() {
                               axes_shape.to_shape()[0]);
     }
 
-    if (input_shape.rank().is_static() && is_type<op::Constant>(input_value(1).get_node())) {
+    if (input_shape.rank().is_static() && ov::is_type<op::Constant>(input_value(1).get_node())) {
         const auto input_rank = input_shape.rank().get_length();
         const auto& const_axes = get_constant_from_source(input_value(1));
         auto axes = const_axes->cast_vector<int64_t>();
@@ -146,7 +146,7 @@ void op::util::FFTBase::validate_and_infer_types() {
 
     const auto input_rank = input_shape.rank().get_length();
 
-    if (axes_shape.rank().is_dynamic() || !is_type<op::Constant>(input_value(1).get_node())) {
+    if (axes_shape.rank().is_dynamic() || !ov::is_type<op::Constant>(input_value(1).get_node())) {
         for (int64_t i = 0; i < input_rank - 1; ++i) {
             output_shape[i] = Dimension::dynamic();
         }
@@ -179,7 +179,7 @@ void op::util::FFTBase::validate_and_infer_types() {
         }
     }
 
-    if (!is_type<op::Constant>(input_value(2).get_node())) {
+    if (!ov::is_type<op::Constant>(input_value(2).get_node())) {
         for (int64_t axis : axes) {
             output_shape[axis] = Dimension::dynamic();
         }

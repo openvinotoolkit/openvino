@@ -63,13 +63,13 @@ bool InterpolateTransformation::transform(TransformationContext &context, ngraph
 }
 
 bool InterpolateTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
-    std::shared_ptr<opset1::Interpolate> interpolate1 = as_type_ptr<opset1::Interpolate>(layer);
+    std::shared_ptr<opset1::Interpolate> interpolate1 = ov::as_type_ptr<opset1::Interpolate>(layer);
     if (interpolate1) {
         const auto attrs = interpolate1->get_attrs();
         return attrs.mode == "nearest";
     }
 
-    std::shared_ptr<opset4::Interpolate> interpolate4 = as_type_ptr<opset4::Interpolate>(layer);
+    std::shared_ptr<opset4::Interpolate> interpolate4 = ov::as_type_ptr<opset4::Interpolate>(layer);
     if (interpolate4) {
         const auto attrs = interpolate4->get_attrs();
         return attrs.mode == op::v4::Interpolate::InterpolateMode::NEAREST;
@@ -90,7 +90,7 @@ bool InterpolateTransformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    const auto interpolate1 = as_type_ptr<opset1::Interpolate>(layer);
+    const auto interpolate1 = ov::as_type_ptr<opset1::Interpolate>(layer);
     if (interpolate1) {
         const auto interpAttrs = interpolate1->get_attrs();
         if (interpAttrs.axes.count(0) || interpAttrs.axes.count(1)) {
@@ -104,7 +104,7 @@ bool InterpolateTransformation::canBeTransformed(const TransformationContext& co
         }
     }
 
-    const auto interpolate4 = as_type_ptr<opset4::Interpolate>(layer);
+    const auto interpolate4 = ov::as_type_ptr<opset4::Interpolate>(layer);
     if (interpolate4) {
         const auto interpAttrs = interpolate4->get_attrs();
 

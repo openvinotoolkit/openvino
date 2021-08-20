@@ -238,7 +238,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& output,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData) {
-    return as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
+    return ov::as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
         output,
         precision,
         fqOnData.quantizationLevel,

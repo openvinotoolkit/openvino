@@ -38,7 +38,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
         return false;
     }
 
-    const auto shuffleChannels = as_type_ptr<opset1::ShuffleChannels>(NetworkHelper::separateInStandaloneBranch(m.get_match_root()));
+    const auto shuffleChannels = ov::as_type_ptr<opset1::ShuffleChannels>(NetworkHelper::separateInStandaloneBranch(m.get_match_root()));
     auto dequantization = NetworkHelper::getDequantization(shuffleChannels);
 
     const auto shuffleDequantizationConstant = [&](const std::shared_ptr<Node>& eltwise) {
@@ -58,7 +58,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
             } else {
                 const auto group = shuffleChannels->get_group();
                 const auto shuffledConst = fold<ngraph::opset1::ShuffleChannels>(normalizedConst, normalizedAxis, group);
-                return as_type_ptr<opset1::Constant>(shuffledConst);
+                return ov::as_type_ptr<opset1::Constant>(shuffledConst);
             }
         }
     };
@@ -82,7 +82,7 @@ bool ShuffleChannelsTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
-    const auto shuffleChannels = as_type_ptr<opset1::ShuffleChannels>(op);
+    const auto shuffleChannels = ov::as_type_ptr<opset1::ShuffleChannels>(op);
     if (shuffleChannels == nullptr) {
         return false;
     }

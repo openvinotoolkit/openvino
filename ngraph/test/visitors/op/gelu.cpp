@@ -18,7 +18,7 @@ TEST(attributes, gelu_op) {
     const auto approximation_mode = op::GeluApproximationMode::ERF;
     const auto gelu = make_shared<opset7::Gelu>(data_input, approximation_mode);
     NodeBuilder builder(gelu);
-    auto g_gelu = as_type_ptr<opset7::Gelu>(builder.create());
+    auto g_gelu = ov::as_type_ptr<opset7::Gelu>(builder.create());
 
     EXPECT_EQ(g_gelu->get_approximation_mode(), gelu->get_approximation_mode());
 }

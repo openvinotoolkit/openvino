@@ -40,7 +40,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     auto input = multiply->get_input_node_shared_ptr(0);
     auto constant = multiply->get_input_node_shared_ptr(1);
     auto inputIndex = 0;
-    if (!is_type<opset1::Constant>(constant)) {
+    if (!ov::is_type<opset1::Constant>(constant)) {
         input = multiply->get_input_node_shared_ptr(1);
         constant = multiply->get_input_node_shared_ptr(0);
         inputIndex = 1;
@@ -164,15 +164,15 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
 
     Shape constShape;
     int inputIndex;
-    if (const auto constant = as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
+    if (const auto constant = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
         inputIndex = 0;
         constShape = constant->get_shape();
-        if (is_type<opset1::Constant>(operation->get_input_node_shared_ptr(0)) ||
-            (is_type<opset1::Subtract>(operation->get_input_node_shared_ptr(0)) &&
-            is_type<opset1::Constant>(operation->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0)))) {
+        if (ov::is_type<opset1::Constant>(operation->get_input_node_shared_ptr(0)) ||
+            (ov::is_type<opset1::Subtract>(operation->get_input_node_shared_ptr(0)) &&
+            ov::is_type<opset1::Constant>(operation->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0)))) {
             return false;
         }
-    } else if (const auto constant = as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(0))) {
+    } else if (const auto constant = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(0))) {
         inputIndex = 1;
         constShape = constant->get_shape();
     } else {
@@ -209,7 +209,7 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolutio
     const auto parent0 = layer->get_input_node_shared_ptr(0);
     const auto parent1 = layer->get_input_node_shared_ptr(1);
 
-    if (!is_type<opset1::Constant>(parent0) && !is_type<opset1::Constant>(parent1)) {
+    if (!ov::is_type<opset1::Constant>(parent0) && !ov::is_type<opset1::Constant>(parent1)) {
         return false;
     }
 
@@ -224,10 +224,10 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolutio
 
 bool MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(const std::shared_ptr<const Node>& node) {
     auto getConstantIndex = [](const std::shared_ptr<const Node>& node) -> int {
-        if (is_type<opset1::Constant>(node->get_input_node_shared_ptr(1))) {
+        if (ov::is_type<opset1::Constant>(node->get_input_node_shared_ptr(1))) {
             return 1;
         }
-        if (is_type<opset1::Constant>(node->get_input_node_shared_ptr(0))) {
+        if (ov::is_type<opset1::Constant>(node->get_input_node_shared_ptr(0))) {
             return 0;
         }
         return -1;

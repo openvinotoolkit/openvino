@@ -22,7 +22,7 @@ TEST(attributes, random_uniform_op) {
     const auto random_uniform =
         make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::Type_t::f32, 150, 10);
     NodeBuilder builder(random_uniform);
-    auto g_random_uniform = as_type_ptr<opset8::RandomUniform>(builder.create());
+    auto g_random_uniform = ov::as_type_ptr<opset8::RandomUniform>(builder.create());
 
     const auto expected_attr_count = 3;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

@@ -42,7 +42,7 @@ SubtractTransformation::SubtractTransformation(const Params& params) : LayerTran
 }
 
 bool SubtractTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(m.get_match_root());
+    std::shared_ptr<opset1::Subtract> subtract = ov::as_type_ptr<opset1::Subtract>(m.get_match_root());
     if (!canBeTransformed(context, subtract)) {
         return false;
     }
@@ -54,7 +54,7 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
         // before: Y = X * SC - SH, after:  Y = (X - SH') * SC
         //    X * SC - SH = X * SC - SH' * SC
         //    SH' = SH / SC
-        std::shared_ptr<opset1::Subtract> newSubtract = as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
+        std::shared_ptr<opset1::Subtract> newSubtract = ov::as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
             dequantization.multiply->get_input_node_shared_ptr(0),
             ngraph::pass::low_precision::fold<ngraph::opset1::Divide>(
                 subtract->get_input_node_shared_ptr(1),
@@ -71,7 +71,7 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
     }
 
     if (dequantization.subtract != nullptr) {
-        std::shared_ptr<opset1::Subtract> newSubtract = as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
+        std::shared_ptr<opset1::Subtract> newSubtract = ov::as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
             dequantization.subtract->get_input_node_shared_ptr(0),
             ngraph::pass::low_precision::fold<ngraph::opset1::Add>(
                 subtract->get_input_node_shared_ptr(1),

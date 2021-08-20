@@ -632,7 +632,8 @@ ResultVector ngraph::as_result_vector(const OutputVector& values) {
     ResultVector result;
     for (auto value : values) {
         shared_ptr<Node> node = value.get_node_shared_ptr();
-        result.push_back(is_type<op::Result>(node) ? as_type_ptr<op::Result>(node) : make_shared<op::Result>(value));
+        result.push_back(ov::is_type<op::Result>(node) ? ov::as_type_ptr<op::Result>(node)
+                                                       : make_shared<op::Result>(value));
     }
     return result;
 }
@@ -808,14 +809,15 @@ bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_
 
     // If all the inputs are constants, try to evaluate the outputs
     bool all_constants = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
-        return as_type_ptr<op::v0::Constant>(input.get_node_shared_ptr());
+        return ov::as_type_ptr<op::v0::Constant>(input.get_node_shared_ptr());
     });
     if (!all_constants)
         return false;
 
     HostTensorVector input_tensors;
     for (const auto& input : input_values) {
-        auto host_tensor = make_shared<runtime::HostTensor>(as_type_ptr<op::v0::Constant>(input.get_node_shared_ptr()));
+        auto host_tensor =
+            make_shared<runtime::HostTensor>(ov::as_type_ptr<op::v0::Constant>(input.get_node_shared_ptr()));
         input_tensors.push_back(host_tensor);
     }
     HostTensorVector output_tensors;

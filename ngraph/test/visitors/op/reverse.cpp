@@ -23,7 +23,7 @@ TEST(attributes, reverse_op_enum_mode) {
 
     auto reverse = make_shared<opset1::Reverse>(data, reversed_axes, opset1::Reverse::Mode::INDEX);
     NodeBuilder builder(reverse);
-    auto g_reverse = as_type_ptr<opset1::Reverse>(builder.create());
+    auto g_reverse = ov::as_type_ptr<opset1::Reverse>(builder.create());
 
     EXPECT_EQ(g_reverse->get_mode(), reverse->get_mode());
 }
@@ -37,7 +37,7 @@ TEST(attributes, reverse_op_string_mode) {
 
     auto reverse = make_shared<opset1::Reverse>(data, reversed_axes, mode);
     NodeBuilder builder(reverse);
-    auto g_reverse = as_type_ptr<opset1::Reverse>(builder.create());
+    auto g_reverse = ov::as_type_ptr<opset1::Reverse>(builder.create());
 
     EXPECT_EQ(g_reverse->get_mode(), reverse->get_mode());
 }

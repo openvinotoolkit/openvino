@@ -52,8 +52,8 @@ ngraph::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFo
             return false;
         }
         auto child = target_inputs.begin()->get_node();
-        if (is_type<ngraph::opset1::Constant>(parent) &&
-            (is_type<ngraph::opset1::Subtract>(child) || is_type<ngraph::opset1::Multiply>(child))) {
+        if (ov::is_type<ngraph::opset1::Constant>(parent) &&
+            (ov::is_type<ngraph::opset1::Subtract>(child) || ov::is_type<ngraph::opset1::Multiply>(child))) {
             auto& rtInfo = convert->get_rt_info();
             rtInfo["DISABLED_CONSTANT_FOLDING"] = std::make_shared<VariantWrapper<std::string>>("");
             return true;

@@ -26,6 +26,6 @@ TEST(attributes, select) {
     const auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
-    auto g_select = as_type_ptr<opset1::Select>(builder.create());
+    auto g_select = ov::as_type_ptr<opset1::Select>(builder.create());
     EXPECT_EQ(g_select->get_autob(), select->get_autob());
 }

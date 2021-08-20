@@ -32,7 +32,7 @@ TEST(attributes, convolution_backprop_op) {
                                                                     dilations,
                                                                     op::PadType::VALID);
     NodeBuilder builder(convolution);
-    auto g_convolution = as_type_ptr<opset1::ConvolutionBackpropData>(builder.create());
+    auto g_convolution = ov::as_type_ptr<opset1::ConvolutionBackpropData>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 6;
@@ -75,7 +75,7 @@ TEST(attributes, convolution_backprop_output_shape_output_padding) {
                                                                               padType,
                                                                               output_padding);
         NodeBuilder builder(convolution);
-        const auto g_convolution = as_type_ptr<opset1::ConvolutionBackpropData>(builder.create());
+        const auto g_convolution = ov::as_type_ptr<opset1::ConvolutionBackpropData>(builder.create());
 
         // attribute count
         const auto expected_attr_count = 6;

@@ -215,13 +215,13 @@ class XmlSerializer : public ngraph::AttributeVisitor {
             input.append_attribute("external_port_id").set_value(input_description->m_input_index);
             input.append_attribute("internal_layer_id").set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
 
-            if (auto slice_input = as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
+            if (auto slice_input = ov::as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
                 input.prepend_attribute("axis").set_value(slice_input->m_axis);
                 input.append_attribute("start").set_value(slice_input->m_start);
                 input.append_attribute("end").set_value(slice_input->m_end);
                 input.append_attribute("stride").set_value(slice_input->m_stride);
                 input.append_attribute("part_size").set_value(slice_input->m_part_size);
-            } else if (auto merged_input = as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
+            } else if (auto merged_input = ov::as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
                 pugi::xml_node back_edges = m_xml_node.parent().child("back_edges");
                 if (!back_edges) {
                     back_edges = m_xml_node.parent().insert_child_after("back_edges", port_map);
@@ -249,7 +249,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
             output.append_attribute("external_port_id").set_value(input_count + output_description->m_output_index);
             output.append_attribute("internal_layer_id").set_value(result_mapping[output_description->m_body_value_index].c_str());
 
-            if (auto concat_output = as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
+            if (auto concat_output = ov::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
                 output.prepend_attribute("axis").set_value(concat_output->m_axis);
                 output.append_attribute("start").set_value(concat_output->m_start);
                 output.append_attribute("end").set_value(concat_output->m_end);

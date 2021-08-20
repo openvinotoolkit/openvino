@@ -33,7 +33,7 @@ FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& par
 }
 
 bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    const auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
+    const auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
     if (fakeQuantize == nullptr) {
         return false;
     }
@@ -51,7 +51,7 @@ bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, n
         fakeQuantize,
         false,
         (constantShape.rank().get_length() < 2) || constantShape[1] != 1ul ? 1ul : 0ul);
-    if (is_type<opset1::Constant>(resultConstant)) {
+    if (ov::is_type<opset1::Constant>(resultConstant)) {
         replace_node(fakeQuantize, resultConstant);
         return true;
     }

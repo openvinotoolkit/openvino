@@ -25,6 +25,6 @@ TEST(attributes, convert_op_v0) {
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
     // destination_type attribute
-    const auto g_convert = as_type_ptr<Convert>(builder.create());
+    const auto g_convert = ov::as_type_ptr<Convert>(builder.create());
     EXPECT_EQ(g_convert->get_destination_type(), convert->get_destination_type());
 }

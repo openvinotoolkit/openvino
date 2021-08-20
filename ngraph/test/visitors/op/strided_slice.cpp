@@ -39,7 +39,7 @@ TEST(attributes, strided_slice_op) {
                                                            shrink_axis_mask,
                                                            ellipsis_mask);
     NodeBuilder builder(strided_slice);
-    auto g_strided_slice = as_type_ptr<opset1::StridedSlice>(builder.create());
+    auto g_strided_slice = ov::as_type_ptr<opset1::StridedSlice>(builder.create());
 
     EXPECT_EQ(g_strided_slice->get_begin_mask(), strided_slice->get_begin_mask());
     EXPECT_EQ(g_strided_slice->get_end_mask(), strided_slice->get_end_mask());

@@ -83,7 +83,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
 
         // TODO: don't need to set restrictions for not supported operations
         // if don't set restrictions for not supported operations then accuracy drop appears, issue #59197
-        const bool supported = is_type<opset1::Result>(node) || isSupported(node);
+        const bool supported = ov::is_type<opset1::Result>(node) || isSupported(node);
         if (!supported || !LayerTransformation::canBeTransformedStatic(node)) {
             setRestriction(node, std::vector<std::pair<size_t, std::vector<ngraph::element::Type>>> { {0ul, {}}});
             continue;
@@ -157,14 +157,14 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
         return precisionPreserved;
     }
 
-    if (is_type<opset1::Interpolate>(node)) {
-        std::shared_ptr<opset1::Interpolate> interpolate1 = as_type_ptr<opset1::Interpolate>(node);
+    if (ov::is_type<opset1::Interpolate>(node)) {
+        std::shared_ptr<opset1::Interpolate> interpolate1 = ov::as_type_ptr<opset1::Interpolate>(node);
         if (interpolate1) {
             const auto attrs = interpolate1->get_attrs();
             return attrs.mode == "nearest";
         }
 
-        std::shared_ptr<opset4::Interpolate> interpolate4 = as_type_ptr<opset4::Interpolate>(node);
+        std::shared_ptr<opset4::Interpolate> interpolate4 = ov::as_type_ptr<opset4::Interpolate>(node);
         if (interpolate4) {
             const auto attrs = interpolate4->get_attrs();
             return attrs.mode == op::v4::Interpolate::InterpolateMode::NEAREST;

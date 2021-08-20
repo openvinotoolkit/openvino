@@ -33,7 +33,7 @@ TEST(attributes, rnn_cell_op_custom_attributes) {
         make_shared<opset1::RNNCell>(X, H, W, R, hidden_size, activations, activations_alpha, activations_beta, clip);
 
     NodeBuilder builder(rnn_cell);
-    auto g_rnn_cell = as_type_ptr<opset1::RNNCell>(builder.create());
+    auto g_rnn_cell = ov::as_type_ptr<opset1::RNNCell>(builder.create());
 
     EXPECT_EQ(g_rnn_cell->get_hidden_size(), rnn_cell->get_hidden_size());
     EXPECT_EQ(g_rnn_cell->get_clip(), rnn_cell->get_clip());
@@ -54,7 +54,7 @@ TEST(attributes, rnn_cell_op_default_attributes) {
     auto rnn_cell = make_shared<opset1::RNNCell>(X, H, W, R, hidden_size);
 
     NodeBuilder builder(rnn_cell);
-    auto g_rnn_cell = as_type_ptr<opset1::RNNCell>(builder.create());
+    auto g_rnn_cell = ov::as_type_ptr<opset1::RNNCell>(builder.create());
 
     EXPECT_EQ(g_rnn_cell->get_hidden_size(), rnn_cell->get_hidden_size());
     EXPECT_EQ(g_rnn_cell->get_clip(), rnn_cell->get_clip());

@@ -26,7 +26,7 @@ TEST(attributes, non_max_suppression_op_custom_attributes) {
 
     auto nms = make_shared<opset1::NonMaxSuppression>(boxes, scores, box_encoding, sort_result_descending);
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset1::NonMaxSuppression>(builder.create());
+    auto g_nms = ov::as_type_ptr<opset1::NonMaxSuppression>(builder.create());
 
     EXPECT_EQ(g_nms->get_box_encoding(), nms->get_box_encoding());
     EXPECT_EQ(g_nms->get_sort_result_descending(), nms->get_sort_result_descending());
@@ -39,7 +39,7 @@ TEST(attributes, non_max_suppression_op_default_attributes) {
 
     auto nms = make_shared<opset1::NonMaxSuppression>(boxes, scores);
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset1::NonMaxSuppression>(builder.create());
+    auto g_nms = ov::as_type_ptr<opset1::NonMaxSuppression>(builder.create());
 
     EXPECT_EQ(g_nms->get_box_encoding(), nms->get_box_encoding());
     EXPECT_EQ(g_nms->get_sort_result_descending(), nms->get_sort_result_descending());
@@ -56,7 +56,7 @@ TEST(attributes, non_max_suppression_v3_op_custom_attributes) {
 
     auto nms = make_shared<opset3::NonMaxSuppression>(boxes, scores, box_encoding, sort_result_descending, output_type);
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset3::NonMaxSuppression>(builder.create());
+    auto g_nms = ov::as_type_ptr<opset3::NonMaxSuppression>(builder.create());
 
     EXPECT_EQ(g_nms->get_box_encoding(), nms->get_box_encoding());
     EXPECT_EQ(g_nms->get_sort_result_descending(), nms->get_sort_result_descending());
@@ -70,7 +70,7 @@ TEST(attributes, non_max_suppression_v3_op_default_attributes) {
 
     auto nms = make_shared<opset3::NonMaxSuppression>(boxes, scores);
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset3::NonMaxSuppression>(builder.create());
+    auto g_nms = ov::as_type_ptr<opset3::NonMaxSuppression>(builder.create());
 
     EXPECT_EQ(g_nms->get_box_encoding(), nms->get_box_encoding());
     EXPECT_EQ(g_nms->get_sort_result_descending(), nms->get_sort_result_descending());

@@ -41,7 +41,7 @@ std::string ngraph::getFusedNames(const std::shared_ptr<ngraph::Node> &node) {
     if (!rtInfo.count(FusedNamesWrapper::type_info.name)) return {};
 
     const auto &attr = rtInfo.at(FusedNamesWrapper::type_info.name);
-    FusedNames fusedNames = as_type_ptr<FusedNamesWrapper>(attr)->get();
+    FusedNames fusedNames = ov::as_type_ptr<FusedNamesWrapper>(attr)->get();
     return fusedNames.getNames();
 }
 
@@ -54,7 +54,7 @@ std::vector<std::string> ngraph::getFusedNamesVector(const std::shared_ptr<ngrap
     if (!rtInfo.count(FusedNamesWrapper::type_info.name)) return {};
 
     const auto &attr = rtInfo.at(FusedNamesWrapper::type_info.name);
-    FusedNames fusedNames = as_type_ptr<FusedNamesWrapper>(attr)->get();
+    FusedNames fusedNames = ov::as_type_ptr<FusedNamesWrapper>(attr)->get();
     return fusedNames.getVectorNames();
 }
 

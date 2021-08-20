@@ -36,7 +36,7 @@ public:
         std::vector<std::shared_ptr<ngraph::Node>> nodes(f->get_ordered_ops());
         for (auto it = nodes.begin(); it != nodes.end(); it++) {
             const std::shared_ptr<Node> node = *it;
-            if (is_type<opset1::FakeQuantize>(node)) {
+            if (ov::is_type<opset1::FakeQuantize>(node)) {
                 assert(node->get_output_size() == 1ul);
                 auto& outputRtInfo = node->output(0).get_rt_info();
 
@@ -56,7 +56,7 @@ public:
 
                         auto node = nodeInput.get_source_output().get_node_shared_ptr();
                         std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> attributes;
-                        if (is_type<opset1::FakeQuantize>(node)) {
+                        if (ov::is_type<opset1::FakeQuantize>(node)) {
                             // output
                             auto& rt = nodeInput.get_source_output().get_rt_info();
                             auto it = rt.find(name);
@@ -109,8 +109,8 @@ private:
 
             const auto dequantization = NetworkHelper::getDequantization(node, index);
             if (!dequantization.empty() &&
-                (is_type<opset1::Convert>(dequantization.data.get_node())) &&
-                is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+                (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
+                ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
                 inputNode = dequantization.data.get_node()->get_input_node_shared_ptr(0);
             }
 
@@ -121,7 +121,7 @@ private:
                     const auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(inputAttributeIt->second);
                     parentAttributes.push_back(attribute);
                 }
-            } else if (is_type<opset1::FakeQuantize>(inputNode)) {
+            } else if (ov::is_type<opset1::FakeQuantize>(inputNode)) {
                 const auto& outputPortRtInfo = inputNode->outputs()[0].get_rt_info();
                 auto attributeIt = outputPortRtInfo.find(ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name);
                 if (attributeIt != outputPortRtInfo.end()) {

@@ -26,7 +26,7 @@ TEST(attributes, deformable_convolution_default_attributes) {
     auto convolution =
         make_shared<opset8::DeformableConvolution>(data, offsets, filters, strides, pads_begin, pads_end, dilations);
     NodeBuilder builder(convolution);
-    auto g_convolution = as_type_ptr<opset8::DeformableConvolution>(builder.create());
+    auto g_convolution = ov::as_type_ptr<opset8::DeformableConvolution>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 8;
@@ -66,7 +66,7 @@ TEST(attributes, deformable_convolution_attributes) {
                                                                   2,
                                                                   true);
     NodeBuilder builder(convolution);
-    auto g_convolution = as_type_ptr<opset8::DeformableConvolution>(builder.create());
+    auto g_convolution = ov::as_type_ptr<opset8::DeformableConvolution>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 8;

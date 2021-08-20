@@ -21,7 +21,7 @@ void static test_mode(opset5::Round::RoundMode mode) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{200});
     auto round = make_shared<opset5::Round>(data, mode);
     NodeBuilder builder(round);
-    auto g_round = as_type_ptr<opset5::Round>(builder.create());
+    auto g_round = ov::as_type_ptr<opset5::Round>(builder.create());
 
     EXPECT_EQ(g_round->get_mode(), round->get_mode());
 }

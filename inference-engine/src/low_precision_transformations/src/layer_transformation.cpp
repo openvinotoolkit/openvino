@@ -147,9 +147,9 @@ bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, 
 
     const auto parent = dequantization.subtract->input_value(1).get_node_shared_ptr();
 
-    if (is_type<opset1::Constant>(parent)) {
+    if (ov::is_type<opset1::Constant>(parent)) {
         return true;
-    } else if (is_type<opset1::Convert>(parent) && is_type<opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
+    } else if (ov::is_type<opset1::Convert>(parent) && ov::is_type<opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
         const auto constant = parent->get_input_node_shared_ptr(0);
         const auto constantType = constant->output(0).get_element_type();
         return operationType == constantType;
@@ -171,7 +171,7 @@ std::stringstream toStream(const std::vector<float>& dequantizationValues) {
 }
 
 void LayerTransformation::printDequantizationInfo(const std::shared_ptr<Node>& layer) {
-    const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(as_type_ptr<opset1::FakeQuantize>(layer));
+    const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(ov::as_type_ptr<opset1::FakeQuantize>(layer));
     std::cout <<
         layer->get_type_name() << (NetworkHelper::isConstantPath(layer) ? " on weights " : " on activations ") <<
         layer->get_friendly_name() << ":" << std::endl <<
@@ -337,7 +337,7 @@ void LayerTransformation::updateOutput(
     // TODO: not tested!!!
     for (auto output : lastNode->outputs()) {
         for (auto input : output.get_target_inputs()) {
-            if (is_type<ngraph::opset1::Result>(input.get_node())) {
+            if (ov::is_type<ngraph::opset1::Result>(input.get_node())) {
                 const std::string originalName = originalNode->get_friendly_name();
                 originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
                 lastNode->set_friendly_name(originalName);

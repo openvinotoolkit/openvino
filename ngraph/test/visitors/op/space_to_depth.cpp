@@ -25,7 +25,7 @@ TEST(attributes, space_to_depth_op) {
 
     auto space_to_depth = make_shared<opset1::SpaceToDepth>(data, mode, block_size);
     NodeBuilder builder(space_to_depth);
-    auto g_space_to_depth = as_type_ptr<opset1::SpaceToDepth>(builder.create());
+    auto g_space_to_depth = ov::as_type_ptr<opset1::SpaceToDepth>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 2;

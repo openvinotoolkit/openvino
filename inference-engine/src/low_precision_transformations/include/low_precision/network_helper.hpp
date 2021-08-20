@@ -226,14 +226,14 @@ public:
             auto node = nodes.front();
             nodes.pop_front();
 
-            if (visited.count(node) || is_type<op::Constant>(node)) {
+            if (visited.count(node) || ov::is_type<op::Constant>(node)) {
                 continue;
             }
 
             visited.insert(node);
 
             bool handleConnectedNodes = false;
-            if (NetworkHelper::isPrecisionPreserved(node) || is_type<opset1::FakeQuantize>(node)) {
+            if (NetworkHelper::isPrecisionPreserved(node) || ov::is_type<opset1::FakeQuantize>(node)) {
                 auto& rt = node->get_rt_info();
 
                 if (node == initialNode) {
@@ -255,13 +255,13 @@ public:
                 continue;
             }
 
-            if (!is_type<opset1::FakeQuantize>(node)) {
+            if (!ov::is_type<opset1::FakeQuantize>(node)) {
                 for (size_t index = 0ul; index < node->get_input_size(); ++index) {
                     auto getInput = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
                         const auto dequantization = NetworkHelper::getDequantization(node, index);
                         if (!dequantization.empty() &&
-                            (is_type<opset1::Convert>(dequantization.data.get_node())) &&
-                            is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+                            (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
+                            ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
                             const auto input = dequantization.data.get_node()->input(0);
                             return input;
                         }
@@ -272,7 +272,7 @@ public:
                     const auto& input_node = input.get_source_output().get_node_shared_ptr();
 
                     //const auto& input_node = input.get_source_output().get_node_shared_ptr();
-                    if (visited.count(input_node) || is_type<op::Constant>(input_node)) {
+                    if (visited.count(input_node) || ov::is_type<op::Constant>(input_node)) {
                         continue;
                     }
 
@@ -283,7 +283,7 @@ public:
             for (auto& output : node->outputs()) {
                 for (auto& input_value : output.get_target_inputs()) {
                     const auto& output_node = input_value.get_node()->shared_from_this();
-                    if (visited.count(output_node) || is_type<op::Constant>(output_node)) {
+                    if (visited.count(output_node) || ov::is_type<op::Constant>(output_node)) {
                         continue;
                     }
 
@@ -364,7 +364,7 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
 
 template <typename T>
 std::shared_ptr<Node> make_op_pattern(const ngraph::NodeVector& args) {
-    return std::make_shared<ngraph::pattern::op::Any>(element::undefined, PartialShape{}, [](std::shared_ptr<Node> n) {return !!as_type_ptr<T>(n); }, args);
+    return std::make_shared<ngraph::pattern::op::Any>(element::undefined, PartialShape{}, [](std::shared_ptr<Node> n) {return !!ov::as_type_ptr<T>(n); }, args);
 }
 
 template <typename T>
@@ -372,7 +372,7 @@ std::shared_ptr<Node> make_op_label() {
     return std::make_shared<ngraph::pattern::op::Label>(
             element::undefined,
             PartialShape{},
-            [](std::shared_ptr<Node> n) {return !!as_type_ptr<T>(n); });
+            [](std::shared_ptr<Node> n) {return !!ov::as_type_ptr<T>(n); });
 }
 
 template <typename T, typename... Args>
@@ -394,18 +394,18 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
     std::shared_ptr<Node> node = std::make_shared<T>(std::forward<Args>(args)...);
     if (node->get_output_size() == 1) {
         // issue #57985: remove fold_reshape & reuse nGraph implementation
-        const auto values = as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<int64_t>();
+        const auto values = ov::as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<int64_t>();
         if (std::any_of(values.begin(), values.end(), [](const int64_t value) { return (value == 0) || (value == -1); })) {
             return fold<opset1::Reshape>(std::forward<Args>(args)...);
         }
 
         OutputVector folded;
-        if (is_type<opset1::Constant>(node->input_value(0).get_node_shared_ptr()) &&
-            is_type<opset1::Constant>(node->input_value(1).get_node_shared_ptr())) {
+        if (ov::is_type<opset1::Constant>(node->input_value(0).get_node_shared_ptr()) &&
+            ov::is_type<opset1::Constant>(node->input_value(1).get_node_shared_ptr())) {
             return std::make_shared<opset1::Constant>(
                     node->get_input_element_type(0),
-                    Shape(as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<size_t>()),
-                    as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr())->get_data_ptr());
+                    Shape(ov::as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<size_t>()),
+                    ov::as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr())->get_data_ptr());
         }
     }
     return node;

@@ -38,11 +38,11 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     }
 
     const auto parent = multiply->get_input_node_shared_ptr(0);
-    auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(parent);
-    const auto convert = as_type_ptr<opset1::Convert>(parent);
+    auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(parent);
+    const auto convert = ov::as_type_ptr<opset1::Convert>(parent);
 
     if (convert) {
-        fakeQuantize = as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
     const auto multiplyConstant = multiply->get_input_node_shared_ptr(1);
@@ -90,7 +90,7 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
 }
 
 bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!is_type<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
+    if (!ov::is_type<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
         return false;
     }
 
@@ -99,11 +99,11 @@ bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const Transforma
     }
 
     const auto parent = operation->get_input_node_shared_ptr(0);
-    auto fq = as_type_ptr<opset1::FakeQuantize>(parent);
-    const auto convert = as_type_ptr<opset1::Convert>(parent);
+    auto fq = ov::as_type_ptr<opset1::FakeQuantize>(parent);
+    const auto convert = ov::as_type_ptr<opset1::Convert>(parent);
 
     if (convert) {
-        fq = as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fq = ov::as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
     if (!fq) {

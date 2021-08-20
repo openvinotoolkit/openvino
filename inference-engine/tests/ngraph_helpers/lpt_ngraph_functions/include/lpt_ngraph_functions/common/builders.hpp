@@ -55,7 +55,7 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(operation, description.outPrecision);
     }
 
-    if (is_type<ngraph::opset1::Subtract>(operation) || is_type<ngraph::opset1::Add>(operation)) {
+    if (ov::is_type<ngraph::opset1::Subtract>(operation) || ov::is_type<ngraph::opset1::Add>(operation)) {
         replace_node(
             operationConst,
             ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(operationConst, data->get_output_element_type(0)));

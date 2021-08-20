@@ -772,7 +772,7 @@ bool op::v5::NonMaxSuppression::is_soft_nms_sigma_constant_and_default() const {
     if (inputs().size() < 6 || !ngraph::op::is_constant(soft_nms_sigma_node)) {
         return false;
     }
-    const auto soft_nms_sigma_input = as_type_ptr<op::Constant>(soft_nms_sigma_node);
+    const auto soft_nms_sigma_input = ov::as_type_ptr<op::Constant>(soft_nms_sigma_node);
     return soft_nms_sigma_input->cast_vector<float>().at(0) == 0.0f;
 }
 

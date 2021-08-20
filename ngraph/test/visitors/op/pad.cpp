@@ -26,7 +26,7 @@ TEST(attributes, pad_op) {
 
     auto pad = make_shared<opset1::Pad>(arg, pads_begin, pads_end, pad_mode);
     NodeBuilder builder(pad);
-    auto g_pad = as_type_ptr<opset1::Pad>(builder.create());
+    auto g_pad = ov::as_type_ptr<opset1::Pad>(builder.create());
 
     EXPECT_EQ(g_pad->get_pad_mode(), pad->get_pad_mode());
 }

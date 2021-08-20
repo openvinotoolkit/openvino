@@ -37,13 +37,13 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
             return false;
         }
 
-        auto constant = as_type_ptr<ngraph::opset1::Constant>(sub->get_input_node_shared_ptr(1));
+        auto constant = ov::as_type_ptr<ngraph::opset1::Constant>(sub->get_input_node_shared_ptr(1));
         if (constant == nullptr) {
             const auto convert = sub->get_input_node_shared_ptr(1);
-            if (!is_type<ngraph::opset1::Convert>(convert)) {
+            if (!ov::is_type<ngraph::opset1::Convert>(convert)) {
                 return false;
             }
-            constant = as_type_ptr<ngraph::opset1::Constant>(convert->get_input_node_shared_ptr(0));
+            constant = ov::as_type_ptr<ngraph::opset1::Constant>(convert->get_input_node_shared_ptr(0));
         }
 
         if (constant == nullptr) {
@@ -66,7 +66,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    const auto newClamp = as_type_ptr<opset1::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));
+    const auto newClamp = ov::as_type_ptr<opset1::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));
 
     std::shared_ptr<ngraph::opset1::Clamp> replacement;
     {
@@ -74,7 +74,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         double max = newClamp->get_max();
 
         if (dequantization.multiply != nullptr) {
-            double scale = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<double>()[0];
+            double scale = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<double>()[0];
             if (scale < 0.0) {
                 std::swap(min, max);
             }
@@ -83,7 +83,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         }
 
         if (dequantization.subtract != nullptr && moveSubtract) {
-            double shift = as_type_ptr<opset1::Constant>(dequantization.subtractConstant)->cast_vector<double>()[0];
+            double shift = ov::as_type_ptr<opset1::Constant>(dequantization.subtractConstant)->cast_vector<double>()[0];
             min += shift;
             max += shift;
         }

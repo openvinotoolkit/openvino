@@ -42,9 +42,9 @@ bool FakeQuantizeDequantization::multiplyHasZeroOrDenormal() const {
         return false;
     }
 
-    std::shared_ptr<opset1::Constant> multiplyConstant = as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(1));
+    std::shared_ptr<opset1::Constant> multiplyConstant = ov::as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(1));
     if (multiplyConstant == nullptr) {
-        multiplyConstant = as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(0));
+        multiplyConstant = ov::as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(0));
     }
     if (multiplyConstant == nullptr) {
         return false;
@@ -163,11 +163,11 @@ int FakeQuantizeDequantization::fillDequantizationParams(
         const size_t branchIndex,
         std::shared_ptr<ngraph::opset1::Convert>& convert,
         std::shared_ptr<ngraph::opset1::Constant>& constant) {
-        convert = as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(branchIndex));
+        convert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(branchIndex));
         if (convert != nullptr) {
-            constant = as_type_ptr<opset1::Constant>(convert->get_input_node_shared_ptr(0));
+            constant = ov::as_type_ptr<opset1::Constant>(convert->get_input_node_shared_ptr(0));
         } else {
-            constant = as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(branchIndex));
+            constant = ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(branchIndex));
         }
     };
 
@@ -187,12 +187,12 @@ int FakeQuantizeDequantization::fillDequantizationParams(
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ngraph::Node>& elementwise,
     std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept {
-    constant = as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1ul));
+    constant = ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1ul));
     if (constant != nullptr) {
         return 1;
     }
 
-    constant = as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(0ul));
+    constant = ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(0ul));
     if (constant != nullptr) {
         return 0;
     }

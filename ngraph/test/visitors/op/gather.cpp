@@ -23,7 +23,7 @@ TEST(attributes, gather_v7_op) {
 
     auto gather = make_shared<opset7::Gather>(data, indices, axis, batch_dims);
     NodeBuilder builder(gather);
-    auto g_gather = as_type_ptr<opset7::Gather>(builder.create());
+    auto g_gather = ov::as_type_ptr<opset7::Gather>(builder.create());
 
     EXPECT_EQ(g_gather->get_batch_dims(), gather->get_batch_dims());
 }
@@ -37,7 +37,7 @@ TEST(attributes, gather_v8_op) {
 
     auto gather = make_shared<opset8::Gather>(data, indices, axis, batch_dims);
     NodeBuilder builder(gather);
-    auto g_gather = as_type_ptr<opset8::Gather>(builder.create());
+    auto g_gather = ov::as_type_ptr<opset8::Gather>(builder.create());
 
     EXPECT_EQ(g_gather->get_batch_dims(), gather->get_batch_dims());
 }

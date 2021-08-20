@@ -83,7 +83,7 @@ public:
             OutputVector convertedOutput(1);
             convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
             const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
-            testValues.expected.weights = as_type_ptr<opset1::Constant>(convertedWeights);
+            testValues.expected.weights = ov::as_type_ptr<opset1::Constant>(convertedWeights);
         }
 
         referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(

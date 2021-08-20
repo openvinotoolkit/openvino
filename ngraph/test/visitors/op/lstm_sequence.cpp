@@ -55,7 +55,7 @@ TEST(attributes, lstm_sequence_op) {
                                                                  activations,
                                                                  clip_threshold);
     NodeBuilder builder(lstm_sequence);
-    auto g_lstm_sequence = as_type_ptr<opset5::LSTMSequence>(builder.create());
+    auto g_lstm_sequence = ov::as_type_ptr<opset5::LSTMSequence>(builder.create());
 
     EXPECT_EQ(g_lstm_sequence->get_hidden_size(), lstm_sequence->get_hidden_size());
     EXPECT_EQ(g_lstm_sequence->get_activations(), lstm_sequence->get_activations());

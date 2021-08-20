@@ -43,7 +43,7 @@ bool MaxPoolTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-    const std::vector<float> scales = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<float>();
+    const std::vector<float> scales = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<float>();
     if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.0; })) {
         return false;
     }

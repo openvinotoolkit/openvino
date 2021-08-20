@@ -28,26 +28,26 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
     // motivation:
     //    - single responsibility
     //    - keep AddTransformation and AddToSubtractTransformation transformations independent and optional
-    const auto add = as_type_ptr<opset1::Add>(op);
+    const auto add = ov::as_type_ptr<opset1::Add>(op);
     if (add == nullptr) {
         return nullptr;
     }
 
     // TODO: use general way from getDequantization: is eltwise with Constant
-    const int constBranchIndex = is_type<opset1::Constant>(add->get_input_node_ptr(0)) ?
+    const int constBranchIndex = ov::is_type<opset1::Constant>(add->get_input_node_ptr(0)) ?
         0 :
-        (is_type<opset1::Constant>(add->get_input_node_ptr(1)) ? 1 : -1);
+        (ov::is_type<opset1::Constant>(add->get_input_node_ptr(1)) ? 1 : -1);
     if (constBranchIndex == -1) {
         return nullptr;
     }
     const size_t dataBranchIndex = constBranchIndex == 0 ? 1ul : 0;
 
     const auto parent = add->get_input_node_shared_ptr(dataBranchIndex);
-    if (is_type<opset1::Convolution>(parent) ||
-        is_type<opset1::GroupConvolution>(parent) ||
-        is_type<opset1::ConvolutionBackpropData>(parent) ||
-        (is_type<opset1::MatMul>(parent) &&
-        (is_type<opset1::Constant>(parent->get_input_node_ptr(0)) || is_type<opset1::Constant>(parent->get_input_node_ptr(1))))) {
+    if (ov::is_type<opset1::Convolution>(parent) ||
+        ov::is_type<opset1::GroupConvolution>(parent) ||
+        ov::is_type<opset1::ConvolutionBackpropData>(parent) ||
+        (ov::is_type<opset1::MatMul>(parent) &&
+        (ov::is_type<opset1::Constant>(parent->get_input_node_ptr(0)) || ov::is_type<opset1::Constant>(parent->get_input_node_ptr(1))))) {
         return nullptr;
     }
 
@@ -68,11 +68,11 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
 }
 
 std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& op) {
-    const auto add = as_type_ptr<opset1::Add>(op);
+    const auto add = ov::as_type_ptr<opset1::Add>(op);
     if ((add == nullptr) ||
-        !is_type<opset1::Subtract>(add->get_input_node_shared_ptr(0)) ||
+        !ov::is_type<opset1::Subtract>(add->get_input_node_shared_ptr(0)) ||
         // TODO: use general way from getDequantization: is eltwise with Constant
-        !is_type<opset1::Constant>(add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1))) {
+        !ov::is_type<opset1::Constant>(add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1))) {
         return nullptr;
     }
 
@@ -107,7 +107,7 @@ AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransfor
 }
 
 bool AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::Add> op = as_type_ptr<opset1::Add>(m.get_match_root());
+    std::shared_ptr<opset1::Add> op = ov::as_type_ptr<opset1::Add>(m.get_match_root());
     if ((op == nullptr) || (!canBeTransformed(context, op))) {
         return false;
     }
@@ -116,7 +116,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
     NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, 1));
 
     std::shared_ptr<Node> addNode = NetworkHelper::separateInStandaloneBranch(op);
-    std::shared_ptr<opset1::Add> add = as_type_ptr<opset1::Add>(addNode);
+    std::shared_ptr<opset1::Add> add = ov::as_type_ptr<opset1::Add>(addNode);
 
     const int fullPathIndex = getNotEmpty(add);
     std::shared_ptr<Node> newMultiply;
@@ -136,7 +136,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
 
         newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
         ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
-        if (is_type<opset1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
+        if (ov::is_type<opset1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
             newAddOrSubtract = newMultiply->get_input_node_shared_ptr(0);
 
             auto subtract = fuseWithSubtract(newAddOrSubtract);

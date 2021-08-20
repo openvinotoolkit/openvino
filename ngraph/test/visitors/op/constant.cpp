@@ -20,7 +20,7 @@ TEST(attributes, constant_op) {
     vector<float> data{5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f};
     auto k = make_shared<op::v0::Constant>(element::f32, Shape{2, 3}, data);
     NodeBuilder builder(k);
-    auto g_k = as_type_ptr<op::v0::Constant>(builder.create());
+    auto g_k = ov::as_type_ptr<op::v0::Constant>(builder.create());
     g_k->validate_and_infer_types();
     ASSERT_TRUE(g_k);
     EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
@@ -33,7 +33,7 @@ TEST(attributes, constant_op_different_elements) {
     vector<int64_t> data{5, 4, 3, 2, 1, 0};
     auto k = make_shared<op::v0::Constant>(element::i64, Shape{2, 3}, data);
     NodeBuilder builder(k);
-    auto g_k = as_type_ptr<op::v0::Constant>(builder.create());
+    auto g_k = ov::as_type_ptr<op::v0::Constant>(builder.create());
     g_k->validate_and_infer_types();
     ASSERT_TRUE(g_k);
     EXPECT_EQ(k->get_element_type(), g_k->get_element_type());
@@ -47,7 +47,7 @@ TEST(attributes, constant_op_identical_elements) {
     vector<int64_t> data{5, 5, 5, 5, 5, 5};
     auto k = make_shared<op::v0::Constant>(element::i64, Shape{2, 3}, data);
     NodeBuilder builder(k);
-    auto g_k = as_type_ptr<op::v0::Constant>(builder.create());
+    auto g_k = ov::as_type_ptr<op::v0::Constant>(builder.create());
     g_k->validate_and_infer_types();
     ASSERT_TRUE(g_k);
     EXPECT_EQ(k->get_element_type(), g_k->get_element_type());

@@ -117,11 +117,11 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_subst_val) {
     ASSERT_EQ(g->get_output_shape(0), (Shape{1, 2, 3}));
     ASSERT_EQ(g->get_output_element_type(0), element::f32);
 
-    auto plus_node = as_type_ptr<op::v1::Add>(g->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    auto plus_node = ov::as_type_ptr<op::v1::Add>(g->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(plus_node);
-    auto convert_node = as_type_ptr<op::Convert>(plus_node->input_value(1).get_node_shared_ptr());
+    auto convert_node = ov::as_type_ptr<op::Convert>(plus_node->input_value(1).get_node_shared_ptr());
     ASSERT_TRUE(convert_node);
-    auto const_node = as_type_ptr<op::Constant>(convert_node->input_value(0).get_node_shared_ptr());
+    auto const_node = ov::as_type_ptr<op::Constant>(convert_node->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(const_node);
 
     ASSERT_EQ(const_node->get_output_element_type(0), element::i32);

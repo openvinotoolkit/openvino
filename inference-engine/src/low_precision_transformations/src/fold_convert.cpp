@@ -38,12 +38,12 @@ bool FoldConvertTransformation::transform(TransformationContext& context, ngraph
 
     auto foldConvert = [&](const size_t branch) {
         const auto convert = subtract->get_input_node_shared_ptr(branch);
-        if (!is_type<opset1::Convert>(convert) || !is_type<opset1::Constant>(convert->get_input_node_shared_ptr(0))) {
+        if (!ov::is_type<opset1::Convert>(convert) || !ov::is_type<opset1::Constant>(convert->get_input_node_shared_ptr(0))) {
             return;
         }
 
         const auto resultConstant = ngraph::pass::low_precision::foldConvert(convert->get_input_node_shared_ptr(0), convert->output(0).get_element_type());
-        assert(is_type<opset1::Constant>(resultConstant));
+        assert(ov::is_type<opset1::Constant>(resultConstant));
 
         replace_node(convert, resultConstant);
         updateOutput(context, resultConstant, convert);
@@ -57,10 +57,10 @@ bool FoldConvertTransformation::transform(TransformationContext& context, ngraph
 
 bool FoldConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
     return
-        (is_type<opset1::Convert>(operation->get_input_node_ptr(1)) &&
-        is_type<opset1::Constant>(operation->get_input_node_ptr(1)->get_input_node_ptr(0))) ||
-        (is_type<opset1::Convert>(operation->get_input_node_ptr(0)) &&
-        is_type<opset1::Constant>(operation->get_input_node_ptr(0)->get_input_node_ptr(0)));
+        (ov::is_type<opset1::Convert>(operation->get_input_node_ptr(1)) &&
+        ov::is_type<opset1::Constant>(operation->get_input_node_ptr(1)->get_input_node_ptr(0))) ||
+        (ov::is_type<opset1::Convert>(operation->get_input_node_ptr(0)) &&
+        ov::is_type<opset1::Constant>(operation->get_input_node_ptr(0)->get_input_node_ptr(0)));
 }
 
 bool FoldConvertTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
