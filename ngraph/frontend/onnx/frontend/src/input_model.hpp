@@ -13,9 +13,12 @@ namespace frontend {
 class InputModelONNX : public InputModel {
 public:
     InputModelONNX(const std::string& path);
+    InputModelONNX(const std::wstring& path);
+    InputModelONNX(std::istream& model_stream);
     // The path can be needed even if the model is passed as stream, because it is required
     // for onnx external data feature
-    InputModelONNX(std::istream& model_stream, const std::string& path = "");
+    InputModelONNX(std::istream& model_stream, const std::string& path);
+    InputModelONNX(std::istream& model_stream, const std::wstring& path);
 
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override;

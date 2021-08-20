@@ -16,6 +16,11 @@
 using namespace ngraph;
 using namespace ngraph::frontend;
 
+using VariantString = VariantWrapper<std::string>;
+using VariantWString = VariantWrapper<std::wstring>;
+using VariantIstreamPtr = VariantWrapper<std::istream*>;
+using VariantIstringstreamPtr = VariantWrapper<std::istringstream*>;
+
 extern "C" ONNX_FRONTEND_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
@@ -30,19 +35,41 @@ extern "C" ONNX_FRONTEND_API void* GetFrontEndData() {
 }
 
 InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
-    if (variants.size() > 0 && is_type<VariantWrapper<std::string>>(variants[0])) {
-        const auto path = as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
+    if(variants.size() == 0)
+    {
+        return nullptr;
+    }
+    if (is_type<VariantString>(variants[0])) {
+        const auto path = as_type_ptr<VariantString>(variants[0])->get();
         return std::make_shared<InputModelONNX>(path);
     }
-    if (variants.size() > 0 && (is_type<VariantWrapper<std::istream*>>(variants[0]) ||
-                                is_type<VariantWrapper<std::istringstream*>>(variants[0]))) {
-        std::istream* stream = is_type<VariantWrapper<std::istream*>>(variants[0])
-                                   ? as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get()
-                                   : as_type_ptr<VariantWrapper<std::istringstream*>>(variants[0])->get();
-        if (variants.size() > 1 && is_type<VariantWrapper<std::string>>(variants[1])) {
-            const auto path = as_type_ptr<VariantWrapper<std::string>>(variants[1])->get();
+    #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    if (is_type<VariantWrapper<std::wstring>>(variants[0])) {
+        const auto path = as_type_ptr<VariantString>(variants[0])->get();
+        return std::make_shared<InputModelONNX>(path);
+    }
+    #endif
+    std::istream* stream = nullptr;
+    if (is_type<VariantIstreamPtr>(variants[0]))
+    {
+        stream = as_type_ptr<VariantIstreamPtr>(variants[0])->get();
+    }
+    else if (is_type<VariantIstringstreamPtr>(variants[0])) {
+        stream = as_type_ptr<VariantIstringstreamPtr>(variants[0])->get();
+    }
+    if(stream != nullptr) {
+        if (variants.size() > 1 && is_type<VariantString>(variants[1]))
+        {
+            const auto path = as_type_ptr<VariantString>(variants[1])->get();
             return std::make_shared<InputModelONNX>(*stream, path);
         }
+        #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        if (variants.size() > 1 && is_type<VariantWString>(variants[1]))
+        {
+            const auto path = as_type_ptr<VariantWString>(variants[1])->get();
+            return std::make_shared<InputModelONNX>(*stream, path);
+        }
+        #endif
         return std::make_shared<InputModelONNX>(*stream);
     }
     return nullptr;
@@ -91,19 +118,35 @@ private:
 }  // namespace
 
 bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
-    if (variants.size() > 0 && is_type<VariantWrapper<std::string>>(variants[0])) {
-        const auto path = as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
-        std::ifstream model_stream(path, std::ios::in | std::ifstream::binary);
+    if(variants.size() == 0) {
+        return false;
+    }
+    std::ifstream model_stream;
+    if (is_type<VariantString>(variants[0])) {
+        const auto path = as_type_ptr<VariantString>(variants[0])->get();
+        model_stream.open(path, std::ios::in | std::ifstream::binary);
+    }
+    #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    else if (is_type<VariantWString>(variants[0])) {
+        const auto path = as_type_ptr<VariantWString>(variants[0])->get();
+        model_stream.open(path, std::ios::in | std::ifstream::binary);
+    }
+    #endif
+    if (model_stream.is_open()) {
         model_stream.seekg(0, model_stream.beg);
         const bool is_valid_model = onnx_common::is_valid_model(model_stream);
         model_stream.close();
         return is_valid_model;
     }
-    if (variants.size() > 0 && (is_type<VariantWrapper<std::istream*>>(variants[0]) ||
-                                is_type<VariantWrapper<std::istringstream*>>(variants[0]))) {
-        std::istream* stream = is_type<VariantWrapper<std::istream*>>(variants[0])
-                                   ? as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get()
-                                   : as_type_ptr<VariantWrapper<std::istringstream*>>(variants[0])->get();
+    std::istream* stream = nullptr;
+    if (is_type<VariantIstreamPtr>(variants[0]))
+    {
+        stream = as_type_ptr<VariantIstreamPtr>(variants[0])->get();
+    }
+    else if (is_type<VariantIstringstreamPtr>(variants[0])) {
+        stream = as_type_ptr<VariantIstringstreamPtr>(variants[0])->get();
+    }
+    if (stream != nullptr) {
         StreamRewinder rwd{*stream};
         return onnx_common::is_valid_model(*stream);
     }

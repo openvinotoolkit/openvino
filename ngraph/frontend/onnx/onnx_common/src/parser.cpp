@@ -19,7 +19,9 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
         throw ngraph_error("Could not open the file: " + file_path);
     };
 
-    return parse_from_istream(file_stream);
+    auto model_proto = parse_from_istream(file_stream);
+    file_stream.close();
+    return model_proto;
 }
 
 ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
