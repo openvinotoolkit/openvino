@@ -29,7 +29,7 @@ PatternValueMap as_pattern_value_map(const PatternMap& pattern_map);
 template <typename T>
 std::function<bool(std::shared_ptr<Node>)> has_class() {
     auto pred = [](std::shared_ptr<Node> node) -> bool {
-        return is_type<T>(node);
+        return ov::is_type<T>(node);
     };
 
     return pred;
