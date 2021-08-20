@@ -115,7 +115,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
         const auto newSubtract = std::make_shared<opset1::Subtract>(newMatMul, newSubConst);
         newSubtract->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationSubtract");
-        append_runtime_info({ newSubtract, matMul }, newSubtract);
+        copy_runtime_info({ newSubtract, matMul }, newSubtract);
 
         parent = newSubtract;
     }
@@ -168,7 +168,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     newMultiply->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationMultiply");
 
     replace_node(matMul, newMultiply);
-    append_runtime_info({ newMultiply, matMul }, newMultiply);
+    copy_runtime_info({ newMultiply, matMul }, newMultiply);
 
     updateOutput(context, newMultiply, newMatMul);
 

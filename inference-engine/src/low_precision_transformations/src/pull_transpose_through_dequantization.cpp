@@ -62,7 +62,7 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& transp
             std::make_shared<opset1::Convert>(newElementwiseValues, elementwiseValuesConvert->get_destination_type()) });
 
     replace_node(transpose, newElementwise);
-    append_runtime_info({ elementwise, transpose }, { newTranspose, newElementwise });
+    copy_runtime_info({ elementwise, transpose }, { newTranspose, newElementwise });
 
     return newTranspose;
 }
@@ -71,7 +71,7 @@ std::shared_ptr<Node> moveThroughConvert(const std::shared_ptr<Node>& transpose,
     const auto newTranspose = transpose->clone_with_new_inputs({convert->get_input_node_shared_ptr(0), transpose->get_input_node_ptr(1)->output(0) });
     const auto newConvert = convert->clone_with_new_inputs({ newTranspose });
     replace_node(transpose, newConvert);
-    append_runtime_info({ convert, transpose }, { newTranspose, newConvert });
+    copy_runtime_info({ convert, transpose }, { newTranspose, newConvert });
 
     return newTranspose;
 }
@@ -82,7 +82,7 @@ void fuseConstant(const std::shared_ptr<Node>& transpose, const std::shared_ptr<
         transpose->get_input_node_ptr(1)->output(0));
 
     replace_node(transpose, newConstant);
-    append_runtime_info({ constant, transpose }, newConstant);
+    copy_runtime_info({ constant, transpose }, newConstant);
 }
 
 }  // namespace pull_transpose_through_dequantization

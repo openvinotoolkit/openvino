@@ -94,7 +94,7 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
             return false;
         }
 
-        ngraph::append_runtime_info({ convert, op }, newOp);
+        ngraph::copy_runtime_info({ convert, op }, newOp);
         newOp->set_friendly_name(op->get_friendly_name());
         register_new_node(newOp);
     }

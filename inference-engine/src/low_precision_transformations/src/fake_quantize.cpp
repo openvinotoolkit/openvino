@@ -202,7 +202,7 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     matcherPass->register_new_node(newFakeQuantize);
 
     replace_node(fakeQuantize, newFakeQuantize);
-    ngraph::append_runtime_info({ fakeQuantize, eltwise }, newFakeQuantize);
+    ngraph::copy_runtime_info({ fakeQuantize, eltwise }, newFakeQuantize);
     newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
     return newFakeQuantize;
 }

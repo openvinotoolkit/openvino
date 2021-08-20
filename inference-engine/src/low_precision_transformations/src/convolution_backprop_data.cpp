@@ -203,7 +203,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
     }
     std::shared_ptr<ngraph::opset1::Multiply> finalDequantization = NetworkHelper::optimizeMultipliesAfter(
             convolutionBackpropData->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
-    ngraph::append_runtime_info({ convolutionBackpropData, finalDequantization }, finalDequantization);
+    ngraph::copy_runtime_info({ convolutionBackpropData, finalDequantization }, finalDequantization);
     updateOutput(context, finalDequantization, convolutionBackpropData);
 
     auto onWeights = convolutionBackpropData->get_input_node_shared_ptr(1);

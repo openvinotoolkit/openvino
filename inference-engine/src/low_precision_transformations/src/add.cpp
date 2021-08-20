@@ -223,7 +223,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
 
         replace_node(add, newMultiply);
         NetworkHelper::copyInfo(add, newAddOrSubtract);
-        ngraph::append_runtime_info({ add, newMultiply }, newMultiply);
+        ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
     }
 
     updateOutput(context, newMultiply, newAddOrSubtract);

@@ -184,8 +184,6 @@ class TypeRelaxed : public BaseOp, public TypeRelaxedBase {
 public:
     NGRAPH_RTTI_DECLARATION;
 
-    using BaseOp::BaseOp;
-
     TypeRelaxed() {
         init_rt_info(*this);
     }
@@ -213,6 +211,12 @@ public:
             const element::TypeVector& _output_data_types,
             Args&& ... args) :
             BaseOp(std::forward<Args>(args)...), TypeRelaxedBase(_input_data_types, _output_data_types) {
+        init();
+    }
+
+    template <typename ... Args>
+    TypeRelaxed(Args ... args) :
+            BaseOp(args...) {
         init();
     }
 
