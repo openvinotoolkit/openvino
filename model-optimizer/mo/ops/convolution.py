@@ -256,6 +256,9 @@ class Convolution(Op):
                                                        ('output_feature_channel', 'input:{}'.format(weights_index)),
                                                        ])
 
+        # is needed to permute Conv weights from the original TF [H, W, C_IN, C_OUT] into IE [C_OUT, C_IN, H, W]
+        # but for other nodes in weights subgraph permutations must turned off
+        # by marking with MarkSubGraphsWithCorrectLayout even if graph layout is NCHW.
         PermuteAttrs.set_permutation(node.in_node(weights_index), node, node.soft_get('get_weights_permute', None))
         PermuteInputs().set_input_permutation(
             node.in_node(weights_index), node, 'input:{}'.format(weights_index), 'transpose')
