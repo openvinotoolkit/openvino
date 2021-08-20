@@ -26,6 +26,7 @@ public:
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
+    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept;
 
 protected:
     static bool isHandled(
