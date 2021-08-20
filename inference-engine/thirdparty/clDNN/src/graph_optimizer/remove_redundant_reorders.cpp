@@ -386,6 +386,17 @@ void remove_redundant_reorders::run(program& p) {
             input_dep.get_output_layout().data_type == data_types::i8)
             return;
 
+        for (auto& user : node->get_users()) {
+            // if concat is reorder's user and concat's axis is 0(Batch) or 1(Feature), conv's output would have padding.
+            // This padding might lead not to select the optimized conv kernel("convolution_gpu_bfyx_f16")
+            if (user->is_type<concatenation>()) {
+                auto& concat_node = user->as<concatenation>();
+                auto concat_axis = concat_node.get_primitive()->axis;
+                if (concat_axis == 0 || concat_axis == 1)
+                    return;
+            }
+        }
+
         auto output_layout = node->get_output_layout();
         input.set_output_layout(output_layout, false);
         if (input.type()->does_possible_implementation_exist(input)) {
