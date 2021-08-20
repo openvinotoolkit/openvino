@@ -378,12 +378,6 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
 
     if (_workModeIsAUTO) {
-        InferenceEngine::SoExecutableNetworkInternal network;
-        if (TryGetActualNetwork(network)) {
-            request_to_share_blobs_with = {_networkActualNeeded, _networkActualNeeded->CreateInferRequest()};
-        } else {
-            request_to_share_blobs_with = {_networkFirstReady, _networkFirstReady->CreateInferRequest()};
-        }
         return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
     }
 
