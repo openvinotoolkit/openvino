@@ -15,13 +15,10 @@
 #include <string>
 #include <vector>
 
+#include "common.hpp"
 #include "cpp/ie_executable_network.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
-
-namespace ngraph {
-class Function;
-}  // namespace ngraph
 
 namespace InferenceEngine {
 class IExtension;
@@ -30,6 +27,9 @@ class RemoteContext;
 }  // namespace InferenceEngine
 
 namespace ov {
+
+class Function;
+
 namespace runtime {
 
 /**
@@ -58,7 +58,7 @@ public:
      * @param deviceName Device name to identify plugin
      * @return A vector of versions
      */
-    std::map<std::string, InferenceEngine::Version> get_versions(const std::string& deviceName) const;
+    std::map<std::string, ie::Version> get_versions(const std::string& deviceName) const;
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     /**
@@ -72,7 +72,7 @@ public:
      *  * binPath parameter is not used.
      * @return Function
      */
-    std::shared_ptr<ngraph::Function> read_model(const std::wstring& modelPath, const std::wstring& binPath = {}) const;
+    std::shared_ptr<ov::Function> read_model(const std::wstring& modelPath, const std::wstring& binPath = {}) const;
 #endif
 
     /**
@@ -86,7 +86,7 @@ public:
      *  * binPath parameter is not used.
      * @return Function
      */
-    std::shared_ptr<ngraph::Function> read_model(const std::string& modelPath, const std::string& binPath = {}) const;
+    std::shared_ptr<ov::Function> read_model(const std::string& modelPath, const std::string& binPath = {}) const;
     /**
      * @brief Reads models from IR and ONNX formats
      * @param model string with model in IR or ONNX format
@@ -101,8 +101,8 @@ public:
      * constant data becomes to point to invalid memory.
      * @return Function
      */
-    std::shared_ptr<ngraph::Function> read_model(const std::string& model,
-                                                 const std::shared_ptr<const InferenceEngine::Blob>& weights) const;
+    std::shared_ptr<ov::Function> read_model(const std::string& model,
+                                             const std::shared_ptr<const ie::Blob>& weights) const;
 
     /**
      * @brief Creates an executable network from a network object.
@@ -116,9 +116,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    InferenceEngine::ExecutableNetwork compile_model(const std::shared_ptr<const ngraph::Function>& network,
-                                                     const std::string& deviceName,
-                                                     const std::map<std::string, std::string>& config = {});
+    ie::ExecutableNetwork compile_model(const std::shared_ptr<const ov::Function>& network,
+                                        const std::string& deviceName,
+                                        const ConfigMap& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
@@ -133,9 +133,9 @@ public:
      *
      * @return An executable network reference
      */
-    InferenceEngine::ExecutableNetwork compile_model(const std::string& modelPath,
-                                                     const std::string& deviceName,
-                                                     const std::map<std::string, std::string>& config = {});
+    ie::ExecutableNetwork compile_model(const std::string& modelPath,
+                                        const std::string& deviceName,
+                                        const ConfigMap& config = {});
 
     /**
      * @brief Creates an executable network from a network object within a specified remote context.
@@ -145,15 +145,15 @@ public:
      * operation
      * @return An executable network object
      */
-    InferenceEngine::ExecutableNetwork compile_model(const std::shared_ptr<const ngraph::Function>& network,
-                                                     const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-                                                     const std::map<std::string, std::string>& config = {});
+    ie::ExecutableNetwork compile_model(const std::shared_ptr<const ov::Function>& network,
+                                        const std::shared_ptr<ie::RemoteContext>& context,
+                                        const ConfigMap& config = {});
 
     /**
      * @brief Registers extension
      * @param extension Pointer to already loaded extension
      */
-    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
+    void add_extension(const std::shared_ptr<ie::IExtension>& extension);
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -163,9 +163,9 @@ public:
      * operation*
      * @return An executable network reference
      */
-    InferenceEngine::ExecutableNetwork import_model(std::istream& networkModel,
-                                                    const std::string& deviceName,
-                                                    const std::map<std::string, std::string>& config = {});
+    ie::ExecutableNetwork import_model(std::istream& networkModel,
+                                       const std::string& deviceName,
+                                       const ConfigMap& config = {});
 
     /**
      * @brief Creates an executable network from a previously exported network within a specified
@@ -177,9 +177,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    InferenceEngine::ExecutableNetwork import_model(std::istream& networkModel,
-                                                    const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-                                                    const std::map<std::string, std::string>& config = {});
+    ie::ExecutableNetwork import_model(std::istream& networkModel,
+                                       const std::shared_ptr<ie::RemoteContext>& context,
+                                       const ConfigMap& config = {});
 
     /**
      * @brief Query device if it supports specified network with specified configuration
@@ -189,9 +189,9 @@ public:
      * @param config Optional map of pairs: (config parameter name, config parameter value)
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
-    InferenceEngine::QueryNetworkResult query_model(const std::shared_ptr<const ngraph::Function>& network,
-                                                    const std::string& deviceName,
-                                                    const std::map<std::string, std::string>& config = {}) const;
+    ie::QueryNetworkResult query_model(const std::shared_ptr<const ov::Function>& network,
+                                       const std::string& deviceName,
+                                       const ConfigMap& config = {}) const;
 
     /**
      * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
@@ -201,7 +201,7 @@ public:
      *
      * @param config Map of pairs: (config parameter name, config parameter value)
      */
-    void set_config(const std::map<std::string, std::string>& config, const std::string& deviceName = {});
+    void set_config(const ConfigMap& config, const std::string& deviceName = {});
 
     /**
      * @brief Gets configuration dedicated to device behaviour.
@@ -212,7 +212,7 @@ public:
      * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
-    InferenceEngine::Parameter get_config(const std::string& deviceName, const std::string& name) const;
+    ie::Parameter get_config(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware.
@@ -224,7 +224,7 @@ public:
      * @param name - metric name to request.
      * @return Metric value corresponding to metric key.
      */
-    InferenceEngine::Parameter get_metric(const std::string& deviceName, const std::string& name) const;
+    ie::Parameter get_metric(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Returns devices available for neural networks inference
@@ -291,15 +291,14 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
-    std::shared_ptr<InferenceEngine::RemoteContext> create_context(const std::string& deviceName,
-                                                                   const InferenceEngine::ParamMap& params);
+    std::shared_ptr<ie::RemoteContext> create_context(const std::string& deviceName, const ie::ParamMap& params);
 
     /**
      * @brief Get a pointer to default(plugin-supplied) shared context object for specified accelerator device.
      * @param deviceName  - A name of a device to get create shared context from.
      * @return A shared pointer to a default remote context.
      */
-    std::shared_ptr<InferenceEngine::RemoteContext> get_default_context(const std::string& deviceName);
+    std::shared_ptr<ie::RemoteContext> get_default_context(const std::string& deviceName);
 };
 }  // namespace runtime
 }  // namespace ov
