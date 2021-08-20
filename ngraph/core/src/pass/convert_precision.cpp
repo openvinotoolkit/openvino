@@ -293,7 +293,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
 }
 
 bool fuse_type_to_shapeof(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx) {
-    if (auto shapeof = as_type_ptr<opset4::ShapeOf>(node)) {
+    if (auto shapeof = ov::as_type_ptr<opset4::ShapeOf>(node)) {
         if (to == element::i32 || to == element::i64) {
             shapeof->set_output_type(to);
             return true;
@@ -303,7 +303,7 @@ bool fuse_type_to_shapeof(const std::shared_ptr<ngraph::Node>& node, element::Ty
 }
 
 bool fuse_type_to_range_v4(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx) {
-    if (auto range = as_type_ptr<opset4::Range>(node)) {
+    if (auto range = ov::as_type_ptr<opset4::Range>(node)) {
         if (to.is_integral_number() || to.is_real()) {
             range->set_output_type(to);
             return true;
@@ -313,7 +313,7 @@ bool fuse_type_to_range_v4(const std::shared_ptr<ngraph::Node>& node, element::T
 }
 
 bool fuse_type_to_parameter(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx) {
-    if (auto param = as_type_ptr<opset4::Parameter>(node)) {
+    if (auto param = ov::as_type_ptr<opset4::Parameter>(node)) {
         param->set_element_type(to);
         param->validate_and_infer_types();
         return true;
@@ -322,7 +322,7 @@ bool fuse_type_to_parameter(const std::shared_ptr<ngraph::Node>& node, element::
 }
 
 bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, element::Type to, size_t idx) {
-    if (auto convert = as_type_ptr<opset4::Convert>(node)) {
+    if (auto convert = ov::as_type_ptr<opset4::Convert>(node)) {
         convert->set_convert_element_type(to);
         return true;
     }
@@ -330,7 +330,7 @@ bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, element::Ty
 }
 
 bool fuse_type_to_nms3(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    if (auto nms = as_type_ptr<opset3::NonMaxSuppression>(node)) {
+    if (auto nms = ov::as_type_ptr<opset3::NonMaxSuppression>(node)) {
         nms->set_output_type(to);
         return true;
     }
@@ -338,7 +338,7 @@ bool fuse_type_to_nms3(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
 }
 
 bool fuse_type_to_nms4(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    if (auto nms = as_type_ptr<opset4::NonMaxSuppression>(node)) {
+    if (auto nms = ov::as_type_ptr<opset4::NonMaxSuppression>(node)) {
         nms->set_output_type(to);
         return true;
     }
@@ -346,7 +346,7 @@ bool fuse_type_to_nms4(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
 }
 
 bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    if (auto nms = as_type_ptr<opset5::NonMaxSuppression>(node)) {
+    if (auto nms = ov::as_type_ptr<opset5::NonMaxSuppression>(node)) {
         nms->set_output_type(to);
         return true;
     }
@@ -354,7 +354,7 @@ bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
 }
 
 bool fuse_type_to_topk(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    if (auto topk = as_type_ptr<opset4::TopK>(node)) {
+    if (auto topk = ov::as_type_ptr<opset4::TopK>(node)) {
         if (idx == 1 && (to == element::i32 || to == element::i64)) {
             topk->set_index_element_type(to);
             return true;
@@ -366,7 +366,7 @@ bool fuse_type_to_topk(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
 bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ngraph::Node>& node,
                                              ngraph::element::Type to,
                                              size_t idx) {
-    if (auto ctc_decoder = as_type_ptr<opset6::CTCGreedyDecoderSeqLen>(node)) {
+    if (auto ctc_decoder = ov::as_type_ptr<opset6::CTCGreedyDecoderSeqLen>(node)) {
         if (idx == 0 && (to == element::i32 || to == element::i64)) {
             ctc_decoder->set_classes_index_type(to);
             return true;
@@ -380,7 +380,7 @@ bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ngraph::Node>
 }
 
 bool fuse_type_to_nonzero(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    if (auto nonzero = as_type_ptr<opset4::NonZero>(node)) {
+    if (auto nonzero = ov::as_type_ptr<opset4::NonZero>(node)) {
         if (to == element::i32 || to == element::i64) {
             nonzero->set_output_type(to);
             return true;
@@ -390,7 +390,7 @@ bool fuse_type_to_nonzero(const std::shared_ptr<ngraph::Node>& node, ngraph::ele
 }
 
 bool fuse_type_to_bucketize(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
-    if (auto b = as_type_ptr<opset4::Bucketize>(node)) {
+    if (auto b = ov::as_type_ptr<opset4::Bucketize>(node)) {
         if (to == element::i32 || to == element::i64) {
             b->set_output_type(to);
             return true;
@@ -682,7 +682,7 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
 bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
                            element::Type to,
                            const std::vector<Input<Node>>& consumers) {
-    if (auto constant = as_type_ptr<opset4::Constant>(node)) {
+    if (auto constant = ov::as_type_ptr<opset4::Constant>(node)) {
         auto from = constant->get_element_type();
         std::shared_ptr<ngraph::Node> new_const;
         if (from == element::u64 && to == element::i32) {
