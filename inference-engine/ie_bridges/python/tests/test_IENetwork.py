@@ -171,7 +171,7 @@ def test_reshapePartial(shape, refShape):
     function = create_ngraph_function(shape)
     net = ng.function_to_cnn(function)
     net.reshape({"data": refShape})
-    changedFunction = ng.Function.from_capsule(net._get_function_capsule())
+    changedFunction = ng.function_from_cnn(net)
     refShape = ng.impl.PartialShape(refShape)
     assert changedFunction.get_parameters()[0].get_partial_shape().is_dynamic
     assert changedFunction.get_results()[0].get_output_partial_shape(0).is_dynamic

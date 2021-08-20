@@ -582,12 +582,11 @@ def test_infer_dynamic_network_with_setShape(shape, pShape, refShape):
     ie_core = ie.IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
-    exec_net.requests[0].input_blobs["data"].setShape(refShape)
-    #assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == refShape
-    #exec_net.infer({"data": np.ones(refShape)})
-    exec_net.infer()
+    exec_net.requests[0].input_blobs["data"].set_shape(refShape)
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == refShape
+    exec_net.infer({"data": np.ones(refShape)})
     request = exec_net.requests[0]
-    request.async_infer()
+    request.async_infer({"data": np.ones(refShape)})
     status = request.wait(ie.WaitMode.RESULT_READY)
     assert status == ie.StatusCode.OK
     assert request.output_blobs['out'].tensor_desc.dims == refShape
@@ -608,13 +607,13 @@ def test_infer_dynamic_network_without_setShape(shape, pShape, refShape):
     ie_core = ie.IECore()
     ie_core.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie_core.load_network(net, "TEMPLATE")
-    #assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == refShape
-    #exec_net.infer({"data": np.ones(refShape)})
-    #request = exec_net.requests[0]
-    #request.async_infer({"data": np.ones(refShape)})
-    #status = request.wait(ie.WaitMode.RESULT_READY)
-    #assert status == ie.StatusCode.OK
-    #assert request.output_blobs['out'].tensor_desc.dims == refShape
+    exec_net.infer({"data": np.ones(refShape)})
+    assert exec_net.requests[0].input_blobs["data"].tensor_desc.dims == refShape
+    request = exec_net.requests[0]
+    request.async_infer({"data": np.ones(refShape)})
+    status = request.wait(ie.WaitMode.RESULT_READY)
+    assert status == ie.StatusCode.OK
+    assert request.output_blobs['out'].tensor_desc.dims == refShape
 
 
 @pytest.mark.parametrize("shape, pShape, refShape", [

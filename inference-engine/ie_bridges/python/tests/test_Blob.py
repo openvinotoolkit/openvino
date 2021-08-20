@@ -120,3 +120,16 @@ def test_buffer_values_after_add_outputs(device):
     result = exec_net.infer(feed_dict)
     assert np.all(abs(result[output_layer])<30)
     assert result[output_layer].dtype == np.float16
+
+def test_set_shape():
+    tensor_desc = TensorDesc("FP32", [1, 3, 127, 127], "NHWC")
+    blob = Blob(tensor_desc)
+    blob.set_shape([1, 4, 128, 128])
+    assert blob.tensor_desc.dims == [1, 4, 128, 128]
+    assert blob.buffer.shape == (1, 4, 128, 128)
+
+    array = np.ones([1, 3, 127, 127], dtype=np.float32)
+    blob = Blob(tensor_desc, array)
+    blob.set_shape([1, 4, 128, 128])
+    assert blob.tensor_desc.dims == [1, 4, 128, 128]
+    assert blob.buffer.shape == (1, 4, 128, 128)

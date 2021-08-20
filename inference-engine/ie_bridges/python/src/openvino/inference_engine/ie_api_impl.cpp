@@ -207,18 +207,22 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string
     return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
-std::vector<int64_t> InferenceEnginePython::getPartialShape(InferenceEngine::CDataPtr data){
-    ngraph::PartialShape pShape = data->getPartialShape();
-    std::vector<int64_t> py_shape;
-    for(auto const& d : pShape){
-        if(d.is_dynamic()){
-            py_shape.push_back(-1);
+PyObject* InferenceEnginePython::getPartialShape(InferenceEngine::CDataPtr data){
+    const char* py_capsule_name = "ngraph_partial_shape";
+    auto ngraph_pShape_ptr = std::make_shared<ngraph::PartialShape>(data->getPartialShape());
+    auto* sp_copy = new std::shared_ptr<const ngraph::PartialShape>(ngraph_pShape_ptr);
+    auto sp_deleter = [](PyObject* capsule) {
+        auto* capsule_ptr = PyCapsule_GetPointer(capsule, "ngraph_partial_shape");
+        auto* function_sp = static_cast<std::shared_ptr<ngraph::PartialShape>*>(capsule_ptr);
+        if (function_sp) {
+            delete function_sp;
         }
-        else{
-            py_shape.push_back(d.get_length());
-        }
+    };
+    if (ngraph_pShape_ptr) {
+        return PyCapsule_New(sp_copy, py_capsule_name, sp_deleter);
+    } else {
+        return nullptr;
     }
-    return py_shape;
 }
 
 InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork>& cnn_network)

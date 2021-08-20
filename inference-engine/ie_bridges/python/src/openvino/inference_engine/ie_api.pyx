@@ -28,7 +28,7 @@ from .constants import WaitMode, StatusCode, MeanVariant, layout_str_to_enum, fo
     known_plugins, supported_precisions, ResizeAlgorithm, ColorFormat
 
 import numpy as np
-
+from _pyngraph import PartialShape
 
 warnings.filterwarnings(action="module", category=DeprecationWarning)
 
@@ -271,7 +271,8 @@ cdef class Blob:
         tensor_desc = TensorDesc(precision, dims, layout_int_to_str_map[layout])
         return tensor_desc
 
-    def setShape(self, new_shape):
+    def set_shape(self, new_shape):
+        self._initial_shape = new_shape
         deref(self._ptr).setShape(new_shape)
 
 ## This class represents an Inference Engine entity and allows you to manipulate with plugins using unified interfaces.
@@ -799,10 +800,12 @@ cdef class DataPtr:
     ## Shape (dimensions) of the data object
     @property
     def shape(self):
-        if deref(self._ptr).isDynamic():
-            return C.getPartialShape(self._ptr)
-        else:
-            return deref(self._ptr).getDims()
+        return deref(self._ptr).getDims()
+
+    ## Partial Shape (dimensions) of the data object
+    @property
+    def partial_shape(self):
+        return PartialShape.from_capsule(C.getPartialShape(self._ptr))
 
     ## Layout of the data object
     @property
@@ -841,10 +844,12 @@ cdef class CDataPtr:
     ## Shape (dimensions) of the data object
     @property
     def shape(self):
-        if deref(self._ptr).isDynamic():
-            return C.getPartialShape(self._ptr)
-        else:
-            return deref(self._ptr).getDims()
+        return deref(self._ptr).getDims()
+
+    ## Partial Shape (dimensions) of the data object
+    @property
+    def partial_shape(self):
+        return PartialShape.from_capsule(C.getPartialShape(self._ptr))
 
     ## Layout of the data object
     @property
@@ -1325,7 +1330,7 @@ cdef class InferRequest:
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():
             assert k in self._inputs_list, f"No input with name {k} found in network"
-            self.input_blobs[k].setShape(v.shape)
+            self.input_blobs[k].set_shape(v.shape)
             if self.input_blobs[k].tensor_desc.precision == "FP16":
                 self.input_blobs[k].buffer[:] = v.view(dtype=np.int16)
             else:
