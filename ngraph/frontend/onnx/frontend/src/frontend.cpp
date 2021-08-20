@@ -71,10 +71,10 @@ std::string FrontEndONNX::get_name() const {
 namespace {
 /**
  * This helper struct uses RAII to rewind/reset the stream so that it points to the beginning
- * of the underlying resource (string, file, ...). It works similarily to std::lock_guard
+ * of the underlying resource (string, file, and so on). It works similarly to std::lock_guard,
  * which releases a mutex upon destruction.
  *
- * This makes sure that the stream is always reset (exception, successful and unsuccessful
+ * This ensures that the stream is always reset (exception, successful and unsuccessful
  * model validation).
  */
 struct StreamRewinder {

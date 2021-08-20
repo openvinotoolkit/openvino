@@ -275,7 +275,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         }
     }
     // Try to load with FrontEndManager
-    // NOTICE: weights argument is ignored
+    // NOTE: weights argument is ignored
     static ngraph::frontend::FrontEndManager manager;
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
