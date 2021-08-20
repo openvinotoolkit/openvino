@@ -158,10 +158,6 @@ bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
     return (isGnaLibVersion3_0 || isGnaLibVersion2_1) && isUpTo20HwGnaDevice(compileTargetDevice);
 }
 
-namespace {
-    const volatile auto Gna2DeviceVersion3_0 = static_cast<Gna2DeviceVersion>(0x30);
-} // namespace
-
 Gna2DeviceVersion GNADeviceHelper::parseDeclaredTarget(std::string target, const bool execTarget) const {
     auto parsed = Gna2DeviceVersion2_0;
     auto throwUnsupportedGnaTarget = [&](std::string extraSuffix) {
