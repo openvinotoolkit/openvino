@@ -35,14 +35,20 @@ public:
     NGRAPH_API CoordinateDiff& operator=(CoordinateDiff&& v) noexcept;
 };
 
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const CoordinateDiff& coordinate_diff);
+}  // namespace ngraph
+
+namespace ov {
+
 template <>
-class NGRAPH_API AttributeAdapter<CoordinateDiff>
-    : public IndirectVectorValueAccessor<CoordinateDiff, std::vector<int64_t>>
+class NGRAPH_API AttributeAdapter<ngraph::CoordinateDiff>
+    : public IndirectVectorValueAccessor<ngraph::CoordinateDiff, std::vector<int64_t>>
 
 {
 public:
-    AttributeAdapter(CoordinateDiff& value)
-        : IndirectVectorValueAccessor<CoordinateDiff, std::vector<int64_t>>(value) {}
+    AttributeAdapter(ngraph::CoordinateDiff& value)
+        : IndirectVectorValueAccessor<ngraph::CoordinateDiff, std::vector<int64_t>>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<CoordinateDiff>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
@@ -50,6 +56,4 @@ public:
     }
 };
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const CoordinateDiff& coordinate_diff);
-}  // namespace ngraph
+}  // namespace ov
