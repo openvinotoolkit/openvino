@@ -256,6 +256,7 @@ set(SRC
     visitors/op/convolution_backprop.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp
+    visitors/op/ctc_loss.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_convolution.cpp
     visitors/op/deformable_psroi_pooling.cpp
