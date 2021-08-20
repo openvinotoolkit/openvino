@@ -52,10 +52,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     auto newMultiply = multiply;
 
     auto fold_fake_quantizes = [](std::shared_ptr<Node>& multiply, const size_t index) {
-        auto fakeQuantizeOnWeights = as_type_ptr<opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(index));
+        auto fakeQuantizeOnWeights = ov::as_type_ptr<opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(index));
         if (fakeQuantizeOnWeights != nullptr) {
             auto result = NetworkHelper::fold_fake_quantize(fakeQuantizeOnWeights);
-            if (is_type<opset1::Constant>(result)) {
+            if (ov::is_type<opset1::Constant>(result)) {
                 replace_node(fakeQuantizeOnWeights, result);
             }
         }
@@ -165,14 +165,14 @@ bool MultiplyTransformation::canBeTransformed(const TransformationContext& conte
     FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, 1ul);
 
     if ((dequantization1.data.get_node() == nullptr) ||
-        (dequantization1.empty() && !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
-                                    !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()))) {
+        (dequantization1.empty() && !ov::is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
+                                    !ov::is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()))) {
         return false;
     }
 
     if ((dequantization2.data.get_node() == nullptr) ||
-        (dequantization2.empty() && !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()) &&
-                                    !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()))) {
+        (dequantization2.empty() && !ov::is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()) &&
+                                    !ov::is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()))) {
         return false;
     }
     return EltwiseBaseTransformation::canBeTransformed(context, layer);
