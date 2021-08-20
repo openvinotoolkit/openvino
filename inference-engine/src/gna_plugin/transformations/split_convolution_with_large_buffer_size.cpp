@@ -12,6 +12,7 @@
 
 #include "backend/gna_limitations.hpp"
 #include "layers/gna_split_layer.hpp"
+#include "layers/gna_convolution_layer.hpp"
 
 using namespace GNAPluginNS;
 
@@ -28,9 +29,22 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
     if (input_size <= GNALimitations::bufferMaxSize) {
         return false;
     }
-
-    uint32_t width = conv->get_input_shape(0).back();
-    uint32_t in_channels = conv->get_input_shape(0).at(1);
+    auto& input = conv->get_input_shape(0);
+    auto& filters = conv->get_input_shape(1);
+    uint32_t width = input.back();
+    uint32_t in_channels = input.at(1);
+    if (input.size() >= 4 && filters.size() >= 4) {
+        uint32_t height = input.at(2);
+        auto kH = filters.at(2);
+        auto kW = filters.at(3);
+        auto convolution = dynamic_cast<ngraph::opset7::Convolution*>(conv.get());
+        IE_ASSERT(convolution != nullptr);
+        auto sW = convolution->get_strides().at(1);
+        if (GNAConvolutionLayer::isConv2D(height, width, in_channels, kH, kW) &&
+            !GNAConvolutionLayer::isMappableFrom2DTo1D(height, width, kW, sW)) {
+            return false;   // Dont convert 2D convolutions which are not mappable to 1D
+        }
+    }
     auto split_sizes = GetAlignedSplitSizes(width, GNALimitations::bufferMaxSize / in_channels);
     IE_ASSERT(split_sizes.size() > 1);
     std::vector<int64_t> split_sizes_casted(split_sizes.size());
@@ -40,7 +54,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
 
     /* TODO check if it's NHWC convolution wrapped with transposes or all input dimensions except of width == 1,
         otherwise this split axis isn't supported */
-    const int64_t width_axis = conv->get_input_shape(0).size() - 1;
+    const int64_t width_axis = input.size() - 1;
     auto split_node = std::make_shared<ngraph::opset7::VariadicSplit>(conv->input_value(0),
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{width_axis}),
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({split_sizes_casted.size()}), split_sizes_casted));
