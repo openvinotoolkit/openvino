@@ -69,7 +69,7 @@ shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& 
     return make_shared<op::v0::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-std::ostream& operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type) {
     return s << as_string(type);
 }
 
@@ -480,19 +480,19 @@ bool op::v4::Interpolate::has_evaluate() const {
     return false;
 }
 
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::ShapeCalcMode& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v4::Interpolate::ShapeCalcMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::CoordinateTransformMode& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v4::Interpolate::CoordinateTransformMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::NearestMode& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v4::Interpolate::NearestMode& type) {
     return s << as_string(type);
 }
 

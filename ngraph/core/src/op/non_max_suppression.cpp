@@ -188,7 +188,7 @@ constexpr DiscreteTypeInfo AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodi
 
 }  // namespace ov
 
-std::ostream& operator<<(std::ostream& s, const op::v1::NonMaxSuppression::BoxEncodingType& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v1::NonMaxSuppression::BoxEncodingType& type) {
     return s << as_string(type);
 }
 
@@ -375,7 +375,7 @@ constexpr DiscreteTypeInfo AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodi
 
 }  // namespace ov
 
-std::ostream& operator<<(std::ostream& s, const op::v3::NonMaxSuppression::BoxEncodingType& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v3::NonMaxSuppression::BoxEncodingType& type) {
     return s << as_string(type);
 }
 

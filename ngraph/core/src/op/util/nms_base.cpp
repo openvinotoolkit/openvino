@@ -145,7 +145,7 @@ void op::util::NmsBase::validate_and_infer_types() {
     }
 }
 
-std::ostream& operator<<(std::ostream& s, const op::util::NmsBase::SortResultType& type) {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::util::NmsBase::SortResultType& type) {
     return s << as_string(type);
 }
 
