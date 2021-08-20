@@ -295,6 +295,19 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     return newMultiply;
 }
 
+void NetworkHelper::setUniqName(
+    const std::shared_ptr<Node>& source,
+    const std::shared_ptr<Node>& target) {
+    std::string friendlyName = source->get_friendly_name();
+    if (!friendlyName.empty()) {
+        if (strcmp(target->get_type_name(), source->get_type_name()) != 0) {
+            std::string type(target->get_type_name());
+            friendlyName += "/" + type;
+        }
+        target->set_friendly_name(friendlyName);
+    }
+}
+
 void NetworkHelper::copyInfo(
     const std::vector<std::shared_ptr<Node>>& sources,
     const std::vector<std::shared_ptr<Node>>& targets) {
