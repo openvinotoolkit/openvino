@@ -14,17 +14,20 @@
 
 namespace ngraph {
 namespace reduction {
-enum class Type {
+enum NGRAPH_DEPRECATED("This enum is deprecated and will be removed soon.") class Type {
     SUM,
     PROD,
     MIN,
     MAX,
 };
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 NGRAPH_API
 std::ostream& operator<<(std::ostream& out, const Type& obj);
+NGRAPH_SUPPRESS_DEPRECATED_END
 }  // namespace reduction
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 template <>
 class NGRAPH_API AttributeAdapter<reduction::Type> : public EnumAttributeAdapterBase<reduction::Type> {
 public:
@@ -35,4 +38,5 @@ public:
         return type_info;
     }
 };
+NGRAPH_SUPPRESS_DEPRECATED_END
 }  // namespace ngraph

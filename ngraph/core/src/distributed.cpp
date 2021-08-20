@@ -7,6 +7,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/type.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace ngraph;
 
 namespace ngraph {

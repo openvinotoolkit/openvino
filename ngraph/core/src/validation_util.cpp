@@ -1115,6 +1115,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                             std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
                             const OutputVector& outputs,
                             const EvaluationContext& evaluation_context) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     Evaluator<HostTensorPtr> evaluator({}, value_map);
     evaluator.set_univeral_handler(
         [&output_tensor_map, &evaluation_context](Node* node,
@@ -1138,6 +1139,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
     for (const auto& value : outputs) {
         evaluator.evaluate(value);
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 bool ngraph::could_propagate(const Output<Node>& output, std::vector<Node*>& order) {
