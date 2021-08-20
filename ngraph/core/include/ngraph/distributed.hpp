@@ -14,7 +14,7 @@
 
 namespace ngraph {
 namespace reduction {
-enum NGRAPH_DEPRECATED("This enum is deprecated and will be removed soon.") class Type {
+enum class Type {
     SUM,
     PROD,
     MIN,
