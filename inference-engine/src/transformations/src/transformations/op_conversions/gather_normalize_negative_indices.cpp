@@ -7,6 +7,7 @@
 #include <memory>
 
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/validation_util.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
@@ -22,7 +23,7 @@ ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNor
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto gather = std::dynamic_pointer_cast<ngraph::Node>(pattern_to_output.at(gather_node).get_node_shared_ptr());
+        auto gather = pattern_to_output.at(gather_node).get_node_shared_ptr();
         auto data = pattern_to_output.at(data_input);
         auto axis_constant = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(axis_input).get_node_shared_ptr());
         auto indices_constant = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(indices_input).get_node_shared_ptr());
@@ -62,7 +63,9 @@ ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNor
         auto input_gather = std::make_shared<ngraph::opset7::Gather>(shape_of,
             ngraph::opset7::Constant::create(input_type, Shape{}, {axis_value}), ngraph::opset7::Constant::create(input_type, Shape{}, {0}));
 
-        auto add = std::make_shared<ngraph::opset7::Add>(input_gather, indices_constant);
+        std::shared_ptr<Node> add = std::make_shared<ngraph::opset7::Add>(input_gather, indices_constant);
+        if (auto folded_const = ngraph::get_constant_from_source(add))
+            add = folded_const;
         gather->input(1).replace_source_output(add);
 
         ngraph::copy_runtime_info(gather, {shape_of, input_gather, add});
