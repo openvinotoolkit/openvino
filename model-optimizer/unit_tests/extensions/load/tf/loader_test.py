@@ -44,7 +44,7 @@ class TFLoaderTest(unittest.TestCase):
         # create fake Loop operation
         nodes = {
             **regular_op('input', {'op': 'Parameter'}),
-            **regular_op('loop', {'op': 'Loop', 'body': body_graph}),
+            **regular_op('loop', {'op': 'Loop', 'body': body_graph, 'sub_graphs': ['body']}),
             **result('result'),
         }
         edges = [*connect_front('input', '0:loop'),
@@ -65,4 +65,3 @@ class TFLoaderTest(unittest.TestCase):
 
     def test_no_convolution_main_and_sub_graph(self):
         self.assertFalse(graph_or_sub_graph_has_nhwc_ops(self.build_loop_graph(self.build_parameter_result_graph())))
-

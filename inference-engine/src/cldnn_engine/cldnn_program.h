@@ -29,8 +29,11 @@ enum class eltwise_mode : int32_t;
 // Forward declarations for ngraph part
 namespace ngraph {
 class Node;
-class DiscreteTypeInfo;
 }  // namespace ngraph
+
+namespace ov {
+class DiscreteTypeInfo;
+}  // namespace ov
 
 #define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
 void __register ## _ ## op_name ## _ ## op_version() {                                            \

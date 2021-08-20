@@ -95,8 +95,8 @@ DataPrecision getDataPrecisionByOutputPortAndFakeQuantize(std::shared_ptr<opset1
 // 2. Precisions on port
 DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize> layer) {
     const size_t levels = layer->get_levels();
-    const std::vector<float> outputLowValues = as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
-    const std::vector<float> outputHighValues = as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
+    const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
+    const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
 
     auto precisionsAttribute = getAttributeFromOutput<std::shared_ptr<PrecisionsAttribute>>(layer->output(0));
     if (precisionsAttribute == nullptr) {
@@ -166,8 +166,8 @@ std::shared_ptr<ngraph::Node> decomposeFakeQuantize(
     std::shared_ptr<ngraph::Node> dequantize;
     if (intervalsAlignment != nullptr) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "decomposeFakeQuantize1");
-        const std::vector<float> outputLowValues = as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
-        const std::vector<float> outputHighValues = as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
+        const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
+        const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
 
         float dequantizationMul;
         float dequantizationSub;
@@ -230,7 +230,7 @@ std::shared_ptr<ngraph::Node> decomposeFakeQuantize(
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "decomposeFakeQuantize2");
         // Split FakeQuantize to two parts: Quantize and Dequantize
         auto QDQ = NetworkHelper::decomposeFakeQuantize(
-            as_type_ptr<opset1::FakeQuantize>(layer),
+            ov::as_type_ptr<opset1::FakeQuantize>(layer),
             dataPrecision.precision,
             dataPrecision.min,
             dataPrecision.max,
@@ -251,7 +251,7 @@ std::shared_ptr<ngraph::Node> decomposeFakeQuantize(
 } // namespace fq_decomposition
 
 bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
-    auto layer = as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
+    auto layer = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
     if (!NetworkHelper::isQuantizeSupported(layer)) {
         return false;
     }
@@ -343,8 +343,8 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
     if (dataPrecision.precision == element::undefined) {
         element::Type precision;
         const auto levels = layer->get_levels();
-        const std::vector<float> outputLowValues = as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
-        const std::vector<float> outputHighValues = as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
+        const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
+        const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
         if (intervalsAlignment == nullptr) {
             // define precision by FakeQuantize intervals
             LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(
