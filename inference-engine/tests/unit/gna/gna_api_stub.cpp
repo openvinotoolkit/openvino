@@ -115,12 +115,6 @@ GNA2_API enum Gna2Status Gna2RequestConfigEnableActiveList(
     return Gna2StatusSuccess;
 }
 
-GNA2_API enum Gna2Status Gna2RequestConfigEnableHardwareConsistency(
-    uint32_t requestConfigId,
-    enum Gna2DeviceVersion deviceVersion) {
-    return Gna2StatusSuccess;
-}
-
 GNA2_API enum Gna2Status Gna2RequestConfigSetAccelerationMode(
     uint32_t requestConfigId,
     enum Gna2AccelerationMode accelerationMode) {
