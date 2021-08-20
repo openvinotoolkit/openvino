@@ -74,10 +74,10 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
 
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
-        const auto layout = isCompatible(rank, origLayout) ? origLayout : TensorDesc::getLayoutByDims(SizeVector(rank));
+        const auto layout = isCompatible(rank, origLayout) ? origLayout : TensorDesc::getLayoutByRank(rank);
         ptr->reshape(shape, layout);
     } else {
-        const auto layout = TensorDesc::getLayoutByDims(SizeVector(rank));
+        const auto layout = TensorDesc::getLayoutByRank(rank);
         const auto precision = details::convertPrecision(output.get_element_type());
         ptr.reset(new Data(outName, precision, shape, layout));
     }
