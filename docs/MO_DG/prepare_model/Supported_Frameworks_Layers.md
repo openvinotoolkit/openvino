@@ -194,6 +194,7 @@ Standard TensorFlow\* operations:
 | CumSum | No |
 | DepthToSpace| No |
 | DepthwiseConv2dNative| No |
+| Einsum | Supported only with equation that does not contain repeated labels within subscript |
 | Elu | No |
 | Enter | Supported only when it is fused to the TensorIterator layer |
 | Equal | No |
@@ -330,7 +331,7 @@ Standard TensorFlow\* operations:
 | Unpack | No |
 | Variable | No |
 | VariableV2 | No |
-| Where | No |
+| Where | Supported only when it is part of a sub-graph of the special form |
 | ZerosLike | No |
 
 
