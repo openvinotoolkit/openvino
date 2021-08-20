@@ -188,19 +188,20 @@ struct IfConditionIsScalar : public IfFunctionalBase {
         return fun;
     }
 };
+
 struct IfParams {
     IfParams(const std::shared_ptr<IfFunctionalBase>& functional,
              const std::vector<Tensor>& if_inputs,
              const std::vector<Tensor>& expected_results,
              const std::string& test_case_name)
-        : functional(functional),
+        : function(functional),
           inputs(if_inputs),
           expected_results(expected_results),
           test_case_name(test_case_name) {}
 
+    std::shared_ptr<IfFunctionalBase> function;
     std::vector<Tensor> inputs;
     std::vector<Tensor> expected_results;
-    std::shared_ptr<IfFunctionalBase> functional;
     std::string test_case_name;
 };
 
@@ -208,7 +209,7 @@ class ReferenceIfLayerTest : public testing::TestWithParam<IfParams>, public Com
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = params.functional->create_function(params.inputs, params.expected_results);
+        function = params.function->create_function(params.inputs, params.expected_results);
         inputData.reserve(params.inputs.size());
         refOutData.reserve(params.expected_results.size());
         for (auto& input_tensor : params.inputs) {
