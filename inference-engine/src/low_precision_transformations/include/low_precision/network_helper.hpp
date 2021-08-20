@@ -163,7 +163,7 @@ public:
     // 2. optimize Constant if possible
     // 3. remove Subtract if Constant on the second branch is zero
     static std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add);
-    static void NetworkHelper::setUniqName(const std::shared_ptr<Node>& sources, const std::shared_ptr<Node>& targets);
+    static void setUniqName(const std::shared_ptr<Node>& sources, const std::shared_ptr<Node>& targets);
 
     class InsertDequantizationResult {
     public:
