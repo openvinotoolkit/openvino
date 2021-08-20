@@ -30,10 +30,6 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
 
                 bool has_evaluate() const override;
-
-            private:
-                Shape poolInpDims, poolOutDims;
-
             };
 
         } // namespace v8
