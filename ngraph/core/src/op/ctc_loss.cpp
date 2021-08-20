@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v4::CTCLoss::type_info;
+NGRAPH_RTTI_DEFINITION(op::v4::CTCLoss, "CTCLoss", 4);
 
 op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
                          const Output<Node>& logit_length,
