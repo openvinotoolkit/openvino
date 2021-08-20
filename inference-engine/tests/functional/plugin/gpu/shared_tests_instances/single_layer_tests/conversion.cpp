@@ -24,7 +24,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::I8,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConvertLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConversionLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(conversionOpTypes),
                                 ::testing::Values(inShape),
@@ -33,6 +33,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConvertLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                        ConvertLayerTest::getTestCaseName);
+                        ConversionLayerTest::getTestCaseName);
 
 }  // namespace

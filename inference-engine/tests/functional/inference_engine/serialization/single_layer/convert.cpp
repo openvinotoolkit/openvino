@@ -26,7 +26,7 @@ TEST_P(ConversionLayerTest, Serialize) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Serialization_ConvertLayerTest, ConversionLayerTest,
+    smoke_Serialization_ConversionLayerTest, ConversionLayerTest,
     ::testing::Combine(::testing::ValuesIn({ngraph::helpers::ConversionTypes::CONVERT}),
                        ::testing::Values(inShape),
                        ::testing::ValuesIn(precisions),
