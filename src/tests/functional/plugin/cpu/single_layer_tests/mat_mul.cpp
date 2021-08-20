@@ -602,10 +602,13 @@ const std::vector<ShapeRelatedParams> IS = {
     {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, true}},
     {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, true}},
 
-    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, false}},
-    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, false}},
-    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
-    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}},
+    /* ============= Custom MatMul ============= */
+    {static_shapes_to_test_representation({{10, 12}, {12, 55}}), {false, false}},
+    {static_shapes_to_test_representation({{10, 12}, {12, 55}}), {false, true}},
+    {static_shapes_to_test_representation({{10, 12}, {12, 1}}), {false, false}},
+    {static_shapes_to_test_representation({{10, 12}, {12, 1}}), {false, true}},
+    {static_shapes_to_test_representation({{10, 4}, {4, 6}}), {false, false}},
+    {static_shapes_to_test_representation({{10, 4}, {4, 6}}), {false, true}},
 };
 
 const std::vector<ShapeRelatedParams> IS_Dynamic = {
