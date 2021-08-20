@@ -72,7 +72,7 @@ bool op::v8::MaxPoolGrad::evaluate(const HostTensorVector& outputs, const HostTe
     //         }
     //     }
     // }
-    
+
     for (size_t d = 0; d < batch * channels; ++d) {
         for (int y = height - 1; y >= 0; --y) {
             for (int x = width - 1; x >= 0; --x) {

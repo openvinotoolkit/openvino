@@ -5,8 +5,7 @@
 namespace ngraph {
 namespace op {
 namespace v8 {
-class NGRAPH_API MaxPoolGrad : public Op
-{
+class NGRAPH_API MaxPoolGrad : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -26,6 +25,6 @@ public:
 
     bool has_evaluate() const override;
 };
-} // namespace v8
-}     // namespace op
-} // namespace ngraph
+}  // namespace v8
+}  // namespace op
+}  // namespace ngraph
