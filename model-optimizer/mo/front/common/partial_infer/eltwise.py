@@ -3,11 +3,30 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import dynamic_dimension, dynamic_dimension_value
 from mo.utils.error import Error
 
 
 def eltwise_infer(node, op=None, **kwargs):
+    def broadcast_dims(dim1, dim2):
+        if dim1 is not dynamic_dimension and dim2 is not dynamic_dimension:
+            mind = min(dim1, dim2)
+            maxd = max(dim1, dim2)
+            if mind == 1:
+                return maxd
+            elif mind != maxd:
+                raise Error('Input shapes mismatch for node {}: {}'.format(node_name, shapes))
+            return mind
+        elif dim1 is dynamic_dimension and dim2 is dynamic_dimension:
+            return dynamic_dimension_value
+        elif dim1 is dynamic_dimension and dim2 is not dynamic_dimension:
+            return broadcast_dims(dim2, dim1)
+        else:  # dim1 is static, dim2 is dynamic
+            if dim1 != 1:
+                return dim1
+            else:
+                return dim2
+
     raw_inputs = [(inp, attr) for inp, attr in node.get_sorted_inputs()
                   if 'control_flow_edge' not in attr or not attr['control_flow_edge']]
     shapes = [node.graph.node[inp]['shape'] for inp, attr in raw_inputs]
@@ -39,20 +58,11 @@ def eltwise_infer(node, op=None, **kwargs):
             if values[id] is not None:
                 values[id] = np.ma.reshape(values[id], new_shape)
 
-    extended_shapes = [np.ma.concatenate((np.ma.ones(max_dims - len(s)), s)) for s in shapes]
+    extended_shapes = [np.ma.concatenate((np.ma.ones(max_dims - len(s), dtype=np.int64), s)) for s in shapes]
     output_shape = extended_shapes[0]
     for si in range(1, len(extended_shapes)):
         for ei in range(max_dims):
-            right = extended_shapes[si][ei]
-            if output_shape[ei] is not dynamic_dimension and right is not dynamic_dimension:
-                mind = min(output_shape[ei], right)
-                maxd = max(output_shape[ei], right)
-                if mind == 1:
-                    output_shape[ei] = maxd
-                elif mind != maxd:
-                    raise Error('Input shapes mismatch for node {}: {}'.format(node_name, shapes))
-            elif output_shape[ei] is dynamic_dimension and right is not dynamic_dimension and right != 1:
-                output_shape[ei] = right
+            output_shape[ei] = broadcast_dims(output_shape[ei], extended_shapes[si][ei])
 
     node.out_port(0).data.set_shape(output_shape)
 

@@ -33,6 +33,8 @@ class TestEltwiseInfer(unittest.TestCase):
          [dynamic_dimension_value, 3]),
         (None, [4, 5, dynamic_dimension_value, 3], None, [1, dynamic_dimension_value], lambda a, b: np.add(a, b), None,
          [4, 5, dynamic_dimension_value, 3]),
+        (None, [1, 10, 20, 30], None, [dynamic_dimension_value, 10, 20, 30], lambda a, b: np.add(a, b), None,
+         [dynamic_dimension_value, 10, 20, 30]),
         # dynamic value propagation
         (shape_array([dynamic_dimension_value, 5]), [2], np.array(3), [], lambda a, b: np.add(a, b),
          shape_array([dynamic_dimension_value, 8]), [2]),
