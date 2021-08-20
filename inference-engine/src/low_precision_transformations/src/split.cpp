@@ -46,7 +46,7 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
     newSplit->set_friendly_name(split->get_friendly_name());
     ngraph::copy_runtime_info(split, newSplit);
 
-    const int64_t axis = as_type_ptr<opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
+    const int64_t axis = ov::as_type_ptr<opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
     const size_t normalizedAxis = normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
     const size_t outputSize = newSplit->get_output_size();
 
@@ -128,7 +128,7 @@ void SplitTransformation::updateOutputs(
             const auto lastNode = lastNodes[i];
             for (auto output : lastNodes[i]->outputs()) {
                 for (auto input : output.get_target_inputs()) {
-                    if (is_type<ngraph::opset1::Result>(input.get_node())) {
+                    if (ov::is_type<ngraph::opset1::Result>(input.get_node())) {
                         originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
                         lastNode->set_friendly_name(originalName + "." + std::to_string(i));
                         break;
@@ -149,7 +149,7 @@ bool SplitTransformation::canBeTransformed(const TransformationContext& context,
     }
 
     const auto consumers = NetworkHelper::consumers(layer);
-    const auto concat = as_type_ptr<opset1::Concat>(consumers[0]);
+    const auto concat = ov::as_type_ptr<opset1::Concat>(consumers[0]);
 
     // WA to avoid propagation of dequantization if after Split all consumers are the same unsupported Concat
     if (concat && concat->get_axis() != 1ul) {

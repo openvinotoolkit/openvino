@@ -24,7 +24,7 @@ TEST(attributes, broadcast_v3) {
 
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
     NodeBuilder builder(broadcast_v3);
-    auto g_broadcast_v3 = as_type_ptr<opset3::Broadcast>(builder.create());
+    auto g_broadcast_v3 = ov::as_type_ptr<opset3::Broadcast>(builder.create());
 
     EXPECT_EQ(g_broadcast_v3->get_broadcast_spec(), broadcast_spec);
 }

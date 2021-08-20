@@ -91,6 +91,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
 
 void ngraph::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
                                                                 const std::string& model_path) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     if (model_path.empty()) {
         return;
     }
@@ -113,6 +114,7 @@ void ngraph::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::
             initializer_tensor.mutable_external_data(location_key_value_index)->set_value(external_data_full_path);
         }
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 void ngraph::onnx_import::transform::fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto) {
