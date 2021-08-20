@@ -69,10 +69,10 @@ void TemplateInferRequest::allocateDeviceBuffers() {
 template <typename BlobData, typename GetNetworkPrecisionF>
 static void AllocateImplSingle(BlobMap& blobMap,
                                BlobMap& networkBlobMap,
-                               BlobData& blobData,
+                               const BlobData& blobData,
                                GetNetworkPrecisionF&& GetNetworkPrecision,
                                const SizeVector& dims) {
-    auto& precision = blobData.second->getTensorDesc().getPrecision();
+    const auto& precision = blobData.second->getTensorDesc().getPrecision();
     auto layout = blobData.second->getTensorDesc().getLayout();
     if (dims.size() > 0 && layout == InferenceEngine::Layout::SCALAR) {
         layout = InferenceEngine::Layout::ANY;
@@ -100,7 +100,7 @@ static void AllocateImpl(const BlobDataMap& userDataMap,
                          BlobMap& deviceBlobMap,
                          GetNetworkPrecisionF&& GetNetworkPrecision,
                          bool isInputBlob = true) {
-    for (auto&& userData : userDataMap) {
+    for (const auto& userData : userDataMap) {
         auto partialShape = userData.second->getPartialShape();
         SizeVector dims;
         if (partialShape.is_static()) {

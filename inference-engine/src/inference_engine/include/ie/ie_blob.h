@@ -193,16 +193,16 @@ public:
      * @param dims new shape
      */
     void setShape(const SizeVector& dims) {
-        if (proper_product(dims) > proper_product(getTensorDesc().getDims())) {
+        if (properProduct(dims) > properProduct(getTensorDesc().getDims())) {
             // New blob shape requires more memory than old one -- reallocate
             if (!deallocate())
                 IE_THROW() << "Cannot deallocate blob while an attempt to enlarge blob area in setShape.";
 
-            getTensorDesc().setDims(dims);  // Q: If rank is changed, who should set the layout?
-            // A: Old and new ranks should match as well as layouts; won't be a limitation in the new API
+            // Old and new ranks should match as well as layouts
+            getTensorDesc().setDims(dims);
 
             allocate();
-            // TODO: no way to detect if allocation is successful other than map/unmap that we wouldn't like to do here
+            // no way to detect if allocation is successful other than map/unmap that we wouldn't like to do here
         } else {
             // Don't shrink area when new size fit the existing area
             getTensorDesc().setDims(dims);
@@ -268,7 +268,7 @@ protected:
      * @param dims Reference to a vector with dimension values of type size_t
      * @return Result of multiplication
      */
-    static size_t proper_product(const SizeVector& dims) noexcept {
+    static size_t properProduct(const SizeVector& dims) noexcept {
         return std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
     }
 
