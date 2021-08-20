@@ -10,7 +10,7 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-std::vector<ngraph::helpers::ConversionTypes> conversionOpTypes = {
+const std::vector<ngraph::helpers::ConversionTypes> conversionOpTypes = {
     ngraph::helpers::ConversionTypes::CONVERT,
     ngraph::helpers::ConversionTypes::CONVERT_LIKE,
 };
@@ -37,7 +37,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP16,
     InferenceEngine::Precision::FP32};
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvertionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest,
                          ConversionLayerTest,
                          ::testing::Combine(::testing::ValuesIn(conversionOpTypes),
                                             ::testing::Values(inShape),
