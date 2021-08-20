@@ -11,6 +11,12 @@
 
 using namespace ngraph;
 
+namespace ov {
+constexpr VariantTypeInfo VariantWrapper<pugi::xml_node>::type_info;
+constexpr VariantTypeInfo VariantWrapper<InferenceEngine::Blob::CPtr>::type_info;
+constexpr VariantTypeInfo VariantWrapper<std::vector<InferenceEngine::IExtensionPtr>>::type_info;
+}  // namespace ov
+
 namespace ngraph {
 namespace frontend {
 
@@ -23,11 +29,11 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
     bool has_xml_node{false}, has_weights{false}, has_exts{false};
 
     for (const auto& variant : variants) {
-        if (is_type<VariantWrapper<pugi::xml_node>>(variant)) {
+        if (is_type<ov::VariantWrapper<pugi::xml_node>>(variant)) {
             has_xml_node = true;
-        } else if (is_type<VariantWrapper<InferenceEngine::Blob::CPtr>>(variant)) {
+        } else if (is_type<ov::VariantWrapper<InferenceEngine::Blob::CPtr>>(variant)) {
             has_weights = true;
-        } else if (is_type<VariantWrapper<std::vector<InferenceEngine::IExtensionPtr>>>(variant)) {
+        } else if (is_type<ov::VariantWrapper<std::vector<InferenceEngine::IExtensionPtr>>>(variant)) {
             has_exts = true;
         }
         return false;
@@ -42,12 +48,12 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
     std::vector<InferenceEngine::IExtensionPtr> exts;
 
     for (const auto& variant : variants) {
-        if (is_type<VariantWrapper<pugi::xml_node>>(variant)) {
-            root = as_type_ptr<VariantWrapper<pugi::xml_node>>(variant)->get();
-        } else if (is_type<VariantWrapper<InferenceEngine::Blob::CPtr>>(variant)) {
-            weights = as_type_ptr<VariantWrapper<InferenceEngine::Blob::CPtr>>(variant)->get();
-        } else if (is_type<VariantWrapper<std::vector<InferenceEngine::IExtensionPtr>>>(variant)) {
-            exts = as_type_ptr<VariantWrapper<std::vector<InferenceEngine::IExtensionPtr>>>(variant)->get();
+        if (is_type<ov::VariantWrapper<pugi::xml_node>>(variant)) {
+            root = as_type_ptr<ov::VariantWrapper<pugi::xml_node>>(variant)->get();
+        } else if (is_type<ov::VariantWrapper<InferenceEngine::Blob::CPtr>>(variant)) {
+            weights = as_type_ptr<ov::VariantWrapper<InferenceEngine::Blob::CPtr>>(variant)->get();
+        } else if (is_type<ov::VariantWrapper<std::vector<InferenceEngine::IExtensionPtr>>>(variant)) {
+            exts = as_type_ptr<ov::VariantWrapper<std::vector<InferenceEngine::IExtensionPtr>>>(variant)->get();
         }
     }
     return std::make_shared<InputModelIR>(root, weights, exts);
@@ -76,7 +82,3 @@ extern "C" IR_API void* GetFrontEndData() {
     };
     return res;
 }
-
-constexpr VariantTypeInfo VariantWrapper<pugi::xml_node>::type_info;
-constexpr VariantTypeInfo VariantWrapper<InferenceEngine::Blob::CPtr>::type_info;
-constexpr VariantTypeInfo VariantWrapper<std::vector<InferenceEngine::IExtensionPtr>>::type_info;
