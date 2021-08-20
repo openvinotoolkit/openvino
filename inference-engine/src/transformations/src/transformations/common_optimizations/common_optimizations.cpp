@@ -78,6 +78,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
+#include "transformations/control_flow/unroll_if.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
@@ -196,6 +197,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
     manager.register_pass<ngraph::pass::StridesOptimization>();
+
+    auto unroll_if = manager.register_pass<ngraph::pass::UnrollIf>();
 
     manager.run_passes(f);
 
