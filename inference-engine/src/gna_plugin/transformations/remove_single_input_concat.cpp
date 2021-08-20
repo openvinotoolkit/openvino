@@ -7,14 +7,14 @@
 #include "transformations/remove_single_input_concat.hpp"
 
 #include <memory>
+#include <vector>
 
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ie_common.h>
-#include "utils/transformation_helper.hpp"
+
+using NodeInput = ngraph::Input<ngraph::Node>;
+using NodeOutput = ngraph::Output<ngraph::Node>;
 
 namespace GNAPluginNS
 {
@@ -29,10 +29,17 @@ namespace GNAPluginNS
             const auto& pattern_map = m.get_pattern_value_map();
             const auto concat_operation_node = pattern_map.at(concat_operation).get_node_shared_ptr();
             
+            // FIXME: should we need to check non-functional nodes ?
+
             if (concat_operation_node->get_input_size() != 1 || !concat_operation_node->get_output_size())
                 return false;
 
-            // TODO: rebase all inputs to output
+            NodeOutput prev_node_output = concat_operation_node->get_input_source_output(0);
+        
+            for (NodeInput child_input : concat_operation_node->get_output_target_inputs(0))
+            {
+                child_input.replace_source_output(prev_node_output);
+            }
 
             return true;
         };
