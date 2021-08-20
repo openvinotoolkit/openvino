@@ -6,12 +6,42 @@
 
 #include <onnx/defs/function.h>
 #include <onnx/defs/schema.h>
+#include <onnx/shape_inference/implementation.h>
 
 #include "core/model.hpp"
 #include "ngraph/file_util.hpp"
+#include "ngraph/log.hpp"
 #include "ops_bridge.hpp"
 
+namespace ngraph {
+namespace onnx_import {
+namespace transform {
+namespace detail {
+ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE::GraphProto& graph) {
+    for (auto& input : graph.input()) {
+        if (input.name() == name) {
+            return input.type();
+        }
+    }
+    for (auto& value_info : graph.value_info()) {
+        if (value_info.name() == name) {
+            return value_info.type();
+        }
+    }
+    return ONNX_NAMESPACE::TypeProto();
+}
+}  // namespace detail
+}  // namespace transform
+}  // namespace onnx_import
+}  // namespace ngraph
+
 void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto) {
+    try {
+        ONNX_NAMESPACE::shape_inference::InferShapes(model_proto);
+    } catch (const std::exception& e) {
+        NGRAPH_WARN << "Shape inference failed: " << e.what();
+    }
+
     auto graph_proto = model_proto.mutable_graph();
 
     for (int i = 0; i < graph_proto->node().size(); ++i) {
@@ -43,7 +73,12 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
         }
 
         else if (node_op_schema->HasContextDependentFunction()) {
-            ONNX_NAMESPACE::FunctionBodyBuildContextImpl ctx(node);
+            std::vector<ONNX_NAMESPACE::TypeProto> input_types;
+            for (const auto& input : node.input()) {
+                input_types.push_back(ngraph::onnx_import::transform::detail::get_input_type(input, *graph_proto));
+            }
+
+            ONNX_NAMESPACE::FunctionBodyBuildContextImpl ctx(node, input_types);
             ONNX_NAMESPACE::FunctionProto func_proto;
             node_op_schema->BuildContextDependentFunction(ctx, func_proto);
             ONNX_NAMESPACE::FunctionExpandHelper(node, func_proto, *graph_proto);
