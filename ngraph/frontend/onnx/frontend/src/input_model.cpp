@@ -17,8 +17,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 InputModelONNX::InputModelONNX(const std::string& path)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
 
-InputModelONNX::InputModelONNX(const std::wstring& path)
-    : InputModelONNX(file_util::wstring_to_string(path)) {}
+InputModelONNX::InputModelONNX(const std::wstring& path) : InputModelONNX(file_util::wstring_to_string(path)) {}
 
 InputModelONNX::InputModelONNX(std::istream& model_stream)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream)} {}

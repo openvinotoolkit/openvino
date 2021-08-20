@@ -35,41 +35,36 @@ extern "C" ONNX_FRONTEND_API void* GetFrontEndData() {
 }
 
 InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
-    if(variants.size() == 0)
-    {
+    if (variants.size() == 0) {
         return nullptr;
     }
     if (is_type<VariantString>(variants[0])) {
         const auto path = as_type_ptr<VariantString>(variants[0])->get();
         return std::make_shared<InputModelONNX>(path);
     }
-    #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     if (is_type<VariantWrapper<std::wstring>>(variants[0])) {
         const auto path = as_type_ptr<VariantString>(variants[0])->get();
         return std::make_shared<InputModelONNX>(path);
     }
-    #endif
+#endif
     std::istream* stream = nullptr;
-    if (is_type<VariantIstreamPtr>(variants[0]))
-    {
+    if (is_type<VariantIstreamPtr>(variants[0])) {
         stream = as_type_ptr<VariantIstreamPtr>(variants[0])->get();
-    }
-    else if (is_type<VariantIstringstreamPtr>(variants[0])) {
+    } else if (is_type<VariantIstringstreamPtr>(variants[0])) {
         stream = as_type_ptr<VariantIstringstreamPtr>(variants[0])->get();
     }
-    if(stream != nullptr) {
-        if (variants.size() > 1 && is_type<VariantString>(variants[1]))
-        {
+    if (stream != nullptr) {
+        if (variants.size() > 1 && is_type<VariantString>(variants[1])) {
             const auto path = as_type_ptr<VariantString>(variants[1])->get();
             return std::make_shared<InputModelONNX>(*stream, path);
         }
-        #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        if (variants.size() > 1 && is_type<VariantWString>(variants[1]))
-        {
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        if (variants.size() > 1 && is_type<VariantWString>(variants[1])) {
             const auto path = as_type_ptr<VariantWString>(variants[1])->get();
             return std::make_shared<InputModelONNX>(*stream, path);
         }
-        #endif
+#endif
         return std::make_shared<InputModelONNX>(*stream);
     }
     return nullptr;
@@ -118,7 +113,7 @@ private:
 }  // namespace
 
 bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
-    if(variants.size() == 0) {
+    if (variants.size() == 0) {
         return false;
     }
     std::ifstream model_stream;
@@ -126,12 +121,12 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         const auto path = as_type_ptr<VariantString>(variants[0])->get();
         model_stream.open(path, std::ios::in | std::ifstream::binary);
     }
-    #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (is_type<VariantWString>(variants[0])) {
         const auto path = as_type_ptr<VariantWString>(variants[0])->get();
         model_stream.open(path, std::ios::in | std::ifstream::binary);
     }
-    #endif
+#endif
     if (model_stream.is_open()) {
         model_stream.seekg(0, model_stream.beg);
         const bool is_valid_model = onnx_common::is_valid_model(model_stream);
@@ -139,11 +134,9 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         return is_valid_model;
     }
     std::istream* stream = nullptr;
-    if (is_type<VariantIstreamPtr>(variants[0]))
-    {
+    if (is_type<VariantIstreamPtr>(variants[0])) {
         stream = as_type_ptr<VariantIstreamPtr>(variants[0])->get();
-    }
-    else if (is_type<VariantIstringstreamPtr>(variants[0])) {
+    } else if (is_type<VariantIstringstreamPtr>(variants[0])) {
         stream = as_type_ptr<VariantIstringstreamPtr>(variants[0])->get();
     }
     if (stream != nullptr) {
