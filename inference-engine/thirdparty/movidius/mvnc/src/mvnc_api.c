@@ -150,12 +150,8 @@ char* ncProtocolToStr(const ncDeviceProtocol_t deviceProtocol) {
     }
 }
 
-char* ncPlatformToStr(const ncDevicePlatform_t platform) {
-    switch(platform) {
-        case NC_MYRIAD_2:              return "NC_MYRIAD_2";
-        case NC_MYRIAD_X:              return "NC_MYRIAD_X";
-        default:                    return "NC_ANY_PLATFORM";
-    }
+char* ncPlatformToStr() {
+    return "NC_MYRIAD_X";
 }
 
 int mvnc_memcpy(void* dest, size_t destsz, void const* src, size_t count) {
@@ -1186,21 +1182,20 @@ ncStatus_t ncAvailableDevices(struct ncDeviceDescr_t *deviceDescrPtr,
     return NC_OK;
 }
 
-ncStatus_t ncDeviceLoadFirmware(const ncDevicePlatform_t devicePlatform, const char* customFirmwareDir) {
-    mvLog(MVLOG_WARN, "Boot (%s) without connecting to it", ncPlatformToStr(devicePlatform));
+ncStatus_t ncDeviceLoadFirmware(const char* customFirmwareDir) {
+    mvLog(MVLOG_WARN, "Boot (%s) without connecting to it", "");
     XLinkError_t rc;
     ncStatus_t sc;
 
     // Find device with specific platform
     deviceDesc_t deviceDesc = {0};
     deviceDesc_t in_deviceDesc = {
-        .platform = convertPlatformToXlink(devicePlatform),
         .protocol = X_LINK_USB_VSC
     };
 
     rc = XLinkFindFirstSuitableDevice(X_LINK_UNBOOTED, in_deviceDesc, &deviceDesc);
     if (rc) {
-        mvLog(MVLOG_WARN, "Failed to find (%s) platform device", ncPlatformToStr(devicePlatform));
+        mvLog(MVLOG_WARN, "Failed to find (%s) platform device", "");
         return NC_DEVICE_NOT_FOUND;
     }
 
@@ -2668,14 +2663,7 @@ static ncStatus_t getDeviceOption(struct _devicePrivate_t *d,
         mv_strncpy((char *) data, *dataLength, d->dev_addr, *dataLength - 1);
         break;
     case NC_RO_DEVICE_PLATFORM:
-        if (d->dev_attr.fw_version[1] == 0x2480){
-            *(ncDevicePlatform_t *) data = NC_MYRIAD_X;
-        } else if (d->dev_attr.fw_version[1] == 0x2450) {
-            *(ncDevicePlatform_t *) data = NC_MYRIAD_2;
-        } else {
-            *(ncDevicePlatform_t *) data = NC_ANY_PLATFORM;
-        }
-        *dataLength = sizeof(ncDevicePlatform_t);
+        *dataLength = sizeof(data);
         break;
     case NC_RO_DEVICE_PROTOCOL:
         *(ncDeviceProtocol_t *) data = convertProtocolToNC(d->protocol);
@@ -2821,7 +2809,7 @@ ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t * deviceHandle,
     CHECK_HANDLE_CORRECT(deviceHandle);
     ncStatus_t rc;
 
-    if (!dataLength || (*dataLength != 0 && !data)) {
+    if (!dataLength) {
         mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
         return NC_INVALID_PARAMETERS;
     }

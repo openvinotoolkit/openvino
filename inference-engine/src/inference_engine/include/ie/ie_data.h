@@ -47,7 +47,7 @@ public:
      * @param shape Partial shape of the data
      * @param layout Data layout
      */
-    Data(const std::string& name, Precision _precision, const ngraph::PartialShape& shape, Layout layout = NCHW);
+    Data(const std::string& name, Precision _precision, const ngraph::PartialShape& shape, Layout layout = BLOCKED);
 
     /**
      * @brief A constructor with tensor descriptor

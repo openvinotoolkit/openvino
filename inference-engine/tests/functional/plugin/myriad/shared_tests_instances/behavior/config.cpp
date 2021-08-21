@@ -167,8 +167,6 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(YES)}},
         {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO)}},
 
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}},
-
         {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(YES)}},
         {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO)}},
 
@@ -259,19 +257,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CorrectConfigTests,
         ::testing::ValuesIn(getCorrectMultiConfigs())),
     CorrectConfigTests::getTestCaseName);
 
-const std::vector<std::map<std::string, std::string>>& getCorrectAutoConfigs() {
-    static const std::vector<std::map<std::string, std::string>> correctAutoConfigs = {
-            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_MYRIAD}, {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "YES"}},
-            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_MYRIAD}, {std::string("AUTO_"), "NAN"}}
-    };
-    return correctAutoConfigs;
-}
-
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigTests,
                          ::testing::Combine(
                                  ::testing::ValuesIn(getPrecisions()),
                                  ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                 ::testing::ValuesIn(getCorrectAutoConfigs())),
+                                 ::testing::ValuesIn(getCorrectMultiConfigs())),
                          CorrectConfigTests::getTestCaseName);
 
 const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaultEntries() {
@@ -317,7 +307,6 @@ const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaul
         {KEY_CONFIG_FILE, {std::string()}},
         {InferenceEngine::MYRIAD_DDR_TYPE, {InferenceEngine::MYRIAD_DDR_AUTO}},
         {InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, {false}},
-        {VPU_MYRIAD_CONFIG_KEY(PLATFORM), {std::string()}},
         {InferenceEngine::MYRIAD_CHECK_PREPROCESSING_INSIDE_MODEL, {true}},
         {InferenceEngine::MYRIAD_ENABLE_EARLY_ELTWISE_RELU_FUSION, {true}},
         {InferenceEngine::MYRIAD_ENABLE_CUSTOM_RESHAPE_PARAM, {false}},
@@ -353,9 +342,6 @@ const std::vector<std::tuple<std::string, std::string, InferenceEngine::Paramete
             InferenceEngine::Parameter{true}),
         std::make_tuple(InferenceEngine::MYRIAD_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::NO,
             InferenceEngine::Parameter{false}),
-
-        std::make_tuple(VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480),
-            InferenceEngine::Parameter{VPU_MYRIAD_CONFIG_VALUE(2480)}),
 
         std::make_tuple(InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB,
             InferenceEngine::Parameter{InferenceEngine::MYRIAD_USB}),
@@ -796,10 +782,6 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "ON"}},
         {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "OFF"}},
 
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}},
-
         {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), "ON"}},
         {{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), "OFF"}},
 
@@ -908,18 +890,6 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectMultiConfigs(
         },
         {
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "OFF"}
         },
         {
@@ -928,44 +898,6 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectMultiConfigs(
         },
     };
     return incorrectMultiConfigs;
-}
-
-const std::vector<std::map<std::string, std::string>>& getIncorrectAutoConfigs() {
-    static const std::vector<std::map<std::string, std::string>> incorrectAutoConfigs = {
-        {
-                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
-                {KEY_LOG_LEVEL, "INCORRECT_LOG_LEVEL"},
-        },
-        {
-                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
-                {InferenceEngine::MYRIAD_PROTOCOL, "BLUETOOTH"}
-        },
-        {
-                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
-                {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, "ON"}
-        },
-        {
-                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
-                {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"}
-        },
-        {
-                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
-                {KEY_PERF_COUNT, "ON"}
-        },
-        {
-                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
-                {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "ONE"}
-        },
-        {
-                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
-                {KEY_EXCLUSIVE_ASYNC_REQUESTS, "ON"}
-        },
-        {
-                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
-                {InferenceEngine::MYRIAD_DDR_TYPE, "1GB"}
-        },
-    };
-    return incorrectAutoConfigs;
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigTests,
@@ -979,7 +911,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigTests,
      ::testing::Combine(
         ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-        ::testing::ValuesIn(getIncorrectAutoConfigs())),
+        ::testing::ValuesIn(getIncorrectMultiConfigs())),
      IncorrectConfigTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigSingleOptionTests,
@@ -1020,6 +952,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
      ::testing::Combine(
         ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-        ::testing::ValuesIn(getIncorrectAutoConfigs())),
+        ::testing::ValuesIn(getIncorrectMultiConfigs())),
      IncorrectConfigAPITests::getTestCaseName);
 } // namespace

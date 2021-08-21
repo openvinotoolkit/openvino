@@ -20,6 +20,7 @@
 #include "util/all_close.hpp"
 #include "util/ndarray.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
@@ -194,11 +195,11 @@ TEST_F(CloneTest, clone_nodes_full) {
     auto cloned_nodes = clone_nodes(nodes, node_map);
     ASSERT_TRUE(CompareNodeVector(nodes, cloned_nodes, node_map));
 
-    ASSERT_NE(nullptr, as_type_ptr<op::Parameter>(node_map.at(A.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::Parameter>(node_map.at(B.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::Parameter>(node_map.at(C.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::v1::Add>(node_map.at(AplusB.get())));
-    ASSERT_NE(nullptr, as_type_ptr<op::v1::Multiply>(node_map.at(AplusBtimesC.get())));
+    ASSERT_NE(nullptr, ov::as_type_ptr<op::Parameter>(node_map.at(A.get())));
+    ASSERT_NE(nullptr, ov::as_type_ptr<op::Parameter>(node_map.at(B.get())));
+    ASSERT_NE(nullptr, ov::as_type_ptr<op::Parameter>(node_map.at(C.get())));
+    ASSERT_NE(nullptr, ov::as_type_ptr<op::v1::Add>(node_map.at(AplusB.get())));
+    ASSERT_NE(nullptr, ov::as_type_ptr<op::v1::Multiply>(node_map.at(AplusBtimesC.get())));
 
     auto sorted_nodes = topological_sort(nodes);
     auto sorted_cloned_nodes = topological_sort(cloned_nodes);

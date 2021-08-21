@@ -177,12 +177,15 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     for (const auto& inputInfo : inputs) {
         InputInfo::Ptr info = std::make_shared<InputInfo>();
         const auto& name = inputInfo.second->getInputData()->getName();
-        DataPtr input = std::make_shared<Data>(name, inputInfo.second->getInputData()->getTensorDesc());
+        const auto& inData = inputInfo.second->getInputData();
+        DataPtr input =
+            std::make_shared<Data>(name, inData->getPrecision(), inData->getPartialShape(), inData->getLayout());
         _data[name] = input;
         info->setInputData(input);
         info->getPreProcess() = inputInfo.second->getPreProcess();
         info->setPrecision(inputInfo.second->getPrecision());
-        info->setLayout(inputInfo.second->getLayout());
+        if (!inData->isDynamic())
+            info->setLayout(inputInfo.second->getLayout());
         _inputData[name] = info;
     }
 }
