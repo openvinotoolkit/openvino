@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, is_fully_defined
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, shape_insert
 from mo.graph.graph import Node
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -59,7 +59,7 @@ class ExpandDims(Op):
         expand_axes = sorted(expand_axes)
         output_shape = input_shape.copy()
         for expand_axis in expand_axes:
-            output_shape = np.ma.concatenate([output_shape[:expand_axis], [1], output_shape[expand_axis:]])
+            output_shape = shape_insert(output_shape, expand_axis, 1)
 
         if input_value is not None and is_fully_defined(output_shape):
             node.out_port(0).data.set_value(input_value.reshape(output_shape))
