@@ -17,8 +17,7 @@ class SliceFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        print("Opset: ", get_onnx_opset_version(node))
-        if get_onnx_opset_version(node) < 0:
+        if get_onnx_opset_version(node) < 10:
             starts = int64_array(onnx_attr(node, 'starts', 'ints', default=[]))
             ends = int64_array(onnx_attr(node, 'ends', 'ints', default=[]))
             axes = int64_array(onnx_attr(node, 'axes', 'ints', default=[]))
