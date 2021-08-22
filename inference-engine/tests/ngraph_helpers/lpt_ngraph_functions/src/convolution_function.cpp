@@ -45,7 +45,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
 
     if (weights->cast_vector<float>().size() == 1ul) {
         auto targetShape = ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
-        weights = as_type_ptr<ngraph::opset1::Constant>(fold<ngraph::opset1::Broadcast>(
+        weights = ov::as_type_ptr<ngraph::opset1::Constant>(fold<ngraph::opset1::Broadcast>(
             weights, op::Constant::create(ngraph::element::i64, Shape{ targetShape.size() }, targetShape)));
     }
 
@@ -234,7 +234,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
 
     if (weights->cast_vector<float>().size() == 1ul) {
         auto targetShape = ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
-        weights = as_type_ptr<ngraph::opset1::Constant>(fold<ngraph::opset1::Broadcast>(
+        weights = ov::as_type_ptr<ngraph::opset1::Constant>(fold<ngraph::opset1::Broadcast>(
             weights, op::Constant::create(ngraph::element::i64, Shape{ targetShape.size() }, targetShape)));
     }
 
@@ -295,7 +295,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
 
-    const std::shared_ptr<ngraph::opset1::FakeQuantize> fqOnData = as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
+    const std::shared_ptr<ngraph::opset1::FakeQuantize> fqOnData = ov::as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
         input,
         precision,
         fakeQuantizeOnData.quantizationLevel,
