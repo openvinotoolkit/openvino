@@ -144,6 +144,7 @@ jobs:
   - task: CMake@1
     inputs:
       cmakeArgs: >
+        -GNinja
         "$(REPO_DIR)/tests/layer_tests"
       workingDirectory: $(BUILD_LAYER_TESTS_DIR)
       
