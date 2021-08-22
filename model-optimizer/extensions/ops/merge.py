@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import is_fully_defined, compatible_shapes, shape_array
+from mo.front.common.partial_infer.utils import compatible_shapes, shape_array, strict_compare_tensors
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -36,7 +36,7 @@ class Merge(Op):
                                        'executable' in n and n['executable']]
             tensor = inferred_and_executable[0]
 
-            if all([np.ma.allequal(tensor.value, n.value) for n in inferred_and_executable]) and \
+            if all([strict_compare_tensors(tensor.value, n.value) for n in inferred_and_executable]) and \
                     tensor.has_valid('value'):
                 node.out_node().value = tensor.value.copy()
 
