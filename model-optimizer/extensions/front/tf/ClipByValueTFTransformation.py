@@ -15,8 +15,8 @@ class ClipByValueTFTransformation(FrontReplacementSubgraph):
     def find_and_replace_pattern(self, graph: Graph):
         for cbv in graph.get_op_nodes(op='ClipByValueTF'):
             cbv_name = cbv.soft_get('name', cbv.id)
-            minimum = Minimum(graph, {'name': cbv_name + '/CLipMaximum'}).create_node()
-            maximum = Maximum(graph, {'name': cbv_name + '/CLipMinimum'}).create_node()
+            minimum = Minimum(graph, {'name': cbv_name + '/CLipMinimum'}).create_node()
+            maximum = Maximum(graph, {'name': cbv_name + '/CLipMaximum'}).create_node()
             minimum.in_port(0).connect(cbv.in_port(0).get_source())
             minimum.in_port(1).connect(cbv.in_port(2).get_source())
             maximum.in_port(0).connect(minimum.out_port(0))
