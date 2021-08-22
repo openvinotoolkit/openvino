@@ -25,8 +25,8 @@ reduce_map = {
 
 def reduce_helper(func: callable, x: np.array, axis: tuple, keepdims: bool):
     """
-    Performs the reduction of input data tensor "x" over axis "axis" with function "func" and optionally remove reduced
-    dimensions (if "keepdims" is False). If the input tensor has dynamic values then all elements of the result tensor
+    Performs the reduction of input data tensor "x" over axis "axis" with function "func" and optionally removes reduced
+    dimensions (if "keepdims" is False). If the input tensor has dynamic values, all elements of the result tensor
     are changed to be dynamic.
 
     :param func: numpy reduce function

@@ -10,14 +10,15 @@ from mo.utils.error import Error
 
 dynamic_dimension = np.ma.masked
 # numpy masked array for integer values forces us to select one integer number to be considered as a missing/invalid
-# value. Since the primary purpose of usage of masked arrays in the MO is to specify dynamic dimension the big prime
+# value. Since the primary purpose of usage of masked arrays in the MO is to specify dynamic dimension, the big prime
 # (by modulo) negative number is selected as such a value
 dynamic_dimension_value = -1000000007
 
 
 def shape_array(value, dtype=np.int64):
-    # if the input already has masked values then we need to explicitly convert to dynamic_dimension_value and create
-    # masked array from scratch, because otherwise method masked_equal will convert masked elements to "nan" value
+    # if the input tensor has masked values then they should be explicitly converted to dynamic_dimension_value and
+    # a masked array should be created from scratch, otherwise, method "masked_equal" will convert masked elements to
+    # "nan" values
     if isinstance(value, Iterable) and (not isinstance(value, np.ndarray) or value.ndim != 0):
         value = [item if item is not dynamic_dimension else dynamic_dimension_value for item in value]
     return np.ma.masked_equal(value, dynamic_dimension_value).astype(dtype=dtype)

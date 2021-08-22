@@ -55,7 +55,7 @@ def concat_infer(node):
     if any([v is None for v in values]):
         return
 
-    # if one of the input values are dynamic then we need to properly keep data type of the input
+    # if one of the input values are dynamic, the output tensor type is inferred from one of the fully defined inputs
     output_dtype = np.int64
     for input in values:
         if is_fully_defined(input):
