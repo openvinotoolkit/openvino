@@ -29,7 +29,7 @@ jobs:
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
-    BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/layer_tests
+    BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     TESTS_DIR: $(WORK_DIR)/tests_pkg/
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
@@ -108,7 +108,7 @@ jobs:
     lfs: true
     path: testdata
 
-  - task: CMake@1
+  - task: CMakeLayerTests@1
     inputs:
       # CMake must get Python 3.x version by default
       cmakeArgs: >
