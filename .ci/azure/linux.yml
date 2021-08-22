@@ -108,7 +108,7 @@ jobs:
     lfs: true
     path: testdata
 
-  - task: CMakeLayerTests@1
+  - task: CMake@1
     inputs:
       # CMake must get Python 3.x version by default
       cmakeArgs: >
@@ -141,7 +141,7 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
   
-  - task: CMake@2
+  - task: CMake@1
     inputs:
       cmakeArgs: >
         "$(REPO_DIR)/tests/layer_tests"
