@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,10 +88,9 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
         fq->get_input_node_shared_ptr(4),
         as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
     fq2->set_friendly_name("concat_fq2");
-
+    ngraph::copy_runtime_info(fq, { fq1, fq2 });
     auto newConcat = concat->clone_with_new_inputs({ fq1->output(0), fq2->output(0) });
     newConcat->set_friendly_name(concat->get_friendly_name());
-    replace_node(concat, newConcat);
     replace_node(fq, newConcat);
     updateOutput(context, newConcat, fq);
     return true;
