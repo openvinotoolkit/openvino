@@ -47,7 +47,7 @@ bool SqueezeTransformation::transform(TransformationContext& context, ngraph::pa
             return NetworkHelper::toScalar(dequantizationOpConstant);
         }
         if (constantShape.size() == inputRankValue) {
-            return as_type_ptr<opset1::Constant>(fold<opset1::Squeeze>(dequantizationOpConstant, squeeze->get_input_node_shared_ptr(1)));
+            return ov::as_type_ptr<opset1::Constant>(fold<opset1::Squeeze>(dequantizationOpConstant, squeeze->get_input_node_shared_ptr(1)));
         }
 
         return dequantizationOpConstant;
