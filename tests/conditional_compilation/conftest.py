@@ -6,7 +6,9 @@
 # pylint: disable=line-too-long
 
 """Pytest configuration for compilation tests."""
+import json
 import logging
+import subprocess
 import sys
 from inspect import getsourcefile
 from pathlib import Path
@@ -17,7 +19,10 @@ sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").re
 import yaml
 import pytest
 
+from tests.stress_tests.scripts.get_testdata import abs_path
+from install_pkg import get_openvino_environment  # pylint: disable=import-error
 from path_utils import expand_env_vars  # pylint: disable=import-error
+from proc_utils import cmd_exec  # pylint: disable=import-error
 from test_utils import make_build, validate_path_arg, write_session_info, \
     SESSION_INFO_FILE  # pylint: disable=import-error
 
@@ -59,6 +64,16 @@ def pytest_addoption(parser):
         type=Path,
         help="Path to OpenVINO repository root directory",
     )
+    parser.addoption(
+        "--omz_repo",
+        type=Path,
+        help="Path to OMZ repository root directory",
+    )
+    parser.addoption(
+        "--omz_cache_dir",
+        type=Path,
+        help="Path to OMZ cache directory",
+    )
 
 
 def pytest_generate_tests(metafunc):
@@ -75,10 +90,12 @@ def pytest_generate_tests(metafunc):
         for models in test:
             extra_args = {}
             model_path = models["model"]["path"]
+            model_struct = models["model"]
             if "marks" in test:
                 extra_args["marks"] = test["marks"]
-            model_list.append(expand_env_vars(model_path))
-            test_id_list.append(model_path.split("/")[- 1])
+            model_struct["path"] = Path(expand_env_vars(model_struct["path"]))
+            model_list.append(expand_env_vars(model_struct))
+            test_id_list.append(model_path.split("/")[-1])
         ids = ids + ['-'.join(test_id_list)]
         params.append(pytest.param('-'.join(test_id_list), model_list), **extra_args)
 
@@ -171,3 +188,71 @@ def save_session_info(pytestconfig, artifacts):
     """Fixture function for saving additional attributes to configuration file."""
     yield
     write_session_info(path=artifacts / SESSION_INFO_FILE, data=pytestconfig.session_info)
+
+
+@pytest.fixture(scope="function")
+def download_models(openvino_ref, models, request):
+    for model in models:
+        if "OMZ" in model["path"]:
+            model["path"] = download_model(openvino_ref, model, request)
+
+
+def download_model(openvino_ref, model, request):
+    # Step 1: downloader
+    omz_path = request.config.getoption("omz_repo")
+    cache_dir = request.config.getoption("omz_cache_dir")
+    downloader_path = str(omz_path / "tools" / "downloader" / "downloader.py")
+    omz_num_attempts = 6
+
+    cmd = '{executable} {downloader_path} --name {model_name}' \
+          ' --precisions={precision}' \
+          ' --num_attempts {num_attempts}' \
+          ' --output_dir {models_dir}' \
+          ' --cache_dir {cache_dir}'.format(executable=sys.executable,
+                                            downloader_path=downloader_path,
+                                            model_name=model["name"],
+                                            precision=model["precision"],
+                                            num_attempts=omz_num_attempts,
+                                            models_dir=omz_path / "_omz_repo",
+                                            cache_dir=cache_dir)
+
+    cmd_exec(cmd)
+
+    # Step 2: converter
+    converter_path = omz_path / "tools" / "downloader" / "converter.py"
+    python_executable = sys.executable
+    # Note: remove --precisions if both precisions (FP32 & FP16) required
+    cmd = '{executable} {converter_path} --name {model_name}' \
+          ' -p {executable}' \
+          ' --precisions={precision}' \
+          ' --output_dir {irs_dir}' \
+          ' --download_dir {models_dir}' \
+          ' --mo {mo_tool}'.format(executable=python_executable, precision=model["precision"],
+                                   converter_path=converter_path,
+                                   model_name=model["name"],
+                                   irs_dir=omz_path / "_omz_irs_out_dir",
+                                   models_dir=omz_path / "_omz_repo",
+                                   mo_tool=Path(abs_path('../../../model-optimizer/mo.py')).resolve())
+
+    cmd_exec(cmd, env=get_openvino_environment(openvino_ref))
+
+    # Step 3: info_dumper
+    info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
+    cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=sys.executable,
+                                                                           info_dumper_path=info_dumper_path,
+                                                                           model_name=model["name"])
+
+    out = ""
+    try:
+        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
+    except subprocess.CalledProcessError as exc:
+        log.warning(exc.output)
+
+    model_info = json.loads(out)[0]
+
+    # Step 4: form model_path
+    model_path = omz_path / "_omz_irs_out_dir" / \
+                 model_info["subdirectory"] / model["precision"] / \
+                 f'{model_info["name"]}.xml'
+
+    return model_path
