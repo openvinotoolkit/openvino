@@ -36,12 +36,6 @@ ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE
 }  // namespace ngraph
 
 void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto) {
-    try {
-        ONNX_NAMESPACE::shape_inference::InferShapes(model_proto);
-    } catch (const std::exception& e) {
-        NGRAPH_WARN << "Shape inference failed: " << e.what();
-    }
-
     auto graph_proto = model_proto.mutable_graph();
 
     for (int i = 0; i < graph_proto->node().size(); ++i) {
@@ -73,6 +67,13 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
         }
 
         else if (node_op_schema->HasContextDependentFunction()) {
+            // In order to expand a context-dependent function, we need to infer types
+            try {
+                ONNX_NAMESPACE::shape_inference::InferShapes(model_proto);
+            } catch (const std::exception& e) {
+                NGRAPH_WARN << "ONNX Shape inference failed: " << e.what();
+            }
+
             std::vector<ONNX_NAMESPACE::TypeProto> input_types;
             for (const auto& input : node.input()) {
                 input_types.push_back(ngraph::onnx_import::transform::detail::get_input_type(input, *graph_proto));

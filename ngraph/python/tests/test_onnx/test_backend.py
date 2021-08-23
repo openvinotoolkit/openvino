@@ -65,7 +65,6 @@ from tests import (
     xfail_issue_63043,
     xfail_issue_63044,
     xfail_issue_63045,
-    xfail_issue_63047,
 )
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
@@ -412,42 +411,7 @@ tests_expected_to_fail = [
      ),
     (xfail_issue_63045,
      "OnnxBackendPyTorchConvertedModelTest.test_MaxPool1d_stride_padding_dilation_cpu",
-     "OnnxBackendPyTorchConvertedModelTest.test_MaxPool2d_stride_padding_dilation_cpu"),
-    (xfail_issue_63047,
-     "OnnxBackendNodeModelTest.test_sce_NCd1_mean_weight_negative_ii_cpu",
-     "OnnxBackendNodeModelTest.test_sce_NCd1_mean_weight_negative_ii_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_none_no_weight_negative_ii_cpu",
-     "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_none_no_weight_negative_ii_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_sum_weight_high_ii_cpu",
-     "OnnxBackendNodeModelTest.test_sce_NCd1d2d3_sum_weight_high_ii_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_cpu",
-     "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_cpu",
-     "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_3d_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_3d_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_3d_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_3d_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_4d_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_4d_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_no_weight_ii_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_weight_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_weight_ii_3d_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_weight_ii_3d_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_weight_ii_4d_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_weight_ii_4d_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_weight_ii_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_weight_ii_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_mean_weight_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_none_cpu",
-     "OnnxBackendNodeModelTest.test_sce_none_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_none_weights_cpu",
-     "OnnxBackendNodeModelTest.test_sce_none_weights_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_sce_sum_cpu",
-     "OnnxBackendNodeModelTest.test_sce_sum_log_prob_cpu")
+     "OnnxBackendPyTorchConvertedModelTest.test_MaxPool2d_stride_padding_dilation_cpu")
 ]
 
 for test_group in tests_expected_to_fail:
