@@ -2,7 +2,7 @@
 
 **Versioned name**: *Erf-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Erf* performs element-wise Gauss error function (erf) on a given input tensor.
 

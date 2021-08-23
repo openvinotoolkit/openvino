@@ -2,7 +2,7 @@
 
 **Versioned name**: *CumSum-3*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *CumSum* performs cumulative summation of the input elements along the given axis.
 

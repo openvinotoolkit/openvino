@@ -2,7 +2,7 @@
 
 **Versioned name**: *RandomUniform-8*
 
-**Category**: Generation
+**Category**: *Generation*
 
 **Short description**: *RandomUniform* operation generates a sequence of random values from a uniform distribution.
 

@@ -2,7 +2,7 @@
 
 **Versioned name**: *Interpolate-4*
 
-**Category**: Image processing
+**Category**: *Image processing*
 
 **Short description**: *Interpolate* layer performs interpolation of independent slices in input tensor by specified dimensions and attributes.
 

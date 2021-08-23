@@ -2,7 +2,7 @@
 
 **Versioned name**: *Unsqueeze-1*
 
-**Category**: Shape manipulation
+**Category**: *Shape manipulation*
 
 **Short description**: *Unsqueeze* adds dimensions of size 1 to the first input tensor. The second input value specifies a list of dimensions that will be inserted. Indices specify dimensions in the output tensor.
 
