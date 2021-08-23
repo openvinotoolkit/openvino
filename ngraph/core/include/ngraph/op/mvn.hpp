@@ -17,7 +17,7 @@ class NGRAPH_API MVN : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
-    MVN();
+    MVN() = default;
     /// \brief Constructs an MVN operation.
     ///
     /// \param data Input tensor with data
