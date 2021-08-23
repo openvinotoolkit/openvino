@@ -521,6 +521,9 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
     // update inputs
     {
         InputsDataMap inputs = network.getInputsInfo();
+        if (inputsDesc->inputPrecisions.size() != 0) {
+            inputsDesc->inputPrecisions.clear();
+        }
         for (const auto input : inputs) {
             inputsDesc->inputPrecisions.push_back(input.second->getPrecision().getPrecVal());
         }
