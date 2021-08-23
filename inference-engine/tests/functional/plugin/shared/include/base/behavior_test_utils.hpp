@@ -119,7 +119,7 @@ public:
         std::map<std::string, std::string> configuration;
         std::tie(targetDevice, configuration) = obj.param;
         std::ostringstream result;
-        result << "targetDevice=" << targetDevice;
+        result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
             for (auto &configItem : configuration) {
                 result << "configItem=" << configItem.first << "_" << configItem.second << "_";
