@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 
+#include <ngraph/validation_util.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -46,7 +47,10 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize) {
         auto input_gather = std::make_shared<ngraph::opset7::Gather>(shape_of,
             ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {1}), ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {0}));
         auto add = std::make_shared<ngraph::opset7::Add>(input_gather, indices);
-        auto gather = std::make_shared<ngraph::opset7::Gather>(data, add, axis);
+        auto const_add = ngraph::get_constant_from_source(add);
+        if (const_add == nullptr)
+            throw ngraph::ngraph_error("indices should've been constant folded");
+        auto gather = std::make_shared<ngraph::opset7::Gather>(data, const_add, axis);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
@@ -84,7 +88,10 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_neg_axis) {
         auto input_gather = std::make_shared<ngraph::opset7::Gather>(shape_of,
              ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {1}), ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {0}));
         auto add = std::make_shared<ngraph::opset7::Add>(input_gather, indices);
-        auto gather = std::make_shared<ngraph::opset7::Gather>(data, add, axis);
+        auto const_add = ngraph::get_constant_from_source(add);
+        if (const_add == nullptr)
+            throw ngraph::ngraph_error("indices should've been constant folded");
+        auto gather = std::make_shared<ngraph::opset7::Gather>(data, const_add, axis);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
@@ -122,7 +129,10 @@ TEST(TransformationTests, GatherNegativeIndicesNormalize_dif_input_types) {
         auto input_gather = std::make_shared<ngraph::opset7::Gather>(shape_of,
             ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {1}), ngraph::opset7::Constant::create(indices_type, ngraph::Shape{}, {0}));
         auto add = std::make_shared<ngraph::opset7::Add>(input_gather, indices);
-        auto gather = std::make_shared<ngraph::opset7::Gather>(data, add, axis);
+        auto const_add = ngraph::get_constant_from_source(add);
+        if (const_add == nullptr)
+            throw ngraph::ngraph_error("indices should've been constant folded");
+        auto gather = std::make_shared<ngraph::opset7::Gather>(data, const_add, axis);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
     }
