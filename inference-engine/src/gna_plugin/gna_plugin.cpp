@@ -760,10 +760,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     int passIdx = 0;
     auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision) {
         auto passes = make_shared<PassManager>(PassManagerSettings{runBeforeCopy, lowPrecision}, network);
-        /*
-        passes->registerPass<RemoveConstPass>();
-        passes->registerPass<UnrollTIPass>();
-         */
+        if (!isNgraphPassesUsed) {
+            passes->registerPass<RemoveConstPass>();
+            passes->registerPass<UnrollTIPass>();
+        }
         passes->registerPass<RemoveConstPass>();
         if (!isNgraphPassesUsed)
             passes->registerPass<UnrollLSTMCellPass>();
