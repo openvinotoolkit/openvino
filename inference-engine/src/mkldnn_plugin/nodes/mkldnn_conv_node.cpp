@@ -407,9 +407,9 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
 
     // attr[0] - depthwise, quantize
     // attr[1] - binary
-    mkldnn::primitive_attr attrs[2];
+    mkldnn::primitive_attr attrs[1];
     setPostOps(attrs[0]);
-    setPostOps(attrs[1], false, true);
+//    setPostOps(attrs[1], false, true);
 
     bool containJitImpl = false;
 
@@ -494,7 +494,7 @@ void MKLDNNConvolutionNode::createPrimitive() {
 
     mkldnn::primitive_attr attr;
     addZeroPoints(attr);
-    if (getSelectedPrimitiveDescriptor()->getImplementationType() == jit_gemm) {
+    if (false && getSelectedPrimitiveDescriptor()->getImplementationType() == jit_gemm) {
         setPostOps(attr, true, true);
     } else {
         setPostOps(attr, true);
@@ -512,13 +512,13 @@ void MKLDNNConvolutionNode::createPrimitive() {
     else
         primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_DST, dst}};
 
-    auto post_ops = attr.get_post_ops();
-    int idx = 0;
-    for (int i = 0; i < post_ops.len(); i++) {
-        if (post_ops.kind(i) == mkldnn::primitive::kind::binary) {
-            primArgs.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1, binaryPostOpsArgs[idx++]});
-        }
-    }
+//    auto post_ops = attr.get_post_ops();
+//    int idx = 0;
+//    for (int i = 0; i < post_ops.len(); i++) {
+//        if (post_ops.kind(i) == mkldnn::primitive::kind::binary) {
+//            primArgs.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(i) | DNNL_ARG_SRC_1, binaryPostOpsArgs[idx++]});
+//        }
+//    }
 }
 
 bool MKLDNNConvolutionNode::created() const {
@@ -605,9 +605,9 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
     }
     // attr[0] - depthwise, quantize
     // attr[1] - binary
-    mkldnn::primitive_attr attrs[2];
+    mkldnn::primitive_attr attrs[1];
     setPostOps(attrs[0]);
-    setPostOps(attrs[1], false, true);
+//    setPostOps(attrs[1], false, true);
 
     auto rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
