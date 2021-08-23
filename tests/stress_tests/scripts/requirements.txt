@@ -2,5 +2,6 @@ pymongo
 Jinja2
 PyYAML
 fastjsonschema~=2.15.1
+pandas
 
 h5py<3.0.0 # WA for OMZ Keras models. Details: https://github.com/openvinotoolkit/open_model_zoo/issues/1806
