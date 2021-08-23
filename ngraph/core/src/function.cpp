@@ -291,7 +291,7 @@ size_t Function::get_output_size() const {
     return m_results.size();
 }
 
-const element::Type& Function::get_output_element_type(size_t i) const {
+const ov::element::Type& Function::get_output_element_type(size_t i) const {
     return m_results.at(i)->get_element_type();
 }
 
