@@ -12,6 +12,7 @@
 #include <map>
 #include <string>
 
+namespace InferenceEngine {};
 namespace ov {
 namespace ie = InferenceEngine;
 namespace runtime {
