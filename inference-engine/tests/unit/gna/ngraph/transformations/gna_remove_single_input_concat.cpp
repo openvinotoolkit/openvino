@@ -58,6 +58,8 @@ private:
 
 using CreateGraphDecoratorPtr = std::unique_ptr<CreateGraphDecorator>;
 
+#if 0
+// FIXME: should we need this?
 class CreateAppendableGraphDecorator : public CreateGraphDecorator {
 public:
     CreateAppendableGraphDecorator(std::unique_ptr<CreateGraphDecorator> prev = nullptr) :
@@ -76,6 +78,7 @@ protected:
     }
     virtual ngraph::Output<ngraph::Node> createOutputNode(const ngraph::Output<ngraph::Node>& parent_node) = 0;
 };
+#endif
 
 class CreateBaseDecorator : public CreateGraphDecorator {
 public:
@@ -98,6 +101,17 @@ Graph CreateBaseDecorator::build() {
                                                                      input_data_shape_);
     return graph;
 }
+
+template <typename DecorT>
+class ForEachOutput : CreateGraphDecorator {
+public:
+    ForEachOutput(CreateGraphDecoratorPtr prev) : CreateGraphDecorator(std::move(prev)) {}
+protected:
+    void updateGraph(Graph& graph) override
+    {
+        // TODO
+    }
+};
 
 template<typename DecorT, typename... DecorTs, typename std::enable_if<(sizeof...(DecorTs) == 0), bool>::type = true>
 CreateGraphDecoratorPtr createBuildDecorator() {

@@ -67,6 +67,7 @@
 #include "transformations/decompose_2d_conv.hpp"
 #include "transformations/convert_padded2valid_conv.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
+#include "transformations/remove_single_input_concat.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -746,6 +747,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
         manager.register_pass<RemoveExtraReshapes>();
+        manager.register_pass<RemoveSingleInputConcat>();
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
@@ -793,13 +795,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision) {
         auto passes = make_shared<PassManager>(PassManagerSettings{runBeforeCopy, lowPrecision}, network);
         passes->registerPass<RemoveConstPass>();
+        passes->registerPass<UnrollTIPass>();
+        passes->registerPass<RemoveConstPass>();
         if (!isNgraphPassesUsed) {
-            passes->registerPass<UnrollTIPass>();
-            passes->registerPass<RemoveConstPass>();
             passes->registerPass<UnrollLSTMCellPass>();
+            passes->registerPass<RemoveSingleInputConcatPass>();
         }
-
-        passes->registerPass<RemoveSingleInputConcatPass>();
 
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();
