@@ -9,7 +9,7 @@
 
 namespace ov {
 
-class OPENVINO_API SOLoader {
+class SOLoader {
     class Impl;
     std::shared_ptr<Impl> _impl;
 

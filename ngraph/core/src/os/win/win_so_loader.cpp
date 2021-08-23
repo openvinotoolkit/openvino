@@ -68,8 +68,7 @@
 
 #include <windows.h>
 
-namespace InferenceEngine {
-namespace details {
+namespace ov {
 
 typedef DWORD (*GetDllDirectoryA_Fnc)(DWORD, LPSTR);
 typedef DWORD (*GetDllDirectoryW_Fnc)(DWORD, LPWSTR);
@@ -209,8 +208,13 @@ public:
 
         if (!shared_object) {
             char cwd[1024];
-            IE_THROW() << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(pluginName))
-                       << "': " << GetLastError() << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+            NGRAPH_CHECK(false,
+                         "Cannot load library '",
+                         ngraph::file_util::wstring_to_string(std::wstring(pluginName)),
+                         "': ",
+                         GetLastError(),
+                         " from cwd: ",
+                         _getcwd(cwd, sizeof(cwd)));
         }
     }
 #endif
@@ -225,8 +229,13 @@ public:
 
         if (!shared_object) {
             char cwd[1024];
-            IE_THROW() << "Cannot load library '" << pluginName << "': " << GetLastError()
-                       << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+            NGRAPH_CHECK(false,
+                         "Cannot load library '",
+                         pluginName,
+                         "': ",
+                         GetLastError(),
+                         " from cwd: ",
+                         _getcwd(cwd, sizeof(cwd)));
         }
     }
 
@@ -242,11 +251,11 @@ public:
      */
     void* get_symbol(const char* symbolName) const {
         if (!shared_object) {
-            IE_THROW() << "Cannot get '" << symbolName << "' content from unknown library!";
+            NGRAPH_CHECK(false, "Cannot get '", symbolName, "' content from unknown library!");
         }
         auto procAddr = reinterpret_cast<void*>(GetProcAddress(shared_object, symbolName));
         if (procAddr == nullptr)
-            IE_THROW(NotFound) << "GetProcAddress cannot locate method '" << symbolName << "': " << GetLastError();
+            NGRAPH_CHECK(false, "GetProcAddress cannot locate method '", symbolName, "': ", GetLastError());
 
         return procAddr;
     }
@@ -265,11 +274,10 @@ SOLoader::SOLoader(const wchar_t* pluginName) {
 
 void* SOLoader::get_symbol(const char* symbolName) const {
     if (_impl == nullptr) {
-        IE_THROW(NotAllocated) << "SOLoader is not initialized";
+        NGRAPH_CHECK(false, "SOLoader is not initialized");
     }
     return _impl->get_symbol(symbolName);
 }
 
-}  // namespace details
-}  // namespace InferenceEngine
+}  // namespace ov
 

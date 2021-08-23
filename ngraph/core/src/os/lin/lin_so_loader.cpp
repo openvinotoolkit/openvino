@@ -9,7 +9,7 @@
 
 #include "ngraph/check.hpp"
 #include "ngraph/file_util.hpp"
-#include "openvino/core/so_loader.hpp"
+#include "so_loader.hpp"
 
 namespace ov {
 

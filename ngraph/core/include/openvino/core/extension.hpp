@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/so_loader.hpp"
 
 // Use extern "C""Catching" Failures in order to avoid issues with mangling
 #if defined(_WIN32) && defined(IMPLEMENT_OPENVINO_EXTENSION_API)
@@ -19,38 +18,28 @@
 
 namespace ov {
 
+class SOLoader;
 class Extension;
 
 OPENVINO_API
-void setExtensionSharedObject(const std::shared_ptr<Extension>&, const SOLoader&);
+void setExtensionSharedObject(const std::shared_ptr<Extension>&, const std::shared_ptr<SOLoader>&);
 
 class OPENVINO_API Extension {
 public:
     using Ptr = std::shared_ptr<Extension>;
     virtual ~Extension();
+    friend void setExtensionSharedObject(const Extension::Ptr&, const std::shared_ptr<SOLoader>&);
 
 private:
-    SOLoader so;
-
-    friend void setExtensionSharedObject(const Extension::Ptr&, const SOLoader&);
+    std::shared_ptr<SOLoader> so;
 };
 
-template <typename C,
-          typename = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type>
-OPENVINO_API inline std::vector<Extension::Ptr> load_extension(const std::basic_string<C>& path) {
-    SOLoader so(path);
-    using CreateFunction = void(std::vector<Extension::Ptr>&);
-    std::vector<Extension::Ptr> extensions;
-    reinterpret_cast<CreateFunction*>(so.get_symbol("create_extensions"))(extensions);
-
-    for (auto&& ex : extensions) {
-        setExtensionSharedObject(ex, so);
-    }
-    return extensions;
-}
+OPENVINO_API std::vector<Extension::Ptr> load_extension(const std::string& path);
+OPENVINO_API std::vector<Extension::Ptr> load_extension(const std::wstring& path);
 
 OPENVINO_EXTENSION_API
 void create_extensions(std::vector<Extension::Ptr>&);
+}  // namespace ov
 
 #define OPENVINO_CREATE_EXTENSIONS(extensions)                             \
     OPENVINO_EXTENSION_API                                                 \
@@ -58,4 +47,3 @@ void create_extensions(std::vector<Extension::Ptr>&);
         ext = extensions;                                                  \
     }
 
-}  // namespace ov
