@@ -258,14 +258,12 @@ void regclass_pyngraph_Node(py::module m) {
              )");
 
     node.def("set_argument", &ngraph::Node::set_argument);
-    node.def("set_arguments",
-             [](ngraph::Node& node, const ngraph::NodeVector& args) {
-                 node.set_arguments(args);
-             });
-    node.def("set_arguments",
-             [](ngraph::Node& node, const ngraph::OutputVector& args) {
-                 node.set_arguments(args);
-             });
+    node.def("set_arguments", [](const std::shared_ptr<ngraph::Node>& self, const ngraph::NodeVector& args) {
+        self->set_arguments(args);
+    });
+    node.def("set_arguments", [](const std::shared_ptr<ngraph::Node>& self, const ngraph::OutputVector& args) {
+        self->set_arguments(args);
+    });
 
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
     node.def_property_readonly("name", &ngraph::Node::get_name);
