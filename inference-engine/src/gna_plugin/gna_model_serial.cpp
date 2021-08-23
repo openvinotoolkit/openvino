@@ -831,14 +831,13 @@ std::vector<HeaderLatest::RuntimeEndPoint> GNAModelSerial::serializeOutputs(cons
         }
         uint32_t elementsCount = static_cast<uint32_t>(InferenceEngine::details::product(outputDims.begin(), outputDims.end()));
         InferenceEngine::Layout outputLayout = output.second->getLayout();
-        uint8_t outputPrecision = output.second->getPrecision().getPrecVal();
         HeaderLatest::RuntimeEndPoint endPoint(outputsDesc[outputIndex].scale_factor,
                                                  outputsDesc[outputIndex].ptrs[0],
                                                  outputsDesc[outputIndex].num_bytes_per_element,
                                                  elementsCount,
                                                  outputShape,
                                                  outputLayout,
-                                                 outputPrecision,
+                                                 outputsDesc[outputIndex].precision,
                                                  outputsDesc[outputIndex].orientation);
         endPoints.push_back(endPoint);
         outputIndex++;
@@ -866,7 +865,7 @@ std::vector<HeaderLatest::RuntimeEndPoint> GNAModelSerial::serializeInputs(const
         uint32_t elementsCount = static_cast<uint32_t>(InferenceEngine::details::product(inputDims.begin(), inputDims.end()));
         intel_dnn_orientation_t orientation = inputDesc->getOrientation(inputName);
         InferenceEngine::Layout inputLayout = input.second->getLayout();
-        uint8_t inputPrecision = input.second->getPrecision().getPrecVal();
+        uint8_t inputPrecision = inputDesc->inputPrecisions.at(inputIndex);
         HeaderLatest::RuntimeEndPoint endPoint(scaleFactor,
                                                  descriptor_ptr[0],
                                                  element_size,
