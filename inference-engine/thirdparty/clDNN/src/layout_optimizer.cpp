@@ -825,6 +825,15 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node) {
     impl_types preferred_impl = impl_types::any;
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;
+    } else if (node.is_type<detection_output>()) {
+        auto& detection_output_node = node.as<detection_output>();
+        auto confidence_layout = detection_output_node.confidence().get_output_layout();
+        auto prim = detection_output_node.get_primitive();
+        if (confidence_layout.size.batch[0] >= 4 && prim->confidence_threshold >= 0.1 && prim->top_k <= 400 &&
+            prim->num_classes >= 16 && confidence_layout.size.feature[0] > 10000)
+            preferred_impl = impl_types::ocl;
+        else
+            preferred_impl = impl_types::cpu;
     }
 
     return preferred_impl;

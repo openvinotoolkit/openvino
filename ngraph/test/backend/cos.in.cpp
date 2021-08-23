@@ -14,8 +14,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, cos_float)
-{
+NGRAPH_TEST(${BACKEND_NAME}, cos_float) {
     Shape shape{11};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Cos>(A), ParameterVector{A});
@@ -37,15 +36,13 @@ NGRAPH_TEST(${BACKEND_NAME}, cos_float)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, cos_int)
-{
+NGRAPH_TEST(${BACKEND_NAME}, cos_int) {
     Shape shape{5};
     auto A = make_shared<op::Parameter>(element::i32, shape);
     auto f = make_shared<Function>(make_shared<op::Cos>(A), ParameterVector{A});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<int32_t>({1, 2, 3, 4, 5});
-    test_case.add_expected_output<int32_t>(shape,
-                                         {1, 0, -1, -1, 0});
+    test_case.add_expected_output<int32_t>(shape, {1, 0, -1, -1, 0});
     test_case.run();
 }

@@ -24,8 +24,8 @@ int image_add_rectangles(c_mat_t* img, rectangle_t rects[], int classes[], int n
 
 #else
 
-    #include <algorithm>
-    #include <opencv2/opencv.hpp>
+#    include <algorithm>
+#    include <opencv2/opencv.hpp>
 
 int image_read(const char* img_path, c_mat_t* img) {
     if (img_path == nullptr || img == nullptr) {
@@ -102,9 +102,11 @@ int image_free(c_mat_t* img) {
 int image_add_rectangles(c_mat_t* img, rectangle_t rects[], int classes[], int num, int thickness) {
     int colors_num = 21;
     color_t colors[21] = {// colors to be used for bounding boxes
-                          {128, 64, 128}, {232, 35, 244}, {70, 70, 70},    {156, 102, 102}, {153, 153, 190}, {153, 153, 153}, {30, 170, 250},
-                          {0, 220, 220},  {35, 142, 107}, {152, 251, 152}, {180, 130, 70},  {60, 20, 220},   {0, 0, 255},     {142, 0, 0},
-                          {70, 0, 0},     {100, 60, 0},   {90, 0, 0},      {230, 0, 0},     {32, 11, 119},   {0, 74, 111},    {81, 0, 81}};
+                          {128, 64, 128},  {232, 35, 244}, {70, 70, 70},  {156, 102, 102}, {153, 153, 190},
+                          {153, 153, 153}, {30, 170, 250}, {0, 220, 220}, {35, 142, 107},  {152, 251, 152},
+                          {180, 130, 70},  {60, 20, 220},  {0, 0, 255},   {142, 0, 0},     {70, 0, 0},
+                          {100, 60, 0},    {90, 0, 0},     {230, 0, 0},   {32, 11, 119},   {0, 74, 111},
+                          {81, 0, 81}};
 
     for (int i = 0; i < num; i++) {
         int x = rects[i].x_min;

@@ -436,6 +436,7 @@ extensions/front/tf/GatherTree_ext.py
 extensions/front/tf/GNMT_DynamicSequenceLengths.py
 extensions/front/tf/identity_ext.py
 extensions/front/tf/identityN_to_identity.py
+extensions/front/tf/if_ext.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
 extensions/front/tf/log_softmax_ext.py
@@ -701,6 +702,7 @@ extensions/ops/GRU.py
 extensions/ops/GRUCell.py
 extensions/ops/hard_sigmoid.py
 extensions/ops/identity.py
+extensions/ops/If.py
 extensions/ops/instance_normalization.py
 extensions/ops/interp.py
 extensions/ops/interpolate.py
@@ -927,6 +929,7 @@ mo/front/tf/extractors/native_tf.py
 mo/front/tf/extractors/pack.py
 mo/front/tf/extractors/random_uniform.py
 mo/front/tf/extractors/strided_slice.py
+mo/front/tf/extractors/subgraph_utils.py
 mo/front/tf/extractors/utils.py
 mo/front/tf/graph_utils.py
 mo/front/tf/loader.py
@@ -1050,6 +1053,7 @@ mo/utils/ir_reader/extenders/experimental_extender.py
 mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
 mo/utils/ir_reader/extenders/fakequantize_extender.py
 mo/utils/ir_reader/extenders/GRUCell_extender.py
+mo/utils/ir_reader/extenders/if_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
 mo/utils/ir_reader/extenders/loop_extender.py
 mo/utils/ir_reader/extenders/LSTMCell_extender.py
