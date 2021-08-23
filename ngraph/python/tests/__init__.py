@@ -155,3 +155,9 @@ xfail_issue_63039 = xfail_test(reason="Result mismatches with UINT8 operations")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
 xfail_issue_63044 = xfail_test(reason="ONNX opset 14 operation: Trilu")
 xfail_issue_63045 = xfail_test(reason="Maxpool with strides, padding and dilations fail")
+
+
+skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
+xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")
+xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
+xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
