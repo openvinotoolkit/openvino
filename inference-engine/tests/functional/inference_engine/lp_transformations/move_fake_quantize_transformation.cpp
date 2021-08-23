@@ -257,8 +257,8 @@ const std::vector<ngraph::element::Type> precisions = {
 namespace testValues1 {
 const std::vector<ngraph::PartialShape> shapes = {
     { 1, 3, 9, 9 },
-    //{ 4, 3, 9, 9 },
-    //{ Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
+    { 4, 3, 9, 9 },
+    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
 };
 
 const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
