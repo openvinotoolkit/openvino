@@ -11,80 +11,58 @@
 namespace ov {
 namespace utils {
 
-template <class T>
+template <class C>
 struct OPENVINO_API FileTraits;
+
+template <>
+struct FileTraits<char> {
+    static constexpr const auto file_separator =
 #ifdef _WIN32
-template <>
-struct ov::utils::FileTraits<char> {
-    constexpr static const auto file_separator = '\\';
-    constexpr static const auto dot_symbol = '.';
-    static std::string plugin_library_prefix() {
-        return {};
-    }
-    static std::string plugin_library_ext() {
-        return {"dll"};
-    }
-};
-template <>
-struct ov::utils::FileTraits<wchar_t> {
-    constexpr static const auto file_separator = L'\\';
-    constexpr static const auto dot_symbol = L'.';
-    static std::wstring plugin_library_prefix() {
-        return {};
-    }
-    static std::wstring plugin_library_ext() {
-        return {L"dll"};
-    }
-};
-#elif defined __APPLE__
-/// @brief File path separator
-template <>
-struct ov::utils::FileTraits<char> {
-    constexpr static const auto file_separator = '/';
-    constexpr static const auto dot_symbol = '.';
-    static std::string plugin_library_prefix() {
-        return {"lib"};
-    }
-    static std::string plugin_library_ext() {
-        return {"so"};
-    }
-};
-template <>
-struct ov::utils::FileTraits<wchar_t> {
-    constexpr static const auto file_separator = L'/';
-    constexpr static const auto dot_symbol = L'.';
-    static std::wstring plugin_library_prefix() {
-        return {L"lib"};
-    }
-    static std::wstring plugin_library_ext() {
-        return {L"so"};
-    }
-};
+        '\\';
 #else
-/// @brief File path separator
-template <>
-struct ov::utils::FileTraits<char> {
-    constexpr static const auto file_separator = '/';
-    constexpr static const auto dot_symbol = '.';
-    static std::string plugin_library_prefix() {
-        return {"lib"};
-    }
-    static std::string plugin_library_ext() {
-        return {"so"};
-    }
-};
-template <>
-struct ov::utils::FileTraits<wchar_t> {
-    constexpr static const auto file_separator = L'/';
-    constexpr static const auto dot_symbol = L'.';
-    static std::wstring plugin_library_prefix() {
-        return {L"lib"};
-    }
-    static std::wstring plugin_library_ext() {
-        return {L"so"};
-    }
-};
+        '/';
 #endif
+    static constexpr const auto dot_symbol = '.';
+    static std::string library_ext() {
+#ifdef _WIN32
+        return {"dll"};
+#else
+        return {"so"};
+#endif
+    }
+    static std::string library_prefix() {
+#ifdef _WIN32
+        return {""};
+#else
+        return {"lib"};
+#endif
+    }
+};
+
+template <>
+struct FileTraits<wchar_t> {
+    static constexpr const auto file_separator =
+#ifdef _WIN32
+        L'\\';
+#else
+        L'/';
+#endif
+    static constexpr const auto dot_symbol = L'.';
+    static std::wstring library_ext() {
+#ifdef _WIN32
+        return {L"dll"};
+#else
+        return {L"so"};
+#endif
+    }
+    static std::wstring library_prefix() {
+#ifdef _WIN32
+        return {L""};
+#else
+        return {L"lib"};
+#endif
+    }
+};
 
 /// \brief Conversion from wide character string to a single-byte chain.
 /// \param wstr A wide-char string
@@ -103,8 +81,8 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
     std::basic_string<C> separator(1, FileTraits<C>::file_separator);
     if (path.empty())
         separator = {};
-    return path + separator + FileTraits<C>::plugin_library_prefix() + input + FileTraits<C>::dot_symbol +
-           FileTraits<C>::plugin_library_ext();
+    return path + separator + FileTraits<C>::library_prefix() + input + FileTraits<C>::dot_symbol +
+           FileTraits<C>::library_ext();
 }
 
 }  // namespace utils

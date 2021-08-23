@@ -247,4 +247,3 @@ std::wstring ov::utils::multi_byte_char_to_wstring(const char* str) {
 #    endif
 }
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
-
