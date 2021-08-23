@@ -2,7 +2,7 @@
 
 **Versioned name**: *Maximum-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *Maximum* performs element-wise maximum operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 
