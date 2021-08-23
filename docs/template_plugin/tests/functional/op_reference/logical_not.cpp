@@ -24,7 +24,7 @@ std::vector<RefLogicalParams> generateLogicalParams() {
     std::vector<RefLogicalParams> logicalParams {
         Builder {}
             .opType(LogicalTypes::LOGICAL_NOT)
-            .input1({{2, 2}, element::boolean, std::vector<char> {true, false, true, false}})
+            .inputs({{{2, 2}, element::boolean, std::vector<char> {true, false, true, false}}})
             .expected({{2, 2}, element::boolean, std::vector<char> {false, true, false, true}})};
     return logicalParams;
 }
