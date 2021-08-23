@@ -43,7 +43,7 @@ o_{i} = a_{i} \geq b_{i}
 
 **Examples**
 
-*Example 1*
+*Example 1: no broadcast*
 
 ```xml
 <layer ... type="GreaterEqual">
@@ -66,7 +66,7 @@ o_{i} = a_{i} \geq b_{i}
 </layer>
 ```
 
-*Example 2: broadcast*
+*Example 2: numpy broadcast*
 ```xml
 <layer ... type="GreaterEqual">
     <input>
