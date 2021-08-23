@@ -26,6 +26,43 @@ enum rRegion {
     REGION_AUTO,
 };
 
+inline const char* rRegionToStr(uint8_t region) {
+   const char* strRegion = "UNKNOWN";
+   switch (region) {
+      case REGION_RO:
+        strRegion = "REGION_RO";
+        break;
+      case REGION_RW:
+        strRegion = "REGION_RW";
+        break;
+      case REGION_AUTO:
+        strRegion = "REGION_AUTO";
+        break;
+   }
+   return strRegion;
+}
+
+inline const char* rTypeToStr(uint8_t type) {
+   const char* strType = "UNKNOWN";
+   switch (type) {
+      case REQUEST_STORE:
+        strType = "REQUEST_STORE";
+        break;
+      case REQUEST_ALLOCATE:
+        strType = "REQUEST_ALLOCATE";
+        break;
+      case REQUEST_BIND:
+        strType = "REQUEST_BIND";
+        break;
+      case REQUEST_INITIALIZER | REQUEST_STORE:
+      case REQUEST_INITIALIZER | REQUEST_ALLOCATE:
+      case REQUEST_INITIALIZER | REQUEST_BIND:
+        strType = "INITIALIZER";
+        break;
+   }
+   return strType;
+}
+
 struct MemRequest {
     rRegion  _region;
     uint8_t   _type;
@@ -40,6 +77,15 @@ struct MemRequest {
     size_t _offset = 0;
     // expansion in bytes due to large depended layers
     size_t _padding = 0;
+
+    // fields to sort regions by execution availability
+    size_t _execution_id = 0;
+    std::pair<uint16_t, uint16_t> _life_limits{0, UINT16_MAX};
+
+    bool operator==(const MemRequest &mReq) const {
+        return (mReq._ptr_in == _ptr_in) && (mReq._ptr_out == _ptr_out);
+    }
+
     MemRequest(rRegion region,
                 rType req,
                 void *ptr_out,
@@ -47,14 +93,16 @@ struct MemRequest {
                 uint8_t element_size = 0,
                 size_t num_elements = 0,
                 size_t alignment = 1,
-                size_t offset = 0) : _region(region),
+                size_t offset = 0,
+                size_t execution_id = 0) : _region(region),
                                      _type(req),
                                      _ptr_out(ptr_out),
                                      _ptr_in(ptr_in),
                                      _element_size(element_size),
                                      _num_elements(num_elements),
                                      _alignment(alignment),
-                                     _offset(offset) {}
+                                     _offset(offset),
+                                     _execution_id(execution_id) {}
 
     /**
      * Store value only request
@@ -79,6 +127,33 @@ struct MemRequest {
         _data.resize(sizeof(T));
         std::copy(reinterpret_cast<uint8_t *>(&element), reinterpret_cast<uint8_t *>(&element) + sizeof(T), _data.begin());
     }
+
+    /**
+     * Store value with execution order request
+     * @tparam T
+     * @param req
+     * @param ptr_out
+     * @param element
+     * @param num_elements
+     * @param alignment
+     */
+    template<class T>
+    MemRequest(rRegion region,
+                void *ptr_out,
+                T element,
+                size_t num_elements,
+                size_t alignment = 1,
+                size_t execution_id = 0) : _region(region),
+                                        _type(REQUEST_STORE),
+                                        _ptr_out(ptr_out),
+                                        _element_size(sizeof(T)),
+                                        _num_elements(num_elements),
+                                        _alignment(alignment),
+                                        _execution_id(execution_id) {
+        _data.resize(sizeof(T));
+        std::copy(reinterpret_cast<uint8_t *>(&element), reinterpret_cast<uint8_t *>(&element) + sizeof(T), _data.begin());
+    }
+
 /**
      * Store initializer request
      * @param req

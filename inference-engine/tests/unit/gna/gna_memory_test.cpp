@@ -9,7 +9,6 @@
 using namespace GNAPluginNS::memory;
 
 class GNAMemoryTest : public ::testing::Test {
-
  protected:
     GNAMemory<std::allocator<uint8_t>> mem;
 
@@ -17,8 +16,8 @@ class GNAMemoryTest : public ::testing::Test {
     }
 };
 
-TEST_F(GNAMemoryTest, canStoreActualBlob){
-    float input [] = {1,2,3};
+TEST_F(GNAMemoryTest, canStoreActualBlob) {
+    float input[] = {1, 2, 3};
     float* pFuture = nullptr;
     size_t len = sizeof(input);
 
@@ -33,7 +32,7 @@ TEST_F(GNAMemoryTest, canStoreActualBlob){
 }
 
 TEST_F(GNAMemoryTest, canStore2Blobs) {
-    float input [] = {1,2,3,4};
+    float input[] = {1, 2, 3, 4};
     float* pFuture = nullptr;
     float* pFuture2 = nullptr;
 
@@ -54,7 +53,7 @@ TEST_F(GNAMemoryTest, canStore2Blobs) {
 }
 
 TEST_F(GNAMemoryTest, canStoreBlobsALIGNED) {
-    float input [] = {1,2,3,4,5,6,7,8};
+    float input[] = {1, 2, 3, 4, 5, 6, 7, 8};
     float* pFuture = nullptr;
 
     mem.push_ptr(&pFuture, input, 3*4, 8);
@@ -73,7 +72,7 @@ TEST_F(GNAMemoryTest, canStoreBlobsALIGNED) {
 }
 
 TEST_F(GNAMemoryTest, canStore2BlobsALIGNED) {
-    float input [] = {1,2,3,4,5,6,7,8};
+    float input[] = {1, 2, 3, 4, 5, 6, 7, 8};
     float* pFuture = nullptr;
     float* pFuture2 = nullptr;
 
@@ -92,11 +91,9 @@ TEST_F(GNAMemoryTest, canStore2BlobsALIGNED) {
     ASSERT_EQ(pFuture[4], 1);
     ASSERT_EQ(pFuture[5], 2);
     ASSERT_EQ(pFuture[6], 3);
-
 }
 
 TEST_F(GNAMemoryTest, canReserveData) {
-
     float* pFuture = nullptr;
     mem.reserve_ptr(&pFuture, 3*4);
     mem.commit();
@@ -111,11 +108,10 @@ TEST_F(GNAMemoryTest, canReserveDataByVoid) {
 
 
 TEST_F(GNAMemoryTest, canReserveAndPushData) {
-
     float input[] = {1, 2, 3};
     float *pFuture = nullptr;
     float* pFuture2 = nullptr;
-    size_t len = sizeof(input) ;
+    size_t len = sizeof(input);
 
     mem.push_ptr(&pFuture, input, len);
     mem.reserve_ptr(&pFuture2, 3*4);
@@ -136,7 +132,6 @@ TEST_F(GNAMemoryTest, canReserveAndPushData) {
 }
 
 TEST_F(GNAMemoryTest, canBindAndResolve) {
-
     float input[] = {1, 2, 3};
     float *pFuture = nullptr;
     float *pFuture2 = nullptr;
@@ -160,7 +155,6 @@ TEST_F(GNAMemoryTest, canBindAndResolve) {
 }
 
 TEST_F(GNAMemoryTest, canBindTransitevlyAndResolve) {
-
     float input[] = {1, 2, 3};
     float *pFuture = nullptr;
     float *pFuture3 = nullptr;
@@ -185,7 +179,6 @@ TEST_F(GNAMemoryTest, canBindTransitevlyAndResolve) {
 }
 
 TEST_F(GNAMemoryTest, canBindTransitevlyWithOffsetsAndResolve) {
-
     float input[] = {1, 2, 3};
     float *pFuture = nullptr;
     float *pFuture3 = nullptr;
@@ -210,7 +203,6 @@ TEST_F(GNAMemoryTest, canBindTransitevlyWithOffsetsAndResolve) {
 }
 
 TEST_F(GNAMemoryTest, canBindWithOffsetAndResolve) {
-
     float input[] = {1, 2, 3};
     float *pFuture = nullptr;
     float *pFuture2 = nullptr;
@@ -237,8 +229,7 @@ TEST_F(GNAMemoryTest, canBindWithOffsetAndResolve) {
 
 
 TEST_F(GNAMemoryTest, canPushLocal) {
-
-    float* pFuture = (float*)&pFuture;
+    float* pFuture = reinterpret_cast<float*>(&pFuture);
 
     {
         std::vector<float> input = {1.0f, 2.0f, 3.0f, 4.0f};
@@ -255,9 +246,8 @@ TEST_F(GNAMemoryTest, canPushLocal) {
 }
 
 TEST_F(GNAMemoryTest, canPushValue) {
-
-    float* pFuture = (float*)&pFuture;
-    float* pFuture2 = (float*)&pFuture2;
+    float* pFuture = reinterpret_cast<float*>(&pFuture);
+    float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
 
     {
         mem.push_value(pFuture, 3.f,  2);
@@ -273,9 +263,8 @@ TEST_F(GNAMemoryTest, canPushValue) {
 }
 
 TEST_F(GNAMemoryTest, canPushReadOnlyValue) {
-
-    float* pFuture = (float*)&pFuture;
-    float* pFuture2 = (float*)&pFuture2;
+    float* pFuture = reinterpret_cast<float*>(&pFuture);
+    float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
 
     {
         mem.push_value(pFuture, 3.f,  2);
@@ -291,7 +280,6 @@ TEST_F(GNAMemoryTest, canPushReadOnlyValue) {
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
-
     mem.push_value(nullptr, 3.f,  2);
     mem.readonly().push_value(nullptr, 13.f, 2);
     mem.commit();
@@ -301,7 +289,6 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
-
     GNAMemory<std::allocator<uint8_t>> memAligned(64);
 
     memAligned.push_value(nullptr, 3.f,  2);
@@ -313,11 +300,9 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
 }
 
 TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
-
-    float* pFuture2 = (float*)&pFuture2;
-    float* pFuture1 = (float*)&pFuture1;
-    float* pFuture3 = (float*)&pFuture3;
-
+    float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
+    float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
+    float* pFuture3 = reinterpret_cast<float*>(&pFuture3);
 
     mem.readonly().push_value(pFuture1, 3.f,  2);
     mem.push_value(pFuture2, 13.f, 3);
@@ -346,7 +331,6 @@ TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
 
 TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequest) {
     float input[]  = {1, 2, 3};
-
     float *pFuture = nullptr;
     float *pFuture2 = nullptr;
     float *pFuture3 = nullptr;

@@ -14,6 +14,8 @@
  * @brief used for creating graphviz charts, and layers dump
  */
 # define PLOT
+# define MODEL_DUMP
+# define GNA_HEAP_PROFILER
 # define gnalog() std::cout
 # define gnawarn() std::cerr
 #else

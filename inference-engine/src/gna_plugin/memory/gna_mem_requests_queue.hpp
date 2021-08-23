@@ -51,8 +51,8 @@ public:
      * @param ptr_out
      * @param num_bytes
      */
-    void reserve_ptr(void *ptr_out, size_t num_bytes, size_t alignment = 1)  {
-        futureHeap().push_back({regionType(), REQUEST_ALLOCATE, ptr_out, nullptr, 1, num_bytes, alignment});
+    void reserve_ptr(void *ptr_out, size_t num_bytes, size_t alignment = 1, size_t execution_id = 0)  {
+        futureHeap().push_back({regionType(), REQUEST_ALLOCATE, ptr_out, nullptr, 1, num_bytes, alignment, execution_id});
     }
 
     /**
@@ -63,8 +63,8 @@ public:
      * @param num_bytes - bind can request for bigger buffer that originally allocated via reserve(),
      *      if that happens - reserved request parameters will be updated before committing memory
      */
-    void bind_ptr(void *source, const void *dest, size_t offset = 0, size_t num_bytes = 0)  {
-        futureHeap().push_back({regionType(), REQUEST_BIND, source, dest, 1, num_bytes, 1, offset});
+    void bind_ptr(void *source, const void *dest, size_t offset = 0, size_t num_bytes = 0, size_t execution_id = 0)  {
+        futureHeap().push_back({regionType(), REQUEST_BIND, source, dest, 1, num_bytes, 1, offset, execution_id});
     }
 
     /**
@@ -80,8 +80,8 @@ public:
      * @brief allocates buffer and set all its values to T value
      */
     template<class T>
-    void push_value(void *ptr_out, T value, size_t num_elements, size_t alignment = 1) {
-        futureHeap().push_back({regionType(), ptr_out, value, num_elements, alignment});
+    void push_value(void *ptr_out, T value, size_t num_elements, size_t alignment = 1, size_t execution_id = 0) {
+        futureHeap().push_back({regionType(), ptr_out, value, num_elements, alignment, execution_id});
     }
 
     /**

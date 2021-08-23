@@ -9,6 +9,7 @@
 #include <map>
 #include <string>
 #include <type_traits>
+#include <unordered_set>
 
 #include "gna_types.h"
 #include "gna_plugin_log.hpp"
@@ -284,6 +285,18 @@ struct intel_dnn_component_t {
     float output_scale_factor;
     float input_scale_factor;
     const char * original_layer_name = nullptr;
+    // helper function to get all possible pointers of the component.
+    // used to match memory request with component
+    std::unordered_set<const void *> getAllPtrs() {
+        return std::unordered_set<const void *> {
+            &ptr_inputs, &ptr_outputs,
+            &op.affine.ptr_weights, &op.affine.ptr_biases,
+            &op.conv1D.ptr_biases, &op.conv1D.ptr_filters,
+            &op.conv2D.ptr_biases, &op.conv2D.ptr_filters,
+            &op.recurrent.ptr_weights, &op.recurrent.ptr_biases, &op.recurrent.ptr_feedbacks,
+            &op.pwl.ptr_segments
+        };
+    }
 };
 
 struct intel_score_error_t {
