@@ -22,7 +22,7 @@ TEST(attributes, softmax_op) {
     auto axis = 0;
     auto softmax = make_shared<opset1::Softmax>(data, axis);
     NodeBuilder builder(softmax);
-    auto g_softmax = as_type_ptr<opset1::Softmax>(builder.create());
+    auto g_softmax = ov::as_type_ptr<opset1::Softmax>(builder.create());
 
     EXPECT_EQ(g_softmax->get_axis(), softmax->get_axis());
 }
