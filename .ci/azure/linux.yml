@@ -256,9 +256,9 @@ jobs:
     
   - script: |
       python3 -m pip install -r requirements.txt
-      . $(SETUPVARS) -pyver 3.6
       export MO_ROOT="$(INSTALL_DIR)/deployment_tools/model_optimizer"
       export PYTHONPATH="$(TESTS_DIR)/tests/layer_tests:$MO_ROOT:$PYTHONPATH"
+      env
       python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xmlTEST
     workingDirectory: $(TESTS_DIR)/tests/layer_tests
     displayName: 'Layer Tests'
