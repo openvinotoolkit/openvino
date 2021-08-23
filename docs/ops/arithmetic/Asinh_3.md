@@ -2,7 +2,7 @@
 
 **Versioned name**: *Asinh-3*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Asinh* performs element-wise inverse hyperbolic sine operation (arcsinh) on a given input tensor.
 
