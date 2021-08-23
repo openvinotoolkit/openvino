@@ -13,7 +13,9 @@ namespace frontend {
 class InputModelONNX : public InputModel {
 public:
     InputModelONNX(const std::string& path);
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     InputModelONNX(const std::wstring& path);
+#endif
     InputModelONNX(std::istream& model_stream);
     // The path can be required even if the model is passed as a stream because it is necessary
     // for ONNX external data feature
