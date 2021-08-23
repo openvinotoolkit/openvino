@@ -88,9 +88,3 @@ bool op::v1::GreaterEqual::has_evaluate() const {
     }
     return false;
 }
-
-bool op::v1::GreaterEqual::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_GreaterEqual_visit_attributes);
-    BinaryElementwiseComparison::visit_attributes(visitor);
-    return true;
-}
