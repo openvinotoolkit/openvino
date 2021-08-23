@@ -62,6 +62,7 @@ public:
     void setDNNPtr(std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnnPtr);
     void setInputDescPtr(std::shared_ptr<GNAPluginNS::InputDesc> inputDescPtr);
     void setGNAFlagsPtr(std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlagsPtr);
+    void setMemoryOrder();
 
     void fillMemoryConnections(std::unordered_map<std::string,
             std::vector<InferenceEngine::CNNLayerPtr>> &memoryPairs);
@@ -77,7 +78,7 @@ public:
      * @param sz - sizeof output blob
      * @param ptr_inputs - sizeof output blob
      */
-    void connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr_outputs, size_t sz);
+    void connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr_outputs, size_t sz = 0);
     /**
      * Connects certain input to this layer
      * @param layer - layer that we connect input to
