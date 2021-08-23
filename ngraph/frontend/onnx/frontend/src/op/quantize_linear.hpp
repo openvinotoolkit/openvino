@@ -10,19 +10,17 @@
 namespace ngraph {
 namespace onnx_import {
 namespace op {
+namespace detail {
+std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_scale,
+                                                 const Output<ngraph::Node>& y_zero_point,
+                                                 const Output<ngraph::Node>& data) ;
+}
 namespace set_1 {
 OutputVector quantize_linear(const Node& node);
 
 }  // namespace set_1
 
 namespace set_13 {
-namespace detail {
-OutputVector quantize_linear(Output<ngraph::Node> x,
-                             Output<ngraph::Node> y_scale,
-                             Output<ngraph::Node> y_zero_point,
-                             int64_t axis,
-                             Node node);
-}
 
 OutputVector quantize_linear(const Node& node);
 

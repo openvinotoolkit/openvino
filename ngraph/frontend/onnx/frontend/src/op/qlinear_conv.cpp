@@ -45,11 +45,6 @@ OutputVector qlinear_conv(const Node& node) {
                                           std::make_shared<opset6::Convert>(w_zero_point, element::f32),
                                           1,
                                           node)[0];
-    w = set_13::detail::dequantize_linear(w,
-                                          w_scale,
-                                          std::make_shared<opset6::Convert>(w_zero_point, element::f32),
-                                          1,
-                                          node)[0];
 
     if (!ngraph::op::is_null(B)) {
         B = std::make_shared<opset6::Multiply>(std::make_shared<opset6::Convert>(B, x_scale.get_element_type()),
@@ -59,7 +54,7 @@ OutputVector qlinear_conv(const Node& node) {
 
     auto result = detail::conv(node, x, w, B)[0];
 
-    result = set_13::detail::quantize_linear(result, y_scale, y_zero_point, 1, node)[0];
+    result = op::detail::make_fake_quantize(y_scale, y_zero_point, result);
 
     return {result};
 }

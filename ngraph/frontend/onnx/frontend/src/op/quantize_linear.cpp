@@ -94,7 +94,7 @@ std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>> get_inp
 
     return std::make_tuple(input_low, input_high);
 }
-
+}  // namespace
 std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_scale,
                                                  const Output<ngraph::Node>& y_zero_point,
                                                  const Output<ngraph::Node>& data) {
@@ -116,7 +116,6 @@ std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_s
         std::make_shared<default_opset::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels),
         destination_type);
 }
-}  // namespace
 }  // namespace detail
 
 namespace set_1 {
