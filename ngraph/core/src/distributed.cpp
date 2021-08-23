@@ -7,8 +7,9 @@
 #include "ngraph/log.hpp"
 #include "ngraph/type.hpp"
 
+namespace ov {
 template <>
-ov::EnumNames<ngraph::reduction::Type>& ov::EnumNames<ngraph::reduction::Type>::get() {
+EnumNames<ngraph::reduction::Type>& EnumNames<ngraph::reduction::Type>::get() {
     static auto enum_names = ov::EnumNames<ngraph::reduction::Type>("reduction::Type",
                                                                     {{"SUM", ngraph::reduction::Type::SUM},
                                                                      {"PROD", ngraph::reduction::Type::PROD},
@@ -16,8 +17,8 @@ ov::EnumNames<ngraph::reduction::Type>& ov::EnumNames<ngraph::reduction::Type>::
                                                                      {"MAX", ngraph::reduction::Type::MAX}});
     return enum_names;
 }
-
-constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ngraph::reduction::Type>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::reduction::Type>::type_info;
+}  // namespace ov
 
 std::ostream& ngraph::reduction::operator<<(std::ostream& out, const ngraph::reduction::Type& obj) {
     return out << as_string(obj);
