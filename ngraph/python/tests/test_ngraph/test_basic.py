@@ -268,27 +268,27 @@ def test_set_argument():
     # Original arguments
     computation = runtime.computation(node_add)
     output = computation()
-    assert np.allclose(data1+data2, output)
+    assert np.allclose(data1 + data2, output)
 
     # Arguments changed by set_argument
     node_add.set_argument(1, node3.output(0))
     output = computation()
-    assert np.allclose(data1+data3, output)
+    assert np.allclose(data1 + data3, output)
 
     # Arguments changed by set_argument
     node_add.set_argument(0, node3.output(0))
     output = computation()
-    assert np.allclose(data3+data3, output)
+    assert np.allclose(data3 + data3, output)
 
     # Arguments changed by set_argument(OutputVector)
     node_add.set_arguments([node2.output(0), node3.output(0)])
     output = computation()
-    assert np.allclose(data2+data3, output)
+    assert np.allclose(data2 + data3, output)
 
     # Arguments changed by set_arguments(NodeVector)
     node_add.set_arguments([node1, node2])
     output = computation()
-    assert np.allclose(data1+data2, output)
+    assert np.allclose(data1 + data2, output)
 
 
 def test_result():
