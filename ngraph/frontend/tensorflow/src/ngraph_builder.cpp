@@ -35,7 +35,6 @@
 #include "default_opset.h"
 #include "graph.hpp"
 
-#include <tensorflow_frontend/tensorflow.hpp>
 #include <tensorflow_frontend/frontend.hpp>
 
 

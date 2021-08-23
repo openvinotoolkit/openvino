@@ -19,7 +19,6 @@
 #include <ngraph/variant.hpp>
 #include "node_context_impl.hpp"
 
-#include <tensorflow_frontend/tensorflow.hpp>
 #include <tensorflow_frontend/frontend.hpp>
 #include <tensorflow_frontend/utility.hpp>
 #include "ngraph_conversions.h"

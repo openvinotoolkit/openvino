@@ -4,7 +4,6 @@
 
 #include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/place.hpp>
-//#include <tensorflow_frontend/tensorflow.hpp>
 
 #include <numeric>
 #include <fstream>

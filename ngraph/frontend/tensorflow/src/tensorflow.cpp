@@ -23,7 +23,6 @@
 
 #include "graph.pb.h"
 
-#include "../include/tensorflow_frontend/tensorflow.hpp"
 #include <frontend_manager/frontend_manager.hpp>
 
 #include "ngraph_builder.h"

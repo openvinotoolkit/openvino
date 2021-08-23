@@ -6,7 +6,6 @@
 
 // TODO: include it by just frontend_manager.hpp without path
 #include <frontend_manager/frontend.hpp>
-//#include <tensorflow_frontend/tensorflow.hpp>
 
 #define NGRAPH_HELPER_DLL_EXPORT __declspec(dllexport)
 
