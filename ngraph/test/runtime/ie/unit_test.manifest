@@ -126,7 +126,6 @@ onnx_model_scatterND_param_i64_indices
 IE_CPU.onnx_constant_sparse_tensor_int64_3x4
 IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
 
-
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
 onnx_model_argmin_int32
@@ -237,6 +236,9 @@ onnx_size_op_single
 onnx_size_op_graph_end
 onnx_size_op_graph_middle
 
+# /openvino/inference-engine/src/mkldnn_plugin/mkldnn_graph.cpp:747
+# Output blob byte size is not equal network output byte size (64!=216)." thrown in the test body.
+onnx_model_quant_conv_linear_3d
 
 #-------------------------------------------------------------------------------
 #
