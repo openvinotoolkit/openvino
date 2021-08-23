@@ -191,7 +191,7 @@ InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string &name)
     }
 }
 
-InferenceEngine::CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> ExecutableNetwork::GetExecGraphInfo() {
     auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
     if (_graphDesc._name == importedNetworkName)
         IE_THROW() <<

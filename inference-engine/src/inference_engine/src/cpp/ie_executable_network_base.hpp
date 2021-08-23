@@ -65,7 +65,7 @@ public:
     }
 
     StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept override {
-        TO_STATUS(graphPtr = _impl->GetExecGraphInfo());
+        TO_STATUS(graphPtr = CNNNetwork{_impl->GetExecGraphInfo()});
     }
 
     StatusCode SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* resp) noexcept override {

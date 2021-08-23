@@ -78,7 +78,7 @@ void ExecutableNetwork::Export(std::ostream& networkModel) {
 }
 
 CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo());
+    EXEC_NET_CALL_STATEMENT(return CNNNetwork{_impl->GetExecGraphInfo()});
 }
 
 void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {
