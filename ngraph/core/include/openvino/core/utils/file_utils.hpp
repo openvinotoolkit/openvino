@@ -87,4 +87,3 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
 
 }  // namespace utils
 }  // namespace ov
-

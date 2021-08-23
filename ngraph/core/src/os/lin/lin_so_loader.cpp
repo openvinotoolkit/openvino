@@ -71,4 +71,3 @@ void* SOLoader::get_symbol(const std::string& symbolName) const {
 }
 
 }  // namespace ov
-
