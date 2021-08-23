@@ -18,15 +18,13 @@ namespace LogicalOpsRefTestDefinitions {
 
 struct RefLogicalParams {
     ngraph::helpers::LogicalTypes opType;
-    Tensor input1;
-    Tensor input2;
+    std::vector<Tensor> inputs;
     Tensor expected;
 };
 
 struct Builder : ParamsBuilder<RefLogicalParams> {
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, opType);
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, input1);
-    REFERENCE_TESTS_ADD_SET_PARAM(Builder, input2);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, inputs);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, expected);
 };
 
@@ -34,11 +32,9 @@ class ReferenceLogicalLayerTest : public testing::TestWithParam<RefLogicalParams
 public:
     void SetUp() override {
         const auto& params = GetParam();
-        function = CreateFunction(params.opType, params.input1.shape, params.input2.shape, params.input1.type);
-        if (params.opType == ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
-            inputData = {params.input1.data};
-        } else {
-            inputData = {params.input1.data, params.input2.data};
+        function = CreateFunction(params.opType, params.inputs, params.inputs[0].type);
+        for (auto& input : params.inputs) {
+            inputData.push_back(input.data);
         }
         refOutData = {params.expected.data};
     }
@@ -46,26 +42,25 @@ public:
         const auto& param = obj.param;
         std::ostringstream result;
         result << "LogicalType=" << param.opType << "_";
-        result << "inpt_shape1=" << param.input1.shape << "_";
+        result << "inpt_shape1=" << param.inputs[0].shape << "_";
         if (param.opType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
-            result << "inpt_shape2=" << param.input2.shape << "_";
+            result << "inpt_shape2=" << param.inputs[1].shape << "_";
         }
-        result << "iType=" << param.input1.type << "_";
+        result << "iType=" << param.inputs[0].type << "_";
         result << "oType=" << param.expected.type;
         return result.str();
     }
 
 private:
-    static std::shared_ptr<ngraph::Function> CreateFunction(ngraph::helpers::LogicalTypes op_type, const ngraph::PartialShape& input_shape1,
-                                                            const ngraph::PartialShape& input_shape2, const ngraph::element::Type& elem_type) {
-        const auto in1 = std::make_shared<ngraph::op::Parameter>(elem_type, input_shape1);
-        const auto in2 = std::make_shared<ngraph::op::Parameter>(elem_type, input_shape2);
-        const auto logical_op = ngraph::builder::makeLogical(in1, in2, op_type);
-        if (op_type == ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
-            return std::make_shared<ngraph::Function>(ngraph::NodeVector {logical_op}, ngraph::ParameterVector {in1});
-        } else {
-            return std::make_shared<ngraph::Function>(ngraph::NodeVector {logical_op}, ngraph::ParameterVector {in1, in2});
+    static std::shared_ptr<ngraph::Function> CreateFunction(ngraph::helpers::LogicalTypes op_type, const std::vector<Tensor>& inputs,
+                                                            const ngraph::element::Type& elem_type) {
+        ngraph::ParameterVector params_vec;
+        for (auto& input : inputs) {
+            params_vec.push_back(std::make_shared<ngraph::op::Parameter>(elem_type, input.shape));
         }
+
+        const auto logical_op = ngraph::builder::makeLogical(params_vec, op_type);
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector {logical_op}, ngraph::ParameterVector {params_vec});
     }
 };
 }  // namespace LogicalOpsRefTestDefinitions
