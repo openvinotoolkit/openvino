@@ -146,7 +146,7 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        "$(REPO_DIR)/tests/layer_tests"
+        $(REPO_DIR)/tests/layer_tests
       workingDirectory: $(BUILD_LAYER_TESTS_DIR)
       
   - script: ninja
@@ -259,7 +259,7 @@ jobs:
       python3 -m pip install -r requirements.txt
       export MO_ROOT=$(INSTALL_DIR)/deployment_tools/model_optimizer
       env
-      export PYTHONPATH=$(LAYER_TESTS_DIR):$(MO_ROOT):$(PYTHONPATH)
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$MO_ROOT:$PYTHONPATH
       python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xmlTEST
     workingDirectory: $(LAYER_TESTS_DIR)
     displayName: 'Layer Tests'
