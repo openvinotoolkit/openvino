@@ -109,17 +109,27 @@ class CTCGreedyDecoderSingleReplacement(FrontReplacementPattern):
         for ctc_greedy_decoder_tf in graph.get_op_nodes(op='CTCGreedyDecoderSeqLen', output_sparse_format=True):
             ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
 
-            for port_num in range(4):  # TF CTCGreedyDecoder have 4 output tensors
-                if port_num in ctc_greedy_decoder_tf.out_ports():
-                    if ctc_greedy_decoder_tf.out_port(port_num).disconnected():
-                        # Create Result operation and connect it to the output if it is not connected
-                        # to any other operation
-                        second_result = Result(graph,
-                                               {'name': ctc_greedy_decoder_tf_name + '/seq_lengths_output'}
-                                               ).create_node()
-                        ctc_greedy_decoder_tf.out_port(1).connect(second_result.in_port(0))
-                    elif ctc_greedy_decoder_tf.out_port(port_num).get_destination().node.soft_get('op') != 'Result':
-                        return
+            # TF CTCGreedyDecoder have 4 output tensors. If any of them connected to not Result operation then
+            # transformation in not applicable
+            for port_num in ctc_greedy_decoder_tf.out_ports():
+                if not ctc_greedy_decoder_tf.out_port(port_num).disconnected()\
+                        and ctc_greedy_decoder_tf.out_port(port_num).get_destination().node.soft_get('op') != 'Result':
+                    return
+
+            # If the first and second output are not connected to Result operations -
+            # create Result operation and connect it to appropriate output
+            if ctc_greedy_decoder_tf.out_port(0).disconnected():
+                first_result = Result(graph,
+                                       {'name': ctc_greedy_decoder_tf_name + '/decoded_classes'}
+                                       ).create_node()
+                ctc_greedy_decoder_tf.out_port(0).connect(first_result.in_port(0))
+
+            if ctc_greedy_decoder_tf.out_port(1).disconnected():
+                second_result = Result(graph,
+                                       {'name': ctc_greedy_decoder_tf_name + '/seq_lengths_output'}
+                                       ).create_node()
+                ctc_greedy_decoder_tf.out_port(1).connect(second_result.in_port(0))
+
 
             # For normalizing input channel needs to transpose input data from [T, N, C] to [N, T, C]
             # which supported CTCGreedyDecoderSeqLen op.
