@@ -10,6 +10,7 @@
 
 #include "ngraph/deprecated.hpp"
 #include "ngraph/ngraph_visibility.hpp"
+#include "openvino/core/utils/file_utils.hpp"
 
 namespace ngraph {
 namespace file_util {
@@ -63,14 +64,12 @@ NGRAPH_API void convert_path_win_style(std::string& path);
 /// \brief Conversion from wide character string to a single-byte chain.
 /// \param wstr A wide-char string
 /// \return A multi-byte string
-NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
-NGRAPH_API std::string wstring_to_string(const std::wstring& wstr);
+const auto wstring_to_string = ov::utils::wstring_to_string;
 
 /// \brief Conversion from single-byte chain to wide character string.
 /// \param str A null-terminated string
 /// \return A wide-char string
-NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
-NGRAPH_API std::wstring multi_byte_char_to_wstring(const char* str);
+const auto multi_byte_char_to_wstring = ov::utils::multi_byte_char_to_wstring;
 
 /// \brief Remove path components which would allow traversing up a directory tree.
 /// \param path A path to file

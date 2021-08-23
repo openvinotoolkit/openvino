@@ -37,6 +37,7 @@ set(SRC
     copy.cpp
     element_type.cpp
     eval.cpp
+    extension.cpp
     file_util.cpp
     float16.cpp
     graph_rewrite.cpp
@@ -377,6 +378,8 @@ if (ENABLE_CLDNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
         list(APPEND UNIT_TESTS_DEPENDENCIES clDNNPlugin)
     endif()
 endif()
+
+list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
 
 if (NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     list(APPEND SRC

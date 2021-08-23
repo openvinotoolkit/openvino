@@ -221,7 +221,7 @@ NGRAPH_API void file_util::convert_path_win_style(std::string& path) {
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
-std::string file_util::wstring_to_string(const std::wstring& wstr) {
+std::string ov::utils::wstring_to_string(const std::wstring& wstr) {
 #    ifdef _WIN32
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);  // NOLINT
     std::string strTo(size_needed, 0);
@@ -233,7 +233,7 @@ std::string file_util::wstring_to_string(const std::wstring& wstr) {
 #    endif
 }
 
-std::wstring file_util::multi_byte_char_to_wstring(const char* str) {
+std::wstring ov::utils::multi_byte_char_to_wstring(const char* str) {
 #    ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
     int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
@@ -247,3 +247,4 @@ std::wstring file_util::multi_byte_char_to_wstring(const char* str) {
 #    endif
 }
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
+
