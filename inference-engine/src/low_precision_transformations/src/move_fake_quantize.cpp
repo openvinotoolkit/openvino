@@ -56,40 +56,44 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
 bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     auto fq = m.get_match_root();
     auto operation = fq->get_input_node_shared_ptr(0);
-
-    std::shared_ptr<ngraph::Node> concat, fq1input, fq2input;
+    std::shared_ptr<ngraph::Node> concat;
+    bool only_concat{ true };
     if (is_type<opset1::Concat>(operation)) {
         concat = operation;
-        fq1input = operation->get_input_node_shared_ptr(0);
-        fq2input = operation->get_input_node_shared_ptr(1);
-    } else {
-        concat = operation->get_input_node_shared_ptr(0);
-        auto input1 = concat->get_input_node_shared_ptr(0);
-        auto input2 = concat->get_input_node_shared_ptr(1);
-        if (is_type<opset1::Relu>(operation)) {
-            fq1input = std::make_shared<ngraph::opset1::Relu>(input1->output(0));
-            fq2input = std::make_shared<ngraph::opset1::Relu>(input2->output(0));
-        } else {
-            return false;
-        }
     }
-
-    auto fq1 = std::make_shared<opset1::FakeQuantize>(fq1input,
-        fq->get_input_node_shared_ptr(1),
-        fq->get_input_node_shared_ptr(2),
-        fq->get_input_node_shared_ptr(3),
-        fq->get_input_node_shared_ptr(4),
-        as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
-    fq1->set_friendly_name("concat_fq1");
-    auto fq2 = std::make_shared<opset1::FakeQuantize>(fq2input,
-        fq->get_input_node_shared_ptr(1),
-        fq->get_input_node_shared_ptr(2),
-        fq->get_input_node_shared_ptr(3),
-        fq->get_input_node_shared_ptr(4),
-        as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
-    fq2->set_friendly_name("concat_fq2");
-    ngraph::copy_runtime_info(fq, { fq1, fq2 });
-    auto newConcat = concat->clone_with_new_inputs({ fq1->output(0), fq2->output(0) });
+    else {
+        concat = operation->get_input_node_shared_ptr(0);
+        only_concat = false;
+    }
+    std::vector<std::shared_ptr<ngraph::Node>> fqs;
+    size_t input_size = concat->get_input_size();
+    for (size_t i{ 0 }; i < input_size; ++i) {
+        std::shared_ptr<ngraph::Node> fqInput;
+        if (only_concat) {
+            fqInput = concat->get_input_node_shared_ptr(i);
+        }
+        else {
+            auto input = concat->get_input_node_shared_ptr(i);
+            fqInput = std::make_shared<ngraph::opset1::Relu>(input);
+        }
+        auto newFq = std::make_shared<opset1::FakeQuantize>(fqInput,
+            fq->get_input_node_shared_ptr(1),
+            fq->get_input_node_shared_ptr(2),
+            fq->get_input_node_shared_ptr(3),
+            fq->get_input_node_shared_ptr(4),
+            as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
+        newFq->set_friendly_name("concat_fq" + std::to_string(i + 1));
+        fqs.push_back(newFq);
+    }
+    ngraph::copy_runtime_info(fq, fqs);
+    auto get_outputs = [](const std::vector<std::shared_ptr<ngraph::Node>>& fqs) -> const ngraph::OutputVector {
+        ngraph::OutputVector result;
+        for (auto& fq : fqs) {
+            result.push_back(fq->output(0));
+        }
+        return result;
+    };
+    auto newConcat = concat->clone_with_new_inputs(get_outputs(fqs));
     newConcat->set_friendly_name(concat->get_friendly_name());
     replace_node(fq, newConcat);
     updateOutput(context, newConcat, fq);
