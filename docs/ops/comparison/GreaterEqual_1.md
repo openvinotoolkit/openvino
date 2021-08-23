@@ -2,7 +2,7 @@
 
 **Versioned name**: *GreaterEqual-1*
 
-**Category**: Comparison binary operation
+**Category**: *Comparison binary*
 
 **Short description**: *GreaterEqual* performs element-wise comparison operation with two given tensors applying multi-directional broadcast rules.
 
