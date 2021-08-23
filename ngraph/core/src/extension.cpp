@@ -19,7 +19,7 @@ inline std::vector<Extension::Ptr> load_extension_impl(const std::basic_string<C
     reinterpret_cast<CreateFunction*>(so->get_symbol("create_extensions"))(extensions);
 
     for (auto&& ex : extensions) {
-        setExtensionSharedObject(ex, so);
+        set_extension_shared_object(ex, so);
     }
     return extensions;
 }
@@ -30,7 +30,7 @@ ov::Extension::~Extension() {
     so.reset();
 }
 
-void ov::setExtensionSharedObject(const Extension::Ptr& extension, const std::shared_ptr<SOLoader>& so) {
+void ov::set_extension_shared_object(const Extension::Ptr& extension, const std::shared_ptr<SOLoader>& so) {
     extension->so = so;
 }
 

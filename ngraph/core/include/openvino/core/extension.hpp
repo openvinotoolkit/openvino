@@ -22,13 +22,13 @@ class SOLoader;
 class Extension;
 
 OPENVINO_API
-void setExtensionSharedObject(const std::shared_ptr<Extension>&, const std::shared_ptr<SOLoader>&);
+void set_extension_shared_object(const std::shared_ptr<Extension>&, const std::shared_ptr<SOLoader>&);
 
 class OPENVINO_API Extension {
 public:
     using Ptr = std::shared_ptr<Extension>;
     virtual ~Extension();
-    friend void setExtensionSharedObject(const Extension::Ptr&, const std::shared_ptr<SOLoader>&);
+    friend void set_extension_shared_object(const Extension::Ptr&, const std::shared_ptr<SOLoader>&);
 
 private:
     std::shared_ptr<SOLoader> so;
