@@ -257,6 +257,16 @@ void regclass_pyngraph_Node(py::module m) {
                     Operation version.
              )");
 
+    node.def("set_argument", &ngraph::Node::set_argument);
+    node.def("set_arguments",
+             [](ngraph::Node& node, const ngraph::NodeVector& args) {
+                 node.set_arguments(args);
+             });
+    node.def("set_arguments",
+             [](ngraph::Node& node, const ngraph::OutputVector& args) {
+                 node.set_arguments(args);
+             });
+
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
     node.def_property_readonly("name", &ngraph::Node::get_name);
     node.def_property_readonly("rt_info",
