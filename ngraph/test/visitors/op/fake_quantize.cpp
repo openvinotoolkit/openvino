@@ -30,7 +30,7 @@ TEST(attributes, fake_quantize_op) {
     const auto fake_quantize =
         make_shared<op::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels, auto_broadcast);
     NodeBuilder builder(fake_quantize);
-    auto g_fake_quantize = as_type_ptr<opset1::FakeQuantize>(builder.create());
+    auto g_fake_quantize = ov::as_type_ptr<opset1::FakeQuantize>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 2;
