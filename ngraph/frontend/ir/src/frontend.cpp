@@ -26,7 +26,9 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
         return false;
     }
 
-    bool has_xml_node{false}, has_weights{false}, has_exts{false};
+    bool has_xml_node{false};
+    bool has_weights{false};
+    bool has_exts{false};
 
     for (const auto& variant : variants) {
         if (is_type<ov::VariantWrapper<pugi::xml_node>>(variant)) {

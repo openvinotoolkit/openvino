@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
+#include <frontend_manager/frontend.hpp>
 #include <inference_engine.hpp>
 #include <ngraph/variant.hpp>
 #include <pugixml.hpp>
