@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging as log
 
-from mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape
+from mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape, shape_array, dynamic_dimension_value
 from mo.graph.graph import Graph
 from mo.middle.passes.infer import partial_infer
 from mo.middle.replacement import MiddleReplacementPattern
@@ -22,9 +22,10 @@ class PartialInfer(MiddleReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         dynamic_inputs = {}
         for parameter in graph.get_op_nodes(op='Parameter'):
-            if not is_fully_defined(parameter.shape):
+            param_shape = parameter.soft_get('shape', shape_array(dynamic_dimension_value))
+            if not is_fully_defined(param_shape):
                 parameter_name = parameter.soft_get('name', parameter.id)
-                dynamic_inputs[parameter_name] = parameter.shape
+                dynamic_inputs[parameter_name] = param_shape
         if dynamic_inputs:
             log.error('The model contains input(s) with partially defined shapes: {}. '
                       'Starting from the 2022.1 release the Model Optimizer can generate an IR with partially defined '
