@@ -79,7 +79,7 @@ class GemmDecomposer(FrontReplacementSubgraph):
             node_output_port = node.out_port(0)
             if node.has_valid('alpha') and not math.isclose(node.alpha, 1):
                 mul_alfa = create_op_with_const_inputs(graph, Mul, {1: np.array(node.alpha)},
-                                                       {'name': name + '/Alpha_'})
+                                                       {'name': name + '/Alpha_', 'can_be_scaleshift': False})
                 node_output_port.get_connection().set_source(mul_alfa.out_port(0))
                 node_output_port.get_connection().set_destination(mul_alfa.in_port(0))
                 node_output_port = mul_alfa.out_port(0)
