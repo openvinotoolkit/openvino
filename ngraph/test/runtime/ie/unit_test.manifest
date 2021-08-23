@@ -951,6 +951,9 @@ roll_3d_input
 roll_3d_input_negative_shift
 roll_negative_axes
 
+# Need to enable nested function expansion (63047)
+onnx_softmax_crossentropy_loss_mean
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine CPU plugin excludes
