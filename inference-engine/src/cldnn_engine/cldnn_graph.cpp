@@ -43,7 +43,8 @@ CLDNNGraph::CLDNNGraph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
-    , m_stream_id(stream_id) {
+    , m_stream_id(stream_id)
+    , m_state(0) {
     m_program = std::make_shared<Program>(network, GetEngine(), m_config);
     Build();
 }
@@ -53,7 +54,8 @@ CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
         , m_program(graph->m_program)
         , m_networkName(graph->m_networkName)
         , m_config(graph->m_config)
-        , m_stream_id(stream_id) {
+        , m_stream_id(stream_id)
+        , m_state(0) {
     Build();
 }
 
