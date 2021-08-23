@@ -13,7 +13,7 @@ namespace op {
 namespace detail {
 std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_scale,
                                                  const Output<ngraph::Node>& y_zero_point,
-                                                 const Output<ngraph::Node>& data) ;
+                                                 const Output<ngraph::Node>& data);
 }
 namespace set_1 {
 OutputVector quantize_linear(const Node& node);
