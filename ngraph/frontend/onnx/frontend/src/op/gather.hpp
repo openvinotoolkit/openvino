@@ -22,8 +22,8 @@ inline OutputVector gather(const Node& node) {
     auto axis = node.get_attribute_value<int64_t>("axis", 0);
 
     return {std::make_shared<ngraph::opset8::Gather>(data,
-                                                    indices,
-                                                    default_opset::Constant::create(element::i64, Shape{}, {axis}))};
+                                                     indices,
+                                                     default_opset::Constant::create(element::i64, Shape{}, {axis}))};
 }
 
 }  // namespace set_1
