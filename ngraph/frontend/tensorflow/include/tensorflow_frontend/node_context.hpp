@@ -17,16 +17,7 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-
-// Defined if we are building the plugin DLL (instead of using it)
-//#ifdef tensorflow_ngraph_frontend_EXPORTS
-//#define NGRAPH_HELPER_DLL_IMPORT __declspec(dllimport)
-#define NGRAPH_HELPER_DLL_EXPORT __declspec(dllexport)
-
-#define TF_API NGRAPH_HELPER_DLL_EXPORT
-//#else
-//#define TF_API NGRAPH_HELPER_DLL_IMPORT
-//#endif // paddlepaddle_ngraph_frontend_EXPORTS
+#include <tensorflow_frontend/utility.hpp>
 
 namespace ngraph
 {
@@ -42,7 +33,7 @@ namespace detail {
 
 /// Generic NodeContext that hides graph representation
 /// It is base class for specific implementations for protobuf and run-time graph
-    class TF_API NodeContext
+    class NodeContext
     {
         OutputVector m_ng_inputs;
         std::shared_ptr<detail::TFNodeDecoder> m_decoder;

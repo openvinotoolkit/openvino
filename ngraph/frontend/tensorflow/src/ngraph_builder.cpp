@@ -2768,10 +2768,6 @@ static std::map<
         //{"ZerosLike", TranslateZerosLikeOp},
         };
 
-#define NGRAPH_HELPER_DLL_EXPORT __declspec(dllexport)
-
-#define TF_API NGRAPH_HELPER_DLL_EXPORT
-
 void Builder::TranslateGraph(
         const std::map<std::string, ngraph::PartialShape>& inputs,
         const std::vector<ngraph::PartialShape>& indexed_shapes,

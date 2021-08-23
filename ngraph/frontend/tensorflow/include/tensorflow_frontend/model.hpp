@@ -6,10 +6,7 @@
 
 // TODO: include it by just frontend_manager.hpp without path
 #include <frontend_manager/frontend.hpp>
-
-#define NGRAPH_HELPER_DLL_EXPORT __declspec(dllexport)
-
-#define TF_API NGRAPH_HELPER_DLL_EXPORT
+#include <tensorflow_frontend/utility.hpp>
 
 namespace tensorflow {
 class GraphDef;
