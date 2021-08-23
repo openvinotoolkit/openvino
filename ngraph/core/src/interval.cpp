@@ -111,8 +111,7 @@ bool Interval::contains(const Interval& interval) const {
 
 constexpr Interval::value_type Interval::s_max;
 
-namespace ngraph {
-std::ostream& operator<<(std::ostream& str, const Interval& interval) {
+std::ostream& ov::operator<<(std::ostream& str, const Interval& interval) {
     str << "Interval(" << interval.get_min_val() << ", ";
     auto max_val = interval.get_max_val();
     if (max_val == Interval::s_max) {
@@ -122,4 +121,3 @@ std::ostream& operator<<(std::ostream& str, const Interval& interval) {
     }
     return str << ")";
 }
-}  // namespace ngraph
