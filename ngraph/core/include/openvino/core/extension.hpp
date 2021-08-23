@@ -46,4 +46,3 @@ void create_extensions(std::vector<Extension::Ptr>&);
     void ::ov::create_extensions(std::vector<::ov::Extension::Ptr>& ext) { \
         ext = extensions;                                                  \
     }
-
