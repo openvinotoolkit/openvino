@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021 Intel Corporation
+﻿// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,8 +33,6 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
 }
 
 void MoveFakeQuantizeTransformation::SetUp() {
-    threshold = 0.1f;
-
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
