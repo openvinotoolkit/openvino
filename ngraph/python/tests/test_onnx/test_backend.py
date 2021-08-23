@@ -244,6 +244,10 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_strnormalizer_export_monday_casesensintive_upper_cpu",
         "OnnxBackendNodeModelTest.test_cast_STRING_to_FLOAT_cpu",
         "OnnxBackendNodeModelTest.test_cast_FLOAT_to_STRING_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_STRING_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_STRING_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_STRING_to_FLOAT_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_STRING_to_FLOAT_expanded_cpu",
     ),
     (
         xfail_issue_33595,
@@ -527,10 +531,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_DOUBLE_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_FLOAT16_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_STRING_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_STRING_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_STRING_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_STRING_to_FLOAT_expanded_cpu",
     ),
     (
         xfail_issue_63137,
