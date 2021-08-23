@@ -58,9 +58,11 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     auto operation = fq->get_input_node_shared_ptr(0);
     std::shared_ptr<ngraph::Node> concat;
     bool only_concat{ true };
+    std::string fq_original_name = fq->get_friendly_name(), relu_original_name;
     if (is_type<opset1::Concat>(operation)) {
         concat = operation;
     } else {
+        relu_original_name = operation->get_friendly_name();
         concat = operation->get_input_node_shared_ptr(0);
         only_concat = false;
     }
@@ -73,6 +75,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
         } else {
             auto input = concat->get_input_node_shared_ptr(i);
             fqInput = std::make_shared<ngraph::opset1::Relu>(input);
+            fqInput->set_friendly_name(relu_original_name + std::to_string(i + 1));
         }
         auto newFq = std::make_shared<opset1::FakeQuantize>(fqInput,
             fq->get_input_node_shared_ptr(1),
@@ -80,7 +83,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
             fq->get_input_node_shared_ptr(3),
             fq->get_input_node_shared_ptr(4),
             as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
-        newFq->set_friendly_name("concat_fq" + std::to_string(i + 1));
+        newFq->set_friendly_name(fq_original_name + std::to_string(i + 1));
         fqs.push_back(newFq);
     }
     ngraph::copy_runtime_info(fq, fqs);

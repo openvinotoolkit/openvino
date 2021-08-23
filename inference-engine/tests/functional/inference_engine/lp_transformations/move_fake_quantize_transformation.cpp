@@ -115,9 +115,7 @@ public:
         multiChannels(multiChannels),
         axis(axis),
         actual(actual),
-        result(result),
-        addNotPrecisionPreservedOperation(addNotPrecisionPreservedOperation),
-        checkIntervalsAlignmentAttributes(checkIntervalsAlignmentAttributes) {}
+        result(result) {}
 
     TestTransformationParams params;
     bool multiChannels;
@@ -126,8 +124,6 @@ public:
     MoveFakeQuantizeTransformationResultValues result;
     // add not precision preserved operation to set output precision for FakeQuantize
     // don't set to 'true' by default to keep test cases with tested operation as output
-    bool addNotPrecisionPreservedOperation;
-    bool checkIntervalsAlignmentAttributes;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeTransformationTestValues& values) {
@@ -239,14 +235,6 @@ TEST_P(MoveFakeQuantizeTransformation, CompareFunctions) {
     const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
     ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
         "PrecisionsAttribute are not the same";
-
-    MoveFakeQuantizeTransformationTestValues testValues = std::get<2>(GetParam());
-    if (testValues.checkIntervalsAlignmentAttributes) {
-        auto operations = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
-        operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-        ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) <<
-            "IntervalsAlignmentAttribute are not the same";
-    }
 }
 
 const std::vector<ngraph::element::Type> precisions = {
