@@ -2,7 +2,7 @@
 
 **Versioned name**: *Concat-1*
 
-**Category**: data movement operation.
+**Category**: *Data movement*
 
 **Short description**: Concatenates arbitrary number of input tensors to a single output tensor along one axis.
 

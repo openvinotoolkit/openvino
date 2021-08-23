@@ -2,7 +2,7 @@
 
 **Versioned name**: *Gather-7*
 
-**Category**: Data movement operations
+**Category**: *Data movement*
 
 **Short description**: *Gather* operation takes slices of data of the first input tensor according to the indices
  specified with the second input tensor and axis from the third input. Semantics of this operation is identical to

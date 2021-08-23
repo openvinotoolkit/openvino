@@ -2,7 +2,7 @@
 
 **Versioned name**: *PSROIPooling-1*
 
-**Category**: Object detection
+**Category**: *Object detection*
 
 **Short description**: *PSROIPooling* computes position-sensitive pooling on regions of interest specified by input.
 

@@ -2,7 +2,7 @@
 
 **Versioned name**: *Select-1*
 
-**Category**: *Conditions*
+**Category**: *Condition*
 
 **Short description**: *Select* returns a tensor filled with the elements from the second or the third inputs, depending on the condition (the first input) value.
 

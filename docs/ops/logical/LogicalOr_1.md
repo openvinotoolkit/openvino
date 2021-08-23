@@ -2,7 +2,7 @@
 
 **Versioned name**: *LogicalOr-1*
 
-**Category**: Logical binary operation
+**Category**: *Logical binary*
 
 **Short description**: *LogicalOr* performs element-wise logical OR operation with two given tensors applying multi-directional broadcast rules.
 

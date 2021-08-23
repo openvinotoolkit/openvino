@@ -2,7 +2,7 @@
 
 **Versioned name**: *Convolution-1*
 
-**Category**: Convolution
+**Category**: *Convolution*
 
 **Short description**: Computes 1D, 2D or 3D convolution (cross-correlation to be precise) of input and kernel tensors.
 

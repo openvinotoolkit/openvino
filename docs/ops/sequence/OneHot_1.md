@@ -2,7 +2,7 @@
 
 **Versioned name**: *OneHot-1*
 
-**Category**: Sequence processing
+**Category**: *Sequence processing*
 
 **Short description**: *OneHot* sets the elements in the output tensor with specified indices to `on_value` and fills all other locations with `off_value`.
 

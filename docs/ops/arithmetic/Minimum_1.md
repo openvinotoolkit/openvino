@@ -2,7 +2,7 @@
 
 **Versioned name**: *Minimum-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *Minimum* performs element-wise minimum operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 

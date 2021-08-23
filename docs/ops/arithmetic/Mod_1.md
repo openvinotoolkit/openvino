@@ -2,7 +2,7 @@
 
 **Versioned name**: *Mod-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *Mod* performs an element-wise modulo operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 

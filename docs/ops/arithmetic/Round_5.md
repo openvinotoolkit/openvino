@@ -2,7 +2,7 @@
 
 **Versioned name**: *Round-5*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Round* performs element-wise round operation with given tensor.
 

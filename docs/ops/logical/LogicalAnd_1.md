@@ -2,7 +2,7 @@
 
 **Versioned name**: *LogicalAnd-1*
 
-**Category**: Logical binary operation
+**Category**: *Logical binary*
 
 **Short description**: *LogicalAnd* performs element-wise logical AND operation with two given tensors applying multi-directional broadcast rules.
 

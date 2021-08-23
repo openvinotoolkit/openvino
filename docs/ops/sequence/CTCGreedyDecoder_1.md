@@ -2,7 +2,7 @@
 
 **Versioned name**: *CTCGreedyDecoder-1*
 
-**Category**: Sequence processing
+**Category**: *Sequence processing*
 
 **Short description**: *CTCGreedyDecoder* performs greedy decoding on the logits given in input (best path).
 

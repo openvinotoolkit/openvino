@@ -2,7 +2,7 @@
 
 **Versioned name**: *ExperimentalDetectronROIFeatureExtractor-6*
 
-**Category**: Object detection
+**Category**: *Object detection*
 
 **Short description**: *ExperimentalDetectronROIFeatureExtractor* is the [ROIAlign](ROIAlign_3.md) operation applied
 over a feature pyramid.

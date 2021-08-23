@@ -2,7 +2,7 @@
 
 **Versioned name**: *Roll-7*
 
-**Category**: data movement operation
+**Category**: *Data movement*
 
 **Short description**: The *Roll* operation shifts elements of a tensor along specified axes.
 

@@ -2,7 +2,7 @@
 
 **Versioned name**: *LogicalXor-1*
 
-**Category**: Logical binary operation
+**Category**: *Logical binary*
 
 **Short description**: *LogicalXor* performs element-wise logical XOR operation with two given tensors applying multi-directional broadcast rules.
 

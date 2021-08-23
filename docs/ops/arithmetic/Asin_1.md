@@ -2,7 +2,7 @@
 
 **Versioned name**: *Asin-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Asin* performs element-wise inverse sine (arcsin) operation with given tensor.
 

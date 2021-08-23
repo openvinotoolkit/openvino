@@ -2,7 +2,7 @@
 
 **Versioned name**: *Gather-1*
 
-**Category**: Data movement operations
+**Category**: *Data movement*
 
 **Short description**: *Gather* operation takes slices of data in the first input tensor according to the indices specified in the second input tensor and axis from the third input.
 

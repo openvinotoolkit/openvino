@@ -2,7 +2,7 @@
 
 **Versioned name**: *DFT-7*
 
-**Category**: Signal processing
+**Category**: *Signal processing*
 
 **Short description**: *DFT* operation performs the discrete complex-to-complex Fourier transformation of input tensor by specified dimensions.
 
