@@ -60,8 +60,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     bool only_concat{ true };
     if (is_type<opset1::Concat>(operation)) {
         concat = operation;
-    }
-    else {
+    } else {
         concat = operation->get_input_node_shared_ptr(0);
         only_concat = false;
     }
@@ -71,8 +70,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
         std::shared_ptr<ngraph::Node> fqInput;
         if (only_concat) {
             fqInput = concat->get_input_node_shared_ptr(i);
-        }
-        else {
+        } else {
             auto input = concat->get_input_node_shared_ptr(i);
             fqInput = std::make_shared<ngraph::opset1::Relu>(input);
         }
