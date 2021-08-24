@@ -6,10 +6,6 @@
         name: inception-resnet-v2-tf
         path: ${OMZ_MODELS_PATH}/inception-resnet-v2-tf
         precision: FP32
-    - model:
-        name: inception-resnet-v2-tf
-        path: ${OMZ_MODELS_PATH}/inception-resnet-v2-tf
-        precision: FP16
 -
     - model:
         path: ${TESTDATA}/models/mobilenet_v2_1.4_224/mobilenet_v2_1.4_224_i8.xml
