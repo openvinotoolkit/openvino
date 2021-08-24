@@ -274,9 +274,9 @@ KERNEL (non_max_suppression_ref_stage_0)(
     #endif
     )
 {
-    const short batchId = get_global_id(0);
-    const ushort classId = get_global_id(1);
-    const ushort box_gid = get_global_id(2);
+    const int batchId = get_global_id(0);
+    const int classId = get_global_id(1);
+    const int box_gid = get_global_id(2);
     const int start_bid = box_gid * NUM_SCORE_PER_ITEM;
     const int end_bid = min(start_bid + NUM_SCORE_PER_ITEM, NUM_BOXES);
 

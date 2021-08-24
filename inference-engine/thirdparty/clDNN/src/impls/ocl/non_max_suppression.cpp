@@ -64,7 +64,7 @@ public:
 
         if (arg.has_num_select_per_class()) {
             cldnn::program_node& node = arg.num_select_per_class_node();
-            if (node.is_constant()) {
+            if (node.is_type<data>()) {
                 params.num_select_per_class_type = kernel_selector::NmsArgType::Constant;
                 params.num_select_per_class = get_value<int>(node);
             } else {
@@ -75,7 +75,7 @@ public:
 
         if (arg.has_iou_threshold()) {
             cldnn::program_node& node = arg.iou_threshold_node();
-            if (node.is_constant()) {
+            if (node.is_type<data>()) {
                 params.iou_threshold_type = kernel_selector::NmsArgType::Constant;
                 params.iou_threshold = get_value<float>(node);
             } else {
@@ -86,7 +86,7 @@ public:
 
         if (arg.has_score_threshold()) {
             cldnn::program_node& node = arg.score_threshold_node();
-            if (node.is_constant()) {
+            if (node.is_type<data>()) {
                 params.score_threshold_type = kernel_selector::NmsArgType::Constant;
                 params.score_threshold = get_value<float>(node);
             } else {
@@ -97,7 +97,7 @@ public:
 
         if (arg.has_soft_nms_sigma()) {
             cldnn::program_node& node = arg.soft_nms_sigma_node();
-            if (node.is_constant()) {
+            if (node.is_type<data>()) {
                 params.soft_nms_sigma_type = kernel_selector::NmsArgType::Constant;
                 params.soft_nms_sigma = get_value<float>(node);
             } else {

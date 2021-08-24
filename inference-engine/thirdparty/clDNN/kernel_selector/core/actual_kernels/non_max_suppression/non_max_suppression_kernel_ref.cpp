@@ -128,7 +128,7 @@ static inline int GetPartitionStep(int localWorkItemNum) {
 }
 
 static inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
-    const size_t optimal_values[] = {16, 8, 7, 6, 5, 4, 2, 1};
+    const size_t optimal_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 2, 1};
     const size_t splitNum = gws[2];
     const size_t globalClassNum = gws[1];
     const auto rest_lws = info.maxWorkGroupSize / splitNum;
