@@ -95,15 +95,14 @@ namespace tensorflow {
             // a hack to minimize amount of code
             TFNodeDecoder& attrs () const { return const_cast<TFNodeDecoder&>(*this); }
             virtual void getAttrValue2 (const char* name, std::vector<int32_t>* x) const = 0;
-            virtual void getAttrValue2(const char* name, std::vector<int64_t>* x) const = 0;
+            virtual void getAttrValue2 (const char* name, std::vector<int64_t>* x) const = 0;
             virtual void getAttrValue2 (const char* name, std::vector<float>* x) const = 0;
             virtual void getAttrValue2 (const char* name, int32_t* x) const = 0;
-            virtual void getAttrValue2(const char* name, int64_t* x) const = 0;
+            virtual void getAttrValue2 (const char* name, int64_t* x) const = 0;
             virtual void getAttrValue2 (const char* name, ngraph::element::Type* x) const = 0;
             virtual void getAttrValue2 (const char* name, DataType* x) const = 0;
             virtual void getAttrValue2 (const char* name, std::string* x) const = 0;
             virtual void getAttrValue2 (const char* name, bool* x) const = 0;
-            virtual void getAttrValue2 (const char* name, long int* x) const = 0;
             virtual void getAttrValue2 (const char* name, float* x) const = 0;
             virtual void getAttrValue2 (const char* name, std::vector<std::string>* x) const = 0;
             virtual void getAttrValue2 (const char* name, ngraph::PartialShape* x) const = 0;
