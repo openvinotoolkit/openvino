@@ -972,9 +972,7 @@ TEST_P(InferRequestPreprocessDynamicallyInSetBlobTest, Infer) {
     }
 }
 
-TEST_P(PreprocessTest, InferWithRGB2BGRConversion) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(InferRequestPreprocessTest, InferWithRGB2BGRConversion) {
     std::shared_ptr<ngraph::Function> ngraphFunc;
     const unsigned int shape_size = 9, channels = 3, batch = 1;
     {
