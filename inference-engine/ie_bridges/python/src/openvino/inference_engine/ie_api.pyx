@@ -379,7 +379,6 @@ cdef class IECore:
                              "or zero for auto detection")
         if config:
             c_config = dict_to_c_map(config)
-        exec_net.ie_core_impl = self.impl
         c_device_name = device_name.encode()
         if isinstance(network, str):
             c_network_path = network.encode()
@@ -416,7 +415,6 @@ cdef class IECore:
                              "or zero for auto detection")
         if config:
             c_config = dict_to_c_map(config)
-        exec_net.ie_core_impl = self.impl
         exec_net.impl = move(self.impl.importNetwork(model_file.encode(), device_name.encode(), c_config, num_requests))
         return exec_net
 
