@@ -75,8 +75,8 @@ runtime::dynamic::DynamicExecutable::DynamicExecutable(shared_ptr<Function> wrap
 // count_dyn_nodes.
 bool is_dynamic_op(const std::shared_ptr<Node>& op)
 {
-    return is_type<op::Range>(op) || is_type<op::v1::ConvolutionBackpropData>(op) ||
-           is_type<op::v3::Broadcast>(op);
+    return ov::is_type<op::Range>(op) || ov::is_type<op::v1::ConvolutionBackpropData>(op) ||
+           ov::is_type<op::v3::Broadcast>(op);
 }
 
 // Helper for a vile hack in DynamicExecutable::call. See body of that function for details.
@@ -230,8 +230,10 @@ bool runtime::dynamic::DynamicExecutable::call(
                 i++;
             }
 
+            NGRAPH_SUPPRESS_DEPRECATED_START;
             clone = specialize_function(
                 m_wrapped_function, arg_element_types, arg_shapes, arg_value_base_pointers);
+            NGRAPH_SUPPRESS_DEPRECATED_END;
         }
 
         pass::Manager passes;

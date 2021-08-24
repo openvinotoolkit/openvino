@@ -87,6 +87,15 @@ if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
 endif()
 
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64.*|aarch64.*|AARCH64.*)")
+  set(AARCH64 ON)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
+  set(ARM ON)
+endif()
+if(ARM AND NOT CMAKE_CROSSCOMPILING)
+    add_compile_options(-march=armv7-a)
+endif()
+
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -104,19 +113,7 @@ endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
     NOT DEFINED OpenVINO_SOURCE_DIR)
-    function(add_gflags)
-        # common gflags settings
-        set(GFLAGS_IS_SUBPROJECT TRUE)
-        set(HAVE_SYS_STAT_H 1)
-        set(HAVE_INTTYPES_H 1)
-        set(INTTYPES_FORMAT C99)
-        set(BUILD_TESTING OFF)
-        set(BUILD_SHARED_LIBS OFF)
-
-        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
-    endfunction()
-    add_gflags()
+    add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")

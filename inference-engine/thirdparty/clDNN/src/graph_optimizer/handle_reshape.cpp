@@ -22,7 +22,7 @@ using namespace cldnn;
 // primitives with single user
 //- in case of reshape->reorder sequence, the additional reorder before reshape will be added,
 //  if last reorder does not contain padding or mean subtract, it will be removed later in the graph
-void handle_reshape::run(program_impl& p) {
+void handle_reshape::run(program& p) {
     // Remove reshapes that don't change the layout of output
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {

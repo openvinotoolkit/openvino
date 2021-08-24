@@ -122,17 +122,17 @@ else()
     set(protoc_available ON)
 endif()
 
-ie_dependent_option(NGRAPH_ONNX_IMPORT_ENABLE "Enable ONNX importer" ON "protoc_available" OFF)
-ie_dependent_option(NGRAPH_ONNX_FRONTEND_ENABLE "Enable ONNX FrontEnd" OFF "NGRAPH_ONNX_IMPORT_ENABLE" OFF)
+ie_dependent_option(NGRAPH_ONNX_FRONTEND_ENABLE "Enable ONNX FrontEnd" ON "protoc_available" OFF)
 ie_dependent_option(NGRAPH_PDPD_FRONTEND_ENABLE "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
 ie_dependent_option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" ON
-    "NGRAPH_ONNX_IMPORT_ENABLE" OFF)
+    "NGRAPH_ONNX_FRONTEND_ENABLE" OFF)
 ie_dependent_option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system protobuf" OFF
-    "NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE" OFF)
+    "NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE" OFF)
 ie_dependent_option(NGRAPH_UNIT_TEST_ENABLE "Enables ngraph unit tests" ON "ENABLE_TESTS;NOT ANDROID" OFF)
 ie_dependent_option(NGRAPH_UNIT_TEST_BACKENDS_ENABLE "Control the building of unit tests using backends" ON
     "NGRAPH_UNIT_TEST_ENABLE" OFF)
 option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
+option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON)
 
 # WA for ngraph python build on Windows debug
 list(REMOVE_ITEM IE_OPTIONS NGRAPH_UNIT_TEST_ENABLE NGRAPH_UNIT_TEST_BACKENDS_ENABLE)

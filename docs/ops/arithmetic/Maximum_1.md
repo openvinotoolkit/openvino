@@ -2,7 +2,7 @@
 
 **Versioned name**: *Maximum-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *Maximum* performs element-wise maximum operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 
@@ -12,7 +12,7 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 After broadcasting *Maximum* does the following with the input tensors *a* and *b*:
 
 \f[
-o_{i} = max(a_{i}, b_{i})
+o_{i} = max(a_{i},\ b_{i})
 \f]
 
 **Attributes**:
