@@ -48,9 +48,9 @@ protected:
             return false;
 
         // Validating first path, it must contain a model
-        if (is_type<VariantWrapper<std::string>>(variants[0])) {
+        if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
             std::string suffix = ".pb";
-            std::string model_path = as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
+            std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
             if (tf::endsWith(model_path, suffix)) {
                 return true;
             }
@@ -61,8 +61,8 @@ protected:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override {
         if (variants.size() == 1) {
             // The case when folder with __model__ and weight files is provided or .pdmodel file
-            if (is_type<VariantWrapper<std::string>>(variants[0])) {
-                std::string m_path = as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
+            if (ov::is_type<VariantWrapper<std::string>>(variants[0])) {
+                std::string m_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
                 return std::make_shared<InputModelTensorflow>(m_path);
             }
         }
