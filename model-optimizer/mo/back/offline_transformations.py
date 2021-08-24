@@ -28,7 +28,7 @@ def apply_moc_transformations(net: object, transforms: list):
 
         available_transformations[name](net, **args)
 
-    ApplyMOCTransformations(net, False)
+    # itApplyMOCTransformations(net, False)
 
 
 def apply_offline_transformations(input_model: str, framework: str, transforms: list):
