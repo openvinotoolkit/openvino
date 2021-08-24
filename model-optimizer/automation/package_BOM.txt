@@ -640,6 +640,7 @@ extensions/middle/sparse_reshape.py
 extensions/middle/split_tdnn_memoryoffset.py
 extensions/middle/SplitConcatPairToInterpolate.py
 extensions/middle/StridedSliceNormalizer.py
+extensions/middle/StridedSliceReplacer.py
 extensions/middle/SwapAxesMiddleReplacer.py
 extensions/middle/TensorIterator_utils.py
 extensions/middle/TensorIteratorBackEdge.py
