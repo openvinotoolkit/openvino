@@ -1370,12 +1370,12 @@ void InsertSplitAligningFilterPass::run() {
 #endif
                     auto filterLayer =
                             std::make_shared<ConvolutionLayer>(LayerParams({filterName, "ConvolutionFilter", Precision::FP32}));
+                    if (!filterLayer) {
+                        THROW_GNA_EXCEPTION << "pointer to ConvolutionLayer is null\n";
+                    }
 
                     auto inputData = splitOutput;
-
                     size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(currentOffset) - 64));
-
-                    IE_ASSERT(filterLayer != nullptr);
 
                     // encodes offset to beginning of split layer input
                     filterLayer->params["offset"] = std::to_string(aligned64_offset / bytesPerSplitElement);

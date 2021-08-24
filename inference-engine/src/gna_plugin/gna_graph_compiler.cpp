@@ -1752,9 +1752,13 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
     void* ptr_biases = nullptr;
 
     IE_ASSERT(!layer->outData.empty());
-    IE_ASSERT(!layer->insData.empty());
     auto outputs = *layer->outData.begin();
-    auto inputs = layer->insData.begin()->lock();
+    auto inputs_iter = layer->insData.begin();
+    if (inputs_iter == layer->insData.end()) {
+        THROW_GNA_EXCEPTION << "The layer '" << layer->name << "' has not inputs";
+    }
+
+    auto inputs = inputs_iter->lock();
 
     const auto noOfInputsDivisor = gnaFlags->input_low_precision ?
         GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;

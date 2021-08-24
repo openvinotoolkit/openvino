@@ -115,7 +115,7 @@ void binding_observer::on_scheduler_exit(bool) {
 }
 
 binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int num_slots, const constraints& c) {
-    binding_oberver_ptr observer{};
+    binding_oberver_ptr observer{nullptr, binding_observer_deleter()};
     if (detail::is_binding_environment_valid() &&
       ((c.core_type >= 0 && info::core_types().size() > 1) || (c.numa_id >= 0 && info::numa_nodes().size() > 1) || c.max_threads_per_core > 0)) {
         observer.reset(new binding_observer{ta, num_slots, c});
@@ -157,13 +157,6 @@ task_arena::task_arena(const constraints& constraints_, unsigned reserved_for_ma
 #endif
     , my_initialization_state{}
     , my_constraints{constraints_}
-    , my_binding_observer{}
-{}
-
-task_arena::task_arena(const task_arena &s)
-    : my_task_arena{s.my_task_arena}
-    , my_initialization_state{}
-    , my_constraints{s.my_constraints}
     , my_binding_observer{}
 {}
 

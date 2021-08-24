@@ -31,7 +31,8 @@ inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
     auto shape_no_1 = shape;
     shape_no_1.erase(std::remove(shape_no_1.begin(), shape_no_1.end(), 1), shape_no_1.end());
     if (shape_no_1.size() != 2) return false;
-    size_t min, max;
+    size_t min = 0;
+    size_t max = 0;
     std::tie(min, max) = std::minmax(shape_no_1[0], shape_no_1[1]);
     return min <= 8 && max % 8 == 0 && max >= 8 && max <= transposeMaxSize;
 }
