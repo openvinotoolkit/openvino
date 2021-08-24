@@ -8,7 +8,6 @@
 """Pytest configuration for compilation tests."""
 import json
 import logging
-import subprocess
 import sys
 from inspect import getsourcefile
 from pathlib import Path
@@ -26,6 +25,7 @@ from test_utils import make_build, validate_path_arg, write_session_info, \
     SESSION_INFO_FILE  # pylint: disable=import-error
 
 log = logging.getLogger()
+logging.basicConfig(format="[ %(levelname)s ] %(message)s", level=logging.INFO, stream=sys.stdout)
 
 
 def pytest_addoption(parser):
@@ -228,13 +228,8 @@ def download_model(openvino_ref, model, request):
     info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
     cmd = f'"{python_executable}" "{info_dumper_path}" --name {model["name"]}'
 
-    out = ""
-    try:
-        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
-    except subprocess.CalledProcessError as exc:
-        log.warning(exc.output)
-
-    model_info = json.loads(out)[0]
+    return_code, output = cmd_exec(cmd)
+    model_info = json.loads(output)[0]
 
     # Step 4: form model_path
     model_path = omz_path / "_omz_irs_out_dir" / \
