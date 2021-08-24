@@ -992,4 +992,38 @@ TEST_P(PreprocessDynamicallyInSetBlobTest, Infer) {
     }
 }
 
+TEST_P(PreprocessTest, InferWithRGB2BGRConversion) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<ngraph::Function> ngraphFunc;
+    const unsigned int shape_size = 9, channels = 3, batch = 1;
+    {
+        ngraph::PartialShape shape({batch, channels, shape_size, shape_size});
+        ngraph::element::Type type(InferenceEngine::details::convertPrecision(netPrecision));
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name("relu");
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        result->set_friendly_name("result");
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraphFunc = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    // Create CNNNetwork from ngraph::Function
+    InferenceEngine::CNNNetwork cnnNet(ngraphFunc);
+
+    auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
+    preProcess.setColorFormat(InferenceEngine::ColorFormat::BGR);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    auto req = execNet.CreateInferRequest();
+
+    ASSERT_NO_THROW(req.Infer());
+}
+
 }  // namespace BehaviorTestsDefinitions
