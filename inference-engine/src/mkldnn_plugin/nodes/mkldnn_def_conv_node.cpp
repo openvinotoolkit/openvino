@@ -14,6 +14,7 @@
 #include <mkldnn_extension_utils.h>
 #include <cpu/x64/jit_generator.hpp>
 #include "ie_parallel.hpp"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -741,10 +742,21 @@ private:
 
 bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+<<<<<<< HEAD
         if (!one_of(op->get_type_info(),
                 ngraph::op::v1::DeformableConvolution::type_info,
                 ngraph::op::v8::DeformableConvolution::type_info)) {
             errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1 or v8.";
+=======
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
+        const auto defConvNode = ngraph::as_type_ptr<const ngraph::op::v1::DeformableConvolution>(op);
+        if (!defConvNode) {
+            errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1.";
+>>>>>>> Nodes updated (#24)
             return false;
         }
     } catch (...) {
@@ -793,20 +805,20 @@ void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << "has incorrect number of output edges";
 
-    if (getParentEdgeAt(0)->getShape().getRank() != 4) {
+    if (getInputShapeAtPort(0).getRank() != 4) {
         IE_THROW() << "Deformable convolution layer. Unsupported mode. Only 4D blobs are supported as input.";
     }
 
-    if (getParentEdgeAt(1)->getShape().getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getShape().getRank();
+    if (getInputShapeAtPort(1).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
     }
 
-    if (getParentEdgeAt(2)->getShape().getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getParentEdgeAt(2)->getShape().getRank();
+    if (getInputShapeAtPort(2).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getInputShapeAtPort(2).getRank();
     }
 
-    if (getChildEdgeAt(0)->getShape().getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getShape().getRank();
+    if (getOutputShapeAtPort(0).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
     }
 }
 
@@ -853,6 +865,7 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
         auto weiFormat = group > 1 ? mayiuse(avx512_common) ? memory::format_tag::gOIhw16i16o : memory::format_tag::gOIhw8i8o
                                    : mayiuse(avx512_common) ? memory::format_tag::OIhw16i16o : memory::format_tag::OIhw8i8o;
 
+<<<<<<< HEAD
         config.inConfs[0].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(),
                                                                               memory::data_type::f32, dataFormat);
         config.inConfs[1].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticDims(),
@@ -903,6 +916,19 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
         config.outConfs[0].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), memory::data_type::f32,
 >>>>>>> New descriptor hierarchy (#20)
                                                                 memory::format_tag::nchw);
+=======
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), memory::data_type::f32, dataFormat);
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getInputShapeAtPort(1), memory::data_type::f32, offFormat);
+        config.inConfs[2].desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2), memory::data_type::f32, weiFormat);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), memory::data_type::f32, dataFormat);
+        supportedPrimitiveDescriptors.push_back({config, impl_type});
+    } else {
+        // reference implementation
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), memory::data_type::f32, memory::format_tag::nchw);
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getInputShapeAtPort(1), memory::data_type::f32, memory::format_tag::nchw);
+        config.inConfs[2].desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getInputShapeAtPort(2), memory::data_type::f32, memory::format_tag::oihw);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), memory::data_type::f32, memory::format_tag::nchw);
+>>>>>>> Nodes updated (#24)
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     }
 }
@@ -913,9 +939,9 @@ void MKLDNNDeformableConvolutionNode::createPrimitive() {
         IE_THROW() << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
 
-    auto srcDims = getParentEdgeAt(0)->getShape().getStaticDims();
-    auto weiDims = getParentEdgeAt(2)->getShape().getStaticDims();
-    auto dstDims = getChildEdgeAt(0)->getShape().getStaticDims();
+    auto srcDims = getParentEdgeAt(0)->getMemory().getStaticDims();
+    auto weiDims = getParentEdgeAt(2)->getMemory().getStaticDims();
+    auto dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
     jcp.dg = deformable_group;
 
@@ -1141,6 +1167,7 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
     float *dst = reinterpret_cast<float *>(dstMemory.GetPtr());
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
@@ -1151,16 +1178,21 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
     auto src_block_desc = getParentEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
 >>>>>>> New descriptor hierarchy (#20)
     std::vector<size_t> src_strides(src_block_desc.getStrides().size());
+=======
+    auto src_block_desc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    std::vector<size_t> src_strides(src_block_desc->getStrides().size());
+>>>>>>> Nodes updated (#24)
     for (int i = 0; i < src_strides.size(); i++) {
-        src_strides[src_block_desc.getOrder()[i]] = src_block_desc.getStrides()[i];
+        src_strides[src_block_desc->getOrder()[i]] = src_block_desc->getStrides()[i];
     }
 
-    auto dst_block_desc = getChildEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
-    std::vector<size_t> dst_strides(dst_block_desc.getStrides().size());
+    auto dst_block_desc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    std::vector<size_t> dst_strides(dst_block_desc->getStrides().size());
     for (int i = 0; i < dst_strides.size(); i++) {
-        dst_strides[dst_block_desc.getOrder()[i]] = dst_block_desc.getStrides()[i];
+        dst_strides[dst_block_desc->getOrder()[i]] = dst_block_desc->getStrides()[i];
     }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 
     auto off_strides =  getParentEdgeAt(1)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
@@ -1174,6 +1206,10 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
     auto off_strides =  getParentEdgeAt(1)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
     auto wei_strides =  getParentEdgeAt(2)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getStrides();
 >>>>>>> New descriptor hierarchy (#20)
+=======
+    auto off_strides =  getParentEdgeAt(1)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto wei_strides =  getParentEdgeAt(2)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+>>>>>>> Nodes updated (#24)
 
     if (def_conv_kernel) {
         executeOptimized(src, offsets, weights, dst, src_strides, off_strides, dst_strides);

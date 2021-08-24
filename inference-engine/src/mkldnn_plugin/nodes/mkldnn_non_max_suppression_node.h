@@ -24,7 +24,7 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     struct filteredBoxes {
         float score;
@@ -49,6 +49,12 @@ public:
 
     void nmsWithoutSoftSigma(const float *boxes, const float *scores, const SizeVector &boxesStrides,
                              const SizeVector &scoresStrides, std::vector<filteredBoxes> &filtBoxes);
+
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+
+    std::vector<VectorDims> shapeInfer() const override {
+        return std::vector<VectorDims>();
+    }
 
 private:
     // input
@@ -85,14 +91,6 @@ private:
     float score_threshold = 0.0f;
     float soft_nms_sigma = 0.0f;
     float scale = 1.f;
-
-    Shape inputShape_MAXOUTPUTBOXESPERCLASS;
-    Shape inputShape_IOUTHRESHOLD;
-    Shape inputShape_SCORETHRESHOLD;
-    Shape inputShape_SOFTNMSSIGMA;
-
-    Shape outputShape_SELECTEDINDICES;
-    Shape outputShape_SELECTEDSCORES;
 
     std::string errorPrefix;
 

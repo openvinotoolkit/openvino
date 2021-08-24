@@ -39,7 +39,7 @@ inline const std::shared_ptr<T> getNgraphOpAs(const std::shared_ptr<ngraph::Node
     return typedOp;
 }
 
-inline bool isDynamicNgraphNode(const std::shared_ptr<ngraph::Node>& op) {
+inline bool isDynamicNgraphNode(const std::shared_ptr<const ngraph::Node>& op) {
     bool ret = op->is_dynamic();
     for (size_t i = 0; i < op->get_output_size(); i++) {
         ret |= op->get_output_partial_shape(i).is_dynamic();

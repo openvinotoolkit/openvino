@@ -35,8 +35,13 @@ static inline size_t parallel_init(size_t start, size_t nDims, const SizeVector&
     return start;
 }
 
-bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         const auto ss = std::dynamic_pointer_cast<const ngraph::opset1::StridedSlice>(op);
         if (!ss) {
             errorMessage = "Only opset1 StridedSlice operation is supported";
@@ -199,15 +204,13 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     const bool hasStrides = getParentEdges().size() > 3;
     InferenceEngine::Precision dataPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
     InferenceEngine::Precision beginPrecision = getOriginalInputPrecisionAtPort(BEGIN_ID);
-    auto beginDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(beginPrecision);
     InferenceEngine::Precision endPrecision = getOriginalInputPrecisionAtPort(END_ID);
-    auto endDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(endPrecision);
     InferenceEngine::Precision stridePrecision;
     if (hasStrides)
         stridePrecision = getOriginalInputPrecisionAtPort(STRIDE_ID);
 
-    auto srcDims = getParentEdgeAt(DATA_ID)->getShape().getStaticDims();
-    auto dstDims = getChildEdgeAt(0)->getShape().getStaticDims();
+    auto srcDims = getInputShapeAtPort(DATA_ID).getStaticDims();
+    auto dstDims = getOutputShapeAtPort(0).getStaticDims();
     size_t nDims = srcDims.size();
 
     NodeConfig config;
@@ -242,17 +245,13 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     auto range = BlockedDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
-        config.inConfs[0].desc = itr->second->createUniqueDesc(dataPrecision, getParentEdgeAt(DATA_ID)->getShape().getStaticDims());
-        config.inConfs[BEGIN_ID].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(BEGIN_ID)->getShape().getStaticDims(), beginDataType,
-                                                                      mkldnn::memory::format_tag::x);
-        config.inConfs[END_ID].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(END_ID)->getShape().getStaticDims(), endDataType,
-                                                                    mkldnn::memory::format_tag::x);
+        config.inConfs[0].desc = itr->second->createUniqueDesc(dataPrecision, getInputShapeAtPort(DATA_ID));
+        config.inConfs[BEGIN_ID].desc = creators.at(LayoutType::ncsp)->createUniqueDesc(beginPrecision, getInputShapeAtPort(BEGIN_ID));
+        config.inConfs[END_ID].desc = creators.at(LayoutType::ncsp)->createUniqueDesc(endPrecision, getInputShapeAtPort(END_ID));
         if (hasStrides)
-            config.inConfs[STRIDE_ID].desc = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(getParentEdgeAt(STRIDE_ID)->getShape().getStaticDims(),
-                                                              MKLDNNExtensionUtils::IEPrecisionToDataType(stridePrecision),
-                                                              mkldnn::memory::format_tag::x);
+            config.inConfs[STRIDE_ID].desc = creators.at(LayoutType::ncsp)->createUniqueDesc(stridePrecision, getInputShapeAtPort(STRIDE_ID));
 
-        config.outConfs[0].desc = itr->second->createUniqueDesc(dataPrecision, getChildEdgeAt(DATA_ID)->getShape().getStaticDims());
+        config.outConfs[0].desc = itr->second->createUniqueDesc(dataPrecision, getOutputShapeAtPort(DATA_ID));
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     }
 }
@@ -267,11 +266,11 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has unidentified preferable primitive descriptor.";
 
-    auto srcBlockingDesc = getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
-    auto dstBlockingDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
-    auto srcOrder = srcBlockingDesc.getOrder();
-    params.srcDims = srcBlockingDesc.getBlockDims();
-    params.dstDims = dstBlockingDesc.getBlockDims();
+    auto srcBlockingDesc = getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto dstBlockingDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcOrder = srcBlockingDesc->getOrder();
+    params.srcDims = srcBlockingDesc->getBlockDims();
+    params.dstDims = dstBlockingDesc->getBlockDims();
     params.srcMemPtr = srcMemPtr;
     params.dstMemPtr = dstMemPtr;
     params.dataSize = getSelectedPrimitiveDescriptor()->getConfig().inConfs[DATA_ID].desc->getPrecision().size();
@@ -292,7 +291,7 @@ void MKLDNNStridedSliceNode::orderParametersByLayouts() {
     const bool isPerChannelLayout = getParentEdgeAt(DATA_ID)->getMemory().getDesc().hasLayoutType(LayoutType::nspc);
     const bool isBlockedLayout = getParentEdgeAt(DATA_ID)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c) ||
                                  getParentEdgeAt(DATA_ID)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c);
-    auto srcOrder = getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>().getOrder();
+    auto srcOrder = getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getOrder();
 
     if (isBlockedLayout) {
         const size_t blk = params.srcDims.back();
@@ -596,8 +595,8 @@ void MKLDNNStridedSliceNode::indicesCalculationForOptimized() {
 
 void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
     if (!params.parametersAreConstant) {
-        auto srcDims = getParentEdgeAt(DATA_ID)->getShape().getStaticDims();
-        auto dstDims = getChildEdgeAt(0)->getShape().getStaticDims();
+        auto srcDims = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+        auto dstDims = getChildEdgesAtPort(DATA_ID)[0]->getMemory().getStaticDims();
         const size_t nDims = std::max(srcDims.size(), dstDims.size());
         const size_t ellipsisMaskCounter = std::accumulate(ellipsisMask.begin(), ellipsisMask.end(), 0);
 

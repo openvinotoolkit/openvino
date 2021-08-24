@@ -27,18 +27,18 @@ public:
     static std::unique_ptr<DnnlMemoryDesc> convertToDnnlMemoryDesc(const MemoryDesc& desc);
 
     /**
-     * @brief Converts BlockedMemoryDesc to DnnlMemoryDesc
-     * @param desc BlockedMemoryDesc to be converted
-     * @return converted DnnlMemoryDesc
+     * @brief Converts MemoryDesc to DnnlBlockedMemoryDesc
+     * @param desc MemoryDesc to be converted
+     * @return converted DnnlBockedMemoryDesc
      */
-    static std::unique_ptr<DnnlMemoryDesc> convertToDnnlMemoryDesc(const CpuBlockedMemoryDesc& desc);
+    static DnnlBlockedMemoryDesc convertToDnnlBlockedMemoryDesc(const MemoryDesc& desc);
 
     /**
      * @brief Converts InferenceEngine::TensorDesc to DnnlBlockedMemoryDesc
      * @param desc InferenceEngine::TensorDesc to be converted
      * @return converted DnnlBlockedMemoryDesc
      */
-    static std::unique_ptr<DnnlBlockedMemoryDesc> convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc);
+    static DnnlBlockedMemoryDesc convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc);
 
     /**
      * @brief Converts MemoryDesc to BlockedMemoryDesc
@@ -59,7 +59,7 @@ public:
      * @param desc is the MemoryDesc to be cloned
      * @return pointer to the new MemoryDesc
      */
-    static std::unique_ptr<MemoryDesc> cloneWithDefaultStridesAndOffset(const MemoryDesc* desc);
+    static std::unique_ptr<MemoryDesc> cloneWithDefaultStridesAndOffset(const MemoryDesc& desc);
 
     /**
      * @brief Creates InferenceEngine::Blob from MemoryDesc
@@ -87,14 +87,14 @@ public:
      * @param dim Dim to be converted
      * @return dim as string
      */
-    static std::string dim2str(size_t dim);
+    static std::string dim2str(Dim dim);
 
     /**
      * @brief Converts dims to string, undefined dim represented as ?
      * @param dim Dims to be converted
      * @return dims as string
      */
-    static std::string dims2str(const std::vector<size_t>& dims);
+    static std::string dims2str(const VectorDims& dims);
 };
 
 }  // namespace MKLDNNPlugin

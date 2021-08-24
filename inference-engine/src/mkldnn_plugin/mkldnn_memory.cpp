@@ -105,7 +105,7 @@ void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroin
     } else {
         //delayed dynamic allocation
         size_t maxMemSize = pMemDesc->getMaxMemSize();
-        VectorDims dummySize{MemoryDesc::UNDEFINED_SIZE == maxMemSize ? 1 : maxMemSize};
+        VectorDims dummySize{MemoryDesc::UNDEFINED_SIZE == maxMemSize ? 0 : maxMemSize};
         DnnlBlockedMemoryDesc dummyDesc(InferenceEngine::Precision::U8, Shape(dummySize));
         Create(dummyDesc.getDnnlDesc(), data, false);  // no pads zeroing
     }
@@ -131,7 +131,8 @@ void MKLDNNMemory::SetData(const MKLDNNMemory& src, size_t size, bool ftz) const
 
 void MKLDNNMemory::FillZero() {
     void* dataPtr = GetData();
-    memset(dataPtr, 0, GetSize());
+    if (dataPtr != nullptr)
+        memset(dataPtr, 0, getDesc().getMaxMemSize());
 }
 
 void *MKLDNNMemory::GetPtr() const  {

@@ -64,7 +64,7 @@ void DnnlMemoryDesc::setPrecision(InferenceEngine::Precision prc) {
     desc.data.data_type = static_cast<dnnl_data_type_t>(MKLDNNExtensionUtils::IEPrecisionToDataType(prc));
 }
 
-std::unique_ptr<MemoryDesc> DnnlMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const {
+MemoryDescPtr DnnlMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const {
     IE_THROW(Unexpected) << "Cannot clone non blocked oneDNN desc with new dims";
 }
 

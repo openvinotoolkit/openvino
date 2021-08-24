@@ -25,7 +25,7 @@ namespace MKLDNNPlugin {
 class MemoryDesc;
 
 using MemoryDescPtr = std::unique_ptr<MemoryDesc>;
-using MemoryDescConstPtr = std::unique_ptr<const MemoryDesc>;
+using MemoryDescCPtr = std::unique_ptr<const MemoryDesc>;
 
 enum MemoryDescType {
     Undef = 0,

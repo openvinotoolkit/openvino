@@ -25,19 +25,17 @@ public:
     bool isCompatible(const DnnlBlockedMemoryDesc& rhs) const;
     bool isCompatible(const CpuBlockedMemoryDesc& rhs) const;
 
-    const std::vector<size_t>& getBlockDims() const override;
+    const VectorDims& getBlockDims() const override;
 
-    const std::vector<size_t>& getOrder() const override;
+    const VectorDims& getOrder() const override;
 
-    const std::vector<size_t>& getOffsetPaddingToData() const override;
+    const VectorDims& getOffsetPaddingToData() const override;
 
     size_t getOffsetPadding() const override;
 
-    const std::vector<size_t>& getStrides() const override;
+    const VectorDims& getStrides() const override;
 
     bool hasLayoutType(LayoutType layoutType) const override;
-
-    bool blocksExtended() const override;
 
     bool isSame(mkldnn::memory::format_tag fmt) const override;
 
@@ -45,16 +43,18 @@ public:
 
     size_t getMaxMemSize() const override;
 
+    bool blocksExtended() const override;
+
     size_t getPaddedElementsCount() const override;
 
 private:
-    DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const std::vector<size_t>& blockedDims,
-                            const std::vector<size_t>& order, size_t offsetPadding = 0, const std::vector<size_t>& offsetPaddingToData = {},
-                            const std::vector<size_t>& strides = {});
+    DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
+                            const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
+                            const VectorDims& strides = {});
 
     DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc);
 
-    std::unique_ptr<MemoryDesc> cloneWithNewDimsImp(const std::vector<size_t>& dims) const override;
+    MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
     bool isPlainFormat() const;
     bool isBlockedCFormat(size_t blk_size = UNREACHABLE_DIM) const;
@@ -70,5 +70,8 @@ private:
     friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
     friend class MemoryDescUtils;
 };
+
+using DnnlBlockedMemoryDescPtr = std::unique_ptr<DnnlBlockedMemoryDesc>;
+using DnnlBlockedMemoryDescCPtr = std::unique_ptr<const DnnlBlockedMemoryDesc>;
 
 } // namespace MKLDNNPlugin

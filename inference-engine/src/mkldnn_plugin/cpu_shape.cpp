@@ -8,12 +8,12 @@
 
 using namespace MKLDNNPlugin;
 
-bool Shape::isCompatible(const std::vector<size_t> &vecDims) const {
+bool Shape::isCompatible(const VectorDims &vecDims) const {
     if (getRank() != vecDims.size()) {
         return false;
     }
 
-    auto comparator = [](size_t lhs, size_t rhs) {
+    auto comparator = [](Dim lhs, Dim rhs) {
         return (lhs == rhs) || (lhs == Shape::UNDEFINED_DIM);
     };
 
@@ -21,11 +21,11 @@ bool Shape::isCompatible(const std::vector<size_t> &vecDims) const {
         return false;
     }
 
-    if (!std::equal(getMaxDims().begin(), getMaxDims().end(), vecDims.begin(), [](size_t lhs, size_t rhs) { return lhs >= rhs; })) {
+    if (!std::equal(getMaxDims().begin(), getMaxDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) { return lhs >= rhs; })) {
         return false;
     }
 
-    if (!std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](size_t lhs, size_t rhs) { return lhs <= rhs; })) {
+    if (!std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) { return lhs <= rhs; })) {
         return false;
     }
     return true;

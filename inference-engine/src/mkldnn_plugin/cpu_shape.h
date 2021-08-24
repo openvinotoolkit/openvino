@@ -9,7 +9,7 @@
 #include <utility>
 #include <ie_common.h>
 #include <ngraph/partial_shape.hpp>
-#include "mkldnn_dims.h"
+#include "cpu_types.h"
 
 namespace MKLDNNPlugin {
 
@@ -19,9 +19,9 @@ public:
 
     explicit Shape(const ngraph::PartialShape& shape) {
         minDims = shape.get_min_shape();
-        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](size_t x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
+        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](Dim x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
         maxDims = shape.get_max_shape();
-        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](size_t x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
+        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](Dim x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
         type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
 
         initDims();
@@ -48,7 +48,7 @@ public:
      * dims = [UNDEFINED_DIM, UNDEFINED_DIM, UNDEFINED_DIM, UNDEFINED_DIM]
      * @return return lower bound of shape = [1, 1, 1, 1]
      */
-    const std::vector<size_t>& getMinDims() const {
+    const VectorDims& getMinDims() const {
         return minDims;
     }
 
@@ -65,7 +65,7 @@ public:
      * dims = [UNDEFINED_DIM, UNDEFINED_DIM, UNDEFINED_DIM, UNDEFINED_DIM]
      * @return return upper bound of shape = [6, 6, 6, 6]
      */
-    const std::vector<size_t>& getMaxDims() const {
+    const VectorDims& getMaxDims() const {
         return maxDims;
     }
 
@@ -73,7 +73,7 @@ public:
      * @brief return defined shape or throw exception for dynamic case
      * @return return shape
      */
-    const std::vector<size_t>& getStaticDims() const {
+    const VectorDims& getStaticDims() const {
         if (type != ShapeType::Static) {
             IE_THROW() << "Cannot get dims for non static shape";
         }
@@ -94,7 +94,7 @@ public:
      * dims = [2, 3, UNDEFINED_DIM, UNDEFINED_DIM]
      * @return return shape with defined and undefined dims = [2, 3, UNDEFINED_DIM, UNDEFINED_DIM]
      */
-    const std::vector<size_t>& getDims() const {
+    const VectorDims& getDims() const {
         return dims;
     }
 
@@ -136,7 +136,7 @@ public:
         return ngraph::PartialShape(nGraphDims);
     }
 
-    bool isCompatible(const std::vector<size_t>& vecDims) const;
+    bool isCompatible(const VectorDims& vecDims) const;
 
     std::string toString() const;
 
@@ -149,10 +149,10 @@ public:
     }
 
     bool hasDefinedUpperBounds() const {
-        return std::all_of(maxDims.begin(), maxDims.end(), [](size_t dim){ return dim != UNDEFINED_DIM; });
+        return std::all_of(maxDims.begin(), maxDims.end(), [](Dim dim){ return dim != UNDEFINED_DIM; });
     }
 
-    enum : size_t {
+    enum : Dim {
         UNDEFINED_DIM = 0xffffffffffffffff
     };
 
@@ -169,8 +169,8 @@ private:
         Dynamic
     } type {ShapeType::Static};
 
-    std::vector<size_t> minDims;
-    std::vector<size_t> maxDims;
-    std::vector<size_t> dims;
+    VectorDims minDims;
+    VectorDims maxDims;
+    VectorDims dims;
 };
 }  // namespace MKLDNNPlugin

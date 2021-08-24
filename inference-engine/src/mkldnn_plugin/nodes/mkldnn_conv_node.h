@@ -18,7 +18,7 @@ class MKLDNNConvolutionNode : public MKLDNNNode {
 public:
     MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
                           const std::vector<const MemoryDesc*>& outputDesc) override;

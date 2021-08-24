@@ -23,8 +23,12 @@ using namespace InferenceEngine;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
 
-bool MKLDNNShuffleChannelsNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNShuffleChannelsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto shuffleChannels = std::dynamic_pointer_cast<const ngraph::op::v0::ShuffleChannels>(op);
         if (!shuffleChannels) {
             errorMessage = "Only opset1 ShuffleChannels operation is supported";
@@ -159,10 +163,10 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
 
     const int channelDim = 1;
     if (isBlocked) {
-        const auto blkDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
-        size_t blkSize = blkDesc.getBlockDims().back();
+        const auto blkDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        size_t blkSize = blkDesc->getBlockDims().back();
         size_t CB = div_up(inShape_[1], blkSize);
-        SizeVector srcBlockedDims = blkDesc.getBlockDims();
+        SizeVector srcBlockedDims = blkDesc->getBlockDims();
         if (axis_ > channelDim) {  // axis on spatial
             for (int i = 0; i < batchRank; i++) {
                 params.order[i] = i;

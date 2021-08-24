@@ -43,7 +43,7 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
     }
     // Allocate all output blobs if shape is static, delay allocation otherwise
     for (const auto& it : _networkOutputs) {
-        if (!(it.second->isDynamic()))
+        if (!graph->getOutputNodeByName(it.first)->isDynamicNode())
             MKLDNNInferRequest::GetBlob(it.first);
     }
 
@@ -339,7 +339,8 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
             }
         }
         data = _outputs[name];
-        checkBlob(data, name, false);
+        const auto node = graph->getOutputNodeByName(name);
+        checkBlob(data, name, false, node->isDynamicNode() ? node->getParentEdgeAt(0)->getMemory().getStaticDims() : InferenceEngine::SizeVector{});
     }
     if (!data) {
         IE_THROW() << "Cannot find blob with name: " << name;

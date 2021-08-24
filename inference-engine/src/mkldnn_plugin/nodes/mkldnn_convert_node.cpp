@@ -7,13 +7,19 @@
 #include "common/cpu_convert.h"
 #include "common/blocked_desc_creator.h"
 #include <ngraph/opsets/opset1.hpp>
+#include "utils/ngraph_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNConvertNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNConvertNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         const auto convert = std::dynamic_pointer_cast<const ngraph::opset1::Convert>(op);
         if (!convert) {
             errorMessage = "Only opset1 Convert operation is supported";
@@ -94,10 +100,10 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
         dataConfigOut.desc->setPrecision(output->getPrecision());
         config.outConfs.push_back(dataConfigOut);
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
-    } else if (getOriginalInputsNumber() == 1 && getOriginalOutputsNumber() == 1) {
-        const Shape& insShape = getParentEdgeAt(0)->getShape();
+    } else if (inputShapes.size() == 1 && outputShapes.size() == 1) {
+        const Shape& insShape = getInputShapeAtPort(0);
         auto insPrecision = getOriginalInputPrecisionAtPort(0);
-        const Shape& outputShape = getChildEdgeAt(0)->getShape();
+        const Shape& outputShape = getOutputShapeAtPort(0);
         auto outPrecision = getOriginalOutputPrecisionAtPort(0);
 
         config.inConfs.push_back(dataIn);
@@ -107,8 +113,8 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
         auto range = BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
 
         for (auto itr = range.first; itr != range.second; ++itr) {
-            config.inConfs[0].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape.getDims()));
-            config.outConfs[0].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape.getDims()));
+            config.inConfs[0].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape));
+            config.outConfs[0].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape));
 
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }

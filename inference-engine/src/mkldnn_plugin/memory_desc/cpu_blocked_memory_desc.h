@@ -13,9 +13,9 @@ class CpuBlockedMemoryDesc : public BlockedMemoryDesc {
 public:
     CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape);
 
-    CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const std::vector<size_t>& blockedDims,
-                         const std::vector<size_t>& order, size_t offsetPadding = 0, const std::vector<size_t>& offsetPaddingToData = {},
-                         const std::vector<size_t>& strides = {});
+    CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
+                         const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
+                         const VectorDims& strides = {});
 
     MemoryDescPtr clone() const override {
         return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(*this);
@@ -33,7 +33,7 @@ public:
         precision = std::move(prc);
     }
 
-    const std::vector<size_t>& getBlockDims() const override {
+    const VectorDims& getBlockDims() const override {
         return blockedDims;
     }
 
@@ -42,7 +42,7 @@ public:
      *
      * @return order
      */
-    const std::vector<size_t>& getOrder() const override {
+    const VectorDims& getOrder() const override {
         return order;
     }
 
@@ -51,7 +51,7 @@ public:
      *
      * @return offsets
      */
-    const std::vector<size_t>& getOffsetPaddingToData() const override {
+    const VectorDims& getOffsetPaddingToData() const override {
         return offsetPaddingToData;
     }
     /**
@@ -68,7 +68,7 @@ public:
      *
      * @return strides
      */
-    const std::vector<size_t>& getStrides() const override {
+    const VectorDims& getStrides() const override {
         return strides;
     }
 
@@ -90,12 +90,15 @@ private:
     bool isBlockedCFormat(size_t blk_size) const;
     bool isTailCFormat() const;
     bool isDefinedImp() const override;
-    std::unique_ptr<MemoryDesc> cloneWithNewDimsImp(const std::vector<size_t>& dims) const override;
+    MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
 private:
     InferenceEngine::Precision precision;
     size_t offsetPadding;
     mutable VectorDims paddedDims;
 };
+
+using CpuBlockedMemoryDescPtr = std::unique_ptr<CpuBlockedMemoryDesc>;
+using CpuBlockedMemoryDescCPtr = std::unique_ptr<const CpuBlockedMemoryDesc>;
 
 } // namespace MKLDNNPlugin

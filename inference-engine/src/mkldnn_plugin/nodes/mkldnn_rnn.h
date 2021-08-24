@@ -8,6 +8,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
@@ -44,8 +45,6 @@ private:
     void copyWeightsData();
 
 private:
-    using DnnlMemoryDescPtr = std::unique_ptr<DnnlMemoryDesc>;
-
     InferenceEngine::Precision runtimePrecision;
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
@@ -73,8 +72,8 @@ private:
     const size_t L = 1;   /**< What is it??. Constant for mkldnn impl */
     const size_t D = 1;   /**< Num of direction. 1 or 2 */
 
-    std::vector<DnnlMemoryDesc> in_data_d;
-    std::vector<DnnlMemoryDesc> out_data_d;
+    std::vector<DnnlBlockedMemoryDesc> in_data_d;
+    std::vector<DnnlBlockedMemoryDesc> out_data_d;
 
     enum RNNInOutKind {
         Layer       = 0,
@@ -82,9 +81,9 @@ private:
         CellState   = 2
     };
 
-    DnnlMemoryDescPtr w_data_d;
-    DnnlMemoryDescPtr w_state_d;
-    DnnlMemoryDescPtr w_bias_d;
+    DnnlBlockedMemoryDescPtr w_data_d;
+    DnnlBlockedMemoryDescPtr w_state_d;
+    DnnlBlockedMemoryDescPtr w_bias_d;
 
     std::vector<size_t > in_data_dims;
     std::vector<size_t > out_data_dims;

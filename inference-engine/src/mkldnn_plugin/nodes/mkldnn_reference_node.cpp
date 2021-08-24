@@ -64,9 +64,9 @@ std::vector<std::vector<size_t>> MKLDNNReferenceNode::shapeInfer() const {
 
     opToShapeInfer->validate_and_infer_types();
 
-    IE_ASSERT(opToShapeInfer->get_output_size() == getOriginalOutputsNumber());
+    IE_ASSERT(opToShapeInfer->get_output_size() == outputShapes.size());
 
-    std::vector<std::vector<size_t>> newShapes(getOriginalOutputsNumber());
+    std::vector<std::vector<size_t>> newShapes(outputShapes.size());
     for (size_t i = 0; i < newShapes.size(); i++) {
         newShapes[i] = opToShapeInfer->get_output_partial_shape(i).get_shape();
     }

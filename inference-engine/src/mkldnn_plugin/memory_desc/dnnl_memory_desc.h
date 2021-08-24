@@ -24,7 +24,7 @@ public:
         return desc.data.format_kind;
     }
 
-    std::unique_ptr<MemoryDesc> clone() const override {
+    MemoryDescPtr clone() const override {
         return MKLDNNPlugin::make_unique<DnnlMemoryDesc>(*this);
     }
 
@@ -61,7 +61,7 @@ private:
 
     size_t getCurrentMemSizeImp() const override;
     bool isDefinedImp() const override;
-    std::unique_ptr<MemoryDesc> cloneWithNewDimsImp(const std::vector<size_t>& dims) const override;
+    MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
     friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
 };

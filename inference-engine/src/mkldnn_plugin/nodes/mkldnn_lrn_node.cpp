@@ -12,8 +12,13 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNLrnNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNLrnNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         const auto lrn = std::dynamic_pointer_cast<const ngraph::opset1::LRN>(op);
         if (!lrn) {
             errorMessage = "Only opset1 LRN operation is supported";
@@ -90,18 +95,17 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
         precision = InferenceEngine::Precision::FP32;
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
-    const auto &parentShape = getParentEdgeAt(0)->getShape();
-    const auto parentStaticDims = parentShape.getStaticDims();
+    const auto &parentShape = getInputShapeAtPort(0);
 
     for (auto format : getAvailableFormatsForDims(parentShape)) {
-        auto in_candidate = MKLDNNPlugin::make_unique<DnnlMemoryDesc>(parentStaticDims, inputDataType, format);
+        auto in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(parentShape, inputDataType, format);
         createDescriptor({in_candidate.get()}, {});
     }
 }
 
 std::unique_ptr<MemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (idx > 0) {
-        return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getParentEdgeAt(idx)->getShape());
+        return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     } else {
         return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
     }
@@ -128,7 +132,7 @@ void MKLDNNLrnNode::createDescriptor(const std::vector<const MemoryDesc*> &input
                                      const std::vector<const MemoryDesc*> &outputDesc) {
     mkldnn::algorithm alg = isAcrossMaps ? mkldnn::algorithm::lrn_across_channels : mkldnn::algorithm::lrn_within_channel;
     MKLDNNDescriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
-            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, MemoryDescUtils::convertToDnnlMemoryDesc(*inputDesc[0]),
+            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, MemoryDescUtils::convertToDnnlMemoryDesc(*inputDesc[0])->getDnnlDesc(),
                                           size, alpha, beta, k)));
     descs.push_back(desc);
 }

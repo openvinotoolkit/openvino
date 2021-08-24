@@ -77,15 +77,15 @@ void MKLDNNReorderNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    auto inDims = getParentEdgeAt(0)->getShape().getStaticDims();
+    auto inDims = srcMemPtr->GetShape().getStaticDims();
 
     if (!isOptimized) {
         const auto &parentMem = getParentEdgeAt(0)->getMemory();
         if (MKLDNNPlugin::one_of(inDims.size(), 4, 5) &&
                 inDims[1] <= 64 &&
                 inDims[1] >= 16 &&
-                (parentMem.getDesc().hasLayoutType(LayoutType::nspc) &&
-                parentMem.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128 &&
+                parentMem.getDesc().hasLayoutType(LayoutType::nspc) &&
+                (parentMem.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128 &&
                 getChildEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
                 parentMem.getDesc().getPrecision() == Precision::FP32 &&
                 getChildEdgeAt(0)->getMemory().getDesc().getPrecision() == Precision::FP32) {
@@ -175,7 +175,7 @@ void MKLDNNReorderNode::optimizedNcsp2Nspc() {
     auto parentEdge = getParentEdgeAt(0);
     auto childEdge = getChildEdgeAt(0);
 
-    auto inDims = parentEdge->getShape().getStaticDims();
+    auto inDims = parentEdge->getMemory().GetShape().getStaticDims();
     const size_t ndims = inDims.size();
     const size_t DIM0 = inDims[0];
     const size_t DIM1 = inDims[1];
@@ -206,7 +206,7 @@ void MKLDNNReorderNode::optimizedNspc2Ncsp() {
     auto parentEdge = getParentEdgeAt(0);
     auto childEdge = getChildEdgeAt(0);
 
-    auto inDims = parentEdge->getShape().getStaticDims();
+    auto inDims = parentEdge->getMemory().GetShape().getStaticDims();
     const size_t ndims = inDims.size();
     const size_t DIM0 = inDims[0];
     const size_t DIM1 = inDims[1];

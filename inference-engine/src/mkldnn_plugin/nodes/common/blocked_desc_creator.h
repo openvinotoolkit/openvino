@@ -28,17 +28,11 @@ public:
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
     makeFilteredRange(const CreatorsMap& map, Predicate predicate);
     virtual CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const = 0;
+
     std::unique_ptr<CpuBlockedMemoryDesc> createUniqueDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const {
         return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(createDesc(precision, srcShape));
     }
 
-    // TODO [DS]: phase 2 remove
-    virtual CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const {
-        return createDesc(precision, Shape(srcDims));
-    }
-    std::unique_ptr<CpuBlockedMemoryDesc> createUniqueDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const {
-        return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(createDesc(precision, srcDims));
-    }
     virtual size_t getMinimalRank() const = 0;
     virtual ~BlockedDescCreator() = default;
 };

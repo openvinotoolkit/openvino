@@ -17,21 +17,21 @@ public:
      *
      * @return blocked dimensions
      */
-    virtual const std::vector<size_t>& getBlockDims() const = 0;
+    virtual const VectorDims& getBlockDims() const = 0;
 
     /**
      * @brief Returns the vector of order
      *
      * @return order
      */
-    virtual const std::vector<size_t>& getOrder() const = 0;
+    virtual const VectorDims& getOrder() const = 0;
 
     /**
      * @brief Returns the per-dimension offset vector
      *
      * @return offsets
      */
-    virtual const std::vector<size_t>& getOffsetPaddingToData() const = 0;
+    virtual const VectorDims& getOffsetPaddingToData() const = 0;
 
     /**
      * @brief Returns the offset to the current memory block
@@ -45,7 +45,7 @@ public:
      *
      * @return strides
      */
-    virtual const std::vector<size_t>& getStrides() const = 0;
+    virtual const VectorDims& getStrides() const = 0;
 
     /**
      * @brief Check that desc has padded dims
@@ -72,9 +72,9 @@ protected:
     bool isCompatible(const BlockedMemoryDesc &rhs) const;
 
     mutable VectorDims blockedDims;
-    mutable std::vector<size_t> strides;
-    mutable std::vector<size_t> order;
-    mutable std::vector<size_t> offsetPaddingToData;
+    mutable VectorDims strides;
+    mutable VectorDims order;
+    mutable VectorDims offsetPaddingToData;
 };
 
 using BlockedMemoryDescPtr = std::unique_ptr<BlockedMemoryDesc>;

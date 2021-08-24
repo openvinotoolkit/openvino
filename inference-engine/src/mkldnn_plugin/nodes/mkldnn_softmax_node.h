@@ -23,6 +23,8 @@ public:
     void createPrimitive() override;
     bool created() const override;
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     size_t axis = 0;
 };

@@ -21,8 +21,12 @@ using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 
-bool MKLDNNPSROIPoolingNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNPSROIPoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto psroi = std::dynamic_pointer_cast<const ngraph::opset1::PSROIPooling>(op);
         const auto defPsroi = std::dynamic_pointer_cast<const ngraph::opset1::DeformablePSROIPooling>(op);
         if (!psroi && !defPsroi) {
@@ -182,7 +186,7 @@ inline float bilinearInterp(const inputType* data, const float x, const float y,
     return value;
 }
 
-void MKLDNNPSROIPoolingNode::unpackParams(const CpuBlockedMemoryDesc& srcDesc, const CpuBlockedMemoryDesc& dstDesc,
+void MKLDNNPSROIPoolingNode::unpackParams(const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc,
                                           int& hInputStride, int& wInputStride,
                                           int& hOutputStride, int& wOutputStride,
                                           int& inBlockSize, int& outBlockSize,
@@ -227,7 +231,7 @@ void MKLDNNPSROIPoolingNode::unpackParams(const CpuBlockedMemoryDesc& srcDesc, c
 template <typename inputType, typename outputType>
 void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType *dstData, const float *bottomRois,
                                             const int n, const int roiBatchInd,
-                                            const CpuBlockedMemoryDesc& srcDesc, const CpuBlockedMemoryDesc& dstDesc) {
+                                            const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc) {
     int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
     unsigned long inputChannelsPadding, outputChannelsPadding;
     unpackParams(srcDesc, dstDesc, hInputStride, wInputStride, hOutputStride, wOutputStride,
@@ -310,7 +314,7 @@ void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType
 template <typename inputType, typename outputType>
 void MKLDNNPSROIPoolingNode::executeBilinear(const inputType *srcData, outputType *dstData, const float *bottomRois,
                                              const int currentRoi, const int roiBatchInd,
-                                             const CpuBlockedMemoryDesc& srcDesc, const CpuBlockedMemoryDesc& dstDesc) {
+                                             const BlockedMemoryDesc& srcDesc, const BlockedMemoryDesc& dstDesc) {
     int inBlockSize, outBlockSize, outBlockCount, hInputStride, wInputStride, hOutputStride, wOutputStride;
     unsigned long inputChannelsPadding, outputChannelsPadding;
     unpackParams(srcDesc, dstDesc, hInputStride, wInputStride, hOutputStride, wOutputStride,
@@ -479,8 +483,8 @@ void MKLDNNPSROIPoolingNode::executeSpecified() {
     const auto *bottomRoisBeginning = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
+    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
 
     int realRois = 0;
     for (; realRois < nn; realRois++) {
@@ -495,8 +499,9 @@ void MKLDNNPSROIPoolingNode::executeSpecified() {
     int numClasses = 1;
     int channelsEachClass = outputDim;
     if (!noTrans) {
-        bottomTrans = reinterpret_cast<const float *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-        numClasses = static_cast<int>(getParentEdgeAt(2)->getShape().getStaticDims()[1]) / 2;
+        const auto mem = getParentEdgeAt(2)->getMemoryPtr();
+        bottomTrans = reinterpret_cast<const float *>(mem->GetPtr());
+        numClasses = static_cast<int>(mem->getStaticDims()[1]) / 2;
         channelsEachClass /= numClasses;
     }
 
@@ -504,9 +509,9 @@ void MKLDNNPSROIPoolingNode::executeSpecified() {
         const float *bottomRois = bottomRoisBeginning + currentRoi * 5;
         int roiBatchInd = static_cast<int>(bottomRois[0]);
         if (getAlgorithm() == Algorithm::PSROIPoolingAverage) {
-            executeAverage(srcData, dstData, bottomRois, currentRoi, roiBatchInd, srcDesc, dstDesc);
+            executeAverage(srcData, dstData, bottomRois, currentRoi, roiBatchInd, *srcDesc, *dstDesc);
         } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinear) {
-            executeBilinear(srcData, dstData, bottomRois, currentRoi, roiBatchInd, srcDesc, dstDesc);
+            executeBilinear(srcData, dstData, bottomRois, currentRoi, roiBatchInd, *srcDesc, *dstDesc);
         } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable) {
             executeBilinearDeformable(srcData, dstData, bottomRois, bottomTrans,
                     numClasses, channelsEachClass, currentRoi, roiBatchInd);

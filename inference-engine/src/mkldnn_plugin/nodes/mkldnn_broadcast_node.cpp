@@ -17,8 +17,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto broadcast = std::dynamic_pointer_cast<const ngraph::opset1::Broadcast>(op);
         if (!broadcast) {
             errorMessage = "Only opset1 Broadcast operation is supported";
@@ -71,9 +75,9 @@ void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
     SizeVector dst_dims = getChildEdgeAt(0)->getMemory().getStaticDims();
     SizeVector src_dims = getParentEdgeAt(BROADCAST_INPUT)->getMemory().getStaticDims();
 
-    auto srcDesc = getParentEdgeAt(BROADCAST_INPUT)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
-    SizeVector srcStrides = srcDesc.getStrides();
-    size_t data_size = srcDesc.getPrecision().size();
+    auto srcDesc = getParentEdgeAt(BROADCAST_INPUT)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    SizeVector srcStrides = srcDesc->getStrides();
+    size_t data_size = srcDesc->getPrecision().size();
 
     if (!src_dims.size())
         src_dims = SizeVector(1, 1);
@@ -88,8 +92,8 @@ void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
         IE_THROW() << "Output tensor dimension is smaller then input tensor dimension";
     }
 
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<CpuBlockedMemoryDesc>();
-    InferenceEngine::SizeVector dstStrides = dstDesc.getStrides();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    InferenceEngine::SizeVector dstStrides = dstDesc->getStrides();
     InferenceEngine::SizeVector src_aligned(dst_dims.size());
     InferenceEngine::SizeVector srcStrides_aligned(dst_dims.size());
     size_t prefix_size = dst_dims.size() - src_dims.size();

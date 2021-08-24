@@ -11,6 +11,7 @@
 #include <ie_parallel.hpp>
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
+#include "utils/ngraph_utils.hpp"
 
 #define THROW_ERROR IE_THROW() << "Split layer with name '" << getName() <<"' "
 
@@ -20,6 +21,11 @@ using namespace InferenceEngine;
 
 bool MKLDNNSplitNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v1::Split::type_info, ngraph::op::v1::VariadicSplit::type_info)) {
             errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
             return false;
@@ -75,9 +81,9 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto srcShape = getParentEdgeAt(0)->getShape();
+    auto srcShape = getInputShapeAtPort(0);
     auto axis_size = 0;
-    auto dstFirstDims = getChildEdgeAt(0)->getShape().getStaticDims();
+    auto dstFirstDims = getOutputShapeAtPort(0).getStaticDims();
     for (size_t i = 0; i < outputShapes.size(); i++) {
         auto o_Dims = outputShapes[i].getStaticDims();
         if (dstFirstDims.size() != o_Dims.size()) {
@@ -139,7 +145,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace = -1;
         config.inConfs[0].constant = false;
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, srcShape.getStaticDims()));
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, srcShape));
         config.inConfs[1].inPlace = -1;
         config.inConfs[1].constant = true;
         config.inConfs[1].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector {1}));
@@ -153,7 +159,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             config.outConfs[i].inPlace = -1;
             config.outConfs[i].constant = false;
-            config.outConfs[i].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, outputShapes[i].getStaticDims()));
+            config.outConfs[i].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, outputShapes[i]));
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
 
@@ -210,7 +216,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace = -1;
         config.inConfs[0].constant = false;
-        config.inConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createUniqueDesc(inpPrecision, srcShape.getStaticDims());
+        config.inConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createUniqueDesc(inpPrecision, srcShape);
         config.inConfs[1].inPlace = -1;
         config.inConfs[1].constant = true;
         config.inConfs[1].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{1}));
@@ -223,7 +229,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             config.outConfs[i].inPlace = -1;
             config.outConfs[i].constant = false;
-            config.outConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(inpPrecision, outputShapes[i].getStaticDims());
+            config.outConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(inpPrecision, outputShapes[i]);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     }
@@ -274,7 +280,7 @@ void MKLDNNSplitNode::execute(mkldnn::stream strm) {
     }
 
     uint8_t* srcData = reinterpret_cast<uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    size_t batch = this->getParentEdgeAt(0)->getShape().getStaticDims()[0];
+    size_t batch = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()[0];
 
     if (batch != MB)
         optimizedParams.countStrides = optimizedParams.countStrides / batch * MB;
@@ -327,7 +333,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
         }
 
         // reset undefined offsets
-        config.inConfs[i].desc = MemoryDescUtils::cloneWithDefaultStridesAndOffset(config.inConfs[i].desc.get());
+        config.inConfs[i].desc = MemoryDescUtils::cloneWithDefaultStridesAndOffset(*config.inConfs[i].desc);
     }
     if (config.outConfs.size() != outputShapes.size())
         THROW_ERROR << "has invalid config";
@@ -335,7 +341,8 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     auto firstInBlockingDesc = config.inConfs[0].desc->as<BlockedMemoryDesc>();
     size_t offset = 0;
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        auto outBlockingDesc = config.outConfs[i].desc->as<BlockedMemoryDesc>();
+        auto oldDesc = config.outConfs[i].desc->clone();
+        auto outBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
         config.outConfs[i].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(outBlockingDesc->getPrecision(),
                                                                  outBlockingDesc->getShape(),
                                                                  outBlockingDesc->getBlockDims(),
@@ -507,8 +514,8 @@ void MKLDNNSplitNode::prepareOptimizedParams() {
 
 void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
     auto parentEdge = getParentEdgeAt(0);
-    const int rank = parentEdge->getShape().getRank();
-    const auto parentDims = parentEdge->getShape().getStaticDims();
+    const int rank = parentEdge->getMemory().GetShape().getRank();
+    const auto parentDims = parentEdge->getMemory().getStaticDims();
     const size_t IC = parentDims[1];
     const size_t D = rank == 5 ? parentDims[rank - 3] : 1;
     const size_t H = parentDims[rank - 2];

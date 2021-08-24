@@ -112,7 +112,7 @@ TEST(MemDescTest, TurnToUninit) {
         ASSERT_FALSE(blockedDesc.isCompatible(stridedBlockedDesc));
         ASSERT_TRUE(uninitMkldnnDesc->isCompatible(stridedBlockedDesc));
 
-        auto initMkldnnDesc = MemoryDescUtils::cloneWithDefaultStridesAndOffset(uninitMkldnnDesc.get());
+        auto initMkldnnDesc = MemoryDescUtils::cloneWithDefaultStridesAndOffset(*uninitMkldnnDesc);
 
         ASSERT_TRUE(initMkldnnDesc->isCompatible(blockedDesc));
         ASSERT_FALSE(initMkldnnDesc->isCompatible(stridedBlockedDesc));
