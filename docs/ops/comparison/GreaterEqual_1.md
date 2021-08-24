@@ -7,9 +7,9 @@
 **Short description**: *GreaterEqual* performs element-wise comparison operation with two given tensors applying broadcast rules specified in the `auto_broadcast` attribute.
 
 **Detailed description**
-Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attribute is not `none`. Broadcasting is performed according to `auto_broadcast` value.
 
-After broadcasting *GreaterEqual* does the following with the input tensors *a* and *b*:
+After broadcasting, *GreaterEqual* does the following with the input tensors *a* and *b*:
 
 \f[
 o_{i} = a_{i} \geq b_{i}
