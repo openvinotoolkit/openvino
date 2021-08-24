@@ -108,10 +108,13 @@ protected:
         auto groupConv = ngraph::builder::makeGroupConvolutionBackpropDataRelaxed(paramOuts[0], weiPrc, kernel,
                     stride, padBegin, padEnd, dilation, padType, convOutChannels, numGroups);
 
-        if (inPrc == Precision::U8 || inPrc == Precision::I8) {
+        if (outPrc == Precision::U8 || outPrc == Precision::I8) {
             threshold = 1.001f;
             outElemType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
             quantizeInHigh = calculateQuantizeInHigh(kernel, inputShape[1], numGroups);
+        }
+
+        if (inPrc == Precision::U8 || inPrc == Precision::I8) {
             additionalPasses.push_back(std::make_shared<pass::ConvertPrecision<element::i8, element::f32>>());
             additionalPasses.push_back(std::make_shared<pass::ConvertPrecision<element::u8, element::f32>>());
         }
