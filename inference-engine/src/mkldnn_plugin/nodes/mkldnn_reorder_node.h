@@ -75,6 +75,13 @@ private:
     bool isNspc2NcspCase = false;
     bool canUseNspc2Ncsp = false;
     bool canUseNcsp2Nspc = false;
+    bool useDirectCopy = false;
+
+    struct DirectCopyParams {
+        MKLDNNMemoryCPtr srcMem;
+        MKLDNNMemoryPtr dstMem;
+        size_t dataSize;
+    } directCopyParams;
 
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();

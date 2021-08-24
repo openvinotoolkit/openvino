@@ -116,23 +116,67 @@ void MKLDNNReorderNode::prepareParams() {
         if (getSelectedPrimitiveDescriptor() == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
 
-        if (isNspc2NcspCase) {
-            const auto &inDims = srcMemPtr->getStaticDims();
-            canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
-                              (srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128;
-        }
-        if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
-            auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-            auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-            if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-                IE_THROW() << "Destination memory didn't allocate.";
-            if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-                IE_THROW() << "Input memory didn't allocate.";
-            if (getSelectedPrimitiveDescriptor() == nullptr)
-                IE_THROW() << "Preferable primitive descriptor is not set.";
+        auto inDims = srcMemPtr->GetShape().getStaticDims();
 
-            createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->GetPrimitive().get_data_handle(),
-                                   dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->GetPrimitive().get_data_handle());
+        BlockedMemoryDescPtr srcBlockDesc;
+        BlockedMemoryDescPtr dstBlockDesc;
+        bool descsAreBlocked = true;
+        // This ugly construction will be changed with a bitmask check when the Dynamic Shapes Phase 2 is completed
+        try {
+            srcBlockDesc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(srcMemPtr->GetDescWithType<BlockedMemoryDesc>());
+            dstBlockDesc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(dstMemPtr->GetDescWithType<BlockedMemoryDesc>());
+        }
+        catch (const InferenceEngine::GeneralError& excp) {
+            descsAreBlocked = false;
+        }
+
+        if (descsAreBlocked &&
+            srcBlockDesc->isDefined() && dstBlockDesc->isDefined()) {
+            // Only partial compatibility check since we allow incompatible offsets
+            useDirectCopy = srcBlockDesc->getShape().getRank() == srcBlockDesc->getShape().getRank() &&
+                    srcBlockDesc->getShape().getRank() != 0 &&
+                    srcBlockDesc->getPrecision() == dstBlockDesc->getPrecision() &&
+                    srcBlockDesc->getBlockDims() == dstBlockDesc->getBlockDims() &&
+                    srcBlockDesc->getOrder() == dstBlockDesc->getOrder() &&
+                    srcBlockDesc->getOffsetPaddingToData() == dstBlockDesc->getOffsetPaddingToData();
+
+            auto& srcStrides = srcBlockDesc->getStrides();
+            auto& dstStrides = dstBlockDesc->getStrides();
+            size_t startAxis = srcBlockDesc->getBlockDims().front() == 1 ? 1 : 0;
+            useDirectCopy = useDirectCopy && std::equal(srcStrides.begin() + startAxis, srcStrides.end(), dstStrides.begin() + startAxis);
+
+            //Check that the tensors are dense
+            useDirectCopy = srcStrides.back() == 1;
+            auto &blkDims = srcBlockDesc->getBlockDims();
+            for (size_t i = startAxis; useDirectCopy && i < srcStrides.size() - 1; ++i) {
+                useDirectCopy = useDirectCopy && (srcStrides[i] == blkDims[i + 1] * srcStrides[i + 1]);
+            }
+
+            if (useDirectCopy) {
+                directCopyParams.srcMem = srcMemPtr;
+                directCopyParams.dstMem = dstMemPtr;
+                directCopyParams.dataSize = dstMemPtr->GetSize(); // be careful since this is just padded elements count multiplied by the data size
+            }
+        }
+        if (!useDirectCopy) {
+            if (isNspc2NcspCase) {
+                const auto &inDims = srcMemPtr->getStaticDims();
+                canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
+                                  (srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128;
+            }
+            if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
+                auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+                auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+                if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+                    IE_THROW() << "Destination memory didn't allocate.";
+                if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+                    IE_THROW() << "Input memory didn't allocate.";
+                if (getSelectedPrimitiveDescriptor() == nullptr)
+                    IE_THROW() << "Preferable primitive descriptor is not set.";
+
+                createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->GetPrimitive().get_data_handle(),
+                                       dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->GetPrimitive().get_data_handle());
+            }
         }
     }
 }
@@ -265,7 +309,11 @@ void MKLDNNReorderNode::execute(mkldnn::stream strm) {
     if (isOptimized)
         return;
 
-    if (canUseNspc2Ncsp) {
+    if (useDirectCopy) {
+        auto srcPtr = directCopyParams.srcMem->GetPtr();
+        auto dstPtr = directCopyParams.dstMem->GetPtr();
+        cpu_memcpy(dstPtr, srcPtr, directCopyParams.dataSize);
+    } else if (canUseNspc2Ncsp) {
         optimizedNspc2Ncsp();
     } else if (canUseNcsp2Nspc) {
         optimizedNcsp2Nspc();
