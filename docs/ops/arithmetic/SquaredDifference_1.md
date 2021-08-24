@@ -2,7 +2,7 @@
 
 **Versioned name**: *SquaredDifference-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *SquaredDifference* performs element-wise subtract and square the result operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 

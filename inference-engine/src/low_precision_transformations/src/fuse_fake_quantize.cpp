@@ -31,7 +31,7 @@ FuseFakeQuantizeTransformation::FuseFakeQuantizeTransformation(const Params& par
 }
 
 bool FuseFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::FakeQuantize> fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(m.get_match_root());
+    std::shared_ptr<opset1::FakeQuantize> fakeQuantize = ov::as_type_ptr<ngraph::opset1::FakeQuantize>(m.get_match_root());
     do {
         fakeQuantize = handle(context, fakeQuantize);
     } while (fakeQuantize != nullptr);
@@ -55,11 +55,11 @@ std::shared_ptr<Node> updateShape(std::shared_ptr<Node> op, const PartialShape& 
 }
 
 std::shared_ptr<Node> getData(const std::shared_ptr<Node>& eltwise) {
-    if (!is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(0))) {
+    if (!ov::is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(0))) {
         return eltwise->get_input_node_shared_ptr(0);
     }
 
-    if (!is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(1))) {
+    if (!ov::is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(1))) {
         return eltwise->get_input_node_shared_ptr(1);
     }
 
@@ -71,12 +71,12 @@ std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwi
         return nullptr;
     }
 
-    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(1));
+    std::shared_ptr<opset1::Constant> constant = ov::as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(1));
     if (constant != nullptr) {
         return constant;
     }
 
-    return as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(0));
+    return ov::as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(0));
 }
 
 bool eltwiseWithConstant(const std::shared_ptr<Node>& eltwise) {
@@ -122,30 +122,30 @@ std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handle(
     std::shared_ptr<Node> inputHightConst = fakeQuantize->get_input_node_shared_ptr(2);
 
     std::shared_ptr<opset1::Constant> constant = fuse_fq::getConstant(eltwise);
-    if (is_type<opset1::Multiply>(eltwise) && fuse_fq::eltwiseWithConstant(eltwise)) {
+    if (ov::is_type<opset1::Multiply>(eltwise) && fuse_fq::eltwiseWithConstant(eltwise)) {
         const auto value = constant->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
             constant :
             foldConvert(constant, eltwise->get_output_element_type(0));
 
         inputLowConst = fuse_fq::updateShape(fold<opset1::Divide>(inputLowConst, value), fakeQuantize->get_output_partial_shape(0));
         inputHightConst = fuse_fq::updateShape(fold<opset1::Divide>(inputHightConst, value), fakeQuantize->get_output_partial_shape(0));
-    } else if (is_type<opset1::Divide>(eltwise) && fuse_fq::eltwiseWithConstant(eltwise)) {
+    } else if (ov::is_type<opset1::Divide>(eltwise) && fuse_fq::eltwiseWithConstant(eltwise)) {
         const auto value = constant->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
             constant :
             foldConvert(constant, eltwise->get_output_element_type(0));
 
         inputLowConst = fuse_fq::updateShape(fold<opset1::Multiply>(inputLowConst, value), fakeQuantize->get_output_partial_shape(0));
         inputHightConst = fuse_fq::updateShape(fold<opset1::Multiply>(inputHightConst, value), fakeQuantize->get_output_partial_shape(0));
-    } else if (is_type<opset1::Subtract>(eltwise) && fuse_fq::eltwiseWithConstant(eltwise)) {
+    } else if (ov::is_type<opset1::Subtract>(eltwise) && fuse_fq::eltwiseWithConstant(eltwise)) {
         const auto value = constant->get_output_element_type(0) == eltwise->get_output_element_type(0) ?
             constant :
             foldConvert(constant, eltwise->get_output_element_type(0));
 
         inputLowConst = fuse_fq::updateShape(fold<opset1::Add>(inputLowConst, value), fakeQuantize->get_output_partial_shape(0));
         inputHightConst = fuse_fq::updateShape(fold<opset1::Add>(inputHightConst, value), fakeQuantize->get_output_partial_shape(0));
-    } else if (is_type<opset1::Add>(eltwise) && fuse_fq::eltwiseWithConstant(eltwise)) {
-        if (is_type<opset1::Convolution>(fuse_fq::getData(eltwise)) ||
-            is_type<opset1::GroupConvolution>(fuse_fq::getData(eltwise))) {
+    } else if (ov::is_type<opset1::Add>(eltwise) && fuse_fq::eltwiseWithConstant(eltwise)) {
+        if (ov::is_type<opset1::Convolution>(fuse_fq::getData(eltwise)) ||
+            ov::is_type<opset1::GroupConvolution>(fuse_fq::getData(eltwise))) {
             return nullptr;
         }
 
@@ -155,7 +155,7 @@ std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handle(
 
         inputLowConst = fuse_fq::updateShape(fold<opset1::Subtract>(inputLowConst, value), fakeQuantize->get_output_partial_shape(0));
         inputHightConst = fuse_fq::updateShape(fold<opset1::Subtract>(inputHightConst, value), fakeQuantize->get_output_partial_shape(0));
-    } else if (is_type<opset1::Convert>(eltwise)) {
+    } else if (ov::is_type<opset1::Convert>(eltwise)) {
         // issue #40611
         if ((eltwise->input(0).get_element_type() == element::i32) && (eltwise->output(0).get_element_type() == element::f32)) {
             return nullptr;
@@ -164,7 +164,7 @@ std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handle(
         return nullptr;
     }
 
-    std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = as_type_ptr<opset1::FakeQuantize>(fakeQuantize->clone_with_new_inputs({
+    std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(fakeQuantize->clone_with_new_inputs({
         fuse_fq::getData(eltwise),
         inputLowConst,
         inputHightConst,
