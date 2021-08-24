@@ -64,7 +64,7 @@ private:
     static std::shared_ptr<Function> CreateFunction(const std::vector<int64_t>& out_shape,
                                                     const Tensor& min_val,
                                                     const Tensor& max_val,
-                                                    ngraph::element::Type out_type,
+                                                    const ngraph::element::Type& out_type,
                                                     int64_t global_seed,
                                                     int64_t op_seed) {
         const auto min_val_param = std::make_shared<opset8::Parameter>(min_val.type, min_val.shape);

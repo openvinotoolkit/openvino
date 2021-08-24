@@ -17,7 +17,7 @@ void random_uniform(const uint64_t* out_shape,
                     const char* max_val,
                     char* out,
                     const Shape& out_shape_shape,
-                    ngraph::element::Type elem_type,
+                    const ngraph::element::Type& elem_type,
                     uint64_t seed,
                     uint64_t seed2);
 
