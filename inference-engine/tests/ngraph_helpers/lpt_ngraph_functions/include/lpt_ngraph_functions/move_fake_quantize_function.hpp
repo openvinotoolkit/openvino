@@ -33,8 +33,6 @@ public:
         const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationAfter,
         const std::int64_t& axis);
-private:
-    static std::shared_ptr<Node> makeMaxPool(const Output<Node>& parent, const std::vector<size_t>& kernel);
 };
 
 }  // namespace subgraph

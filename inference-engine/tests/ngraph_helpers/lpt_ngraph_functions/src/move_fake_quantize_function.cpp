@@ -100,23 +100,6 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
     return function;
 }
 
-std::shared_ptr<Node> MoveFakeQuantize::makeMaxPool(const Output<Node>& parent, const std::vector<size_t>& kernel) {
-    const std::vector<size_t> stride = { 1, 1 };
-    const std::vector<size_t> padBegin = { 0, 0 };
-    const std::vector<size_t> padEnd = { 0, 0 };
-    const ngraph::op::PadType padType = ngraph::op::PadType::NOTSET;
-    const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
-    const auto pooling = std::make_shared<ngraph::opset1::MaxPool>(
-        parent,
-        stride,
-        padBegin,
-        padEnd,
-        kernel,
-        roundingType,
-        padType);
-    return pooling;
-}
-
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ngraph
