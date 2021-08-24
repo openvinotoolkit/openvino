@@ -16,6 +16,6 @@ set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
 project(memory_tests)
 
-find_package(InferenceEngineDeveloperPackage REQUIRED)
+find_package(InferenceEngine REQUIRED)
 
 add_subdirectory(src)
