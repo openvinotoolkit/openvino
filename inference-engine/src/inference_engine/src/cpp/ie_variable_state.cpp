@@ -6,6 +6,7 @@
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "details/ie_so_loader.h"
 #include "exception2status.hpp"
+#include "openvino/runtime/variable_state.hpp"
 
 #define VARIABLE_CALL_STATEMENT(...)                                    \
     if (_impl == nullptr)                                               \
@@ -13,7 +14,7 @@
     try {                                                               \
         __VA_ARGS__;                                                    \
     } catch (...) {                                                     \
-        details::Rethrow();                                             \
+        ::InferenceEngine::details::Rethrow();                          \
     }
 
 namespace InferenceEngine {
@@ -44,3 +45,31 @@ void VariableState::SetState(Blob::Ptr state) {
 }
 
 }  // namespace InferenceEngine
+
+namespace ov {
+namespace runtime {
+
+VariableState::VariableState(const std::shared_ptr<SharedObject>& so, const ie::IVariableStateInternal::Ptr& impl)
+    : _so{so},
+      _impl{impl} {
+    IE_ASSERT(_impl != nullptr);
+}
+
+void VariableState::reset() {
+    VARIABLE_CALL_STATEMENT(_impl->Reset());
+}
+
+std::string VariableState::get_name() const {
+    VARIABLE_CALL_STATEMENT(return _impl->GetName());
+}
+
+ie::Blob::CPtr VariableState::get_state() const {
+    VARIABLE_CALL_STATEMENT(return _impl->GetState());
+}
+
+void VariableState::set_state(const ie::Blob::Ptr& state) {
+    VARIABLE_CALL_STATEMENT(_impl->SetState(state));
+}
+
+}  // namespace runtime
+}  // namespace ov
