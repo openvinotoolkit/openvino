@@ -3,7 +3,7 @@
 
 import unittest
 
-from extensions.front.sparse_to_dense_replacer import SparseToDenseReplacer
+from extensions.front.tf.sparse_to_dense_replacer import SparseToDenseReplacer
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, const
