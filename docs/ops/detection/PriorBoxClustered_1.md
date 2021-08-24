@@ -2,7 +2,7 @@
 
 **Versioned name**: *PriorBoxClustered-1*
 
-**Category**: Object detection
+**Category**: *Object detection*
 
 **Short description**: *PriorBoxClustered* operation generates prior boxes of specified sizes normalized to the input image size.
 

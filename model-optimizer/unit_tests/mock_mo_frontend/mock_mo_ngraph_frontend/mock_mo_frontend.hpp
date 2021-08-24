@@ -425,9 +425,9 @@ public:
 private:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override
     {
-        if (params.size() > 0 && is_type<VariantWrapper<std::string>>(params[0]))
+        if (params.size() > 0 && ov::is_type<VariantWrapper<std::string>>(params[0]))
         {
-            auto path = as_type_ptr<VariantWrapper<std::string>>(params[0])->get();
+            auto path = ov::as_type_ptr<VariantWrapper<std::string>>(params[0])->get();
             m_stat.m_load_paths.push_back(path);
         }
         return std::make_shared<InputModelMockPy>();
@@ -436,9 +436,9 @@ private:
     bool supported_impl(const std::vector<std::shared_ptr<Variant>>& params) const override
     {
         m_stat.m_supported++;
-        if (params.size() > 0 && is_type<VariantWrapper<std::string>>(params[0]))
+        if (params.size() > 0 && ov::is_type<VariantWrapper<std::string>>(params[0]))
         {
-            auto path = as_type_ptr<VariantWrapper<std::string>>(params[0])->get();
+            auto path = ov::as_type_ptr<VariantWrapper<std::string>>(params[0])->get();
             if (path.find(".test_mo_mock_mdl") != std::string::npos)
             {
                 return true;

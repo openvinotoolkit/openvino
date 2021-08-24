@@ -2,7 +2,7 @@
 
 **Versioned name**: *Negative-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Negative* performs element-wise negative operation on a given input tensor.
 
