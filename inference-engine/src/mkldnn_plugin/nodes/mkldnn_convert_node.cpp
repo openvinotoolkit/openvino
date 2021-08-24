@@ -92,12 +92,12 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
     // if input and output pointers are not null and not contain extra data, then the inp/output tensor descriptors were set using setDescs method, so
     // they should be used as the actual descriptors.
     if (canInitExternalDesc) {
-        dataIn.desc = input->clone();
+        dataIn.desc = input;
         config.inConfs.push_back(dataIn);
 
         // inp/out layouts must be the same
-        dataConfigOut.desc = config.inConfs[0].desc->clone();
-        dataConfigOut.desc->setPrecision(output->getPrecision());
+        dataConfigOut.desc = config.inConfs[0].desc;
+        dataConfigOut.desc = MemoryDescUtils::cloneWithNewPrecision(*dataConfigOut.desc, output->getPrecision());
         config.outConfs.push_back(dataConfigOut);
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     } else if (inputShapes.size() == 1 && outputShapes.size() == 1) {
@@ -113,8 +113,8 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
         auto range = BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
 
         for (auto itr = range.first; itr != range.second; ++itr) {
-            config.inConfs[0].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape));
-            config.outConfs[0].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape));
+            config.inConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape));
+            config.outConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape));
 
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }

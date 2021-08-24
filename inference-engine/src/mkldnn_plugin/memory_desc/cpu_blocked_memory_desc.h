@@ -18,7 +18,7 @@ public:
                          const VectorDims& strides = {});
 
     MemoryDescPtr clone() const override {
-        return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(*this);
+        return std::make_shared<CpuBlockedMemoryDesc>(*this);
     }
 
     bool isCompatible(const MemoryDesc& rhs) const override;
@@ -27,10 +27,6 @@ public:
 
     InferenceEngine::Precision getPrecision() const override {
         return precision;
-    }
-
-    void setPrecision(InferenceEngine::Precision prc) override {
-        precision = std::move(prc);
     }
 
     const VectorDims& getBlockDims() const override {
@@ -92,13 +88,17 @@ private:
     bool isDefinedImp() const override;
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
+    void setPrecision(InferenceEngine::Precision prc) override {
+        precision = std::move(prc);
+    }
+
 private:
     InferenceEngine::Precision precision;
     size_t offsetPadding;
     mutable VectorDims paddedDims;
 };
 
-using CpuBlockedMemoryDescPtr = std::unique_ptr<CpuBlockedMemoryDesc>;
-using CpuBlockedMemoryDescCPtr = std::unique_ptr<const CpuBlockedMemoryDesc>;
+using CpuBlockedMemoryDescPtr = std::shared_ptr<CpuBlockedMemoryDesc>;
+using CpuBlockedMemoryDescCPtr = std::shared_ptr<const CpuBlockedMemoryDesc>;
 
 } // namespace MKLDNNPlugin

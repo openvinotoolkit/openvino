@@ -146,7 +146,7 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
         PortConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        dataConfig.desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(dataType, shape);
+        dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(dataType, shape);
         return dataConfig;
     };
 

@@ -6,24 +6,24 @@
 
 #include "behavior/infer_request_dynamic.hpp"
 
-using namespace BehaviorTestsDefinitions;
+// using namespace BehaviorTestsDefinitions;
 
-namespace {
+// namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32
-};
+// const std::vector<InferenceEngine::Precision> netPrecisions = {
+//     InferenceEngine::Precision::FP32
+// };
 
-const std::vector<std::map<std::string, std::string>> configs = {
-    {}
-};
+// const std::vector<std::map<std::string, std::string>> configs = {
+//     {}
+// };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestDynamicTests,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                ::testing::ValuesIn(configs)),
-                        InferRequestDynamicTests::getTestCaseName);
+// INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestDynamicTests,
+//                         ::testing::Combine(
+//                                 ::testing::ValuesIn(netPrecisions),
+//                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                                 ::testing::ValuesIn(configs)),
+//                         InferRequestDynamicTests::getTestCaseName);
 
-}  // namespace
+// }  // namespace
 

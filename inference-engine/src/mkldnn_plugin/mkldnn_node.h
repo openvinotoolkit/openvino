@@ -238,7 +238,7 @@ struct PortConfig {
         this->constant = rhs.constant;
         this->inPlace = rhs.inPlace;
         if (rhs.desc) {
-            this->desc = rhs.desc->clone();
+            this->desc = rhs.desc;
         }
     }
 
@@ -246,7 +246,7 @@ struct PortConfig {
         this->constant = rhs.constant;
         this->inPlace = rhs.inPlace;
         if (rhs.desc) {
-            this->desc = rhs.desc->clone();
+            this->desc = rhs.desc;
         }
         return *this;
     }
@@ -479,7 +479,7 @@ public:
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
-    std::unique_ptr<T> getInputMemDescAtPort(size_t portNum) const;
+    std::shared_ptr<T> getInputMemDescAtPort(size_t portNum) const;
 
     /**
      * @brief Returns output selected primitive descriptor on the specified port
@@ -490,7 +490,7 @@ public:
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
-    std::unique_ptr<T> getOutputMemDescAtPort(size_t portNum) const;
+    std::shared_ptr<T> getOutputMemDescAtPort(size_t portNum) const;
 
     void selectPrimitiveDescriptorByIndex(int index) {
         if (index < 0 || index >= supportedPrimitiveDescriptors.size())
@@ -526,8 +526,8 @@ public:
 
     virtual void getSupportedDescriptors() = 0;
     // TODO [DS]: Should be moved into Node derivative class
-    virtual void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
-                                  const std::vector<const MemoryDesc*>& outputDesc) {}
+    virtual void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                                  const std::vector<MemoryDescPtr>& outputDesc) {}
     virtual void initDescriptor(const NodeConfig& config);
     virtual bool created() const = 0;
     virtual bool created(const MKLDNNExtensionManager::Ptr& extMgr) {
@@ -836,7 +836,7 @@ protected:
             PortConfig portConfig;
             portConfig.inPlace = portConfigurator.inPlace;
             portConfig.constant = portConfigurator.constant;
-            portConfig.desc = portConfigurator.blockedDescCreator->createUniqueDesc(prc, shape);
+            portConfig.desc = portConfigurator.blockedDescCreator->createSharedDesc(prc, shape);
 
             port.push_back(std::move(portConfig));
 

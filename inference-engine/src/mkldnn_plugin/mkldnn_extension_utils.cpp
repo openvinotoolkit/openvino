@@ -121,9 +121,9 @@ memory::format_tag MKLDNNExtensionUtils::GetPlainFormatByRank(size_t rank) {
 
 DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc) {
     if (desc.data.format_kind == dnnl_blocked) {
-        return std::unique_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
+        return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
     } else {
-        return std::unique_ptr<DnnlMemoryDesc>(new DnnlMemoryDesc(desc));
+        return std::shared_ptr<DnnlMemoryDesc>(new DnnlMemoryDesc(desc));
     }
 }
 

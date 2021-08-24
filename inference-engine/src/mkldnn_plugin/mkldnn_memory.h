@@ -56,7 +56,7 @@ public:
     template <typename T,
             typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
             typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
-    std::unique_ptr<T> GetDescWithType() const;
+    std::shared_ptr<T> GetDescWithType() const;
 
     /**
      * Return handler of buffer. Real data may starts from some other offset
@@ -92,7 +92,6 @@ public:
     // Redefines descriptor. The memory descriptor will be replaced with the new one.
     // Memory will not be reallocated if the new tensor size is less or equal the upper bound.
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
-    void redefineDesc(const MemoryDesc& desc);
     void redefineDesc(MemoryDescPtr desc);
 
     void SetData(const MKLDNNMemory& memory, size_t size = 0, bool ftz = true) const;

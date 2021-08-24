@@ -743,14 +743,14 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].inPlace = -1;
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
     if (inputsNum == 2) {
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, getInputShapeAtPort(1));
+        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(InferenceEngine::Precision::I32, getInputShapeAtPort(1));
         config.inConfs[1].constant = true;
     }
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, impl_desc_type impl_type) {
-        config.inConfs[0].desc = creatorsMap.at(format)->createUniqueDesc(inputPrecision, getInputShapeAtPort(0));
-        config.outConfs[0].desc = creatorsMap.at(format)->createUniqueDesc(outputPrecision, getOutputShapeAtPort(0));
+        config.inConfs[0].desc = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(0));
+        config.outConfs[0].desc = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 

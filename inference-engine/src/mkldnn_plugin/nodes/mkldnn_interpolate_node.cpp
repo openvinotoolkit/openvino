@@ -1920,14 +1920,14 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail) {
-        config.inConfs[DATA_ID].desc = creatorsMap.at(dataFormat)->createUniqueDesc(inputPrecision, getInputShapeAtPort(DATA_ID));
-        config.inConfs[TARGET_SHAPE_ID].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(targetShapeType, getInputShapeAtPort(TARGET_SHAPE_ID));
-        config.inConfs[SCALES_ID].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(scalesType, getInputShapeAtPort(SCALES_ID));
+        config.inConfs[DATA_ID].desc = creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID));
+        config.inConfs[TARGET_SHAPE_ID].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(targetShapeType, getInputShapeAtPort(TARGET_SHAPE_ID));
+        config.inConfs[SCALES_ID].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(scalesType, getInputShapeAtPort(SCALES_ID));
 
         if (isAxesSpecified)
-            config.inConfs[AXES_ID].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(axesType, getInputShapeAtPort(AXES_ID));
+            config.inConfs[AXES_ID].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(axesType, getInputShapeAtPort(AXES_ID));
 
-        config.outConfs[0].desc = creatorsMap.at(dataFormat)->createUniqueDesc(outputPrecision, getOutputShapeAtPort(0));
+        config.outConfs[0].desc = creatorsMap.at(dataFormat)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.push_back({config, implDetail});
     };
 

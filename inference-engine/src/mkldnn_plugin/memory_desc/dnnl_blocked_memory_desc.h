@@ -18,7 +18,7 @@ public:
     DnnlBlockedMemoryDesc(const Shape& shape, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
 
     MemoryDescPtr clone() const override {
-        return MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(*this);
+        return std::make_shared<DnnlBlockedMemoryDesc>(*this);
     }
 
     bool isCompatible(const MemoryDesc& rhs) const override;
@@ -71,7 +71,7 @@ private:
     friend class MemoryDescUtils;
 };
 
-using DnnlBlockedMemoryDescPtr = std::unique_ptr<DnnlBlockedMemoryDesc>;
-using DnnlBlockedMemoryDescCPtr = std::unique_ptr<const DnnlBlockedMemoryDesc>;
+using DnnlBlockedMemoryDescPtr = std::shared_ptr<DnnlBlockedMemoryDesc>;
+using DnnlBlockedMemoryDescCPtr = std::shared_ptr<const DnnlBlockedMemoryDesc>;
 
 } // namespace MKLDNNPlugin

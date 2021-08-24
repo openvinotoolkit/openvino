@@ -98,14 +98,14 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
     const auto &parentShape = getInputShapeAtPort(0);
 
     for (auto format : getAvailableFormatsForDims(parentShape)) {
-        auto in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(parentShape, inputDataType, format);
-        createDescriptor({in_candidate.get()}, {});
+        auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, format);
+        createDescriptor({in_candidate}, {});
     }
 }
 
-std::unique_ptr<MemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (idx > 0) {
-        return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
+        return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     } else {
         return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
     }
@@ -128,11 +128,11 @@ bool MKLDNNLrnNode::created() const {
     return getType() == Lrn;
 }
 
-void MKLDNNLrnNode::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
-                                     const std::vector<const MemoryDesc*> &outputDesc) {
+void MKLDNNLrnNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
+                                     const std::vector<MemoryDescPtr> &outputDesc) {
     mkldnn::algorithm alg = isAcrossMaps ? mkldnn::algorithm::lrn_across_channels : mkldnn::algorithm::lrn_within_channel;
     MKLDNNDescriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
-            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, MemoryDescUtils::convertToDnnlMemoryDesc(*inputDesc[0])->getDnnlDesc(),
+            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc(),
                                           size, alpha, beta, k)));
     descs.push_back(desc);
 }

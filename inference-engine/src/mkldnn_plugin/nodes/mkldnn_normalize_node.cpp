@@ -770,11 +770,11 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format) {
-        auto a = creatorsMap.at(format)->createUniqueDesc(inputPrecision, getInputShapeAtPort(DATA));
+        auto a = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA));
         config.inConfs[0].desc = std::move(a);
-        a = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(AXES));
+        a = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(AXES));
         config.inConfs[1].desc = std::move(a);
-        a = creatorsMap.at(format)->createUniqueDesc(outputPrecision, getOutputShapeAtPort(DATA));
+        a = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(DATA));
         config.outConfs[0].desc = std::move(a);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     };

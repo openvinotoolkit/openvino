@@ -271,7 +271,7 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) 
         newOffsetPaddingToData = offsetPaddingToData;
     }
 
-    return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(precision, Shape(dims), newBlockedDims, order, offsetPadding, newOffsetPaddingToData);
+    return std::make_shared<CpuBlockedMemoryDesc>(precision, Shape(dims), newBlockedDims, order, offsetPadding, newOffsetPaddingToData);
 }
 
 bool CpuBlockedMemoryDesc::blocksExtended() const {

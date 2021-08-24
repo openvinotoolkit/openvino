@@ -245,13 +245,13 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     auto range = BlockedDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
-        config.inConfs[0].desc = itr->second->createUniqueDesc(dataPrecision, getInputShapeAtPort(DATA_ID));
-        config.inConfs[BEGIN_ID].desc = creators.at(LayoutType::ncsp)->createUniqueDesc(beginPrecision, getInputShapeAtPort(BEGIN_ID));
-        config.inConfs[END_ID].desc = creators.at(LayoutType::ncsp)->createUniqueDesc(endPrecision, getInputShapeAtPort(END_ID));
+        config.inConfs[0].desc = itr->second->createSharedDesc(dataPrecision, getInputShapeAtPort(DATA_ID));
+        config.inConfs[BEGIN_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(beginPrecision, getInputShapeAtPort(BEGIN_ID));
+        config.inConfs[END_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(endPrecision, getInputShapeAtPort(END_ID));
         if (hasStrides)
-            config.inConfs[STRIDE_ID].desc = creators.at(LayoutType::ncsp)->createUniqueDesc(stridePrecision, getInputShapeAtPort(STRIDE_ID));
+            config.inConfs[STRIDE_ID].desc = creators.at(LayoutType::ncsp)->createSharedDesc(stridePrecision, getInputShapeAtPort(STRIDE_ID));
 
-        config.outConfs[0].desc = itr->second->createUniqueDesc(dataPrecision, getOutputShapeAtPort(DATA_ID));
+        config.outConfs[0].desc = itr->second->createSharedDesc(dataPrecision, getOutputShapeAtPort(DATA_ID));
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     }
 }

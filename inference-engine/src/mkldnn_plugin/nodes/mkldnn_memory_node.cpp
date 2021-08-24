@@ -71,7 +71,7 @@ void MKLDNNMemoryOutputNode::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(1);
     config.inConfs[0].inPlace = -1;
     config.inConfs[0].constant = false;
-    config.inConfs[0].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(precision, getInputShapeAtPort(0));
+    config.inConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(precision, getInputShapeAtPort(0));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 

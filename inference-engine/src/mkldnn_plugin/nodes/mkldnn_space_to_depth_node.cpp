@@ -142,8 +142,8 @@ void MKLDNNSpaceToDepthNode::initSupportedPrimitiveDescriptors() {
     auto range = BlockedDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
-        config.inConfs[0].desc = itr->second->createUniqueDesc(precision, getInputShapeAtPort(0));
-        config.outConfs[0].desc = itr->second->createUniqueDesc(precision, getOutputShapeAtPort(0));
+        config.inConfs[0].desc = itr->second->createSharedDesc(precision, getInputShapeAtPort(0));
+        config.outConfs[0].desc = itr->second->createSharedDesc(precision, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     }
 }

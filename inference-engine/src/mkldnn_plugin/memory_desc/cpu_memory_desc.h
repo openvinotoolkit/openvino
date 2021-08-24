@@ -24,8 +24,8 @@ namespace MKLDNNPlugin {
 
 class MemoryDesc;
 
-using MemoryDescPtr = std::unique_ptr<MemoryDesc>;
-using MemoryDescCPtr = std::unique_ptr<const MemoryDesc>;
+using MemoryDescPtr = std::shared_ptr<MemoryDesc>;
+using MemoryDescCPtr = std::shared_ptr<const MemoryDesc>;
 
 enum MemoryDescType {
     Undef = 0,
@@ -55,8 +55,6 @@ public:
     virtual ~MemoryDesc() = default;
 
     virtual InferenceEngine::Precision getPrecision() const = 0;
-
-    virtual void setPrecision(InferenceEngine::Precision prc) = 0;
 
     virtual MemoryDescPtr clone() const = 0;
 
@@ -129,6 +127,8 @@ protected:
     MemoryDesc(const VectorDims& dims, MemoryDescType type)
             : shape(dims), type(type) {}
 
+    virtual void setPrecision(InferenceEngine::Precision prc) = 0;
+
     virtual size_t getCurrentMemSizeImp() const = 0;
 
     // Get offset to the n'th element. Returns physical index of the element by the logical one considering padding, layout, blocking etc.
@@ -150,6 +150,7 @@ protected:
     friend class BlobDumper;
     // WA: optimizedNspc2Ncsp used getElementOffset inside implementation
     friend class MKLDNNSplitNode;
+    friend MemoryDescPtr MemoryDescUtils::cloneWithNewPrecision(const MemoryDesc& desc, const InferenceEngine::Precision prec);
 };
 
 }  // namespace MKLDNNPlugin

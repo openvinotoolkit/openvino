@@ -1477,10 +1477,10 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
 
     auto pushDesc = [&](LayoutType inFormat, LayoutType outFormat, InferenceEngine::Precision inDataType,
             InferenceEngine::Precision outDataType, impl_desc_type impl_type) {
-        config.inConfs[REDUCE_DATA].desc = creatorsMap.at(inFormat)->createUniqueDesc(inDataType, getInputShapeAtPort(REDUCE_DATA));
-        config.inConfs[REDUCE_INDEXES].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(InferenceEngine::Precision::I32,
+        config.inConfs[REDUCE_DATA].desc = creatorsMap.at(inFormat)->createSharedDesc(inDataType, getInputShapeAtPort(REDUCE_DATA));
+        config.inConfs[REDUCE_INDEXES].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32,
                                                                                                  getInputShapeAtPort(REDUCE_INDEXES));
-        config.outConfs[0].desc = creatorsMap.at(outFormat)->createUniqueDesc(outDataType, getOutputShapeAtPort(0));
+        config.outConfs[0].desc = creatorsMap.at(outFormat)->createSharedDesc(outDataType, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 

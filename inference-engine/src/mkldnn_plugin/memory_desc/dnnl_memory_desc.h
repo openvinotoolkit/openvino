@@ -11,8 +11,8 @@ namespace MKLDNNPlugin {
 
 class DnnlMemoryDesc;
 
-using DnnlMemoryDescPtr = std::unique_ptr<DnnlMemoryDesc>;
-using DnnlMemoryDescCPtr = std::unique_ptr<const DnnlMemoryDesc>;
+using DnnlMemoryDescPtr = std::shared_ptr<DnnlMemoryDesc>;
+using DnnlMemoryDescCPtr = std::shared_ptr<const DnnlMemoryDesc>;
 
 class DnnlMemoryDesc : public virtual MemoryDesc {
 public:
@@ -25,14 +25,12 @@ public:
     }
 
     MemoryDescPtr clone() const override {
-        return MKLDNNPlugin::make_unique<DnnlMemoryDesc>(*this);
+        return std::make_shared<DnnlMemoryDesc>(*this);
     }
 
     std::string serializeFormat() const override;
 
     InferenceEngine::Precision getPrecision() const override;
-
-    void setPrecision(InferenceEngine::Precision prc) override;
 
     bool isCompatible(const MemoryDesc& rhs) const override;
 
@@ -53,6 +51,10 @@ protected:
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();
 
     mkldnn::memory::desc desc;
+
+    void setPrecision(InferenceEngine::Precision prc) override {
+        desc.data.data_type = static_cast<dnnl_data_type_t>(MKLDNNExtensionUtils::IEPrecisionToDataType(prc));
+    }
 
 private:
     explicit DnnlMemoryDesc(const mkldnn::memory::desc& desc);

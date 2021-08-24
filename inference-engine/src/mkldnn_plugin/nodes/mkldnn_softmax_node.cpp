@@ -56,17 +56,17 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
 
     const auto &inShape = getInputShapeAtPort(0);
     if (inShape.getRank() == 3) {
-        auto in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(inShape, inputDataType, memory::format_tag::abc);
-        createDescriptor({in_candidate.get()}, {});
+        auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, inputDataType, memory::format_tag::abc);
+        createDescriptor({in_candidate}, {});
     }
 
     for (auto format : getAvailableFormatsForDims(inShape)) {
-        auto in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(inShape, inputDataType, format);
+        auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, inputDataType, format);
 
         if (in_candidate->blocksExtended())
             continue;
 
-        createDescriptor({in_candidate.get()}, {});
+        createDescriptor({in_candidate}, {});
     }
 }
 
@@ -123,20 +123,20 @@ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
         IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
 
     if (config.inConfs[0].desc->isDefined()) {
-        config.outConfs[0].desc = config.inConfs[0].desc->clone();
+        config.outConfs[0].desc = config.inConfs[0].desc;
     } else if (config.outConfs[0].desc->isDefined()) {
-        config.inConfs[0].desc = config.outConfs[0].desc->clone();
+        config.inConfs[0].desc = config.outConfs[0].desc;
     } else {
         config.inConfs[0].desc = getDefinedInputDesc(config, 0);
-        config.outConfs[0].desc = config.inConfs[0].desc->clone();
+        config.outConfs[0].desc = config.inConfs[0].desc;
     }
 
     initDescriptor(config);
 }
 
-void MKLDNNSoftMaxNode::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
-                                         const std::vector<const MemoryDesc*> &outputDesc) {
-    auto in_candidate = MemoryDescUtils::convertToDnnlMemoryDesc(*inputDesc[0])->getDnnlDesc();
+void MKLDNNSoftMaxNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
+                                         const std::vector<MemoryDescPtr> &outputDesc) {
+    auto in_candidate = MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc();
 
     MKLDNNDescriptor desc(std::shared_ptr<softmax_forward::desc>(
             new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));

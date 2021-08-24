@@ -249,11 +249,11 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
             outputDataType = memory::data_type::f32;
         if (eltwisePrecision == Precision::BF16)
             eltwisePrecision = Precision::FP32;
-        in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0),
+        in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0),
                                                      inputDataType, ndims == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc);
-        out_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0),
+        out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0),
                                                       outputDataType, ndims == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc);
-        createDescriptor({ in_candidate.get() }, { out_candidate.get() });
+        createDescriptor({ in_candidate }, { out_candidate });
     } else {
         inputDataType = (getOriginalInputPrecisionAtPort(0) == Precision::BF16
                 && !(isDepthWise() && ndims == 5)) ? memory::data_type::bf16 : memory::data_type::f32;
@@ -294,32 +294,32 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
             auto outputShape = getOutputShapeAtPort(0);
 
             if (IC == 1 && groupOC == 1) {
-                in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
-                out_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(outputShape, outputDataType, ncsp);
-                createDescriptor({ in_candidate.get() }, { out_candidate.get() });
+                in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, ncsp);
+                createDescriptor({ in_candidate }, { out_candidate });
             } else if (IC < 4) {
-                in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
-                out_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp16c);
-                createDescriptor({ in_candidate.get() }, { out_candidate.get() });
-                out_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp8c);
-                createDescriptor({ in_candidate.get() }, { out_candidate.get() });
+                in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp16c);
+                createDescriptor({ in_candidate }, { out_candidate });
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp8c);
+                createDescriptor({ in_candidate }, { out_candidate });
             } else {
-                in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nCsp16c);
-                out_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp16c);
-                createDescriptor({ in_candidate.get() }, { out_candidate.get() });
-                in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nCsp8c);
-                out_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp8c);
-                createDescriptor({ in_candidate.get() }, { out_candidate.get() });;
+                in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nCsp16c);
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp16c);
+                createDescriptor({ in_candidate }, { out_candidate });
+                in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nCsp8c);
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp8c);
+                createDescriptor({ in_candidate }, { out_candidate });;
             }
 
-            in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
-            out_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(outputShape, outputDataType, ncsp);
-            createDescriptor({ in_candidate.get() }, { out_candidate.get() });
+            in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
+            out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, ncsp);
+            createDescriptor({ in_candidate }, { out_candidate });
 
             if (inputDataType != memory::data_type::bf16 && isNspcAvailable()) {
-                in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
-                out_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);;
-                createDescriptor({ in_candidate.get() }, { out_candidate.get() });;
+                in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);;
+                createDescriptor({ in_candidate }, { out_candidate });;
             }
         }
     }
@@ -420,10 +420,10 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                 PortConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
-                dataConfig.desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g);
+                dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g);
                 config.inConfs.push_back(dataConfig);
 
-                dataConfig.desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x);
+                dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x);
                 config.inConfs.push_back(dataConfig);
             }
 
@@ -445,7 +445,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
 
                 if (withSum) {
                     dataConfig.inPlace = -1;
-                    dataConfig.desc->setPrecision(eltwisePrecision);
+                    dataConfig.desc = MemoryDescUtils::cloneWithNewPrecision(*dataConfig.desc, dataConfig.desc->getPrecision());
                     config.inConfs.push_back(dataConfig);
                 }
             }
@@ -486,10 +486,10 @@ bool MKLDNNConvolutionNode::created() const {
     return getType() == Convolution;
 }
 
-void MKLDNNConvolutionNode::createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
-                                             const std::vector<const MemoryDesc*>& outputDesc) {
-    const auto inDesc = MemoryDescUtils::convertToDnnlMemoryDesc(*inputDesc[0])->getDnnlDesc();
-    const auto outDesc = MemoryDescUtils::convertToDnnlMemoryDesc(*outputDesc[0])->getDnnlDesc();
+void MKLDNNConvolutionNode::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                                             const std::vector<MemoryDescPtr>& outputDesc) {
+    const auto inDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc();
+    const auto outDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0])->getDnnlDesc();
 
     memory::data_type wdt = static_cast<memory::data_type>(inDesc.data.data_type);
     memory::data_type bdt = memory::data_type::f32;
@@ -562,7 +562,7 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
     }
 
     if (isStridedBlobsSupported) {
-        createDescriptor({config.inConfs[0].desc.get()}, {config.outConfs[0].desc.get()});
+        createDescriptor({config.inConfs[0].desc}, {config.outConfs[0].desc});
     }
 
     mkldnn::primitive_attr attr;
@@ -600,10 +600,10 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
                 PortConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
-                dataConfig.desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g);
+                dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g);
                 cfg.inConfs.push_back(dataConfig);
 
-                dataConfig.desc = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x);
+                dataConfig.desc = std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x);
                 cfg.inConfs.push_back(dataConfig);
             }
 
@@ -614,7 +614,7 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
                 dataConfig.desc = getDstMemDesc(itpd, j);
                 if (withSum) {
                     auto eltwiseConfig = dataConfig;
-                    eltwiseConfig.desc->setPrecision(eltwisePrecision);
+                    eltwiseConfig.desc = MemoryDescUtils::cloneWithNewPrecision(*eltwiseConfig.desc, eltwisePrecision);
                     cfg.inConfs.push_back(eltwiseConfig);
                     dataConfig.inPlace = getParentEdges().size() - 1;
                 }
@@ -710,7 +710,7 @@ bool MKLDNNConvolutionNode::isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) c
     return !isPossibleJitPlanar && isPlanarFloatConv;
 }
 
-std::unique_ptr<MemoryDesc> MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
     return MKLDNNExtensionUtils::makeDescriptor(desc);
 }

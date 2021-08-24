@@ -268,72 +268,8 @@ public:
     /// This node becomes a dependent of every node dependent on source_node
     void add_node_control_dependents(std::shared_ptr<Node> source_node);
 
-<<<<<<< HEAD
     /// This node's control dependencies are replaced by replacement
     void transfer_control_dependents(std::shared_ptr<Node> replacement);
-=======
-        /// This node absorbs the control dependencies of source_node
-        void add_node_control_dependencies(std::shared_ptr<Node> source_node);
-
-        /// This node becomes a dependent of every node dependent on source_node
-        void add_node_control_dependents(std::shared_ptr<Node> source_node);
-
-        /// This node's control dependencies are replaced by replacement
-        void transfer_control_dependents(std::shared_ptr<Node> replacement);
-
-        /// Returns the number of outputs from the node.
-        size_t get_output_size() const;
-
-        /// Returns the element type for output i
-        const element::Type& get_output_element_type(size_t i) const;
-
-        /// Checks that there is exactly one output and returns its element type
-        // TODO: deprecate in favor of node->get_output_element_type(0) with a suitable check in
-        // the calling code, or updates to the calling code if it is making an invalid assumption
-        // of only one output.
-        const element::Type& get_element_type() const;
-
-        /// Returns the shape for output i
-        const Shape& get_output_shape(size_t i) const;
-
-        /// Returns the partial shape for output i
-        const PartialShape& get_output_partial_shape(size_t i) const;
-
-        /// Return the output to use when converting to an Output<Node> with no index specified.
-        /// Throws when not supported.
-        Output<const Node> get_default_output() const;
-        Output<Node> get_default_output();
-
-        /// Returns the output of the default output, or throws if there is none
-        virtual size_t get_default_output_index() const;
-        /// Throws no default
-        size_t no_default_index() const;
-
-        /// Checks that there is exactly one output and returns its shape
-        // TODO: deprecate in favor of node->get_output_shape(0) with a suitable check in the
-        // calling code, or updates to the calling code if it is making an invalid assumption of
-        // only one output.
-        const Shape& get_shape() const;
-        virtual const PartialShape& get_partial_shape() const;
-
-        /// Returns the tensor for output or input i
-        descriptor::Tensor& get_output_tensor(size_t i) const;
-        descriptor::Tensor& get_input_tensor(size_t i) const;
-
-        /// Returns the tensor name for output i
-        NGRAPH_DEPRECATED(
-            "The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
-        const std::string& get_output_tensor_name(size_t i) const;
-
-        std::set<Input<Node>> get_output_target_inputs(size_t i) const;
-
-        /// Returns the number of inputs for the op
-        size_t get_input_size() const;
-
-        /// Returns the element type of input i
-        // TODO: deprecate in favor of node->get_input_element_type(i)
-        const element::Type& get_input_element_type(size_t i) const;
->>>>>>> old version api
 
     /// Returns the number of outputs from the node.
     size_t get_output_size() const;

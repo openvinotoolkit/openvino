@@ -373,7 +373,7 @@ private:
     Vmm vmm_d_bias = Vmm(13);
     Vmm vmm_zero = Vmm(15);
 
-    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
     std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
@@ -1120,7 +1120,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
     };
 
     auto initDesc = [&] (LayoutType lt) -> NodeDesc {
-        auto createMemoryDesc = [lt](const Shape &shape, Precision prc, size_t offset) -> std::unique_ptr<CpuBlockedMemoryDesc> {
+        auto createMemoryDesc = [lt](const Shape &shape, Precision prc, size_t offset) -> std::shared_ptr<CpuBlockedMemoryDesc> {
             if (lt == ChannelsFirst && shape.getRank() != 1) {
                 auto dims = shape.getStaticDims();
                 auto ndims = dims.size();
@@ -1136,7 +1136,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                     blocks[i] = dims[order[i]];
                 }
 
-                return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
+                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             } else if (lt == Blocked && shape.getRank() != 1 && shape.getStaticDims()[1] != 1) {
                 size_t blockSize = mayiuse(x64::avx512_common) ? 16 : 8;
 
@@ -1148,13 +1148,13 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                 blocks.push_back(blockSize);
                 order.push_back(1);
 
-                return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
+                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             } else {
                 std::vector<size_t> blocks = shape.getStaticDims();
                 std::vector<size_t> order(blocks.size());
                 std::iota(order.begin(), order.end(), 0);
 
-                return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
+                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             }
         };
 
@@ -1765,7 +1765,7 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
         }
 
         // We can use optimized execution with fusions only in cases when dim rank is less or equal to the maximum possible
-        if (node->getParentEdgesAtPort(0).front()->getShape().getRank() > MAX_ELTWISE_DIM_RANK)
+        if (node->getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)
             return false;
 
         return true;

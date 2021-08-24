@@ -27,22 +27,22 @@
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 
 
-namespace BehaviorTestsDefinitions {
+// namespace BehaviorTestsDefinitions {
 
-class InferRequestDynamicTests : public BehaviorTestsUtils::BehaviorTestsBasic {
-public:
-    void SetUp()  override {
-        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
-        std::vector<size_t> inputShape = {1, 4, 20, 20};
-        ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-        params.front()->set_friendly_name("Param_1");
-        auto relu1 = std::make_shared<ngraph::opset1::Relu>(params[0]);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu1)};
-        function = std::make_shared<ngraph::Function>(results, params);
-        function->set_friendly_name("DynamicRelu");
-    }
-};
+// class InferRequestDynamicTests : public BehaviorTestsUtils::BehaviorTestsBasic {
+// public:
+//     void SetUp()  override {
+//         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+//         std::vector<size_t> inputShape = {1, 4, 20, 20};
+//         ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
+//         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+//         params.front()->set_friendly_name("Param_1");
+//         auto relu1 = std::make_shared<ngraph::opset1::Relu>(params[0]);
+//         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu1)};
+//         function = std::make_shared<ngraph::Function>(results, params);
+//         function->set_friendly_name("DynamicRelu");
+//     }
+// };
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
     const std::string param_name = "Param_1";
@@ -281,46 +281,46 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetBlob) {
     ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
 }
 
-TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetBlob2times) {
-    const std::string param_name = "Param_1";
-    const InferenceEngine::SizeVector refShape = {1, 4, 20, 20};
-    const InferenceEngine::SizeVector refShape2 = {2, 4, 20, 20};
-    const InferenceEngine::SizeVector refOutShape = {1, 4, 20, 20};
-    const InferenceEngine::SizeVector refOutShape2 = {2, 4, 20, 20};
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    std::map<std::string, ngraph::PartialShape> shapes;
-    shapes[param_name] = {ngraph::Dimension::dynamic(), 4, 20, 20};
-    cnnNet.reshape(shapes);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    // Create InferRequest
-    InferenceEngine::InferRequest req;
-    InferenceEngine::Blob::Ptr blob = make_blob_with_precision({InferenceEngine::Precision::FP32, refShape, InferenceEngine::Layout::NCHW});
-    blob->allocate();
-    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
-    req.Infer();
-    req.StartAsync();
-    InferenceEngine::StatusCode sts;
-    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
+// TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetBlob2times) {
+//     const std::string param_name = "Param_1";
+//     const InferenceEngine::SizeVector refShape = {1, 4, 20, 20};
+//     const InferenceEngine::SizeVector refShape2 = {2, 4, 20, 20};
+//     const InferenceEngine::SizeVector refOutShape = {1, 4, 20, 20};
+//     const InferenceEngine::SizeVector refOutShape2 = {2, 4, 20, 20};
+//     // Skip test according to plugin specific disabledTestPatterns() (if any)
+//     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+//     // Create CNNNetwork from ngrpah::Function
+//     InferenceEngine::CNNNetwork cnnNet(function);
+//     std::map<std::string, ngraph::PartialShape> shapes;
+//     shapes[param_name] = {ngraph::Dimension::dynamic(), 4, 20, 20};
+//     cnnNet.reshape(shapes);
+//     // Load CNNNetwork to target plugins
+//     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+//     // Create InferRequest
+//     InferenceEngine::InferRequest req;
+//     InferenceEngine::Blob::Ptr blob = make_blob_with_precision({InferenceEngine::Precision::FP32, refShape, InferenceEngine::Layout::NCHW});
+//     blob->allocate();
+//     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+//     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
+//     ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
+//     req.Infer();
+//     req.StartAsync();
+//     InferenceEngine::StatusCode sts;
+//     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
+//     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
+//     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
+//     ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
 
-    blob = make_blob_with_precision({InferenceEngine::Precision::FP32, refShape2, InferenceEngine::Layout::NCHW});
-    blob->allocate();
-    ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refShape2);
-    req.Infer();
-    req.StartAsync();
-    sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
-    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
-    ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape2);
-}
+//     blob = make_blob_with_precision({InferenceEngine::Precision::FP32, refShape2, InferenceEngine::Layout::NCHW});
+//     blob->allocate();
+//     ASSERT_NO_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob));
+//     ASSERT_EQ(blob->getTensorDesc().getDims(), refShape2);
+//     req.Infer();
+//     req.StartAsync();
+//     sts = req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
+//     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
+//     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
+//     ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape2);
+// }
 
-}  // namespace BehaviorTestsDefinitions
+// }  // namespace BehaviorTestsDefinitions

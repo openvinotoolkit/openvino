@@ -101,7 +101,7 @@ void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroin
     }
 
     if (pMemDesc->isDefined()) {
-        Create(MemoryDescUtils::convertToDnnlMemoryDesc(*pMemDesc)->getDnnlDesc(), data, pads_zeroing);
+        Create(MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc)->getDnnlDesc(), data, pads_zeroing);
     } else {
         //delayed dynamic allocation
         size_t maxMemSize = pMemDesc->getMaxMemSize();
@@ -143,10 +143,6 @@ void *MKLDNNMemory::GetPtr() const  {
     return ptr;
 }
 
-void MKLDNNMemory::redefineDesc(const MemoryDesc& desc) {
-    redefineDesc(desc.clone());
-}
-
 void MKLDNNMemory::redefineDesc(MemoryDescPtr desc) {
     if (useExternalStorage) {
         size_t descMaxSize = desc->getMaxMemSize();
@@ -165,12 +161,12 @@ void MKLDNNMemory::redefineDesc(MemoryDescPtr desc) {
 
 template<>
 DnnlMemoryDescPtr MKLDNNMemory::GetDescWithType<DnnlMemoryDesc, 0, 0>() const {
-    return MemoryDescUtils::convertToDnnlMemoryDesc(*pMemDesc);
+    return MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc);
 }
 
 template<>
 BlockedMemoryDescPtr MKLDNNMemory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
-    return MemoryDescUtils::convertToBlockedMemoryDesc(*pMemDesc);
+    return MemoryDescUtils::convertToBlockedMemoryDesc(pMemDesc);
 }
 
 }  // namespace MKLDNNPlugin

@@ -136,13 +136,13 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushSupportedPrimitiveDescriptor = [&](LayoutType memoryFormat) {
-        config.inConfs[0].desc = creatorsMap.at(memoryFormat)->createUniqueDesc(precision, getInputShapeAtPort(DATA_ID));
-        config.inConfs[1].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(PADS_BEGIN_ID));
-        config.inConfs[2].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(PADS_END_ID));
+        config.inConfs[0].desc = creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID));
+        config.inConfs[1].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(PADS_BEGIN_ID));
+        config.inConfs[2].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(PADS_END_ID));
         if (isPadValueSpecified)
-            config.inConfs[3].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(InferenceEngine::Precision::FP32, getInputShapeAtPort(PAD_VALUE_ID));
+            config.inConfs[3].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::FP32, getInputShapeAtPort(PAD_VALUE_ID));
 
-        config.outConfs[0].desc = creatorsMap.at(memoryFormat)->createUniqueDesc(precision, getOutputShapeAtPort(DATA_ID));
+        config.outConfs[0].desc = creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
     };
 

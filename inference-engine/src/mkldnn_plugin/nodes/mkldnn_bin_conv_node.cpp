@@ -984,7 +984,7 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
 
         //activation
         auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
-        config.inConfs[0].desc = nspcCreator->createUniqueDesc(Precision::BIN, getInputShapeAtPort(0));
+        config.inConfs[0].desc = nspcCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(0));
 
         //weights
         size_t weiFirstDimBlockSize = implType == impl_desc_type::jit_avx512 ? 16 : 8; //memory::format_tag::OIhw16o32i : memory::format_tag::OIhw8o32i;
@@ -993,11 +993,11 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
                                             weiDims[2], weiDims[3], weiFirstDimBlockSize, 32};
         std::vector<size_t> weiOrder = {0, 1, 2, 3, 0, 1};
 
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(Precision::BIN, Shape(weiDims), weiBlockDims, weiOrder);
+        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(Precision::BIN, Shape(weiDims), weiBlockDims, weiOrder);
 
         //result
         auto outputPrecision = withBinarization ? Precision::BIN : Precision::FP32;
-        config.outConfs[0].desc = nspcCreator->createUniqueDesc(outputPrecision, getOutputShapeAtPort(0));
+        config.outConfs[0].desc = nspcCreator->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
         if (withSum) {
             config.inConfs.push_back(config.outConfs[0]);
             config.outConfs[0].inPlace = 2;
@@ -1008,9 +1008,9 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
         auto weiCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
         auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
 
-        config.inConfs[0].desc = nspcCreator->createUniqueDesc(Precision::BIN, getInputShapeAtPort(0));
-        config.inConfs[1].desc = weiCreator->createUniqueDesc(Precision::BIN, getInputShapeAtPort(1));
-        config.outConfs[0].desc = nspcCreator->createUniqueDesc(Precision::FP32, getOutputShapeAtPort(0));
+        config.inConfs[0].desc = nspcCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(0));
+        config.inConfs[1].desc = weiCreator->createSharedDesc(Precision::BIN, getInputShapeAtPort(1));
+        config.outConfs[0].desc = nspcCreator->createSharedDesc(Precision::FP32, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 }

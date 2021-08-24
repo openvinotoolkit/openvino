@@ -145,12 +145,12 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace = -1;
         config.inConfs[0].constant = false;
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, srcShape));
+        config.inConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, srcShape));
         config.inConfs[1].inPlace = -1;
         config.inConfs[1].constant = true;
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector {1}));
+        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector {1}));
         if (INPUTS_NUM == 3) {
-            config.inConfs[2].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{outputShapes.size()}));
+            config.inConfs[2].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{outputShapes.size()}));
             config.inConfs[2].constant = true;
         }
 
@@ -159,7 +159,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             config.outConfs[i].inPlace = -1;
             config.outConfs[i].constant = false;
-            config.outConfs[i].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, outputShapes[i]));
+            config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(inpPrecision, outputShapes[i]));
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
 
@@ -195,7 +195,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
             }
         }
 
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(inpPrecision, srcShape, blkDims, order, offset, offsets, strides);
+        config.inConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(inpPrecision, srcShape, blkDims, order, offset, offsets, strides);
 
         for (size_t i = 0; i < outputShapes.size(); i++) {
             auto outBlockingDesc = refConfig.outConfs[i].desc->as<CpuBlockedMemoryDesc>();
@@ -203,7 +203,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
             const auto& dims = outBlockingDesc->getShape().getStaticDims();
 
             config.outConfs[i].inPlace = 0;
-            config.outConfs[i].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(outPrecision, Shape(dims), outBlkDims, order, offset, offsets, strides);
+            config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outPrecision, Shape(dims), outBlkDims, order, offset, offsets, strides);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -216,12 +216,12 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace = -1;
         config.inConfs[0].constant = false;
-        config.inConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createUniqueDesc(inpPrecision, srcShape);
+        config.inConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createSharedDesc(inpPrecision, srcShape);
         config.inConfs[1].inPlace = -1;
         config.inConfs[1].constant = true;
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{1}));
+        config.inConfs[1].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{1}));
         if (INPUTS_NUM == 3) {
-            config.inConfs[2].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{outputShapes.size()}));
+            config.inConfs[2].desc = std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(SizeVector{outputShapes.size()}));
             config.inConfs[2].constant = true;
         }
         config.outConfs.resize(outputShapes.size());
@@ -229,7 +229,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             config.outConfs[i].inPlace = -1;
             config.outConfs[i].constant = false;
-            config.outConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(inpPrecision, outputShapes[i]);
+            config.outConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(inpPrecision, outputShapes[i]);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     }
@@ -326,7 +326,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
                 if (!parentConfig.desc->isDefined() && parentConfig.inPlace >= 0)
                     getParentEdgeAt(i)->getParent()->initOptimalPrimitiveDescriptor();
                 if (parentConfig.desc->isDefined() && parentConfig.desc->isCompatible(*config.inConfs[i].desc)) {
-                    config.inConfs[i].desc = parentConfig.desc->clone();
+                    config.inConfs[i].desc = parentConfig.desc;
                     continue;
                 }
             }
@@ -341,9 +341,9 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     auto firstInBlockingDesc = config.inConfs[0].desc->as<BlockedMemoryDesc>();
     size_t offset = 0;
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        auto oldDesc = config.outConfs[i].desc->clone();
+        auto oldDesc = config.outConfs[i].desc;
         auto outBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
-        config.outConfs[i].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(outBlockingDesc->getPrecision(),
+        config.outConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(outBlockingDesc->getPrecision(),
                                                                  outBlockingDesc->getShape(),
                                                                  outBlockingDesc->getBlockDims(),
                                                                  outBlockingDesc->getOrder(),

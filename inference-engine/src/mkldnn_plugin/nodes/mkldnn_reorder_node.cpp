@@ -54,12 +54,12 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
         config.outConfs[0].inPlace = 0;
     }
     if (input && output) {
-        config.inConfs[0].desc = input->clone();
-        config.outConfs[0].desc = output->clone();
+        config.inConfs[0].desc = input;
+        config.outConfs[0].desc = output;
     } else if (parent->getSelectedPrimitiveDescriptor() != nullptr &&
                child->getSelectedPrimitiveDescriptor() != nullptr) {
-        config.inConfs[0].desc = parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc->clone();
-        config.outConfs[0].desc = child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->clone();
+        config.inConfs[0].desc = parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
+        config.outConfs[0].desc = child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
     } else {
         IE_THROW() << "Cannot initialize supported PDs for Reorder node with name `" << getName() << "`";
     }
@@ -312,8 +312,7 @@ void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemor
                             outPrc, input.GetSize() / input.getDesc().getPrecision().size());
 
                 MKLDNNMemory tmpMem(output.getEngine());
-                auto tmpDesc = input.getDesc().clone();
-                tmpDesc->setPrecision(outPrc);
+                auto tmpDesc = MemoryDescUtils::cloneWithNewPrecision(input.getDesc(), outPrc);
                 tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
 
                 pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(tmpMem.GetPrimitive(), output.GetPrimitive()));

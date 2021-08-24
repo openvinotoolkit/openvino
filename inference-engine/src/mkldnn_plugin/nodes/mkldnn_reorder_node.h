@@ -53,8 +53,8 @@ public:
     static void reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size = 0);
 
 private:
-    std::unique_ptr<MemoryDesc> input;
-    std::unique_ptr<MemoryDesc> output;
+    std::shared_ptr<MemoryDesc> input;
+    std::shared_ptr<MemoryDesc> output;
 
     MKLDNNMemoryPtr dst_blocked;
     MKLDNNMemoryPtr src_blocked;

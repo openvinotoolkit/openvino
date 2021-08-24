@@ -33,7 +33,7 @@ public:
      * @param desc mkldnn::memory::desc from which one of the descriptors will be created
      * @return pointer to DnnlBlockedMemoryDesc or DnnlMemoryDesc
      */
-    static std::unique_ptr<DnnlMemoryDesc> makeDescriptor(const mkldnn::memory::desc &desc);
+    static std::shared_ptr<DnnlMemoryDesc> makeDescriptor(const mkldnn::memory::desc &desc);
     static size_t getMemSizeForOneDnnDesc(mkldnn::memory::desc desc);
 };
 

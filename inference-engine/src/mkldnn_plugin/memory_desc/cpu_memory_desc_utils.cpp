@@ -20,14 +20,14 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDesc& desc) {
-    if (MemoryDescType::Blocked == desc.getType()) {
-        const auto cpuDesc = desc.as<CpuBlockedMemoryDesc>();
-        return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(),
-                                                                                cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
-                                                                                cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides()));
-    } else if (MemoryDescType::Mkldnn & desc.getType()) {
-        return DnnlMemoryDescPtr(dynamic_cast<DnnlMemoryDesc *>(desc.clone().release()));
+DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &desc) {
+    if (MemoryDescType::Blocked == desc->getType()) {
+        const auto cpuDesc = desc->as<CpuBlockedMemoryDesc>();
+        return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(),
+                                                        cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
+                                                        cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides()));
+    } else if (MemoryDescType::Mkldnn & desc->getType()) {
+        return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
     } else {
         IE_THROW() << "Cannot convert MemoryDesc to DnnlMemoryDesc";
     }
@@ -51,9 +51,9 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Infe
                                  blkDesc.getOffsetPaddingToData(), blkDesc.getStrides());
 }
 
-BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDesc& desc) {
-    if (desc.getType() & MemoryDescType::Blocked) {
-        return BlockedMemoryDescPtr(dynamic_cast<BlockedMemoryDesc *>(desc.clone().release()));
+BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr &desc) {
+    if (desc->getType() & MemoryDescType::Blocked) {
+        return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
     } else {
         IE_THROW() << "Can not convert unsupported memory descriptor";
     }
@@ -73,12 +73,12 @@ MemoryDescPtr MemoryDescUtils::cloneWithUndefStridesAndOffset(const MemoryDesc& 
     size_t offsetPadding = Shape::UNDEFINED_DIM;
 
     if (blkMemDesc->getType() == MemoryDescType::Blocked) {
-        return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(blkMemDesc->getPrecision(), blkMemDesc->getShape(), blkMemDesc->getBlockDims(),
-                                                               blkMemDesc->getOrder(), offsetPadding, offsetPaddingToData, strides);
+        return std::make_shared<CpuBlockedMemoryDesc>(blkMemDesc->getPrecision(), blkMemDesc->getShape(), blkMemDesc->getBlockDims(),
+                                                                    blkMemDesc->getOrder(), offsetPadding, offsetPaddingToData, strides);
     } else if (blkMemDesc->getType() == MemoryDescType::DnnlBlocked) {
         return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(blkMemDesc->getPrecision(), blkMemDesc->getShape(),
-                                                                                    blkMemDesc->getBlockDims(), blkMemDesc->getOrder(),
-                                                                                    offsetPadding, offsetPaddingToData, strides));
+                                                                  blkMemDesc->getBlockDims(), blkMemDesc->getOrder(),
+                                                                  offsetPadding, offsetPaddingToData, strides));
     } else {
         IE_THROW() << "Cannot apply undefined offset. Unsupported memory desc type";
     }
@@ -88,7 +88,7 @@ MemoryDescPtr MemoryDescUtils::cloneWithDefaultStridesAndOffset(const MemoryDesc
     const auto blkMemDesc = desc.as<BlockedMemoryDesc>();
 
     if (MemoryDescType::Blocked == desc.getType()) {
-        return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(blkMemDesc->getPrecision(), blkMemDesc->getShape(),
+        return std::make_shared<CpuBlockedMemoryDesc>(blkMemDesc->getPrecision(), blkMemDesc->getShape(),
                                                                blkMemDesc->getBlockDims(), blkMemDesc->getOrder());
     } else if (MemoryDescType::DnnlBlocked == desc.getType()) {
         return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(blkMemDesc->getPrecision(), blkMemDesc->getShape(),
@@ -96,6 +96,12 @@ MemoryDescPtr MemoryDescUtils::cloneWithDefaultStridesAndOffset(const MemoryDesc
     } else {
         IE_THROW() << "cloneWithDefaultStridesAndOffset supports Blocked descriptors only";
     }
+}
+
+MemoryDescPtr MemoryDescUtils::cloneWithNewPrecision(const MemoryDesc& desc, const InferenceEngine::Precision prec) {
+    MemoryDescPtr newDesc = desc.clone();
+    newDesc->setPrecision(prec);
+    return newDesc;
 }
 
 InferenceEngine::Blob::Ptr MemoryDescUtils::createBlob(const MemoryDesc &memDesc) {

@@ -77,7 +77,7 @@ protected:
     mutable VectorDims offsetPaddingToData;
 };
 
-using BlockedMemoryDescPtr = std::unique_ptr<BlockedMemoryDesc>;
-using BlockedMemoryDescCPtr = std::unique_ptr<const BlockedMemoryDesc>;
+using BlockedMemoryDescPtr = std::shared_ptr<BlockedMemoryDesc>;
+using BlockedMemoryDescCPtr = std::shared_ptr<const BlockedMemoryDesc>;
 
 } // namespace MKLDNNPlugin

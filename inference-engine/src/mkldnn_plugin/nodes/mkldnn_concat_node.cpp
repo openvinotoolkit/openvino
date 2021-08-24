@@ -141,7 +141,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         config.outConfs.resize(1);
         config.outConfs[0].inPlace = -1;
         config.outConfs[0].constant = false;
-        config.outConfs[0].desc = itr->second->createUniqueDesc(outputPrecision, dstShape);
+        config.outConfs[0].desc = itr->second->createSharedDesc(outputPrecision, dstShape);
 
         config.inConfs.resize(getParentEdges().size());
 
@@ -188,14 +188,14 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
             }
         }
 
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(outputPrecision, dstShape, blkDims, order, offset, offsets, strides);
+        config.outConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(outputPrecision, dstShape, blkDims, order, offset, offsets, strides);
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             const auto& srcBlkDims = refConfig.inConfs[i].desc->as<CpuBlockedMemoryDesc>()->getBlockDims();
             const auto& shape = refConfig.inConfs[i].desc->getShape();
 
             config.inConfs[i].inPlace = 0;
-            config.inConfs[i].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(inputPrecision, shape, srcBlkDims, order, offset, offsets, strides);
+            config.inConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(inputPrecision, shape, srcBlkDims, order, offset, offsets, strides);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -397,14 +397,12 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
         auto config = selected_pd->getConfig();
         if (!isConfigDefined(config)) {
             for (size_t i = 0; i < config.inConfs.size(); i++) {
-                config.inConfs[i].desc = getDefinedInputDesc(config, i);
                 // Concat doesn't support different precision on inputs
-                config.inConfs[i].desc->setPrecision(inputPrecision);
+                config.inConfs[i].desc = MemoryDescUtils::cloneWithNewPrecision(*getDefinedInputDesc(config, i), inputPrecision);
             }
 
             for (size_t i = 0; i < config.outConfs.size(); i++) {
-                config.outConfs[i].desc = getDefinedOutputDesc(config, i);
-                config.outConfs[i].desc->setPrecision(outputPrecision);
+                config.outConfs[i].desc = MemoryDescUtils::cloneWithNewPrecision(*getDefinedOutputDesc(config, i), outputPrecision);
             }
 
             initDescriptor(config);
@@ -422,14 +420,14 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
         int num = getChildEdgeAt(i)->getOutputNum();
         if (num >= 0) {
             auto childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-            childConf.desc->setPrecision(config.outConfs[i].desc->getPrecision());
+            childConf.desc = MemoryDescUtils::cloneWithNewPrecision(*childConf.desc, config.outConfs[i].desc->getPrecision());
 
             if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
                 if (!childConf.desc->isDefined() && childConf.inPlace >= 0)
                     getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
 
                 if (childConf.desc->isDefined() && childConf.desc->isCompatible(*config.outConfs[i].desc)) {
-                    config.outConfs[i].desc = childConf.desc->clone();
+                    config.outConfs[i].desc = childConf.desc;
                     continue;
                 }
             }
@@ -441,10 +439,10 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
     auto firstOutBlockingDesc = config.outConfs[0].desc->as<BlockedMemoryDesc>();
     size_t offset = 0;
     for (size_t i = 0; i < config.inConfs.size(); i++) {
-        auto oldDesc = config.inConfs[i].desc->clone();
+        auto oldDesc = config.inConfs[i].desc;
         auto inpBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
 
-        config.inConfs[i].desc = MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(inpBlockingDesc->getPrecision(),
+        config.inConfs[i].desc = std::make_shared<CpuBlockedMemoryDesc>(inpBlockingDesc->getPrecision(),
                                                                                  inpBlockingDesc->getShape(),
                                                                                  inpBlockingDesc->getBlockDims(),
                                                                                  inpBlockingDesc->getOrder(),

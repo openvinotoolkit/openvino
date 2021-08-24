@@ -79,33 +79,33 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].constant = false;
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
-    config.inConfs[1].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(getOriginalInputPrecisionAtPort(1), getInputShapeAtPort(1));
+    config.inConfs[1].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(getOriginalInputPrecisionAtPort(1), getInputShapeAtPort(1));
 
     if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
-        config.inConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(prec, getInputShapeAtPort(0));
-        config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(prec, getOutputShapeAtPort(0));
+        config.inConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, getInputShapeAtPort(0));
+        config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
 
         auto srcDims = getInputShapeAtPort(0).getStaticDims();
         if (srcDims[1] % 8 == 0) {
-            config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp8c)->createUniqueDesc(prec, getInputShapeAtPort(0));
+            config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp8c)->createSharedDesc(prec, getInputShapeAtPort(0));
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (srcDims[1] % 16 == 0) {
-            config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp16c)->createUniqueDesc(prec, getInputShapeAtPort(0));
+            config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp16c)->createSharedDesc(prec, getInputShapeAtPort(0));
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
-            config.inConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createUniqueDesc(prec, getInputShapeAtPort(0));
-            config.outConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createUniqueDesc(prec, getOutputShapeAtPort(0));
+            config.inConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, getInputShapeAtPort(0));
+            config.outConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, getOutputShapeAtPort(0));
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
     } else {
         // general plain case
-        config.inConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(prec, getInputShapeAtPort(0));
-        config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(prec, getOutputShapeAtPort(0));
+        config.inConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, getInputShapeAtPort(0));
+        config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, getOutputShapeAtPort(0));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     }
 }

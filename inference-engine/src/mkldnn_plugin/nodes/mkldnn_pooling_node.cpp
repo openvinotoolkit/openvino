@@ -152,18 +152,18 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         if (outputDataType == memory::data_type::bf16)
             outputDataType = memory::data_type::f32;
         // i8 layers supports only ndhwc and nhwc layouts
-        const auto in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 5 ?
+        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 5 ?
                                                                                    memory::format_tag::ndhwc : memory::format_tag::nhwc);
-        const auto out_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(childShape, outputDataType, inputRank == 5 ?
+        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, inputRank == 5 ?
                                                                                     memory::format_tag::ndhwc : memory::format_tag::nhwc);
-        createDescriptor({ in_candidate.get() }, { out_candidate.get() });
+        createDescriptor({ in_candidate }, { out_candidate });
     } else if ((inputRank == 4 || inputRank == 5) && parentShape.getStaticDims()[1] == 1) {
         // WA. We should force planar layout since it provides better performance
-        const auto in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 5 ?
+        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, inputRank == 5 ?
                                                                                    memory::format_tag::ncdhw : memory::format_tag::nchw);
-        const auto out_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(childShape, outputDataType, inputRank == 5 ?
+        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, inputRank == 5 ?
                                                                                     memory::format_tag::ncdhw : memory::format_tag::nchw);
-        createDescriptor({ in_candidate.get() }, { out_candidate.get() });
+        createDescriptor({ in_candidate }, { out_candidate });
     } else {
         if (inputDataType != memory::data_type::bf16) {
             inputDataType = memory::data_type::f32;
@@ -171,9 +171,9 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         }
         // It doesn't support any format
         for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
-            const auto in_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(parentShape, inputDataType, format);
-            const auto out_candidate = MKLDNNPlugin::make_unique<DnnlBlockedMemoryDesc>(childShape, outputDataType, format);
-            createDescriptor({in_candidate.get()}, {out_candidate.get()});
+            const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, format);
+            const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, format);
+            createDescriptor({in_candidate}, {out_candidate});
         }
     }
 }
@@ -198,10 +198,10 @@ bool MKLDNNPoolingNode::created() const {
     return getType() == Pooling;
 }
 
-void MKLDNNPoolingNode::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
-                                         const std::vector<const MemoryDesc*> &outputDesc) {
-    auto in_candidate =  MemoryDescUtils::convertToDnnlMemoryDesc(*inputDesc[0])->getDnnlDesc();
-    auto out_candidate = MemoryDescUtils::convertToDnnlMemoryDesc(*outputDesc[0])->getDnnlDesc();
+void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
+                                         const std::vector<MemoryDescPtr> &outputDesc) {
+    auto in_candidate =  MemoryDescUtils::convertToDnnlMemoryDesc(inputDesc[0])->getDnnlDesc();
+    auto out_candidate = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0])->getDnnlDesc();
 
     mkldnn::algorithm alg;
     if (algorithm == PoolingAvg) {
@@ -307,13 +307,13 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
     if (!selectedPD) {
         return;
     }
-    std::vector<const MemoryDesc*> inDescs;
+    std::vector<MemoryDescPtr> inDescs;
     for (const auto& inConf : config.inConfs)
-        inDescs.push_back(inConf.desc.get());
-    std::vector<const MemoryDesc*> outDescs;
+        inDescs.push_back(inConf.desc);
+    std::vector<MemoryDescPtr> outDescs;
     for (const auto& outConf : config.outConfs)
-        outDescs.push_back(outConf.desc.get());
-    createDescriptor({inDescs}, {outDescs});
+        outDescs.push_back(outConf.desc);
+    createDescriptor(inDescs, outDescs);
 
     mkldnn::primitive_attr attr;
     setPostOps(attr);

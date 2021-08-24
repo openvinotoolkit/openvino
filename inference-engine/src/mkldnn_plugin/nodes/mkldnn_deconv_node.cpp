@@ -250,14 +250,14 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
         std::swap(weightDims[withGroups + 0], weightDims[withGroups + 1]);
         internalBlobs.push_back(createWeiBlobAsIO(weightDims));
         auto format = getInputShapeAtPort(0).getRank() == 5 ? dnnl::memory::format_tag::ndhwc : dnnl::memory::format_tag::nhwc;
-        DnnlBlockedMemoryDesc in_candidate(getInputShapeAtPort(0), inputDataType, format);
-        DnnlBlockedMemoryDesc out_candidate(getOutputShapeAtPort(0), outputDataType, format);
-        createDescriptor({&in_candidate}, {&out_candidate});
+        MemoryDescPtr in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, format);
+        MemoryDescPtr out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, format);
+        createDescriptor({in_candidate}, {out_candidate});
     } else {
         for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
-            DnnlBlockedMemoryDesc in_candidate(getInputShapeAtPort(0), inputDataType, format);
-            DnnlBlockedMemoryDesc out_candidate(getOutputShapeAtPort(0), outputDataType, format);
-            createDescriptor({&in_candidate}, {&out_candidate});
+            MemoryDescPtr in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, format);
+            MemoryDescPtr out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, format);
+            createDescriptor({in_candidate}, {out_candidate});
         }
     }
     setPostOps(attr);
@@ -353,8 +353,8 @@ void MKLDNNDeconvolutionNode::createPrimitive() {
     }
 }
 
-void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
-                                               const std::vector<const MemoryDesc*> &outputDesc) {
+void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
+                                               const std::vector<MemoryDescPtr> &outputDesc) {
     const auto in_candidate = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*inputDesc[0]);
     const auto out_candidate = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*outputDesc[0]);
 
@@ -404,16 +404,16 @@ void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<const MemoryDes
     }
 }
 
-std::unique_ptr<MemoryDesc> MKLDNNDeconvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> MKLDNNDeconvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (idx == 2) {
-        return MKLDNNPlugin::make_unique<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(2), Shape(getInputShapeAtPort(2).getStaticDims()));
+        return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(2), Shape(getInputShapeAtPort(2).getStaticDims()));
     }
 
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : isInt8 ? primitive_desc_it.src_desc(idx) : primitive_desc_it.diff_dst_desc(idx);
     return MKLDNNExtensionUtils::makeDescriptor(desc);
 }
 
-std::unique_ptr<MemoryDesc> MKLDNNDeconvolutionNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> MKLDNNDeconvolutionNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc =  isInt8 ? primitive_desc_it.dst_desc(idx) : primitive_desc_it.diff_src_desc(idx);
     return MKLDNNExtensionUtils::makeDescriptor(desc);
 }
