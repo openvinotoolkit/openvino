@@ -20,14 +20,14 @@ class CTCLossReplacement(FrontReplacementSubgraph):
     enabled = True
 
     def run_before(self):
-        from extensions.front.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement
+        from extensions.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement
         return [CTCGreedyDecoderReplacement]
 
     def pattern(self):
         return dict(
             nodes=[
                 ('transpose', dict(op='Transpose')),
-                ('ctc_greedy_decoder', dict(op='CTCGreedyDecoderSeqLen')),
+                ('ctc_greedy_decoder', dict(op='CTCGreedyDecoderSeqLen', output_sparse_format=True)),
                 ('cast', dict(op='Cast')),
                 ('sparse_to_dense', dict(op='SparseToDense')),
                 ('const', dict(op='Const')),
