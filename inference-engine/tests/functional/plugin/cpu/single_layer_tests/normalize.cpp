@@ -165,7 +165,7 @@ std::vector<CPUSpecificParams> getCPUSpecificParams() {
         result.push_back(CPUSpecificParams({nhwc}, {nhwc}, {}, {}));
         if (with_cpu_x86_avx512f()) {
             result.push_back(CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}));
-        } else if (with_cpu_x86_avx2()) {
+        } else {
             result.push_back(CPUSpecificParams({nChw8c}, {nChw8c}, {}, {}));
         }
     }

@@ -104,13 +104,13 @@ protected:
         auto b = xmm2;
         auto c = xmm3;
 
-        movdqu(a, xword[src]);          // load 4 floats
-        movdqu(b, a);                   // b = a
-        movdqu(c, a);                   // c = a
-        pcmpeqd(b, zero);               // if (a == 0) b = 1 else b = 0
-        pand(c, mask);                  // c = a & 01111111100000000000000000000000
-        pcmpeqd(c, zero);               // if (c == 0) c = 1 else c = 0
-        ptest(b, c);                    // if ((!b & c) == 0) CF = 1 else CF = 0
+        uni_vmovdqu(a, xword[src]);          // load 4 floats
+        uni_vmovdqu(b, a);                   // b = a
+        uni_vmovdqu(c, a);                   // c = a
+        uni_vpcmpeqd(b, b, zero);               // if (a == 0) b = 1 else b = 0
+        uni_vpand(c, c, mask);                  // c = a & 01111111100000000000000000000000
+        uni_vpcmpeqd(c, c, zero);               // if (c == 0) c = 1 else c = 0
+        uni_vtestps(b, c);                    // if ((!b & c) == 0) CF = 1 else CF = 0
     }
 
     template<cpu_isa_t isa>

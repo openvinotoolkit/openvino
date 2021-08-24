@@ -607,19 +607,19 @@ private:
         switch (src_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                movss(xmm_src, op);
+                uni_vmovss(xmm_src, op);
                 break;
             case memory::data_type::bf16:
-                pinsrw(xmm_src, op, 0x0);
+                uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
                 break;
             case memory::data_type::s8:
                 movsx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             case memory::data_type::u8:
                 movzx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             default:
                 assert(!"unknown src_dt");
@@ -692,11 +692,11 @@ private:
         switch (dst_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                movss(op, xmm_dst);
+                uni_vmovss(op, xmm_dst);
                 break;
             case memory::data_type::bf16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(op, xmm_dst, 0x0);
+                uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -738,9 +738,9 @@ private:
     }
 
     inline void load_embedded_horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt) {
-        movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
+        uni_vmovshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
         horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
+        uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
         horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2,3,4),...
         load_scalar(xmm_aux3, ptr[reg_dst], dst_dt);
 
@@ -753,21 +753,21 @@ private:
             case memory::data_type::s32:
                 horiz_ps(xmm_dst, xmm_aux3);
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
-                movss(ptr[reg_dst], xmm_dst);
+                uni_vmovss(ptr[reg_dst], xmm_dst);
                 break;
             case memory::data_type::u8:
                 horiz_ps(xmm_dst, xmm_aux3);
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                pextrb(ptr[reg_dst], xmm_dst, 0);
+                uni_vpextrb(ptr[reg_dst], xmm_dst, 0);
                 break;
             case memory::data_type::s8:
                 horiz_ps(xmm_dst, xmm_aux3);
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                pextrb(ptr[reg_dst], xmm_dst, 0);
+                uni_vpextrb(ptr[reg_dst], xmm_dst, 0);
                 break;
             default:
                 assert(!"unknown dst_dt");
@@ -777,7 +777,7 @@ private:
     inline void horiz_ps(const Xmm& xmm, const Operand& op) {
         switch (jcp_.reduce_mode) {
             case ReduceAnd:
-                andps(xmm, op);
+                uni_vandps(xmm, xmm, op);
                 break;
             case ReduceL1:
             case ReduceL2:
@@ -786,19 +786,19 @@ private:
             case ReduceSum:
             case ReduceSumSquare:
             case ReduceLogSumExp:
-                addps(xmm, op);
+                uni_vaddps(xmm, xmm, op);
                 break;
             case ReduceMax:
-                maxps(xmm, op);
+                uni_vmaxps(xmm, xmm, op);
                 break;
             case ReduceMin:
-                minps(xmm, op);
+                uni_vminps(xmm, xmm, op);
                 break;
             case ReduceOr:
-                orps(xmm, op);
+                uni_vorps(xmm, xmm, op);
                 break;
             case ReduceProd:
-                mulps(xmm, op);
+                uni_vmulps(xmm, xmm, op);
                 break;
             default:
                 assert(!"unsupported reduce mode");
@@ -1074,19 +1074,19 @@ private:
         switch (src_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                movss(xmm_src, op);
+                uni_vmovss(xmm_src, op);
                 break;
             case memory::data_type::bf16:
-                pinsrw(xmm_src, op, 0x0);
+                uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
                 break;
             case memory::data_type::s8:
                 movsx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             case memory::data_type::u8:
                 movzx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             default:
                 assert(!"unknown src_dt");
@@ -1159,11 +1159,11 @@ private:
         switch (dst_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                movss(op, xmm_dst);
+                uni_vmovss(op, xmm_dst);
                 break;
             case memory::data_type::bf16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(op, xmm_dst, 0x0);
+                uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -1205,33 +1205,33 @@ private:
     }
 
     inline void horize_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt) {
-        movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
+        uni_vmovshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
         horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
+        uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
         horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2,3,4),...
         switch (dst_dt) {
             case memory::data_type::f32:
-                movss(ptr[reg_dst], xmm_dst);
+                uni_vmovss(ptr[reg_dst], xmm_dst);
                 break;
             case memory::data_type::bf16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(ptr[reg_dst], xmm_dst, 0x0);
+                uni_vpextrw(ptr[reg_dst], xmm_dst, 0x0);
                 break;
             case memory::data_type::s32:
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
-                movss(ptr[reg_dst], xmm_dst);
+                uni_vmovss(ptr[reg_dst], xmm_dst);
                 break;
             case memory::data_type::u8:
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                pextrb(ptr[reg_dst], xmm_dst, 0);
+                uni_vpextrb(ptr[reg_dst], xmm_dst, 0);
                 break;
             case memory::data_type::s8:
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                pextrb(ptr[reg_dst], xmm_dst, 0);
+                uni_vpextrb(ptr[reg_dst], xmm_dst, 0);
                 break;
             default:
                 assert(!"unknown dst_dt");
@@ -1261,9 +1261,9 @@ private:
     }
 
     inline void load_embedded_horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt) {
-        movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
+        uni_vmovshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
         horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
+        uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
         horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2,3,4),...
         load_scalar(xmm_aux3, ptr[reg_dst], dst_dt);
 
@@ -1276,21 +1276,21 @@ private:
             case memory::data_type::s32:
                 horiz_ps(xmm_dst, xmm_aux3);
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
-                movss(ptr[reg_dst], xmm_dst);
+                uni_vmovss(ptr[reg_dst], xmm_dst);
                 break;
             case memory::data_type::u8:
                 horiz_ps(xmm_dst, xmm_aux3);
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                pextrb(ptr[reg_dst], xmm_dst, 0);
+                uni_vpextrb(ptr[reg_dst], xmm_dst, 0);
                 break;
             case memory::data_type::s8:
                 horiz_ps(xmm_dst, xmm_aux3);
                 uni_vcvtps2dq(xmm_dst, xmm_dst);
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                pextrb(ptr[reg_dst], xmm_dst, 0);
+                uni_vpextrb(ptr[reg_dst], xmm_dst, 0);
                 break;
             default:
                 assert(!"unknown dst_dt");
@@ -1300,7 +1300,7 @@ private:
     inline void horiz_ps(const Xmm& xmm, const Operand& op) {
         switch (jcp_.reduce_mode) {
             case ReduceAnd:
-                andps(xmm, op);
+                uni_vandps(xmm, xmm, op);
                 break;
             case ReduceL1:
             case ReduceL2:
@@ -1309,19 +1309,19 @@ private:
             case ReduceSum:
             case ReduceSumSquare:
             case ReduceLogSumExp:
-                addps(xmm, op);
+                uni_vaddps(xmm, xmm, op);
                 break;
             case ReduceMax:
-                maxps(xmm, op);
+                uni_vmaxps(xmm, xmm, op);
                 break;
             case ReduceMin:
-                minps(xmm, op);
+                uni_vminps(xmm, xmm, op);
                 break;
             case ReduceOr:
-                orps(xmm, op);
+                uni_vorps(xmm, xmm, op);
                 break;
             case ReduceProd:
-                mulps(xmm, op);
+                uni_vmulps(xmm, xmm, op);
                 break;
             default:
                 assert(!"unsupported reduce mode");

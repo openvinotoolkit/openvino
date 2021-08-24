@@ -215,7 +215,7 @@ private:
             case memory::data_type::s32:
                 if (scalar_load) {
                     mov(reg_tmp_32, op);
-                    movq(xmm_in, reg_tmp_64);
+                    uni_vmovq(xmm_in, reg_tmp_64);
                 } else {
                     uni_vmovups(vmm_in, op);
                 }
@@ -223,7 +223,7 @@ private:
             case memory::data_type::s8:
                 if (scalar_load) {
                     movsx(reg_tmp_32, op);
-                    movq(xmm_in, reg_tmp_64);
+                    uni_vmovq(xmm_in, reg_tmp_64);
                 } else {
                     uni_vpmovsxbd(vmm_in, op);
                 }
@@ -231,7 +231,7 @@ private:
             case memory::data_type::u8:
                 if (scalar_load) {
                     movzx(reg_tmp_32, op);
-                    movq(xmm_in, reg_tmp_64);
+                    uni_vmovq(xmm_in, reg_tmp_64);
                 } else {
                     uni_vpmovzxbd(vmm_in, op);
                 }
@@ -541,7 +541,7 @@ private:
                 if (jcp_.exclude_pad) {
                     mov(reg_shift, kw_padding[jj]);
                     imul(reg_shift, reg_tmp_32);
-                    movq(Xmm(vmm_shift.getIdx()), reg_shift);
+                    uni_vmovq(Xmm(vmm_shift.getIdx()), reg_shift);
                     uni_vbroadcastss(vmm_shift, Xmm(vmm_shift.getIdx()));
                     uni_vcvtdq2ps(vmm_shift, vmm_shift);
                 }
@@ -612,7 +612,7 @@ private:
                                         } else {
                                             Ymm ymm_prev_dst = Ymm(vmm_sum.getIdx());
                                             vperm2i128(ymm_prev_dst, ymm_prev_dst, ymm_prev_dst, 0x01);
-                                            vpslldq(vmm_sum, vmm_sum, (oc - jcp_.oc_block / 2) * sizeof(float));
+                                            uni_vpslldq(vmm_sum, vmm_sum, (oc - jcp_.oc_block / 2) * sizeof(float));
                                         }
 
                                         uni_vaddps(vmm_dst, vmm_dst, vmm_sum);

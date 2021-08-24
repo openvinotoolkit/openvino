@@ -1199,10 +1199,10 @@ private:
             jl(tail_loop_end_label, T_NEAR);
 
             // get idx for input
-            movss(Xmm(vmm_tbl_y.getIdx()), ptr[reg_tbl_y]);
+            uni_vmovss(Xmm(vmm_tbl_y.getIdx()), ptr[reg_tbl_y]);
             gather_i32_indices(vmm_index_in_y, reg_index_y, 0, vmm_tbl_y, 1, memory::data_type::s32, true);
 
-            movss(Xmm(vmm_val.getIdx()), ptr[reg_tbl_x]);
+            uni_vmovss(Xmm(vmm_val.getIdx()), ptr[reg_tbl_x]);
             gather_i32_indices(vmm_index_in_x, reg_index, 0, vmm_val, 1, memory::data_type::s32, true);
             // gather weightX by input idx, used in y0-y3
             gather_i32_indices(vmm_weightX0, reg_weight_x, 0, vmm_val, grid_len, memory::data_type::f32, true);
@@ -1430,18 +1430,18 @@ private:
         switch (src_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                movss(xmm_src, op);
+                uni_vmovss(xmm_src, op);
                 break;
             case memory::data_type::s8:
                 movsx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             case memory::data_type::u8:
                 movzx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             case memory::data_type::bf16:
-                pinsrw(xmm_src, op, 0x0);
+                uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
                 break;
             default:
@@ -1536,7 +1536,7 @@ private:
         switch (dst_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                movss(op, xmm_dst);
+                uni_vmovss(op, xmm_dst);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -1552,7 +1552,7 @@ private:
                 break;
             case memory::data_type::bf16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(op, xmm_dst, 0x0);
+                uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             default:
                 assert(!"unknown dst_dt");

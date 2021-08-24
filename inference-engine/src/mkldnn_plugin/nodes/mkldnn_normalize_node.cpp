@@ -88,17 +88,21 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
                 Xbyak::Ymm ymm_sqr_sum = Xbyak::Ymm(vmm_sqr_sum.getIdx());
                 vextractf128(xmm_aux1, ymm_sqr_sum, 0);
                 vextractf128(xmm_aux2, ymm_sqr_sum, 1);
-                addps(xmm_aux1, xmm_aux2);
+                // vaddps(xmm_aux1, xmm_aux2);
+                uni_vaddps(xmm_aux1, xmm_aux1, xmm_aux2);
                 hsum_store(xmm_aux1);
             } else {
                 Xbyak::Zmm zmm_sqr_sum = Xbyak::Zmm(vmm_sqr_sum.getIdx());
                 vextractf32x4(xmm_aux1, zmm_sqr_sum, 0);
                 vextractf32x4(xmm_aux2, zmm_sqr_sum, 1);
-                addps(xmm_aux1, xmm_aux2);
+                // vaddps(xmm_aux1, xmm_aux2);
+                uni_vaddps(xmm_aux1, xmm_aux1, xmm_aux2);
                 vextractf32x4(xmm_aux2, zmm_sqr_sum, 2);
                 vextractf32x4(xmm_aux3, zmm_sqr_sum, 3);
-                addps(xmm_aux2, xmm_aux3);
-                addps(xmm_aux1, xmm_aux2);
+                // vaddps(xmm_aux2, xmm_aux3);
+                // vaddps(xmm_aux1, xmm_aux2);
+                uni_vaddps(xmm_aux2, xmm_aux2, xmm_aux3);
+                uni_vaddps(xmm_aux1, xmm_aux1, xmm_aux2);
                 hsum_store(xmm_aux1);
             }
         }
@@ -124,11 +128,11 @@ private:
     Xbyak::Xmm xmm_aux3 = Xbyak::Xmm(4);
 
     inline void hsum_store(Xbyak::Xmm xmm_sqr_sum) {
-        movshdup(xmm_aux3, xmm_sqr_sum);  //  sqrt_sum:1,2,3,4; aux3:2,2,4,4
-        addps(xmm_sqr_sum, xmm_aux3);     //  sqrt_sum:1+2,2+2,3+4,4+4
-        movhlps(xmm_aux3, xmm_sqr_sum);   //  aux3:3+4,4+4,4,4
-        addps(xmm_sqr_sum, xmm_aux3);     //  sqrt_sum:1+2+3+4,...
-        movss(ptr[reg_modulo], xmm_sqr_sum);
+        uni_vmovshdup(xmm_aux3, xmm_sqr_sum);  //  sqrt_sum:1,2,3,4; aux3:2,2,4,4
+        uni_vaddps(xmm_sqr_sum, xmm_sqr_sum, xmm_aux3);     //  sqrt_sum:1+2,2+2,3+4,4+4
+        uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_sqr_sum);   //  aux3:3+4,4+4,4,4
+        uni_vaddps(xmm_sqr_sum, xmm_sqr_sum, xmm_aux3);     //  sqrt_sum:1+2+3+4,...
+        uni_vmovss(ptr[reg_modulo], xmm_sqr_sum);
     }
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
@@ -359,6 +363,7 @@ private:
             load_scalar(xmm_val, ptr[reg_src], jcp_.src_dt);
             uni_vmulps(xmm_val, xmm_val, xmm_fused_factor);
 
+
             if (attr_.post_ops_.len() != 0) {
                 apply_post_ops(jcp_.dst_dt, 0);
                 add(reg_oc_off, step * sizeof(float));
@@ -493,19 +498,19 @@ private:
         switch (src_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                movss(xmm_src, op);
+                uni_vmovss(xmm_src, op);
                 break;
             case memory::data_type::bf16:
-                pinsrw(xmm_src, op, 0x0);
+                uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
                 break;
             case memory::data_type::s8:
                 movsx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             case memory::data_type::u8:
                 movzx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             default:
                 assert(!"unknown dst_dt");
@@ -568,11 +573,11 @@ private:
         switch (dst_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                movss(op, xmm_dst);
+                uni_vmovss(op, xmm_dst);
                 break;
             case memory::data_type::bf16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(op, xmm_dst, 0x0);
+                uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);

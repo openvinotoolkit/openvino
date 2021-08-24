@@ -102,17 +102,17 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
                 Xbyak::Ymm ymm_sum = Xbyak::Ymm(vmm_dst.getIdx());
                 vextractf128(xmm_aux1, ymm_sum, 0);
                 vextractf128(xmm_aux2, ymm_sum, 1);
-                addps(xmm_aux1, xmm_aux2);
+                uni_vaddps(xmm_aux1, xmm_aux1, xmm_aux2);
                 hsum_store(xmm_aux1);
             } else {
                 Xbyak::Zmm zmm_sum = Xbyak::Zmm(vmm_dst.getIdx());
                 vextractf32x4(xmm_aux1, zmm_sum, 0);
                 vextractf32x4(xmm_aux2, zmm_sum, 1);
-                addps(xmm_aux1, xmm_aux2);
+                uni_vaddps(xmm_aux1, xmm_aux1, xmm_aux2);
                 vextractf32x4(xmm_aux2, zmm_sum, 2);
                 vextractf32x4(xmm_aux3, zmm_sum, 3);
-                addps(xmm_aux2, xmm_aux3);
-                addps(xmm_aux1, xmm_aux2);
+                uni_vaddps(xmm_aux2, xmm_aux2, xmm_aux3);
+                uni_vaddps(xmm_aux1, xmm_aux1, xmm_aux2);
                 hsum_store(xmm_aux1);
             }
         } else {
@@ -342,14 +342,14 @@ private:
     }
 
     inline void hsum_store(Xbyak::Xmm xmm_sum) {
-        movshdup(xmm_aux3, xmm_sum);  //  sum:1,2,3,4; aux3:2,2,4,4
-        addps(xmm_sum, xmm_aux3);     //  sum:1+2,2+2,3+4,4+4
-        movhlps(xmm_aux3, xmm_sum);   //  aux3:3+4,4+4,4,4
-        addps(xmm_sum, xmm_aux3);     //  sum:1+2+3+4,...
+        uni_vmovshdup(xmm_aux3, xmm_sum);  //  sum:1,2,3,4; aux3:2,2,4,4
+        uni_vaddps(xmm_sum, xmm_sum, xmm_aux3);     //  sum:1+2,2+2,3+4,4+4
+        uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_sum);   //  aux3:3+4,4+4,4,4
+        uni_vaddps(xmm_sum, xmm_sum, xmm_aux3);     //  sum:1+2+3+4,...
         if (jcp_.normalize_variance) {
-            movss(ptr[reg_variance], xmm_sum);
+            uni_vmovss(ptr[reg_variance], xmm_sum);
         } else {
-            movss(ptr[reg_sum], xmm_sum);
+            uni_vmovss(ptr[reg_sum], xmm_sum);
         }
     }
 };
