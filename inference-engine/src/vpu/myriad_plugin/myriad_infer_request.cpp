@@ -295,3 +295,75 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MyriadInferRe
         perfInfo.data(), static_cast<int>(perfInfo.size()),
         _config.perfReport(), _config.printReceiveTensorTime());
 }
+
+InferenceEngine::Blob::Ptr MyriadInferRequest::GetBlob(const std::string& name) {
+    InputInfo::Ptr foundInput;
+    DataPtr foundOutput;
+    Blob::Ptr data;
+    const SizeVector oneVector = {1};
+    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+        // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
+        auto it = _preProcData.find(name);
+        if (it != _preProcData.end()) {
+            data = it->second->getRoiBlob();
+        } else {
+            data = _inputs[name];
+            SizeVector dims;
+            if (!data) {
+                auto&& parameters = _executableNetwork->_function->get_parameters();
+                const auto& pshape = parameters.at(_executableNetwork->_inputIndex.at(name))->get_partial_shape();
+                dims = pshape.is_dynamic() ? SizeVector({0}) : pshape.get_shape();
+                AllocateImplSingle(
+                    _inputs,
+                    _deviceInputs,
+                    *_networkInputs.find(name),
+                    [&](const std::string& blobName) {
+                        return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
+                    },
+                    dims);
+                data = _inputs[name];
+            } else {
+                dims = data->getTensorDesc().getDims();
+            }
+            checkBlob(data, name, true, foundInput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
+            auto& devBlob = _deviceInputs[name];
+            if (preProcessingRequired(foundInput, data, devBlob)) {
+                // if no devBlob, performs inplace
+                addInputPreProcessingFor(name, data, devBlob ? devBlob : _inputs[name]);
+            }
+        }
+    } else {
+        data = _outputs[name];
+        SizeVector dims;
+        if (!foundOutput->isDynamic()) {
+            dims = foundOutput->getTensorDesc().getDims();
+        } else if (_outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
+            dims = _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_shape();
+        } else {
+            IE_THROW() << "Output blob dimensions are not all known for output name " << name
+                       << " with partial shape: " << foundOutput->getPartialShape();
+        }
+
+        if (data) {
+            if (data->getTensorDesc().getDims() != dims) {
+                // TODO: implement something smart here instead of raw re-allocation
+                data.reset();
+            }
+        }
+
+        if (!data) {
+            auto&& results = _executableNetwork->_function->get_results();
+            AllocateImplSingle(
+                _outputs,
+                _networkOutputBlobs,
+                *_networkOutputs.find(name),
+                [&](const std::string& blobName) {
+                    return results.at(_executableNetwork->_outputIndex.at(blobName))->get_element_type();
+                },
+                dims);
+            data = _outputs[name];
+        }
+        checkBlob(data, name, false, foundOutput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
+    }
+    return data;
+}

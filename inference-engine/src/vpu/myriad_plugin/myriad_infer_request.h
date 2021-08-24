@@ -51,6 +51,9 @@ public:
     void InferAsync();
     void GetResult();
 
+    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& userBlob) override;
+
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>
     GetPerformanceCounts() const override;
 };
