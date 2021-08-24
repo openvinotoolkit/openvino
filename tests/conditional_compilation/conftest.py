@@ -199,48 +199,35 @@ def download_models(openvino_ref, models, request):
 
 def download_model(openvino_ref, model, request):
     # Step 1: downloader
+    python_executable = sys.executable
     omz_path = request.config.getoption("omz_repo")
     cache_dir = request.config.getoption("omz_cache_dir")
     downloader_path = str(omz_path / "tools" / "downloader" / "downloader.py")
     omz_num_attempts = 6
 
-    cmd = '{executable} {downloader_path} --name {model_name}' \
-          ' --precisions={precision}' \
-          ' --num_attempts {num_attempts}' \
-          ' --output_dir {models_dir}' \
-          ' --cache_dir {cache_dir}'.format(executable=sys.executable,
-                                            downloader_path=downloader_path,
-                                            model_name=model["name"],
-                                            precision=model["precision"],
-                                            num_attempts=omz_num_attempts,
-                                            models_dir=omz_path / "_omz_repo",
-                                            cache_dir=cache_dir)
+    cmd = f'{python_executable} {downloader_path} --name {model["name"]}' \
+          f' --precisions={model["precision"]}' \
+          f' --num_attempts {omz_num_attempts}' \
+          f' --output_dir {omz_path / "_omz_repo"}' \
+          f' --cache_dir {cache_dir}'
 
     cmd_exec(cmd)
 
     # Step 2: converter
     converter_path = omz_path / "tools" / "downloader" / "converter.py"
-    python_executable = sys.executable
-    # Note: remove --precisions if both precisions (FP32 & FP16) required
-    cmd = '{executable} {converter_path} --name {model_name}' \
-          ' -p {executable}' \
-          ' --precisions={precision}' \
-          ' --output_dir {irs_dir}' \
-          ' --download_dir {models_dir}' \
-          ' --mo {mo_tool}'.format(executable=python_executable, precision=model["precision"],
-                                   converter_path=converter_path,
-                                   model_name=model["name"],
-                                   irs_dir=omz_path / "_omz_irs_out_dir",
-                                   models_dir=omz_path / "_omz_repo",
-                                   mo_tool=Path(abs_path('../../../model-optimizer/mo.py')).resolve())
+    # Note: remove --precisions if both precisions (FP32 & FP16) are required
+    cmd = f'{python_executable} {converter_path} --name {model["name"]}' \
+          f' -p {python_executable}' \
+          f' --precisions={model["precision"]}' \
+          f' --output_dir {omz_path / "_omz_irs_out_dir"}' \
+          f' --download_dir {omz_path / "_omz_repo"}' \
+          f' --mo {Path(abs_path("../../../model-optimizer/mo.py")).resolve()}'
 
     cmd_exec(cmd, env=get_openvino_environment(openvino_ref))
 
     # Step 3: info_dumper
     info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
-    cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=sys.executable,
-                                                                           info_dumper_path=info_dumper_path,
-                                                                           model_name=model["name"])
+    cmd = f'"{python_executable}" "{info_dumper_path}" --name {model["name"]}'
 
     out = ""
     try:
