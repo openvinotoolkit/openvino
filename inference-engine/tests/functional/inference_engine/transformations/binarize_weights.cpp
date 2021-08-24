@@ -150,12 +150,7 @@ TEST(TransformationTests, NegativeBinarizeWeightsInvalidLevels) {
         auto act_out_high = opset5::Constant::create(element::f32, Shape{1}, {0.7f});
         auto act_fq = std::make_shared<opset5::FakeQuantize>(data, act_in_low, act_in_high, act_out_low, act_out_high, 3);
         auto weights = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-1, 0, 2});
-        auto weights_in_low = opset5::Constant::create(element::f32, Shape{1}, {-1.0f});
-        auto weights_in_high = opset5::Constant::create(element::f32, Shape{1}, {2.0f});
-        auto weights_out_low = opset5::Constant::create(element::f32, Shape{1}, {-0.2f});
-        auto weights_out_high = opset5::Constant::create(element::f32, Shape{1}, {0.2f});
-        auto weights_fq = std::make_shared<opset5::FakeQuantize>(weights, weights_in_low, weights_in_high, weights_out_low, weights_out_high, 2);
-        auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto conv = std::make_shared<opset5::Convolution>(act_fq, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
         f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
@@ -199,12 +194,7 @@ TEST(TransformationTests, NegativeBinarizeWeightsInvalidActivationsOutputLowHigh
         auto act_out_high = opset5::Constant::create(element::f32, Shape{1}, {0.7f});
         auto act_fq = std::make_shared<opset5::FakeQuantize>(data, act_in_low, act_in_high, act_out_low, act_out_high, 2);
         auto weights = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-1, 0, 2});
-        auto weights_in_low = opset5::Constant::create(element::f32, Shape{1}, {-1.0f});
-        auto weights_in_high = opset5::Constant::create(element::f32, Shape{1}, {2.0f});
-        auto weights_out_low = opset5::Constant::create(element::f32, Shape{1}, {-0.2f});
-        auto weights_out_high = opset5::Constant::create(element::f32, Shape{1}, {0.2f});
-        auto weights_fq = std::make_shared<opset5::FakeQuantize>(weights, weights_in_low, weights_in_high, weights_out_low, weights_out_high, 2);
-        auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto conv = std::make_shared<opset5::Convolution>(act_fq, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
         f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
@@ -248,12 +238,7 @@ TEST(TransformationTests, NegativeBinarizeWeightsInvalidOutputLowHigh) {
         auto act_out_high = opset5::Constant::create(element::f32, Shape{1}, {0.7f});
         auto act_fq = std::make_shared<opset5::FakeQuantize>(data, act_in_low, act_in_high, act_out_low, act_out_high, 2);
         auto weights = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-1, 0, 2});
-        auto weights_in_low = opset5::Constant::create(element::f32, Shape{1}, {-1.0f});
-        auto weights_in_high = opset5::Constant::create(element::f32, Shape{1}, {2.0f});
-        auto weights_out_low = opset5::Constant::create(element::f32, Shape{1}, {0.0f});
-        auto weights_out_high = opset5::Constant::create(element::f32, Shape{1}, {0.2f});
-        auto weights_fq = std::make_shared<opset5::FakeQuantize>(weights, weights_in_low, weights_in_high, weights_out_low, weights_out_high, 2);
-        auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto conv = std::make_shared<opset5::Convolution>(act_fq, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
         f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
