@@ -176,7 +176,21 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
 
             auto actualOutputMemoryFormats = getActualOutputMemoryFormats(getExecValueOutputsLayout(node));
 
-            for (size_t i = 0; i < outFmts.size(); i++) {
+            bool isAllEqual = true;
+            for (size_t i = 1; i < outFmts.size(); i++) {
+                if (outFmts[i - 1] != outFmts[i]) {
+                    isAllEqual = false;
+                    break;
+                }
+            }
+            size_t fmtsNum = outFmts.size();
+            if (isAllEqual) {
+                fmtsNum = fmtsNum == 0 ? 0 : 1;
+            } else {
+                ASSERT_EQ(fmtsNum, actualOutputMemoryFormats.size());
+            }
+
+            for (size_t i = 0; i < fmtsNum; i++) {
                 const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
                 const auto shape = node->get_output_shape(i);
 

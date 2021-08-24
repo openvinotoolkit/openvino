@@ -119,14 +119,11 @@ protected:
         // returned output format always tnc
         if (outFmts.size() >= 3) {
             for (size_t i = 1; i < 3; i++) {
-                if (ngraph::shape_size(lstm_sequence->get_output_shape(i)) == 1) {
+                if (ngraph::shape_size(lstm_sequence->get_output_shape(i)) == 1 ||
+                        lstm_sequence->get_output_shape(0) == ngraph::Shape{1, 1, 2, 10}) {
                     outFmts[i] = tnc;
                 }
             }
-        }
-        // if output format equals for all outputs, runtime info return only one formats
-        if (std::adjacent_find(outFmts.begin(), outFmts.end(), std::not_equal_to<cpu_memory_format_t>()) == outFmts.end()) {
-            outFmts.resize(1);
         }
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(0)),
@@ -179,8 +176,8 @@ std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
-CPUSpecificParams cpuParams{{ntc, ntc, ntc}, {tnc, ntc, ntc}, {"ref_any"}, "ref_any"};
-CPUSpecificParams cpuParamsBatchSizeOne{{ntc, ntc, ntc}, {tnc, ntc, ntc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParams{{ntc, ntc, ntc}, {ntc, ntc, ntc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc, ntc}, {tnc, ntc, ntc}, {"ref_any"}, "ref_any"};
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 std::vector<size_t> seq_lengths_zero_clip{2};

@@ -24,6 +24,10 @@ public:
 
     void execute(mkldnn::stream strm) override;
 
+    inline bool hasNativeOrder() const {
+        return nativeOrder;
+    }
+
 private:
     void initCell(const std::shared_ptr<ngraph::Node>& op);
     void initSeq(const std::shared_ptr<ngraph::Node>& op);
