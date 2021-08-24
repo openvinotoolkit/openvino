@@ -152,7 +152,7 @@ jobs:
     workingDirectory: $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
     
-  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(LAYER_TESTS_DIR) -P cmake_install.cmake
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Install Layer Tests'
 
