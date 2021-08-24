@@ -19,7 +19,6 @@ sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").re
 import yaml
 import pytest
 
-from tests.stress_tests.scripts.get_testdata import abs_path
 from install_pkg import get_openvino_environment  # pylint: disable=import-error
 from path_utils import expand_env_vars  # pylint: disable=import-error
 from proc_utils import cmd_exec  # pylint: disable=import-error
@@ -221,7 +220,7 @@ def download_model(openvino_ref, model, request):
           f' --precisions={model["precision"]}' \
           f' --output_dir {omz_path / "_omz_irs_out_dir"}' \
           f' --download_dir {omz_path / "_omz_repo"}' \
-          f' --mo {Path(abs_path("../../../model-optimizer/mo.py")).resolve()}'
+          f' --mo {Path("../../model-optimizer/mo.py").resolve()}'
 
     cmd_exec(cmd, env=get_openvino_environment(openvino_ref))
 
