@@ -30,7 +30,7 @@ public:
 
 private:
     size_t axis = 0;
-    bool canOptimize = false;  // inPlace
+    bool canBeInPlace = false;
     bool canOptimizeNspc = false;
 
     size_t inverseOrder(const InferenceEngine::SizeVector& order, size_t axis);
