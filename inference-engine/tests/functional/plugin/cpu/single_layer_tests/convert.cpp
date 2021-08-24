@@ -35,7 +35,7 @@ const std::vector<Precision> precisions = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest_From_BF16, ConvertCPULayerTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn({ngraph::helpers::ConversionTypes::CONVERT}),
+                                ::testing::Values(ngraph::helpers::ConversionTypes::CONVERT),
                                 ::testing::Values(inShape),
                                 ::testing::Values(Precision::BF16),
                                 ::testing::ValuesIn(precisions),
@@ -46,7 +46,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest_From_BF16, ConvertCPULayerTes
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest_To_BF16, ConvertCPULayerTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn({ngraph::helpers::ConversionTypes::CONVERT}),
+                                ::testing::Values(ngraph::helpers::ConversionTypes::CONVERT),
                                 ::testing::Values(inShape),
                                 ::testing::ValuesIn(precisions),
                                 ::testing::Values(Precision::BF16),
