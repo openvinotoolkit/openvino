@@ -2,7 +2,7 @@
 
 **Versioned name**: *Split-1*
 
-**Category**: *Data movement operations*
+**Category**: *Data movement*
 
 **Short description**: *Split* operation splits an input tensor into pieces of the same length along some axis.
 
