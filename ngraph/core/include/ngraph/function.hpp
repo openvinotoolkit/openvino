@@ -230,6 +230,8 @@ public:
 
     void reset_cached_ops() { m_cached_ops->clear(); }
 
+    void set_cache_ops(bool state) { m_cache_ordered_ops = state; }
+
     /// \brief Return a list of function's variables.
     const VariableVector& get_variables() const {
         return m_variables;
