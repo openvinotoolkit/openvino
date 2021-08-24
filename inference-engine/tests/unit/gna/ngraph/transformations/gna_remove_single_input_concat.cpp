@@ -8,14 +8,14 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include <ngraph/function.hpp>
-#include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
 namespace testing {
 namespace {
 
-using GraphInputs = std::vector<std::shared_ptr<ngraph::opset7::Parameter>>;
+using GraphInputs = std::vector<std::shared_ptr<ngraph::opset8::Parameter>>;
 using GraphOutputs = ngraph::OutputVector;
 
 struct Graph {
@@ -29,7 +29,7 @@ std::shared_ptr<ngraph::Function> Graph::createFunction() {
     ngraph::ResultVector results;
     std::transform(outputs.begin(), outputs.end(), std::back_inserter(results),
                    [] (ngraph::Output<ngraph::Node> output) {
-                        return std::make_shared<ngraph::opset7::Result>(output);
+                        return std::make_shared<ngraph::opset8::Result>(output);
                    });
 
     ngraph::ParameterVector params(inputs.begin(), inputs.end());
@@ -46,7 +46,7 @@ Graph createGraph(int n_inputs, bool has_concat, int n_outputs) {
     Operations outputs;
 
     for (int i = 0; i < n_inputs; ++i) {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64,
+        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64,
                                                                  ngraph::Shape{1, 3, 64});
         inputs.push_back(input);
         outputs.push_back(input);
@@ -55,15 +55,15 @@ Graph createGraph(int n_inputs, bool has_concat, int n_outputs) {
     {
         Operations new_outputs;
         for (auto output : outputs) {
-            auto add_bias = ngraph::opset7::Constant::create(ngraph::element::i64, {1, 1, 1}, {2});
-            auto add_operation = std::make_shared<ngraph::opset7::Add>(output, add_bias);
+            auto add_bias = ngraph::opset8::Constant::create(ngraph::element::i64, {1, 1, 1}, {2});
+            auto add_operation = std::make_shared<ngraph::opset8::Add>(output, add_bias);
             new_outputs.push_back(add_operation);
         }
         outputs.swap(new_outputs);
     }
 
     if (has_concat) {
-        auto concat_operation = std::make_shared<ngraph::opset7::Concat>(ngraph::OutputVector(outputs.begin(),
+        auto concat_operation = std::make_shared<ngraph::opset8::Concat>(ngraph::OutputVector(outputs.begin(),
                                                                                               outputs.end()),
                                                                          0);
         outputs = {concat_operation};
@@ -72,8 +72,9 @@ Graph createGraph(int n_inputs, bool has_concat, int n_outputs) {
     for (auto output : outputs) {
         Operations new_outputs;
         for (int i = 0; i < n_outputs; ++i) {
-            auto add_bias = ngraph::opset7::Constant::create(ngraph::element::i64, {1, 1, 1}, {3});
-            auto add_operation = std::make_shared<ngraph::opset7::Add>(output, add_bias);
+            auto add_bias = ngraph::opset8::Constant::create(ngraph::element::i64, {1, 1, 1}, {3});
+            auto add_operation = std::make_shared<ngraph::opset8::Add>(output, add_bias);
+            new_outputs.push_back(add_operation);
         }
         outputs.swap(new_outputs);
     }
@@ -81,8 +82,8 @@ Graph createGraph(int n_inputs, bool has_concat, int n_outputs) {
     Graph graph;
     graph.inputs.swap(inputs);
     graph.outputs.insert(graph.outputs.end(),
-                        std::make_move_iterator(graph.outputs.begin()),
-                        std::make_move_iterator(graph.outputs.end()));
+                        std::make_move_iterator(outputs.begin()),
+                        std::make_move_iterator(outputs.end()));
 
     return graph;
 }
@@ -130,7 +131,7 @@ TEST_P(RemoveSingleInputConcatFixture, CompareFunctions) {
 
 INSTANTIATE_TEST_SUITE_P(RemoveSingleInputConcatTestSuite, RemoveSingleInputConcatFixture,
                          ::testing::Values(std::make_tuple(createGraph(1 /* n_inputs */, true /* has_concat */, 1 /* n_outputs */),
-                                                           createGraph(1 /* n_inputs */, true /* has_concat */, 1 /* n_outputs */)),
+                                                           createGraph(1 /* n_inputs */, false /* has_concat */, 1 /* n_outputs */)),
                                            std::make_tuple(createGraph(1 /* n_inputs */, true /* has_concat */, 2 /* n_outputs */),
                                                            createGraph(1 /* n_inputs */, false /* has_concat */, 2 /* n_outputs */)),
                                            std::make_tuple(createGraph(2 /* n_inputs */, true /* has_concat */, 1 /* n_outputs */),

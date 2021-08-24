@@ -9,8 +9,7 @@
 namespace GNAPluginNS {
 
 /**
- * @brief
- * TODO: add brief
+ * @brief remove concat layers with single input
  */
 class RemoveSingleInputConcat : public ngraph::pass::MatcherPass {
 public:
