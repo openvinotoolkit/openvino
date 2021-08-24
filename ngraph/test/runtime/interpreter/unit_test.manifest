@@ -153,3 +153,7 @@ onnx_model_deformable_conv_2d
 
 # No support for unsigned types
 INTERPRETER.zero_sized_negative
+
+# No support yet for RandomUniform
+INTERPRETER.onnx_model_random_uniform
+INTERPRETER.onnx_model_random_uniform_like
