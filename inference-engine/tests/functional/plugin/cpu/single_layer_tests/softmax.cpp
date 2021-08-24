@@ -118,7 +118,7 @@ const auto OptimizedParams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU),
         testing::Values(emptyCPUSpec));
 
-INSTANTIATE_TEST_CASE_P(smoke_SoftMax_Optimized_CPU, SoftMaxLayerCPUTest, OptimizedParams, SoftMaxLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU, SoftMaxLayerCPUTest, OptimizedParams, SoftMaxLayerCPUTest::getTestCaseName);
 
 const auto NotOptimizedParams = testing::Combine(
         testing::Values(Precision::FP32, Precision::BF16),
@@ -126,7 +126,7 @@ const auto NotOptimizedParams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU),
         testing::Values(notOptimizedCPUSpec));
 
-INSTANTIATE_TEST_CASE_P(smoke_SoftMax_CPU, SoftMaxLayerCPUTest, NotOptimizedParams, SoftMaxLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_CPU, SoftMaxLayerCPUTest, NotOptimizedParams, SoftMaxLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

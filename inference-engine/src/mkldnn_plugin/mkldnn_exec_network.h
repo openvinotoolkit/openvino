@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
+#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 
 #include "mkldnn_graph.h"
 #include "mkldnn_extension_mngr.h"
@@ -22,16 +23,14 @@ class MKLDNNExecNetwork: public InferenceEngine::ExecutableNetworkThreadSafeDefa
 public:
     typedef std::shared_ptr<MKLDNNExecNetwork> Ptr;
 
-    InferenceEngine::IInferRequestInternal::Ptr
+    std::shared_ptr<InferenceEngine::IInferRequestInternal>
     CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-              InferenceEngine::OutputsDataMap networkOutputs) override;
+                           InferenceEngine::OutputsDataMap networkOutputs) override;
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
     MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
                       const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing);
-
-    ~MKLDNNExecNetwork() override = default;
 
     void setProperty(const std::map<std::string, std::string> &properties);
 
@@ -60,8 +59,9 @@ protected:
             Graph&                          _graph;
         };
     };
+
     // WARNING: Do not use _graphs directly.
-    std::deque<Graph>                           _graphs;
+    mutable std::deque<Graph>                   _graphs;
     NumaNodesWeights&                           _numaNodesWeights;
 
     /* WARNING: Use GetGraph() function to get access to graph in current stream.
@@ -69,6 +69,8 @@ protected:
      *       even from main thread
      */
     Graph::Lock GetGraph();
+    Graph::Lock GetGraph() const;
+
 
     bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
 };

@@ -211,7 +211,7 @@ You must have a model that is specific for you inference task. Example model typ
 - Custom (Often based on SSD)
 
 Options to find a model suitable for the OpenVINO™ toolkit are:
-- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using the [Model Downloader tool](@ref omz_tools_downloader).
+- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) using the [Model Downloader tool](@ref omz_tools_downloader).
 - Download from GitHub*, Caffe* Zoo, TensorFlow* Zoo, and other resources.
 - Train your own model.
         
@@ -484,7 +484,7 @@ Below you can find basic guidelines for executing the OpenVINO™ workflow using
 
 ## <a name="syntax-examples"></a> Typical Code Sample and Demo Application Syntax Examples
 
-This section explains how to build and use the sample and demo applications provided with the toolkit. You will need CMake 3.10 or later and Microsoft Visual Studio 2017 or 2019 installed. Build details are on the [Inference Engine Samples](../IE_DG/Samples_Overview.md) and [Demo Applications](@ref omz_demos_README) pages.
+This section explains how to build and use the sample and demo applications provided with the toolkit. You will need CMake 3.10 or later and Microsoft Visual Studio 2017 or 2019 installed. Build details are on the [Inference Engine Samples](../IE_DG/Samples_Overview.md) and [Demo Applications](@ref omz_demos) pages.
 
 To build all the demos and samples:
 

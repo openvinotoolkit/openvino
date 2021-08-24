@@ -6,6 +6,7 @@
 #include <ie_ngraph_utils.hpp>
 #include <mkldnn_extension_utils.h>
 #include <ngraph/runtime/host_tensor.hpp>
+#include "common/blocked_desc_creator.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -15,6 +16,9 @@ using namespace InferenceEngine::details;
 MKLDNNReferenceNode::MKLDNNReferenceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache,
                                          const std::string& errorMessage) :
         MKLDNNNode(op, eng, cache), ngraphOp(op), additionalErrorMessage(errorMessage) {
+    if (!op->has_evaluate()) {
+        IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
+    }
     setType(Reference);
     setTypeStr("Reference");
 }
@@ -25,58 +29,38 @@ void MKLDNNReferenceNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::LayerConfig config;
-    for (size_t i = 0; i < inDims.size(); i++) {
-        InferenceEngine::DataConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
-
-        dataConfig.desc = MKLDNNMemoryDesc(inDims[i],
-                MKLDNNExtensionUtils::IEPrecisionToDataType(convertPrecision(ngraphOp->get_input_element_type(i))),
-                MKLDNNMemory::GetPlainFormat(inDims[i]));
-
-        config.inConfs.push_back(dataConfig);
+    std::vector<PortConfigurator> inputConfigurators;
+    inputConfigurators.reserve(inputShapes.size());
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        inputConfigurators.emplace_back(LayoutType::ncsp, convertPrecision(ngraphOp->get_input_element_type(i)), inputShapes[i]);
     }
 
-    for (size_t i = 0; i < outDims.size(); i++) {
-        InferenceEngine::DataConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
-
-        dataConfig.desc = MKLDNNMemoryDesc(outDims[i],
-                MKLDNNExtensionUtils::IEPrecisionToDataType(convertPrecision(ngraphOp->get_output_element_type(i))),
-                MKLDNNMemory::GetPlainFormat(outDims[i]));
-
-        config.outConfs.push_back(dataConfig);
+    std::vector<PortConfigurator> outputConfigurators;
+    outputConfigurators.reserve(inputShapes.size());
+    for (size_t i = 0; i < outputShapes.size(); i++) {
+        outputConfigurators.emplace_back(LayoutType::ncsp, convertPrecision(ngraphOp->get_output_element_type(i)), outputShapes[i]);
     }
 
-    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref, memory::format_tag::undef});
+    addSupportedPrimDesc(inputConfigurators, outputConfigurators, impl_desc_type::ref);
 }
 
 void MKLDNNReferenceNode::createPrimitive() {}
 
 void MKLDNNReferenceNode::execute(mkldnn::stream strm) {
     ngraph::HostTensorVector inputs;
-    for (size_t i = 0; i < inDims.size(); i++) {
+    for (size_t i = 0; i < inputShapes.size(); i++) {
         void *srcDataPtr = getParentEdgesAtPort(i)[0]->getMemory().GetPtr();
         inputs.push_back(std::make_shared<ngraph::HostTensor>(ngraphOp->get_input_element_type(i), ngraphOp->get_input_shape(i), srcDataPtr));
     }
 
     ngraph::HostTensorVector outputs;
-    for (size_t i = 0; i < outDims.size(); i++) {
+    for (size_t i = 0; i < outputShapes.size(); i++) {
         void *dstDataPtr = getChildEdgesAtPort(i)[0]->getMemory().GetPtr();
         outputs.push_back(std::make_shared<ngraph::HostTensor>(ngraphOp->get_output_element_type(i), ngraphOp->get_output_shape(i), dstDataPtr));
     }
 
     if (!ngraphOp->evaluate(outputs, inputs)) {
-        std::string errorDetails = "Unsupported operation of type: " + std::string(ngraphOp->get_type_name()) +
-                                   " name: " + std::string(ngraphOp->get_friendly_name());
-        errorDetails += "\nDetails: \n";
-        if (!additionalErrorMessage.empty()) {
-            errorDetails += additionalErrorMessage + "\n";
-        }
-        errorDetails += "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
-        IE_THROW(NotImplemented) << errorDetails;
+        IE_THROW() << "Evaluation failed on node of type: " << std::string(ngraphOp->get_type_name()) << " name: " << getName();
     }
 }
 

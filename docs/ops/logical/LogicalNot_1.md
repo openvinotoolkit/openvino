@@ -2,7 +2,7 @@
 
 **Versioned name**: *LogicalNot-1*
 
-**Category**: Logical unary operation 
+**Category**: *Logical unary*
 
 **Short description**: *LogicalNot* performs element-wise logical negation operation with given tensor.
 
@@ -12,11 +12,11 @@
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: An tensor of type *T*. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise logical negation operation. A tensor of type T.
+* **1**: The result of element-wise logical negation operation. A tensor of type *T*.
 
 **Types**
 
@@ -25,7 +25,7 @@
 *LogicalNot* does the following with the input tensor *a*:
 
 \f[
-a_{i} = not(a_{i})
+a_{i} = \lnot a_{i}
 \f]
 
 **Examples**

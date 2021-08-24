@@ -15,6 +15,10 @@ public:
 
     MKLDNNDescriptor(std::shared_ptr<mkldnn::convolution_backward_data::desc> desc,
                      std::shared_ptr<mkldnn::convolution_forward::primitive_desc> prim);
+
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::deconvolution_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::deconvolution_forward::desc>();
+
     operator std::shared_ptr<mkldnn::convolution_backward_data::desc>();
     operator std::shared_ptr<mkldnn::convolution_forward::primitive_desc>();
 

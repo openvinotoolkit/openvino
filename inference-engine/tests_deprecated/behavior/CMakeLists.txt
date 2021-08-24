@@ -4,8 +4,6 @@
 
 add_subdirectory(shared_tests)
 
-disable_deprecated_warnings()
-
 if (ENABLE_HDDL OR ENABLE_MYRIAD)
     add_subdirectory(vpu)
 endif()

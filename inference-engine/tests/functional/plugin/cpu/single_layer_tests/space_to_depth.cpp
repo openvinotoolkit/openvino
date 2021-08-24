@@ -124,7 +124,7 @@ const auto spaceToDepthBS2_4DParams = testing::Combine(
         testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS2_4D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_CPUSpaceToDepthBS2_4D, SpaceToDepthLayerCPUTest, spaceToDepthBS2_4DParams, SpaceToDepthLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUSpaceToDepthBS2_4D, SpaceToDepthLayerCPUTest, spaceToDepthBS2_4DParams, SpaceToDepthLayerCPUTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParamsBS3_4D = {
         cpuParams_nhwc_avx2,
@@ -142,7 +142,7 @@ const auto spaceToDepthBS3_4DParams = testing::Combine(
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS3_4D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_CPUSpaceToDepthBS3_4D, SpaceToDepthLayerCPUTest, spaceToDepthBS3_4DParams, SpaceToDepthLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUSpaceToDepthBS3_4D, SpaceToDepthLayerCPUTest, spaceToDepthBS3_4DParams, SpaceToDepthLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<size_t >> inputShapesBS2_5D = {
         {1, 16, 2, 2, 2}, {1, 16, 4, 4, 2}, {1, 32, 2, 6, 2}, {2, 32, 4, 2, 2}, {1, 48, 6, 2, 2}, {2, 64, 2, 2, 6}
@@ -171,7 +171,7 @@ const auto spaceToDepthBS2_5DParams = testing::Combine(
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS2_5D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_CPUSpaceToDepthBS2_5D, SpaceToDepthLayerCPUTest, spaceToDepthBS2_5DParams, SpaceToDepthLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUSpaceToDepthBS2_5D, SpaceToDepthLayerCPUTest, spaceToDepthBS2_5DParams, SpaceToDepthLayerCPUTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParamsBS3_5D = {
         cpuParams_ndhwc_avx2,
@@ -189,7 +189,7 @@ const auto spaceToDepthBS3_5DParams = testing::Combine(
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS3_5D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_CPUSpaceToDepthBS3_5D, SpaceToDepthLayerCPUTest, spaceToDepthBS3_5DParams, SpaceToDepthLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUSpaceToDepthBS3_5D, SpaceToDepthLayerCPUTest, spaceToDepthBS3_5DParams, SpaceToDepthLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

@@ -4,9 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/primitive.hpp"
-#include "api/memory.hpp"
+#include "cldnn/primitives/primitive.hpp"
+#include "cldnn/runtime/memory.hpp"
 #include "kernel_selector_helper.h"
+
 #include <vector>
 
 namespace cldnn {

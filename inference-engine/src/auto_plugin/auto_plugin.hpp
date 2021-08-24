@@ -4,34 +4,14 @@
 
 #pragma once
 
-#include <map>
-#include <vector>
-#include <string>
-#include <unordered_set>
-
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include "auto_exec_network.hpp"
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 
 namespace AutoPlugin {
-namespace IE = InferenceEngine;
-using ConfigType = std::map<std::string, std::string>;
-
-class AutoInferencePlugin : public IE::InferencePluginInternal {
+class AutoInferencePlugin : public InferenceEngine::IInferencePlugin {
 public:
-    AutoInferencePlugin();
+    AutoInferencePlugin() = default;
     ~AutoInferencePlugin() = default;
-    IE::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const IE::CNNNetwork& network, const ConfigType& config) override;
-    IE::QueryNetworkResult QueryNetwork(const IE::CNNNetwork& network, const ConfigType& config) const override;
-    IE::Parameter GetMetric(const std::string& name, const std::map<std::string, IE::Parameter>& options) const override;
-    IE::Parameter GetConfig(const std::string& name, const std::map<std::string, IE::Parameter> & options) const override;
-    void SetConfig(const ConfigType& config) override;
-
-private:
-    std::vector<AutoPlugin::DeviceInformation> GetDeviceChoice(const ConfigType&  config) const;
-
-protected:
-    ConfigType GetSupportedConfig(const ConfigType& config, const AutoPlugin::DeviceName & deviceName) const;
 };
 
 }  // namespace AutoPlugin

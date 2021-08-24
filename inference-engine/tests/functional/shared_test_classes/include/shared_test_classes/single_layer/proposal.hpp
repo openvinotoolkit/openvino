@@ -58,7 +58,8 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<proposalLayerTestParamsSet> obj);
     static std::string SerializeProposalSpecificParams(proposalSpecificParams& params);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
-    void Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) override;
+    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                 const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) override;
     template <class T>
     void Compare(const T *expected, const T *actual, std::size_t size,
                         T threshold, const std::size_t output_index) {

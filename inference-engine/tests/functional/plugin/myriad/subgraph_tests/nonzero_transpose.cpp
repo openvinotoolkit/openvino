@@ -20,8 +20,6 @@ using Parameters = std::tuple<
 class NonZero_Transpose : public testing::WithParamInterface<Parameters>, virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
-
         const auto& parameters = GetParam();
         const auto& dataType = std::get<0>(parameters);
         const auto& dataDims = std::get<1>(parameters);
@@ -45,7 +43,7 @@ TEST_P(NonZero_Transpose, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicTranspose, NonZero_Transpose,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicTranspose, NonZero_Transpose,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::Values(ngraph::Shape{1, 800}),

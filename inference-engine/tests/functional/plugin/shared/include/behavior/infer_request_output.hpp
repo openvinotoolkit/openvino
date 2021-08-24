@@ -13,7 +13,6 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "multi-device/multi_device_config.hpp"
 #include <ie_core.hpp>
 #include <base/behavior_test_utils.hpp>
 #include "common_test_utils/common_utils.hpp"

@@ -7,12 +7,15 @@ import sys
 import errno
 import subprocess  # nosec
 import typing
+import multiprocessing
+from fnmatch import fnmatchcase
 from pathlib import Path
-from shutil import copyfile
-from distutils.command.install import install
+from shutil import copyfile, rmtree
 from distutils.command.build import build
+from distutils.command.clean import clean
 from distutils.errors import DistutilsSetupError
 from distutils.file_util import copy_file
+from distutils import log
 from setuptools import setup, find_namespace_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
@@ -24,11 +27,11 @@ PYTHON_VERSION = f'python{sys.version_info.major}.{sys.version_info.minor}'
 
 # The following variables can be defined in environment or .env file
 CMAKE_BUILD_DIR = config('CMAKE_BUILD_DIR', '.')
-CORE_LIBS_DIR = config('CORE_LIBS_DIR', '')
-PLUGINS_LIBS_DIR = config('PLUGINS_LIBS_DIR', '')
-NGRAPH_LIBS_DIR = config('NGRAPH_LIBS_DIR', '')
-TBB_LIBS_DIR = config('TBB_LIBS_DIR', '')
-PY_PACKAGES_DIR = config('PY_PACKAGES_DIR', '')
+CORE_LIBS_DIR = config('CORE_LIBS_DIR', 'deployment_tools/inference_engine/lib/intel64')
+PLUGINS_LIBS_DIR = config('PLUGINS_LIBS_DIR', 'deployment_tools/inference_engine/lib/intel64')
+NGRAPH_LIBS_DIR = config('NGRAPH_LIBS_DIR', 'deployment_tools/ngraph/lib')
+TBB_LIBS_DIR = config('TBB_LIBS_DIR', 'deployment_tools/inference_engine/external/tbb/lib')
+PY_PACKAGES_DIR = config('PY_PACKAGES_DIR', f'python/{PYTHON_VERSION}')
 LIBS_RPATH = '$ORIGIN' if sys.platform == 'linux' else '@loader_path'
 
 LIB_INSTALL_CFG = {
@@ -62,6 +65,12 @@ LIB_INSTALL_CFG = {
         'install_dir': PLUGINS_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
+    'auto_plugin': {
+        'name': 'auto',
+        'prefix': 'libs.plugins',
+        'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
+    },
     'myriad_plugin': {
         'name': 'myriad',
         'prefix': 'libs.plugins',
@@ -74,12 +83,25 @@ LIB_INSTALL_CFG = {
         'install_dir': NGRAPH_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
-    'tbb_libs': {'name': 'tbb', 'prefix': 'libs.tbb', 'install_dir': TBB_LIBS_DIR},
+    'tbb_libs': {
+        'name': 'tbb',
+        'prefix': 'libs.tbb',
+        'install_dir': TBB_LIBS_DIR,
+        'rpath': LIBS_RPATH,
+    },
 }
 
 PY_INSTALL_CFG = {
-    'ie_py': {'name': PYTHON_VERSION, 'prefix': 'site-packages', 'install_dir': PY_PACKAGES_DIR},
-    'ngraph_py': {'name': f'pyngraph_{PYTHON_VERSION}', 'prefix': 'site-packages', 'install_dir': PY_PACKAGES_DIR},
+    'ie_py': {
+        'name': PYTHON_VERSION,
+        'prefix': 'site-packages',
+        'install_dir': PY_PACKAGES_DIR,
+    },
+    'ngraph_py': {
+        'name': f'pyngraph_{PYTHON_VERSION}',
+        'prefix': 'site-packages',
+        'install_dir': PY_PACKAGES_DIR,
+    },
 }
 
 
@@ -96,17 +118,78 @@ class PrebuiltExtension(Extension):
 class CustomBuild(build):
     """Custom implementation of build_clib"""
 
+    cmake_build_types = ['Release', 'Debug', 'RelWithDebInfo', 'MinSizeRel']
+    user_options = [
+        ('config=', None, 'Build configuration [{types}].'.format(types='|'.join(cmake_build_types))),
+        ('jobs=', None, 'Specifies the number of jobs to use with make.'),
+        ('cmake-args=', None, 'Additional options to be passed to CMake.'),
+    ]
+
+    def initialize_options(self):
+        """Set default values for all the options that this command supports."""
+        super().initialize_options()
+        self.build_base = 'build'
+        self.config = None
+        self.jobs = None
+        self.cmake_args = None
+
+    def finalize_options(self):
+        """Set final values for all the options that this command supports."""
+        super().finalize_options()
+
+        if not self.config:
+            if self.debug:
+                self.config = 'Debug'
+            else:
+                self.announce('Set default value for CMAKE_BUILD_TYPE = Release.', level=4)
+                self.config = 'Release'
+        else:
+            build_types = [item.lower() for item in self.cmake_build_types]
+            try:
+                i = build_types.index(str(self.config).lower())
+                self.config = self.cmake_build_types[i]
+                self.debug = True if 'Debug' == self.config else False
+            except ValueError:
+                self.announce('Unsupported CMAKE_BUILD_TYPE value: ' + self.config, level=4)
+                self.announce('Supported values: {types}'.format(types=', '.join(self.cmake_build_types)), level=4)
+                sys.exit(1)
+        if self.jobs is None and os.getenv('MAX_JOBS') is not None:
+            self.jobs = os.getenv('MAX_JOBS')
+        self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
+
     def run(self):
+        global CMAKE_BUILD_DIR
+        self.jobs = multiprocessing.cpu_count()
+        plat_specifier = '.{0}-{1}.{2}'.format(self.plat_name, *sys.version_info[:2])
+        self.build_temp = os.path.join(self.build_base, 'temp' + plat_specifier, self.config)
+
+        # if setup.py is directly called use CMake to build product
+        if CMAKE_BUILD_DIR == '.':
+            openvino_root_dir = os.path.normpath(os.path.join(CMAKE_BUILD_DIR, '../../../../'))
+            self.announce('Configuring cmake project', level=3)
+
+            self.spawn(['cmake', '-H' + openvino_root_dir, '-B' + self.build_temp,
+                        '-DCMAKE_BUILD_TYPE={type}'.format(type=self.config),
+                        '-DENABLE_PYTHON=ON',
+                        '-DNGRAPH_ONNX_FRONTEND_ENABLE=ON'])
+
+            self.announce('Building binaries', level=3)
+            self.spawn(['cmake', '--build', self.build_temp,
+                        '--config', self.config, '-j', str(self.jobs)])
+            CMAKE_BUILD_DIR = self.build_temp
+
         self.run_command('build_clib')
         build.run(self)
-
-
-class CustomInstall(install):
-    """Enable build_clib during the installation"""
-
-    def run(self):
-        self.run_command('build_clib')
-        install.run(self)
+        # Copy extra package_data content filtered by find_packages
+        dst = Path(self.build_lib)
+        src = Path(get_package_dir(PY_INSTALL_CFG))
+        exclude = ignore_patterns('*ez_setup*', '*__pycache__*', '*.egg-info*')
+        for path in src.glob('**/*'):
+            if path.is_dir() or exclude(str(path)):
+                continue
+            path_rel = path.relative_to(src)
+            (dst / path_rel.parent).mkdir(exist_ok=True, parents=True)
+            copyfile(path, dst / path_rel)
 
 
 class PrepareLibs(build_clib):
@@ -128,10 +211,9 @@ class PrepareLibs(build_clib):
                 self.spawn(['cmake', '--install', CMAKE_BUILD_DIR, '--prefix', install_prefix, '--component', comp_data.get('name')])
             # set rpath if applicable
             if sys.platform != 'win32' and comp_data.get('rpath'):
-                file_types = ['*.so'] if sys.platform == 'linux' else ['*.dylib', '*.so']
-                for file_type in file_types:
-                    for path in Path(install_dir).glob(file_type):
-                        set_rpath(comp_data['rpath'], path)
+                file_types = ['.so'] if sys.platform == 'linux' else ['.dylib', '.so']
+                for path in filter(lambda p: any(item in file_types for item in p.suffixes), Path(install_dir).glob('*')):
+                    set_rpath(comp_data['rpath'], os.path.realpath(path))
 
     def generate_package(self, src_dirs):
         """
@@ -141,6 +223,7 @@ class PrepareLibs(build_clib):
         # additional blacklist filter, just to fix cmake install issues
         blacklist = ['.lib', '.pdb', '_debug.dll', '_debug.dylib']
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
+
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
             for file_path in local_base_dir.rglob('*'):
@@ -173,9 +256,32 @@ class CopyExt(build_ext):
                     rpath = os.path.join('$ORIGIN', rpath, WHEEL_LIBS_INSTALL_DIR)
                 elif sys.platform == 'darwin':
                     rpath = os.path.join('@loader_path', rpath, WHEEL_LIBS_INSTALL_DIR)
-                set_rpath(rpath, src)
+                set_rpath(rpath, os.path.realpath(src))
 
             copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
+
+
+class CustomClean(clean):
+    """Clean up staging directories"""
+
+    def clean(self, install_cfg):
+        for comp, comp_data in install_cfg.items():
+            install_prefix = comp_data.get('prefix')
+            self.announce(f'Cleaning {comp}: {install_prefix}', level=3)
+            if os.path.exists(install_prefix):
+                rmtree(install_prefix)
+
+    def run(self):
+        self.clean(LIB_INSTALL_CFG)
+        self.clean(PY_INSTALL_CFG)
+        clean.run(self)
+
+
+def ignore_patterns(*patterns):
+    """
+    Filter names by given patterns
+    """
+    return lambda name: any(fnmatchcase(name, pat=pat) for pat in patterns)
 
 
 def is_tool(name):
@@ -214,7 +320,12 @@ def set_rpath(rpath, executable):
     print(f'Setting rpath {rpath} for {executable}')  # noqa: T001
     cmd = []
     rpath_tool = ''
+
     if sys.platform == 'linux':
+        with open(os.path.realpath(executable), 'rb') as file:
+            if file.read(1) != b'\x7f':
+                log.warn(f'WARNING: {executable}: missed ELF header')
+                return
         rpath_tool = 'patchelf'
         cmd = [rpath_tool, '--set-rpath', rpath, executable]
     elif sys.platform == 'darwin':
@@ -306,8 +417,9 @@ package_license = config('WHEEL_LICENSE', '')
 if os.path.exists(package_license):
     copyfile(package_license, 'LICENSE')
 
-packages = find_namespace_packages(','.join(get_dir_list(PY_INSTALL_CFG)))
+packages = find_namespace_packages(get_package_dir(PY_INSTALL_CFG))
 package_data: typing.Dict[str, list] = {}
+
 
 setup(
     version=config('WHEEL_VERSION', '0.0.0'),
@@ -316,16 +428,16 @@ setup(
     license=config('WHEEL_LICENCE_TYPE', 'OSI Approved :: Apache Software License'),
     author=config('WHEEL_AUTHOR', 'Intel Corporation'),
     description=config('WHEEL_DESC', 'Inference Engine Python* API'),
-    install_requires=get_dependencies(config('WHEEL_REQUIREMENTS', 'requirements.txt')),
-    long_description=get_description(config('WHEEL_OVERVIEW', 'pypi_overview.md')),
+    install_requires=get_dependencies(config('WHEEL_REQUIREMENTS', 'meta/openvino.requirements.txt')),
+    long_description=get_description(config('WHEEL_OVERVIEW', 'meta/pypi_overview.md')),
     long_description_content_type='text/markdown',
     download_url=config('WHEEL_DOWNLOAD_URL', 'https://github.com/openvinotoolkit/openvino/tags'),
     url=config('WHEEL_URL', 'https://docs.openvinotoolkit.org/latest/index.html'),
     cmdclass={
         'build': CustomBuild,
-        'install': CustomInstall,
         'build_clib': PrepareLibs,
         'build_ext': CopyExt,
+        'clean': CustomClean,
     },
     ext_modules=find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)),
     packages=packages,

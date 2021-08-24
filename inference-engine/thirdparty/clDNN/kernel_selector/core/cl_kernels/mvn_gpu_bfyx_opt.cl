@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
 #include "include/data_types.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL (mvn_gpu_bfyx_opt)(
@@ -135,4 +134,3 @@ KERNEL (mvn_gpu_bfyx_opt)(
     }
 #endif
 }
-

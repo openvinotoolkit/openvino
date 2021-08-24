@@ -4,7 +4,7 @@
 
 #include "myriad_layers_grn_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
 	accuracy, myriadLayersTestsGRN_smoke,
 	::testing::Combine(
 		::testing::ValuesIn(s_GRNInputs),

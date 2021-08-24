@@ -14,7 +14,7 @@ add_library(${TARGET_NAME} SHARED ${HEADERS} ${SOURCES})
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 
 target_include_directories(${TARGET_NAME} PUBLIC
-    $<INSTALL_INTERFACE:${IE_CPACK_IE_DIR}/include>
+    $<INSTALL_INTERFACE:${IE_CPACK_IE_DIR}/include/ie>
     $<BUILD_INTERFACE:${InferenceEngine_C_API_SOURCE_DIR}/include>)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
@@ -29,13 +29,10 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 export(TARGETS ${TARGET_NAME} NAMESPACE IE::
        APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 
-# WA for CI issue
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
-       APPEND FILE "${CMAKE_BINARY_DIR}/share/InferenceEngineTargets.cmake")
-
 # install
 
 ie_cpack_add_component(core_c DEPENDS core)
+ie_cpack_add_component(core_c_dev DEPENDS core_c)
 
 install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core_c
@@ -43,5 +40,5 @@ install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core_c)
 
 install(DIRECTORY ${InferenceEngine_C_API_SOURCE_DIR}/include/
-        DESTINATION ${IE_CPACK_IE_DIR}/include
-        COMPONENT core_c)
+        DESTINATION ${IE_CPACK_IE_DIR}/include/ie
+        COMPONENT core_c_dev)

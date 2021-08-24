@@ -13,10 +13,14 @@
 #include "pyngraph/node_factory.hpp"
 #include "pyngraph/node_input.hpp"
 #include "pyngraph/node_output.hpp"
-#if defined(NGRAPH_ONNX_IMPORT_ENABLE)
-#include "pyngraph/onnx_import/onnx_import.hpp"
+#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
+#    include "pyngraph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyngraph/dimension.hpp"
+#include "pyngraph/frontend/frontend.hpp"
+#include "pyngraph/frontend/frontend_manager.hpp"
+#include "pyngraph/frontend/inputmodel.hpp"
+#include "pyngraph/frontend/place.hpp"
 #include "pyngraph/ops/constant.hpp"
 #include "pyngraph/ops/parameter.hpp"
 #include "pyngraph/ops/result.hpp"
@@ -32,15 +36,23 @@
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(_pyngraph, m)
-{
+PYBIND11_MODULE(_pyngraph, m) {
     m.doc() = "Package ngraph.impl that wraps nGraph's namespace ngraph";
     regclass_pyngraph_PyRTMap(m);
     regmodule_pyngraph_types(m);
-    regclass_pyngraph_Dimension(m); // Dimension must be registered before PartialShape
+    regclass_pyngraph_Dimension(m);  // Dimension must be registered before PartialShape
     regclass_pyngraph_Shape(m);
     regclass_pyngraph_PartialShape(m);
     regclass_pyngraph_Node(m);
+    regclass_pyngraph_Place(m);
+    regclass_pyngraph_InitializationFailureFrontEnd(m);
+    regclass_pyngraph_GeneralFailureFrontEnd(m);
+    regclass_pyngraph_OpConversionFailureFrontEnd(m);
+    regclass_pyngraph_OpValidationFailureFrontEnd(m);
+    regclass_pyngraph_NotImplementedFailureFrontEnd(m);
+    regclass_pyngraph_FrontEndManager(m);
+    regclass_pyngraph_FrontEnd(m);
+    regclass_pyngraph_InputModel(m);
     regclass_pyngraph_Input(m);
     regclass_pyngraph_Output(m);
     regclass_pyngraph_NodeFactory(m);
@@ -53,7 +65,7 @@ PYBIND11_MODULE(_pyngraph, m)
     regclass_pyngraph_op_Constant(m_op);
     regclass_pyngraph_op_Parameter(m_op);
     regclass_pyngraph_op_Result(m_op);
-#if defined(NGRAPH_ONNX_IMPORT_ENABLE)
+#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
     regmodule_pyngraph_onnx_import(m);
 #endif
     regmodule_pyngraph_op_util(m_op);

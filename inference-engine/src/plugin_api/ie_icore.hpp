@@ -13,10 +13,9 @@
 #include <memory>
 #include <string>
 
-#include <ie_parameter.hpp>
-#include <cpp/ie_cnn_network.h>
-#include <cpp/ie_executable_network.hpp>
-
+#include "cpp/ie_cnn_network.h"
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "ie_parameter.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
@@ -63,8 +62,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
-                                          const std::map<std::string, std::string>& config = {}) = 0;
+    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
+                                                    const std::string& deviceName,
+                                                    const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
      * @brief Creates an executable network from a model file.
@@ -78,8 +78,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::string& deviceName,
-                                          const std::map<std::string, std::string>& config) = 0;
+    virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
+                                                    const std::string& deviceName,
+                                                    const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -89,8 +90,9 @@ public:
      * operation*
      * @return An executable network reference
      */
-    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
-                                            const std::map<std::string, std::string>& config = {}) = 0;
+    virtual SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
+                                                      const std::string& deviceName = {},
+                                                      const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
      * @brief Query device if it supports specified network with specified configuration
@@ -100,7 +102,8 @@ public:
      * @param config Optional map of pairs: (config parameter name, config parameter value)
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
-    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
+    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network,
+                                            const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) const = 0;
 
     /**
@@ -124,22 +127,19 @@ public:
     virtual std::vector<std::string> GetAvailableDevices() const = 0;
 
     /**
+     * @brief Checks whether device supports Export & Import functionality of network
+     *
+     * @param deviceName - A name of a device to get a metric value.
+     * @return True if device has IMPORT_EXPORT_SUPPORT metric in SUPPORTED_METRICS and
+     * this metric returns 'true', False otherwise.
+     */
+    virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
+
+    /**
      * @brief Default virtual destructor
      */
     virtual ~ICore() = default;
 };
-
-/**
- * @brief Type of magic value
- * @ingroup ie_dev_api_plugin_api
- */
-using ExportMagic = std::array<char, 4>;
-
-/**
- * @brief Magic number used by ie core to identify exported network with plugin name
- * @ingroup ie_dev_api_plugin_api
- */
-constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
 
 /**
  * @private
@@ -147,6 +147,7 @@ constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
 class INFERENCE_ENGINE_API_CLASS(DeviceIDParser) {
     std::string deviceName;
     std::string deviceID;
+
 public:
     explicit DeviceIDParser(const std::string& deviceNameWithID);
 

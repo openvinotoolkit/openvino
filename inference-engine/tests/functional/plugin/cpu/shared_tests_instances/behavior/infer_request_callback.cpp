@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
-
 #include "behavior/infer_request_callback.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -23,28 +21,24 @@ const std::vector<std::map<std::string, std::string>> multiConfigs = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
 };
 
-const std::vector<std::map<std::string, std::string>> autoConfigs = {
-        {}
-};
-
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CallbackTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CallbackTests,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
             ::testing::ValuesIn(configs)),
         CallbackTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, CallbackTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CallbackTests,
         ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                 ::testing::ValuesIn(multiConfigs)),
         CallbackTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Auto_BehaviorTests, CallbackTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CallbackTests,
         ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                ::testing::ValuesIn(autoConfigs)),
+                ::testing::ValuesIn(multiConfigs)),
         CallbackTests::getTestCaseName);
 }  // namespace

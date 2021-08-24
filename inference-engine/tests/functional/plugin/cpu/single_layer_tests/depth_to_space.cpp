@@ -124,7 +124,7 @@ const auto depthToSpaceBS2_4DParams = testing::Combine(
         testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS2_4D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_CPUDepthToSpaceBS2_4D, DepthToSpaceLayerCPUTest, depthToSpaceBS2_4DParams, DepthToSpaceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceBS2_4D, DepthToSpaceLayerCPUTest, depthToSpaceBS2_4DParams, DepthToSpaceLayerCPUTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParamsBS3_4D = {
         cpuParams_nhwc_avx2,
@@ -142,7 +142,7 @@ const auto depthToSpaceBS3_4DParams = testing::Combine(
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS3_4D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_CPUDepthToSpaceBS3_4D, DepthToSpaceLayerCPUTest, depthToSpaceBS3_4DParams, DepthToSpaceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceBS3_4D, DepthToSpaceLayerCPUTest, depthToSpaceBS3_4DParams, DepthToSpaceLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<size_t >> inputShapesBS2_5D = {
         {1, 128, 1, 1, 1}, {1, 128, 2, 1, 2}, {1, 256, 2, 1, 3}, {2, 256, 3, 1, 1}, {1, 384, 1, 2, 2}, {2, 512, 1, 2, 1}
@@ -171,7 +171,7 @@ const auto depthToSpaceBS2_5DParams = testing::Combine(
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS2_5D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_CPUDepthToSpaceBS2_5D, DepthToSpaceLayerCPUTest, depthToSpaceBS2_5DParams, DepthToSpaceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceBS2_5D, DepthToSpaceLayerCPUTest, depthToSpaceBS2_5DParams, DepthToSpaceLayerCPUTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParamsBS3_5D = {
         cpuParams_ndhwc_avx2,
@@ -189,7 +189,7 @@ const auto depthToSpaceBS3_5DParams = testing::Combine(
         ::testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS3_5D))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_CPUDepthToSpaceBS3_5D, DepthToSpaceLayerCPUTest, depthToSpaceBS3_5DParams, DepthToSpaceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceBS3_5D, DepthToSpaceLayerCPUTest, depthToSpaceBS3_5DParams, DepthToSpaceLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

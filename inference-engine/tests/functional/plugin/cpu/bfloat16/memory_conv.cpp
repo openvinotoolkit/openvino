@@ -9,7 +9,6 @@
 #include "ie_system_conf.h"
 
 #include <ngraph/ngraph.hpp>
-#include <legacy/ngraph_ops/fully_connected.hpp>
 
 namespace LayerTestsDefinitions {
 
@@ -33,7 +32,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         SizeVector ie_shape;
         std::tie(inPrc, ie_shape, targetDevice) = this->GetParam();
 
@@ -53,20 +52,22 @@ protected:
 
         auto fc1_w = make_shared<op::v0::Constant>(type, Shape{C, C}, 1);
         auto fc1_b = make_shared<op::v0::Constant>(type, Shape{C}, 1);
-        auto fc1 = make_shared<op::FullyConnected>(sig, fc1_w, fc1_b, shape);
+        auto fc1 = make_shared<op::v0::MatMul>(sig, fc1_w);
+        auto bias_1 =  make_shared<op::v1::Add>(fc1, fc1_b);
 
         auto fc2_w = make_shared<op::v0::Constant>(type, Shape{C, C}, 1);
         auto fc2_b = make_shared<op::v0::Constant>(type, Shape{C}, 1);
-        auto fc2 = make_shared<op::FullyConnected>(fc1, fc2_w, fc2_b, shape);
+        auto fc2 = make_shared<op::v0::MatMul>(bias_1, fc2_w);
+        auto bias_2 =  make_shared<op::v1::Add>(fc2, fc2_b);
 
-        auto mem_w = make_shared<op::v3::Assign>(fc1, "id");
+        auto mem_w = make_shared<op::v3::Assign>(bias_1, "id");
 
         // WA. Limitation of ngraph. control_dependency are required.
         mem_w->add_control_dependency(mem_r);
-        fc2->add_control_dependency(mem_w);
+        bias_2->add_control_dependency(mem_w);
 
         function = std::make_shared<ngraph::Function>(
-                ngraph::NodeVector      {fc2},
+                ngraph::NodeVector      {bias_2},
                 ngraph::ParameterVector {input},
                 "SimpleNet");
     }
@@ -104,7 +105,7 @@ TEST_P(MemoryConv, CheckTypeConversion) {
     ASSERT_EQ(ngraph::element::bf16, mem_w->input(0).get_element_type());
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_CPU, MemoryConv,
+INSTANTIATE_TEST_SUITE_P(smoke_CPU, MemoryConv,
                         ::testing::Combine(
                                 ::testing::Values<Precision>(Precision::BF16, Precision::FP32),
                                 ::testing::Values(SizeVector{1, 200}),

@@ -4,13 +4,14 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/binary_convolution.hpp"
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "program_helpers.h"
+#include "binary_convolution_inst.h"
 #include "mvn_inst.h"
+
 #include <vector>
 #include <memory>
 #include <list>
@@ -42,22 +43,25 @@
 
 using namespace cldnn;
 
-// ToDo remove friendship relation from program_impl
+// ToDo remove friendship relation from program
 
 reorder_inputs::reorder_inputs(layout_optimizer& lo_ref, reorder_factory& rf_ref) : base_pass("reorder_inputs"), _lo(lo_ref), _rf(rf_ref) {}
 
-void reorder_inputs::run(program_impl& p) { run(p, _lo, _rf); }
+void reorder_inputs::run(program& p) { run(p, _lo, _rf); }
 
 namespace {
 
-std::map<program_node*, format::type> get_preferred_formats(program_impl& p, layout_optimizer& lo) {
+std::map<program_node*, format::type> get_preferred_formats(program& p, layout_optimizer& lo) {
     std::map<program_node*, format::type> fmt_map;
     for (auto n : p.get_processing_order()) {
         if (!n->is_in_data_flow())
             continue;
 
         auto ex = lo.get_preferred_format(*n);
+        auto impl = lo.get_preferred_impl_type(*n);
         fmt_map[n] = ex;
+
+        n->set_preferred_impl_type(impl);
     }
     return fmt_map;
 }
@@ -196,7 +200,7 @@ void propagate_formats_in_dir(std::map<program_node*, format::type>& fmt_map,
     }
 }
 
-void propagate_formats(program_impl& p, std::map<program_node*, format::type>& fmt_map, layout_optimizer& lo) {
+void propagate_formats(program& p, std::map<program_node*, format::type>& fmt_map, layout_optimizer& lo) {
     auto it = p.get_processing_order().begin();
     while (it != p.get_processing_order().end()) {
         auto node = *it++;
@@ -247,7 +251,7 @@ reorder_cnt count_reorders(const std::map<program_node*, format::type>& fmt_map,
     return { fwd.number + bwd.number, fwd.total_sizes + bwd.total_sizes };
 }
 
-void minimize_local_reorders(program_impl& p, std::map<program_node*, format::type>& fmt_map, layout_optimizer& lo) {
+void minimize_local_reorders(program& p, std::map<program_node*, format::type>& fmt_map, layout_optimizer& lo) {
     for (auto node : p.get_processing_order()) {
         if (!node->is_in_data_flow())
             continue;
@@ -330,7 +334,7 @@ void minimize_local_reorders(program_impl& p, std::map<program_node*, format::ty
 }
 
 template <direction_e dir>
-void insert_reorders_in_dir(program_impl& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, program_node* node) {
+void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, program_node* node) {
     auto fmt = fmt_map.at(node);
 
     auto next_cpy = travel_direction_wrapper<dir>::next_nodes(node);
@@ -365,7 +369,7 @@ void insert_reorders_in_dir(program_impl& p, const std::map<program_node*, forma
     }
 }
 
-void insert_reorders(program_impl& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf) {
+void insert_reorders(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf) {
     auto fwd_it = p.get_processing_order().begin();
     while (fwd_it != p.get_processing_order().end()) {
         auto node = *(fwd_it++);
@@ -397,7 +401,7 @@ void insert_reorders(program_impl& p, const std::map<program_node*, format::type
 
 }  // namespace
 
-void reorder_inputs::run(program_impl& p, layout_optimizer& lo, reorder_factory& rf) {
+void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) {
     auto fmt_map = get_preferred_formats(p, lo);
 #if CLDNN_REORDER_INPUTS_VERBOSE_PREFERRED
     {

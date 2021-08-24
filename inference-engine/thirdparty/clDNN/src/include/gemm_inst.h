@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/gemm.hpp"
+#include "cldnn/primitives/gemm.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {
@@ -31,7 +32,7 @@ public:
     static std::string to_string(gemm_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, gemm_node const& node);
+    typed_primitive_inst(network& network, gemm_node const& node);
 };
 
 using gemm_inst = typed_primitive_inst<gemm>;

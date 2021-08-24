@@ -34,12 +34,13 @@ def replace_resize(graph: Graph, resize: Node):
         log.warning('The input shape is not 4D or 5D for op with name {}'.format(resize_name))
         return
 
-    num_of_inputs = len([port for port in resize.in_ports().values() if not port.disconnected()])
-    assert num_of_inputs in {3, 4}, \
-        "Number of inputs of ONNXResize (with name {}) should be equal to 3 or 4".format(resize_name)
+    assert (resize.is_in_port_connected(0) and (resize.is_in_port_connected(2) or resize.is_in_port_connected(3))), \
+        "Scales or sizes inputs must be connected to Node {} with op {}.".format(resize.soft_get("name", resize.id),
+                                                                                 resize.op)
 
     assert resize.soft_get('coordinate_transformation_mode') != 'tf_crop_and_resize', \
-        'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(resize.op, resize_name)
+        'Mode tf_crop_and_resize is not supported for op {} with name {}'.format(resize.op,
+                                                                                 resize.soft_get("name", resize.id))
 
     layout = graph.graph['layout']
 
@@ -74,7 +75,7 @@ def replace_resize(graph: Graph, resize: Node):
                       {'name': resize_name + '/axis',
                        'value': int64_array(np.arange(begin_dim, end_dim))}).create_node()
 
-    shape_calculation_mode = 'scales' if num_of_inputs == 3 else 'sizes'
+    shape_calculation_mode = 'sizes' if resize.is_in_port_connected(3) else 'scales'
 
     interpolate_node = Interpolate(graph, {'version': 'opset4',
                                            'mode': convert_mode(resize.mode),
@@ -96,7 +97,7 @@ def replace_resize(graph: Graph, resize: Node):
 
     dst_dtype = np.float32  # even if data_type=FP16 use float32 for shape values
 
-    if num_of_inputs == 3:
+    if not resize.is_in_port_connected(3):
         cast_shape_to_float = Cast(graph, {'dst_type': dst_dtype}).create_node()
         mul_node = Mul(graph, {'name': resize_name + '/Mul'}).create_node()
         shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))

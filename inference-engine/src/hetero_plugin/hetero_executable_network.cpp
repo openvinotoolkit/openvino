@@ -26,7 +26,6 @@
 #include "ie_plugin_config.hpp"
 #include "ie_algorithm.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "hetero/hetero_plugin_config.hpp"
 #include "hetero_plugin.hpp"
 #include <ie_algorithm.hpp>
 
@@ -313,6 +312,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     struct Subgraph {
         ngraph::ResultVector    _results;
         ngraph::ParameterVector _parameters;
+        ngraph::SinkVector      _sinks;
         std::string             _affinity;
     };
     std::unordered_map<int, Subgraph> subgraphs;
@@ -326,6 +326,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         } else if (ngraph::op::is_parameter(node)) {
             subgraph._parameters.emplace_back(
                 std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(node->shared_from_this()));
+        } else if (ngraph::op::is_sink(node)) {
+            subgraph._sinks.emplace_back(
+                    std::dynamic_pointer_cast<ngraph::op::Sink>(node->shared_from_this()));
         }
         auto itAffinity = affinities.find(node);
         if (itAffinity != affinities.end()) {
@@ -368,17 +371,17 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
 
     InputsDataMap externalInputsData = network.getInputsInfo();
     OutputsDataMap externalOutputsData = network.getOutputsInfo();
-    networks.resize(orderedSubgraphs.size());
+    _networks.resize(orderedSubgraphs.size());
     std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
     int id = 0;
     for (auto&& subgraph : orderedSubgraphs) {
-        networks[id]._device = subgraph._affinity;
+        _networks[id]._device = subgraph._affinity;
         subFunctions[id] =
-            std::make_shared<ngraph::Function>(subgraph._results, subgraph._parameters,
+            std::make_shared<ngraph::Function>(subgraph._results, subgraph._sinks, subgraph._parameters,
                                                      _name + '_' + std::to_string(id));
-        networks[id]._clonedNetwork = CNNNetwork{subFunctions[id]};
+        _networks[id]._clonedNetwork = CNNNetwork{subFunctions[id]};
         // update of pre-processing info
-        auto clonedInputs = networks[id]._clonedNetwork.getInputsInfo();
+        auto clonedInputs = _networks[id]._clonedNetwork.getInputsInfo();
         for (auto&& externalInput : externalInputsData) {
             auto itClonedInput = clonedInputs.find(externalInput.first);
             if (itClonedInput != clonedInputs.end() && nullptr != itClonedInput->second) {
@@ -388,7 +391,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             }
         }
         // update output info
-        auto clonedOutputs = networks[id]._clonedNetwork.getOutputsInfo();
+        auto clonedOutputs = _networks[id]._clonedNetwork.getOutputsInfo();
         for (auto&& externalOutput : externalOutputsData) {
             auto itClonedOutput = clonedOutputs.find(externalOutput.first);
             if (itClonedOutput != clonedOutputs.end() && nullptr != itClonedOutput->second) {
@@ -418,7 +421,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                 }
             }}.run_on_function(ngraph::clone_function(*function));
     }
-    for (auto&& network : networks) {
+    for (auto&& network : _networks) {
         auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _config);
         metaDevices[network._device].emplace(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE), "");
         network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
@@ -481,10 +484,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         assert(metaDevices.size() == 1);
         auto& loadConfig = metaDevices[deviceName];
 
-        InferenceEngine::ExecutableNetwork executableNetwork;
+        InferenceEngine::SoExecutableNetworkInternal executableNetwork;
         CNNNetwork cnnnetwork;
         bool loaded = false;
-        if (ImportExportSupported(deviceName)) {
+        if (_heteroPlugin->GetCore()->DeviceSupportsImportExport(deviceName)) {
             executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
         } else {
             // read XML content
@@ -526,13 +529,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         }
 
         // restore network inputs and outputs
-        for (auto&& input : executableNetwork.GetInputsInfo()) {
+        for (auto&& input : executableNetwork->GetInputsInfo()) {
             if (networkInputs.end() != networkInputs.find(input.first)) {
                 _networkInputs.emplace(input.first, std::make_shared<InputInfo>(*input.second));
             }
         }
 
-        for (auto&& output : executableNetwork.GetOutputsInfo()) {
+        for (auto&& output : executableNetwork->GetOutputsInfo()) {
             if (networkOutputs.end() != networkOutputs.find(output.first)) {
                 _networkOutputs.emplace(output.first, std::make_shared<Data>(*output.second));
             }
@@ -547,11 +550,11 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
 
     // save state
     this->_config = importedConfigs;
-    this->networks = std::move(descs);
+    this->_networks = std::move(descs);
     this->SetPointerToPlugin(_heteroPlugin->shared_from_this());
 }
 
-void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
+void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     pugi::xml_document doc;
     auto heteroNode = doc.append_child("hetero");
     heteroNode.append_attribute("name").set_value(_name.c_str());
@@ -567,7 +570,7 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     }
 
     auto subnetworksNode = heteroNode.append_child("subnetworks");
-    for (auto&& subnetwork : networks) {
+    for (auto&& subnetwork : _networks) {
         auto subnet = subnetwork._clonedNetwork;
         IE_ASSERT(subnet.getFunction() != nullptr);
 
@@ -611,9 +614,9 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     doc.reset();
     heteroModel << std::endl;
 
-    for (auto&& subnetwork : networks) {
-        if (ImportExportSupported(subnetwork._device)) {
-            subnetwork._network.Export(heteroModel);
+    for (auto&& subnetwork : _networks) {
+        if (_heteroPlugin->GetCore()->DeviceSupportsImportExport(subnetwork._device)) {
+            subnetwork._network->Export(heteroModel);
         } else {
             auto subnet = subnetwork._clonedNetwork;
             if (!subnet.getFunction()) {
@@ -645,7 +648,7 @@ IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
         OutputsDataMap networkOutputs) {
     HeteroInferRequest::SubRequestsList inferRequests;
     int index = 0;
-    for (auto&& subnetwork : networks) {
+    for (auto&& subnetwork : _networks) {
         HeteroInferRequest::SubRequestDesc desc;
         desc._network = subnetwork._network;
         desc._profilingTask = openvino::itt::handle("Infer" + std::to_string(index++));
@@ -677,12 +680,12 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string 
         result = it->second == YES ? true : false;
     } else {
         // find config key among plugin config keys
-        for (auto&& desc : networks) {
+        for (auto&& desc : _networks) {
             auto execNetwork = desc._network;
-            auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
             for (auto && configKey : param.as<std::vector<std::string>>()) {
                 if (configKey == name) {
-                    return execNetwork.GetConfig(configKey);
+                    return execNetwork->GetConfig(configKey);
                 }
             }
         }
@@ -741,12 +744,12 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
 
         {
             std::vector<::Metrics> pluginMetrics;
-            for (auto&& desc : networks) {
+            for (auto&& desc : _networks) {
                 auto execNetwork = desc._network;
-                auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+                auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
                 ::Metrics metrics;
                 for (auto && metricName : param.as<std::vector<std::string>>()) {
-                    metrics[metricName] = execNetwork.GetMetric(metricName);
+                    metrics[metricName] = execNetwork->GetMetric(metricName);
                 }
                 pluginMetrics.push_back(std::move(metrics));
             }
@@ -764,12 +767,12 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
 
         {
             std::vector<::Metrics> pluginConfigKeys;
-            for (auto&& desc : networks) {
+            for (auto&& desc : _networks) {
                 auto execNetwork = desc._network;
-                auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 ::Metrics configKeys;
                 for (auto && metricName : param.as<std::vector<std::string>>()) {
-                    configKeys[metricName] = execNetwork.GetConfig(metricName);
+                    configKeys[metricName] = execNetwork->GetConfig(metricName);
                 }
                 pluginConfigKeys.push_back(std::move(configKeys));
             }
@@ -782,32 +785,22 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
         IE_SET_METRIC_RETURN(NETWORK_NAME, _name);
     } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
         unsigned int value = 0u;
-        for (auto&& desc : networks) {
-            value = std::max(value, desc._network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
+        for (auto&& desc : _networks) {
+            value = std::max(value, desc._network->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
         }
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     } else {
         // find metric key among plugin metrics
-        for (auto&& desc : networks) {
+        for (auto&& desc : _networks) {
             auto execNetwork = desc._network;
-            auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
             for (auto && metricKey : param.as<std::vector<std::string>>()) {
                 if (metricKey == name) {
-                    return execNetwork.GetMetric(metricKey);
+                    return execNetwork->GetMetric(metricKey);
                 }
             }
         }
 
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
-}
-
-bool HeteroExecutableNetwork::ImportExportSupported(const std::string& deviceName) const {
-    std::vector<std::string> supportedMetricKeys = _heteroPlugin->GetCore()->GetMetric(
-            deviceName, METRIC_KEY(SUPPORTED_METRICS));
-    auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
-                        METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-    bool supported = (it != supportedMetricKeys.end()) &&
-                     _heteroPlugin->GetCore()->GetMetric(deviceName, METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-    return supported;
 }

@@ -16,10 +16,11 @@ def parse_arguments():
 
     input_folders_help = "Paths to folders with reports to merge"
     output_folders_help = "Path to folder to save report"
+    output_filename_help = "Output report filename"
 
     parser.add_argument("-i", "--input_folders", help=input_folders_help, nargs="*", required=True)
     parser.add_argument("-o", "--output_folder", help=output_folders_help, default="")
-    parser.add_argument("-f", "--output_filename", help=output_folders_help, default="report")
+    parser.add_argument("-f", "--output_filename", help=output_filename_help, default="report")
 
     return parser.parse_args()
 
@@ -73,7 +74,15 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
 
         xml_reports = glob.glob(os.path.join(folder_path, 'report*.xml'))
 
-        xml_root = ET.parse(xml_reports[0]).getroot()
+        xml_root = None
+        for xml_report in xml_reports:
+            try:
+                xml_root = ET.parse(xml_report).getroot()
+                break
+            except ET.ParseError:
+                logger.error(f'{xml_report} is incorrect! Error to get a xml root')
+        if xml_root is None:
+            logger.error(f'{folder_path} does not contain the correct xml files')
         for op in xml_root.find("ops_list"):
             if ops_list.find(op.tag) is None:
                 ET.SubElement(ops_list, op.tag)
@@ -89,6 +98,8 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
         with open(out_file_path, "w") as xml_file:
             xml_file.write(ET.tostring(summary).decode('utf8'))
             logger.info(f" Final report is saved to file: '{out_file_path}'")
+    if xml_root is None:
+        raise Exception("Error to make a XML root. Exit the app")
 
 
 if __name__ == "__main__":
