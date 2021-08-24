@@ -87,9 +87,7 @@ def test_infer(download_models, test_id, models, artifacts):
     minimized_pkg = out / "install_pkg"
     infer_out_dir_cc = out / "inference_result_cc/"
 
-    model_paths = []
-    for model in models:
-        model_paths.append(model["path"])
+    model_paths = (model["path"] for model in models)
 
     return_code, output = run_infer(model_paths, infer_out_dir_cc, minimized_pkg)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
