@@ -24,12 +24,16 @@ template <element::Type_t IN_ET,
 std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<ReductionParams> params = {
-        ReductionParams(PartialShape{2, 2}, IN_ET, std::vector<T>{1, 2, 3, 4},
-                        std::vector<int64_t>{0, 1}, std::vector<T>{2.5}, keep_dims, ReductionType::Mean),
-        ReductionParams(PartialShape{3, 2}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6},
-                        std::vector<int64_t>{0}, std::vector<T>{3, 4}, keep_dims, ReductionType::Mean),
-        ReductionParams(PartialShape{3, 2}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6},
-                        std::vector<int64_t>{1}, std::vector<T>{1.5, 3.5, 5.5}, keep_dims, ReductionType::Mean)};
+        ReductionParams(ReductionType::Mean, keep_dims, std::vector<int64_t>{0, 1},
+                        Tensor({2, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4}),
+                        Tensor(reduce(Shape{2, 2}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{2.5})),
+        ReductionParams(ReductionType::Mean, keep_dims, std::vector<int64_t>{0},
+                        Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        Tensor(reduce(Shape{3, 2}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{3, 4})),
+        ReductionParams(ReductionType::Mean, keep_dims, std::vector<int64_t>{1},
+                        Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        Tensor(reduce(Shape{3, 2}, AxisSet{1}, keep_dims), element::Type(IN_ET), std::vector<T>{1.5, 3.5, 5.5}))
+    };
     return params;
 }
 
@@ -38,12 +42,16 @@ template <element::Type_t IN_ET,
 std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<ReductionParams> params = {
-        ReductionParams(PartialShape{2, 2}, IN_ET, std::vector<T>{1, 2, 3, 4},
-                        std::vector<int64_t>{0, 1}, std::vector<T>{2}, keep_dims, ReductionType::Mean),
-        ReductionParams(PartialShape{3, 2}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6},
-                        std::vector<int64_t>{0}, std::vector<T>{3, 4}, keep_dims, ReductionType::Mean),
-        ReductionParams(PartialShape{3, 2}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6},
-                        std::vector<int64_t>{1}, std::vector<T>{1, 3, 5}, keep_dims, ReductionType::Mean)};
+        ReductionParams(ReductionType::Mean, keep_dims, std::vector<int64_t>{0, 1},
+                        Tensor({2, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4}),
+                        Tensor(reduce(Shape{2, 2}, AxisSet{0, 1}, keep_dims), element::Type(IN_ET), std::vector<T>{2})),
+        ReductionParams(ReductionType::Mean, keep_dims, std::vector<int64_t>{0},
+                        Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        Tensor(reduce(Shape{3, 2}, AxisSet{0}, keep_dims), element::Type(IN_ET), std::vector<T>{3, 4})),
+        ReductionParams(ReductionType::Mean, keep_dims, std::vector<int64_t>{1},
+                        Tensor({3, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6}),
+                        Tensor(reduce(Shape{3, 2}, AxisSet{1}, keep_dims), element::Type(IN_ET), std::vector<T>{1, 3, 5}))
+    };
     return params;
 }
 
@@ -67,7 +75,6 @@ std::vector<ReductionParams> generateReductionCombinedParams() {
     }
     return combinedParams;
 }
-
 } // namespace
 INSTANTIATE_TEST_SUITE_P(smoke_Reduction_With_Hardcoded_Refs, ReferenceReductionLayerTest, ::testing::ValuesIn(generateReductionCombinedParams()),
                          ReferenceReductionLayerTest::getTestCaseName);

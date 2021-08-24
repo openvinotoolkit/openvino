@@ -17,37 +17,33 @@ namespace reference_tests {
 namespace ReductionOpsRefTestDefinitions {
 
 struct ReductionParams {
-    template <class ET>
-    ReductionParams(const ngraph::PartialShape& inShape, const ngraph::element::Type& inType, const std::vector<ET> inValues,
-                    const std::vector<int64_t> axesValues, const std::vector<ET> outValues, const bool keepDims,
-                    const ngraph::helpers::ReductionType& reductType)
-            : dataShape(inShape), elemType(inType), inputData(CreateBlob(inType, inValues)), axesData(axesValues), refData(CreateBlob(inType, outValues)),
-              keepDimensions(keepDims), reductionType(reductType) {}
-    ngraph::PartialShape dataShape;
-    ngraph::element::Type elemType;
-    InferenceEngine::Blob::Ptr inputData;
-    std::vector<int64_t> axesData;
-    InferenceEngine::Blob::Ptr refData;
-    bool keepDimensions;
+    ReductionParams(const ngraph::helpers::ReductionType& reductType, const bool keepDims, const std::vector<int64_t>& axes,
+        const Tensor& dataTensor, const Tensor& outputTensor) : reductionType(reductType), keepDimensions(keepDims), reductionAxes(axes),
+        data(dataTensor), output(outputTensor) {}
+
     ngraph::helpers::ReductionType reductionType;
+    bool keepDimensions;
+    std::vector<int64_t> reductionAxes;
+    Tensor data;
+    Tensor output;
 };
 
 class ReferenceReductionLayerTest : public  testing::TestWithParam<ReductionParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params.dataShape, params.elemType, params.axesData, params.keepDimensions, params.reductionType);
-        inputData = {params.inputData};
-        refOutData = {params.refData};
+        function = CreateFunction(params);
+        inputData = {params.data.data};
+        refOutData = {params.output.data};
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<ReductionParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
         result << "reductionType=" << param.reductionType << "_";
-        result << "dataShape=" << param.dataShape << "_";
-        result << "dataType=" << param.elemType << "_";
-        result << "axes=" << CommonTestUtils::vec2str(param.axesData);
+        result << "dataType=" << param.data.type << "_";
+        result << "dataShape=" << param.data.shape << "_";
+        result << "axes=" << CommonTestUtils::vec2str(param.reductionAxes);
         if (param.keepDimensions) {
             result << "_keepDims";
         }
@@ -55,13 +51,12 @@ public:
     }
 
 private:
-    static std::shared_ptr<ngraph::Function> CreateFunction(const ngraph::PartialShape& data_shape,
-                                                            const ngraph::element::Type& elem_type,
-                                                            const std::vector<int64_t>& axes_values, const bool keep_dims,
-                                                            const ngraph::helpers::ReductionType& reduction_type) {
-        const auto data = std::make_shared<ngraph::op::Parameter>(elem_type, data_shape);
-        const auto axes = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{axes_values.size()}, axes_values);
-        const auto reduction = ngraph::builder::makeReduce(data, axes, keep_dims, reduction_type);
+    static std::shared_ptr<ngraph::Function> CreateFunction(const ReductionParams& params) {
+        const auto data = std::make_shared<ngraph::op::Parameter>(params.data.type, params.data.shape);
+        const auto axes = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+                                                                 ngraph::Shape{params.reductionAxes.size()},
+                                                                 params.reductionAxes);
+        const auto reduction = ngraph::builder::makeReduce(data, axes, params.keepDimensions, params.reductionType);
         return std::make_shared<ngraph::Function>(reduction, ngraph::ParameterVector{data});
     }
 };

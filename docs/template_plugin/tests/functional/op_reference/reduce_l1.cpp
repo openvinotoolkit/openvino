@@ -23,12 +23,11 @@ template <element::Type_t IN_ET>
 std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<ReductionParams> params = {
-        ReductionParams(PartialShape{3, 2, 2}, IN_ET,
-                    std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
-                    std::vector<int64_t>{2},
-                    std::vector<T>{3, 7, 11, 15, 19, 23},
-                    keep_dims,
-                    ReductionType::L1)};
+        ReductionParams(ReductionType::L1, keep_dims, std::vector<int64_t>{2},
+                        Tensor({3, 2, 2}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+                        Tensor(reduce(Shape{3, 2, 2}, AxisSet{2}, keep_dims),
+                                element::Type(IN_ET), std::vector<T>{3, 7, 11, 15, 19, 23}))
+    };
     return params;
 }
 
@@ -52,7 +51,6 @@ std::vector<ReductionParams> generateReductionCombinedParams() {
     }
     return combinedParams;
 }
-
 } // namespace
 INSTANTIATE_TEST_SUITE_P(smoke_Reduction_With_Hardcoded_Refs, ReferenceReductionLayerTest, ::testing::ValuesIn(generateReductionCombinedParams()),
                          ReferenceReductionLayerTest::getTestCaseName);
