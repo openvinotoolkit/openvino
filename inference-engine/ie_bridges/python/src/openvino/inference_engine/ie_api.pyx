@@ -35,9 +35,6 @@ warnings.filterwarnings(action="module", category=DeprecationWarning)
 cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[C.IEExecNetwork] move(unique_ptr[C.IEExecNetwork])
 
-cdef string to_std_string(str py_string):
-    return py_string.encode()
-
 cdef to_py_string(const string & std_string):
     return bytes(std_string).decode()
 
