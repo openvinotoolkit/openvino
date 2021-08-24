@@ -164,9 +164,6 @@ cdef class Blob:
         cdef uint32_t[::1] U32_array_memview
         cdef uint64_t[::1] U64_array_memview
 
-        cdef int16_t[:] x_as_uint
-        cdef int16_t[:] y_as_uint
-
         self._is_const = False
         self._array_data = array
         self._initial_shape = array.shape if array is not None else None
