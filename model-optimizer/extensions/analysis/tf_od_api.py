@@ -16,69 +16,58 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
     """
     graph_condition = [lambda graph: graph.graph['fw'] == 'tf']
 
-
     file_patterns = {'MaskRCNN': 'mask_rcnn_support.*\\.json',
                      'RFCN': 'rfcn_support.*\\.json',
                      'FasterRCNN': 'faster_rcnn_support.*\\.json',
                      'SSD': 'ssd.*_support.*\\.json',
                      }
-    model_scopes = {'MaskRCNN': (['Preprocessor',
-                                  'FirstStageFeatureExtractor',
+    model_scopes = {'MaskRCNN': (['FirstStageFeatureExtractor',
                                   'SecondStageFeatureExtractor',
                                   'SecondStageBoxPredictor',
                                   'SecondStageBoxPredictor_1',
                                   'SecondStageFeatureExtractor_1',
                                   ],),
-                    'RFCN': (['Preprocessor',
-                              'FirstStageFeatureExtractor',
+                    'RFCN': (['FirstStageFeatureExtractor',
                               'SecondStageFeatureExtractor',
                               'SecondStageBoxPredictor',
                               'SecondStageBoxPredictor/map',
                               'SecondStageBoxPredictor/map_1',
                               'SecondStagePostprocessor',
                               ],),
-                    'FasterRCNN': (['Preprocessor',
-                                    'FirstStageFeatureExtractor',
+                    'FasterRCNN': (['FirstStageFeatureExtractor',
                                     'SecondStageFeatureExtractor',
                                     'SecondStageBoxPredictor',
                                     'SecondStagePostprocessor',
                                     ],
-                                   ['Preprocessor',
-                                    'FirstStageRPNFeatures',
+                                   ['FirstStageRPNFeatures',
                                     'FirstStageBoxPredictor',
                                     'SecondStagePostprocessor',
                                     'mask_rcnn_keras_box_predictor',
                                     ],),
                     'SSD': (['FeatureExtractor',
-                             'Preprocessor',
                              'Postprocessor',
                              ],
                             ['ssd_mobile_net_v2keras_feature_extractor',
-                             'Preprocessor',
                              'Postprocessor'],
                             ['ssd_mobile_net_v1fpn_keras_feature_extractor',
-                             'Preprocessor',
                              'Postprocessor'],
                             ['ssd_mobile_net_v2fpn_keras_feature_extractor',
-                             'Preprocessor',
                              'Postprocessor'],
                             ['ResNet50V1_FPN',
-                             'Preprocessor',
                              'Postprocessor'],
                             ['ResNet101V1_FPN',
-                             'Preprocessor',
                              'Postprocessor'],
                             ['ResNet152V1_FPN',
-                             'Preprocessor',
                              'Postprocessor']
                             ),
                     }
 
     def analyze(self, graph: Graph):
-        tf_1_names = ['image_tensor', 'detection_classes', 'detection_boxes', 'detection_scores']
-        tf_1_cond = all([name in graph.nodes() for name in tf_1_names])
+        tf_1_names = ['image_tensor', 'detection_classes', 'detection_boxes', 'detection_scores', 'Preprocessor']
+        tf_1_cond = all([any([node.soft_get('name').find(scope) != -1 for node in graph.get_op_nodes()])
+                         for scope in tf_1_names])
 
-        tf_2_names = ['input_tensor', 'output_control_node', 'Identity']
+        tf_2_names = ['input_tensor', 'output_control_node', 'Identity', 'Preprocessor']
         tf_2_cond = all([any([node.soft_get('name').find(scope) != -1 for node in graph.get_op_nodes()])
                          for scope in tf_2_names])
 
