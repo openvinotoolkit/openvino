@@ -112,7 +112,7 @@ protected:
             m_original_output_data_types[i] = node.get_output_element_type(i);
         }
 
-	// Override (some) output types
+        // Override (some) output types
         for (size_t i = 0; i < node.get_output_size(); ++i) {
             auto overridden_output_type = get_overridden_output_type(i);
             if (overridden_output_type != element::undefined) {

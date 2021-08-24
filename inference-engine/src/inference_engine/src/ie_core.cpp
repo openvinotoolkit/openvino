@@ -689,7 +689,7 @@ public:
                     });
                 }
 
-                auto reault = plugins.emplace(deviceName, plugin).first->second;
+                auto result = plugins.emplace(deviceName, plugin).first->second;
 
                 TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
 
@@ -821,25 +821,6 @@ public:
         AddExtensionUnsafe(extension);
     }
 
-    void AddExtensionUnsafe(const ie::IExtensionPtr& extension) const {
-        std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
-        for (const auto& it : opsets) {
-            if (opsetNames.find(it.first) != opsetNames.end())
-                IE_THROW() << "Cannot add opset with name: " << it.first
-                           << ". Opset with the same name already exists.";
-            opsetNames.insert(it.first);
-        }
-
-        // add extensions for already created plugins
-        for (auto& plugin : plugins) {
-            try {
-                plugin.second.add_extension(extension);
-            } catch (...) {
-            }
-        }
-        extensions.emplace_back(extension);
-    }
-
     /**
      * @brief Provides a list of extensions
      * @return A list of registered extensions
@@ -890,7 +871,7 @@ public:
     }
 
 private:
-    void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const {
+    void AddExtensionUnsafe(const ie::IExtensionPtr& extension) const {
         std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
         for (const auto& it : opsets) {
             if (opsetNames.find(it.first) != opsetNames.end())
@@ -902,7 +883,7 @@ private:
         // add extensions for already created plugins
         for (auto& plugin : plugins) {
             try {
-                plugin.second.AddExtension(extension);
+                plugin.second.add_extension(extension);
             } catch (...) {
             }
         }

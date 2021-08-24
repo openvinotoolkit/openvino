@@ -23,7 +23,6 @@
 #include <unordered_set>
 #include <utility>
 #include <cstring>
-#include <fstream>
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
 
