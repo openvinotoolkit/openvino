@@ -30,16 +30,13 @@ public:
     std::string get_name() const override;
 
 protected:
-    /// \brief Check if FrontEndPDPD can recognize model from given parts
-    /// \param params Can be path to folder which contains __model__ file or path to
-    /// .pdmodel file
+    /// \brief Check if FrontEndIR can recognize model from given parts
+    /// \param params Can be path to the model file or std::istream
     /// \return InputModel::Ptr
     bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
 
-    /// \brief Reads model from 1 or 2 given file names or 1 or 2 std::istream containing
-    /// model in protobuf format and weights
-    /// \param params Can contain path to folder with __model__ file or path to .pdmodel
-    /// file or 1 or 2 streams with model and weights
+    /// \brief Reads model from file or std::istream
+    /// \param params Can be path to the model file or std::istream
     /// \return InputModel::Ptr
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
 };

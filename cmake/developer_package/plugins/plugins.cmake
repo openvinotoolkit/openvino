@@ -115,9 +115,6 @@ function(ie_add_plugin)
     if(TARGET inference_engine_onnx_reader)
         add_dependencies(${IE_PLUGIN_NAME} inference_engine_onnx_reader)
     endif()
-    if(TARGET ir_frontend)
-        add_dependencies(${IE_PLUGIN_NAME} ir_frontend)
-    endif()
 
     # install rules
 

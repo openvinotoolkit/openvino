@@ -51,7 +51,7 @@ TEST_F(NGraphReaderTests, ReadAbsFromCustomOpsetNetwork) {
             <data element_type="f32" shape="1,3,22,22"/>
             <output>
                 <port id="0" precision="FP32">
-                    <dim>1</dim>q
+                    <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
                     <dim>22</dim>
