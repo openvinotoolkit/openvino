@@ -2,27 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/descriptor/input.hpp"
+#include "openvino/core/descriptor/input.hpp"
 
-#include "ngraph/descriptor/output.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/descriptor/output.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace descriptor;
 
-descriptor::Input::Input(Node* node, size_t index, Output& output)
+descriptor::Input::Input(ngraph::Node* node, size_t index, Output& output)
     : m_node(node),
       m_index(index),
       m_output(&output),
       m_is_relevant_to_shape(false),
       m_is_relevant_to_value(true) {
-    m_src_node = std::shared_ptr<Node>(output.get_node());
+    m_src_node = std::shared_ptr<ngraph::Node>(output.get_node());
     output.add_input(this);
 }
 
-descriptor::Input::Input(Node* node, size_t index)
+descriptor::Input::Input(ngraph::Node* node, size_t index)
     : m_node(node),
       m_index(index),
       m_output(nullptr),
@@ -39,9 +39,9 @@ void descriptor::Input::replace_output(Output& new_output) {
     }
     new_output.add_input(this);
     m_output = &new_output;
-    m_src_node = std::shared_ptr<Node>(new_output.get_node());
+    m_src_node = std::shared_ptr<ngraph::Node>(new_output.get_node());
 
-    if (getenv_bool("NGRAPH_ENABLE_REPLACE_CHECK")) {
+    if (ngraph::getenv_bool("NGRAPH_ENABLE_REPLACE_CHECK")) {
         // the result of clone_with_new_inputs will be thrown away or
         // an exception will be thrown by `m_node`'s class c-tor
         // if a new input violates one of the type checks in the c-tor.
@@ -49,7 +49,7 @@ void descriptor::Input::replace_output(Output& new_output) {
     }
 }
 
-void descriptor::Input::replace_output(std::shared_ptr<Node> node, size_t i) {
+void descriptor::Input::replace_output(std::shared_ptr<ngraph::Node> node, size_t i) {
     replace_output(node->m_outputs.at(i));
 }
 
@@ -61,7 +61,7 @@ void descriptor::Input::remove_output() {
     }
 }
 
-std::shared_ptr<Node> descriptor::Input::get_node() const {
+std::shared_ptr<ngraph::Node> descriptor::Input::get_node() const {
     return m_node->shared_from_this();
 }
 
@@ -81,7 +81,7 @@ std::shared_ptr<Tensor> descriptor::Input::get_tensor_ptr() {
     return m_output->get_tensor_ptr();
 }
 
-const Shape& descriptor::Input::get_shape() const {
+const ngraph::Shape& descriptor::Input::get_shape() const {
     return m_output->get_shape();
 }
 

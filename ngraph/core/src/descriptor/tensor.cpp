@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/descriptor/tensor.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 
 #include "ngraph/node.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
@@ -17,7 +17,7 @@ descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape
 
 descriptor::Tensor::Tensor(const element::Type& element_type,
                            const PartialShape& pshape,
-                           Node* node,
+                           ngraph::Node* node,
                            size_t node_output_number)
     : m_element_type(element_type),
       m_partial_shape(pshape),
@@ -42,21 +42,21 @@ void descriptor::Tensor::invalidate_values() {
     m_lower_value = nullptr;
 }
 
-void descriptor::Tensor::set_lower_value(const HostTensorPtr& value) {
+void descriptor::Tensor::set_lower_value(const ngraph::HostTensorPtr& value) {
     NGRAPH_CHECK(value != nullptr);
     NGRAPH_CHECK(m_partial_shape.same_scheme(value->get_partial_shape()));
     NGRAPH_CHECK(m_element_type == value->get_element_type());
     m_lower_value = value;
 }
 
-void descriptor::Tensor::set_upper_value(const HostTensorPtr& value) {
+void descriptor::Tensor::set_upper_value(const ngraph::HostTensorPtr& value) {
     NGRAPH_CHECK(value != nullptr);
     NGRAPH_CHECK(m_partial_shape.same_scheme(value->get_partial_shape()));
     NGRAPH_CHECK(m_element_type == value->get_element_type());
     m_upper_value = value;
 }
 
-const Shape& descriptor::Tensor::get_shape() const {
+const ngraph::Shape& descriptor::Tensor::get_shape() const {
     if (m_partial_shape.is_static()) {
         if (m_shape_changed.load(std::memory_order_relaxed)) {
             std::lock_guard<std::mutex> guard(shape_mutex);
