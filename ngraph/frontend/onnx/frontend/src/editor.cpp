@@ -20,6 +20,8 @@
 using namespace ngraph;
 using namespace ngraph::onnx_editor;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace {
 using namespace ONNX_NAMESPACE;
 
