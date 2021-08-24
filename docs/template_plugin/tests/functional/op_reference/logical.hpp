@@ -32,7 +32,7 @@ class ReferenceLogicalLayerTest : public testing::TestWithParam<RefLogicalParams
 public:
     void SetUp() override {
         const auto& params = GetParam();
-        function = CreateFunction(params.opType, params.inputs, params.inputs[0].type);
+        function = CreateFunction(params.opType, params.inputs);
         for (auto& input : params.inputs) {
             inputData.push_back(input.data);
         }
@@ -40,11 +40,12 @@ public:
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RefLogicalParams>& obj) {
         const auto& param = obj.param;
+        int counter = 1;
         std::ostringstream result;
         result << "LogicalType=" << param.opType << "_";
-        result << "inpt_shape1=" << param.inputs[0].shape << "_";
-        if (param.opType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
-            result << "inpt_shape2=" << param.inputs[1].shape << "_";
+        for (auto& input : param.inputs) {
+            result << "inpt_shape" << counter << "=" << input.shape << "_";
+            counter++;
         }
         result << "iType=" << param.inputs[0].type << "_";
         result << "oType=" << param.expected.type;
@@ -52,11 +53,10 @@ public:
     }
 
 private:
-    static std::shared_ptr<ngraph::Function> CreateFunction(ngraph::helpers::LogicalTypes op_type, const std::vector<Tensor>& inputs,
-                                                            const ngraph::element::Type& elem_type) {
+    static std::shared_ptr<ngraph::Function> CreateFunction(ngraph::helpers::LogicalTypes op_type, const std::vector<Tensor>& inputs) {
         ngraph::ParameterVector params_vec;
         for (auto& input : inputs) {
-            params_vec.push_back(std::make_shared<ngraph::op::Parameter>(elem_type, input.shape));
+            params_vec.push_back(std::make_shared<ngraph::op::Parameter>(input.type, input.shape));
         }
 
         const auto logical_op = ngraph::builder::makeLogical(params_vec, op_type);
