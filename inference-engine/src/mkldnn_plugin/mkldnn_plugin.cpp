@@ -13,6 +13,7 @@
 #include <ie_plugin_config.hpp>
 #include <vector>
 #include <tuple>
+#include <chrono>
 #include <unordered_set>
 #include <ie_system_conf.h>
 #include <nodes/list.hpp>
@@ -119,6 +120,7 @@ Engine::~Engine() {
 
 static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     auto nGraphFunc = clonedNetwork.getFunction();
+    auto before = std::chrono::high_resolution_clock::now();
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -399,6 +401,9 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     postLPTPassManager.run_passes(nGraphFunc);
 
     ConvertToCPUSpecificOpset(nGraphFunc);
+    auto after = std::chrono::high_resolution_clock::now();
+    auto d = std::chrono::duration_cast<std::chrono::nanoseconds>(after - before).count();
+    printf("MKLDNN_TRANSFORMATIONS: %ld nanoseconds.\n", d);
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr
