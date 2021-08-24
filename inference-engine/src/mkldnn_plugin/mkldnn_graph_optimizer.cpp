@@ -330,7 +330,8 @@ void MKLDNNGraphOptimizer::FuseMultiplyAndAdd(MKLDNNGraph &graph) {
         if (childNode->getAlgorithm() != EltwiseAdd || !childNode->getFusedWith().empty() || childNode->getParentEdges().size() != 2)
             return false;
 
-        return isSutableSecondInput(childNode->getParentEdgesAtPort(1)[0]->getParent(), childNode->getParentEdgesAtPort(0)[0]->getShape().getDims());
+        return isSutableSecondInput(childNode->getParentEdgesAtPort(1)[0]->getParent(), childNode->getParentEdgesAtPort(0)[0]->getShape().getDims()) &&
+               parentNode->canFuse(childNode);
     };
 
     auto parent = graphNodes.begin();

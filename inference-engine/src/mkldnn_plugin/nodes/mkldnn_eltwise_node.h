@@ -14,6 +14,7 @@
 namespace MKLDNNPlugin {
 
 #define MAX_ELTWISE_INPUTS 7
+#define MAX_ELTWISE_DIM_RANK 12
 
 struct jit_eltwise_params {
     size_t inputs_number;
@@ -22,30 +23,35 @@ struct jit_eltwise_params {
     InferenceEngine::Precision src_prc[MAX_ELTWISE_INPUTS];
     InferenceEngine::Precision dst_prc;
 
+    std::vector<size_t> dims;
     std::vector<size_t> src_offsets[MAX_ELTWISE_INPUTS];
     std::vector<size_t> dst_offsets;
+    std::vector<size_t> oc_offsets;
 
     size_t src_size[MAX_ELTWISE_INPUTS];
     size_t dst_size;
     size_t oc_size;
-};
-
-struct jit_eltwise_call_args {
-    const void *src_ptr[MAX_ELTWISE_INPUTS];
-    void *dst;
 
     size_t work_amount;
-    size_t oc_off;
+};
+
+struct jit_eltwise_call_args_ptrs {
+    const void *src_ptr[MAX_ELTWISE_INPUTS];
+    void *dst_ptr;
+};
+
+struct jit_eltwise_call_args_indexes {
+    size_t indexes[MAX_ELTWISE_DIM_RANK];
 };
 
 class MKLDNNEltwiseNode;
 
 struct jit_uni_eltwise_kernel {
-    void (*ker_)(const jit_eltwise_call_args *);
+    void (*ker_)(const jit_eltwise_call_args_ptrs*, const jit_eltwise_call_args_indexes*);
 
-    void operator()(const jit_eltwise_call_args *args) {
+    void operator()(const jit_eltwise_call_args_ptrs* const_args, const jit_eltwise_call_args_indexes* indexes) {
         assert(ker_);
-        ker_(args);
+        ker_(const_args, indexes);
     }
 
     explicit jit_uni_eltwise_kernel(jit_eltwise_params jep, MKLDNNEltwiseNode& node) : ker_(nullptr), jep_(jep), eltwiseNode(node) {}
@@ -87,6 +93,7 @@ private:
 
     std::shared_ptr<jit_uni_eltwise_kernel> eltwise_kernel = nullptr;
     jit_eltwise_params jep = {};
+    jit_eltwise_call_args_ptrs args_ptrs = {};
 
     int optimalTensorRank = 6;
     bool canUseOptimizedImpl = false;
@@ -96,6 +103,7 @@ private:
     size_t tensorRank = 0;
     size_t fullWorkAmount = 0;
     size_t schedulerWorkAmount = 0;
+    size_t inputNum = 0;
     std::vector<std::vector<size_t>> dims_in = {};
     std::vector<std::vector<size_t>> offsets_in = {};
     std::vector<size_t> dims_out = {};
@@ -111,11 +119,13 @@ private:
     std::vector<float> scales = {};
     std::vector<float> shifts = {};
 
+    std::vector<MKLDNNMemoryPtr> memPtrs = {};
+
     static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> initializers;
 
-    inline void executeOptimized6D(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr);
-    inline void executeOptimizedGeneric(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr);
-    inline void executeReference(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr);
+    inline void executeOptimized6D();
+    inline void executeOptimizedGeneric();
+    inline void executeReference();
 
     void offset_out_calc(std::vector<size_t>& offset, std::vector<size_t>& dims);
     void offset_in_calc(std::vector<size_t>& offset, std::vector<size_t>& dims_in, std::vector<size_t>& dims_out);
