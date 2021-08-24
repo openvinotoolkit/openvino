@@ -7,10 +7,9 @@
 // TODO: include it by just frontend_manager.hpp without path
 #include <frontend_manager/frontend.hpp>
 #include <tensorflow_frontend/model.hpp>
+#include <tensorflow_frontend/utility.hpp>
 
-#define NGRAPH_HELPER_DLL_EXPORT __declspec(dllexport)
-
-#define TF_API NGRAPH_HELPER_DLL_EXPORT
+using namespace ngraph::frontend;
 
 namespace tensorflow {
 class GraphDef;
@@ -36,7 +35,29 @@ public:
 
     virtual std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override;
 
+    /// \brief Gets name of this FrontEnd. Can be used by clients
+    std::string get_name() const override {
+        return "tensorflow";
+    }
+
 protected:
+    /// \brief Check if FrontEndTensorflow can recognize model from given parts
+    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override {
+        // TODO: Support TensorFlow 2 SavedModel format
+        if (variants.empty() || variants.size() > 2)
+            return false;
+
+        // Validating first path, it must contain a model
+        if (is_type<VariantWrapper<std::string>>(variants[0])) {
+            std::string suffix = ".pb";
+            std::string model_path = as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
+            if (tf::endsWith(model_path, suffix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override {
         if (variants.size() == 1) {
             // The case when folder with __model__ and weight files is provided or .pdmodel file

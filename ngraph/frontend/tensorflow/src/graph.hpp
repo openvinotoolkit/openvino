@@ -65,7 +65,7 @@ public:
 
 namespace tensorflow {
 namespace ngraph_bridge {
-class TF_API NodeProtoWrapper : public ngraph::frontend::tensorflow::detail::TFNodeDecoder {
+class NodeProtoWrapper : public ngraph::frontend::tensorflow::detail::TFNodeDecoder {
     const NodeDef* node_def;
     // const GraphDef* graph_def;
 public:

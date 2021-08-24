@@ -2,6 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
+#ifdef tensorflow_ngraph_frontend_EXPORTS
+#define TF_API NGRAPH_HELPER_DLL_EXPORT
+#else
+#define TF_API NGRAPH_HELPER_DLL_IMPORT
+#endif  // paddlepaddle_ngraph_frontend_EXPORTS
+
 namespace tensorflow {
 namespace ngraph_bridge {
 
@@ -19,3 +27,19 @@ namespace ngraph_bridge {
 
 }  // namespace ngraph_bridge
 }  // namespace tensorflow
+
+namespace ngraph {
+namespace frontend {
+namespace tf {
+
+template <typename T>
+bool endsWith(const std::basic_string<T>& str, const std::basic_string<T>& suffix) {
+    if (str.length() >= suffix.length()) {
+        return (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix));
+    }
+    return false;
+}
+
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ngraph

@@ -74,10 +74,6 @@ class errors
 }
 
 
-#define NGRAPH_HELPER_DLL_EXPORT __declspec(dllexport)
-
-#define TF_API NGRAPH_HELPER_DLL_EXPORT
-
 namespace ngraph {
 namespace frontend {
 namespace tensorflow {
@@ -92,7 +88,7 @@ namespace tensorflow {
         class TensorWrapper;
 
 // should be an ABI-free wrapper for TF node (not it is not ABI-free, TODO: eliminate ABI-dependent data structures)
-        class TF_API TFNodeDecoder
+        class TFNodeDecoder
         {
         public:
 

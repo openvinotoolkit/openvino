@@ -6,11 +6,6 @@
 
 #include <frontend_manager/frontend.hpp>
 
-#define NGRAPH_HELPER_DLL_EXPORT __declspec(dllexport)
-
-#define TF_API NGRAPH_HELPER_DLL_EXPORT
-
-
 namespace ngraph {
 namespace frontend {
 class PlaceTensorflow : public Place {
