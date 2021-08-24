@@ -56,23 +56,23 @@ protected:
         const ngraph::Shape shape = {1, 128};
         auto params = ngraph::builder::makeParams(ngPrc, {shape});
 
-        auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{3},
+        auto pattern1 = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{3},
             ngraph::Shape{1, 2, 64});
-        auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
+        auto reshape1 = std::make_shared<ngraph::opset7::Reshape>(params[0], pattern1, false);
 
-        auto relu1 = std::make_shared<ngraph::opset8::Relu>(reshape1);
+        auto relu1 = std::make_shared<ngraph::opset7::Relu>(reshape1);
 
         auto lowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { -10.0f });
         auto highNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { 10.0f });
-        auto fq = std::make_shared<ngraph::opset8::FakeQuantize>(relu1, lowNode, highNode, lowNode, highNode,
+        auto fq = std::make_shared<ngraph::opset7::FakeQuantize>(relu1, lowNode, highNode, lowNode, highNode,
             std::numeric_limits<uint16_t>::max());
 
-        auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shape.size()},
+        auto pattern2 = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shape.size()},
             shape);
-        auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(fq, pattern2, false);
+        auto reshape2 = std::make_shared<ngraph::opset7::Reshape>(fq, pattern2, false);
 
-        auto relu2 = std::make_shared<ngraph::opset8::Relu>(fq);
-        auto reshape3 = std::make_shared<ngraph::opset1::Reshape>(relu2, pattern2, false);
+        auto relu2 = std::make_shared<ngraph::opset7::Relu>(fq);
+        auto reshape3 = std::make_shared<ngraph::opset7::Reshape>(relu2, pattern2, false);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset7::Result>(reshape2),
                                      std::make_shared<ngraph::opset7::Result>(reshape3)};
@@ -98,7 +98,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_fq_fusion, FQWithMultipleOutConnections,
+INSTANTIATE_TEST_CASE_P(smoke_fq_fusion, FQWithMultipleOutConnections,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
