@@ -115,12 +115,9 @@ protected:
         // returned output format always tnc
         if (ngraph::shape_size(gru_sequence->get_output_shape(0)) == 1) {
             outFmts[0] = tnc;
-        } else if (ngraph::shape_size(gru_sequence->get_output_shape(1)) == 1) {
+        } else if (ngraph::shape_size(gru_sequence->get_output_shape(1)) == 1 ||
+                gru_sequence->get_output_shape(0)[0] == 1) {
             outFmts[1] = tnc;
-        }
-        // if output format equals for all outputs, runtime info return only one formats
-        if (outFmts[0] == outFmts[1]) {
-            outFmts.erase(outFmts.begin());
         }
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_sequence->output(0)),
@@ -170,8 +167,8 @@ namespace {
 std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}, {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
-CPUSpecificParams cpuParams{{ntc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};
-CPUSpecificParams cpuParamsBatchSizeOne{{ntc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};;
+CPUSpecificParams cpuParams{{ntc, ntc}, {ntc, ntc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};;
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 // output values increase rapidly without clip, so use only seq_lengths = 2

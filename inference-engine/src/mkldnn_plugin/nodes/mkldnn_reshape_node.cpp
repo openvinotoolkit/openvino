@@ -14,6 +14,15 @@ using namespace InferenceEngine;
 MKLDNNReshapeNode::MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache) {}
 
+MKLDNNReshapeNode::MKLDNNReshapeNode(const std::string& name, const Shape& inDims, const Shape& outDims, Precision precision,
+        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &wCache)
+        : MKLDNNNode("Reshape", name, eng, wCache) {
+    this->inputShapes.push_back(inDims);
+    this->outputShapes.push_back(outDims);
+    addOriginalInputPrecision(precision);
+    addOriginalOutputPrecision(precision);
+}
+
 void MKLDNNReshapeNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 1 && getParentEdges().size() != 2)
         IE_THROW() << "Incorrect number of input edges for layer " << getName();
