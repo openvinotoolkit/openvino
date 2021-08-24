@@ -95,6 +95,7 @@ namespace {
 
 // Extension to plugins creator
 std::multimap<std::string, Reader::Ptr> readers;
+static ngraph::frontend::FrontEndManager manager;
 
 void registerReaders() {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "registerReaders");
@@ -228,7 +229,6 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         }
     }
     // Try to load with FrontEndManager
-    static ngraph::frontend::FrontEndManager manager;
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
     if (!binPath.empty()) {
@@ -272,7 +272,6 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     }
     // Try to load with FrontEndManager
     // NOTE: weights argument is ignored
-    static ngraph::frontend::FrontEndManager manager;
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
     FE = manager.load_by_model(&modelStream);
