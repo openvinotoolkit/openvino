@@ -14,4 +14,10 @@
 
    openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide
 
+.. toctree::
+   :maxdepth: 1
+   :caption: TUNING FOR PERFORMANCE
+
+   openvino_docs_optimization_guide_dldt_optimization_guide
+
 @endsphinxdirective
