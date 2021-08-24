@@ -71,7 +71,7 @@ public:
 
     /// \brief Replace the current output that supplies a value for this input with output i
     ///        of node
-    void replace_output(std::shared_ptr<ngraph::Node> node, size_t i);
+    void replace_output(const std::shared_ptr<ngraph::Node>& node, size_t i);
     /// \brief Replace the current output that supplies a value for this input with output
     void replace_output(Output& output);
     /// \brief Remove the output from this input. The node will not be valid until another

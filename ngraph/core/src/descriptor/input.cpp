@@ -9,10 +9,7 @@
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-using namespace ov;
-using namespace descriptor;
-
-descriptor::Input::Input(ngraph::Node* node, size_t index, Output& output)
+ov::descriptor::Input::Input(ngraph::Node* node, size_t index, Output& output)
     : m_node(node),
       m_index(index),
       m_output(&output),
@@ -22,18 +19,18 @@ descriptor::Input::Input(ngraph::Node* node, size_t index, Output& output)
     output.add_input(this);
 }
 
-descriptor::Input::Input(ngraph::Node* node, size_t index)
+ov::descriptor::Input::Input(ngraph::Node* node, size_t index)
     : m_node(node),
       m_index(index),
       m_output(nullptr),
       m_is_relevant_to_shape(false),
       m_is_relevant_to_value(true) {}
 
-descriptor::Input::~Input() {
+ov::descriptor::Input::~Input() {
     remove_output();
 }
 
-void descriptor::Input::replace_output(Output& new_output) {
+void ov::descriptor::Input::replace_output(Output& new_output) {
     if (m_output != nullptr) {
         m_output->remove_input(this);
     }
@@ -49,11 +46,11 @@ void descriptor::Input::replace_output(Output& new_output) {
     }
 }
 
-void descriptor::Input::replace_output(std::shared_ptr<ngraph::Node> node, size_t i) {
+void ov::descriptor::Input::replace_output(const std::shared_ptr<ngraph::Node>& node, size_t i) {
     replace_output(node->m_outputs.at(i));
 }
 
-void descriptor::Input::remove_output() {
+void ov::descriptor::Input::remove_output() {
     if (m_output != nullptr) {
         m_output->remove_input(this);
         m_src_node = nullptr;
@@ -61,34 +58,34 @@ void descriptor::Input::remove_output() {
     }
 }
 
-std::shared_ptr<ngraph::Node> descriptor::Input::get_node() const {
+std::shared_ptr<ngraph::Node> ov::descriptor::Input::get_node() const {
     return m_node->shared_from_this();
 }
 
-const Tensor& descriptor::Input::get_tensor() const {
+const ov::descriptor::Tensor& ov::descriptor::Input::get_tensor() const {
     return m_output->get_tensor();
 }
 
-Tensor& descriptor::Input::get_tensor() {
+ov::descriptor::Tensor& ov::descriptor::Input::get_tensor() {
     return m_output->get_tensor();
 }
 
-std::shared_ptr<const Tensor> descriptor::Input::get_tensor_ptr() const {
+std::shared_ptr<const ov::descriptor::Tensor> ov::descriptor::Input::get_tensor_ptr() const {
     return m_output->get_tensor_ptr();
 }
 
-std::shared_ptr<Tensor> descriptor::Input::get_tensor_ptr() {
+std::shared_ptr<ov::descriptor::Tensor> ov::descriptor::Input::get_tensor_ptr() {
     return m_output->get_tensor_ptr();
 }
 
-const ngraph::Shape& descriptor::Input::get_shape() const {
+const ngraph::Shape& ov::descriptor::Input::get_shape() const {
     return m_output->get_shape();
 }
 
-const PartialShape& descriptor::Input::get_partial_shape() const {
+const ov::PartialShape& ov::descriptor::Input::get_partial_shape() const {
     return m_output->get_partial_shape();
 }
 
-const element::Type& descriptor::Input::get_element_type() const {
+const ov::element::Type& ov::descriptor::Input::get_element_type() const {
     return m_output->get_element_type();
 }
