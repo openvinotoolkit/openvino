@@ -87,7 +87,7 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) co
 }
 
 std::string FrontEndONNX::get_name() const {
-    return "onnx_experimental";
+    return "onnx";
 }
 
 namespace {
