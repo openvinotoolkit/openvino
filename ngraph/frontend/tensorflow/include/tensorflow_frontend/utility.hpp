@@ -5,9 +5,9 @@
 #pragma once
 
 #ifdef tensorflow_ngraph_frontend_EXPORTS
-#define TF_API NGRAPH_HELPER_DLL_EXPORT
+#    define TF_API NGRAPH_HELPER_DLL_EXPORT
 #else
-#define TF_API NGRAPH_HELPER_DLL_IMPORT
+#    define TF_API NGRAPH_HELPER_DLL_IMPORT
 #endif  // paddlepaddle_ngraph_frontend_EXPORTS
 
 namespace tensorflow {
@@ -20,9 +20,9 @@ namespace ngraph_bridge {
     }
 
 #if 0
-#define NGRAPH_VLOG(I) std::cerr
+#    define NGRAPH_VLOG(I) std::cerr
 #else
-#define NGRAPH_VLOG(I) std::ostringstream()
+#    define NGRAPH_VLOG(I) std::ostringstream()
 #endif
 
 }  // namespace ngraph_bridge

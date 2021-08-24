@@ -14,19 +14,18 @@
  * limitations under the License.
  *******************************************************************************/
 
+#include "default_opset.h"
+#include "graph.hpp"
 #include "graph.pb.h"
-#include "tensor.pb.h"
-
 #include "ngraph_builder.h"
 #include "ngraph_conversions.h"
-#include "default_opset.h"
 #include "node_context_impl.hpp"
-#include "graph.hpp"
+#include "tensor.pb.h"
 
 namespace ngraph {
 namespace frontend {
 namespace tensorflow {
-    namespace detail {
+namespace detail {
 #if 0
     using ::tensorflow::NodeDef;
     using ::tensorflow::GraphDef;
@@ -48,16 +47,17 @@ public:
 
             }
 
-#define TEMPLATE_EXPLICIT_SPECIALIZATION(TYPE, FIELD) virtual void getAttrValue2 (const char* name, TYPE* x) const override \
-        { *x = node_def->attr().at(name).FIELD(); }
-#define TEMPLATE_EXPLICIT_SPECIALIZATION_V(TYPE, FIELD) virtual void getAttrValue2 (const char* name, std::vector<TYPE>* x) const override \
-        {\
-            const auto& list = node_def->attr().at(name).list();\
-            x->reserve(/*node_def->attr().at(name).FIELD##_size()*/list.FIELD##_size());\
-            for(size_t i = 0; i < list.FIELD##_size(); ++i)\
-            {\
-                x->push_back(list.FIELD(i));\
-            }\
+#    define TEMPLATE_EXPLICIT_SPECIALIZATION(TYPE, FIELD)                      \
+        virtual void getAttrValue2(const char* name, TYPE* x) const override { \
+            *x = node_def->attr().at(name).FIELD();                            \
+        }
+#    define TEMPLATE_EXPLICIT_SPECIALIZATION_V(TYPE, FIELD)                                 \
+        virtual void getAttrValue2(const char* name, std::vector<TYPE>* x) const override { \
+            const auto& list = node_def->attr().at(name).list();                            \
+            x->reserve(/*node_def->attr().at(name).FIELD##_size()*/ list.FIELD##_size());   \
+            for (size_t i = 0; i < list.FIELD##_size(); ++i) {                              \
+                x->push_back(list.FIELD(i));                                                \
+            }                                                                               \
         }
 
     TEMPLATE_EXPLICIT_SPECIALIZATION_V(int32_t, i)
@@ -206,117 +206,114 @@ public:
 
 #endif
 
+NodeContext::NodeContext(const OutputVector& _ng_inputs,
+                         std::shared_ptr<detail::TFNodeDecoder> _decoder,
+                         const std::map<std::string, ngraph::PartialShape>& overridden_shapes,
+                         const std::vector<ngraph::PartialShape>& indexed_shapes)
+    : m_ng_inputs(_ng_inputs),
+      m_decoder(_decoder),
+      m_overridden_shapes(overridden_shapes),
+      m_indexed_shapes(indexed_shapes) {}
 
-        NodeContext::NodeContext(
-                const OutputVector &_ng_inputs,
-                std::shared_ptr<detail::TFNodeDecoder> _decoder,
-                const std::map<std::string, ngraph::PartialShape> &overridden_shapes,
-                const std::vector<ngraph::PartialShape> &indexed_shapes) :
-                m_ng_inputs(_ng_inputs),
-                m_decoder(_decoder),
-                m_overridden_shapes(overridden_shapes),
-                m_indexed_shapes(indexed_shapes) {}
-
-        size_t NodeContext::get_ng_input_size() const {
-            return m_ng_inputs.size();
-        }
-
-        /// Returns a vector of already converted inputs for this node
-        const OutputVector &NodeContext::get_ng_inputs() const {
-            return m_ng_inputs;
-        }
-
-        Output<Node> NodeContext::get_ng_input(size_t input_port) const {
-            return m_ng_inputs[input_port];
-        }
-
-        std::string NodeContext::get_op_type() const {
-            return m_decoder->op();
-        }
-
-        std::vector<std::string> NodeContext::get_output_names() const {
-            // TODO
-            throw "Not implemented";
-        }
-
-        std::vector<std::string> NodeContext::get_names() const {
-            std::vector<std::string> names;
-            names.push_back(m_decoder->name());
-            return names;
-        }
-
-        std::string NodeContext::get_name() const {
-            return get_names()[0];
-        }
-
-        /// Temporary method for the transition period during migration to NodeContext
-        // TODO: Remove this method and port all dependent code to the remaining methods
-        const detail::TFNodeDecoder *NodeContext::_get_decoder() const {
-            return m_decoder.get();
-        }
-
-        template<typename T>
-        T NodeContext::get_attribute(const std::string &name) const {
-            try {
-                T result;
-                m_decoder->getAttrValue2(name.c_str(), &result);
-                // TODO: no real processing of case when there is no default: getAttrValue will provide default even you don't need it
-                return result;
-            }
-            catch (...) {
-                std::cerr << "[ ERROR ] When accecing attribute '" << name << "' value.\n";
-                throw;
-            }
-        }
-
-        template<typename T>
-        T NodeContext::get_attribute(const std::string &name, const T &default_value) const {
-            T result;
-            try {
-                m_decoder->getAttrValue2(name.c_str(), &result);
-            } catch (...)  // TODO: replace by more narrow filter
-            {
-                result = default_value;
-            }
-            return result;
-        }
-
-        // Meta-attributes like op type, domain, version -- some FW specific but common for all operations properties
-
-
-        const std::map<std::string, ngraph::PartialShape> &NodeContext::get_overridden_shapes() const {
-            return m_overridden_shapes;
-        }
-
-        const std::vector<ngraph::PartialShape> &NodeContext::get_indexed_shapes() const {
-            return m_indexed_shapes;
-        }
-
-        #define TEMPLATE_EXPLICIT_SPECIALIZATION(T) \
-        template T NodeContext::get_attribute<T>(const std::string&) const; \
-        template T NodeContext::get_attribute<T>(const std::string&, const T&) const;
-
-#define TEMPLATE_EXPLICIT_SPECIALIZATION_V(T) \
-        template std::vector<T> NodeContext::get_attribute<std::vector<T>>(const std::string&) const; \
-        template std::vector<T> NodeContext::get_attribute<std::vector<T>>(const std::string&, const std::vector<T>&) const;
-
-        TEMPLATE_EXPLICIT_SPECIALIZATION_V(int32_t)
-        TEMPLATE_EXPLICIT_SPECIALIZATION_V(__int64)
-        TEMPLATE_EXPLICIT_SPECIALIZATION_V(float)
-        TEMPLATE_EXPLICIT_SPECIALIZATION(int32_t)
-        TEMPLATE_EXPLICIT_SPECIALIZATION(__int64)
-
-        TEMPLATE_EXPLICIT_SPECIALIZATION(ngraph::element::Type)
-
-        TEMPLATE_EXPLICIT_SPECIALIZATION(ngraph::PartialShape)
-        TEMPLATE_EXPLICIT_SPECIALIZATION(std::string)
-        TEMPLATE_EXPLICIT_SPECIALIZATION(bool)
-        TEMPLATE_EXPLICIT_SPECIALIZATION(long int)
-        TEMPLATE_EXPLICIT_SPECIALIZATION(float)
-
-        TEMPLATE_EXPLICIT_SPECIALIZATION_V(std::string)
-
+size_t NodeContext::get_ng_input_size() const {
+    return m_ng_inputs.size();
 }
+
+/// Returns a vector of already converted inputs for this node
+const OutputVector& NodeContext::get_ng_inputs() const {
+    return m_ng_inputs;
 }
+
+Output<Node> NodeContext::get_ng_input(size_t input_port) const {
+    return m_ng_inputs[input_port];
 }
+
+std::string NodeContext::get_op_type() const {
+    return m_decoder->op();
 }
+
+std::vector<std::string> NodeContext::get_output_names() const {
+    // TODO
+    throw "Not implemented";
+}
+
+std::vector<std::string> NodeContext::get_names() const {
+    std::vector<std::string> names;
+    names.push_back(m_decoder->name());
+    return names;
+}
+
+std::string NodeContext::get_name() const {
+    return get_names()[0];
+}
+
+/// Temporary method for the transition period during migration to NodeContext
+// TODO: Remove this method and port all dependent code to the remaining methods
+const detail::TFNodeDecoder* NodeContext::_get_decoder() const {
+    return m_decoder.get();
+}
+
+template <typename T>
+T NodeContext::get_attribute(const std::string& name) const {
+    try {
+        T result;
+        m_decoder->getAttrValue2(name.c_str(), &result);
+        // TODO: no real processing of case when there is no default: getAttrValue will provide default even you don't
+        // need it
+        return result;
+    } catch (...) {
+        std::cerr << "[ ERROR ] When accecing attribute '" << name << "' value.\n";
+        throw;
+    }
+}
+
+template <typename T>
+T NodeContext::get_attribute(const std::string& name, const T& default_value) const {
+    T result;
+    try {
+        m_decoder->getAttrValue2(name.c_str(), &result);
+    } catch (...)  // TODO: replace by more narrow filter
+    {
+        result = default_value;
+    }
+    return result;
+}
+
+// Meta-attributes like op type, domain, version -- some FW specific but common for all operations properties
+
+const std::map<std::string, ngraph::PartialShape>& NodeContext::get_overridden_shapes() const {
+    return m_overridden_shapes;
+}
+
+const std::vector<ngraph::PartialShape>& NodeContext::get_indexed_shapes() const {
+    return m_indexed_shapes;
+}
+
+#define TEMPLATE_EXPLICIT_SPECIALIZATION(T)                             \
+    template T NodeContext::get_attribute<T>(const std::string&) const; \
+    template T NodeContext::get_attribute<T>(const std::string&, const T&) const;
+
+#define TEMPLATE_EXPLICIT_SPECIALIZATION_V(T)                                                     \
+    template std::vector<T> NodeContext::get_attribute<std::vector<T>>(const std::string&) const; \
+    template std::vector<T> NodeContext::get_attribute<std::vector<T>>(const std::string&, const std::vector<T>&) const;
+
+TEMPLATE_EXPLICIT_SPECIALIZATION_V(int32_t)
+TEMPLATE_EXPLICIT_SPECIALIZATION_V(__int64)
+TEMPLATE_EXPLICIT_SPECIALIZATION_V(float)
+TEMPLATE_EXPLICIT_SPECIALIZATION(int32_t)
+TEMPLATE_EXPLICIT_SPECIALIZATION(__int64)
+
+TEMPLATE_EXPLICIT_SPECIALIZATION(ngraph::element::Type)
+
+TEMPLATE_EXPLICIT_SPECIALIZATION(ngraph::PartialShape)
+TEMPLATE_EXPLICIT_SPECIALIZATION(std::string)
+TEMPLATE_EXPLICIT_SPECIALIZATION(bool)
+TEMPLATE_EXPLICIT_SPECIALIZATION(long int)
+TEMPLATE_EXPLICIT_SPECIALIZATION(float)
+
+TEMPLATE_EXPLICIT_SPECIALIZATION_V(std::string)
+
+}  // namespace detail
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ngraph

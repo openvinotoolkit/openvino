@@ -60,10 +60,10 @@ add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_P
 
 add_dependencies(${TARGET_NAME} libprotobuf tensorflow_ngraph_frontend_proto)
 
-if(NOT WIN32)
-    # Addition dependency on static libprotobuf for non-Windows
-    add_dependencies(${TARGET_NAME} libprotobuf_static)
-endif()
+# if(NOT WIN32)
+#    # Addition dependency on static libprotobuf for non-Windows
+#    add_dependencies(${TARGET_NAME} libprotobuf_static)
+# endif()
 
 target_include_directories(${TARGET_NAME}
         PUBLIC

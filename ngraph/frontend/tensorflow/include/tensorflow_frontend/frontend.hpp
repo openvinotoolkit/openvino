@@ -4,7 +4,6 @@
 
 #pragma once
 
-// TODO: include it by just frontend_manager.hpp without path
 #include <frontend_manager/frontend.hpp>
 #include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/utility.hpp>

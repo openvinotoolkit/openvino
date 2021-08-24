@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <fstream>
+#include <numeric>
 #include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/place.hpp>
-
-#include <numeric>
-#include <fstream>
 
 //#include "graph.pb.h"
 //#include "tensor.pb.h"
