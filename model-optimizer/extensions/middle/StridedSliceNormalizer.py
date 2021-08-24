@@ -237,7 +237,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                 res_slices.append(slice(s, s + 1, strides[i]))  # need strides if shrink index is negative
             elif node.ellipsis_mask[i]:
                 for idx in range(num_ellipsis_inserts):
-                    res_slices.append(slice(0, None, 1))  # slice till the end of the dimension
+                    res_slices.append(slice(0, data_shape[in_idx], 1))
                     in_idx += 1
             else:
                 res_slices.append(s)
