@@ -17,11 +17,11 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include "node_context_impl.hpp"
-
 #include <tensorflow_frontend/frontend.hpp>
 #include <tensorflow_frontend/utility.hpp>
+
 #include "ngraph_conversions.h"
+#include "node_context_impl.hpp"
 
 namespace tensorflow {
 class GraphDef;
@@ -31,37 +31,31 @@ class GraphIteratorProto;
 }
 }  // namespace tensorflow
 
-namespace ngraph
-{
-namespace frontend
-{
-namespace tensorflow
-{
+namespace ngraph {
+namespace frontend {
+namespace tensorflow {
 
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
-class GraphIterator
-{
+class GraphIterator {
 public:
-
-    virtual size_t size () const = 0;
+    virtual size_t size() const = 0;
 
     /// Set iterator to the start position
-    virtual void reset () = 0;
+    virtual void reset() = 0;
 
     /// Moves to the next node in the graph
-    virtual void next () = 0;
+    virtual void next() = 0;
 
     /// Returns true if iterator goes out of the range of available nodes
-    virtual bool is_end () const = 0;
+    virtual bool is_end() const = 0;
 
     /// Return NodeContext for the current node that iterator points to
-    virtual std::shared_ptr<detail::TFNodeDecoder> get () const = 0;
+    virtual std::shared_ptr<detail::TFNodeDecoder> get() const = 0;
 };
 
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ngraph
-
 
 namespace tensorflow {
 namespace ngraph_bridge {
@@ -98,8 +92,8 @@ public:
     GET_ATTR_VALUE_VECTOR(int64_t, i)
     GET_ATTR_VALUE_VECTOR(float, f)
     // virtual void getAttrValue (const char* name, std::vector<int32_t>* x) const override {
-    // NGRAPH_TF_FE_NOT_IMPLEMENTED; } virtual void getAttrValue (const char* name, std::vector<float>* x) const override
-    // { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    // NGRAPH_TF_FE_NOT_IMPLEMENTED; } virtual void getAttrValue (const char* name, std::vector<float>* x) const
+    // override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
     GET_ATTR_VALUE(int32_t, i)
     GET_ATTR_VALUE(int64_t, i)
 
@@ -249,5 +243,5 @@ public:
     }
 };
 
-}
+}  // namespace ngraph_bridge
 }  // namespace tensorflow
