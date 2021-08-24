@@ -16,6 +16,7 @@ from openvino.inference_engine import ExecutableNetwork, IECore
 GNA_CORE_FREQUENCY = 400
 GNA_ATOM_FREQUENCY = 200
 
+
 def get_scale_factor(matrix: np.ndarray) -> float:
     """Get scale factor for quantization using utterance matrix"""
     # Max to find scale factor
@@ -134,26 +135,25 @@ def main():
         plugin_config['GNA_DEVICE_MODE'] = gna_device_mode
         plugin_config['GNA_PRECISION'] = f'I{args.quantization_bits}'
 
-        # Get a GNA scale factor
+        # Set a GNA scale factor
         if args.import_gna_model:
             log.info(f'Using scale factor from the imported GNA model: {args.import_gna_model}')
+        elif args.scale_factor:
+            log.info(f'Using scale factor of {args.scale_factor:.7f} specified by user.')
+            plugin_config['GNA_SCALE_FACTOR'] = str(args.scale_factor)
         else:
             utterances = read_utterance_file(args.input.split(',')[0])
             key = sorted(utterances)[0]
-            if args.scale_factor:
-                log.info(f'Using user defined scale factor of {args.scale_factor:.7f}.')
-                plugin_config['GNA_SCALE_FACTOR'] = str(args.scale_factor)
-            else:
-                scale_factor = get_scale_factor(utterances[key])
-                log.info(f'Using scale factor of {scale_factor:.7f} calculated from first utterance.')
-                plugin_config['GNA_SCALE_FACTOR'] = str(scale_factor)
+            scale_factor = get_scale_factor(utterances[key])
+            log.info(f'Using scale factor of {scale_factor:.7f} calculated from first utterance.')
+            plugin_config['GNA_SCALE_FACTOR'] = str(scale_factor)
 
         if args.export_embedded_gna_model:
             plugin_config['GNA_FIRMWARE_MODEL_IMAGE'] = args.export_embedded_gna_model
             plugin_config['GNA_FIRMWARE_MODEL_IMAGE_GENERATION'] = args.embedded_gna_configuration
 
         if args.performance_counter:
-            plugin_config['PERF_COUNT'] = 'YES' 
+            plugin_config['PERF_COUNT'] = 'YES'
 
     device_str = f'HETERO:{",".join(devices)}' if 'HETERO' in args.device else devices[0]
 
@@ -196,7 +196,7 @@ def main():
         log.info(f'Exported GNA embedded model to file {args.export_embedded_gna_model}')
         log.info(f'GNA embedded model export done for GNA generation {args.embedded_gna_configuration}')
         return 0
-        
+
 # ---------------------------Step 5. Create infer request--------------------------------------------------------------
 # load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
 # instance which stores infer requests. So you already created Infer requests in the previous step.
@@ -232,7 +232,6 @@ def main():
         for blob_name in result.keys():
             results[blob_name][key] = result[blob_name]
 
-
         infer_times.append(default_timer() - start_infer_time)
         perf_counters.append(exec_net.requests[0].get_perf_counts())
 
@@ -248,23 +247,24 @@ def main():
                 compare_with_reference(results[blob_name][key], references[blob_name][key])
 
             if args.performance_counter:
-                pc = perf_counters[i]
-                total_cycles = int(pc["1.1 Total scoring time in HW"]["real_time"])
-                stall_cycles = int(pc["1.2 Stall scoring time in HW"]["real_time"])
-                active_cycles = total_cycles - stall_cycles
-                frequency = 10**6
-                if args.arch == "CORE":
-                    frequency *= GNA_CORE_FREQUENCY
-                else:
-                    frequency *= GNA_ATOM_FREQUENCY
-                total_inference_time = total_cycles/frequency
-                active_time = active_cycles/frequency
-                stall_time = stall_cycles/frequency
-                log.info('')
-                log.info(f"Performance Statistics of GNA Hardware")
-                log.info(f"   Total Inference Time: {(total_inference_time * 1000):.4f} ms")
-                log.info(f"   Active Time: {(active_time * 1000):.4f} ms") 
-                log.info(f"   Stall Time:  {(stall_time * 1000):.4f} ms")
+                if 'GNA' in args.device:
+                    pc = perf_counters[i]
+                    total_cycles = int(pc['1.1 Total scoring time in HW']['real_time'])
+                    stall_cycles = int(pc['1.2 Stall scoring time in HW']['real_time'])
+                    active_cycles = total_cycles - stall_cycles
+                    frequency = 10**6
+                    if args.arch == 'CORE':
+                        frequency *= GNA_CORE_FREQUENCY
+                    else:
+                        frequency *= GNA_ATOM_FREQUENCY
+                    total_inference_time = total_cycles / frequency
+                    active_time = active_cycles / frequency
+                    stall_time = stall_cycles / frequency
+                    log.info('')
+                    log.info('Performance Statistics of GNA Hardware')
+                    log.info(f'   Total Inference Time: {(total_inference_time * 1000):.4f} ms')
+                    log.info(f'   Active Time: {(active_time * 1000):.4f} ms')
+                    log.info(f'   Stall Time:  {(stall_time * 1000):.4f} ms')
 
             log.info('')
 
