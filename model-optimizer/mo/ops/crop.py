@@ -16,7 +16,7 @@ class Crop(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': self.op,
+            'type': None,
             'op': self.op,
             'infer': self.infer,
             'in_ports_count': 2,
@@ -30,7 +30,8 @@ class Crop(Op):
 
             ('dim', lambda node: None if not node.has_valid('dim') else ','.join(map(str, node.dim))),
 
-            ('crop_begin', lambda node: None if not node.has_valid('crop_begin') else ','.join(map(str, node.crop_begin))),
+            ('crop_begin', lambda node: None if not node.has_valid('crop_begin') else ','.join(map(str,
+                                                                                                   node.crop_begin))),
             ('crop_end', lambda node: None if not node.has_valid('crop_end') else ','.join(map(str, node.crop_end))),
         ]
 
