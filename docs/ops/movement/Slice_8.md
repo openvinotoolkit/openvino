@@ -2,7 +2,7 @@
 
 **Versioned name**: *Slice-8*
 
-**Category**: *Data movement operations*
+**Category**: *Data movement*
 
 **Short description**: *Slice* operation extracts a slice of the input tensor.
 
