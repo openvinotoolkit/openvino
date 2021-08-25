@@ -24,9 +24,6 @@ NGRAPH_API
 bool supports_auto_broadcast(const ngraph::Node* node);
 
 NGRAPH_API
-bool supports_decompose(const ngraph::Node* node);
-
-NGRAPH_API
 bool is_op(const ngraph::Node* node);
 NGRAPH_API
 bool is_parameter(const ngraph::Node* node);
@@ -50,9 +47,6 @@ bool is_binary_elementwise_logical(const std::shared_ptr<ngraph::Node>& node);
 
 NGRAPH_API
 bool supports_auto_broadcast(const std::shared_ptr<ngraph::Node>& node);
-
-NGRAPH_API
-bool supports_decompose(const std::shared_ptr<ngraph::Node>& node);
 
 NGRAPH_API
 bool is_op(const std::shared_ptr<ngraph::Node>& node);
