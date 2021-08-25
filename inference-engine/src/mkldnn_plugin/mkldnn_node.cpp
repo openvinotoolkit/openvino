@@ -21,6 +21,7 @@
 #include <nodes/mkldnn_matmul_node.h>
 #include <nodes/mkldnn_fullyconnected_node.h>
 #include <nodes/mkldnn_generic_node.h>
+#include <nodes/mkldnn_if_node.h>
 #include <nodes/mkldnn_input_node.h>
 #include <nodes/mkldnn_lrn_node.h>
 #include <nodes/mkldnn_pooling_node.h>
@@ -1127,10 +1128,16 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
 
     //  WA-start : TI node requires all attributes to construct internal subgpath
     //             including extManager, socket and mkldnn::eng.
-    MKLDNNTensorIteratorNode *ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode);
-    if (ti != nullptr)
-        ti->setExtManager(extMgr);
-    //  WA-end
+    if (newNode) {
+        if (newNode->getType() == TensorIterator) {
+            auto ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode);
+            ti->setExtManager(extMgr);
+        } else if (newNode->getType() == If) {
+            auto ifNode = dynamic_cast<MKLDNNIfNode*>(newNode);
+            ifNode->setExtManager(extMgr);
+        }
+    }
+//    //  WA-end
 
     if (!newNode) {
         std::string errorDetails;
