@@ -15,13 +15,16 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API MultiplyConvolutionFusion;
+class TRANSFORMATIONS_API MultiplyGroupConvolutionFusion;
+class TRANSFORMATIONS_API MultiplyConvolutionBackpropDataFusion;
+class TRANSFORMATIONS_API MultiplyGroupConvolutionBackpropDataFusion;
 
 }  // namespace pass
 }  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief MultiplyConvolutionFusion transformation replaces following graph:
+ * @brief Multiply->Convolution fusion replaces following graph:
  *
  *   +-------+   +----------+
  *   | Input |   | Constant |
@@ -69,10 +72,33 @@ class TRANSFORMATIONS_API MultiplyConvolutionFusion;
  *
  * Restrictions:
  * - weights' shape is static
- * - constant input to Multiply has to be broadcastable to weights
+ * - the first dimension of constant input to Multiply has to be 1
+ * - constant input to Multiply has to be broadcastable to weights when 'Convolution Op' is either Convolution or GroupConvolution
+ * - shape of a constant input to Multiply has to be in one of following forms: (1), (1, 1, ..., 1), (C, 1, ..., 1), (1, C, 1, ..., 1)
+ *   when 'Convolution Op' is either ConvolutionBackpropData or GroupConvolutionBackpropData
  */
+
+
 class ngraph::pass::MultiplyConvolutionFusion: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     MultiplyConvolutionFusion();
+};
+
+class ngraph::pass::MultiplyGroupConvolutionFusion: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    MultiplyGroupConvolutionFusion();
+};
+
+class ngraph::pass::MultiplyConvolutionBackpropDataFusion: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    MultiplyConvolutionBackpropDataFusion();
+};
+
+class ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    MultiplyGroupConvolutionBackpropDataFusion();
 };

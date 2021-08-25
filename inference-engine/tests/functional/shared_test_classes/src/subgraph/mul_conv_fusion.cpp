@@ -58,6 +58,9 @@ void MulConvFusion::SetUp() {
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::MultiplyConvolutionFusion>();
+    manager.register_pass<ngraph::pass::MultiplyGroupConvolutionFusion>();
+    manager.register_pass<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
+    manager.register_pass<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
     manager.run_passes(cloned_function);
 
     bool functions_equal = false;

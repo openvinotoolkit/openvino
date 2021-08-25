@@ -181,6 +181,9 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
     conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
     conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
     conv_fusions->set_name("ngraph::pass::ConvFusions");
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
