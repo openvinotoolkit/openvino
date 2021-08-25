@@ -21,7 +21,7 @@ UBUNTU_VERSION=
 DISTRO=
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
 INSTALL_DRIVER_VERSION='19.41.14441'
-AVAILABLE_DRIVERS=("19.41.14441" "20.35.17767")
+AVAILABLE_DRIVERS=("19.41.14441" "20.35.17767" "21.29.20389")
 
 
 print_help()
@@ -87,9 +87,15 @@ _install_prerequisites_redhat()
     echo "Note: if yum becomes non-responsive, try aborting the script and run:"
     echo "      sudo -E $0"
     echo
-
-    CMDS=("yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && yum install -y ocl-icd")
-
+    
+    if [[ "$INSTALL_DRIVER_VERSION" == "21.29.20389" ]]; then
+        CMDS=("dnf install -y 'dnf-command(config-manager)'"
+              "dnf config-manager --add-repo \
+               https://repositories.intel.com/graphics/rhel/${RHEL_VERSION}/intel-graphics.repo")
+    else
+        CMDS=("yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && yum install -y ocl-icd")
+    fi
+    
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
         eval "$cmd"
@@ -100,7 +106,6 @@ _install_prerequisites_redhat()
             exit $EXIT_FAILURE
         fi
     done
-
 }
 
 _install_prerequisites_centos()
@@ -133,16 +138,26 @@ _install_prerequisites_centos()
 }
 
 _install_prerequisites_ubuntu()
-{
-    if [ "$no_numa" == true ]; then
-        CMDS=("apt-get -y update"
-              "apt-get -y install --no-install-recommends ocl-icd-libopencl1")
+{   
+    if [[ "$INSTALL_DRIVER_VERSION" == "21.29.20389" ]]; then
+        codename='focal'
+        if [[ "$UBUNTU_VERSION" == "18.04" ]]; then
+            codename='bionic'
+        fi
+        CMDS=("apt-get -y gpg-agent"
+              "curl -L -O https://repositories.intel.com/graphics/intel-graphics.key | apt-key add -"
+              "apt-add-repository \
+              'deb [arch=amd64] https://repositories.intel.com/graphics/ubuntu ${codename} main'")
     else
-        CMDS=("apt-get -y update"
-              "apt-get -y install --no-install-recommends libnuma1 ocl-icd-libopencl1")
+        if [ "$no_numa" == true ]; then
+            CMDS=("apt-get -y update"
+                  "apt-get -y install --no-install-recommends ocl-icd-libopencl1")
+        else
+            CMDS=("apt-get -y update"
+                  "apt-get -y install --no-install-recommends libnuma1 ocl-icd-libopencl1")
+        fi
     fi
-
-
+    
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
         eval "$cmd"
@@ -191,21 +206,62 @@ _deploy_deb()
 
 _install_user_mode_centos()
 {
-    _deploy_rpm "intel*.rpm"
-    if [[ $? -ne 0 ]]; then
-        echo "ERROR: failed to install rpms $cmd error"  >&2
-        echo "Make sure you have enough disk space or fix the problem manually and try again." >&2
-        exit $EXIT_FAILURE
+    if [[ "$INSTALL_DRIVER_VERSION" == "21.29.20389" ]]; then
+        CMDS=("dnf update --refresh"
+              "dnf install intel-opencl-21.29.20389-i593 \
+               intel-media-21.2.2-i593 \
+               level-zero-1.4.1-i593 \
+               intel-level-zero-gpu-1.1.20389-i593")
+    
+        for cmd in "${CMDS[@]}"; do
+            echo "$cmd"
+            eval "$cmd"
+            if [[ $? -ne 0 ]]; then
+                echo "ERROR: failed to run $cmd" >&2
+                echo "Problem (or disk space)?" >&2
+                echo "                sudo -E $0" >&2
+                echo "2. Verify that you have enough disk space, and run the script again." >&2
+                exit $EXIT_FAILURE
+            fi
+        done
+    else
+        _deploy_rpm "intel*.rpm"
+        if [[ $? -ne 0 ]]; then
+            echo "ERROR: failed to install rpms $cmd error"  >&2
+            echo "Make sure you have enough disk space or fix the problem manually and try again." >&2
+            exit $EXIT_FAILURE
+        fi
     fi
 }
 
 _install_user_mode_ubuntu()
 {
-    _deploy_deb "intel*.deb"
-    if [[ $? -ne 0 ]]; then
-        echo "ERROR: failed to install rpms $cmd error"  >&2
-        echo "Make sure you have enough disk space or fix the problem manually and try again." >&2
-        exit $EXIT_FAILURE
+    if [[ "$INSTALL_DRIVER_VERSION" == "21.29.20389" ]]; then
+        CMDS=("dnf update --refresh"
+              "dnf install intel-opencl-21.29.20389-i593 \
+               intel-media-21.2.2-i593 \
+               intel-mediasdk \
+               level-zero-1.4.1-i593 \
+               intel-level-zero-gpu-1.1.20389-i593")
+
+        for cmd in "${CMDS[@]}"; do
+            echo "$cmd"
+            eval "$cmd"
+            if [[ $? -ne 0 ]]; then
+                echo "ERROR: failed to run $cmd" >&2
+                echo "Problem (or disk space)?" >&2
+                echo "                sudo -E $0" >&2
+                echo "2. Verify that you have enough disk space, and run the script again." >&2
+                exit $EXIT_FAILURE
+            fi
+        done
+    else
+        _deploy_deb "intel*.deb"
+        if [[ $? -ne 0 ]]; then
+            echo "ERROR: failed to install rpms $cmd error"  >&2
+            echo "Make sure you have enough disk space or fix the problem manually and try again." >&2
+            exit $EXIT_FAILURE
+        fi
     fi
 }
 
@@ -315,6 +371,9 @@ _download_packages_ubuntu()
         curl -L -O https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-ocloc_20.35.17767_amd64.deb
         curl -L -O https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-level-zero-gpu_1.0.17767_amd64.deb
     ;;
+    "21.29.20389")
+        return 0
+    ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
         echo "Available values: ${AVAILABLE_DRIVERS[*]}"
@@ -344,6 +403,9 @@ _download_packages_centos()
         curl -L --output intel-gmmlib-20.2.4-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-gmmlib-20.2.4-1.el7.x86_64.rpm/download
         curl -L --output intel-gmmlib-devel-20.2.4-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-gmmlib-devel-20.2.4-1.el7.x86_64.rpm/download
     ;;
+    "21.29.20389")
+        return 0
+    ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
         echo "Available values: ${AVAILABLE_DRIVERS[*]}"
@@ -363,6 +425,9 @@ _verify_checksum_ubuntu()
         curl -L -O https://github.com/intel/compute-runtime/releases/download/20.35.17767/ww35.sum
         sha256sum -c ww35.sum
     ;;
+    "21.29.20389")
+        return 0
+    ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
         echo "Available values: ${AVAILABLE_DRIVERS[*]}"
@@ -378,6 +443,9 @@ _verify_checksum_centos()
     ;;
     "20.35.17767")
         sha1sum -c "$SCRIPT_DIR/neo_centos_20.35.17767.sum"
+    ;;
+    "21.29.20389")
+        return 0
     ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
@@ -466,14 +534,25 @@ add_user_to_video_group()
 _check_distro_version()
 {
     if [[ $DISTRO == centos ]]; then
-        CENTOS_MINOR=$(sed 's/CentOS Linux release 7\.\([[:digit:]]\+\).\+/\1/' /etc/centos-release)
-        if [[ $? -ne 0 ]]; then
-            echo "ERROR: failed to obtain CentOS version minor." >&2
-            echo "This script is supported only on CentOS 7 and above." >&2
+        if [[ "$INSTALL_DRIVER_VERSION" == "21.29.20389" ]]; then
+            echo "ERROR: This runtime can be installed only on Ubuntu 18.04, Ubuntu 20.04 or RHEL 8.3-8.4" >&2
+            echo "More info https://dgpu-docs.intel.com/releases/releases-20210720.html" >&2
+            echo "Installation of Intel Compute Runtime interrupted"
             exit $EXIT_FAILURE
+        else
+            CENTOS_MINOR=$(sed 's/CentOS Linux release 7\.\([[:digit:]]\+\).\+/\1/' /etc/centos-release)
+            if [[ $? -ne 0 ]]; then
+                echo "ERROR: failed to obtain CentOS version minor." >&2
+                echo "This script is supported only on CentOS 7 and above." >&2
+                exit $EXIT_FAILURE
+            fi
         fi
     elif [[ $DISTRO == redhat ]]; then
-        RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.[0-9]")
+            RHEL_MINOR_VERSION_SUPPORTED="[0-9]"
+        if [[ "$INSTALL_DRIVER_VERSION" == "21.29.20389" ]]; then
+            RHEL_MINOR_VERSION_SUPPORTED="[3-4]"
+        fi
+        RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.${RHEL_MINOR_VERSION_SUPPORTED}")
         if [[ $? -ne 0 ]]; then
             echo "Warning: This runtime can be installed only on RHEL 8" >&2
             echo "Installation of Intel Compute Runtime interrupted"
@@ -524,24 +603,32 @@ check_agreement()
 check_specific_generation()
 {
     echo "Checking processor generation..."
-    specific_generation=$(grep -m1 'model name' /proc/cpuinfo | grep -E "i[357]-1[01][0-9]{2,4}N?G[147R]E?")
-    if [[ ! -z "$specific_generation" && "$INSTALL_DRIVER_VERSION" != '20.35.17767' ]]; then
-        echo "$(basename "$0"): Detected 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)."
-        echo "Driver version 20.35.17767 is going to be installed to fully utilize hardware features and performance."
-        if [ "$auto_mode" == true ]; then
-            INSTALL_DRIVER_VERSION='20.35.17767'
-            return 0
-        else
-            while true; do
-                read -p "You are still able to use the older version 19.41.14441. Use the older driver? (y/n) [n] " yn
-                yn=${yn:=n}
-                case $yn in
-                    [Yy]*) return 0 ;;
-                    [Nn]*) INSTALL_DRIVER_VERSION='20.35.17767' && return 0 ;;
-                esac
-            done
+    typeset -A specific_generation
+    specific_generation['20.35.17767']="i[357]-1[01][0-9]{2,4}N?G[147R]E?"
+    specific_generation['21.29.20389']="i[3579]-12[0-9]{3}[A-Z]{0,2}"
+    typeset -A proc_description
+    proc_description['20.35.17767']="10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)."
+    proc_description['21.29.20389']="12th generation Intel® Core™ processor (formerly Alder Lake)."
+    for driver in "${!specific_generation[@]}"; do 
+        detected_generation=$(grep -m1 'model name' /proc/cpuinfo | grep -E "${!specific_generation[$driver]}")
+        if [[ ! -z "$detected_generation" && "$INSTALL_DRIVER_VERSION" != "${driver}" ]]; then
+            echo "$(basename "$0"): Detected ${!proc_description[$driver]}"
+            echo "Driver version ${driver} is going to be installed to fully utilize hardware features and performance."
+            if [ "$auto_mode" == true ]; then
+                INSTALL_DRIVER_VERSION=$driver
+                return 0
+            else
+                while true; do
+                    read -p "You are still able to use the version ${INSTALL_DRIVER_VERSION}. Use this driver? (y/n) [n] " yn
+                    yn=${yn:=n}
+                    case $yn in
+                        [Yy]*) return 0 ;;
+                        [Nn]*) INSTALL_DRIVER_VERSION=$driver && return 0 ;;
+                    esac
+                done
+            fi
         fi
-    fi
+    done 
 }
 
 check_current_driver()
