@@ -23,8 +23,9 @@ using ConvertParamsTuple = typename std::tuple<
         InferenceEngine::Layout,           // Output layout
         std::string>;                      // Device name
 
-class ConvertLayerTest : public testing::WithParamInterface<ConvertParamsTuple>,
-                        virtual public LayerTestsUtils::LayerTestsCommon {
+class NGRAPH_DEPRECATED("This class is deprecated and will be removed soon.") ConvertLayerTest :
+        public testing::WithParamInterface<ConvertParamsTuple>,
+        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvertParamsTuple> &obj);
 
