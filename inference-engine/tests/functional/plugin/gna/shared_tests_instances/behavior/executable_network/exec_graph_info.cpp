@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/exec_graph_info.hpp"
+#include "behavior/executable_network/exec_graph_info.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -15,11 +15,10 @@ namespace {
             {},
     };
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecGraphTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecutableNetworkBaseTest,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                     ::testing::ValuesIn(configs)),
-                            ExecGraphTests::getTestCaseName);
+                            ExecutableNetworkBaseTest::getTestCaseName);
 
 }  // namespace

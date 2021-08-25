@@ -2,71 +2,109 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <ngraph/variant.hpp>
-#include "ie_extension.h"
-#include <condition_variable>
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
-#include <tuple>
-#include <vector>
-#include <string>
-#include <ie_core.hpp>
-#include <base/behavior_test_utils.hpp>
 #include <exec_graph_info.hpp>
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include <chrono>
+#include "base/behavior_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
-using ExecGraphTests = BehaviorTestsUtils::BehaviorTestsBasic;
 
-inline std::vector<std::string> separateStrToVec(std::string str, const char sep) {
-    std::vector<std::string> result;
+using ExecutableNetworkBaseTest = BehaviorTestsUtils::InferRequestTests;
 
-    std::istringstream stream(str);
-    std::string strVal;
-
-    while (getline(stream, strVal, sep)) {
-        result.push_back(strVal);
-    }
-    return result;
-}
-
-// Load correct network to Plugin to get executable network
-TEST_P(ExecGraphTests, canLoadCorrectNetworkToGetExecutable) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    InferenceEngine::ExecutableNetwork execNet;
+TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
     ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
 }
 
-TEST_P(ExecGraphTests,  CanCreateTwoExeNetworks) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    InferenceEngine::ExecutableNetwork execNet;
+TEST_P(ExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {
+    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    InferenceEngine::CNNNetwork execGraph = execNet.GetExecGraphInfo();
+    ASSERT_NE(execGraph.getFunction(), nullptr);
+}
+
+TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
+    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    for (const auto& configItem : configuration) {
+        InferenceEngine::Parameter param;
+        ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
+        ASSERT_FALSE(param.empty());
+        ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+    }
+}
+
+TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNet) {
+    execNet = ie->LoadNetwork(cnnNet, targetDevice);
+    std::map<std::string, InferenceEngine::Parameter> config;
+    for (const auto& confItem : configuration) {
+        config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
+    }
+    ASSERT_NO_THROW(execNet.SetConfig(config));
+}
+
+TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNetAndCheckConfigAndCheck) {
+    execNet = ie->LoadNetwork(cnnNet, targetDevice);
+    std::map<std::string, InferenceEngine::Parameter> config;
+    for (const auto& confItem : configuration) {
+        config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
+    }
+    execNet.SetConfig(config);
+    for (const auto& configItem : configuration) {
+        InferenceEngine::Parameter param;
+        ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));
+        ASSERT_FALSE(param.empty());
+        ASSERT_EQ(param, InferenceEngine::Parameter(configItem.second));
+    }
+}
+
+TEST_P(ExecutableNetworkBaseTest,  CanCreateTwoExeNetworks) {
+    std::vector<InferenceEngine::ExecutableNetwork> vec;
     for (auto i = 0; i < 2; i++) {
-        ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        ASSERT_NO_THROW(vec.push_back(ie->LoadNetwork(cnnNet, targetDevice, configuration)));
         ASSERT_NE(nullptr, cnnNet.getFunction());
     }
 }
 
-TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
+TEST_P(ExecutableNetworkBaseTest,  CanCreateTwoExeNetworksAndCheckFunction) {
+    std::vector<InferenceEngine::ExecutableNetwork> vec;
+    for (auto i = 0; i < 2; i++) {
+        ASSERT_NO_THROW(vec.push_back(ie->LoadNetwork(cnnNet, targetDevice, configuration)));
+        ASSERT_NE(nullptr, vec[i].GetExecGraphInfo().getFunction());
+        ASSERT_NE(vec.begin()->GetExecGraphInfo().getFunction(), vec[i].GetExecGraphInfo().getFunction());
+    }
+}
+
+TEST_P(ExecutableNetworkBaseTest,  CanGetInputsInfo) {
+    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    ASSERT_NO_THROW(auto inInfo = execNet.GetInputsInfo());
+}
+
+TEST_P(ExecutableNetworkBaseTest,  CanGetOutputsInfo) {
+    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    ASSERT_NO_THROW(auto outInfo = execNet.GetOutputsInfo());
+}
+
+TEST_P(ExecutableNetworkBaseTest,  CanGetInputsInfoAndCheck) {
+    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto inInfo = execNet.GetInputsInfo();
+    auto inCnnInfo = cnnNet.getInputsInfo();
+    for (const auto& itemInInfo : inCnnInfo) {
+        ASSERT_NE(inInfo.find(itemInInfo.first), inInfo.end());
+    }
+}
+
+TEST_P(ExecutableNetworkBaseTest,  CanGetOutputsInfoAndCheck) {
+    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto outInfo = execNet.GetOutputsInfo();
+    auto outCnnInfo = cnnNet.getOutputsInfo();
+    for (const auto& itemOutInfo : outCnnInfo) {
+        ASSERT_NE(outInfo.find(itemOutInfo.first), outInfo.end());
+    }
+}
+
+TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice != CommonTestUtils::DEVICE_AUTO &&
-        targetDevice != CommonTestUtils::DEVICE_MULTI &&
-        targetDevice != CommonTestUtils::DEVICE_TEMPLATE &&
-        targetDevice != CommonTestUtils::DEVICE_GNA) {
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         // Load CNNNetwork to target plugins
         auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
         ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
@@ -81,10 +119,10 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
         }
         int IteratorForLayersConstant = 0;
 
-        auto function = execGraph.getFunction();
-        ASSERT_NE(function, nullptr);
+        auto getFunction = execGraph.getFunction();
+        ASSERT_NE(getFunction, nullptr);
 
-        for (const auto & op : function->get_ops()) {
+        for (const auto & op : getFunction->get_ops()) {
             const auto & rtInfo = op->get_rt_info();
 
             auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
@@ -103,7 +141,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
             auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
             if (origFromExecLayer == "")
                 IteratorForLayersConstant++;
-            std::vector<std::string> origFromExecLayerSep = separateStrToVec(origFromExecLayer, ',');
+            std::vector<std::string> origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
             std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string &layer) {
                 auto origLayer = originalLayersMap.find(layer);
                 ASSERT_NE(originalLayersMap.end(), origLayer) << layer;
@@ -126,18 +164,13 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
     }
 }
 
-TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
+TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice != CommonTestUtils::DEVICE_AUTO &&
-        targetDevice != CommonTestUtils::DEVICE_MULTI &&
-        targetDevice != CommonTestUtils::DEVICE_TEMPLATE &&
-        targetDevice != CommonTestUtils::DEVICE_GNA) {
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         // Load CNNNetwork to target plugins
-        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+        execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
         ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
         // Create InferRequest
         InferenceEngine::InferRequest req;
@@ -151,10 +184,10 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
         int IteratorForLayersConstant = 0;
         // Store all the layers from the executable graph information represented as CNNNetwork
         bool has_layer_with_valid_time = false;
-        auto function = execGraph.getFunction();
-        ASSERT_NE(nullptr, function);
+        auto getFunction = execGraph.getFunction();
+        ASSERT_NE(nullptr, getFunction);
 
-        for (const auto & op : function->get_ops()) {
+        for (const auto & op : getFunction->get_ops()) {
             const auto & rtInfo = op->get_rt_info();
 
             auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
@@ -177,7 +210,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
             // Parse origin layer names (fused/merged layers) from the executable graph
             // and compare with layers from the original model
             auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
-            std::vector<std::string> origFromExecLayerSep = separateStrToVec(origFromExecLayer, ',');
+            std::vector<std::string> origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
             if (origFromExecLayer == "")
                 IteratorForLayersConstant++;
             std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string &layer) {
@@ -203,21 +236,15 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
     }
 }
 
-TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoSerialization) {
     auto ts = CommonTestUtils::GetTimestamp();
     std::string out_xml_path = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts + ".xml";
     std::string out_bin_path = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts + ".bin";
 
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice != CommonTestUtils::DEVICE_AUTO &&
-        targetDevice != CommonTestUtils::DEVICE_MULTI &&
-        targetDevice != CommonTestUtils::DEVICE_TEMPLATE &&
-        targetDevice != CommonTestUtils::DEVICE_GNA) {
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         // Load CNNNetwork to target plugins
         auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
         ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());

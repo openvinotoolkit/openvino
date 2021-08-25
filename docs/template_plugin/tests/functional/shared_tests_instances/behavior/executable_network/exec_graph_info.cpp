@@ -4,26 +4,19 @@
 
 #include <vector>
 
-#include "behavior/exec_graph_info.hpp"
+#include "behavior/executable_network/exec_graph_info.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
 namespace {
-
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16
-};
-
 const std::vector<std::map<std::string, std::string>> configs = {
     {}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecGraphTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecutableNetworkBaseTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
-                        ExecGraphTests::getTestCaseName);
+                        ExecutableNetworkBaseTest::getTestCaseName);
 
 }  // namespace
