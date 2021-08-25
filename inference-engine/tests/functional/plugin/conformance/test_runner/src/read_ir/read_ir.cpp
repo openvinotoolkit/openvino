@@ -5,6 +5,7 @@
 #include "common_test_utils/file_utils.hpp"
 
 #include "read_ir/read_ir.hpp"
+#include "conformance.hpp"
 
 namespace ConformanceTests {
 using namespace LayerTestsDefinitions;
