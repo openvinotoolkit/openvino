@@ -88,7 +88,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParam
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
         {{1, 50}, {{}}},
-        {{1, 128}, {{}}},
+        {{5, 128}, {{}}},
+        {{2, 2, 2, 2, 2, 2, 2, 2}, {{}}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
@@ -100,6 +101,7 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
         {{3, 2, 5}, {{1}, {2}, {5}, {2, 5}, {3, 1, 5}, {1, 2, 1}, {1, 1, 5}, {3, 1, 1}, {3, 2, 5}}},
         {{2, 1, 2}, {{2}, {2, 1, 1}}},
         {{3, 2, 5, 7}, {{1}, {7}, {2}, {5, 7}, {2, 5, 7}, {2, 1, 1}, {1, 2, 1, 1}, {3, 2, 1, 1}, {3, 2, 5, 7}}},
+        {{2, 2, 2, 2, 2, 2, 2, 2}, {{2}, {2, 2}, {2, 1, 1, 2}}},
 };
 
 const auto basicCases = ::testing::Combine(

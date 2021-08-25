@@ -2,7 +2,7 @@
 
 **Versioned name**: *GroupConvolutionBackpropData-1*
 
-**Category**: Convolution
+**Category**: *Convolution*
 
 **Short description**: Computes 1D, 2D or 3D *GroupConvolutionBackpropData* of input and kernel tensors.
 
