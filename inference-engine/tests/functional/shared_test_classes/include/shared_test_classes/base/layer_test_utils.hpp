@@ -33,7 +33,7 @@
 
 namespace LayerTestsUtils {
 
-constexpr std::size_t maxFileNameLength = 140;
+
 
 using TargetDevice = std::string;
 

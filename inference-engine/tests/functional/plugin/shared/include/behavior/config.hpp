@@ -31,7 +31,7 @@ namespace BehaviorTestsDefinitions {
 
     using EmptyConfigTests = BehaviorTestsUtils::BehaviorTestsEmptyConfig;
 
-    // Setting empty config doesn't throw
+// Setting empty config doesn't throw
     TEST_P(EmptyConfigTests, SetEmptyConfig) {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()

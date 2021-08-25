@@ -66,7 +66,7 @@ void SetBlobTest::Infer() {
         const auto &info = input.second;
         Blob::Ptr inBlob;
         if (type == setType::INPUT || type == setType::BOTH) {
-            inBlob = make_blob_with_precision(precNet, info->getTensorDesc());
+            inBlob = make_blob_with_precision(inPrc, info->getTensorDesc());
             inBlob->allocate();
             fillBlob(inBlob);
         } else {
@@ -79,7 +79,7 @@ void SetBlobTest::Infer() {
     if (type == setType::OUTPUT || type == setType::BOTH) {
         for (const auto &output : executableNetwork.GetOutputsInfo()) {
             const auto &info = output.second;
-            Blob::Ptr outBlob = make_blob_with_precision(precNet, info->getTensorDesc());
+            Blob::Ptr outBlob = make_blob_with_precision(outPrc, info->getTensorDesc());
             outBlob->allocate();
             fillBlob(outBlob);
             inferRequest.SetBlob(info->getName(), outBlob);
