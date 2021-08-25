@@ -2,7 +2,7 @@
 
 **Versioned name**: *Range-4*
 
-**Category**: Generation
+**Category**: *Generation*
 
 **Short description**: *Range* operation generates a sequence of numbers according input values [start, stop) with a step.
 

@@ -31,7 +31,7 @@ ReduceMeanTransformation::ReduceMeanTransformation(const Params& params) : Reduc
 }
 
 bool ReduceMeanTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
-    return is_type<opset1::ReduceMean>(reduce) ? ReduceBaseTransformation::canBeTransformed(context, reduce) : false;
+    return ov::is_type<opset1::ReduceMean>(reduce) ? ReduceBaseTransformation::canBeTransformed(context, reduce) : false;
 }
 
 bool ReduceMeanTransformation::isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept {

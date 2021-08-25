@@ -2,7 +2,7 @@
 
 **Versioned name**: *GroupConvolution-1*
 
-**Category**: Convolution
+**Category**: *Convolution*
 
 **Short description**: Computes 1D, 2D or 3D GroupConvolution of input and kernel tensors.
 
