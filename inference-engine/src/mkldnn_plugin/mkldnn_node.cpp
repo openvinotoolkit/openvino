@@ -1256,20 +1256,10 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
                                              const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
     MKLDNNNode *newNode = nullptr;
     std::string errorMessage;
-    try {
+    {
         std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(MKLDNNPlugin, Generic, op, eng, w_cache));
         if (ol != nullptr && ol->created(extMgr))
             newNode = ol.release();
-    } catch (const InferenceEngine::Exception& ex) {
-        IE_SUPPRESS_DEPRECATED_START
-        if (ex.getStatus() != NOT_IMPLEMENTED) {
-            throw;
-        } else {
-            const auto currErrorMess = getExceptionDescWithoutStatus(ex);
-            if (!currErrorMess.empty())
-                errorMessage += "\n" + currErrorMess;
-        }
-        IE_SUPPRESS_DEPRECATED_END
     }
 
     if (newNode == nullptr) {
