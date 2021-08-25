@@ -60,5 +60,6 @@ endif()
 
 set(ngraph_paddlepaddle_frontend_FOUND @NGRAPH_PDPD_FRONTEND_ENABLE@)
 set(ngraph_tensorflow_frontend_FOUND @NGRAPH_TF_FRONTEND_ENABLE@)
+set(ir_frontend_FOUND @IR_FRONTEND_ENABLE@)
 
 check_required_components(ngraph)
