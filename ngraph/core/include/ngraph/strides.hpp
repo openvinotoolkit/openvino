@@ -33,18 +33,24 @@ public:
     NGRAPH_API Strides& operator=(Strides&& v) noexcept;
 };
 
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const Strides& strides);
+}  // namespace ngraph
+
+namespace ov {
+
 template <>
-class NGRAPH_API AttributeAdapter<Strides> : public IndirectVectorValueAccessor<Strides, std::vector<int64_t>>
+class NGRAPH_API AttributeAdapter<ngraph::Strides>
+    : public IndirectVectorValueAccessor<ngraph::Strides, std::vector<int64_t>>
 
 {
 public:
-    AttributeAdapter(Strides& value) : IndirectVectorValueAccessor<Strides, std::vector<int64_t>>(value) {}
+    AttributeAdapter(ngraph::Strides& value)
+        : IndirectVectorValueAccessor<ngraph::Strides, std::vector<int64_t>>(value) {}
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Strides>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const Strides& strides);
-}  // namespace ngraph
+}  // namespace ov
