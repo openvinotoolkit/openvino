@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.ReduceOps import ReduceProd, ReduceAnd, ReduceMax, ReduceMean, ReduceSum, ReduceL2
+from extensions.ops.ReduceOps import ReduceProd, ReduceAnd, ReduceMax, ReduceMean, ReduceSum, ReduceL2, ReduceMin
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
 
@@ -24,6 +24,16 @@ class MaxFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node: Node):
         ReduceMax.update_node_stat(node, {'keep_dims': node.pb.attr['keep_dims'].b})
+        return cls.enabled
+
+
+class MinFrontExtractor(FrontExtractorOp):
+    op = 'Min'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node: Node):
+        ReduceMin.update_node_stat(node, {'keep_dims': node.pb.attr['keep_dims'].b})
         return cls.enabled
 
 
