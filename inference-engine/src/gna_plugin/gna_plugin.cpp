@@ -928,7 +928,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     // keep inputs information and create input primitives
-    inputsDataMap = network.getInputsInfo();
+    inputsDataMap = newNet.getInputsInfo();
     if (inputsDataMap.empty()) {
         gnawarn() << "No inputs for the topology\n";
     }
