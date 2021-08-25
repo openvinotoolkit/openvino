@@ -449,14 +449,14 @@ bool onnx_editor::ONNXModelEditor::is_correct_tensor_name(const std::string& nam
     return m_pimpl->m_edge_mapper.is_correct_tensor_name(name);
 }
 
-int onnx_editor::ONNXModelEditor::get_input_ports_number(const EditorNode& node) const {
+std::vector<std::string> onnx_editor::ONNXModelEditor::get_input_ports(const EditorNode& node) const {
     update_mapper_if_needed();
-    return m_pimpl->m_edge_mapper.get_input_ports_number(node);
+    return m_pimpl->m_edge_mapper.get_input_ports(node);
 }
 
-int onnx_editor::ONNXModelEditor::get_output_ports_number(const EditorNode& node) const {
+std::vector<std::string> onnx_editor::ONNXModelEditor::get_output_ports(const EditorNode& node) const {
     update_mapper_if_needed();
-    return m_pimpl->m_edge_mapper.get_output_ports_number(node);
+    return m_pimpl->m_edge_mapper.get_output_ports(node);
 }
 
 std::shared_ptr<Function> onnx_editor::ONNXModelEditor::decode() {
