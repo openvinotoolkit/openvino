@@ -144,8 +144,8 @@ _install_prerequisites_ubuntu()
         if [[ "$UBUNTU_VERSION" == "18.04" ]]; then
             codename='bionic'
         fi
-        CMDS=("apt-get -y gpg-agent"
-              "curl -L -O https://repositories.intel.com/graphics/intel-graphics.key | apt-key add -"
+        CMDS=("apt-get -y install gpg-agent"
+              "curl -L -O https://repositories.intel.com/graphics/intel-graphics.key && apt-key add ./intel-graphics.key"
               "apt-add-repository \
               'deb [arch=amd64] https://repositories.intel.com/graphics/ubuntu ${codename} main'")
     else
@@ -208,10 +208,10 @@ _install_user_mode_centos()
 {
     if [[ "$INSTALL_DRIVER_VERSION" == "21.29.20389" ]]; then
         CMDS=("dnf update --refresh"
-              "dnf install intel-opencl-21.29.20389-i593 \
-               intel-media-21.2.2-i593 \
-               level-zero-1.4.1-i593 \
-               intel-level-zero-gpu-1.1.20389-i593")
+              "dnf install intel-opencl-21.29.20389-i593.el8.x86_64 \
+               intel-media-21.2.2-i593.el8.x86_64 \
+               level-zero-1.4.1-i593.el8.x86_64 \
+               intel-level-zero-gpu-1.1.20389-i593.el8.x86_64")
     
         for cmd in "${CMDS[@]}"; do
             echo "$cmd"
@@ -237,13 +237,19 @@ _install_user_mode_centos()
 _install_user_mode_ubuntu()
 {
     if [[ "$INSTALL_DRIVER_VERSION" == "21.29.20389" ]]; then
-        CMDS=("dnf update --refresh"
-              "dnf install intel-opencl-21.29.20389-i593 \
-               intel-media-21.2.2-i593 \
-               intel-mediasdk \
-               level-zero-1.4.1-i593 \
-               intel-level-zero-gpu-1.1.20389-i593")
-
+        if [[ "$UBUNTU_VERSION" == "18.04" ]]; then
+            CMDS=("apt-get update"
+                  "apt-get -y install --no-install-recommends intel-opencl=21.29.20389 \
+                   intel-level-zero-gpu=1.1.20389 \
+                   level-zero=1.4.1")
+        elif [[ "$UBUNTU_VERSION" == "20.04" ]]; then
+            CMDS=("apt-get update"
+                  "apt-get -y install --no-install-recommends intel-opencl-icd=21.29.20389+i593~u20.04 \
+                   intel-level-zero-gpu=1.1.20389+i593~u20.04 \
+                   level-zero=1.4.1+i593~u20.04 \
+                   intel-media-va-driver-non-free=21.2.2+i593~u20.04 \
+                   libmfx1=21.2.2+i593~u20.04")
+        fi
         for cmd in "${CMDS[@]}"; do
             echo "$cmd"
             eval "$cmd"
