@@ -600,7 +600,7 @@ def test_get_place_by_tensor_name():
 
 def test_get_place_by_operation_name():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
 
     model = fe.load("input_model.onnx")
@@ -615,7 +615,7 @@ def test_get_place_by_operation_name():
 
 def test_get_output_port():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
     model = fe.load("input_model.onnx")
     assert model
@@ -634,7 +634,7 @@ def test_get_output_port():
 
 def test_get_input_port():
     skip_if_onnx_frontend_is_disabled()
-    fe = fem.load_by_framework(framework="onnx")
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
     model = fe.load("input_model.onnx")
     assert model
