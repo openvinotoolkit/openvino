@@ -152,6 +152,12 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
+    // required to prevent incorrect memory sharing of a constant with other tensors on edges
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        if (getParentEdgeAt(i)->getParent()->isConstant()) {
+            return;
+        }
+    }
     if (axis != channelAxis)
         return;
 
