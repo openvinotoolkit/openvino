@@ -73,10 +73,9 @@ std::vector<ReductionParams> generateReductionCombinedParams() {
         generateReductionParams<element::Type_t::u64>(false)
     };
     std::vector<ReductionParams> combinedParams;
-
-    for (const auto& params : reductionTypeParams) {
+    std::for_each(reductionTypeParams.begin(), reductionTypeParams.end(), [&](std::vector<ReductionParams> params) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
-    }
+    });
 
     combinedParams.push_back(
         ReductionParams(ReductionType::Prod, true, std::vector<int64_t>{0, 1},
