@@ -47,7 +47,7 @@ public:
     DepthToSpaceMode get_mode() const {
         return m_mode;
     }
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     bool has_evaluate() const override;
@@ -62,17 +62,20 @@ using v0::DepthToSpace;
 
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const op::v0::DepthToSpace::DepthToSpaceMode& type);
+}  // namespace ngraph
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<op::v0::DepthToSpace::DepthToSpaceMode>
-    : public EnumAttributeAdapterBase<op::v0::DepthToSpace::DepthToSpaceMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v0::DepthToSpace::DepthToSpaceMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v0::DepthToSpace::DepthToSpaceMode> {
 public:
-    AttributeAdapter(op::v0::DepthToSpace::DepthToSpaceMode& value)
-        : EnumAttributeAdapterBase<op::v0::DepthToSpace::DepthToSpaceMode>(value) {}
+    AttributeAdapter(ngraph::op::v0::DepthToSpace::DepthToSpaceMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v0::DepthToSpace::DepthToSpaceMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v0::DepthToSpace::DepthToSpaceMode>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov
