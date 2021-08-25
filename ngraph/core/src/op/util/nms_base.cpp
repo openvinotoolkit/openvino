@@ -145,7 +145,11 @@ void op::util::NmsBase::validate_and_infer_types() {
     }
 }
 
-namespace ngraph {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::util::NmsBase::SortResultType& type) {
+    return s << as_string(type);
+}
+
+namespace ov {
 template <>
 NGRAPH_API EnumNames<op::util::NmsBase::SortResultType>& EnumNames<op::util::NmsBase::SortResultType>::get() {
     static auto enum_names =
@@ -157,8 +161,4 @@ NGRAPH_API EnumNames<op::util::NmsBase::SortResultType>& EnumNames<op::util::Nms
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<op::util::NmsBase::SortResultType>::type_info;
-
-std::ostream& operator<<(std::ostream& s, const op::util::NmsBase::SortResultType& type) {
-    return s << as_string(type);
-}
-}  // namespace ngraph
+}  // namespace ov

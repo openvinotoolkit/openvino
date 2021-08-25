@@ -283,30 +283,42 @@ using v0::InterpolateAttrs;
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type);
 
+//---------------------------------------- v4 --------------------------------------------------
+
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type);
+
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::CoordinateTransformMode& type);
+
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::NearestMode& type);
+
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::ShapeCalcMode& type);
+
+}  // namespace ngraph
+
+namespace ov {
+
 template <>
-class NGRAPH_API AttributeAdapter<op::v0::Interpolate::InterpolateMode>
-    : public EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v0::Interpolate::InterpolateMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v0::Interpolate::InterpolateMode> {
 public:
-    AttributeAdapter(op::v0::Interpolate::InterpolateMode& value)
-        : EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode>(value) {}
+    AttributeAdapter(ngraph::op::v0::Interpolate::InterpolateMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v0::Interpolate::InterpolateMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v0::Interpolate::InterpolateMode>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-
-//---------------------------------------- v4 --------------------------------------------------
-
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type);
-
 template <>
-class NGRAPH_API AttributeAdapter<op::v4::Interpolate::InterpolateMode>
-    : public EnumAttributeAdapterBase<op::v4::Interpolate::InterpolateMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v4::Interpolate::InterpolateMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::InterpolateMode> {
 public:
-    AttributeAdapter(op::v4::Interpolate::InterpolateMode& value)
-        : EnumAttributeAdapterBase<op::v4::Interpolate::InterpolateMode>(value) {}
+    AttributeAdapter(ngraph::op::v4::Interpolate::InterpolateMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::InterpolateMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::InterpolateMode>", 4};
     const DiscreteTypeInfo& get_type_info() const override {
@@ -314,15 +326,12 @@ public:
     }
 };
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::CoordinateTransformMode& type);
-
 template <>
-class NGRAPH_API AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>
-    : public EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v4::Interpolate::CoordinateTransformMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::CoordinateTransformMode> {
 public:
-    AttributeAdapter(op::v4::Interpolate::CoordinateTransformMode& value)
-        : EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode>(value) {}
+    AttributeAdapter(ngraph::op::v4::Interpolate::CoordinateTransformMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::CoordinateTransformMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>", 4};
     const DiscreteTypeInfo& get_type_info() const override {
@@ -330,15 +339,12 @@ public:
     }
 };
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::NearestMode& type);
-
 template <>
-class NGRAPH_API AttributeAdapter<op::v4::Interpolate::NearestMode>
-    : public EnumAttributeAdapterBase<op::v4::Interpolate::NearestMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v4::Interpolate::NearestMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::NearestMode> {
 public:
-    AttributeAdapter(op::v4::Interpolate::NearestMode& value)
-        : EnumAttributeAdapterBase<op::v4::Interpolate::NearestMode>(value) {}
+    AttributeAdapter(ngraph::op::v4::Interpolate::NearestMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::NearestMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::NearestMode>", 4};
     const DiscreteTypeInfo& get_type_info() const override {
@@ -346,19 +352,16 @@ public:
     }
 };
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::ShapeCalcMode& type);
-
 template <>
-class NGRAPH_API AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>
-    : public EnumAttributeAdapterBase<op::v4::Interpolate::ShapeCalcMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v4::Interpolate::ShapeCalcMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::ShapeCalcMode> {
 public:
-    AttributeAdapter(op::v4::Interpolate::ShapeCalcMode& value)
-        : EnumAttributeAdapterBase<op::v4::Interpolate::ShapeCalcMode>(value) {}
+    AttributeAdapter(ngraph::op::v4::Interpolate::ShapeCalcMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::ShapeCalcMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>", 4};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+}  // namespace ov

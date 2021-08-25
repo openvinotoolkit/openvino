@@ -126,12 +126,16 @@ protected:
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const op::v1::BinaryConvolution::BinaryConvolutionMode& type);
 
+}  // namespace ngraph
+
+namespace ov {
+
 template <>
-class NGRAPH_API AttributeAdapter<op::v1::BinaryConvolution::BinaryConvolutionMode>
-    : public EnumAttributeAdapterBase<op::v1::BinaryConvolution::BinaryConvolutionMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode> {
 public:
-    AttributeAdapter(op::v1::BinaryConvolution::BinaryConvolutionMode& value)
-        : EnumAttributeAdapterBase<op::v1::BinaryConvolution::BinaryConvolutionMode>(value) {}
+    AttributeAdapter(ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v1::BinaryConvolution::BinaryConvolutionMode>",
                                                 0};
@@ -140,4 +144,4 @@ public:
     }
 };
 
-}  // namespace ngraph
+}  // namespace ov

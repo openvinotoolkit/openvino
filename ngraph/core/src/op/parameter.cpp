@@ -48,11 +48,11 @@ void op::Parameter::set_is_relevant_to_shapes(bool is_relevant) {
     m_is_relevant_to_shapes = is_relevant;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ParameterVector>::type_info;
+constexpr DiscreteTypeInfo ov::AttributeAdapter<ParameterVector>::type_info;
 
-AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
+ov::AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
 
-bool AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& visitor) {
+bool ov::AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& visitor) {
     size_t size = m_ref.size();
     visitor.on_attribute("size", size);
     if (size != m_ref.size()) {

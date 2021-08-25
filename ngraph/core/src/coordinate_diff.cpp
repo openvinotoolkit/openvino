@@ -40,4 +40,4 @@ ngraph::CoordinateDiff& ngraph::CoordinateDiff::operator=(CoordinateDiff&& v) no
     return *this;
 }
 
-constexpr ngraph::DiscreteTypeInfo ngraph::AttributeAdapter<ngraph::CoordinateDiff>::type_info;
+constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ngraph::CoordinateDiff>::type_info;

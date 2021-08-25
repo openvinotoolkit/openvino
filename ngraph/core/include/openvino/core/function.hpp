@@ -272,8 +272,6 @@ private:
     ngraph::VariableVector m_variables;
 };
 
-}  // namespace ov
-namespace ngraph {
 template <>
 class NGRAPH_API AttributeAdapter<std::shared_ptr<ov::Function>>
     : public DirectValueAccessor<std::shared_ptr<ov::Function>> {
@@ -286,4 +284,4 @@ public:
         return type_info;
     }
 };
-}  // namespace ngraph
+}  // namespace ov

@@ -48,9 +48,9 @@ public:
              const float spatial_scale,
              const PoolingMode mode);
 
-    virtual void validate_and_infer_types() override;
+    void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     int get_pooled_h() const {
         return m_pooled_h;
@@ -85,17 +85,21 @@ using v3::ROIAlign;
 }  // namespace op
 
 std::ostream& operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& mode);
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<op::v3::ROIAlign::PoolingMode>
-    : public EnumAttributeAdapterBase<op::v3::ROIAlign::PoolingMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v3::ROIAlign::PoolingMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v3::ROIAlign::PoolingMode> {
 public:
-    AttributeAdapter(op::v3::ROIAlign::PoolingMode& value)
-        : EnumAttributeAdapterBase<op::v3::ROIAlign::PoolingMode>(value) {}
+    AttributeAdapter(ngraph::op::v3::ROIAlign::PoolingMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v3::ROIAlign::PoolingMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v3::ROIAlign::PoolingMode>", 3};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov

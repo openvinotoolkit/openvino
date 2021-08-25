@@ -33,10 +33,16 @@ public:
     NGRAPH_API std::vector<int64_t> to_vector() const;
 };
 
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const AxisSet& axis_set);
+}  // namespace ngraph
+
+namespace ov {
+
 template <>
-class NGRAPH_API AttributeAdapter<AxisSet> : public ValueAccessor<std::vector<int64_t>> {
+class NGRAPH_API AttributeAdapter<ngraph::AxisSet> : public ValueAccessor<std::vector<int64_t>> {
 public:
-    AttributeAdapter(AxisSet& value) : m_ref(value) {}
+    AttributeAdapter(ngraph::AxisSet& value) : m_ref(value) {}
 
     const std::vector<int64_t>& get() override;
     void set(const std::vector<int64_t>& value) override;
@@ -44,16 +50,14 @@ public:
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
-    operator AxisSet&() {
+    operator ngraph::AxisSet&() {
         return m_ref;
     }
 
 protected:
-    AxisSet& m_ref;
+    ngraph::AxisSet& m_ref;
     std::vector<int64_t> m_buffer;
     bool m_buffer_valid{false};
 };
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const AxisSet& axis_set);
-}  // namespace ngraph
+}  // namespace ov

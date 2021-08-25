@@ -69,7 +69,11 @@ shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& 
     return make_shared<op::v0::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-namespace ngraph {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type) {
+    return s << as_string(type);
+}
+
+namespace ov {
 template <>
 EnumNames<op::v0::Interpolate::InterpolateMode>& EnumNames<op::v0::Interpolate::InterpolateMode>::get() {
     static auto enum_names =
@@ -83,10 +87,7 @@ EnumNames<op::v0::Interpolate::InterpolateMode>& EnumNames<op::v0::Interpolate::
 
 constexpr DiscreteTypeInfo AttributeAdapter<op::v0::Interpolate::InterpolateMode>::type_info;
 
-std::ostream& operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type) {
-    return s << as_string(type);
-}
-}  // namespace ngraph
+}  // namespace ov
 
 // Interpolate v4
 
@@ -479,7 +480,23 @@ bool op::v4::Interpolate::has_evaluate() const {
     return false;
 }
 
-namespace ngraph {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type) {
+    return s << as_string(type);
+}
+
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v4::Interpolate::ShapeCalcMode& type) {
+    return s << as_string(type);
+}
+
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v4::Interpolate::CoordinateTransformMode& type) {
+    return s << as_string(type);
+}
+
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v4::Interpolate::NearestMode& type) {
+    return s << as_string(type);
+}
+
+namespace ov {
 template <>
 NGRAPH_API EnumNames<op::v4::Interpolate::InterpolateMode>& EnumNames<op::v4::Interpolate::InterpolateMode>::get() {
     static auto enum_names = EnumNames<op::v4::Interpolate::InterpolateMode>(
@@ -493,10 +510,6 @@ NGRAPH_API EnumNames<op::v4::Interpolate::InterpolateMode>& EnumNames<op::v4::In
 
 constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::InterpolateMode>::type_info;
 
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type) {
-    return s << as_string(type);
-}
-
 template <>
 NGRAPH_API EnumNames<op::v4::Interpolate::ShapeCalcMode>& EnumNames<op::v4::Interpolate::ShapeCalcMode>::get() {
     static auto enum_names = EnumNames<op::v4::Interpolate::ShapeCalcMode>(
@@ -506,10 +519,6 @@ NGRAPH_API EnumNames<op::v4::Interpolate::ShapeCalcMode>& EnumNames<op::v4::Inte
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>::type_info;
-
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::ShapeCalcMode& type) {
-    return s << as_string(type);
-}
 
 template <>
 NGRAPH_API EnumNames<op::v4::Interpolate::CoordinateTransformMode>&
@@ -526,10 +535,6 @@ EnumNames<op::v4::Interpolate::CoordinateTransformMode>::get() {
 
 constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>::type_info;
 
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::CoordinateTransformMode& type) {
-    return s << as_string(type);
-}
-
 template <>
 NGRAPH_API EnumNames<op::v4::Interpolate::NearestMode>& EnumNames<op::v4::Interpolate::NearestMode>::get() {
     static auto enum_names = EnumNames<op::v4::Interpolate::NearestMode>(
@@ -543,8 +548,4 @@ NGRAPH_API EnumNames<op::v4::Interpolate::NearestMode>& EnumNames<op::v4::Interp
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::NearestMode>::type_info;
-
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::NearestMode& type) {
-    return s << as_string(type);
-}
-}  // namespace ngraph
+}  // namespace ov

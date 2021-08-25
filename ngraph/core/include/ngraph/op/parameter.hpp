@@ -59,11 +59,14 @@ protected:
 using v0::Parameter;
 }  // namespace op
 using ParameterVector = std::vector<std::shared_ptr<op::Parameter>>;
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<ParameterVector> : public VisitorAdapter {
+class NGRAPH_API AttributeAdapter<ngraph::ParameterVector> : public VisitorAdapter {
 public:
-    AttributeAdapter(ParameterVector& ref);
+    AttributeAdapter(ngraph::ParameterVector& ref);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -73,6 +76,7 @@ public:
     }
 
 protected:
-    ParameterVector& m_ref;
+    ngraph::ParameterVector& m_ref;
 };
-}  // namespace ngraph
+
+}  // namespace ov

@@ -25,7 +25,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     void set_needs_default_layout(bool val) {
         m_needs_default_layout = val;
@@ -45,11 +45,14 @@ private:
 using v0::Result;
 }  // namespace op
 using ResultVector = std::vector<std::shared_ptr<op::Result>>;
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<ResultVector> : public VisitorAdapter {
+class NGRAPH_API AttributeAdapter<ngraph::ResultVector> : public VisitorAdapter {
 public:
-    AttributeAdapter(ResultVector& ref);
+    AttributeAdapter(ngraph::ResultVector& ref);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -59,6 +62,7 @@ public:
     }
 
 protected:
-    ResultVector& m_ref;
+    ngraph::ResultVector& m_ref;
 };
-}  // namespace ngraph
+
+}  // namespace ov

@@ -38,4 +38,4 @@ ngraph::Shape& ngraph::Shape::operator=(Shape&& v) noexcept {
     return *this;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<Shape>::type_info;
+constexpr DiscreteTypeInfo ov::AttributeAdapter<Shape>::type_info;

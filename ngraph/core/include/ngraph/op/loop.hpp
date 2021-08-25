@@ -75,17 +75,21 @@ private:
 };
 }  // namespace v5
 }  // namespace op
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<op::v5::Loop::SpecialBodyPorts>
-    : public DirectValueAccessor<op::v5::Loop::SpecialBodyPorts> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>
+    : public DirectValueAccessor<ngraph::op::v5::Loop::SpecialBodyPorts> {
 public:
-    AttributeAdapter(op::v5::Loop::SpecialBodyPorts& value)
-        : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value) {}
+    AttributeAdapter(ngraph::op::v5::Loop::SpecialBodyPorts& value)
+        : DirectValueAccessor<ngraph::op::v5::Loop::SpecialBodyPorts>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v5::Loop::SpecialBodyPorts>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov

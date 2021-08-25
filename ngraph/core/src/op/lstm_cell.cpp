@@ -333,7 +333,7 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
     }
 }
 
-namespace ngraph {
+namespace ov {
 template <>
 EnumNames<op::LSTMWeightsFormat>& EnumNames<op::LSTMWeightsFormat>::get() {
     static auto enum_names = EnumNames<op::LSTMWeightsFormat>("op::LSTMWeightsFormat",
@@ -347,10 +347,11 @@ EnumNames<op::LSTMWeightsFormat>& EnumNames<op::LSTMWeightsFormat>::get() {
 
 constexpr DiscreteTypeInfo AttributeAdapter<op::LSTMWeightsFormat>::type_info;
 
+}  // namespace ov
+
 std::ostream& operator<<(std::ostream& s, const op::LSTMWeightsFormat& type) {
     return s << as_string(type);
 }
-}  // namespace ngraph
 
 op::v4::LSTMCell::LSTMCell() {
     m_activations = {"sigmoid", "tanh", "tanh"};

@@ -366,12 +366,21 @@ protected:
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const op::v1::NonMaxSuppression::BoxEncodingType& type);
 
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const op::v3::NonMaxSuppression::BoxEncodingType& type);
+
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const op::v5::NonMaxSuppression::BoxEncodingType& type);
+}  // namespace ngraph
+
+namespace ov {
+
 template <>
-class NGRAPH_API AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>
-    : public EnumAttributeAdapterBase<op::v1::NonMaxSuppression::BoxEncodingType> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>
+    : public EnumAttributeAdapterBase<ngraph::op::v1::NonMaxSuppression::BoxEncodingType> {
 public:
-    AttributeAdapter(op::v1::NonMaxSuppression::BoxEncodingType& value)
-        : EnumAttributeAdapterBase<op::v1::NonMaxSuppression::BoxEncodingType>(value) {}
+    AttributeAdapter(ngraph::op::v1::NonMaxSuppression::BoxEncodingType& value)
+        : EnumAttributeAdapterBase<ngraph::op::v1::NonMaxSuppression::BoxEncodingType>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>", 1};
     const DiscreteTypeInfo& get_type_info() const override {
@@ -379,15 +388,12 @@ public:
     }
 };
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const op::v3::NonMaxSuppression::BoxEncodingType& type);
-
 template <>
-class NGRAPH_API AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>
-    : public EnumAttributeAdapterBase<op::v3::NonMaxSuppression::BoxEncodingType> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>
+    : public EnumAttributeAdapterBase<ngraph::op::v3::NonMaxSuppression::BoxEncodingType> {
 public:
-    AttributeAdapter(op::v3::NonMaxSuppression::BoxEncodingType& value)
-        : EnumAttributeAdapterBase<op::v3::NonMaxSuppression::BoxEncodingType>(value) {}
+    AttributeAdapter(ngraph::op::v3::NonMaxSuppression::BoxEncodingType& value)
+        : EnumAttributeAdapterBase<ngraph::op::v3::NonMaxSuppression::BoxEncodingType>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>", 1};
     const DiscreteTypeInfo& get_type_info() const override {
@@ -395,19 +401,17 @@ public:
     }
 };
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const op::v5::NonMaxSuppression::BoxEncodingType& type);
-
 template <>
-class NGRAPH_API AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>
-    : public EnumAttributeAdapterBase<op::v5::NonMaxSuppression::BoxEncodingType> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>
+    : public EnumAttributeAdapterBase<ngraph::op::v5::NonMaxSuppression::BoxEncodingType> {
 public:
-    AttributeAdapter(op::v5::NonMaxSuppression::BoxEncodingType& value)
-        : EnumAttributeAdapterBase<op::v5::NonMaxSuppression::BoxEncodingType>(value) {}
+    AttributeAdapter(ngraph::op::v5::NonMaxSuppression::BoxEncodingType& value)
+        : EnumAttributeAdapterBase<ngraph::op::v5::NonMaxSuppression::BoxEncodingType>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>", 1};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov

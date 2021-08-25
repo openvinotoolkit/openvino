@@ -161,7 +161,7 @@ shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new
                                  m_mode);
 }
 
-namespace ngraph {
+namespace ov {
 constexpr DiscreteTypeInfo AttributeAdapter<op::v3::ROIAlign::PoolingMode>::type_info;
 
 template <>
@@ -172,10 +172,11 @@ NGRAPH_API EnumNames<op::v3::ROIAlign::PoolingMode>& EnumNames<op::v3::ROIAlign:
     return enum_names;
 }
 
+}  // namespace ov
+
 std::ostream& operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& type) {
     return s << as_string(type);
 }
-}  // namespace ngraph
 
 namespace roi_alinop {
 template <element::Type_t ET>

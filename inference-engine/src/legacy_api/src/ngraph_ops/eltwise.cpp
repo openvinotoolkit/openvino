@@ -80,8 +80,11 @@ bool op::Eltwise::visit_attributes(AttributeVisitor &visitor) {
   visitor.on_attribute("operation", eltwise_type);
   return true;
 }
+std::ostream &operator<<(std::ostream &s, const ELTWISE_TYPE &type) {
+  return s << as_string(type);
+}
 
-namespace ngraph {
+namespace ov {
 template <> EnumNames<ELTWISE_TYPE> &EnumNames<ELTWISE_TYPE>::get() {
   static auto enum_names =
       EnumNames<ELTWISE_TYPE>("ELTWISE_TYPE", {{"sum", ELTWISE_TYPE::Sum},
@@ -95,7 +98,4 @@ template <> EnumNames<ELTWISE_TYPE> &EnumNames<ELTWISE_TYPE>::get() {
 
 constexpr DiscreteTypeInfo AttributeAdapter<ELTWISE_TYPE>::type_info;
 
-std::ostream &operator<<(std::ostream &s, const ELTWISE_TYPE &type) {
-  return s << as_string(type);
-}
-} // namespace ngraph
+} // namespace ov

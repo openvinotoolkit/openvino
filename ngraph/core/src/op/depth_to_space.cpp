@@ -113,7 +113,11 @@ bool op::DepthToSpace::has_evaluate() const {
     return !get_input_partial_shape(0).is_dynamic();
 }
 
-namespace ngraph {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::DepthToSpace::DepthToSpaceMode& type) {
+    return s << as_string(type);
+}
+
+namespace ov {
 template <>
 NGRAPH_API EnumNames<op::DepthToSpace::DepthToSpaceMode>& EnumNames<op::DepthToSpace::DepthToSpaceMode>::get() {
     static auto enum_names = EnumNames<op::DepthToSpace::DepthToSpaceMode>(
@@ -124,8 +128,4 @@ NGRAPH_API EnumNames<op::DepthToSpace::DepthToSpaceMode>& EnumNames<op::DepthToS
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<op::DepthToSpace::DepthToSpaceMode>::type_info;
-
-std::ostream& operator<<(std::ostream& s, const op::DepthToSpace::DepthToSpaceMode& type) {
-    return s << as_string(type);
-}
-}  // namespace ngraph
+}  // namespace ov
