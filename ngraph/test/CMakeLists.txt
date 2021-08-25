@@ -448,7 +448,6 @@ set(MULTI_TEST_SRC
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
-    backend/fused_op.in.cpp
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
@@ -501,7 +500,6 @@ set(MULTI_TEST_SRC
     backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp
     backend/result.in.cpp
-    backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
     backend/round.in.cpp

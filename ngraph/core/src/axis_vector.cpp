@@ -35,4 +35,4 @@ ngraph::AxisVector& ngraph::AxisVector::operator=(AxisVector&& v) noexcept {
     return *this;
 }
 
-constexpr ngraph::DiscreteTypeInfo ngraph::AttributeAdapter<ngraph::AxisVector>::type_info;
+constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ngraph::AxisVector>::type_info;

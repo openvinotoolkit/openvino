@@ -113,7 +113,11 @@ bool op::v5::Round::has_evaluate() const {
     return false;
 }
 
-namespace ngraph {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v5::Round::RoundMode& type) {
+    return s << as_string(type);
+}
+
+namespace ov {
 template <>
 EnumNames<op::v5::Round::RoundMode>& EnumNames<op::v5::Round::RoundMode>::get() {
     static auto enum_names =
@@ -124,8 +128,4 @@ EnumNames<op::v5::Round::RoundMode>& EnumNames<op::v5::Round::RoundMode>::get() 
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<op::v5::Round::RoundMode>::type_info;
-
-std::ostream& operator<<(std::ostream& s, const op::v5::Round::RoundMode& type) {
-    return s << as_string(type);
-}
-}  // namespace ngraph
+}  // namespace ov
