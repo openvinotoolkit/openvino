@@ -943,8 +943,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         inputsDesc->getPtrInputsGlobal(input.first).resize(gnaFlags->gna_lib_async_threads_num);
     }
 
-    // CreatingLayer primitivestop
-
+    // Creating Layer primitives
     for (auto & layer : sortedNoMem) {
         graphCompiler.CreateLayerPrimitive(layer);
     }
