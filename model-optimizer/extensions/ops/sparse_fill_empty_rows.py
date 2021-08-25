@@ -29,7 +29,7 @@ class SparseFillEmptyRows(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': self.op,
+            'type': None,
             'op': self.op,
             'version': 'experimental',
             'infer': self.infer,
