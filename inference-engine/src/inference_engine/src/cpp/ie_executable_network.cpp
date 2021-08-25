@@ -6,6 +6,7 @@
 
 #include "cpp/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iremote_context.hpp"
 #include "ie_common.h"
 #include "ie_executable_network_base.hpp"
 
