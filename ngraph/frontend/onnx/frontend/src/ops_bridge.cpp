@@ -38,6 +38,7 @@
 #include "op/conv_transpose.hpp"
 #include "op/cos.hpp"
 #include "op/cosh.hpp"
+#include "op/crop.hpp"
 #include "op/cum_sum.hpp"
 #include "op/depth_to_space.hpp"
 #include "op/dequantize_linear.hpp"
@@ -105,6 +106,8 @@
 #include "op/org.openvinotoolkit/prior_box.hpp"
 #include "op/org.openvinotoolkit/swish.hpp"
 #include "op/quantize_linear.hpp"
+#include "op/random_uniform.hpp"
+#include "op/random_uniform_like.hpp"
 #include "op/range.hpp"
 #include "op/reciprocal.hpp"
 #include "op/reduce.hpp"
@@ -365,6 +368,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
     REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
     REGISTER_OPERATOR("Range", 1, range);
+    REGISTER_OPERATOR("RandomUniform", 1, random_uniform);
+    REGISTER_OPERATOR("RandomUniformLike", 1, random_uniform_like);
     REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
     REGISTER_OPERATOR("ReduceLogSum", 1, reduce_log_sum);
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);
@@ -427,6 +432,7 @@ OperatorsBridge::OperatorsBridge() {
 
     // deprecated ops
     REGISTER_OPERATOR("Affine", 1, affine);
+    REGISTER_OPERATOR("Crop", 1, crop);
     REGISTER_OPERATOR("Scatter", 1, scatter_elements);
     REGISTER_OPERATOR("Upsample", 1, upsample);
     REGISTER_OPERATOR("Upsample", 7, upsample);

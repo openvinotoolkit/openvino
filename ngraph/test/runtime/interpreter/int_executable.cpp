@@ -69,7 +69,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     for (size_t output_count = 0; output_count < get_results().size(); ++output_count)
     {
         auto output = get_results()[output_count];
-        if (!is_type<op::Result>(output))
+        if (!ov::is_type<op::Result>(output))
         {
             throw ngraph_error("One of function's outputs isn't op::Result");
         }
@@ -114,13 +114,13 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
 
         // get op type
         element::Type type;
-        if (is_type<op::Convert>(op) || is_type<op::PriorBox>(op))
+        if (ov::is_type<op::Convert>(op) || ov::is_type<op::PriorBox>(op))
         {
             type = op->get_input_element_type(0);
         }
-        else if (is_type<op::v1::Equal>(op) || is_type<op::v1::Greater>(op) ||
-                 is_type<op::v1::GreaterEqual>(op) || is_type<op::v1::Less>(op) ||
-                 is_type<op::v1::LessEqual>(op) || is_type<op::v1::NotEqual>(op))
+        else if (ov::is_type<op::v1::Equal>(op) || ov::is_type<op::v1::Greater>(op) ||
+                 ov::is_type<op::v1::GreaterEqual>(op) || ov::is_type<op::v1::Less>(op) ||
+                 ov::is_type<op::v1::LessEqual>(op) || ov::is_type<op::v1::NotEqual>(op))
         {
             // Get the type of the second input, not the first
             // All BinaryElementwiseComparision ops have the same type for inputs
