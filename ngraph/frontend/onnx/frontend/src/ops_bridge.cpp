@@ -26,6 +26,7 @@
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
 #include "op/cast.hpp"
+#include "op/cast_like.hpp"
 #include "op/ceil.hpp"
 #include "op/clip.hpp"
 #include "op/compress.hpp"
@@ -62,6 +63,7 @@
 #include "op/greater.hpp"
 #include "op/gru.hpp"
 #include "op/hard_sigmoid.hpp"
+#include "op/hard_swish.hpp"
 #include "op/hardmax.hpp"
 #include "op/identity.hpp"
 #include "op/image_scaler.hpp"
@@ -285,6 +287,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
     REGISTER_OPERATOR("Cast", 1, cast);
+    REGISTER_OPERATOR("CastLike", 1, cast_like);
     REGISTER_OPERATOR("Ceil", 1, ceil);
     REGISTER_OPERATOR("Clip", 1, clip);
     REGISTER_OPERATOR("Clip", 11, clip);
@@ -330,6 +333,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
     REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
+    REGISTER_OPERATOR("HardSwish", 1, hard_swish);
     REGISTER_OPERATOR("Identity", 1, identity);
     REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
     REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);

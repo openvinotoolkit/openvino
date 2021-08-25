@@ -8,11 +8,11 @@ set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
-    message(STATUS "unit tests disabled")
+    message(STATUS "nGraph unit tests disabled")
     return()
 endif()
 
-message(STATUS "unit tests enabled")
+message(STATUS "nGraph unit tests enabled")
 
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)

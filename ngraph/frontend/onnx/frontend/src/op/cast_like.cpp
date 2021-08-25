@@ -2,23 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/shape.hpp"
-
 #include <memory>
 
 #include "default_opset.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "op/shape.hpp"
+#include "op/cast.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
 
-OutputVector shape(const Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
-    return {std::make_shared<default_opset::ShapeOf>(data)};
+OutputVector cast_like(const Node& node) {
+    auto inputs = node.get_ng_inputs();
+    return {std::make_shared<default_opset::ConvertLike>(inputs.at(0), inputs.at(1))};
 }
 
 }  // namespace set_1
