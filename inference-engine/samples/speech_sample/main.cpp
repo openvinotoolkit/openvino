@@ -719,8 +719,10 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            for (size_t i = 0; i < outputs.size(); i++) {
-                network.addOutput(outputs[i], ports[i]);
+            if (!FLAGS_m.empty()) {
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    network.addOutput(outputs[i], ports[i]);
+                }
             }
         }
         if (!FLAGS_m.empty()) {
