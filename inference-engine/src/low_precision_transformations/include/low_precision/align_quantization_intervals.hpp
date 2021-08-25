@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <ngraph/pass/pass.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 #include "low_precision/lpt_visibility.hpp"
 
 namespace ngraph {

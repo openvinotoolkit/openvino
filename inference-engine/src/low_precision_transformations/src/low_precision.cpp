@@ -86,7 +86,7 @@ template <typename NodeType>
 class RelaxNode : public ngraph::pass::MatcherPass {
 public:
     RelaxNode() {
-        matcher_pass_callback callback = [](pattern::Matcher& m) {
+        ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
             auto l_node = std::dynamic_pointer_cast<NodeType>(m.get_match_root());
             if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(l_node)) {
                 return false;
@@ -97,12 +97,12 @@ public:
 
             OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecisionTypeRelaxedMatcher");
 
-            element::TypeVector inputPrecisions;
+            ngraph::element::TypeVector inputPrecisions;
             for (const auto& inputs : l_node->inputs()) {
                 inputPrecisions.push_back(inputs.get_element_type());
             }
 
-            element::TypeVector outputPrecisions;
+            ngraph::element::TypeVector outputPrecisions;
             for (const auto& output : l_node->outputs()) {
                 outputPrecisions.push_back(output.get_element_type());
             }
@@ -114,7 +114,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(pattern::wrap_type<NodeType>(), "TypeRelaxedReplacer");
+        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<NodeType>(), "TypeRelaxedReplacer");
     }
 };
 

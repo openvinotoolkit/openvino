@@ -80,7 +80,7 @@ std::string VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::to_string() {
     return ss.str();
 }
 
-PrecisionsAttributePtr get_precisions(const ngraph::Input<ngraph::Node>& input) {
+ngraph::PrecisionsAttributePtr ov::get_precisions(const ngraph::Input<ngraph::Node>& input) {
     const auto& rt_map = input.get_rt_info();
     if (!rt_map.count(ngraph::VariantWrapper<PrecisionsAttributePtr>::type_info.name)) {
         return nullptr;
@@ -89,7 +89,7 @@ PrecisionsAttributePtr get_precisions(const ngraph::Input<ngraph::Node>& input) 
     return ngraph::as_type_ptr<ngraph::VariantWrapper<PrecisionsAttributePtr>>(var)->get();
 }
 
-void set_precisions(ngraph::Input<ngraph::Node> input, PrecisionsAttributePtr attribute) {
+void ov::set_precisions(ngraph::Input<ngraph::Node> input, PrecisionsAttributePtr attribute) {
     auto& rt_map = input.get_rt_info();
     rt_map[ngraph::VariantWrapper<PrecisionsAttributePtr>::type_info.name] =
             std::make_shared<ngraph::VariantWrapper<PrecisionsAttributePtr>>(attribute);

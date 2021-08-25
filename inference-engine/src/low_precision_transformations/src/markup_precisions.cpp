@@ -41,7 +41,7 @@ void set_restriction(
     if (precisionsByPort.empty()) {
         // if available precisions for any port is empty then mark all input ports
         for (auto& input : node->inputs()) {
-            auto attribute = low_precision::make_shared_attribute<PrecisionsAttribute>(element::TypeVector{});
+            auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>(element::TypeVector{});
             ov::set_precisions(input, attribute);
         }
     } else {
@@ -55,7 +55,7 @@ void set_restriction(
                 return;
             }
 
-            auto attribute = low_precision::make_shared_attribute<PrecisionsAttribute>(item.second);
+            auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>(item.second);
             ov::set_precisions(input, attribute);
         }
     }
