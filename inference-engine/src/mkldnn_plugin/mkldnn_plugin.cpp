@@ -200,18 +200,15 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     auto isCellPrimitiveSupported = [](const_node_ptr& node) -> bool {
         if (const auto& rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
             return rnn_cell->get_clip() == 0.0f;
-        }
-        else if (const auto& gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(
+        } else if (const auto& gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(
             node)) {
             return gru_cell->get_clip() == 0.0f
                 && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
-        }
-        else if (const auto& lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
+        } else if (const auto& lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
             node)) {
             return lstm_cell->get_clip() == 0.0f &&
                 lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-        }
-        else if (const auto& lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(
+        } else if (const auto& lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(
             node)) {
             return lstm_cell_v1->get_clip() == 0.0f &&
                 lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
@@ -233,15 +230,13 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             return rnn_seq->get_clip() == 0.0f &&
                 !ngraph::op::util::is_seq_len_provided(rnn_seq->get_input_node_shared_ptr(2),
                     max_seq_len);
-        }
-        else if (const auto& gru_seq = std::dynamic_pointer_cast<const ngraph::opset6::GRUSequence>(
+        } else if (const auto& gru_seq = std::dynamic_pointer_cast<const ngraph::opset6::GRUSequence>(
             node)) {
             return gru_seq->get_clip() == 0.0f &&
                 gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
                 !ngraph::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(2),
                     max_seq_len);
-        }
-        else if (const auto& lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
+        } else if (const auto& lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
             node)) {
             return lstm_seq->get_clip() == 0.0f &&
                 lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
@@ -453,8 +448,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         result = option->second;
-    }
-    else {
+    } else {
         IE_THROW() << "Unsupported config key " << name;
     }
     return result;
@@ -485,8 +479,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         metrics.push_back(METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS));
         metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
-    }
-    else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
+    } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         std::string brand_string;
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
         unsigned int addr_list[3] = { 0x80000002, 0x80000003, 0x80000004 };
@@ -506,12 +499,10 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         brand_string = "Non Intel Architecture";
 #endif
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, brand_string);
-    }
-    else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
+    } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { "" };
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
-    }
-    else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
+    } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         std::vector<std::string> capabilities;
         if (with_cpu_x86_bfloat16())
             capabilities.push_back(METRIC_VALUE(BF16));
@@ -522,22 +513,18 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         capabilities.push_back(METRIC_VALUE(INT8));
         capabilities.push_back(METRIC_VALUE(BIN));
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
-    }
-    else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto&& opt : engConfig._config)
             configKeys.push_back(opt.first);
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    }
-    else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
+    } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 1, 1);
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, range);
-    }
-    else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
+    } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
-    }
-    else {
+    } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
 }
@@ -585,8 +572,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
                     if (layerIsSupported) {
                         supported.emplace(fusedLayerName);
-                    }
-                    else {
+                    } else {
                         unsupported.emplace(fusedLayerName);
                     }
                 }
@@ -615,8 +601,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
                     supported.erase(node->get_friendly_name());
                 }
-            }
-            else if (ngraph::op::is_output(node)) {
+            } else if (ngraph::op::is_output(node)) {
                 if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
                     supported.erase(node->get_friendly_name());
                 }
@@ -626,8 +611,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         for (auto&& layerName : supported) {
             res.supportedLayersMap.emplace(layerName, GetName());
         }
-    }
-    else {
+    } else {
         IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
     }
 
