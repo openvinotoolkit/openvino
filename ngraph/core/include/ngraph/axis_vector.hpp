@@ -35,10 +35,18 @@ public:
     NGRAPH_API AxisVector& operator=(AxisVector&& v) noexcept;
 };
 
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const AxisVector& axis_vector);
+}  // namespace ngraph
+
+namespace ov {
+
 template <>
-class NGRAPH_API AttributeAdapter<AxisVector> : public IndirectVectorValueAccessor<AxisVector, std::vector<int64_t>> {
+class NGRAPH_API AttributeAdapter<ngraph::AxisVector>
+    : public IndirectVectorValueAccessor<ngraph::AxisVector, std::vector<int64_t>> {
 public:
-    AttributeAdapter(AxisVector& value) : IndirectVectorValueAccessor<AxisVector, std::vector<int64_t>>(value) {}
+    AttributeAdapter(ngraph::AxisVector& value)
+        : IndirectVectorValueAccessor<ngraph::AxisVector, std::vector<int64_t>>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<AxisVector>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
@@ -46,6 +54,4 @@ public:
     }
 };
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const AxisVector& axis_vector);
-}  // namespace ngraph
+}  // namespace ov

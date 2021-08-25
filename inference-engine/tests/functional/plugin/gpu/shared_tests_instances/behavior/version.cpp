@@ -14,14 +14,6 @@ namespace {
             {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}}
     };
 
-    const std::vector<std::map<std::string, std::string>> Autoconfigs = {
-            {{ AUTO_CONFIG_KEY(DEVICE_LIST) , CommonTestUtils::DEVICE_GPU}}
-    };
-
-    const std::vector<std::map<std::string, std::string>> auto_cpu_gpu_conf = {
-        {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
-    };
-
     const std::vector<std::map<std::string, std::string>> Heteroconfigs = {
             {{ HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) , CommonTestUtils::DEVICE_GPU}}
     };
@@ -44,14 +36,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(Autoconfigs)),
-                            VersionTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_AutoCG_BehaviorTests, VersionTest,
-                            ::testing::Combine(
-                                ::testing::Values(InferenceEngine::Precision::FP32),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(auto_cpu_gpu_conf)),
+                                    ::testing::ValuesIn(Multiconfigs)),
                             VersionTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, VersionTest,
