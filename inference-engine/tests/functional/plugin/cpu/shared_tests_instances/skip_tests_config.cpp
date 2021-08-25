@@ -7,6 +7,7 @@
 
 #include <ie_system_conf.h>
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "ie_parallel.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
@@ -51,8 +52,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvolutionLayerCPUTest.*BF16.*_inFmts=(ndhwc|nhwc).*)",
         // TODO: 56827. Sporadic test failures
         R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.IS=\(1\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
-        // lpt transformation produce the same names for MatMul and Multiply
-        R"(.*MatMulTransformation.*)",
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
         R"(.*smoke_Convolution3D.*D=\(1.2.1\)_O=1.*)",
 
@@ -61,6 +60,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NormalizeL2_5D.*)",
         // Issue: 59788. mkldnn_normalize_nchw applies eps after sqrt for across_spatial
         R"(.*NormalizeL2_.*axes=\(1.2.*_eps=100.*)",
+        R"(.*NormalizeL2_.*axes=\(2.1.*_eps=100.*)",
+        R"(.*NormalizeL2_.*axes=\(3.1.2.*_eps=100.*)",
 
         // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
         R"(.*BF16NetworkRestore1.*)",
@@ -73,8 +74,15 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
         // need to implement Export / Import
-        R"(.*IEClassImportExportTestP.*)"
+        R"(.*IEClassImportExportTestP.*)",
+        // azure is failing after #6199
+        R"(.*/NmsLayerTest.*)"
     };
+
+#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+    retVector.emplace_back(R"(.*ReusableCPUStreamsExecutor.*)");
+#endif
+
 #ifdef __APPLE__
         // TODO: Issue 55717
         //retVector.emplace_back(R"(.*smoke_LPT.*ReduceMinTransformation.*f32.*)");

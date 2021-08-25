@@ -24,8 +24,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, tile_3d_small_data_rank)
-{
+NGRAPH_TEST(${BACKEND_NAME}, tile_3d_small_data_rank) {
     Shape shape_a{3};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_re{3};
@@ -51,8 +50,7 @@ NGRAPH_TEST(${BACKEND_NAME}, tile_3d_small_data_rank)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, tile_3d_few_repeats)
-{
+NGRAPH_TEST(${BACKEND_NAME}, tile_3d_few_repeats) {
     Shape shape_a{2, 1, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_re{2};

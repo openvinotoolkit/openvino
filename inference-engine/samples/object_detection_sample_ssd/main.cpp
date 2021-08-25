@@ -100,7 +100,8 @@ int main(int argc, char* argv[]) {
             // Config for device plugin custom extension is loaded from an .xml
             // description
             ie.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, FLAGS_d);
-            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c << slog::endl;
+            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c
+                       << slog::endl;
         }
         // -----------------------------------------------------------------------------------------------------
 
@@ -157,7 +158,8 @@ int main(int argc, char* argv[]) {
 
                 Precision inputPrecision = Precision::FP32;
                 item.second->setPrecision(inputPrecision);
-                if ((item.second->getTensorDesc().getDims()[1] != 3 && item.second->getTensorDesc().getDims()[1] != 6)) {
+                if ((item.second->getTensorDesc().getDims()[1] != 3 &&
+                     item.second->getTensorDesc().getDims()[1] != 6)) {
                     throw std::logic_error("Invalid input info. Should be 3 or 6 values length");
                 }
             }
@@ -182,7 +184,8 @@ int main(int argc, char* argv[]) {
         if (auto ngraphFunction = network.getFunction()) {
             for (const auto& out : outputsInfo) {
                 for (const auto& op : ngraphFunction->get_ops()) {
-                    if (op->get_type_info() == ngraph::op::DetectionOutput::type_info && op->get_friendly_name() == out.second->getName()) {
+                    if (op->get_type_info() == ngraph::op::DetectionOutput::type_info &&
+                        op->get_friendly_name() == out.second->getName()) {
                         outputName = out.first;
                         outputInfo = out.second;
                         break;
@@ -239,7 +242,8 @@ int main(int argc, char* argv[]) {
             }
             /** Store image data **/
             std::shared_ptr<unsigned char> originalData(reader->getData());
-            std::shared_ptr<unsigned char> data(reader->getData(inputInfo->getTensorDesc().getDims()[3], inputInfo->getTensorDesc().getDims()[2]));
+            std::shared_ptr<unsigned char> data(
+                reader->getData(inputInfo->getTensorDesc().getDims()[3], inputInfo->getTensorDesc().getDims()[2]));
             if (data.get() != nullptr) {
                 originalImagesData.push_back(originalData);
                 imagesData.push_back(data);
@@ -253,7 +257,9 @@ int main(int argc, char* argv[]) {
         size_t batchSize = network.getBatchSize();
         slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
         if (batchSize != imagesData.size()) {
-            slog::warn << "Number of images " + std::to_string(imagesData.size()) + " doesn't match batch size " + std::to_string(batchSize) << slog::endl;
+            slog::warn << "Number of images " + std::to_string(imagesData.size()) + " doesn't match batch size " +
+                              std::to_string(batchSize)
+                       << slog::endl;
             batchSize = std::min(batchSize, imagesData.size());
             slog::warn << "Number of images to be processed is " << std::to_string(batchSize) << slog::endl;
         }
@@ -288,7 +294,8 @@ int main(int argc, char* argv[]) {
                 for (size_t ch = 0; ch < num_channels; ++ch) {
                     /**          [images stride + channels stride + pixel id ] all in
                      * bytes            **/
-                    data[image_id * image_size * num_channels + ch * image_size + pid] = imagesData.at(image_id).get()[pid * num_channels + ch];
+                    data[image_id * image_size * num_channels + ch * image_size + pid] =
+                        imagesData.at(image_id).get()[pid * num_channels + ch];
                 }
             }
         }
@@ -312,8 +319,10 @@ int main(int argc, char* argv[]) {
             float* p = minput2Holder.as<PrecisionTrait<Precision::FP32>::value_type*>();
 
             for (size_t image_id = 0; image_id < std::min(imagesData.size(), batchSize); ++image_id) {
-                p[image_id * imInfoDim + 0] = static_cast<float>(inputsInfo[imageInputName]->getTensorDesc().getDims()[2]);
-                p[image_id * imInfoDim + 1] = static_cast<float>(inputsInfo[imageInputName]->getTensorDesc().getDims()[3]);
+                p[image_id * imInfoDim + 0] =
+                    static_cast<float>(inputsInfo[imageInputName]->getTensorDesc().getDims()[2]);
+                p[image_id * imInfoDim + 1] =
+                    static_cast<float>(inputsInfo[imageInputName]->getTensorDesc().getDims()[3]);
                 for (size_t k = 2; k < imInfoDim; k++) {
                     p[image_id * imInfoDim + k] = 1.0f;  // all scale factors are set to 1.0
                 }
@@ -359,8 +368,8 @@ int main(int argc, char* argv[]) {
             auto xmax = static_cast<int>(detection[curProposal * objectSize + 5] * imageWidths[image_id]);
             auto ymax = static_cast<int>(detection[curProposal * objectSize + 6] * imageHeights[image_id]);
 
-            std::cout << "[" << curProposal << "," << label << "] element, prob = " << confidence << "    (" << xmin << "," << ymin << ")-(" << xmax << ","
-                      << ymax << ")"
+            std::cout << "[" << curProposal << "," << label << "] element, prob = " << confidence << "    (" << xmin
+                      << "," << ymin << ")-(" << xmax << "," << ymax << ")"
                       << " batch id : " << image_id;
 
             if (confidence > 0.5) {
@@ -376,10 +385,17 @@ int main(int argc, char* argv[]) {
         }
 
         for (size_t batch_id = 0; batch_id < batchSize; ++batch_id) {
-            addRectangles(originalImagesData[batch_id].get(), imageHeights[batch_id], imageWidths[batch_id], boxes[batch_id], classes[batch_id],
+            addRectangles(originalImagesData[batch_id].get(),
+                          imageHeights[batch_id],
+                          imageWidths[batch_id],
+                          boxes[batch_id],
+                          classes[batch_id],
                           BBOX_THICKNESS);
             const std::string image_path = "out_" + std::to_string(batch_id) + ".bmp";
-            if (writeOutputBmp(image_path, originalImagesData[batch_id].get(), imageHeights[batch_id], imageWidths[batch_id])) {
+            if (writeOutputBmp(image_path,
+                               originalImagesData[batch_id].get(),
+                               imageHeights[batch_id],
+                               imageWidths[batch_id])) {
                 slog::info << "Image " + image_path + " created!" << slog::endl;
             } else {
                 throw std::logic_error(std::string("Can't create a file: ") + image_path);
