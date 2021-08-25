@@ -501,7 +501,6 @@ set(MULTI_TEST_SRC
     backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp
     backend/result.in.cpp
-    backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
     backend/round.in.cpp
