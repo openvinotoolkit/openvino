@@ -92,6 +92,13 @@ public:
 
     static Summary &getInstance();
 
+    // #define IE_TEST_DEBUG
+
+    #ifdef IE_TEST_DEBUG
+    void saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
+                        unsigned long skipped, unsigned long crashed);
+    #endif  //IE_TEST_DEBUG
+
     void saveReport();
 
     static void setExtendReport(bool val) { extendReport = val; }

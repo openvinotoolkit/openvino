@@ -67,7 +67,6 @@ namespace LayerTestsDefinitions {
 
         auto &s = LayerTestsUtils::Summary::getInstance();
         s.setDeviceName(targetDevice);
-
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
             s.updateOPsStats(function, PassRate::Statuses::SKIPPED);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
@@ -75,6 +74,7 @@ namespace LayerTestsDefinitions {
             s.updateOPsStats(function, PassRate::Statuses::CRASHED);
         }
 
+        auto func_copy = ngraph::clone_function(*function);
         try {
             if (transformation != ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
                 LoadNetwork();
@@ -88,16 +88,16 @@ namespace LayerTestsDefinitions {
                 Infer();
                 Validate();
             }
-            s.updateOPsStats(function, PassRate::Statuses::PASSED);
+            s.updateOPsStats(func_copy, PassRate::Statuses::PASSED);
         }
         catch (const std::runtime_error &re) {
-            s.updateOPsStats(function, PassRate::Statuses::FAILED);
+            s.updateOPsStats(func_copy, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(re.what());
         } catch (const std::exception &ex) {
-            s.updateOPsStats(function, PassRate::Statuses::FAILED);
+            s.updateOPsStats(func_copy, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(ex.what());
         } catch (...) {
-            s.updateOPsStats(function, PassRate::Statuses::FAILED);
+            s.updateOPsStats(func_copy, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
     }
@@ -197,7 +197,7 @@ namespace LayerTestsDefinitions {
            manager.run_passes(function);
         } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
-           InferenceEngine::lowLatency2(cnnNetwork, iteration_count);
+            InferenceEngine::lowLatency2(cnnNetwork, iteration_count);
         }
     }
 
