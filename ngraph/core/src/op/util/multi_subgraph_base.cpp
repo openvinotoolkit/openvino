@@ -153,7 +153,7 @@ Output<Node> op::util::MultiSubGraphOp::set_body_outputs(const ResultVector& bod
     return Output<Node>(shared_from_this(), output_index);
 }
 
-namespace ngraph {
+namespace ov {
 NGRAPH_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>,
                        "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::"
                        "MultiSubGraphOp::InputDescription>>>",
@@ -163,4 +163,4 @@ NGRAPH_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::Mu
                        "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::"
                        "MultiSubGraphOp::OutputDescription>>>",
                        0);
-}  // namespace ngraph
+}  // namespace ov
