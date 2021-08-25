@@ -7,7 +7,6 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ngraph;
 
 std::ostream& ngraph::operator<<(std::ostream& s, const Coordinate& coordinate) {
     s << "Coordinate{";
@@ -41,4 +40,4 @@ ngraph::Coordinate& ngraph::Coordinate::operator=(Coordinate&& v) noexcept {
     return *this;
 }
 
-constexpr ngraph::DiscreteTypeInfo ngraph::AttributeAdapter<ngraph::Coordinate>::type_info;
+constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ngraph::Coordinate>::type_info;

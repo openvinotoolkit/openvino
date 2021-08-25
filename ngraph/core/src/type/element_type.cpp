@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 #include <cmath>
 #include <functional>
@@ -147,7 +147,7 @@ Type from<bool>() {
     return Type_t::boolean;
 }
 template <>
-Type from<ngraph::float16>() {
+Type from<ov::float16>() {
     return Type_t::f16;
 }
 template <>
@@ -191,7 +191,7 @@ Type from<uint64_t>() {
     return Type_t::u64;
 }
 template <>
-Type from<ngraph::bfloat16>() {
+Type from<ov::bfloat16>() {
     return Type_t::bf16;
 }
 }  // namespace element
@@ -276,38 +276,38 @@ size_t compiler_byte_size(ov::element::Type_t et) {
                                std::to_string(static_cast<int>(et)));
 }
 
-namespace ngraph {
+namespace ov {
 template <>
-NGRAPH_API EnumNames<ov::element::Type_t>& EnumNames<ov::element::Type_t>::get() {
-    static auto enum_names = EnumNames<ov::element::Type_t>("ov::element::Type_t",
-                                                            {{"undefined", ov::element::Type_t::undefined},
-                                                             {"dynamic", ov::element::Type_t::dynamic},
-                                                             {"boolean", ov::element::Type_t::boolean},
-                                                             {"bf16", ov::element::Type_t::bf16},
-                                                             {"f16", ov::element::Type_t::f16},
-                                                             {"f32", ov::element::Type_t::f32},
-                                                             {"f64", ov::element::Type_t::f64},
-                                                             {"i4", ov::element::Type_t::i4},
-                                                             {"i8", ov::element::Type_t::i8},
-                                                             {"i16", ov::element::Type_t::i16},
-                                                             {"i32", ov::element::Type_t::i32},
-                                                             {"i64", ov::element::Type_t::i64},
-                                                             {"u1", ov::element::Type_t::u1},
-                                                             {"u4", ov::element::Type_t::u4},
-                                                             {"u8", ov::element::Type_t::u8},
-                                                             {"u16", ov::element::Type_t::u16},
-                                                             {"u32", ov::element::Type_t::u32},
-                                                             {"u64", ov::element::Type_t::u64}});
+NGRAPH_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
+    static auto enum_names = EnumNames<element::Type_t>("element::Type_t",
+                                                        {{"undefined", element::Type_t::undefined},
+                                                         {"dynamic", element::Type_t::dynamic},
+                                                         {"boolean", element::Type_t::boolean},
+                                                         {"bf16", element::Type_t::bf16},
+                                                         {"f16", element::Type_t::f16},
+                                                         {"f32", element::Type_t::f32},
+                                                         {"f64", element::Type_t::f64},
+                                                         {"i4", element::Type_t::i4},
+                                                         {"i8", element::Type_t::i8},
+                                                         {"i16", element::Type_t::i16},
+                                                         {"i32", element::Type_t::i32},
+                                                         {"i64", element::Type_t::i64},
+                                                         {"u1", element::Type_t::u1},
+                                                         {"u4", element::Type_t::u4},
+                                                         {"u8", element::Type_t::u8},
+                                                         {"u16", element::Type_t::u16},
+                                                         {"u32", element::Type_t::u32},
+                                                         {"u64", element::Type_t::u64}});
     return enum_names;
 }
-}  // namespace ngraph
 
-constexpr ngraph::DiscreteTypeInfo ngraph::AttributeAdapter<ov::element::Type_t>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<element::Type_t>::type_info;
 
-const std::string& ngraph::AttributeAdapter<ov::element::Type>::get() {
-    return as_string(static_cast<ov::element::Type_t>(m_ref));
+const std::string& AttributeAdapter<element::Type>::get() {
+    return as_string(static_cast<element::Type_t>(m_ref));
 }
 
-void ngraph::AttributeAdapter<ov::element::Type>::set(const std::string& value) {
-    m_ref = as_enum<ov::element::Type_t>(value);
+void AttributeAdapter<element::Type>::set(const std::string& value) {
+    m_ref = as_enum<element::Type_t>(value);
 }
+}  // namespace ov
