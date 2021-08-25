@@ -75,17 +75,21 @@ protected:
 
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const op::util::NmsBase::SortResultType& type);
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<op::util::NmsBase::SortResultType>
-    : public EnumAttributeAdapterBase<op::util::NmsBase::SortResultType> {
+class NGRAPH_API AttributeAdapter<ngraph::op::util::NmsBase::SortResultType>
+    : public EnumAttributeAdapterBase<ngraph::op::util::NmsBase::SortResultType> {
 public:
-    AttributeAdapter(op::util::NmsBase::SortResultType& value)
-        : EnumAttributeAdapterBase<op::util::NmsBase::SortResultType>(value) {}
+    AttributeAdapter(ngraph::op::util::NmsBase::SortResultType& value)
+        : EnumAttributeAdapterBase<ngraph::op::util::NmsBase::SortResultType>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::util::NmsBase::SortResultType>", 1};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov

@@ -24,7 +24,7 @@ TEST(attributes, elu_op) {
 
     const auto elu = make_shared<opset1::Elu>(data, alpha);
     NodeBuilder builder(elu);
-    auto g_elu = as_type_ptr<opset1::Elu>(builder.create());
+    auto g_elu = ov::as_type_ptr<opset1::Elu>(builder.create());
 
     EXPECT_EQ(g_elu->get_alpha(), elu->get_alpha());
 }

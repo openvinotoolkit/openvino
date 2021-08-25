@@ -36,17 +36,21 @@ public:
     NGRAPH_API Coordinate& operator=(Coordinate&& v) noexcept;
 };
 
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const Coordinate& coordinate);
+}  // namespace ngraph
+
+namespace ov {
 template <>
-class NGRAPH_API AttributeAdapter<Coordinate> : public IndirectVectorValueAccessor<Coordinate, std::vector<int64_t>> {
+class NGRAPH_API AttributeAdapter<ngraph::Coordinate>
+    : public IndirectVectorValueAccessor<ngraph::Coordinate, std::vector<int64_t>> {
 public:
-    AttributeAdapter(Coordinate& value) : IndirectVectorValueAccessor<Coordinate, std::vector<int64_t>>(value) {}
+    AttributeAdapter(ngraph::Coordinate& value)
+        : IndirectVectorValueAccessor<ngraph::Coordinate, std::vector<int64_t>>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Coordinate>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const Coordinate& coordinate);
-}  // namespace ngraph
+}  // namespace ov

@@ -65,7 +65,7 @@ public:
     }
 
     details::SOPointer<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
-                                                               const std::shared_ptr<RemoteContext>& context,
+                                                               const std::shared_ptr<IRemoteContext>& context,
                                                                const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config, context)});
     }
@@ -93,7 +93,7 @@ public:
     }
 
     details::SOPointer<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
-                                                                 const std::shared_ptr<RemoteContext>& context,
+                                                                 const std::shared_ptr<IRemoteContext>& context,
                                                                  const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, context, config)});
     }
@@ -102,12 +102,12 @@ public:
         PLUGIN_CALL_STATEMENT(return _ptr->GetMetric(name, options));
     }
 
-    std::shared_ptr<RemoteContext> CreateContext(const ParamMap& params) {
-        PLUGIN_CALL_STATEMENT(return _ptr->CreateContext(params));
+    details::SOPointer<IRemoteContext> CreateContext(const ParamMap& params) {
+        PLUGIN_CALL_STATEMENT(return {_so, _ptr->CreateContext(params)});
     }
 
-    std::shared_ptr<RemoteContext> GetDefaultContext(const ParamMap& params) {
-        PLUGIN_CALL_STATEMENT(return _ptr->GetDefaultContext(params));
+    details::SOPointer<IRemoteContext> GetDefaultContext(const ParamMap& params) {
+        PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetDefaultContext(params)});
     }
 
     Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {

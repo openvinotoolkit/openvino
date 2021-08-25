@@ -38,43 +38,49 @@ bool ngraph::op::v0::ReverseSequence::visit_attributes(AttributeVisitor& visitor
 
 void op::ReverseSequence::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_ReverseSequence_validate_and_infer_types);
-    auto input_shape = get_input_partial_shape(0);
-    auto input_rank = input_shape.rank();
-
-    m_normalized_batch_axis = ngraph::normalize_axis(this, m_batch_axis, input_rank);
-    m_normalized_seq_axis = ngraph::normalize_axis(this, m_seq_axis, input_rank);
-
-    auto indices_shape = get_input_partial_shape(1);
-    auto indices_rank = indices_shape.rank();
+    const auto& data_pshape = get_input_partial_shape(0);
+    const auto& data_rank = data_pshape.rank();
 
     NODE_VALIDATION_CHECK(this,
-                          indices_rank.is_dynamic() || indices_rank.get_length() == 1,
-                          "Sequence indices must be a 1-dimensional tensor (sequence indices shape: ",
-                          indices_shape,
-                          ").");
+                          data_rank.is_dynamic() || data_rank.get_length() >= 2,
+                          "Data input rank should be equal or greater than 2. Got: ",
+                          data_pshape);
 
-    PartialShape output_shape{input_shape};
+    m_normalized_batch_axis = ngraph::normalize_axis(this, m_batch_axis, data_rank);
+    m_normalized_seq_axis = ngraph::normalize_axis(this, m_seq_axis, data_rank);
 
-    if (input_rank.is_static() && indices_rank.is_static()) {
+    const auto& seq_lengths_et = get_input_element_type(1);
+    const auto& seq_lengths_pshape = get_input_partial_shape(1);
+    const auto& seq_lengths_rank = seq_lengths_pshape.rank();
+
+    NODE_VALIDATION_CHECK(this,
+                          seq_lengths_et.is_real() || seq_lengths_et.is_integral_number(),
+                          "Sequence lengths element type must be numeric type. Got: ",
+                          seq_lengths_et);
+
+    NODE_VALIDATION_CHECK(this,
+                          seq_lengths_rank.compatible(1),
+                          "Sequence lengths rank must be equal to 1. Got: ",
+                          seq_lengths_pshape);
+
+    PartialShape output_pshape{data_pshape};
+    if (data_rank.is_static() && seq_lengths_rank.is_static()) {
         Dimension merged_sequence_length;
-
         NODE_VALIDATION_CHECK(
             this,
-            Dimension::merge(merged_sequence_length, input_shape[m_normalized_batch_axis], indices_shape[0]),
-            "Sequence length (",
-            indices_shape[0],
-            ") is not equal to batch axis ",
-            "dimension (",
-            input_shape[m_normalized_batch_axis],
+            Dimension::merge(merged_sequence_length, data_pshape[m_normalized_batch_axis], seq_lengths_pshape[0]),
+            "Sequence lengths input size (",
+            seq_lengths_pshape[0],
+            ") is not equal to batch axis dimension of data input (",
+            data_pshape[m_normalized_batch_axis],
             ") (argument shape: ",
-            input_shape,
+            data_pshape,
             ", sequence indices shape: ",
-            indices_shape,
+            seq_lengths_pshape,
             ").");
-        output_shape[m_normalized_batch_axis] = merged_sequence_length;
+        output_pshape[m_normalized_batch_axis] = merged_sequence_length;
     }
-
-    set_output_type(0, get_input_element_type(0), output_shape);
+    set_output_type(0, get_input_element_type(0), output_pshape);
 }
 
 shared_ptr<Node> op::ReverseSequence::clone_with_new_inputs(const OutputVector& new_args) const {

@@ -35,22 +35,27 @@ inline std::vector<std::string> separateStrToVec(std::string str, const char sep
     return result;
 }
 
-namespace {
-    std::string timestamp() {
-        auto now = std::chrono::system_clock::now();
-        auto epoch = now.time_since_epoch();
-        auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch);
-        return std::to_string(ns.count());
-    }
+// Load correct network to Plugin to get executable network
+TEST_P(ExecGraphTests, canLoadCorrectNetworkToGetExecutable) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+    InferenceEngine::ExecutableNetwork execNet;
+    ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
+}
 
-    std::string test_name() {
-        std::string test_name =
-            ::testing::UnitTest::GetInstance()->current_test_info()->name();
-        std::replace_if(test_name.begin(), test_name.end(),
-                        [](char c) { return (c == '/' || c == '='); }, '_');
-        return test_name;
+TEST_P(ExecGraphTests,  CanCreateTwoExeNetworks) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+    InferenceEngine::ExecutableNetwork execNet;
+    for (auto i = 0; i < 2; i++) {
+        ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        ASSERT_NE(nullptr, cnnNet.getFunction());
     }
-} // namespace
+}
 
 TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -202,8 +207,9 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    std::string out_xml_path = test_name() + "_" + timestamp() + ".xml";
-    std::string out_bin_path = test_name() + "_" + timestamp() + ".bin";
+    auto ts = CommonTestUtils::GetTimestamp();
+    std::string out_xml_path = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts + ".xml";
+    std::string out_bin_path = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts + ".bin";
 
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);

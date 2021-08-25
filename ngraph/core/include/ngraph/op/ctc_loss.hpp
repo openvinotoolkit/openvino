@@ -11,10 +11,8 @@ namespace op {
 namespace v4 {
 class NGRAPH_API CTCLoss : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"CTCLoss", 0};
-    const NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    NGRAPH_RTTI_DECLARATION;
+
     CTCLoss() = default;
     /// \brief Constructs a CTCLoss operation
     ///

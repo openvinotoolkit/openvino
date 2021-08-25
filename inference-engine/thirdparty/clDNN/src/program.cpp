@@ -506,7 +506,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, options.get<build_option_type::optimize_data>()->enabled());
 
-    if (options.get<build_option_type::optimize_data>()->enabled()) {
+    if (options.get<build_option_type::optimize_data>()->enabled() && get_engine().configuration().n_streams == 1) {
         // Fuse conv + eltw after padding preparations
         apply_opt_pass<prepare_conv_eltw_fusing>(lo, lo.get_optimization_attributes().b_fs_yx_fsv16_network);
 

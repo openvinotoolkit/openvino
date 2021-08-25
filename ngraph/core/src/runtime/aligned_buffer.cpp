@@ -56,9 +56,9 @@ runtime::AlignedBuffer& runtime::AlignedBuffer::operator=(AlignedBuffer&& other)
     return *this;
 }
 
-namespace ngraph {
+namespace ov {
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::type_info;
 
 AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::AttributeAdapter(shared_ptr<runtime::AlignedBuffer>& value)
     : DirectValueAccessor<shared_ptr<runtime::AlignedBuffer>>(value) {}
-}  // namespace ngraph
+}  // namespace ov

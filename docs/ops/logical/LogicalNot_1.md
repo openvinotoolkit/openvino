@@ -2,7 +2,7 @@
 
 **Versioned name**: *LogicalNot-1*
 
-**Category**: Logical unary operation
+**Category**: *Logical unary*
 
 **Short description**: *LogicalNot* performs element-wise logical negation operation with given tensor.
 

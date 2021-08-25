@@ -2,7 +2,7 @@
 
 **Versioned name**: *ShapeOf-3*
 
-**Category**: Shape manipulation
+**Category**: *Shape manipulation*
 
 **Short description**: *ShapeOf* produces 1D tensor with the input tensor shape.
 

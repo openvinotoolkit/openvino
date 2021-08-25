@@ -29,8 +29,10 @@ jobs:
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
+    BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
+    LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
     SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
 
   steps:
@@ -138,6 +140,21 @@ jobs:
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
+  
+  - task: CMake@1
+    inputs:
+      cmakeArgs: >
+        -GNinja
+        $(REPO_DIR)/tests/layer_tests
+      workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+      
+  - script: ninja
+    workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+    displayName: 'Build Layer Tests'
+    
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+    workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+    displayName: 'Install Layer Tests'
 
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
@@ -149,7 +166,7 @@ jobs:
       cp -R $(REPO_DIR)/inference-engine/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
-
+    
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
@@ -160,7 +177,7 @@ jobs:
   - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
-
+  
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
     continueOnError: false
@@ -235,6 +252,16 @@ jobs:
       cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
     displayName: 'Python API Tests'
+    continueOnError: false
+    
+  - script: |
+      . $(SETUPVARS)
+      python3 -m pip install -r requirements.txt
+      export MO_ROOT=$(INSTALL_DIR)/deployment_tools/model_optimizer
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xmlTEST
+    workingDirectory: $(LAYER_TESTS_DIR)
+    displayName: 'Layer Tests'
     continueOnError: false
 
   - task: PublishTestResults@2

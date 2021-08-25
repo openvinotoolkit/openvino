@@ -36,4 +36,4 @@ ngraph::Strides& ngraph::Strides::operator=(Strides&& v) noexcept {
     return *this;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<Strides>::type_info;
+constexpr DiscreteTypeInfo ov::AttributeAdapter<Strides>::type_info;

@@ -2,7 +2,7 @@
 
 **Versioned name**: *RNNCell-3*
 
-**Category**: Sequence processing
+**Category**: *Sequence processing*
 
 **Short description**: *RNNCell* represents a single RNN cell that computes the output using the formula described in the [article](https://hackernoon.com/understanding-architecture-of-lstm-cell-from-scratch-with-code-8da40f0b71f4).
 

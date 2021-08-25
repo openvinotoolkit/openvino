@@ -131,11 +131,11 @@ const std::shared_ptr<IAllocator>& CLDNNRemoteBlobImpl::getAllocator() const noe
 };
 
 std::string CLDNNRemoteBlobImpl::getDeviceName() const noexcept {
-    return getContextImpl(m_context.lock())->GetPlugin().lock()->GetName();
+    return getContextImpl(m_context.lock())->getDeviceName();
 };
 
-std::shared_ptr<RemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept {
-    return std::dynamic_pointer_cast<RemoteContext>(m_context.lock());
+std::shared_ptr<IRemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept {
+    return m_context.lock();
 }
 
 void CLDNNRemoteBlobImpl::lock() const {
@@ -266,7 +266,10 @@ ParamMap CLDNNExecutionContextImpl::getParams() const {
 }
 
 std::string CLDNNExecutionContextImpl::getDeviceName() const noexcept {
-    return m_plugin.lock()->GetName();
+    auto devName = m_plugin.lock()->GetName();
+    if (!m_config.device_id.empty())
+        devName += "." + m_config.device_id;
+    return devName;
 }
 
 };  // namespace CLDNNPlugin

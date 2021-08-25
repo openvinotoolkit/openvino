@@ -60,7 +60,7 @@ JitConstants DetectionOutputKernelRef::GetJitConstants(const detection_output_pa
     return jit;
 }
 
-int GetPartitionStep(int localWorkItemNum) {
+static inline int GetPartitionStep(int localWorkItemNum) {
     int step_size = 0;
     for (int temp = localWorkItemNum; temp > 1; temp /= 2) {
         step_size++;
@@ -68,7 +68,7 @@ int GetPartitionStep(int localWorkItemNum) {
     return step_size;
 }
 
-size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
+static inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
     const size_t optimal_values[] = {16, 8, 7, 6, 5, 4, 2, 1};
     const size_t splitNum = gws[2];
     const size_t globalClassNum = gws[1];
@@ -123,7 +123,7 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
             dispatchData.lws = {1, 1, 1};
         } else {
             dispatchData.gws = {input.Batch().v, 1, 1};
-            dispatchData.lws = {input.Batch().v, 1, 1};
+            dispatchData.lws = {1, 1, 1};
         }
     } else {
         dispatchData.gws = {1, 1, 1};

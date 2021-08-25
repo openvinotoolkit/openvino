@@ -36,6 +36,8 @@ def test_cc_collect(test_id, models, openvino_ref, test_info,
     prev_result = glob.glob(f"{out / test_id}.pid*.csv")
     for path in prev_result:
         os.remove(path)
+    # Create a directory for  infer results, if it haven't done before
+    infer_out_dir.mkdir(parents=True, exist_ok=True)
     # run use case
     return_code, output = cmd_exec(
         [

@@ -24,7 +24,6 @@ public:
                  const Output<Node>& arg1,
                  const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     bool has_evaluate() const override;

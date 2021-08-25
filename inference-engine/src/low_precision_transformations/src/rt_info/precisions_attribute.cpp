@@ -33,7 +33,7 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>> VariantWra
     auto attribute = ngraph::pass::low_precision::make_shared_attribute<PrecisionsAttribute>();
     auto wrapper = std::make_shared<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>(attribute);
 
-    auto& rt = is_type<opset1::FakeQuantize>(node) ? node->output(0).get_rt_info() : node->get_rt_info();
+    auto& rt = ov::is_type<opset1::FakeQuantize>(node) ? node->output(0).get_rt_info() : node->get_rt_info();
     rt[ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name] = wrapper;
     return wrapper;
 }

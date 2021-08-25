@@ -67,6 +67,7 @@ struct engine_configuration {
     bool use_unified_shared_memory;           ///< Enables USM usage
     const std::string kernels_cache_path;     ///< Path to compiled kernels cache
     uint16_t n_threads;                       ///< Max number of host threads used in gpu plugin
+    uint16_t n_streams;                       ///< Number of queues executed in parallel
     const std::string tuning_cache_path;      ///< Path to tuning kernel cache
 
     /// @brief Constructs engine configuration with specified options.
@@ -79,6 +80,7 @@ struct engine_configuration {
     /// @param use_unified_shared_memory If this option it true and device supports USM, then engine will use USM for all memory allocations
     /// @param kernels_cache_path Path to existing directory where plugin can cache compiled kernels
     /// @param n_threads Max number of host threads used in gpu plugin
+    /// @param n_streams Number of queues executed in parallel
     /// @param tuning_cache_path Path to tuning kernel cache
     engine_configuration(
         bool enable_profiling = false,
@@ -90,6 +92,7 @@ struct engine_configuration {
         bool use_unified_shared_memory = true,
         const std::string& kernels_cache_path = "",
         uint16_t n_threads = std::max(static_cast<uint16_t>(std::thread::hardware_concurrency()), static_cast<uint16_t>(1)),
+        uint16_t n_streams = 1,
         const std::string& tuning_cache_path = "cache.json")
         : enable_profiling(enable_profiling)
         , queue_type(queue_type)
@@ -100,6 +103,7 @@ struct engine_configuration {
         , use_unified_shared_memory(use_unified_shared_memory)
         , kernels_cache_path(kernels_cache_path)
         , n_threads(n_threads)
+        , n_streams(n_streams)
         , tuning_cache_path(tuning_cache_path) { }
 };
 

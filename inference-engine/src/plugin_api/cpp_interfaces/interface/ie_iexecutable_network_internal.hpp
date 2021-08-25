@@ -19,7 +19,7 @@ namespace InferenceEngine {
 
 class IInferencePlugin;
 class IInferRequestInternal;
-class RemoteContext;
+class IRemoteContext;
 class IVariableStateInternal;
 
 /**
@@ -85,7 +85,7 @@ public:
      * @brief Get executable graph information from a device
      * @return A network object to store executable graph information
      */
-    virtual CNNNetwork GetExecGraphInfo();
+    virtual std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     /**
      * @deprecated Need to implement GetVariablesInfo for ExecutableNetwork
@@ -125,7 +125,7 @@ public:
      * @brief Gets the remote context.
      * @return A reference to a context
      */
-    virtual std::shared_ptr<RemoteContext> GetContext() const;
+    virtual std::shared_ptr<IRemoteContext> GetContext() const;
 
 protected:
     ~IExecutableNetworkInternal() = default;

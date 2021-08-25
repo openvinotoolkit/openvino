@@ -74,17 +74,21 @@ protected:
 }  // namespace op
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type);
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<op::v8::MatrixNms::DecayFunction>
-    : public EnumAttributeAdapterBase<op::v8::MatrixNms::DecayFunction> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v8::MatrixNms::DecayFunction>
+    : public EnumAttributeAdapterBase<ngraph::op::v8::MatrixNms::DecayFunction> {
 public:
-    AttributeAdapter(op::v8::MatrixNms::DecayFunction& value)
-        : EnumAttributeAdapterBase<op::v8::MatrixNms::DecayFunction>(value) {}
+    AttributeAdapter(ngraph::op::v8::MatrixNms::DecayFunction& value)
+        : EnumAttributeAdapterBase<ngraph::op::v8::MatrixNms::DecayFunction>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v8::MatrixNms::DecayFunction>", 1};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov

@@ -38,10 +38,10 @@ bool is_termination_condition_always_true(const Output<ngraph::Node>& body_out_c
     // value of loop_cond - true
     // Identity op for boolean value is represented by LogicalOr op whose second
     // input is always false
-    if (is_type<default_opset::LogicalOr>(body_out_cond.get_node_shared_ptr())) {
+    if (ov::is_type<default_opset::LogicalOr>(body_out_cond.get_node_shared_ptr())) {
         const auto second_input = body_out_cond.get_node_shared_ptr()->input_value(1).get_node_shared_ptr();
         if (ngraph::op::is_constant(second_input) && second_input->get_element_type() == element::boolean &&
-            as_type_ptr<default_opset::Constant>(second_input)->cast_vector<bool>().at(0) == false) {
+            ov::as_type_ptr<default_opset::Constant>(second_input)->cast_vector<bool>().at(0) == false) {
             return true;
         }
     }
@@ -74,7 +74,7 @@ OutputVector loop(const Node& node) {
     // trip count skipped or has value max(int64_t) means infinitive loop
     if (ngraph::op::is_null(ng_inputs.at(0)) ||
         (ngraph::op::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
-         as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())->cast_vector<int64_t>()[0] ==
+         ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())->cast_vector<int64_t>()[0] ==
              std::numeric_limits<int64_t>::max())) {
         // -1 means infinite Loop
         trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {-1});
@@ -87,8 +87,8 @@ OutputVector loop(const Node& node) {
     {
         termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
     } else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
-               as_type_ptr<default_opset::Constant>(ng_inputs.at(1).get_node_shared_ptr())->cast_vector<bool>()[0] ==
-                   false) {
+               ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(1).get_node_shared_ptr())
+                       ->cast_vector<bool>()[0] == false) {
         // no iteration is performed so initial values are returned
         OutputVector node_outputs;
         // final values

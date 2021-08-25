@@ -46,7 +46,7 @@ pass::Manager::~Manager() {}
 pass::Manager::Manager(std::shared_ptr<ngraph::pass::PassConfig> pass_config) : m_pass_config(std::move(pass_config)) {}
 
 void pass::Manager::run_passes(shared_ptr<Function> func) {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::Manager::run_passes");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::Manager::run_passes");
 
     static bool profile_enabled = getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
 
@@ -62,7 +62,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func) {
         }
 
         OV_ITT_SCOPE(FIRST_INFERENCE,
-                     itt::domains::nGraphPass_LT,
+                     ov::itt::domains::nGraphPass_LT,
                      pass::internal::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();

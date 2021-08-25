@@ -46,7 +46,8 @@ VERIFIED_OP_REFERENCES = [
     'GatherElements-6',
     'GatherND-5',
     'Gelu-7',
-    'Greater-1'
+    'Greater-1',
+    'GreaterEqual-1',
     'GRN-1',
     'GroupConvolution-1',
     'GroupConvolutionBackpropData-1',
@@ -100,6 +101,7 @@ VERIFIED_OP_REFERENCES = [
     'Relu-1',
     'ReorgYOLO-2',
     'Result-1'
+    'ReverseSequence-1',
     'Round-5',
     'SpaceToDepth-1',
     'ScatterNDUpdate-4',

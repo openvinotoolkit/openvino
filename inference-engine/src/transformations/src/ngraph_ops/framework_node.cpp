@@ -95,8 +95,8 @@ void op::FrameworkNode::validate_and_infer_types() {
     }
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::FrameworkNodeAttrs>::type_info;
+constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<op::FrameworkNodeAttrs>::type_info;
 
-AttributeAdapter<op::FrameworkNodeAttrs>::AttributeAdapter(
+ov::AttributeAdapter<op::FrameworkNodeAttrs>::AttributeAdapter(
     op::FrameworkNodeAttrs& value)
     : DirectValueAccessor<op::FrameworkNodeAttrs>(value) {}

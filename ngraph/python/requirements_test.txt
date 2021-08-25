@@ -4,7 +4,7 @@ flake8-comprehensions==3.3.0
 flake8-docstrings==1.6.0
 flake8-quotes==3.2.0
 mypy==0.812
-onnx==1.8.1
+onnx==1.10.1
 pydocstyle==5.1.1
 pytest-xdist==2.2.1
 pytest==6.1.2

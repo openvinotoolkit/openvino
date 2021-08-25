@@ -40,16 +40,21 @@ private:
 };
 using VariablePtr = std::shared_ptr<Variable>;
 using VariableVector = std::vector<VariablePtr>;
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<std::shared_ptr<Variable>> : public DirectValueAccessor<std::shared_ptr<Variable>> {
+class NGRAPH_API AttributeAdapter<std::shared_ptr<ngraph::Variable>>
+    : public DirectValueAccessor<std::shared_ptr<ngraph::Variable>> {
 public:
-    explicit AttributeAdapter(std::shared_ptr<Variable>& value)
-        : DirectValueAccessor<std::shared_ptr<Variable>>(value) {}
+    explicit AttributeAdapter(std::shared_ptr<ngraph::Variable>& value)
+        : DirectValueAccessor<std::shared_ptr<ngraph::Variable>>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Variable>>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov

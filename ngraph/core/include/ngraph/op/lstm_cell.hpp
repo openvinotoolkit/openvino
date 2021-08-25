@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "ngraph/node.hpp"
+#include "ngraph/op/op.hpp"
 #include "ngraph/op/util/activation_functions.hpp"
-#include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"
 
 namespace ngraph {
@@ -192,9 +192,9 @@ public:
              float clip = 0.f,
              bool input_forget = false);
 
-    virtual void validate_and_infer_types() override;
+    void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool get_input_forget() const {
         return m_input_forget;
@@ -383,15 +383,21 @@ private:
 
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const op::LSTMWeightsFormat& type);
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<op::LSTMWeightsFormat> : public EnumAttributeAdapterBase<op::LSTMWeightsFormat> {
+class NGRAPH_API AttributeAdapter<ngraph::op::LSTMWeightsFormat>
+    : public EnumAttributeAdapterBase<ngraph::op::LSTMWeightsFormat> {
 public:
-    AttributeAdapter(op::LSTMWeightsFormat& value) : EnumAttributeAdapterBase<op::LSTMWeightsFormat>(value) {}
+    AttributeAdapter(ngraph::op::LSTMWeightsFormat& value)
+        : EnumAttributeAdapterBase<ngraph::op::LSTMWeightsFormat>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::LSTMWeightsFormat>", 1};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov

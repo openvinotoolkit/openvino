@@ -79,7 +79,7 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
     while (!nodes.empty()) {
         auto curr_node = nodes.front();
         nodes.pop_front();
-        if (visited.count(curr_node) || is_type<op::Constant>(curr_node))
+        if (visited.count(curr_node) || ov::is_type<op::Constant>(curr_node))
             continue;
         visited.insert(curr_node);
 
@@ -100,7 +100,7 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
             if (status && input_value.get_tensor().has_and_set_bound()) {
                 auto input_node = input_value.get_node_shared_ptr();
                 auto replacement = std::make_shared<op::Constant>(input_value.get_tensor().get_lower_value());
-                if (replacement && !is_type<op::Constant>(input_node)) {
+                if (replacement && !ov::is_type<op::Constant>(input_node)) {
                     if (input_node->get_output_size() == 1) {
                         replacement->set_friendly_name(input_node->get_friendly_name());
                     } else {

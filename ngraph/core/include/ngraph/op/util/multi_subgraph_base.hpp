@@ -295,6 +295,9 @@ using MultiSubgraphOutputDescriptionVector = util::MultiSubGraphOp::MultiSubgrap
 
 }  // namespace util
 }  // namespace op
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
 class NGRAPH_API AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>
@@ -317,4 +320,5 @@ public:
 
     NGRAPH_RTTI_DECLARATION;
 };
-}  // namespace ngraph
+
+}  // namespace ov

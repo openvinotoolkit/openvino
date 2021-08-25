@@ -193,7 +193,7 @@ void op::util::BroadcastBase::validate_and_infer_types() {
     PartialShape output_shape;
     bool output_shape_defined = evaluate_as_partial_shape(get_input_source_output(1), output_shape);
 
-    if (auto concat = as_type_ptr<op::v0::Concat>(input_value(1).get_node_shared_ptr())) {
+    if (auto concat = ov::as_type_ptr<op::v0::Concat>(input_value(1).get_node_shared_ptr())) {
         auto concat_inputs = concat->inputs();
 
         if (!output_shape_defined && concat->get_output_partial_shape(0).is_static() &&
@@ -201,7 +201,7 @@ void op::util::BroadcastBase::validate_and_infer_types() {
             auto output_partial_shape = vector<Dimension>{};
             for (const auto& concat_input : concat_inputs) {
                 auto source_node_ptr = concat_input.get_source_output().get_node_shared_ptr();
-                if (auto source_const_ptr = as_type_ptr<op::v0::Constant>(source_node_ptr)) {
+                if (auto source_const_ptr = ov::as_type_ptr<op::v0::Constant>(source_node_ptr)) {
                     output_partial_shape.push_back(source_const_ptr->get_axis_vector_val()[0]);
                 } else {
                     output_partial_shape.push_back(Dimension::dynamic());
@@ -428,7 +428,7 @@ bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
 
 Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const {
     Shape target_shape;
-    const auto shape_constant = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
+    const auto shape_constant = ov::as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
     if (shape_constant) {
         target_shape = shape_constant->get_shape_val();
     } else {
@@ -450,7 +450,7 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, const Ho
 
     if (m_mode.m_type == BroadcastType::NONE) {
         AxisVector axes_mapping_val;
-        const auto axes_mapping_constant = as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
+        const auto axes_mapping_constant = ov::as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
         if (axes_mapping_constant) {
             axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
         } else {

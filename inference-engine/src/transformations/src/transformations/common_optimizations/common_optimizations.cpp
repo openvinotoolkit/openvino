@@ -44,6 +44,7 @@
 #include "transformations/common_optimizations/split_squeeze_concat_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/common_optimizations/strides_optimization.hpp"
+#include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -66,7 +67,6 @@
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
-#include "transformations/op_conversions/convert_previous_nms_to_nms_5.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
 #include "transformations/op_conversions/mvn6_decomposition.hpp"
@@ -78,6 +78,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
+#include <transformations/op_conversions/normalize_l2_decomposition.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
@@ -90,6 +91,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
+    manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>(); // workaround until dynamism in NMS is not supported
 
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
@@ -160,6 +162,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::MVN6Decomposition>();
+    decomp->add_matcher<ngraph::pass::NormalizeL2Decomposition, false>();
     decomp->add_matcher<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
     decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
