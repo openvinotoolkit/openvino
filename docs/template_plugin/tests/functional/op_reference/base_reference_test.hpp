@@ -55,6 +55,26 @@ InferenceEngine::Blob::Ptr CreateBlob(const ngraph::element::Type& element_type,
     return blob;
 }
 
+template <class T>
+InferenceEngine::Blob::Ptr CreateBlob(const ngraph::element::Type& element_type, const ngraph::PartialShape pshape,
+                                      const std::vector<T>& values, size_t size = 0) {
+    size_t real_size = size ? size : values.size() * sizeof(T) / element_type.size();
+    if (real_size != ngraph::shape_size(pshape.to_shape())) {
+        throw std::runtime_error("Invalid shape and number of elements");
+    }
+    auto layout = pshape.same_scheme(ngraph::Shape{}) ? InferenceEngine::Layout::SCALAR : InferenceEngine::Layout::ANY;
+    auto blob = make_blob_with_precision(
+        InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(element_type), pshape.to_shape(), layout));
+    blob->allocate();
+    InferenceEngine::MemoryBlob::Ptr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+    IE_ASSERT(minput);
+    auto minputHolder = minput->wmap();
+
+    std::memcpy(minputHolder.as<void*>(), values.data(), std::min(real_size * element_type.size(), sizeof(T) * values.size()));
+
+    return blob;
+}
+
 ///
 /// Class which should help to build data for single input
 ///
@@ -65,7 +85,7 @@ struct Tensor {
 
     template <typename T>
     Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const std::vector<T>& data_elements)
-        : Tensor {shape, type, CreateBlob(type, data_elements)} {}
+        : Tensor {shape, type, CreateBlob(type, shape, data_elements)} {}
 
     ngraph::Shape shape;
     ngraph::element::Type type;

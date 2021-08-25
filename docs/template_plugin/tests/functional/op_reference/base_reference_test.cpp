@@ -102,6 +102,7 @@ void CommonReferenceTest::ValidateBlobs(const InferenceEngine::Blob::Ptr& refBlo
     ASSERT_TRUE(outBlob != nullptr);
     ASSERT_EQ(refBlob->getTensorDesc().getPrecision(), outBlob->getTensorDesc().getPrecision());
     ASSERT_EQ(refBlob->byteSize(), outBlob->byteSize());
+    ASSERT_EQ(refBlob->getTensorDesc().getDims(), outBlob->getTensorDesc().getDims());
 
     auto mRef = as<InferenceEngine::MemoryBlob>(refBlob);
     IE_ASSERT(mRef);
