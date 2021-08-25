@@ -118,6 +118,12 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
             auto conv_input = conv->input(0);
             insert_strides_prop(conv_input, conv_strides);
         } else {
+            // Retain original padding
+            // Make sure that setting strides does not change padding in cases when auto_pad is not EXPLICIT.
+            // When padding type is not EXPLICIT, strides make a role to paddings calculation.
+            // Change in padding, results in change in image position that filter is applied,
+            // so we may end up with unwanted results after that.
+            conv->set_auto_pad(op::PadType::EXPLICIT);
             conv->set_strides(conv_strides);
         }
 
