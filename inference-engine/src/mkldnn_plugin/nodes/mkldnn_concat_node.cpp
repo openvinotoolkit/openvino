@@ -80,7 +80,7 @@ void MKLDNNConcatNode::getSupportedDescriptors() {
     }
 
     // we need the first dims before axis to be 1 to avoid the reorder in the edge between the first parent and this concat
-    const auto childDims = outputShapes[0].getStaticDims();
+    const auto& childDims = outputShapes[0].getStaticDims();
     if (std::all_of(childDims.begin(), childDims.begin() + axis, [](size_t dim) { return  dim == 1; }))
         canBeInPlace = true;
 }
