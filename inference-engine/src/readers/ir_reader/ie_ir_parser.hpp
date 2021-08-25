@@ -64,31 +64,10 @@ public:
     CNNNetwork parse(
         const pugi::xml_node& root, const Blob::CPtr& weights) override;
 
-    struct GenericLayerParams {
-        struct LayerPortData {
-            size_t portId;
-            std::vector<ngraph::Dimension> dims;
-            ngraph::element::Type_t precision;
-            std::unordered_set<std::string> names;
-        };
-        size_t layerId;
-        std::string version;
-        std::string name;
-        std::string type;
-        std::vector<LayerPortData> inputPorts;
-        std::vector<LayerPortData> outputPorts;
-
-        size_t getRealInputPortId(size_t id) const;
-
-        size_t getRealOutputPortId(size_t id) const;
-    };
-
 private:
     void parsePreProcess(
         CNNNetwork& network, const pugi::xml_node& root, const Blob::CPtr& weights);
 
-    std::unordered_map<std::string, ngraph::OpSet> opsets;
-    std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
     const std::vector<IExtensionPtr> _exts;
 };
 
