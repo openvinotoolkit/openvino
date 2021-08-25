@@ -6,16 +6,14 @@
 
 **Short description**: *Slice* operation extracts a slice of the input tensor.
 
-**Detailed Description**
+**Detailed Description**: *Slice* operation selects a region of values from the `data` tensor.
+Selected values start at indexes provided in the `start` input and end
+at indexes provides in `stop` input (exclusively).
 
-*Slice* operation selects a region of values from the `data` tensor. 
-Selected values start at indexes  provided in the `start` and end 
-at indexes provides in `stop` (exclusively).
+Optional `step` input allows subsampling of `data`, selecting evey *n*-th element,
+where `n` is equal to `step` element for corresponding axis.
 
-Optional `step` input allows subsampling of `data`, selecting evey *n*-th element, 
-where `n=step`.
-
-Optional `axes` input allows specifying slice indexes only on selected axes. 
+Optional `axes` input allows specifying slice indexes only on selected axes.
 Other axes will not be affected and will be output in full.
 
 **Inputs**
