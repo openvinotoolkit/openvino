@@ -42,8 +42,8 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
 
     auto reshape_pattern = pattern_to_output.at(reshape_pattern_label).get_node_shared_ptr();
     new_reshape_pattern->set_friendly_name(reshape_pattern->get_friendly_name());
-    copy_runtime_info(reshape_pattern, new_reshape_pattern);
-    replace_node(reshape_pattern, new_reshape_pattern);
+    ngraph::copy_runtime_info(reshape_pattern, new_reshape_pattern);
+    ngraph::replace_node(reshape_pattern, new_reshape_pattern);
     return true;
 }
 
