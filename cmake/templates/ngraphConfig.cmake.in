@@ -59,8 +59,6 @@ if(ngraph_onnx_importer_FOUND)
 endif()
 
 set(ngraph_paddlepaddle_frontend_FOUND @NGRAPH_PDPD_FRONTEND_ENABLE@)
-if(ngraph_paddlepaddle_frontend_FOUND AND NOT TARGET paddlepaddle_ngraph_frontend)
-    set_imported_global(ngraph::paddlepaddle_ngraph_frontend)
-endif()
+set(ngraph_tensorflow_frontend_FOUND @NGRAPH_TF_FRONTEND_ENABLE@)
 
 check_required_components(ngraph)
