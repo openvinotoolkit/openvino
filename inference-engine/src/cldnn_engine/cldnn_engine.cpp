@@ -617,7 +617,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
 }
 
 IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                const RemoteContext::Ptr &context,
+                                                                const IRemoteContext::Ptr &context,
                                                                 const std::map<std::string, std::string> &config) {
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
@@ -634,30 +634,28 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     return std::make_shared<CLDNNExecNetwork>(transformedNetwork, casted, conf);
 }
 
-RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
+IRemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     // parameter map is non-empty
     std::string contextTypeStr = _StrFromParams(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
     if (GPU_PARAM_VALUE(OCL) == contextTypeStr) {
-        auto context = std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
-        return std::dynamic_pointer_cast<RemoteContext>(context);
+        return std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
     } else if (GPU_PARAM_VALUE(VA_SHARED) == contextTypeStr) {
 #ifdef _WIN32
-        auto context = std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
+        return std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
 #else
-        auto context = std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
+        return std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
 #endif
-        return std::dynamic_pointer_cast<RemoteContext>(context);
     } else {
         IE_THROW() << "Invalid remote context type" << contextTypeStr;
     }
 }
 
-RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
+IRemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
     if (nullptr == m_defaultContext) {
         m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_config));
     }
-    return std::dynamic_pointer_cast<RemoteContext>(m_defaultContext);
+    return m_defaultContext;
 }
 
 void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {

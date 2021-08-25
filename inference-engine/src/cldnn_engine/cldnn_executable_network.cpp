@@ -32,7 +32,7 @@ using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
 
-CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteContext::Ptr context, Config config) :
+CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<IRemoteContext> context, Config config) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]()->InferenceEngine::ITaskExecutor::Ptr {
         if (config.throughput_streams > 1) {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
@@ -135,7 +135,7 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
     }
 }
 
-RemoteContext::Ptr CLDNNExecNetwork::GetContext() const {
+std::shared_ptr<IRemoteContext> CLDNNExecNetwork::GetContext() const {
     return m_context;
 }
 
