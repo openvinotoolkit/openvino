@@ -13,21 +13,20 @@
 namespace vpu {
 
 struct DeviceResources {
-    static int numShaves(const ncDevicePlatform_t& platform);
-    static int numSlices(const ncDevicePlatform_t& platform);
+    static int numShaves();
+    static int numSlices();
     static int numStreams();
 };
 
 struct DefaultAllocation {
-    static int numStreams(const ncDevicePlatform_t& platform, const PluginConfiguration& configuration);
-    static int numSlices(const ncDevicePlatform_t& platform, int numStreams);
-    static int numShaves(const ncDevicePlatform_t& platform, int numStreams, int numSlices);
+    static int numStreams(const PluginConfiguration& configuration);
+    static int numSlices(int numStreams);
+    static int numShaves(int numStreams, int numSlices);
     static int tilingCMXLimit(int numSlices);
 };
 
 struct CompileEnv final {
 public:
-    ncDevicePlatform_t platform;
     Resources resources;
 
     PluginConfiguration config;
@@ -50,14 +49,13 @@ public:
     static const CompileEnv* getOrNull();
 
     static void init(
-        ncDevicePlatform_t platform,
         const PluginConfiguration& config,
         const Logger::Ptr& log);
     static void updateConfig(const PluginConfiguration& config);
     static void free();
 
 private:
-    explicit CompileEnv(ncDevicePlatform_t platform);
+    CompileEnv();
 };
 
 }  // namespace vpu

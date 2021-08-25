@@ -23,8 +23,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_axis_0_uint8)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_axis_0_uint8) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2, 3, 4};
     Shape out_shape{2, 2, 3, 4, 2};
@@ -36,20 +35,18 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_axis_0_uint8)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<uint8_t>({10, 11, 20, 21, 30, 31});
-    test_case.add_input<int32_t>({0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2,
-                                  0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2,
-                                  0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2});
+    test_case.add_input<int32_t>({0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2,
+                                  0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2});
     test_case.add_expected_output<uint8_t>(
-        out_shape, {10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21,
-                    20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
-                    10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21,
-                    20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
-                    10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31});
+        out_shape,
+        {10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
+         10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
+         10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
+         10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_axis_0_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_axis_0_2d_input) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2, 3, 4};
     Shape out_shape{2, 2, 3, 4, 2};
@@ -152,8 +149,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_axis_0_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_3d_indices_axis_0_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_3d_indices_axis_0_2d_input) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 3, 4};
     Shape out_shape{2, 3, 4, 2};
@@ -211,8 +207,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_3d_indices_axis_0_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_axis_0_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_axis_0_2d_input) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -240,8 +235,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_axis_0_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_2d_negative_and_positive_indices_axis_0_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_2d_negative_and_positive_indices_axis_0_2d_input) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -273,8 +267,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_2d_negative_and_positive_indices_axis_0_2d_i
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_axis_0_1d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_axis_0_1d_input) {
     Shape data_shape{3};
     Shape indices_shape{2};
     Shape out_shape{2};
@@ -291,8 +284,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_axis_0_1d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_axis_0_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_axis_0_2d_input) {
     Shape data_shape{3, 2};
     Shape indices_shape{};
     Shape out_shape{2};
@@ -309,8 +301,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_axis_0_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_axis_1_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_axis_1_2d_input) {
     Shape data_shape{3, 3};
     Shape indices_shape{1, 2};
     Shape out_shape{3, 1, 2};
@@ -337,8 +328,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_axis_1_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_axis_2_4d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_axis_2_4d_input) {
     Shape data_shape{2, 2, 3, 3};
     Shape indices_shape{2};
     Shape out_shape{2, 2, 2, 3};
@@ -386,8 +376,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_axis_2_4d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_axis_1_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_axis_1_2d_input) {
     Shape data_shape{3, 3};
     Shape indices_shape{};
     Shape out_shape{3};
@@ -404,8 +393,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_axis_1_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int8)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int8) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -422,8 +410,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int8)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int16)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int16) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -440,8 +427,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int16)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int32) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -466,8 +452,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int32)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int64) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -484,8 +469,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int64)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint8)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint8) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -502,8 +486,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint8)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint16)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint16) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -520,8 +503,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint16)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint32) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -538,8 +520,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint32)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint64) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -556,8 +537,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint64)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_4d_indices_axis_0_uint8)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_4d_indices_axis_0_uint8) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2, 3, 4};
     Shape out_shape{2, 2, 3, 4, 2};
@@ -569,20 +549,18 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_4d_indices_axis_0_uint8)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<uint8_t>({10, 11, 20, 21, 30, 31});
-    test_case.add_input<int32_t>({0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2,
-                                  0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2,
-                                  0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2});
+    test_case.add_input<int32_t>({0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2,
+                                  0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2, 0, 1, 1, 2});
     test_case.add_expected_output<uint8_t>(
-            out_shape, {10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21,
-                        20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
-                        10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21,
-                        20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
-                        10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31});
+        out_shape,
+        {10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
+         10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
+         10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31,
+         10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31, 10, 11, 20, 21, 20, 21, 30, 31});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_4d_indices_axis_0_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_4d_indices_axis_0_2d_input) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2, 3, 4};
     Shape out_shape{2, 2, 3, 4, 2};
@@ -685,8 +663,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_4d_indices_axis_0_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_3d_indices_axis_0_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_3d_indices_axis_0_2d_input) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 3, 4};
     Shape out_shape{2, 3, 4, 2};
@@ -744,8 +721,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_3d_indices_axis_0_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_1d_int32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_1d_int32) {
     Shape data_shape{3};
     Shape indices_shape{2};
     Shape out_shape{2};
@@ -764,8 +740,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_1d_int32)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_2d_indices_axis_0_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_2d_indices_axis_0_2d_input) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -793,8 +768,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_2d_indices_axis_0_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_2d_negative_and_positive_indices_axis_0_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_2d_negative_and_positive_indices_axis_0_2d_input) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -826,8 +800,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_2d_negative_and_positive_indices_axis_0_2
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_1d_indices_axis_0_1d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_1d_indices_axis_0_1d_input) {
     Shape data_shape{3};
     Shape indices_shape{2};
     Shape out_shape{2};
@@ -844,8 +817,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_1d_indices_axis_0_1d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_scalar_indices_axis_0_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_scalar_indices_axis_0_2d_input) {
     Shape data_shape{3, 2};
     Shape indices_shape{};
     Shape out_shape{2};
@@ -862,8 +834,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_scalar_indices_axis_0_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_2d_indices_axis_1_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_2d_indices_axis_1_2d_input) {
     Shape data_shape{3, 3};
     Shape indices_shape{1, 2};
     Shape out_shape{3, 1, 2};
@@ -890,8 +861,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_2d_indices_axis_1_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_1d_indices_axis_2_4d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_1d_indices_axis_2_4d_input) {
     Shape data_shape{2, 2, 3, 3};
     Shape indices_shape{2};
     Shape out_shape{2, 2, 2, 3};
@@ -939,8 +909,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_1d_indices_axis_2_4d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_scalar_indices_axis_1_2d_input)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_scalar_indices_axis_1_2d_input) {
     Shape data_shape{3, 3};
     Shape indices_shape{};
     Shape out_shape{3};
@@ -957,8 +926,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_scalar_indices_axis_1_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_int8)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_int8) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -975,8 +943,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_int8)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_int16)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_int16) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -993,8 +960,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_int16)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_int32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_int32) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -1019,8 +985,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_int32)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_int64) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -1037,8 +1002,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_int64)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_uint8)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_uint8) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -1055,8 +1019,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_uint8)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_uint16)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_uint16) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -1073,8 +1036,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_uint16)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_uint32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_uint32) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -1091,8 +1053,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_uint32)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_uint64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_uint64) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -1109,8 +1070,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_uint64)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_bool)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_bool) {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
@@ -1127,8 +1087,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_axis_0_bool)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_3d_indices_axis_1_batch_dims_1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_3d_indices_axis_1_batch_dims_1) {
     Shape data_shape{2, 3};
     Shape indices_shape{2, 2, 2};
     Shape out_shape{2, 2, 2};
@@ -1160,8 +1119,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_3d_indices_axis_1_batch_dims_1
     // clang-format on
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_2d_indices_axis_1_batch_dims_1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_2d_indices_axis_1_batch_dims_1) {
     Shape data_shape{2, 5};
     Shape indices_shape{2, 3};
     Shape out_shape{2, 3};
@@ -1187,8 +1145,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_2d_indices_axis_1_batch_dims_1
     // clang-format on
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_2d_indices_axis_1_negative_batch_dims)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_2d_indices_axis_1_negative_batch_dims) {
     Shape data_shape{2, 5};
     Shape indices_shape{2, 3};
     Shape out_shape{2, 3};
@@ -1214,8 +1171,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_data_int32_2d_indices_axis_1_negative_bat
     // clang-format on
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_4d_data_axis_2_batch_dims_1_int32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_4d_data_axis_2_batch_dims_1_int32) {
     Shape data_shape{2, 1, 5, 4};
     Shape indices_shape{2, 3};
     Shape out_shape{2, 1, 3, 4};
@@ -1261,8 +1217,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_v7_4d_data_axis_2_batch_dims_1_int32)
     // clang-format on
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_v7_3d_indices_axis_1_batch_dims_1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, gather_v7_3d_indices_axis_1_batch_dims_1) {
     Shape data_shape{2, 5, 2};
     Shape indices_shape{2, 2, 3};
     Shape out_shape{2, 2, 3, 2};

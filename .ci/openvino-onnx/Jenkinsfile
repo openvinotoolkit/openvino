@@ -113,8 +113,8 @@ def buildDockerImage(Map configuration, String workdir) {
         --build-arg BUILD_TYPE=${configuration.build_type} \
         --build-arg PROTOBUF_LITE=${configuration.protobuf_lite} \
         --file=.ci/openvino-onnx/Dockerfile \
-        --build-arg http_proxy=http://proxy-ir.intel.com:911/ \
-        --build-arg https_proxy=http://proxy-ir.intel.com:911/ .
+        --build-arg http_proxy=${HTTP_PROXY}  \
+        --build-arg https_proxy=${HTTPS_PROXY} .
     """
 }
 

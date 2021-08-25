@@ -54,6 +54,7 @@
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "transformations/remove_extra_reshapes.hpp"
@@ -65,6 +66,7 @@
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/decompose_2d_conv.hpp"
 #include "transformations/convert_padded2valid_conv.hpp"
+#include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -679,6 +681,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         InitGNADevice();
     }
 
+    bool isNgraphPassesUsed = false;
+
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
@@ -687,6 +691,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ConvertPadded2ValidConv>();
         if (config.gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
             manager.register_pass<Decompose2DConvTransposedWithBiasAF>();
@@ -703,9 +708,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SplitConvolutionWithBias>();
         manager.register_pass<SplitConvolution>();
         manager.register_pass<HandleTransposesAroundMatMul>();
-        manager.register_pass<SwapInputMatMul>();
-        manager.register_pass<SwapInputMatMulWithBias>();
         manager.register_pass<SwapInputMatMulWithFq>();
+        manager.register_pass<SwapInputMatMulWithBias>();
+        manager.register_pass<SwapInputMatMul>();
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
@@ -727,8 +732,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::ReluFakeQuantizeFusion>();
         // Consider to enable after per-channel quantization on FakeQuantize layer is supported in GNAPlugin, see issue 52034
         pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
+        // TransposeReduction can be enabled when Transpose-Conv-Transpose patterns will be handled in ngraph transformations
+        pass_config->disable<ngraph::pass::TransposeReduction>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
+
+        isNgraphPassesUsed = true;
     }
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
@@ -759,7 +768,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
-        passes->registerPass<UnrollLSTMCellPass>();
+        if (!isNgraphPassesUsed)
+            passes->registerPass<UnrollLSTMCellPass>();
         passes->registerPass<RemoveSingleInputConcatPass>();
 
         // fake quantisation aware passes
@@ -1575,6 +1585,18 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
             outputsDataMap,
             transpose_inputs_info,
             transpose_outputs_info);
+
+    // If scale factors are defined in configuration we still need to use them instead of imported values,
+    // for example to change the scale factors for the old models.
+    if (!config.inputScaleFactors.empty()) {
+        IE_ASSERT(config.inputScaleFactors.size() == inputsDesc->inputScaleFactors.size());
+        for (size_t i = 0; i < config.inputScaleFactors.size(); ++i) {
+            if (config.inputScaleFactors[i] != GNAPluginNS::kScaleFactorDefault) {
+                gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << i << std::endl;
+                inputsDesc->inputScaleFactors[i] = config.inputScaleFactors[i];
+            }
+        }
+    }
 
 #if GNA_LIB_VER == 2
     auto getOrientation = [](Gna2Operation & gnaOperation) {

@@ -31,9 +31,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-
-NGRAPH_TEST(${BACKEND_NAME}, sinh)
-{
+NGRAPH_TEST(${BACKEND_NAME}, sinh) {
     Shape shape{8};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Sinh>(A), ParameterVector{A});
@@ -41,25 +39,23 @@ NGRAPH_TEST(${BACKEND_NAME}, sinh)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({-4, -3, -2, -1, 0, 1, 2, 3});
     test_case.add_expected_output<float>(
-        shape, {sinhf(-4), sinhf(-3), sinhf(-2), sinhf(-1), sinhf(0), sinhf(1), sinhf(2), sinhf(3)});
+        shape,
+        {sinhf(-4), sinhf(-3), sinhf(-2), sinhf(-1), sinhf(0), sinhf(1), sinhf(2), sinhf(3)});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, sinh_negative)
-{
+NGRAPH_TEST(${BACKEND_NAME}, sinh_negative) {
     Shape shape{5};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Sinh>(A), ParameterVector{A});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({-4, -3, -2, -1, -5});
-    test_case.add_expected_output<float>(
-        shape, {sinhf(-4), sinhf(-3), sinhf(-2), sinhf(-1), sinhf(-5)});
+    test_case.add_expected_output<float>(shape, {sinhf(-4), sinhf(-3), sinhf(-2), sinhf(-1), sinhf(-5)});
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, sinh_scalar)
-{
+NGRAPH_TEST(${BACKEND_NAME}, sinh_scalar) {
     Shape shape{};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Sinh>(A), ParameterVector{A});
@@ -72,8 +68,7 @@ NGRAPH_TEST(${BACKEND_NAME}, sinh_scalar)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, sinh_in_place)
-{
+NGRAPH_TEST(${BACKEND_NAME}, sinh_in_place) {
     Shape shape{2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto T = make_shared<op::Sinh>(A);
@@ -89,10 +84,10 @@ NGRAPH_TEST(${BACKEND_NAME}, sinh_in_place)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, sinh_i32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, sinh_i32) {
     Shape shape{5};
-    auto A = make_shared<op::Parameter>(element::i32, shape);;
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    ;
     auto f = make_shared<Function>(make_shared<op::Sinh>(A), ParameterVector{A});
 
     const vector<int32_t> input{2, 1, 0, -1, -2};

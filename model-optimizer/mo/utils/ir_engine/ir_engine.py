@@ -208,6 +208,7 @@ class IREngine(object):
         for attr in layer:
             if attr.tag == 'data':
                 new_attrs = self.__normalize_attrs(attr.attrib)
+                new_attrs['ir_data_attrs'] = attr.attrib
                 if layer.attrib['type'] == 'Const':
                     assert 'offset' in new_attrs and 'size' in new_attrs, \
                         'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(), ['offset', 'size'])
@@ -239,34 +240,8 @@ class IREngine(object):
                 xml_body_child = list(layer.iterfind('body'))
                 assert len(xml_body_child) == 1
 
-                body_ir = IREngine(path_to_xml=None,
-                                   path_to_bin=self.path_to_bin,
-                                   xml_tree=ElementTree(xml_body_child[0]))
-                self.graph.graph['hashes'].update(body_ir.graph.graph['hashes'])
-
-                # Find port_map section and take an input_port_map & output_port_map
-                xml_port_map = list(layer.iterfind('port_map'))
-                if not len(xml_port_map) == 1:
-                    log.warning("TensorIterator body won\'t be compared due to missing port_map section!")
-                    continue
-                xml_port_map = xml_port_map[0]
-
-                input_layers = []
-                input_port_map = []
-                output_port_map = []
-
-                for port in xml_port_map:
-                    if port.tag == 'input':
-                        if 'internal_layer_id' not in port.attrib:
-                            log.warning("internal_layer_id attrib not found in input section")
-                        else:
-                            input_layers.append(Node(body_ir.graph, port.attrib['internal_layer_id']))
-                            input_port_map.append(self.__normalize_attrs(port.attrib))
-                    elif port.tag == 'output':
-                        if 'internal_layer_id' not in port.attrib:
-                            log.warning("internal_layer_id attrib not found in output section")
-                        else:
-                            output_port_map.append(self.__normalize_attrs(port.attrib))
+                body_ir, input_port_map, output_port_map, input_layers = \
+                    self.__read_subgraph(layer, layer_attrs, xml_body_child, 'port_map')
 
                 body_ir.input_node = input_layers[0]
                 layer_attrs.update({'body': body_ir})
@@ -285,6 +260,12 @@ class IREngine(object):
                     back_edges.append(self.__normalize_attrs(edge.attrib))
 
                 layer_attrs.update({'back_edges': back_edges})
+
+            elif attr.tag == 'then_body' or attr.tag == 'else_body':
+                assert layer.attrib['type'] == 'If', "Incorrect IR! The operation {0}" \
+                                                     " has sub-graphs for If operation"
+                layer_attrs = self.__read_if(layer, layer_attrs)
+                continue
 
         return layer_id, layer_attrs
 
@@ -404,3 +385,54 @@ class IREngine(object):
         if not isinstance(other, IREngine):
             raise AttributeError("IREngine can be compared only with IREngine object type")
         return self.compare(other)[0]
+
+    def __read_subgraph(self, layer, layer_attrs, body_child, port_map_name):
+        body_ir = IREngine(path_to_xml=None,
+                           path_to_bin=self.path_to_bin,
+                           xml_tree=ElementTree(body_child[0]))
+
+        self.graph.graph['hashes'].update(body_ir.graph.graph['hashes'])
+
+        xml_port_map = list(layer.iterfind(port_map_name))
+        assert not len(xml_port_map) != 1, "If then_body won\'t be compared due to missing {1} section in node {0}! " \
+            .format(layer_attrs['name'], port_map_name)
+        xml_port_map = xml_port_map[0]
+
+        input_layers = []
+        input_port_map = []
+        output_port_map = []
+
+        for port in xml_port_map:
+            if port.tag == 'input':
+                if 'internal_layer_id' not in port.attrib:
+                    log.warning("internal_layer_id attrib not found in input section")
+                else:
+                    input_layers.append(Node(body_ir.graph, port.attrib['internal_layer_id']))
+                    input_port_map.append(self.__normalize_attrs(port.attrib))
+            elif port.tag == 'output':
+                if 'internal_layer_id' not in port.attrib:
+                    log.warning("internal_layer_id attrib not found in output section")
+                else:
+                    output_port_map.append(self.__normalize_attrs(port.attrib))
+
+        return body_ir, input_port_map, output_port_map, input_layers
+
+    def __read_if(self, layer, layer_attrs):
+
+        xml_then_body_child = list(layer.iterfind('then_body'))
+        xml_else_body_child = list(layer.iterfind('else_body'))
+        assert len(xml_then_body_child) == 1 and len(xml_else_body_child) == 1, "If operation has only one subgraph"
+
+        then_body_ir, then_input_port_map, then_output_port_map, _ = \
+            self.__read_subgraph(layer, layer_attrs, xml_then_body_child, 'then_port_map')
+        layer_attrs.update({'then_graph': then_body_ir})
+        layer_attrs.update({'then_input_port_map': then_input_port_map})
+        layer_attrs.update({'then_output_port_map': then_output_port_map})
+
+        else_body_ir, else_input_port_map, else_output_port_map, _ = \
+            self.__read_subgraph(layer, layer_attrs, xml_else_body_child, 'else_port_map')
+        layer_attrs.update({'else_graph': else_body_ir})
+        layer_attrs.update({'else_input_port_map': else_input_port_map})
+        layer_attrs.update({'else_output_port_map': else_output_port_map})
+
+        return layer_attrs
