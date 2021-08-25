@@ -62,7 +62,7 @@ void IExecutableNetworkInternal::Export(std::ostream& networkModel) {
     IE_THROW(NotImplemented);
 }
 
-CNNNetwork IExecutableNetworkInternal::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> IExecutableNetworkInternal::GetExecGraphInfo() {
     IE_THROW(NotImplemented);
 }
 

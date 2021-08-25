@@ -95,7 +95,7 @@ IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequest() {
     return CreateAsyncInferRequestFromSync<CLDNNAsyncInferRequest>();
 }
 
-InferenceEngine::CNNNetwork CLDNNExecNetwork::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> CLDNNExecNetwork::GetExecGraphInfo() {
     if (m_graphs.empty())
         IE_THROW(NetworkNotLoaded);
 

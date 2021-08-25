@@ -196,7 +196,7 @@ InferenceEngine::IInferRequestInternal::Ptr MKLDNNExecNetwork::CreateInferReques
     return CreateAsyncInferRequestFromSync<MKLDNNAsyncInferRequest>();
 }
 
-InferenceEngine::CNNNetwork MKLDNNExecNetwork::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> MKLDNNExecNetwork::GetExecGraphInfo() {
     if (_graphs.size() == 0)
         IE_THROW() << "No graph was found";
 
@@ -219,7 +219,7 @@ InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name)
         IE_THROW() << "No graph was found";
 
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        IE_SET_METRIC_RETURN(NETWORK_NAME, GetGraph()._graph.dump().getName());
+        IE_SET_METRIC_RETURN(NETWORK_NAME, GetGraph()._graph.dump()->get_friendly_name());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));

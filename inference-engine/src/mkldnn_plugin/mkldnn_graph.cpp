@@ -1200,6 +1200,6 @@ void MKLDNNGraph::EnforceBF16() {
     }
 }
 
-InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
+std::shared_ptr<ngraph::Function> MKLDNNGraph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }

@@ -25,7 +25,7 @@ public:
 
     CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, InferenceEngine::RemoteContext::Ptr context, Config config);
 
-    InferenceEngine::CNNNetwork GetExecGraphInfo() override;
+    std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
