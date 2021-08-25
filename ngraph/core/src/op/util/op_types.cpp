@@ -21,7 +21,6 @@
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 #include "ngraph/op/util/binary_elementwise_comparison.hpp"
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
-#include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 #include "ngraph/op/xor.hpp"
 #include "ngraph/type.hpp"
@@ -48,12 +47,6 @@ bool ngraph::op::supports_auto_broadcast(const ngraph::Node* node) {
            dynamic_cast<const ngraph::op::util::BinaryElementwiseComparison*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::util::BinaryElementwiseLogical*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::util::BinaryElementwiseArithmetic*>(node) != nullptr;
-}
-
-bool ngraph::op::supports_decompose(const ngraph::Node* node) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    return dynamic_cast<const ngraph::op::util::FusedOp*>(node) != nullptr;
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 bool ngraph::op::is_op(const ngraph::Node* node) {
@@ -104,10 +97,6 @@ bool ngraph::op::is_binary_elementwise_logical(const std::shared_ptr<ngraph::Nod
 
 bool ngraph::op::supports_auto_broadcast(const std::shared_ptr<ngraph::Node>& node) {
     return supports_auto_broadcast(node.get());
-}
-
-bool ngraph::op::supports_decompose(const std::shared_ptr<ngraph::Node>& node) {
-    return supports_decompose(node.get());
 }
 
 bool ngraph::op::is_op(const std::shared_ptr<ngraph::Node>& node) {
