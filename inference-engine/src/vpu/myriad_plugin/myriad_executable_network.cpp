@@ -54,9 +54,8 @@ ExecutableNetwork::ExecutableNetwork(
 
 void ExecutableNetwork::openDevice(std::vector<DevicePtr>& devicePool) {
     _device = _executor->openDevice(devicePool, _config);
-    const auto& revision = _device->revision();
     _actualNumExecutors = _config.get<ThroughputStreamsOption>().hasValue()
-        ? _config.get<ThroughputStreamsOption>().get() : DefaultAllocation::numStreams(revision, _config);
+        ? _config.get<ThroughputStreamsOption>().get() : DefaultAllocation::numStreams(_config);
 }
 
 ExecutableNetwork::ExecutableNetwork(
@@ -75,7 +74,6 @@ ExecutableNetwork::ExecutableNetwork(
 
     auto compiledGraph = compileNetwork(
         network,
-        NC_MYRIAD_X,
         _config,
         compilerLog,
         _core);

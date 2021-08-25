@@ -7,9 +7,6 @@
 #include "ngraph/opsets/opset5.hpp"
 #include "util/type_prop.hpp"
 
-// suppress FusedOp deprecation warnings
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
