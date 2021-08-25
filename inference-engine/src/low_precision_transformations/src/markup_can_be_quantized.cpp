@@ -22,7 +22,7 @@ bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_function(std::sha
     auto setEmptyInputPrecisions = [](const std::shared_ptr<ngraph::Node>& node) {
         for (auto& input : node->inputs()) {
             auto attribute = low_precision::make_shared_attribute<PrecisionsAttribute>(element::TypeVector{});
-            set_precisions(input, attribute);
+            ov::set_precisions(input, attribute);
         }
     };
 
@@ -51,7 +51,7 @@ bool ngraph::pass::low_precision::MarkupCanBeQuantized::run_on_function(std::sha
         }
         if (const auto concat = std::dynamic_pointer_cast<ngraph::opset1::Concat>(node)) {
             if (!ConcatTransformation::isQuantizedStatic(concat)) {
-                setEmptyPrecisions(concat);
+                setEmptyInputPrecisions(concat);
             }
             continue;
         }

@@ -42,13 +42,13 @@ void set_restriction(
         // if available precisions for any port is empty then mark all input ports
         for (auto& input : node->inputs()) {
             auto attribute = low_precision::make_shared_attribute<PrecisionsAttribute>(element::TypeVector{});
-            set_precisions(input, attribute);
+            ov::set_precisions(input, attribute);
         }
     } else {
         for (const auto & item : precisionsByPort) {
             auto input = node->input(item.first);
 
-            auto precisionsAttribute = get_precisions(input);
+            auto precisionsAttribute = ov::get_precisions(input);
             if (precisionsAttribute != nullptr &&
                 precisionsAttribute->sharedValue != nullptr &&
                 precisionsAttribute->sharedValue->precisions.empty()) {
@@ -56,7 +56,7 @@ void set_restriction(
             }
 
             auto attribute = low_precision::make_shared_attribute<PrecisionsAttribute>(item.second);
-            set_precisions(input, attribute);
+            ov::set_precisions(input, attribute);
         }
     }
 }
