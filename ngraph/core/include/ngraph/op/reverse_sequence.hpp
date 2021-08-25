@@ -21,7 +21,10 @@ public:
     /// tensor.
     /// \param batch_axis  index of the batch dimension.
     /// \param seq_axis    index of the sequence dimension.
-    ReverseSequence(const Output<Node>& arg, const Output<Node>& seq_lengths, int64_t batch_axis, int64_t seq_axis);
+    ReverseSequence(const Output<Node>& arg,
+                    const Output<Node>& seq_lengths,
+                    int64_t batch_axis = 0,
+                    int64_t seq_axis = 1);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

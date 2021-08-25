@@ -25,7 +25,11 @@ TEST(attributes, reverse_sequence_op) {
     auto seq_axis = 1;
 
     auto reverse_sequence = make_shared<opset1::ReverseSequence>(data, seq_indices, batch_axis, seq_axis);
+
     NodeBuilder builder(reverse_sequence);
+    const auto expected_attr_count = 2;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+
     auto g_reverse_sequence = ov::as_type_ptr<opset1::ReverseSequence>(builder.create());
 
     EXPECT_EQ(g_reverse_sequence->get_origin_batch_axis(), reverse_sequence->get_origin_batch_axis());

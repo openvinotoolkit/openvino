@@ -100,6 +100,7 @@ VERIFIED_OP_REFERENCES = [
     'Relu-1',
     'ReorgYOLO-2',
     'Result-1'
+    'ReverseSequence-1',
     'Round-5',
     'SpaceToDepth-1',
     'ScatterNDUpdate-4',
