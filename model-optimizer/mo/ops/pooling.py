@@ -78,7 +78,6 @@ class Pooling(Op):
             ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
 
             ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
-            'pads_value'
         ]
 
     @staticmethod

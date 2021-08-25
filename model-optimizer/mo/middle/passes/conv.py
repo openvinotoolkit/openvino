@@ -22,12 +22,14 @@ def pad_op_transform(graph: Graph, match: dict):
         log.info('The pad node "{}" with pad mode "{}" cannot be fused.'.format(pad_op.soft_get('name'), pad_op.mode))
         return
 
+    if op.type == 'Pooling' and op.pool_method == 'max':
+        return
+
     if pad_op.mode == 'constant':
         fill_value = pad_op.in_port(3).data.get_value()
         if fill_value is None or fill_value != 0.0:
             log.info('The pad node "{}" with non-zero fill value cannot be fused.'.format(pad_op.soft_get('name')))
             return
-        op['pads_value'] = fill_value
 
     input_tensor_dims = len(match['pad_output'].shape)
     for in_port in [1, 2]:

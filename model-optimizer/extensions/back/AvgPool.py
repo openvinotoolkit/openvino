@@ -24,4 +24,3 @@ class AvgPool(BackReplacementPattern):
         node.type = 'AvgPool'
         del node['pool_method']
         node['dilation'] = None
-        node['pads_value'] = None
