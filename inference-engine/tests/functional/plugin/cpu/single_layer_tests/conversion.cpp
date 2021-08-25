@@ -22,6 +22,11 @@ TEST_P(ConvertCPULayerTest, CompareWithRefs) {
 }
 
 namespace {
+const std::vector<ngraph::helpers::ConversionTypes> conversionOpTypes = {
+    ngraph::helpers::ConversionTypes::CONVERT,
+    ngraph::helpers::ConversionTypes::CONVERT_LIKE,
+};
+
 const std::vector<std::vector<size_t>> inShape = {{1, 2, 3, 4}};
 
 // List of precisions natively supported by mkldnn.
@@ -35,7 +40,7 @@ const std::vector<Precision> precisions = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest_From_BF16, ConvertCPULayerTest,
                         ::testing::Combine(
-                                ::testing::Values(ngraph::helpers::ConversionTypes::CONVERT),
+                                ::testing::ValuesIn(conversionOpTypes),
                                 ::testing::Values(inShape),
                                 ::testing::Values(Precision::BF16),
                                 ::testing::ValuesIn(precisions),
@@ -46,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest_From_BF16, ConvertCPULayerTes
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConversionLayerTest_To_BF16, ConvertCPULayerTest,
                         ::testing::Combine(
-                                ::testing::Values(ngraph::helpers::ConversionTypes::CONVERT),
+                                ::testing::ValuesIn(conversionOpTypes),
                                 ::testing::Values(inShape),
                                 ::testing::ValuesIn(precisions),
                                 ::testing::Values(Precision::BF16),

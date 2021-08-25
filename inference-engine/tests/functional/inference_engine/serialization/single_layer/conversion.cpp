@@ -9,6 +9,11 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
+const std::vector<ngraph::helpers::ConversionTypes> conversionOpTypes = {
+    ngraph::helpers::ConversionTypes::CONVERT,
+    ngraph::helpers::ConversionTypes::CONVERT_LIKE,
+};
+
 const std::vector<std::vector<size_t>> inShape = {{1, 2, 3, 4}};
 
 const std::vector<InferenceEngine::Precision> precisions = {
@@ -27,7 +32,7 @@ TEST_P(ConversionLayerTest, Serialize) {
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Serialization_ConversionLayerTest, ConversionLayerTest,
-    ::testing::Combine(::testing::Values(ngraph::helpers::ConversionTypes::CONVERT),
+    ::testing::Combine(::testing::ValuesIn(conversionOpTypes),
                        ::testing::Values(inShape),
                        ::testing::ValuesIn(precisions),
                        ::testing::ValuesIn(precisions),
