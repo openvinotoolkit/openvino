@@ -45,6 +45,12 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
     }
 }
 
+CpuBlockedMemoryDesc MemoryDescUtils::convertToCpuBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
+    const auto &blkDesc = desc.getBlockingDesc();
+    return CpuBlockedMemoryDesc(desc.getPrecision(), Shape(desc.getDims()), blkDesc.getBlockDims(), blkDesc.getOrder(), blkDesc.getOffsetPadding(),
+                                blkDesc.getOffsetPaddingToData(), blkDesc.getStrides());
+}
+
 DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
     const auto &blkDesc = desc.getBlockingDesc();
     return DnnlBlockedMemoryDesc(desc.getPrecision(), Shape(desc.getDims()), blkDesc.getBlockDims(), blkDesc.getOrder(), blkDesc.getOffsetPadding(),
@@ -102,16 +108,6 @@ MemoryDescPtr MemoryDescUtils::cloneWithNewPrecision(const MemoryDesc& desc, con
     MemoryDescPtr newDesc = desc.clone();
     newDesc->setPrecision(prec);
     return newDesc;
-}
-
-InferenceEngine::Blob::Ptr MemoryDescUtils::createBlob(const MemoryDesc &memDesc) {
-    // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
-    InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
-
-    desc = InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
-    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(desc);
-    blob->allocate();
-    return blob;
 }
 
 InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const MKLDNNMemory &mem) {

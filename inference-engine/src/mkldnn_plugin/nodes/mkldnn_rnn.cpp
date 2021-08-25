@@ -448,7 +448,11 @@ void MKLDNNRNN::fillSeqDesc() {
         // WA to avoid reorder after sequence for some models
         out_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, T, SC}), dataType, memory::format_tag::tnc));
     } else {
+<<<<<<< HEAD
         out_candidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(Shape(VectorDims{N, T, SC}), dataType, memory::format_tag::ntc));
+=======
+        out_candidate.emplace_back(Shape(VectorDims{T, N, SC}), dataType, memory::format_tag::tnc);
+>>>>>>> 1769c1d42... Update for new API
     }
 
     // WA to avoid reorder after

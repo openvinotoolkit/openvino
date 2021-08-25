@@ -274,7 +274,8 @@ const MKLDNNMemory &MKLDNNEdge::getMemory() {
 MKLDNNMemoryPtr &MKLDNNEdge::getMemoryPtr() {
     if (status == Status::NotAllocated) {
         memoryPtr.reset(new MKLDNNMemory(getParent()->getEngine()));
-        memoryPtr->Create(getDesc(), getSharedEdge()->getMemoryPtr()->GetData());
+        const auto &desc = getDesc();
+        memoryPtr->Create(desc, desc.isDefined() ? getSharedEdge()->getMemoryPtr()->GetData() : nullptr);
         memoryFromEdge.reset();
         changeStatus(Status::Allocated);
     }

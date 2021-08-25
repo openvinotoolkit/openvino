@@ -57,7 +57,6 @@ public:
     }
 
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
-    // TODO [DS]: phase 2: return to constant reference when dynamic blob representation becomes available
     void PullOutputData(InferenceEngine::BlobMap &out);
 
     void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
@@ -187,6 +186,10 @@ public:
         return isQuantizedFlag;
     }
 
+    bool isDynamic() const {
+        return isDynamicGraph;
+    }
+
 protected:
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
 
@@ -218,6 +221,7 @@ protected:
     std::string _name;
 
     bool isQuantizedFlag = false;
+    bool isDynamicGraph = false;
 
     static mkldnn::engine eng;
 

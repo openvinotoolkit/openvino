@@ -34,6 +34,13 @@ public:
     static DnnlBlockedMemoryDesc convertToDnnlBlockedMemoryDesc(const MemoryDesc& desc);
 
     /**
+     * @brief Converts InferenceEngine::TensorDesc to CpuBlockedMemoryDesc
+     * @param desc InferenceEngine::TensorDesc to be converted
+     * @return converted CpuBlockedMemoryDesc
+     */
+    static CpuBlockedMemoryDesc convertToCpuBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc);
+
+    /**
      * @brief Converts InferenceEngine::TensorDesc to DnnlBlockedMemoryDesc
      * @param desc InferenceEngine::TensorDesc to be converted
      * @return converted DnnlBlockedMemoryDesc
@@ -67,13 +74,6 @@ public:
      * @return pointer to the new MemoryDesc
      */
     static std::shared_ptr<MemoryDesc> cloneWithNewPrecision(const MemoryDesc& desc, const InferenceEngine::Precision prec);
-
-    /**
-     * @brief Creates InferenceEngine::Blob from MemoryDesc
-     * @param desc MemoryDesc from which will be created InferenceEngine::Blob
-     * @return pointer to InferenceEngine::Blob
-     */
-    static InferenceEngine::Blob::Ptr createBlob(const MemoryDesc& memDesc);
 
     /**
      * @brief Creates InferenceEngine::Blob from MKLDNNMemory with the memory reuse

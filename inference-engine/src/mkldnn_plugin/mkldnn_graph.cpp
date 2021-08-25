@@ -215,8 +215,11 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         graphNodes.push_back(node);
 
         if (op->get_type_info() == ngraph::op::v0::Parameter::type_info) {
-            if (inputsInfo.count(node->getName()) != 0) {
+            const auto inInfo = inputsInfo.find(node->getName());
+            if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
+                if (inInfo->second->getInputData()->isDynamic())
+                    isDynamicGraph = true;
             }
         }
 
@@ -742,37 +745,41 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         auto node = outputMap.second;
         const MKLDNNMemory& intr_blob = node->getParentEdgeAt(0)->getMemory();
 
-        // TODO [DS]: phase 2: remove this blob allocation when possible, i.e. when dynamic ie blob representation becomes available
-        if (out.find(name) == out.end()) {
-            out[name] = MemoryDescUtils::createBlob(intr_blob.getDesc());
+        const auto ext_blob = out.find(name);
+        if (ext_blob == out.end()) {
+            IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
         }
 
-        // TODO [DS]: is it sill true for the new paradigm?
-//        if (!out.count(name)) {
-//            IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
-//        }
+        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
+        const auto &expectedDesc = ext_blob->second->getTensorDesc();
 
-        if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims()) {
-            // TODO [DS]: phase 2: rewrite when dynamic ie blob representation becomes available
-//            IE_THROW() << "Output blob number of elements is not equal network output number of elements ("
-//                       << ext_blob->size() << "!=" << intr_blob.GetShape().getElementsCount() << ").";
-            if (out[name]->byteSize() >= intr_blob.GetSize()) {
-                out[name]->getTensorDesc().reshape(intr_blob.getStaticDims());
-            } else {
-                out[name] = MemoryDescUtils::createBlob(intr_blob.getDesc());
-            }
+        // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
+        // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
+        bool isScalarOutput = false;
+        if (actualDesc.getLayout() == SCALAR) {
+            isScalarOutput = expectedDesc.getLayout() == SCALAR ||
+                             (!expectedDesc.getDims().empty() &&
+                             std::accumulate(expectedDesc.getDims().begin(), expectedDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
+        } else if (expectedDesc.getLayout() == SCALAR) {
+            isScalarOutput = actualDesc.getLayout() == SCALAR ||
+                             (!actualDesc.getDims().empty() &&
+                             std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
         }
 
-        auto ext_blob = out.at(name);
+        if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims() && !isScalarOutput) {
+            if (!node->isDynamicNode())
+                IE_THROW() << "Output blob and node dims mismatch for node with name: \"" << name << "\"";
+            out[name]->setShape(intr_blob.getStaticDims());
+        }
 
-        auto srcPrec = MKLDNNExtensionUtils::DataTypeToIEPrecision(intr_blob.GetDataType());
-        auto dstPrec = ext_blob->getTensorDesc().getPrecision();
+        auto srcPrec = actualDesc.getPrecision();
+        auto dstPrec = expectedDesc.getPrecision();
 
-        if (srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
+        if (srcPrec == dstPrec && ext_blob->second->byteSize() != intr_blob.GetSize())
                 IE_THROW() << "Output blob byte size is not equal network output byte size ("
-                                   << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
+                                   << ext_blob->second->byteSize() << "!=" << intr_blob.GetSize() << ").";
 
-        void *ext_blob_ptr = ext_blob->buffer();
+        void *ext_blob_ptr = ext_blob->second->buffer();
         void *intr_blob_ptr = intr_blob.GetData();
 
         // That is the same memory. No need to copy
@@ -788,20 +795,6 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             }
             int MB_to_process = node->batchToProcess();
             size_to_copy = std::accumulate(outDims.begin() + 1, outDims.end(), (size_t)1, std::multiplies<size_t>()) * MB_to_process;
-        }
-
-        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(node->getParentEdgeAt(0)->getMemory().getDesc());
-        const auto expectedDesc = ext_blob->getTensorDesc();
-
-        // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
-        // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
-        bool isScalarOutput = false;
-        if (actualDesc.getLayout() == SCALAR) {
-            isScalarOutput = expectedDesc.getLayout() == SCALAR ||
-                             std::accumulate(expectedDesc.getDims().begin(), expectedDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1;
-        } else if (expectedDesc.getLayout() == SCALAR) {
-            isScalarOutput = actualDesc.getLayout() == SCALAR ||
-                             std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1;
         }
 
         if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {

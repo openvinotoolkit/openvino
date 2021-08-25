@@ -497,6 +497,8 @@ bool MKLDNNNode::canBeInPlace() const {
 }
 
 void MKLDNNNode::resolveInPlaceEdges() {
+    // TODO [DS]: first version dynamic shapes do not support inPlace logic
+    // after enabling inPlace logic for dynamic shapes we need to update this method for nodes with several edges at single port
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (!selected_pd)
         IE_THROW() << "Cannot find selected primitive descriptor for node: " << getName();
@@ -695,7 +697,22 @@ void MKLDNNNode::redefineOutputMemory(const std::vector<VectorDims> &newShapes) 
         IE_THROW() << "Number shapes mismatch with real outputs number for node with name: " << getName();
     }
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        getChildEdgesAtPort(i)[0]->getMemoryPtr()->redefineDesc(getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newShapes[i]));
+        const auto edges = getChildEdgesAtPort(i);
+        const auto memDesc = getBaseMemDescAtOutputPort(i)->cloneWithNewDims(newShapes[i]);
+        size_t sharedEdgeNum = 0;
+        for (size_t j = 0; j < edges.size(); j++) {
+            if (!edges[j]->getMemory().isUsedExternalStorage()) {
+                sharedEdgeNum = j;
+                break;
+            }
+        }
+        edges[sharedEdgeNum]->getMemoryPtr()->redefineDesc(*memDesc);
+        void *data = edges[sharedEdgeNum]->getMemoryPtr()->GetData();
+        for (size_t j = 0; j < edges.size(); j++) {
+            if (j == sharedEdgeNum)
+                continue;
+            edges[j]->getMemoryPtr()->redefineDesc(*memDesc, data);
+        }
     }
 }
 

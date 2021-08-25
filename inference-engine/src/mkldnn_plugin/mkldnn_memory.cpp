@@ -143,8 +143,14 @@ void *MKLDNNMemory::GetPtr() const  {
     return ptr;
 }
 
-void MKLDNNMemory::redefineDesc(MemoryDescPtr desc) {
-    if (useExternalStorage) {
+void MKLDNNMemory::redefineDesc(const MemoryDesc& desc, void *data) {
+    redefineDesc(desc.clone(), data);
+}
+
+void MKLDNNMemory::redefineDesc(MemoryDescPtr desc, void *data) {
+    if (data != nullptr) {
+        this->Create(std::move(desc), data, false);
+    } else if (useExternalStorage) {
         size_t descMaxSize = desc->getMaxMemSize();
         if (MemoryDesc::UNDEFINED_SIZE == descMaxSize) {
             IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";

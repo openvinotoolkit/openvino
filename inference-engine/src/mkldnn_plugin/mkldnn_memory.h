@@ -92,7 +92,8 @@ public:
     // Redefines descriptor. The memory descriptor will be replaced with the new one.
     // Memory will not be reallocated if the new tensor size is less or equal the upper bound.
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
-    void redefineDesc(MemoryDescPtr desc);
+    void redefineDesc(const MemoryDesc& desc, void *data = nullptr);
+    void redefineDesc(MemoryDescPtr desc, void *data = nullptr);
 
     void SetData(const MKLDNNMemory& memory, size_t size = 0, bool ftz = true) const;
     void FillZero();
@@ -107,6 +108,10 @@ public:
 
     mkldnn::engine getEngine() const {
         return eng;
+    }
+
+    bool isUsedExternalStorage() const {
+        return useExternalStorage;
     }
 
 private:

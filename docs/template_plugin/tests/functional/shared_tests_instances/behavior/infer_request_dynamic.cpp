@@ -19,12 +19,13 @@
 //     {}
 // };
 
-// INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestDynamicTests,
-//                         ::testing::Combine(
-//                                 ::testing::ValuesIn(netPrecisions),
-//                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
-//                                 ::testing::ValuesIn(configs)),
-//                         InferRequestDynamicTests::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestDynamicTests,
+                        ::testing::Combine(
+                                ::testing::Values(ngraph::builder::subgraph::makeSplitConvConcat()),
+                                ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{{{1, 4, 20, 20}, {}}, {{1, 4, 20, 20}, {}}}),
+                                ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+                                ::testing::ValuesIn(configs)),
+                        InferRequestDynamicTests::getTestCaseName);
 
 // }  // namespace
 
