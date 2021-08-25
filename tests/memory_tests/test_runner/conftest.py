@@ -20,14 +20,13 @@ import json
 import logging
 # pylint:disable=import-error
 import os
-import shutil
 import sys
-import pytest
-import yaml
 from copy import deepcopy
 from inspect import getsourcefile
-
 from pathlib import Path
+
+import pytest
+import yaml
 from jsonschema import validate, ValidationError
 
 UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
@@ -37,7 +36,7 @@ from plugins.conftest import *
 from path_utils import check_positive_int
 from proc_utils import cmd_exec
 from platform_utils import get_os_name, get_os_version, get_cpu_info
-from utils import upload_data, metadata_from_manifest, DATABASES, DB_COLLECTIONS
+from utils import metadata_from_manifest, DATABASES, DB_COLLECTIONS
 
 MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(MEMORY_TESTS_DIR)
@@ -84,7 +83,8 @@ def pytest_addoption(parser):
     omz_args_parser.addoption(
         "--omz_repo",
         type=Path,
-        help="Path to Open Model Zoo (OMZ) repository. It will be used to skip cloning step.",
+        required=True,
+        help="Path to Open Model Zoo (OMZ) repository.",
     )
     omz_args_parser.addoption(
         "--omz_models_out_dir",
@@ -180,30 +180,13 @@ def niter(request):
 
 # -------------------- CLI options --------------------
 
-def clone_omz_repo():
-    """Prepare Open Model Zoo repository
-    """
-    omz_path = Path(abs_path('..')) / "_open_model_zoo"
-    # clone Open Model Zoo into temporary path
-    if omz_path.exists():
-        shutil.rmtree(str(omz_path))
-    cmd = 'git clone --single-branch --branch develop' \
-          ' https://github.com/openvinotoolkit/open_model_zoo {omz_path}'.format(omz_path=omz_path)
-    cmd_exec(cmd)
-    return omz_path
-
 
 @pytest.fixture(scope="function")
 def omz_models_conversion(pytestconfig, request):
     """
     Fixture for preparing omz models and updating test config with new paths
     """
-    omz_repo = request.config.getoption("omz_repo")
-    if omz_repo:
-        omz_path = Path(omz_repo).resolve()
-    else:
-        omz_path = clone_omz_repo()
-
+    omz_path = request.config.getoption("omz_repo")
     cache_dir = request.config.getoption("omz_cache_dir")
     omz_models_out_dir = request.config.getoption("omz_models_out_dir")
     omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
