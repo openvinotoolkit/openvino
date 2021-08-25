@@ -9,17 +9,17 @@
 #include <string>
 #include <vector>
 
-#include <ie_parameter.hpp>
-#include <ie_remote_context.hpp>
-#include <cpp/ie_cnn_network.h>
-#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
-#include <details/ie_so_pointer.hpp>
+#include "cpp/ie_cnn_network.h"
+#include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
+#include "details/ie_so_pointer.hpp"
+#include "ie_parameter.hpp"
+#include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
 
 class IInferencePlugin;
 class IInferRequestInternal;
-class RemoteContext;
+class IRemoteContext;
 class IVariableStateInternal;
 
 /**
@@ -27,7 +27,8 @@ class IVariableStateInternal;
  * @brief An internal API of executable network to be implemented by plugin,
  * @ingroup ie_dev_api_exec_network_api
  */
-class INFERENCE_ENGINE_API_CLASS(IExecutableNetworkInternal) : public std::enable_shared_from_this<IExecutableNetworkInternal> {
+class INFERENCE_ENGINE_API_CLASS(IExecutableNetworkInternal)
+    : public std::enable_shared_from_this<IExecutableNetworkInternal> {
 public:
     /**
      * @brief A shared pointer to IExecutableNetworkInternal interface
@@ -84,7 +85,7 @@ public:
      * @brief Get executable graph information from a device
      * @return A network object to store executable graph information
      */
-    virtual CNNNetwork GetExecGraphInfo();
+    virtual std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     /**
      * @deprecated Need to implement GetVariablesInfo for ExecutableNetwork
@@ -124,7 +125,7 @@ public:
      * @brief Gets the remote context.
      * @return A reference to a context
      */
-    virtual std::shared_ptr<RemoteContext> GetContext() const;
+    virtual std::shared_ptr<IRemoteContext> GetContext() const;
 
 protected:
     ~IExecutableNetworkInternal() = default;
@@ -140,7 +141,7 @@ protected:
     virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                           OutputsDataMap networkOutputs);
 
-    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
+    InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
 
     /**

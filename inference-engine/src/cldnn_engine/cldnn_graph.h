@@ -34,7 +34,7 @@ public:
 
     CLDNNGraph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
     explicit CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id = 0);
-    InferenceEngine::CNNNetwork GetExecGraphInfo();
+    std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     bool IsLoaded() const;
 
@@ -51,8 +51,10 @@ public:
     InferenceEngine::SizeVector GetOutputSize(std::string outName) const;
     std::string MapOutputName(std::string outName) const;
     std::string getName() const { return m_networkName; }
+    std::mutex& get_mutex() { return m_infer_mutex; }
 
 protected:
+    std::mutex m_infer_mutex;
     std::string m_networkName;
     Config m_config;
 
@@ -76,8 +78,8 @@ protected:
     void Build();
     void UpdateLayersMaps();
     void UpdateImplementationsMap();
-    InferenceEngine::CNNNetwork GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& pi,
-                                                                 bool filter_const_primitives = true);
+    std::shared_ptr<ngraph::Function> GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& pi,
+                                                                       bool filter_const_primitives = true);
 };
 
 }  // namespace CLDNNPlugin

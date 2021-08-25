@@ -67,7 +67,7 @@ void LayerTestsCommon::Run() {
 void LayerTestsCommon::Serialize() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = GetTestName().substr(0, maxFileNameLength) + "_" + GetTimestamp();
+    std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -313,6 +313,7 @@ void LayerTestsCommon::LoadNetwork() {
 }
 
 void LayerTestsCommon::GenerateInputs() {
+    inputs.clear();
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
     const auto& functionParams = function->get_parameters();
     for (int i = 0; i < functionParams.size(); ++i) {
@@ -473,6 +474,24 @@ std::string LayerTestsCommon::getRuntimePrecisionByType(const std::string& layer
 
     return "";
 }
+
+#ifndef NDEBUG
+void LayerTestsCommon::showRuntimePrecisions() {
+    const auto execGraph = executableNetwork.GetExecGraphInfo();
+    const auto function = execGraph.getFunction();
+
+    for (const auto& op : function->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+        const auto& typeIt = rtInfo.find("layerType");
+
+        const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
+        const auto& it = rtInfo.find("runtimePrecision");
+
+        const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
+        std::cout << type << ": " << rtPrecisionPtr->get() << std::endl;
+    }
+}
+#endif
 
 void LayerTestsCommon::SetRefMode(RefMode mode) {
     refMode = mode;

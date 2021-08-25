@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
+#include "ngraph/runtime/reference/utils/span.hpp"
 
 #include <algorithm>
 #include <array>
 #include <vector>
 
-#include "ngraph/runtime/reference/utils/span.hpp"
+#include "gtest/gtest.h"
 
 using namespace ngraph::runtime::reference;
 
-TEST(span_util, create_from_vector)
-{
+TEST(span_util, create_from_vector) {
     std::vector<int> data{1, 2, 3, 4};
     const auto s = span(data);
 
@@ -26,8 +25,7 @@ TEST(span_util, create_from_vector)
     EXPECT_TRUE(std::equal(begin(data), end(data), begin(si)));
 }
 
-TEST(span_util, create_from_const_vector)
-{
+TEST(span_util, create_from_const_vector) {
     const std::vector<int> data{1, 2, 3, 4};
     const auto s = span(data);
 
@@ -40,8 +38,7 @@ TEST(span_util, create_from_const_vector)
     EXPECT_TRUE(std::equal(begin(data), end(data), begin(si)));
 }
 
-TEST(span_util, create_from_memory)
-{
+TEST(span_util, create_from_memory) {
     std::array<int, 4> data{1, 2, 3, 4};
     const auto s = span(data);
 
@@ -49,8 +46,7 @@ TEST(span_util, create_from_memory)
     EXPECT_TRUE(std::equal(begin(data), end(data), begin(s)));
 }
 
-TEST(span_util, create_from_const_memory)
-{
+TEST(span_util, create_from_const_memory) {
     const std::array<int, 4> data{1, 2, 3, 4};
     const auto s = span(data);
 
@@ -58,8 +54,7 @@ TEST(span_util, create_from_const_memory)
     EXPECT_TRUE(std::equal(begin(data), end(data), begin(s)));
 }
 
-TEST(span_util, empty_span_stay_empty_for_drop_front)
-{
+TEST(span_util, empty_span_stay_empty_for_drop_front) {
     {
         constexpr std::array<int, 1> data{1};
         auto s = span(data);
@@ -95,8 +90,7 @@ TEST(span_util, empty_span_stay_empty_for_drop_front)
         EXPECT_TRUE(s.empty());
     }
 }
-TEST(span_util, empty_span_stay_empty_for_drop_back)
-{
+TEST(span_util, empty_span_stay_empty_for_drop_back) {
     {
         constexpr std::array<int, 1> data{1};
         auto s = span(data);
@@ -133,8 +127,7 @@ TEST(span_util, empty_span_stay_empty_for_drop_back)
     }
 }
 
-TEST(span_util, create_substring)
-{
+TEST(span_util, create_substring) {
     const std::array<int, 4> data{1, 2, 3, 4};
     const auto s = span(data.data(), data.size());
 
@@ -155,50 +148,43 @@ TEST(span_util, create_substring)
     }
 }
 
-TEST(span_util, compare_substr_with_drop_front)
-{
+TEST(span_util, compare_substr_with_drop_front) {
     const std::array<int, 4> data{1, 2, 3, 4};
     const auto s = span(data.data(), data.size());
 
     auto sf = s;
     auto ss = s;
-    for (size_t i = 0; i != data.size() + 1; ++i)
-    {
+    for (size_t i = 0; i != data.size() + 1; ++i) {
         sf.drop_front(1);
         ss = ss.subspan(1);
         EXPECT_EQ(sf.size(), ss.size());
         EXPECT_EQ(sf.empty(), ss.empty());
-        if (!sf.empty())
-        {
+        if (!sf.empty()) {
             EXPECT_EQ(sf.front(), ss.front());
         }
     }
 }
 
-TEST(span_util, drop_elements)
-{
+TEST(span_util, drop_elements) {
     const std::array<int, 4> data{1, 2, 3, 4};
     const auto s = span(data.data(), data.size());
 
     auto length = s.size();
-    for (auto sub = s; !sub.empty(); sub.drop_back(1))
-    {
+    for (auto sub = s; !sub.empty(); sub.drop_back(1)) {
         EXPECT_EQ(sub.front(), data.front());
         EXPECT_EQ(sub.size(), length);
         length--;
     }
 
     length = s.size();
-    for (auto sub = s; !sub.empty(); sub.drop_front(1))
-    {
+    for (auto sub = s; !sub.empty(); sub.drop_front(1)) {
         EXPECT_EQ(sub.back(), data.back());
         EXPECT_EQ(sub.size(), length);
         length--;
     }
 }
 
-TEST(span_util, throw_on_out_of_range)
-{
+TEST(span_util, throw_on_out_of_range) {
     std::array<int, 2> data{};
     EXPECT_THROW(Span<char>{}.at(0), std::out_of_range);
     EXPECT_NO_THROW(span(data).at(0));

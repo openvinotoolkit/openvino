@@ -247,12 +247,14 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
         checkBlob(data, name, true);
         // check if preprocess required, but still wasn't set
         auto preProcessedInput = std::find_if(std::begin(_networkInputs), std::end(_networkInputs),
-            [&](const std::pair<std::string, InferenceEngine::InputInfo::Ptr>& pair)
-            {return pair.first == name;});
-        if (preProcessedInput!= std::end(_networkInputs)) {
-            auto preProcess = preProcessedInput->second->getPreProcess();
-            if (preProcess.getColorFormat() != InferenceEngine::ColorFormat::RAW ||
-                 preProcess.getResizeAlgorithm() != InferenceEngine::ResizeAlgorithm::NO_RESIZE) {
+            [&](const std::pair<std::string, InferenceEngine::InputInfo::Ptr>& pair) {
+                return pair.first == name;
+            });
+        if (preProcessedInput != std::end(_networkInputs)) {
+            InferenceEngine::InputInfo::Ptr foundInput;
+            InferenceEngine::DataPtr foundOutput;
+            findInputAndOutputBlobByName(name, foundInput, foundOutput);
+            if (preProcessingRequired(foundInput, data)) {
                 _preProcData.emplace(name, InferenceEngine::CreatePreprocDataHelper());
                 _preProcData[name]->isApplicable(data, _inputs[name]);
                 _preProcData[name]->setRoiBlob(data);
@@ -440,6 +442,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {
                 auto& child = input->second->getChildEdgeAt(i)->getChild();
                 if (child->isConstant())
                     canBeInPlace = false;
+
                 auto* concat = dynamic_cast<MKLDNNConcatNode *>(child.get());
                 if (canBeInPlace && concat && concat->isOptimized())
                     canBeInPlace = false;
@@ -511,6 +514,10 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBatch(int new_batch) {
     }
 
     m_curBatch = new_batch;
+
+    for (const auto& node : graph->GetNodes()) {
+        node->setDynamicBatchLim(new_batch);
+    }
 }
 
 std::vector<InferenceEngine::IVariableStateInternal::Ptr> MKLDNNPlugin::MKLDNNInferRequest::QueryState() {

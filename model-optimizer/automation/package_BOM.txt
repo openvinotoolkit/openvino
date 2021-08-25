@@ -11,7 +11,7 @@ extensions/back/__init__.py
 extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
 extensions/back/CellNormalizer.py
-extensions/back/ChangeCastOutputType.py
+extensions/back/ChangeOutputTypeAttributes.py
 extensions/back/ClampNormalizer.py
 extensions/back/compress_quantized_weights.py
 extensions/back/ConvolutionNormalizer.py
@@ -133,8 +133,6 @@ extensions/front/caffe/split_to_identity.py
 extensions/front/caffe/tanh.py
 extensions/front/ChangePlaceholderTypes.py
 extensions/front/create_tensor_nodes.py
-extensions/front/CTCGreedyDecoderReplacement.py
-extensions/front/CTCLossReplacement.py
 extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
 extensions/front/DropoutWithRandomUniformReplacer.py
@@ -370,7 +368,6 @@ extensions/front/scatter_normalizer.py
 extensions/front/SizeReplacer.py
 extensions/front/softmax.py
 extensions/front/softsign_replacer.py
-extensions/front/sparse_to_dense_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/SqueezeNormalize.py
 extensions/front/sub.py
@@ -401,7 +398,9 @@ extensions/front/tf/CorrectRollAxes.py
 extensions/front/tf/crop_and_resize_ext.py
 extensions/front/tf/CropAndResizeReplacement.py
 extensions/front/tf/CTCGreedyDecoder_ext.py
+extensions/front/tf/CTCGreedyDecoderReplacement.py
 extensions/front/tf/CTCLoss_ext.py
+extensions/front/tf/CTCLossReplacement.py
 extensions/front/tf/cumsum_ext.py
 extensions/front/tf/deconv_ext.py
 extensions/front/tf/depth_to_space.py
@@ -436,6 +435,7 @@ extensions/front/tf/GatherTree_ext.py
 extensions/front/tf/GNMT_DynamicSequenceLengths.py
 extensions/front/tf/identity_ext.py
 extensions/front/tf/identityN_to_identity.py
+extensions/front/tf/if_ext.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
 extensions/front/tf/log_softmax_ext.py
@@ -495,6 +495,7 @@ extensions/front/tf/sparse_fill_empty_rows_ext.py
 extensions/front/tf/sparse_segment_mean_ext.py
 extensions/front/tf/sparse_segment_sqrtn_ext.py
 extensions/front/tf/sparse_segment_sum_ext.py
+extensions/front/tf/sparse_to_dense_replacer.py
 extensions/front/tf/split_ext.py
 extensions/front/tf/ssd_support.json
 extensions/front/tf/ssd_support_api_v1.14.json
@@ -639,6 +640,7 @@ extensions/middle/sparse_reshape.py
 extensions/middle/split_tdnn_memoryoffset.py
 extensions/middle/SplitConcatPairToInterpolate.py
 extensions/middle/StridedSliceNormalizer.py
+extensions/middle/StridedSliceReplacer.py
 extensions/middle/SwapAxesMiddleReplacer.py
 extensions/middle/TensorIterator_utils.py
 extensions/middle/TensorIteratorBackEdge.py
@@ -701,6 +703,7 @@ extensions/ops/GRU.py
 extensions/ops/GRUCell.py
 extensions/ops/hard_sigmoid.py
 extensions/ops/identity.py
+extensions/ops/If.py
 extensions/ops/instance_normalization.py
 extensions/ops/interp.py
 extensions/ops/interpolate.py
@@ -927,6 +930,7 @@ mo/front/tf/extractors/native_tf.py
 mo/front/tf/extractors/pack.py
 mo/front/tf/extractors/random_uniform.py
 mo/front/tf/extractors/strided_slice.py
+mo/front/tf/extractors/subgraph_utils.py
 mo/front/tf/extractors/utils.py
 mo/front/tf/graph_utils.py
 mo/front/tf/loader.py
@@ -1050,6 +1054,7 @@ mo/utils/ir_reader/extenders/experimental_extender.py
 mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
 mo/utils/ir_reader/extenders/fakequantize_extender.py
 mo/utils/ir_reader/extenders/GRUCell_extender.py
+mo/utils/ir_reader/extenders/if_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
 mo/utils/ir_reader/extenders/loop_extender.py
 mo/utils/ir_reader/extenders/LSTMCell_extender.py

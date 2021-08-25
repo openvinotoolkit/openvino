@@ -9,23 +9,22 @@
 
 #pragma once
 
-#include <ie_iextension.h>
-#include <ie_input_info.hpp>
-#include <ie_parameter.hpp>
-#include <cpp/ie_cnn_network.h>
-
-#include <blob_factory.hpp>
-
 #include <istream>
 #include <map>
 #include <memory>
 #include <string>
 
+#include "blob_factory.hpp"
+#include "cpp/ie_cnn_network.h"
+#include "ie_iextension.h"
+#include "ie_input_info.hpp"
+#include "ie_parameter.hpp"
+
 namespace InferenceEngine {
 
 class ICore;
 class IExecutableNetworkInternal;
-class RemoteContext;
+class IRemoteContext;
 class IExtension;
 
 /**
@@ -42,10 +41,11 @@ INFERENCE_ENGINE_API_CPP(PreProcessInfo) copyPreProcess(const PreProcessInfo& fr
  * @param[in]   map map to copy
  * @return      map that contains pointers to constant values
  */
-template<typename T>
+template <typename T>
 std::map<std::string, std::shared_ptr<const T>> constMapCast(const std::map<std::string, std::shared_ptr<T>>& map) {
     std::map<std::string, std::shared_ptr<const T>> res;
-    for (auto&& v : map) res.emplace(v.first, std::const_pointer_cast<const T>(v.second));
+    for (auto&& v : map)
+        res.emplace(v.first, std::const_pointer_cast<const T>(v.second));
     return res;
 }
 
@@ -55,10 +55,11 @@ std::map<std::string, std::shared_ptr<const T>> constMapCast(const std::map<std:
  * @param[in]   map map to copy
  * @return      map that contains pointers to values
  */
-template<typename T>
+template <typename T>
 std::map<std::string, std::shared_ptr<T>> constMapCast(const std::map<std::string, std::shared_ptr<const T>>& map) {
     std::map<std::string, std::shared_ptr<T>> res;
-    for (auto&& v : map) res.emplace(v.first, std::const_pointer_cast<T>(v.second));
+    for (auto&& v : map)
+        res.emplace(v.first, std::const_pointer_cast<T>(v.second));
     return res;
 }
 
@@ -108,7 +109,7 @@ public:
      * @brief Sets a plugin version
      * @param version A version to set
      */
-    void SetVersion(const Version & version);
+    void SetVersion(const Version& version);
 
     /**
      * @brief Gets a plugin version
@@ -142,13 +143,13 @@ public:
      * @brief Creates an executable network from network object, on specified remote context
      * @param network A network object acquired from InferenceEngine::Core::ReadNetwork
      * @param config string-string map of config parameters relevant only for this load operation
-     * @param context A pointer to plugin context derived from RemoteContext class used to
+     * @param context A pointer to plugin context derived from IRemoteContext class used to
      *        execute the network
      * @return Created Executable Network object
      */
     virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
                                                                     const std::map<std::string, std::string>& config,
-                                                                    const std::shared_ptr<RemoteContext>& context);
+                                                                    const std::shared_ptr<IRemoteContext>& context);
 
     /**
      * @brief Creates an executable network from model file path
@@ -192,14 +193,14 @@ public:
      * @param[in]  params  The map of parameters
      * @return     A remote context object
      */
-    virtual std::shared_ptr<RemoteContext> CreateContext(const ParamMap& params);
+    virtual std::shared_ptr<IRemoteContext> CreateContext(const ParamMap& params);
 
     /**
      * @brief      Provides a default remote context instance if supported by a plugin
      * @param[in]  params  The map of parameters
      * @return     The default context.
      */
-    virtual std::shared_ptr<RemoteContext> GetDefaultContext(const ParamMap& params);
+    virtual std::shared_ptr<IRemoteContext> GetDefaultContext(const ParamMap& params);
 
     /**
      * @deprecated Use ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config)
@@ -231,7 +232,7 @@ public:
      * @return An Executable network
      */
     virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
-                                                                      const std::shared_ptr<RemoteContext>& context,
+                                                                      const std::shared_ptr<IRemoteContext>& context,
                                                                       const std::map<std::string, std::string>& config);
 
     /**
@@ -252,7 +253,8 @@ public:
      * @param[in]  config   The map of configuration parameters
      * @return     The result of query operator containing supported layers map
      */
-    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const;
+    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network,
+                                            const std::map<std::string, std::string>& config) const;
 
 protected:
     ~IInferencePlugin() = default;
@@ -267,23 +269,27 @@ protected:
      * @param config string-string map of config parameters relevant only for this load operation
      * @return Shared pointer to the ExecutableNetwork object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(const CNNNetwork& network,
-                                                                           const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(
+        const CNNNetwork& network,
+        const std::map<std::string, std::string>& config);
 
     /**
      * @brief Creates an executable network using remote context from a parsed network object,
-     * users can create as many networks as they need and use them simultaneously (up to the limitation of the HW resources)
+     * users can create as many networks as they need and use them simultaneously (up to the limitation of the HW
+     * resources)
      * @note The function is used in
-     * InferencePluginInternal::LoadNetwork(const CNNNetwork&, const std::map<std::string, std::string>&, RemoteContext::Ptr)
-     * which performs common steps first and calls this plugin-dependent method implementation after.
+     * InferencePluginInternal::LoadNetwork(const CNNNetwork&, const std::map<std::string, std::string>&,
+     * IRemoteContext::Ptr) which performs common steps first and calls this plugin-dependent method implementation
+     * after.
      * @param network A network object
      * @param context A remote context
      * @param config string-string map of config parameters relevant only for this load operation
      * @return Shared pointer to the ExecutableNetwork object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(const CNNNetwork& network,
-                                                                           const std::shared_ptr<RemoteContext>& context,
-                                                                           const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(
+        const CNNNetwork& network,
+        const std::shared_ptr<IRemoteContext>& context,
+        const std::map<std::string, std::string>& config);
 
     /**
      * @brief Set input and output information to executable network. This method is used to
@@ -296,9 +302,9 @@ protected:
                            const ConstInputsDataMap& inputs,
                            const ConstOutputsDataMap& outputs);
 
-    std::string _pluginName;  //!< A device name that plugins enables
+    std::string _pluginName;                     //!< A device name that plugins enables
     std::map<std::string, std::string> _config;  //!< A map config keys -> values
-    std::weak_ptr<ICore> _core;  //!< A pointer to ICore interface
+    std::weak_ptr<ICore> _core;                  //!< A pointer to ICore interface
 };
 
 namespace details {

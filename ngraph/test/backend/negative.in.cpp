@@ -24,8 +24,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, negative)
-{
+NGRAPH_TEST(${BACKEND_NAME}, negative) {
     Shape shape{2, 3};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Negative>(A), ParameterVector{A});
@@ -38,8 +37,7 @@ NGRAPH_TEST(${BACKEND_NAME}, negative)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, negative_i32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, negative_i32) {
     auto shape_a = Shape{2, 5};
     auto A = make_shared<op::Parameter>(element::i32, shape_a);
     auto negative = make_shared<op::Negative>(A);
@@ -55,8 +53,7 @@ NGRAPH_TEST(${BACKEND_NAME}, negative_i32)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, negative_f32)
-{
+NGRAPH_TEST(${BACKEND_NAME}, negative_f32) {
     auto shape_a = Shape{2, 5};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto negative = make_shared<op::Negative>(A);
@@ -67,7 +64,7 @@ NGRAPH_TEST(${BACKEND_NAME}, negative_f32)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(shape_a, a);
-    test_case.add_expected_output<float>(
-        shape_rt, {-1.35f, -8.76f, 8.0f, -17.234f, 2.121f, -1.0f, -8.7f, 8.92f, -17.0f, 1.0f});
+    test_case.add_expected_output<float>(shape_rt,
+                                         {-1.35f, -8.76f, 8.0f, -17.234f, 2.121f, -1.0f, -8.7f, 8.92f, -17.0f, 1.0f});
     test_case.run();
 }

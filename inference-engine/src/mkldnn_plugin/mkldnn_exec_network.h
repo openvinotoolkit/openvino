@@ -38,7 +38,7 @@ public:
 
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
 
-    InferenceEngine::CNNNetwork GetExecGraphInfo() override;
+    std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
 
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
@@ -59,8 +59,9 @@ protected:
             Graph&                          _graph;
         };
     };
+
     // WARNING: Do not use _graphs directly.
-    std::deque<Graph>                           _graphs;
+    mutable std::deque<Graph>                   _graphs;
     NumaNodesWeights&                           _numaNodesWeights;
 
     /* WARNING: Use GetGraph() function to get access to graph in current stream.
@@ -68,6 +69,8 @@ protected:
      *       even from main thread
      */
     Graph::Lock GetGraph();
+    Graph::Lock GetGraph() const;
+
 
     bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
 };

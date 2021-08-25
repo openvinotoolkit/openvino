@@ -2,7 +2,7 @@
 
 **Versioned name**: *ConvolutionBackpropData-1*
 
-**Category**: Convolution
+**Category**: *Convolution*
 
 **Short description**: Computes 1D, 2D or 3D *ConvolutionBackpropData* operation with respect to the input and kernel tensors. Also known as a Transposed Convolution.
 

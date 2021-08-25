@@ -14,8 +14,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, selu_2Dfprop)
-{
+NGRAPH_TEST(${BACKEND_NAME}, selu_2Dfprop) {
     Shape rt_shape{2};
     Shape c_shape{1};
     element::Type et = element::f32;
@@ -35,8 +34,7 @@ NGRAPH_TEST(${BACKEND_NAME}, selu_2Dfprop)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, selu_4Dfprop)
-{
+NGRAPH_TEST(${BACKEND_NAME}, selu_4Dfprop) {
     Shape in_shape{4};
     Shape c_shape{1};
     element::Type et = element::f32;
@@ -56,8 +54,7 @@ NGRAPH_TEST(${BACKEND_NAME}, selu_4Dfprop)
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, selu_1Dfprop)
-{
+NGRAPH_TEST(${BACKEND_NAME}, selu_1Dfprop) {
     Shape in_shape{1};
     Shape c_shape{1};
     element::Type et = element::f32;
@@ -77,8 +74,7 @@ NGRAPH_TEST(${BACKEND_NAME}, selu_1Dfprop)
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, selu_3Dfprop_negative)
-{
+NGRAPH_TEST(${BACKEND_NAME}, selu_3Dfprop_negative) {
     Shape in_shape{3};
     Shape c_shape{1};
     element::Type et = element::f32;

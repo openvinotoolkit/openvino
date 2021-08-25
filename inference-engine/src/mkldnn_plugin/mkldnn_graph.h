@@ -115,17 +115,17 @@ public:
      * @param layerName
      * Reorder layer name
      * @param inDesc
-     * input tensor descriptor
+     * input memory descriptor
      * @param outDesc
-     * output tensor descriptor
+     * output memory descriptor
      * @param isOptimized
      * optimization flag; if isOptimized is true then Reorder node does nothing
      * @param scales
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
-    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const InferenceEngine::TensorDesc& inDesc,
-            const InferenceEngine::TensorDesc& outDesc, bool isOptimized = false, InferenceEngine::Blob::Ptr scales = nullptr);
+    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const MemoryDesc& inDesc,
+            const MemoryDesc& outDesc, bool isOptimized = false);
 
     /**
      * @brief Insert MKLDNNNode at the edge-specified location.
@@ -162,7 +162,7 @@ public:
      */
     bool InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNodePtr node, int parentPort, int childPort, bool initNode = false);
 
-    InferenceEngine::CNNNetwork dump() const;
+    std::shared_ptr<ngraph::Function> dump() const;
 
     void ResetInferCount() { infer_count = 0; }
 
@@ -223,7 +223,7 @@ protected:
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
-    friend InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
+    friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
     // these node pointers (from graphNodes) are to avoid regular checking for

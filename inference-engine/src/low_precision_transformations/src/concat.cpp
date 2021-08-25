@@ -5,9 +5,7 @@
 #include "low_precision/concat.hpp"
 
 #include <algorithm>
-#include <map>
 #include <memory>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -180,7 +178,7 @@ bool ConcatTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noe
 }
 
 bool ConcatTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    std::shared_ptr<opset1::Concat> concat = as_type_ptr<opset1::Concat>(layer);
+    std::shared_ptr<opset1::Concat> concat = ov::as_type_ptr<opset1::Concat>(layer);
     if (concat == nullptr) {
         return false;
     }
@@ -189,7 +187,6 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
     const auto outPShape = concat->get_output_partial_shape(0);
     const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outPShape.rank());
 
-    // TODO: LPT: to support current flow: #58269
     if (normalizedAxis != 1ul) {
         return false;
     }
@@ -197,8 +194,6 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
     if (outPShape.rank().is_dynamic() || outPShape[normalizedAxis].is_dynamic()) {
         return false;
     }
-
-    const bool perTensorQuantizationIsRequired = normalizedAxis != 1ul;
 
     element::Type precision;
     for (size_t i = 0ul; i < concat->get_input_size(); i++) {
@@ -210,12 +205,6 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         if (precision == element::undefined) {
             precision = dequantization.data.get_element_type();
         } else if (precision != dequantization.data.get_element_type()) {
-            return false;
-        }
-
-        if (perTensorQuantizationIsRequired &&
-            (((dequantization.subtractConstant != nullptr) && !NetworkHelper::isScalarLike(dequantization.subtractConstant)) ||
-            ((dequantization.multiplyConstant != nullptr) && !NetworkHelper::isScalarLike(dequantization.multiplyConstant)))) {
             return false;
         }
     }
@@ -306,6 +295,22 @@ bool ConcatTransformation::isHandled(const TransformationContext& context, const
     }
 
     return false;
+}
+
+bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+    const auto concat = as_type_ptr<const opset1::Concat>(layer);
+    if (concat == nullptr) {
+        return false;
+    }
+
+    const auto axis = concat->get_axis();
+    const auto outputRank = concat->get_output_partial_shape(0).rank();
+    if (axis < 0 && outputRank.is_dynamic()) {
+        return false;
+    }
+
+    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outputRank);
+    return normalizedAxis == 1ul;
 }
 
 } // namespace low_precision

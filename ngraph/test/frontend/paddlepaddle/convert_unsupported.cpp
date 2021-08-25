@@ -6,22 +6,20 @@
 #include <frontend_manager/frontend_manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "utils.hpp"
 #include "paddle_utils.hpp"
+#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-TEST(FrontEndConvertModelTest, test_unsupported_op)
-{
+TEST(FrontEndConvertModelTest, test_unsupported_op) {
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
     InputModel::Ptr inputModel;
     ASSERT_NO_THROW(frontEnd = fem.load_by_framework(PADDLE_FE));
     ASSERT_NE(frontEnd, nullptr);
-    auto model_filename = FrontEndTestUtils::make_model_path(
-        std::string(TEST_PADDLE_MODELS_DIRNAME) +
-        std::string("relu_unsupported/relu_unsupported.pdmodel"));
+    auto model_filename = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
+                                                             std::string("relu_unsupported/relu_unsupported.pdmodel"));
     ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
     std::shared_ptr<ngraph::Function> function;

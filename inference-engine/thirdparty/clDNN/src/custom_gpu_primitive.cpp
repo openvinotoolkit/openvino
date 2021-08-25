@@ -35,6 +35,6 @@ std::string custom_gpu_primitive_inst::to_string(custom_gpu_primitive_node const
     return primitive_description.str();
 }
 
-custom_gpu_primitive_inst::typed_primitive_inst(network_impl& network, custom_gpu_primitive_node const& node)
+custom_gpu_primitive_inst::typed_primitive_inst(network& network, custom_gpu_primitive_node const& node)
     : parent(network, node) {}
 }  // namespace cldnn
