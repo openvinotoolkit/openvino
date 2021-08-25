@@ -72,14 +72,12 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
         // if don't set restrictions for not supported operations then accuracy drop appears, issue #59197
         const bool supported = ov::is_type<opset1::Result>(node) || isSupported(node);
         if (!supported || !LayerTransformation::canBeTransformedStatic(node)) {
-            // TODO: explain
             set_restriction(node, {{0, {}}});
             continue;
         }
 
         const bool precisionPreserved = isPrecisionPreserved(node);
         if (precisionPreserved) {
-            // TODO: use shortcut
             auto& rt = node->get_rt_info();
             rt.emplace(
                 ngraph::VariantWrapper<PrecisionPreservedAttributePtr>::type_info.name,

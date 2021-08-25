@@ -80,7 +80,6 @@ public:
 
 private:
     std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> getSourceOutputAttribute(const Input<Node>& input) {
-        // TODO: explain
         auto input2 = input;
         auto output = input2.get_source_output();
         std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> attribute = getAttributeFromOutput<std::shared_ptr<AttributeType>>(output);
