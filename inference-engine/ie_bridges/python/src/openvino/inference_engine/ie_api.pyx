@@ -35,9 +35,6 @@ warnings.filterwarnings(action="module", category=DeprecationWarning)
 cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[C.IEExecNetwork] move(unique_ptr[C.IEExecNetwork])
 
-cdef string to_std_string(str py_string):
-    return py_string.encode()
-
 cdef to_py_string(const string & std_string):
     return bytes(std_string).decode()
 
@@ -166,9 +163,6 @@ cdef class Blob:
         cdef int64_t[::1] I64_array_memview
         cdef uint32_t[::1] U32_array_memview
         cdef uint64_t[::1] U64_array_memview
-
-        cdef int16_t[:] x_as_uint
-        cdef int16_t[:] y_as_uint
 
         self._is_const = False
         self._array_data = array
@@ -379,7 +373,6 @@ cdef class IECore:
                              "or zero for auto detection")
         if config:
             c_config = dict_to_c_map(config)
-        exec_net.ie_core_impl = self.impl
         c_device_name = device_name.encode()
         if isinstance(network, str):
             c_network_path = network.encode()
@@ -416,7 +409,6 @@ cdef class IECore:
                              "or zero for auto detection")
         if config:
             c_config = dict_to_c_map(config)
-        exec_net.ie_core_impl = self.impl
         exec_net.impl = move(self.impl.importNetwork(model_file.encode(), device_name.encode(), c_config, num_requests))
         return exec_net
 
