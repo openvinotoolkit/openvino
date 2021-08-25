@@ -18,20 +18,7 @@ enum class PadMode { CONSTANT = 0, EDGE, REFLECT, SYMMETRIC };
 
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const PadMode& type);
-}  // namespace op
 
-template <>
-class NGRAPH_API AttributeAdapter<op::PadMode> : public EnumAttributeAdapterBase<op::PadMode> {
-public:
-    AttributeAdapter(op::PadMode& value) : EnumAttributeAdapterBase<op::PadMode>(value) {}
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::PadMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
-
-namespace op {
 /// \brief Padding Type used for `Convolution` and `Pooling`
 ///
 /// Follows ONNX padding type definitions
@@ -57,20 +44,7 @@ enum class PadType {
 
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const PadType& type);
-}  // namespace op
 
-template <>
-class NGRAPH_API AttributeAdapter<op::PadType> : public EnumAttributeAdapterBase<op::PadType> {
-public:
-    AttributeAdapter(op::PadType& value) : EnumAttributeAdapterBase<op::PadType>(value) {}
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::PadType>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
-
-namespace op {
 /// \brief Rounding Type used for `Pooling` operators.
 enum class RoundingType {
     FLOOR = 0,
@@ -79,20 +53,7 @@ enum class RoundingType {
 
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const RoundingType& type);
-}  // namespace op
 
-template <>
-class NGRAPH_API AttributeAdapter<op::RoundingType> : public EnumAttributeAdapterBase<op::RoundingType> {
-public:
-    AttributeAdapter(op::RoundingType& value) : EnumAttributeAdapterBase<op::RoundingType>(value) {}
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::RoundingType>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
-
-namespace op {
 /// \brief Specifies the algorithm to use for implicit broadcasting of a tensor
 ///        to align with another tensor
 ///
@@ -140,8 +101,6 @@ enum class AutoBroadcastType {
 
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const AutoBroadcastType& type);
-}  // namespace op
-namespace op {
 /// \brief BroadcastType specifies rules used for mapping of input tensor axes to output
 /// shape axes.
 ///
@@ -162,31 +121,7 @@ enum class BroadcastType { NONE, EXPLICIT = NONE, NUMPY, PDPD, BIDIRECTIONAL };
 
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const BroadcastType& type);
-}  // namespace op
 
-template <>
-class NGRAPH_API AttributeAdapter<op::AutoBroadcastType> : public EnumAttributeAdapterBase<op::AutoBroadcastType> {
-public:
-    AttributeAdapter(op::AutoBroadcastType& value) : EnumAttributeAdapterBase<op::AutoBroadcastType>(value) {}
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::AutoBroadcastType>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
-
-template <>
-class NGRAPH_API AttributeAdapter<op::BroadcastType> : public EnumAttributeAdapterBase<op::BroadcastType> {
-public:
-    AttributeAdapter(op::BroadcastType& value) : EnumAttributeAdapterBase<op::BroadcastType>(value) {}
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::BroadcastType>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
-
-namespace op {
 /// \brief Specifies how eps is combined with L2 value
 enum class EpsMode {
     // Add bias to norm
@@ -197,20 +132,7 @@ enum class EpsMode {
 
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const EpsMode& type);
-}  // namespace op
 
-template <>
-class NGRAPH_API AttributeAdapter<op::EpsMode> : public EnumAttributeAdapterBase<op::EpsMode> {
-public:
-    AttributeAdapter(op::EpsMode& value) : EnumAttributeAdapterBase<op::EpsMode>(value) {}
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::EpsMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
-
-namespace op {
 enum class TopKSortType {
     // Returned values are not sorte
     NONE,
@@ -222,20 +144,7 @@ enum class TopKSortType {
 
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const TopKSortType& type);
-}  // namespace op
 
-template <>
-class NGRAPH_API AttributeAdapter<op::TopKSortType> : public EnumAttributeAdapterBase<op::TopKSortType> {
-public:
-    AttributeAdapter(op::TopKSortType& value) : EnumAttributeAdapterBase<op::TopKSortType>(value) {}
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::TopKSortType>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
-
-namespace op {
 enum class TopKMode {
     MAX,
     MIN,
@@ -243,20 +152,7 @@ enum class TopKMode {
 
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const TopKMode& type);
-}  // namespace op
 
-template <>
-class NGRAPH_API AttributeAdapter<op::TopKMode> : public EnumAttributeAdapterBase<op::TopKMode> {
-public:
-    AttributeAdapter(op::TopKMode& value) : EnumAttributeAdapterBase<op::TopKMode>(value) {}
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::TopKMode>", 1};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
-
-namespace op {
 /// \brief Implicit broadcast specification
 struct NGRAPH_API AutoBroadcastSpec {
     AutoBroadcastSpec() : m_type(AutoBroadcastType::NONE), m_axis(0) {}
@@ -280,24 +176,7 @@ struct NGRAPH_API AutoBroadcastSpec {
 private:
     AutoBroadcastType type_from_string(const std::string& type) const;
 };
-}  // namespace op
 
-template <>
-class AttributeAdapter<op::AutoBroadcastSpec> : public VisitorAdapter {
-public:
-    AttributeAdapter(op::AutoBroadcastSpec& value) : m_ref(value) {}
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::AutoBroadcastSpec>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-
-protected:
-    op::AutoBroadcastSpec& m_ref;
-};
-
-namespace op {
 /// \brief Implicit broadcast specification
 struct NGRAPH_API BroadcastModeSpec {
     BroadcastModeSpec() : m_type(BroadcastType::NUMPY), m_axis(0) {}
@@ -312,24 +191,7 @@ struct NGRAPH_API BroadcastModeSpec {
         return a.m_type == m_type && a.m_axis == m_axis;
     }
 };
-}  // namespace op
 
-template <>
-class AttributeAdapter<op::BroadcastModeSpec> : public VisitorAdapter {
-public:
-    AttributeAdapter(op::BroadcastModeSpec& value) : m_ref(value) {}
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::BroadcastModeSpec>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-
-protected:
-    op::BroadcastModeSpec& m_ref;
-};
-
-namespace op {
 ///
 /// \brief      This class defines possible recurrent sequence directions.
 ///
@@ -338,17 +200,142 @@ enum class RecurrentSequenceDirection { FORWARD, REVERSE, BIDIRECTIONAL };
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const RecurrentSequenceDirection& direction);
 }  // namespace op
+}  // namespace ngraph
+
+namespace ov {
+template <>
+class NGRAPH_API AttributeAdapter<ngraph::op::PadMode> : public EnumAttributeAdapterBase<ngraph::op::PadMode> {
+public:
+    AttributeAdapter(ngraph::op::PadMode& value) : EnumAttributeAdapterBase<ngraph::op::PadMode>(value) {}
+
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::PadMode>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+};
 
 template <>
-class NGRAPH_API AttributeAdapter<op::RecurrentSequenceDirection>
-    : public EnumAttributeAdapterBase<op::RecurrentSequenceDirection> {
+class NGRAPH_API AttributeAdapter<ngraph::op::PadType> : public EnumAttributeAdapterBase<ngraph::op::PadType> {
 public:
-    AttributeAdapter(op::RecurrentSequenceDirection& value)
-        : EnumAttributeAdapterBase<op::RecurrentSequenceDirection>(value) {}
+    AttributeAdapter(ngraph::op::PadType& value) : EnumAttributeAdapterBase<ngraph::op::PadType>(value) {}
+
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::PadType>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+};
+
+template <>
+class NGRAPH_API AttributeAdapter<ngraph::op::RoundingType>
+    : public EnumAttributeAdapterBase<ngraph::op::RoundingType> {
+public:
+    AttributeAdapter(ngraph::op::RoundingType& value) : EnumAttributeAdapterBase<ngraph::op::RoundingType>(value) {}
+
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::RoundingType>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+};
+
+template <>
+class NGRAPH_API AttributeAdapter<ngraph::op::AutoBroadcastType>
+    : public EnumAttributeAdapterBase<ngraph::op::AutoBroadcastType> {
+public:
+    AttributeAdapter(ngraph::op::AutoBroadcastType& value)
+        : EnumAttributeAdapterBase<ngraph::op::AutoBroadcastType>(value) {}
+
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::AutoBroadcastType>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+};
+
+template <>
+class NGRAPH_API AttributeAdapter<ngraph::op::BroadcastType>
+    : public EnumAttributeAdapterBase<ngraph::op::BroadcastType> {
+public:
+    AttributeAdapter(ngraph::op::BroadcastType& value) : EnumAttributeAdapterBase<ngraph::op::BroadcastType>(value) {}
+
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::BroadcastType>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+};
+
+template <>
+class NGRAPH_API AttributeAdapter<ngraph::op::EpsMode> : public EnumAttributeAdapterBase<ngraph::op::EpsMode> {
+public:
+    AttributeAdapter(ngraph::op::EpsMode& value) : EnumAttributeAdapterBase<ngraph::op::EpsMode>(value) {}
+
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::EpsMode>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+};
+
+template <>
+class NGRAPH_API AttributeAdapter<ngraph::op::TopKSortType>
+    : public EnumAttributeAdapterBase<ngraph::op::TopKSortType> {
+public:
+    AttributeAdapter(ngraph::op::TopKSortType& value) : EnumAttributeAdapterBase<ngraph::op::TopKSortType>(value) {}
+
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::TopKSortType>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+};
+
+template <>
+class NGRAPH_API AttributeAdapter<ngraph::op::TopKMode> : public EnumAttributeAdapterBase<ngraph::op::TopKMode> {
+public:
+    AttributeAdapter(ngraph::op::TopKMode& value) : EnumAttributeAdapterBase<ngraph::op::TopKMode>(value) {}
+
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::TopKMode>", 1};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+};
+
+template <>
+class AttributeAdapter<ngraph::op::AutoBroadcastSpec> : public VisitorAdapter {
+public:
+    AttributeAdapter(ngraph::op::AutoBroadcastSpec& value) : m_ref(value) {}
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::AutoBroadcastSpec>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+
+protected:
+    ngraph::op::AutoBroadcastSpec& m_ref;
+};
+
+template <>
+class AttributeAdapter<ngraph::op::BroadcastModeSpec> : public VisitorAdapter {
+public:
+    AttributeAdapter(ngraph::op::BroadcastModeSpec& value) : m_ref(value) {}
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::BroadcastModeSpec>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+
+protected:
+    ngraph::op::BroadcastModeSpec& m_ref;
+};
+
+template <>
+class NGRAPH_API AttributeAdapter<ngraph::op::RecurrentSequenceDirection>
+    : public EnumAttributeAdapterBase<ngraph::op::RecurrentSequenceDirection> {
+public:
+    AttributeAdapter(ngraph::op::RecurrentSequenceDirection& value)
+        : EnumAttributeAdapterBase<ngraph::op::RecurrentSequenceDirection>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::RecurrentSequenceDirection>", 1};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+}  // namespace ov

@@ -27,7 +27,7 @@ public:
 
     void validate_and_infer_types() override;
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 }  // namespace v0
 using v0::Gelu;
@@ -68,15 +68,20 @@ private:
 };
 }  // namespace v7
 }  // namespace op
+}  // namespace ngraph
+
+namespace ov {
 template <>
-class NGRAPH_API AttributeAdapter<op::GeluApproximationMode>
-    : public EnumAttributeAdapterBase<op::GeluApproximationMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::GeluApproximationMode>
+    : public EnumAttributeAdapterBase<ngraph::op::GeluApproximationMode> {
 public:
-    AttributeAdapter(op::GeluApproximationMode& value) : EnumAttributeAdapterBase<op::GeluApproximationMode>(value) {}
+    AttributeAdapter(ngraph::op::GeluApproximationMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::GeluApproximationMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::GeluApproximationMode>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov

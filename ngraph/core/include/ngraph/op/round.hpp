@@ -34,7 +34,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     bool has_evaluate() const override;
@@ -50,16 +50,21 @@ private:
 }  // namespace op
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const op::v5::Round::RoundMode& type);
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<op::v5::Round::RoundMode>
-    : public EnumAttributeAdapterBase<op::v5::Round::RoundMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v5::Round::RoundMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v5::Round::RoundMode> {
 public:
-    AttributeAdapter(op::v5::Round::RoundMode& value) : EnumAttributeAdapterBase<op::v5::Round::RoundMode>(value) {}
+    AttributeAdapter(ngraph::op::v5::Round::RoundMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v5::Round::RoundMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v5::Round::RoundMode>", 5};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov

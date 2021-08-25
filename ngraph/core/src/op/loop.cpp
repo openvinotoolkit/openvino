@@ -306,6 +306,6 @@ op::v5::Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
     other.clone_to(*this, other.input_values());
 }
 
-namespace ngraph {
+namespace ov {
 constexpr DiscreteTypeInfo AttributeAdapter<op::v5::Loop::SpecialBodyPorts>::type_info;
 }

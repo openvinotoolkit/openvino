@@ -64,7 +64,11 @@ bool ngraph::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-namespace ngraph {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type) {
+    return s << as_string(type);
+}
+
+namespace ov {
 template <>
 NGRAPH_API EnumNames<op::v8::MatrixNms::DecayFunction>& EnumNames<op::v8::MatrixNms::DecayFunction>::get() {
     static auto enum_names =
@@ -76,7 +80,4 @@ NGRAPH_API EnumNames<op::v8::MatrixNms::DecayFunction>& EnumNames<op::v8::Matrix
 
 constexpr DiscreteTypeInfo AttributeAdapter<op::v8::MatrixNms::DecayFunction>::type_info;
 
-std::ostream& operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type) {
-    return s << as_string(type);
-}
-}  // namespace ngraph
+}  // namespace ov
