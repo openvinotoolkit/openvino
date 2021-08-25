@@ -31,6 +31,7 @@
 #include "cldnn/primitives/max_unpooling.hpp"
 #include "cldnn/primitives/mutable_data.hpp"
 #include "cldnn/primitives/mvn.hpp"
+#include "cldnn/primitives/non_max_suppression.hpp"
 #include "cldnn/primitives/normalize.hpp"
 #include "cldnn/primitives/one_hot.hpp"
 #include "cldnn/primitives/permute.hpp"
@@ -105,6 +106,7 @@ REGISTER_OCL(lstm_elt);
 REGISTER_OCL(max_unpooling);
 REGISTER_OCL(mutable_data);
 REGISTER_OCL(mvn);
+REGISTER_OCL(non_max_suppression);
 REGISTER_OCL(normalize);
 REGISTER_OCL(one_hot);
 REGISTER_OCL(permute);

@@ -17,6 +17,7 @@
 #include "binary_convolution_inst.h"
 #include "lstm_gemm_inst.h"
 #include "generic_layer.hpp"
+#include "non_max_suppression_inst.h"
 #include "region_yolo_inst.h"
 
 #include "kernel_selector_common.h"
