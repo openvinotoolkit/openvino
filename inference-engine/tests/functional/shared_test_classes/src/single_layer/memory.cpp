@@ -67,7 +67,6 @@ namespace LayerTestsDefinitions {
 
         auto &s = LayerTestsUtils::Summary::getInstance();
         s.setDeviceName(targetDevice);
-
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
             s.updateOPsStats(function, PassRate::Statuses::SKIPPED);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
@@ -75,6 +74,7 @@ namespace LayerTestsDefinitions {
             s.updateOPsStats(function, PassRate::Statuses::CRASHED);
         }
 
+        auto func_copy = ngraph::clone_function(*function);
         try {
             if (transformation != ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
                 LoadNetwork();
@@ -88,16 +88,16 @@ namespace LayerTestsDefinitions {
                 Infer();
                 Validate();
             }
-            s.updateOPsStats(function, PassRate::Statuses::PASSED);
+            s.updateOPsStats(func_copy, PassRate::Statuses::PASSED);
         }
         catch (const std::runtime_error &re) {
-            s.updateOPsStats(function, PassRate::Statuses::FAILED);
+            s.updateOPsStats(func_copy, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(re.what());
         } catch (const std::exception &ex) {
-            s.updateOPsStats(function, PassRate::Statuses::FAILED);
+            s.updateOPsStats(func_copy, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(ex.what());
         } catch (...) {
-            s.updateOPsStats(function, PassRate::Statuses::FAILED);
+            s.updateOPsStats(func_copy, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
     }
@@ -125,7 +125,6 @@ namespace LayerTestsDefinitions {
         }
 
         // evaluate method is not implemented for TI op.
-        auto func_copy = ngraph::clone_function(*function);
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         manager.run_passes(function);
@@ -135,7 +134,7 @@ namespace LayerTestsDefinitions {
         for (auto& outTensor : outputTensors) {
             outTensor = std::make_shared<HostTensor>();
         }
-        func_copy->evaluate(outputTensors, inputTensors, eval_context);
+        function->evaluate(outputTensors, inputTensors, eval_context);
 
         std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> outputs(outInfo.size());
         for (size_t idx = 0; idx < outInfo.size(); ++idx) {
