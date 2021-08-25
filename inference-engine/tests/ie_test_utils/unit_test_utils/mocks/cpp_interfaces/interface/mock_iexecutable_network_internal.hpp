@@ -30,7 +30,7 @@ public:
     MOCK_METHOD1(SetConfig, void(const std::map<std::string, Parameter> &config));
     MOCK_CONST_METHOD1(GetConfig, Parameter(const std::string &name));
     MOCK_CONST_METHOD1(GetMetric, Parameter(const std::string &name));
-    MOCK_CONST_METHOD0(GetContext, RemoteContext::Ptr(void));
+    MOCK_CONST_METHOD0(GetContext, std::shared_ptr<IRemoteContext>(void));
     void WrapOstreamExport(std::ostream& networkModel) {
         IExecutableNetworkInternal::Export(networkModel);
     }

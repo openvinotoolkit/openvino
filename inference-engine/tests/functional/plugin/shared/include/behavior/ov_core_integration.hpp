@@ -419,19 +419,6 @@ TEST(OVClassBasicTest, smoke_SetConfigHeteroNoThrow) {
 }
 
 //
-// ImportNetwork
-//
-
-
-TEST_P(OVClassBasicTestP, ImportNetworkWithNullContextThrows) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::Core ie = createCoreWithTemplate();
-    RemoteContext::Ptr context = nullptr;
-    std::istringstream stream("None");
-    ASSERT_THROW(ie.import_model(stream, context, {}), Exception);
-}
-
-//
 // LoadNetwork
 //
 

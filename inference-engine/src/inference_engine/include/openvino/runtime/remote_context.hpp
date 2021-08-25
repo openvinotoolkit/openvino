@@ -13,32 +13,45 @@
 #include <memory>
 #include <string>
 
+#include "common.hpp"
+#include "details/ie_so_loader.h"
 #include "ie_parameter.hpp"
-#include "ie_remote_blob.hpp"
+#include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
+class IRemoteContext;
+class RemoteBlob;
+}  // namespace InferenceEngine
+
+namespace ov {
+namespace runtime {
+
+class Core;
+
 /**
- * @brief This class represents an Inference Engine abstraction
+ * @brief This class represents an abstraction
  * for remote (non-CPU) accelerator device-specific execution context.
  * Such context represents a scope on the device within which executable
  * networks and remote memory blobs can exist, function and exchange data.
  */
-class RemoteContext {
+class INFERENCE_ENGINE_API_CLASS(RemoteContext) {
+    ie::details::SharedObjectLoader _so;
+    std::shared_ptr<ie::IRemoteContext> _impl;
+
+    /**
+     * @brief Constructs RemoteContext from the initialized std::shared_ptr
+     * @param so Plugin to use. This is required to ensure that RemoteContext can work properly even if plugin
+     * object is destroyed.
+     * @param impl Initialized shared pointer
+     */
+    RemoteContext(const ie::details::SharedObjectLoader& so, const std::shared_ptr<ie::IRemoteContext>& impl);
+    friend class Core;
+
 public:
     /**
-     * @brief A smart pointer to the RemoteContext object
+     * @brief Default constructor
      */
-    using Ptr = std::shared_ptr<RemoteContext>;
-
-    /**
-     * @brief A smart pointer to the const RemoteContext object
-     */
-    using CPtr = std::shared_ptr<const RemoteContext>;
-
-    /**
-     * @brief RemoteContext virtual destructor
-     */
-    virtual ~RemoteContext() = default;
+    RemoteContext() = default;
 
     /**
      * @brief Checks if the RemoteContext object can be cast to the type T*
@@ -48,9 +61,9 @@ public:
      */
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
+              typename std::enable_if<std::is_base_of<ie::RemoteContext, T>::value, int>::type = 0>
     bool is() noexcept {
-        return dynamic_cast<T*>(this) != nullptr;
+        return dynamic_cast<T*>(_impl.get()) != nullptr;
     }
 
     /**
@@ -61,9 +74,9 @@ public:
      */
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
+              typename std::enable_if<std::is_base_of<ie::RemoteContext, T>::value, int>::type = 0>
     bool is() const noexcept {
-        return dynamic_cast<const T*>(this) != nullptr;
+        return dynamic_cast<const T*>(_impl.get()) != nullptr;
     }
 
     /**
@@ -74,9 +87,9 @@ public:
      */
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
+              typename std::enable_if<std::is_base_of<ie::RemoteContext, T>::value, int>::type = 0>
     T* as() noexcept {
-        return dynamic_cast<T*>(this);
+        return dynamic_cast<T*>(_impl.get());
     }
 
     /**
@@ -87,9 +100,9 @@ public:
      */
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
+              typename std::enable_if<std::is_base_of<ie::RemoteContext, T>::value, int>::type = 0>
     const T* as() const noexcept {
-        return dynamic_cast<const T*>(this);
+        return dynamic_cast<const T*>(_impl.get());
     }
 
     /**
@@ -97,7 +110,7 @@ public:
      * Abstract method.
      * @return A device name string in the same format as that in plugin metric.
      */
-    virtual std::string getDeviceName() const noexcept = 0;
+    std::string get_device_name() const;
 
     /**
      * @brief Allocates memory blob in device memory or wraps user-supplied memory handle
@@ -108,7 +121,7 @@ public:
      * Abstract method.
      * @return A pointer to plugin object that implements RemoteBlob interface.
      */
-    virtual RemoteBlob::Ptr CreateBlob(const TensorDesc& tensorDesc, const ParamMap& params = {}) = 0;
+    std::shared_ptr<ie::RemoteBlob> create_blob(const ie::TensorDesc& tensorDesc, const ie::ParamMap& params = {});
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level
@@ -119,18 +132,8 @@ public:
      * Abstract method.
      * @return A map of name/parameter elements.
      */
-    virtual ParamMap getParams() const = 0;
+    ie::ParamMap get_params() const;
 };
 
-/**
- * @brief A wrapper of CreateBlob method of RemoteContext to keep consistency with
- * plugin-specific wrappers.
- * @param desc Defines the layout and dims of the blob
- * @param ctx Pointer to the plugin object derived from RemoteContext.
- * @return A pointer to plugin object that implements RemoteBlob interface.
- */
-inline RemoteBlob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx) {
-    return ctx->CreateBlob(desc);
-}
-
-}  // namespace InferenceEngine
+}  // namespace runtime
+}  // namespace ov

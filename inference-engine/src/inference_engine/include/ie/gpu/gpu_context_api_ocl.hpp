@@ -10,6 +10,7 @@
  */
 #pragma once
 
+#include <cpp_interfaces/interface/ie_iremote_context.hpp>
 #include <memory>
 #include <string>
 
@@ -18,7 +19,6 @@
 #include "gpu/gpu_params.hpp"
 #include "ie_compound_blob.h"
 #include "ie_core.hpp"
-#include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
 
@@ -29,7 +29,7 @@ namespace gpu {
  * The plugin object derived from this class can be obtained either with
  * GetContext() method of Executable network or using CreateContext() Core call.
  */
-class ClContext : public RemoteContext, public details::param_map_obj_getter {
+class ClContext : public IRemoteContext, public details::param_map_obj_getter {
 public:
     /**
      * @brief A smart pointer to the ClContext object
