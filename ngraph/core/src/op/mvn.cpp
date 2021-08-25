@@ -70,7 +70,7 @@ bool op::v0::MVN::visit_attributes(AttributeVisitor& visitor) {
 
 // ------------------------------ V6 ------------------------------
 
-namespace ngraph {
+namespace ov {
 template <>
 NGRAPH_API EnumNames<op::MVNEpsMode>& EnumNames<op::MVNEpsMode>::get() {
     static auto enum_names = EnumNames<op::MVNEpsMode>(
@@ -81,10 +81,11 @@ NGRAPH_API EnumNames<op::MVNEpsMode>& EnumNames<op::MVNEpsMode>::get() {
 
 constexpr DiscreteTypeInfo AttributeAdapter<op::MVNEpsMode>::type_info;
 
+}  // namespace ov
+
 std::ostream& op::operator<<(std::ostream& s, const op::MVNEpsMode& type) {
     return s << as_string(type);
 }
-}  // namespace ngraph
 
 NGRAPH_RTTI_DEFINITION(op::v6::MVN, "MVN", 6);
 
