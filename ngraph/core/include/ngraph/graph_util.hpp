@@ -19,10 +19,6 @@
 #include "ngraph/node.hpp"
 
 namespace ngraph {
-namespace descriptor {
-class Input;
-class Output;
-}  // namespace descriptor
 
 namespace op {
 namespace v0 {
