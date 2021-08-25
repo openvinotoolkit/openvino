@@ -85,7 +85,7 @@ public:
      * @brief Get executable graph information from a device
      * @return A network object to store executable graph information
      */
-    virtual CNNNetwork GetExecGraphInfo();
+    virtual std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     /**
      * @deprecated Need to implement GetVariablesInfo for ExecutableNetwork
