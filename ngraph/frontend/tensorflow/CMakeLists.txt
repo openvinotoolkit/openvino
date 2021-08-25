@@ -83,15 +83,8 @@ if(COMMAND ie_add_vs_version_file)
             FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format")
 endif()
 
-if(WIN32)
-    target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf)
-else()
-    target_link_libraries(${TARGET_NAME} PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT})
-    #target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf)
-endif()
-
 target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager
-        PRIVATE ngraph::builder inference_engine)
+        PRIVATE ngraph::builder inference_engine libprotobuf)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
