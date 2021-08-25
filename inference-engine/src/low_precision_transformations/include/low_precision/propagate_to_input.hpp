@@ -72,9 +72,9 @@ private:
         auto getInput = [](const Input<Node>& input) {
             const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), input.get_index());
             if (!dequantization.empty() &&
-                is_type<opset1::Convert>(dequantization.data.get_node()) &&
+                ov::is_type<opset1::Convert>(dequantization.data.get_node()) &&
                 (dequantization.data.get_node()->get_input_size() == 1ul) &&
-                is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+                ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
                 return dequantization.data.get_node()->input(0);
             }
 
