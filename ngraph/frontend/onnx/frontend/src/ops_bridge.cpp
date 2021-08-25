@@ -106,6 +106,8 @@
 #include "op/org.openvinotoolkit/prior_box.hpp"
 #include "op/org.openvinotoolkit/swish.hpp"
 #include "op/quantize_linear.hpp"
+#include "op/random_uniform.hpp"
+#include "op/random_uniform_like.hpp"
 #include "op/range.hpp"
 #include "op/reciprocal.hpp"
 #include "op/reduce.hpp"
@@ -366,6 +368,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
     REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
     REGISTER_OPERATOR("Range", 1, range);
+    REGISTER_OPERATOR("RandomUniform", 1, random_uniform);
+    REGISTER_OPERATOR("RandomUniformLike", 1, random_uniform_like);
     REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
     REGISTER_OPERATOR("ReduceLogSum", 1, reduce_log_sum);
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);

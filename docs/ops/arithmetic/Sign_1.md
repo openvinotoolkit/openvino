@@ -2,7 +2,7 @@
 
 **Versioned name**: *Sign-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Sign* performs element-wise sign operation on a given input tensor.
 

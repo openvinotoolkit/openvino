@@ -29,7 +29,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return The second input data interpretation mode.
     Mode get_mode() const {
@@ -60,15 +60,21 @@ private:
 
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const op::v1::Reverse::Mode& type);
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<op::v1::Reverse::Mode> : public EnumAttributeAdapterBase<op::v1::Reverse::Mode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v1::Reverse::Mode>
+    : public EnumAttributeAdapterBase<ngraph::op::v1::Reverse::Mode> {
 public:
-    AttributeAdapter(op::v1::Reverse::Mode& value) : EnumAttributeAdapterBase<op::v1::Reverse::Mode>(value) {}
+    AttributeAdapter(ngraph::op::v1::Reverse::Mode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v1::Reverse::Mode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v1::Reverse::Mode>", 1};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov

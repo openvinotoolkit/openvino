@@ -26,6 +26,7 @@
 #include <transformations/common_optimizations/dilated_convolution_converter.hpp>
 #include <transformations/common_optimizations/binarize_weights.hpp>
 #include <transformations/common_optimizations/conv_to_binary_conv.hpp>
+#include <transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp>
 #include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
 #include <transformations/common_optimizations/split_squeeze_concat_fusion.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
@@ -60,6 +61,8 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
+    // workaround until dynamism in NMS is not supported
+    manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>();
 
     auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
     transpose_sinking->add_matcher<ngraph::pass::TransposeSinking>();

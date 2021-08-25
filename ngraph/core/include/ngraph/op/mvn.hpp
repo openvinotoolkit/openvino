@@ -17,7 +17,7 @@ class NGRAPH_API MVN : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
-    MVN();
+    MVN() = default;
     /// \brief Constructs an MVN operation.
     ///
     /// \param data Input tensor with data
@@ -41,11 +41,11 @@ public:
     ///
     MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_variance = true, double eps = 1e-9);
 
-    virtual void validate_and_infer_types() override;
+    void validate_and_infer_types() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     double get_eps() const {
         return m_eps;
@@ -129,15 +129,19 @@ private:
 };
 }  // namespace v6
 }  // namespace op
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<op::MVNEpsMode> : public EnumAttributeAdapterBase<op::MVNEpsMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::MVNEpsMode> : public EnumAttributeAdapterBase<ngraph::op::MVNEpsMode> {
 public:
-    AttributeAdapter(op::MVNEpsMode& value) : EnumAttributeAdapterBase<op::MVNEpsMode>(value) {}
+    AttributeAdapter(ngraph::op::MVNEpsMode& value) : EnumAttributeAdapterBase<ngraph::op::MVNEpsMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::MVNEpsMode>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov
