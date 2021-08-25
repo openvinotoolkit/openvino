@@ -15,6 +15,6 @@
 #include "openvino/core/node_input.hpp"
 
 namespace ngraph {
-using ov::Node;
 using ov::Input;
+using ov::Node;
 }  // namespace ngraph
