@@ -22,7 +22,7 @@ log = logging.getLogger()
 
 
 @pytest.mark.dependency(name="cc_collect")
-def test_cc_collect(test_id, models, openvino_ref, test_info,
+def test_cc_collect(download_models, test_id, models, openvino_ref, test_info,
                     save_session_info, sea_runtool, collector_dir, artifacts):  # pylint: disable=unused-argument
     """Test conditional compilation statistics collection
     :param test_info: custom `test_info` field of built-in `request` pytest fixture.
@@ -31,6 +31,8 @@ def test_cc_collect(test_id, models, openvino_ref, test_info,
     out = artifacts / test_id
     infer_out_dir = out / "inference_result"
     test_info["test_id"] = test_id
+
+    model_paths = (model["path"] for model in models)
 
     # cleanup old data if any
     prev_result = glob.glob(f"{out / test_id}.pid*.csv")
@@ -46,7 +48,7 @@ def test_cc_collect(test_id, models, openvino_ref, test_info,
             "!",
             sys.executable,
             infer_tool,
-            *[f"-m={model}" for model in models],
+            *[f"-m={model_path}" for model_path in model_paths],
             "-d=CPU",
             f"-r={infer_out_dir}"
         ]
@@ -94,7 +96,7 @@ def test_infer(download_models, test_id, models, artifacts):
 
 
 @pytest.mark.dependency(depends=["cc_collect", "minimized_pkg"])
-def test_verify(test_id, models, openvino_ref, artifacts, tolerance=1e-6):  # pylint: disable=too-many-arguments
+def test_verify(download_models, test_id, models, openvino_ref, artifacts, tolerance=1e-6):  # pylint: disable=too-many-arguments
     """Test verifying that inference results are equal."""
     out = artifacts / test_id
     minimized_pkg = out / "install_pkg"
@@ -102,9 +104,11 @@ def test_verify(test_id, models, openvino_ref, artifacts, tolerance=1e-6):  # py
     infer_out_dir_cc = out / "inference_result_cc/"
     infer_out_dir = out / "inference_result/"
 
-    return_code, output = run_infer(models, infer_out_dir, openvino_ref)
+    model_paths = (model["path"] for model in models)
+
+    return_code, output = run_infer(model_paths, infer_out_dir, openvino_ref)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
-    return_code, output = run_infer(models, infer_out_dir_cc, minimized_pkg)
+    return_code, output = run_infer(model_paths, infer_out_dir_cc, minimized_pkg)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
 
     for model in models:
