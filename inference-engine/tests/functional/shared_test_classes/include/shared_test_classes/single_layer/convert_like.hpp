@@ -24,7 +24,8 @@ using ConvertLikeParamsTuple = typename std::tuple<
         InferenceEngine::Layout,           // Output layout
         std::string>;                      // Device name
 
-class NGRAPH_DEPRECATED("This class is deprecated and will be removed soon.") ConvertLikeLayerTest :
+class NGRAPH_DEPRECATED("This class is deprecated and will be removed soon."
+                        "Please use new ConversionLayerTest class.") ConvertLikeLayerTest :
         public testing::WithParamInterface<ConvertLikeParamsTuple>,
         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
