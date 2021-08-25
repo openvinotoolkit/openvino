@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 #include <pugixml.hpp>
 #include <string>
+#include <map>
 
 #define DEBUG_MODE false
 
@@ -94,25 +95,23 @@ std::vector<TestCaseMemLeaks> generateTestsParamsMemLeaks() {
         numthreads = device.attribute("threads").as_int(1);
         numiterations = device.attribute("iterations").as_int(1);
 
-        std::vector<std::string> models, models_names, precisions;
+        std::vector<std::map<std::string, std::string>> models;
+
         for (pugi::xml_node model = device.first_child(); model; model = model.next_sibling()){
+            std::map<std::string, std::string> models;
             std::string full_path = model.attribute("full_path").as_string();
             std::string path = model.attribute("path").as_string();
             if (full_path.empty() || path.empty())
                 throw std::logic_error("One of the 'model' records from test config doesn't contain 'full_path' or 'path' attributes");
             else {
-                models.push_back(full_path);
-                models_names.push_back(path);
+                model["path"] = full_path;
+                model["name"] = path;
             }
             std::string precision = model.attribute("precision").as_string();
-            precisions.push_back(precision);
+            model["precision"] = precision;
+            models.push_back(model);
         }
-        // Initialize variables with default value if it weren't filled
-        models = !models.empty() ? models : std::vector<std::string>{"NULL"};
-        precisions = !precisions.empty() ? precisions : std::vector<std::string>{"NULL"};
-        models_names = !models_names.empty() ? models_names : std::vector<std::string>{"NULL"};
-
-        tests_cases.push_back(TestCase(numprocesses, numthreads, numiters, device_name, models, models_names, precisions))
+        tests_cases.push_back(TestCaseMemLeaks(numprocesses, numthreads, numiters, device_name, models))
     }
 
     return tests_cases;

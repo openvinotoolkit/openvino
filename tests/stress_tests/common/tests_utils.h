@@ -58,17 +58,21 @@ public:
     int numthreads;
     int numiters;
     std::string device;
-    std::vector<std::string> models_names;
-    std::vector<std::string> models;
-    std::vector<std::string> precision;|
+    std::vector<std::map<std::string, std::string>> models;
     std::string test_case_name;
+    std::string models_names;
 
-    TestCase(int _numprocesses, int _numthreads, int _numiters, std::string _device, const std::string& _model, const std::string& _model_name, const std::string& _precision) {
-        numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters, device = _device, model = _model, model_name = _model_name, precision = _precision;
+    TestCaseMemLeaks(int _numprocesses, int _numthreads, int _numiters, std::string _device, std::vector<std::map<std::string, std::string>> _models) {
+        numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters, device = _device, models = _models;
         test_case_name =
                 "Numprocesses_" + std::to_string(numprocesses) + "_Numthreads_" + std::to_string(numthreads) +
-                "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device) + "_Precision_" +
-                update_item_for_name(precision) + "_Model_" + update_item_for_name(model_name);
+                "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device);
+        int i = 1;
+        for (auto model: models){
+            test_case_name += "_Model" + std::to_string(i) + "_" + update_item_for_name(model["name"])  "_Precision_" +  update_item_for_name(model["precision"]);
+            models_names += update_item_for_name(model["path"]) + "\n";
+            i += 1;
+        }
     }
 
 private:
@@ -101,7 +105,7 @@ public:
 };
 
 std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> items);
-std::vector<TestCaseMemLeaks> generateTestsParamsMemLeaks(std::initializer_list<std::string> items);
+std::vector<TestCaseMemLeaks> generateTestsParamsMemLeaks();
 std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj);
 
 void runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
