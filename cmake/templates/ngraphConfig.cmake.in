@@ -59,5 +59,6 @@ if(ngraph_onnx_importer_FOUND)
 endif()
 
 set(ngraph_paddlepaddle_frontend_FOUND @NGRAPH_PDPD_FRONTEND_ENABLE@)
+set(ir_frontend_FOUND @IR_FRONTEND_ENABLE@)
 
 check_required_components(ngraph)
