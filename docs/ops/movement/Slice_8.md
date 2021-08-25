@@ -18,36 +18,34 @@ Other axes will not be affected and will be output in full.
 
 **Inputs**
 
-* **1**: `data`. A tensor of type `T` and arbitrary shape. **Required.**
-  
-* **2**: `start`. 1D tensor (type `T_INT`) - indices corresponding to axes in `data`. 
-  Defines the starting coordinate of the slice in the `data` tensor.
-  A negative index value represents counting elements from the end of that dimension. 
-  A value larger than the size of a dimension is silently clamped. 
-  **Required.**
+* **1**: `data` - tensor (to be sliced) of type *T* and arbitrary shape. **Required.**
 
-* **3**: `stop`. 1D, type `T_INT`, similar to `start`.
+* **2**: `start` - 1D tensor of type *T_INT*. Indices corresponding to axes in `data`.
+  Defines the starting coordinate of the slice in the `data` tensor.
+  A negative index value represents counting elements from the end of that dimension.
+  A value larger than the size of a dimension is silently clamped. **Required.**
+
+* **3**: `stop` - 1D, type *T_INT*, similar to `start`.
   Defines the coordinate of the opposite vertex of the slice, or where the slice ends.
   Stop indexes are exclusive, which means values lying on the ending edge are
   not included in the output slice.
   In order to slice to the end of a dimension of unknown size `INT_MAX`
-  may be used (or `INT_MIN` if slicing backwards).
-  **Required.**
+  may be used (or `INT_MIN` if slicing backwards). **Required.**
 
-* **4**: `step`. 1D tensor of type `T_INT` and the same shape as `start` and `stop`.
+* **4**: `step` - 1D tensor of type *T_INT* and the same shape as `start` and `stop`.
   Integer value which specifies the increment between each index used in slicing.
   Value cannot be `0`, negative value indicates slicing backwards.
-  Optional. Default value: [1, 1...]
+  Default value: `[1, 1, ..., 1]`. **Optional.**
 
-* **5**: `axes`. 1D tensor of type `T_INT`.
+* **5**: `axes` - 1D tensor of type *T_INT*.
   Optional 1D tensor indicating to which dimensions, the values in `start` and `stop` apply.
   A negative value means counting dimensions from the highest rank.
-  Optional. Default value: [0, 1, 2...]
+  Default value: `[0, 1, 2, ..., rank(data) - 1]`. **Optional.**
 
 
 **Outputs**:
 
-*   **1**: Tensor  of type *T* with values of the selected slice.
+*   **1**: Tensor of type *T* with values of the selected slice.
 
 **Types**
 
