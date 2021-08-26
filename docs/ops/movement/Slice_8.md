@@ -16,7 +16,7 @@ where `n` is equal to `step` element for corresponding axis.
 Optional `axes` input allows specifying slice indexes only on selected axes.
 Other axes will not be affected and will be output in full.
 
-**Attributes**: *Transpose* operation has no attributes.
+**Attributes**: *Slice* operation has no attributes.
 
 **Inputs**
 
@@ -47,7 +47,7 @@ Other axes will not be affected and will be output in full.
 
 **Outputs**:
 
-*   **1**: Tensor of type *T* with values of the selected slice.
+*   **1**: Tensor of type *T* with values of the selected slice. Shape of the output tensor has same rank as the shape of `data` input and reduced dimensions according to the values specified by `start`, `stop` and `step` inputs.
 
 **Types**
 
