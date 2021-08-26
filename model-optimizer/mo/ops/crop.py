@@ -16,7 +16,7 @@ class Crop(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': None,
+            'type': self.op,
             'op': self.op,
             'infer': self.infer,
             'in_ports_count': 2,
