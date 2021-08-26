@@ -257,7 +257,7 @@ _install_user_mode_ubuntu()
                 echo "ERROR: failed to run $cmd" >&2
                 echo "Problem (or disk space)?" >&2
                 echo "                sudo -E $0" >&2
-                echo "2. Verify that you have enough disk space, and run the script again." >&2
+                echo "Verify that you have enough disk space, and run the script again." >&2
                 exit $EXIT_FAILURE
             fi
         done
