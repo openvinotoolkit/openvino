@@ -77,23 +77,22 @@ TEST_P(ReferenceScatterElementsUpdateLayerTest, CompareWithHardcodedRefs) {
 }
 
 template <element::Type_t ET, element::Type_t ET_IND>
-std::vector<ScatterElementsUpdateParams> generateScatterParams(const element::Type& type,
-                                                               const element::Type& type_int) {
+std::vector<ScatterElementsUpdateParams> generateScatterParams() {
     using T = typename element_type_traits<ET>::value_type;
     using T_INT = typename element_type_traits<ET_IND>::value_type;
     std::vector<ScatterElementsUpdateParams> scatterParams{
         // axis = 0
-        ScatterElementsUpdateParams(Tensor({2, 2}, type, std::vector<T>{1, 2, 3, 4}),          // input
-                                    Tensor({2, 2}, type_int, std::vector<T_INT>{1, 1, 0, 0}),  // indices
-                                    Tensor({2, 2}, type, std::vector<T>{10, 20, 30, 40}),      // updates
-                                    Tensor({1}, type_int, std::vector<T_INT>{0}),              // axis
-                                    Tensor({2, 2}, type, std::vector<T>{30, 40, 10, 20})),     // expected
+        ScatterElementsUpdateParams(Tensor({2, 2}, element::Type(ET), std::vector<T>{1, 2, 3, 4}),         // input
+                                    Tensor({2, 2}, element::Type(ET_IND), std::vector<T_INT>{1, 1, 0, 0}), // indices
+                                    Tensor({2, 2}, element::Type(ET), std::vector<T>{10, 20, 30, 40}),     // updates
+                                    Tensor({1}, element::Type(ET_IND), std::vector<T_INT>{0}),             // axis
+                                    Tensor({2, 2}, element::Type(ET), std::vector<T>{30, 40, 10, 20})),    // expected
         // axis = 1
-        ScatterElementsUpdateParams(Tensor({2, 1}, type, std::vector<T>{1, 2}),          // input
-                                    Tensor({2, 1}, type_int, std::vector<T_INT>{0, 0}),  // indices
-                                    Tensor({2, 1}, type, std::vector<T>{10, 20}),        // updates
-                                    Tensor({1}, type_int, std::vector<T_INT>{1}),        // axis
-                                    Tensor({2, 1}, type, std::vector<T>{10, 20})),        // expected
+        ScatterElementsUpdateParams(Tensor({2, 1}, element::Type(ET), std::vector<T>{1, 2}),         // input
+                                    Tensor({2, 1}, element::Type(ET_IND), std::vector<T_INT>{0, 0}), // indices
+                                    Tensor({2, 1}, element::Type(ET), std::vector<T>{10, 20}),       // updates
+                                    Tensor({1}, element::Type(ET_IND), std::vector<T_INT>{1}),       // axis
+                                    Tensor({2, 1}, element::Type(ET), std::vector<T>{10, 20})),      // expected
     };
     return scatterParams;
 }
@@ -101,68 +100,68 @@ std::vector<ScatterElementsUpdateParams> generateScatterParams(const element::Ty
 std::vector<ScatterElementsUpdateParams> generateScatterCombinedParams() {
     const std::vector<std::vector<ScatterElementsUpdateParams>> scatterTypeParams{
         // i16
-        generateScatterParams<element::Type_t::i16, element::Type_t::i8>(element::i16, element::i8),
-        generateScatterParams<element::Type_t::i16, element::Type_t::u8>(element::i16, element::u8),
-        generateScatterParams<element::Type_t::i16, element::Type_t::i16>(element::i16, element::i16),
-        generateScatterParams<element::Type_t::i16, element::Type_t::u16>(element::i16, element::u16),
-        generateScatterParams<element::Type_t::i16, element::Type_t::i32>(element::i16, element::i32),
-        generateScatterParams<element::Type_t::i16, element::Type_t::u32>(element::i16, element::u32),
-        generateScatterParams<element::Type_t::i16, element::Type_t::i64>(element::i16, element::i64),
-        generateScatterParams<element::Type_t::i16, element::Type_t::u64>(element::i16, element::u64),
+        generateScatterParams<element::Type_t::i16, element::Type_t::i8>(),
+        generateScatterParams<element::Type_t::i16, element::Type_t::u8>(),
+        generateScatterParams<element::Type_t::i16, element::Type_t::i16>(),
+        generateScatterParams<element::Type_t::i16, element::Type_t::u16>(),
+        generateScatterParams<element::Type_t::i16, element::Type_t::i32>(),
+        generateScatterParams<element::Type_t::i16, element::Type_t::u32>(),
+        generateScatterParams<element::Type_t::i16, element::Type_t::i64>(),
+        generateScatterParams<element::Type_t::i16, element::Type_t::u64>(),
         // i32
-        generateScatterParams<element::Type_t::i32, element::Type_t::i8>(element::i32, element::i8),
-        generateScatterParams<element::Type_t::i32, element::Type_t::u8>(element::i32, element::u8),
-        generateScatterParams<element::Type_t::i32, element::Type_t::i16>(element::i32, element::i16),
-        generateScatterParams<element::Type_t::i32, element::Type_t::u16>(element::i32, element::u16),
-        generateScatterParams<element::Type_t::i32, element::Type_t::i32>(element::i32, element::i32),
-        generateScatterParams<element::Type_t::i32, element::Type_t::u32>(element::i32, element::u32),
-        generateScatterParams<element::Type_t::i32, element::Type_t::i64>(element::i32, element::i64),
-        generateScatterParams<element::Type_t::i32, element::Type_t::u64>(element::i32, element::u64),
+        generateScatterParams<element::Type_t::i32, element::Type_t::i8>(),
+        generateScatterParams<element::Type_t::i32, element::Type_t::u8>(),
+        generateScatterParams<element::Type_t::i32, element::Type_t::i16>(),
+        generateScatterParams<element::Type_t::i32, element::Type_t::u16>(),
+        generateScatterParams<element::Type_t::i32, element::Type_t::i32>(),
+        generateScatterParams<element::Type_t::i32, element::Type_t::u32>(),
+        generateScatterParams<element::Type_t::i32, element::Type_t::i64>(),
+        generateScatterParams<element::Type_t::i32, element::Type_t::u64>(),
         // i64
-        generateScatterParams<element::Type_t::i64, element::Type_t::i8>(element::i64, element::i8),
-        generateScatterParams<element::Type_t::i64, element::Type_t::u8>(element::i64, element::u8),
-        generateScatterParams<element::Type_t::i64, element::Type_t::i16>(element::i64, element::i16),
-        generateScatterParams<element::Type_t::i64, element::Type_t::u16>(element::i64, element::u16),
-        generateScatterParams<element::Type_t::i64, element::Type_t::i32>(element::i64, element::i32),
-        generateScatterParams<element::Type_t::i64, element::Type_t::u32>(element::i64, element::u32),
-        generateScatterParams<element::Type_t::i64, element::Type_t::i64>(element::i64, element::i64),
-        generateScatterParams<element::Type_t::i64, element::Type_t::u64>(element::i64, element::u64),
+        generateScatterParams<element::Type_t::i64, element::Type_t::i8>(),
+        generateScatterParams<element::Type_t::i64, element::Type_t::u8>(),
+        generateScatterParams<element::Type_t::i64, element::Type_t::i16>(),
+        generateScatterParams<element::Type_t::i64, element::Type_t::u16>(),
+        generateScatterParams<element::Type_t::i64, element::Type_t::i32>(),
+        generateScatterParams<element::Type_t::i64, element::Type_t::u32>(),
+        generateScatterParams<element::Type_t::i64, element::Type_t::i64>(),
+        generateScatterParams<element::Type_t::i64, element::Type_t::u64>(),
         // u32
-        generateScatterParams<element::Type_t::u32, element::Type_t::i8>(element::u32, element::i8),
-        generateScatterParams<element::Type_t::u32, element::Type_t::u8>(element::u32, element::u8),
-        generateScatterParams<element::Type_t::u32, element::Type_t::i16>(element::u32, element::i16),
-        generateScatterParams<element::Type_t::u32, element::Type_t::u16>(element::u32, element::u16),
-        generateScatterParams<element::Type_t::u32, element::Type_t::i32>(element::u32, element::i32),
-        generateScatterParams<element::Type_t::u32, element::Type_t::u32>(element::u32, element::u32),
-        generateScatterParams<element::Type_t::u32, element::Type_t::i64>(element::u32, element::i64),
-        generateScatterParams<element::Type_t::u32, element::Type_t::u64>(element::u32, element::u64),
+        generateScatterParams<element::Type_t::u32, element::Type_t::i8>(),
+        generateScatterParams<element::Type_t::u32, element::Type_t::u8>(),
+        generateScatterParams<element::Type_t::u32, element::Type_t::i16>(),
+        generateScatterParams<element::Type_t::u32, element::Type_t::u16>(),
+        generateScatterParams<element::Type_t::u32, element::Type_t::i32>(),
+        generateScatterParams<element::Type_t::u32, element::Type_t::u32>(),
+        generateScatterParams<element::Type_t::u32, element::Type_t::i64>(),
+        generateScatterParams<element::Type_t::u32, element::Type_t::u64>(),
         // u64
-        generateScatterParams<element::Type_t::u64, element::Type_t::i8>(element::u64, element::i8),
-        generateScatterParams<element::Type_t::u64, element::Type_t::u8>(element::u64, element::u8),
-        generateScatterParams<element::Type_t::u64, element::Type_t::i16>(element::u64, element::i16),
-        generateScatterParams<element::Type_t::u64, element::Type_t::u16>(element::u64, element::u16),
-        generateScatterParams<element::Type_t::u64, element::Type_t::i32>(element::u64, element::i32),
-        generateScatterParams<element::Type_t::u64, element::Type_t::u32>(element::u64, element::u32),
-        generateScatterParams<element::Type_t::u64, element::Type_t::i64>(element::u64, element::i64),
-        generateScatterParams<element::Type_t::u64, element::Type_t::u64>(element::u64, element::u64),
+        generateScatterParams<element::Type_t::u64, element::Type_t::i8>(),
+        generateScatterParams<element::Type_t::u64, element::Type_t::u8>(),
+        generateScatterParams<element::Type_t::u64, element::Type_t::i16>(),
+        generateScatterParams<element::Type_t::u64, element::Type_t::u16>(),
+        generateScatterParams<element::Type_t::u64, element::Type_t::i32>(),
+        generateScatterParams<element::Type_t::u64, element::Type_t::u32>(),
+        generateScatterParams<element::Type_t::u64, element::Type_t::i64>(),
+        generateScatterParams<element::Type_t::u64, element::Type_t::u64>(),
         // f16
-        generateScatterParams<element::Type_t::f16, element::Type_t::i8>(element::f16, element::i8),
-        generateScatterParams<element::Type_t::f16, element::Type_t::u8>(element::f16, element::u8),
-        generateScatterParams<element::Type_t::f16, element::Type_t::i16>(element::f16, element::i16),
-        generateScatterParams<element::Type_t::f16, element::Type_t::u16>(element::f16, element::u16),
-        generateScatterParams<element::Type_t::f16, element::Type_t::i32>(element::f16, element::i32),
-        generateScatterParams<element::Type_t::f16, element::Type_t::u32>(element::f16, element::u32),
-        generateScatterParams<element::Type_t::f16, element::Type_t::i64>(element::f16, element::i64),
-        generateScatterParams<element::Type_t::f16, element::Type_t::u64>(element::f16, element::u64),
+        generateScatterParams<element::Type_t::f16, element::Type_t::i8>(),
+        generateScatterParams<element::Type_t::f16, element::Type_t::u8>(),
+        generateScatterParams<element::Type_t::f16, element::Type_t::i16>(),
+        generateScatterParams<element::Type_t::f16, element::Type_t::u16>(),
+        generateScatterParams<element::Type_t::f16, element::Type_t::i32>(),
+        generateScatterParams<element::Type_t::f16, element::Type_t::u32>(),
+        generateScatterParams<element::Type_t::f16, element::Type_t::i64>(),
+        generateScatterParams<element::Type_t::f16, element::Type_t::u64>(),
         // f32
-        generateScatterParams<element::Type_t::f32, element::Type_t::i8>(element::f32, element::i8),
-        generateScatterParams<element::Type_t::f32, element::Type_t::u8>(element::f32, element::u8),
-        generateScatterParams<element::Type_t::f32, element::Type_t::i16>(element::f32, element::i16),
-        generateScatterParams<element::Type_t::f32, element::Type_t::u16>(element::f32, element::u16),
-        generateScatterParams<element::Type_t::f32, element::Type_t::i32>(element::f32, element::i32),
-        generateScatterParams<element::Type_t::f32, element::Type_t::u32>(element::f32, element::u32),
-        generateScatterParams<element::Type_t::f32, element::Type_t::i64>(element::f32, element::i64),
-        generateScatterParams<element::Type_t::f32, element::Type_t::u64>(element::f32, element::u64),
+        generateScatterParams<element::Type_t::f32, element::Type_t::i8>(),
+        generateScatterParams<element::Type_t::f32, element::Type_t::u8>(),
+        generateScatterParams<element::Type_t::f32, element::Type_t::i16>(),
+        generateScatterParams<element::Type_t::f32, element::Type_t::u16>(),
+        generateScatterParams<element::Type_t::f32, element::Type_t::i32>(),
+        generateScatterParams<element::Type_t::f32, element::Type_t::u32>(),
+        generateScatterParams<element::Type_t::f32, element::Type_t::i64>(),
+        generateScatterParams<element::Type_t::f32, element::Type_t::u64>(),
     };
     std::vector<ScatterElementsUpdateParams> combinedParams;
     for (const auto& params : scatterTypeParams) {
