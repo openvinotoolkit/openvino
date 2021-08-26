@@ -48,7 +48,7 @@ InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Varian
     }
 #endif
     if (ov::is_type<VariantIstreamPtr>(variants[0])) {
-        const auto* stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
+        const auto stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
         if (variants.size() > 1 && ov::is_type<VariantString>(variants[1])) {
             const auto path = ov::as_type_ptr<VariantString>(variants[1])->get();
             return std::make_shared<InputModelONNX>(*stream, path);
@@ -128,7 +128,7 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         return is_valid_model;
     }
     if (ov::is_type<VariantIstreamPtr>(variants[0])) {
-        const auto* stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
+        const auto stream = ov::as_type_ptr<VariantIstreamPtr>(variants[0])->get();
         StreamRewinder rwd{*stream};
         return onnx_common::is_valid_model(*stream);
     }
