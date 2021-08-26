@@ -263,7 +263,8 @@ CNNNetwork details::ReadNetwork(const std::string& model,
                                 const std::vector<IExtensionPtr>& exts) {
     // Register readers if it is needed
     registerReaders();
-    std::istringstream modelStream(model);
+    std::istringstream modelStringStream(model);
+    std::istream& modelStream = modelStringStream;
 
     assertIfIRv7LikeModel(modelStream);
 
