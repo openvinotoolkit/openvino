@@ -11,7 +11,7 @@ except ImportError:
                 'script.' + refer_to_faq_msg(52))
 
 from extensions.load.loader import Loader
-from mo.front.common.register_custom_ops import update_extractors_with_extensions, check_for_duplicates
+from mo.front.common.register_custom_ops import update_extractors_with_extensions
 from mo.front.extractor import extract_node_attrs
 from mo.front.mxnet.extractor import mxnet_op_extractors, mxnet_op_extractor
 from mo.front.mxnet.loader import symbol2nx, load_symbol_def
@@ -43,6 +43,7 @@ class MxNetLoader(Loader):
         if argv.nd_prefix_name and argv.pretrained_model_name and argv.save_params_from_nd:
             save_params_file(model_name, model_params._arg_params, model_params._aux_params, iteration_number)
 
+        update_extractors_with_extensions(mxnet_op_extractors)
         symbol2nx(graph, model_nodes, model_params, argv.input)
         graph.check_empty_graph('symbol2nx. It may happen due to problems with loaded model')
 
@@ -50,17 +51,6 @@ class MxNetLoader(Loader):
         graph.graph['fw'] = 'mxnet'
         graph.graph['feature_dim'] = 1 if graph.graph['layout'] == 'NCHW' else 3
 
-
-class MxNetExtractor(Loader):
-    id = 'MxNetExtractor'
-    enabled = True
-
-    def run_after(self):
-        return [MxNetLoader]
-
-    def load(self, graph: Graph):
-        update_extractors_with_extensions(mxnet_op_extractors)
-        extract_node_attrs(graph, lambda node: mxnet_op_extractor(node, mxnet_op_extractors))
+        extract_node_attrs(graph, mxnet_op_extractor)
         send_op_names_info('mxnet', graph)
         send_shapes_info('mxnet', graph)
-

@@ -64,6 +64,8 @@ class TFLoader(Loader):
         if argv.tensorboard_logdir:
             tensorboard_util.dump_for_tensorboard(graph_def, argv.tensorboard_logdir)
 
+        update_extractors_with_extensions(tf_op_extractors)
+
         try:
             protobuf2nx(graph, graph_def)
         except Exception as e:
@@ -97,6 +99,7 @@ class TFLoader(Loader):
         remove_control_dependency_inputs(graph)
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
+        extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
 
         # try to detect layout from the nodes of the graph. If there are no convolution nodes in N(D)HWC layout then we
         # consider that the graph is in NCHW layout and no layout conversion should be performed
@@ -104,6 +107,9 @@ class TFLoader(Loader):
             log.error('The TensorFlow model does not contain Convolution operations with N(D)HWC layout. Most likely '
                       'the model should be converted using additional "--disable_nhwc_to_nchw" command line parameter '
                       'which disables model layout conversion inside the Model Optimizer.', extra={'is_warning': True})
+
+        send_op_names_info(framework, graph)
+        send_shapes_info(framework, graph)
 
 
 def is_node_layout_nhwc(node: Node):
@@ -137,20 +143,3 @@ def graph_or_sub_graph_has_nhwc_ops(graph: Graph):
                 NHWC_conv_detected |= graph_or_sub_graph_has_nhwc_ops(node.soft_get(sub_graph_name))
 
     return NHWC_conv_detected
-
-
-class TFExtractor(Loader):
-    id = "TFExtractor"
-    enabled = True
-
-    def run_after(self):
-        return [TFLoader]
-
-    def load(self, graph: Graph):
-        update_extractors_with_extensions(tf_op_extractors)
-        extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
-
-        argv = graph.graph['cmd_params']
-        framework = 'tf2' if argv.saved_model_dir else 'tf'
-        send_op_names_info(framework, graph)
-        send_shapes_info(framework, graph)

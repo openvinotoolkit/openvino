@@ -8,7 +8,7 @@ from mo.front.common.register_custom_ops import update_extractors_with_extension
 from mo.front.extractor import extract_node_attrs
 from mo.graph.graph import Graph
 from mo.utils.error import Error
-from mo.utils.telemetry_utils import send_shapes_info, send_op_names_info
+from mo.utils.telemetry_utils import send_op_names_info, send_shapes_info
 from mo.utils.utils import refer_to_faq_msg
 
 
@@ -20,6 +20,12 @@ class CaffeLoader(Loader):
         caffe_pb2 = loader.import_caffe_pb2(argv.caffe_parser_path)
 
         proto, model = loader.load_caffe_proto_model(caffe_pb2, argv.input_proto, argv.input_model)
+
+        update_extractors_with_extensions(
+            caffe_type_extractors,
+            argv.disable_omitting_optional if hasattr(argv, 'disable_omitting_optional') else False,
+            argv.disable_flattening_optional_params if hasattr(argv, 'disable_flattening_optional_params') else False
+        )
 
         try:
             original_shapes = loader.caffe_pb_to_nx(graph, proto, model)
@@ -36,23 +42,6 @@ class CaffeLoader(Loader):
         graph.graph['original_shapes'] = original_shapes
         graph.graph['caffe_pb2'] = caffe_pb2
 
-
-class CaffeExtractor(Loader):
-    id = 'CaffeExtractor'
-    enabled = True
-
-    def run_after(self):
-        return [CaffeLoader]
-
-    def load(self, graph: Graph):
-        argv = graph.graph['cmd_params']
-
-        update_extractors_with_extensions(
-            caffe_type_extractors,
-            argv.disable_omitting_optional if hasattr(argv, 'disable_omitting_optional') else False,
-            argv.disable_flattening_optional_params if hasattr(argv, 'disable_flattening_optional_params') else False
-        )
-
         custom_layers_map = custom_layers_mapping.load_layers_xml(argv.k)
         custom_layers_mapping.update_extractors(
             caffe_type_extractors,
@@ -63,4 +52,3 @@ class CaffeExtractor(Loader):
         extract_node_attrs(graph, lambda node: caffe_extractor(node, check_for_duplicates(caffe_type_extractors)))
         send_op_names_info('caffe', graph)
         send_shapes_info('caffe', graph)
-

@@ -37,15 +37,20 @@ def common_mxnet_fields(node: Node):
     }
 
 
-def mxnet_op_extractor(node: Node, name_to_extractor_map: dict):
+def mxnet_op_extractor(node: Node):
     result = common_mxnet_fields(node)
-    node.graph.node[node.id].update(result)
-
-    supported = False
     op = result['op']
-    if op in name_to_extractor_map:
-        result_attr = name_to_extractor_map[op](node)
-        if result_attr is not None:
-            result.update(result_attr)
-        supported = True
+    if op not in mxnet_op_extractors:
+        raise Error(
+            "Operation '{}' not supported. Please register it as custom op. " +
+            refer_to_faq_msg(86),
+            op)
+    result_attr = mxnet_op_extractors[op](node)
+
+    if result_attr is None:
+        raise Error('Model Optimizer does not support layer "{}". Please, implement extension. '.format(node.name) +
+                    refer_to_faq_msg(45))
+
+    result.update(result_attr)
+    supported = bool(result_attr)
     return supported, result
