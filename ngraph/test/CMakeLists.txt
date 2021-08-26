@@ -8,11 +8,11 @@ set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
-    message(STATUS "unit tests disabled")
+    message(STATUS "nGraph unit tests disabled")
     return()
 endif()
 
-message(STATUS "unit tests enabled")
+message(STATUS "nGraph unit tests enabled")
 
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
@@ -144,6 +144,7 @@ set(SRC
     type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
+    type_prop/gelu.cpp
     type_prop/grn.cpp
     type_prop/group_convolution.cpp
     type_prop/group_convolution_backprop_data.cpp
@@ -255,6 +256,7 @@ set(SRC
     visitors/op/convolution_backprop.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp
+    visitors/op/ctc_loss.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_convolution.cpp
     visitors/op/deformable_psroi_pooling.cpp
@@ -427,7 +429,6 @@ set(MULTI_TEST_SRC
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
-    backend/cum_sum.in.cpp
     backend/deformable_psroi_pooling.in.cpp
     backend/detection_output.in.cpp
     backend/dft.in.cpp
@@ -448,7 +449,6 @@ set(MULTI_TEST_SRC
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
-    backend/fused_op.in.cpp
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
@@ -501,7 +501,6 @@ set(MULTI_TEST_SRC
     backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp
     backend/result.in.cpp
-    backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
     backend/round.in.cpp

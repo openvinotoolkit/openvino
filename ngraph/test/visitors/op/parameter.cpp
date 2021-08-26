@@ -19,7 +19,7 @@ TEST(attributes, parameter_op) {
     auto parameter = std::make_shared<op::Parameter>(element::f32, PartialShape{Dimension{1}, Dimension{4}});
 
     NodeBuilder builder(parameter);
-    auto g_parameter = as_type_ptr<opset1::Parameter>(builder.create());
+    auto g_parameter = ov::as_type_ptr<opset1::Parameter>(builder.create());
 
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

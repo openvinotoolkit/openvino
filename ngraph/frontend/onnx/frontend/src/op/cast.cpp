@@ -14,6 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
+
 OutputVector cast(const Node& node) {
     auto data = node.get_ng_inputs().at(0);
     int64_t target_type = node.get_attribute_value<int64_t>("to");
@@ -23,9 +24,6 @@ OutputVector cast(const Node& node) {
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
 }  // namespace onnx_import
-
 }  // namespace ngraph

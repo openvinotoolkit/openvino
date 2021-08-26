@@ -227,7 +227,7 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
     for (auto input_value : node->input_values()) {
         auto arg = input_value.get_node_shared_ptr();
         size_t jump_distance = height_maps[arg.get()].max_jump_to(height_maps[node.get()]);
-        if (is_type<ngraph::op::Constant>(arg) || is_type<ngraph::op::Parameter>(arg)) {
+        if (ov::is_type<ngraph::op::Constant>(arg) || ov::is_type<ngraph::op::Parameter>(arg)) {
             auto clone_name = "CLONE_" + to_string(fake_node_ctr);
             auto color = string("color=\"") + (arg->description() == "Parameter" ? "blue" : "black") + string("\"");
             std::vector<std::string> attributes{"shape=\"box\"",
@@ -383,7 +383,7 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
         return ss.str();
 
     ss << "\nvalue: ";
-    const auto constant = as_type_ptr<op::Constant>(node);
+    const auto constant = ov::as_type_ptr<op::Constant>(node);
     switch (constant->get_output_element_type(0)) {
     case element::Type_t::undefined:
         ss << "[ undefined value ]";
@@ -511,6 +511,7 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node) {
 }
 
 void pass::VisualizeTree::render() const {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     string ext = file_util::get_file_ext(m_name);
     string output_format = ext.substr(1);
     string dot_file = m_name;
@@ -536,4 +537,5 @@ void pass::VisualizeTree::render() const {
 #endif
         }
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

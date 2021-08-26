@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-namespace ngraph {
+namespace ov {
 constexpr DiscreteTypeInfo AttributeAdapter<float>::type_info;
 constexpr DiscreteTypeInfo AttributeAdapter<double>::type_info;
 constexpr DiscreteTypeInfo AttributeAdapter<string>::type_info;
@@ -47,4 +47,4 @@ constexpr DiscreteTypeInfo AttributeAdapter<vector<uint64_t>>::type_info;
 constexpr DiscreteTypeInfo AttributeAdapter<vector<float>>::type_info;
 constexpr DiscreteTypeInfo AttributeAdapter<vector<double>>::type_info;
 constexpr DiscreteTypeInfo AttributeAdapter<vector<string>>::type_info;
-}  // namespace ngraph
+}  // namespace ov
