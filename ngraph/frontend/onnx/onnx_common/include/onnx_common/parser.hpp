@@ -18,6 +18,9 @@ namespace onnx_common {
 ///
 /// \return  The parsed in-memory representation of the ONNX model
 ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path);
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path);
+#endif
 
 /// \brief   Parses an ONNX model from a stream (representing for example a file)
 ///
