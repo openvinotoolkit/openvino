@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include "ngraph/pass/pass.hpp"
+#include "openvino/pass/pass.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 /**
  * @brief Constant folding iterates over the function and tries to evaluate nodes
  *        with constant inputs. Such nodes are then replaced with new Constants containing
  *        the result of a folded operation.
  */
-class NGRAPH_API ConstantFolding : public FunctionPass {
+class OPENVINO_API ConstantFolding : public FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
 private:
@@ -25,4 +25,4 @@ private:
     bool pre_calculated_values_folding(const std::shared_ptr<ngraph::Function>& f);
 };
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
-#include "ngraph/pattern/op/pattern.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 
-namespace ngraph {
+namespace ov {
+namespace pass {
 namespace pattern {
 namespace op {
-class NGRAPH_API WrapType : public Pattern {
+class OPENVINO_API WrapType : public Pattern {
 public:
     static constexpr NodeTypeInfo type_info{"patternAnyType", 0};
     const NodeTypeInfo& get_type_info() const override;
@@ -70,4 +71,5 @@ std::shared_ptr<Node> wrap_type(const pattern::op::ValuePredicate& pred) {
     return wrap_type<Args...>({}, pred);
 }
 }  // namespace pattern
-}  // namespace ngraph
+}  // namespace pass
+}  // namespace ov

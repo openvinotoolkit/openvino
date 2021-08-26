@@ -4,14 +4,15 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
-#include "ngraph/pattern/op/pattern.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 
-namespace ngraph {
+namespace ov {
+namespace pass {
 namespace pattern {
 namespace op {
 /// Matches any output of a node
-class NGRAPH_API AnyOutput : public Pattern {
+class OPENVINO_API AnyOutput : public Pattern {
 public:
     static constexpr NodeTypeInfo type_info{"patternAnyOutput", 0};
     const NodeTypeInfo& get_type_info() const override;
@@ -25,4 +26,5 @@ public:
 };
 }  // namespace op
 }  // namespace pattern
-}  // namespace ngraph
+}  // namespace pass
+}  // namespace ov

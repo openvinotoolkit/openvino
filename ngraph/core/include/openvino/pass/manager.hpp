@@ -9,12 +9,12 @@
 #include <typeinfo>
 #include <vector>
 
-#include "ngraph/pass/pass.hpp"
-#include "ngraph/pass/validate.hpp"
+#include "openvino/pass/pass.hpp"
+#include "openvino/pass/validate.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
-class NGRAPH_API Manager {
+class OPENVINO_API Manager {
 public:
     Manager();
     ~Manager();
@@ -84,7 +84,7 @@ public:
     /// \param callback lamda function that returns true in case if node is supported by
     /// plugin and
     /// transformation is not needed
-    NGRAPH_DEPRECATED("Please use get_pass_config() to configure transformation pipeline")
+    OPENVINO_DEPRECATED("Please use get_pass_config() to configure transformation pipeline")
     void set_callback(const param_callback& callback) {
         m_pass_config->set_callback(callback);
     }
@@ -113,4 +113,4 @@ protected:
     bool m_per_pass_validation = true;
 };
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

@@ -4,16 +4,17 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
-#include "ngraph/pattern/op/pattern.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 
-namespace ngraph {
+namespace ov {
+namespace pass {
 namespace pattern {
 namespace op {
 /// The graph value is added to the matched value list. If the predicate is true, the
 /// match succeeds if the arguments match; if the predicate is false, the match succeeds
 /// if the pattern input matches the graph value.
-class NGRAPH_API Skip : public Pattern {
+class OPENVINO_API Skip : public Pattern {
 public:
     static constexpr NodeTypeInfo type_info{"patternSkip", 0};
     const NodeTypeInfo& get_type_info() const override;
@@ -33,10 +34,11 @@ public:
         set_output_type(0, args.at(0).get_element_type(), args.at(0).get_partial_shape());
     }
 
-    virtual bool match_value(pattern::Matcher* matcher,
-                             const Output<Node>& pattern_value,
-                             const Output<Node>& graph_value) override;
+    bool match_value(pattern::Matcher* matcher,
+                     const Output<Node>& pattern_value,
+                     const Output<Node>& graph_value) override;
 };
 }  // namespace op
 }  // namespace pattern
-}  // namespace ngraph
+}  // namespace pass
+}  // namespace ov

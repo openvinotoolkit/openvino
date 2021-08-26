@@ -4,17 +4,18 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
-#include "ngraph/pattern/op/pattern.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 
-namespace ngraph {
+namespace ov {
+namespace pass {
 namespace pattern {
 namespace op {
 /// Experimental for support of recurrent matches.
 ///
 /// Capture adds the pattern value map to a list of pattern value maps and resets
 /// matches for pattern nodes not in the static node list. The match always succeeds.
-class NGRAPH_API Capture : public Pattern {
+class OPENVINO_API Capture : public Pattern {
 public:
     static constexpr NodeTypeInfo type_info{"patternCapture", 0};
     const NodeTypeInfo& get_type_info() const override;
@@ -30,13 +31,14 @@ public:
         m_static_nodes = static_nodes;
     }
 
-    virtual bool match_value(pattern::Matcher* matcher,
-                             const Output<Node>& pattern_value,
-                             const Output<Node>& graph_value) override;
+    bool match_value(pattern::Matcher* matcher,
+                     const Output<Node>& pattern_value,
+                     const Output<Node>& graph_value) override;
 
 protected:
     std::set<Node*> m_static_nodes;
 };
 }  // namespace op
 }  // namespace pattern
-}  // namespace ngraph
+}  // namespace pass
+}  // namespace ov

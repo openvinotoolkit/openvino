@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
-#include "ngraph/pattern/op/pattern.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 
-namespace ngraph {
+namespace ov {
+namespace pass {
 namespace pattern {
 namespace op {
 /// A branch adds a loop to the pattern. The branch match is successful if the
@@ -18,7 +19,7 @@ namespace op {
 /// The branch destination is not stored as a shared pointer to prevent reference
 /// cycles. Thus the destination node must be referenced in some other way to prevent it
 /// from being deleted.
-class NGRAPH_API Branch : public Pattern {
+class OPENVINO_API Branch : public Pattern {
 public:
     static constexpr NodeTypeInfo type_info{"patternBranch", 0};
     const NodeTypeInfo& get_type_info() const override;
@@ -26,7 +27,7 @@ public:
     /// \param pattern the destinationing pattern
     /// \param labels Labels where the destination may occur
     Branch() : Pattern(OutputVector{}) {
-        set_output_type(0, element::f32, Shape{});
+        set_output_type(0, element::f32, ngraph::Shape{});
     }
 
     void set_destination(const Output<Node>& destination) {
@@ -50,4 +51,5 @@ protected:
 };
 }  // namespace op
 }  // namespace pattern
-}  // namespace ngraph
+}  // namespace pass
+}  // namespace ov

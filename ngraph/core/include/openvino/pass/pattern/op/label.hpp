@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
-#include "ngraph/pattern/op/pattern.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 
-namespace ngraph {
+namespace ov {
+namespace pass {
 namespace pattern {
 namespace op {
 /// Fails if the predicate returns false on the graph value.
@@ -19,7 +20,7 @@ namespace op {
 ///
 /// DEPRECATED: If no inputs are given to Label, a True node is serves as the input. If
 /// more than one inputs are given, an Or pattern of the inputs serves as the input.
-class NGRAPH_API Label : public Pattern {
+class OPENVINO_API Label : public Pattern {
 public:
     static constexpr NodeTypeInfo type_info{"patternLabel", 0};
     const NodeTypeInfo& get_type_info() const override;
@@ -102,10 +103,11 @@ protected:
 };
 }  // namespace op
 
-NGRAPH_API
+OPENVINO_API
 std::shared_ptr<Node> any_input();
 
-NGRAPH_API
+OPENVINO_API
 std::shared_ptr<Node> any_input(const pattern::op::ValuePredicate& pred);
 }  // namespace pattern
-}  // namespace ngraph
+}  // namespace pass
+}  // namespace ov

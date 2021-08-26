@@ -9,23 +9,23 @@
 #include <algorithm>
 #include <functional>
 
-#include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/pattern/op/any.hpp"
-#include "ngraph/pattern/op/any_of.hpp"
-#include "ngraph/pattern/op/any_output.hpp"
-#include "ngraph/pattern/op/label.hpp"
-#include "ngraph/pattern/op/skip.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pattern/op/any.hpp"
+#include "openvino/pass/pattern/op/any_of.hpp"
+#include "openvino/pass/pattern/op/any_output.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/skip.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 class GraphRewrite;
-}
 
 namespace pattern {
 class Matcher;
 
-class NGRAPH_API MatcherState {
+class OPENVINO_API MatcherState {
 public:
     MatcherState(Matcher*);
     bool finish(bool is_successful);
@@ -54,16 +54,16 @@ protected:
 /// the inputs can match in any order. If the matcher is in strict mode, the graph value
 /// element type and shape must also match.
 ///
-/// Pattern nodes that have different match behavior are in ngraph::pattern::op and have
+/// Pattern nodes that have different match behavior are in ov::pass::pattern::op and have
 /// descriptions of their match behavior.
-class NGRAPH_API Matcher {
+class OPENVINO_API Matcher {
 public:
-    using PatternMap = ngraph::pattern::PatternMap;
+    using PatternMap = ov::pass::pattern::PatternMap;
 
     // Avoid implicit string construction from nullptr.
     Matcher(const std::shared_ptr<Node> pattern_node, std::nullptr_t name) = delete;
 
-    Matcher() {}
+    Matcher() = default;
     Matcher(Output<Node>& pattern_node) : m_pattern_node{pattern_node} {}
 
     Matcher(Output<Node>& pattern_node, const std::string& name) : m_pattern_node(pattern_node), m_name{name} {}
@@ -84,7 +84,7 @@ public:
     Matcher(std::shared_ptr<Node> pattern_node, const std::string& name);
     Matcher(std::shared_ptr<Node> pattern_node, const std::string& name, bool strict_mode);
 
-    virtual ~Matcher() {}
+    virtual ~Matcher() = default;
     /// \brief Matches a pattern to \p graph_node
     ///
     /// \param graph_value is an input graph to be matched against
@@ -100,12 +100,12 @@ public:
     bool match(const Output<Node>& graph_value, const PatternValueMap& previous_matches);
 
     template <typename T>
-    static std::shared_ptr<T> unique_match(std::shared_ptr<Node> node) {
+    static std::shared_ptr<T> unique_match(const std::shared_ptr<Node>& node) {
         std::shared_ptr<T> matched;
-        for (auto arg : node->input_values()) {
+        for (const auto& arg : node->input_values()) {
             if (auto t_casted = ov::as_type_ptr<T>(arg.get_node_shared_ptr())) {
                 if (matched) {
-                    throw ngraph_error("There's more than two arguments of the same type");
+                    throw Exception("There's more than two arguments of the same type");
                 } else {
                     matched = t_casted;
                 }
@@ -152,7 +152,7 @@ public:
 
     size_t add_node(Output<Node> node);
 
-    bool virtual match_value(const ngraph::Output<Node>& pattern_value, const ngraph::Output<Node>& graph_value);
+    bool virtual match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value);
 
     bool is_strict_mode() {
         return m_strict_mode;
@@ -184,7 +184,7 @@ protected:
     bool m_strict_mode{false};
 };
 
-class NGRAPH_API RecurrentMatcher {
+class OPENVINO_API RecurrentMatcher {
 public:
     /// \brief Constructs a RecurrentMatcher object. Reccurent Matchers are used to match
     ///        repeating patterns (e.g. RNN, LSTM, GRU cells)
@@ -231,7 +231,7 @@ public:
     /// describing an individual cell
     NodeVector get_bound_nodes_for_pattern(const std::shared_ptr<Node>& pattern) const {
         if (m_matches.count(pattern) == 0) {
-            throw ngraph_error("No bound nodes for a given label");
+            throw Exception("No bound nodes for a given label");
         }
 
         return as_node_vector(m_matches.at(pattern));
@@ -267,4 +267,5 @@ private:
     Output<Node> m_match_root;
 };
 }  // namespace pattern
-}  // namespace ngraph
+}  // namespace pass
+}  // namespace ov

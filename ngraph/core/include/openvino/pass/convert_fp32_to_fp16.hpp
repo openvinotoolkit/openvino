@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
-class NGRAPH_API ConvertFP32ToFP16 : public ngraph::pass::FunctionPass {
+class OPENVINO_API ConvertFP32ToFP16 : public FunctionPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function>) override;
 };
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
