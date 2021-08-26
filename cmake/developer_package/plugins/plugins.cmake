@@ -112,8 +112,8 @@ function(ie_add_plugin)
     if(TARGET inference_engine_ir_v7_reader)
         add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
     endif()
-    if(TARGET inference_engine_onnx_reader)
-        add_dependencies(${IE_PLUGIN_NAME} inference_engine_onnx_reader)
+    if(TARGET onnx_ngraph_frontend)
+        add_dependencies(${IE_PLUGIN_NAME} onnx_ngraph_frontend)
     endif()
 
     # install rules

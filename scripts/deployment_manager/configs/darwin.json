@@ -21,7 +21,6 @@
         "deployment_tools/inference_engine/lib/intel64/libinference_engine_transformations.dylib",
         "deployment_tools/inference_engine/lib/intel64/libinference_engine_preproc.so",
         "deployment_tools/inference_engine/lib/intel64/libinference_engine_ir_reader.so",
-        "deployment_tools/inference_engine/lib/intel64/libinference_engine_onnx_reader.so",
         "deployment_tools/inference_engine/lib/intel64/libinference_engine_c_api.dylib",
         "deployment_tools/inference_engine/lib/intel64/libAutoPlugin.so",
         "deployment_tools/inference_engine/lib/intel64/libHeteroPlugin.so",

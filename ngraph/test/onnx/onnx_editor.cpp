@@ -1183,6 +1183,21 @@ NGRAPH_TEST(onnx_editor, values__append_two_initializers_mixed_types) {
     test_case.run();
 }
 
+NGRAPH_TEST(onnx_editor, read_model_from_stream) {
+    std::string path = file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data.onnx");
+    std::ifstream stream{path, std::ios::in | std::ios::binary};
+    ASSERT_TRUE(stream.is_open());
+    ONNXModelEditor editor{stream, path};
+
+    auto test_case = test::TestCase<TestEngine>(editor.get_function());
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+
+    stream.close();
+}
+
 NGRAPH_TEST(onnx_editor, combined__cut_and_replace_shape) {
     ONNXModelEditor editor{file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.onnx")};
 

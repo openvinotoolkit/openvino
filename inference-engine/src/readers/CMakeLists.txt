@@ -17,7 +17,3 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_SOURCES ${reader_api_hpp})
 
 add_subdirectory(ir_reader)
 add_subdirectory(ir_reader_v7)
-
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
-    add_subdirectory(onnx_reader)
-endif()

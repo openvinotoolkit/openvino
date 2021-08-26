@@ -96,3 +96,18 @@ def test_decode_and_convert():
     b = np.array([[2, 3], [4, 5]], dtype=np.float32)
     expected = np.array([[1.5, 5], [10.5, 18]], dtype=np.float32)
     run_function(decoded_function, a, b, expected=[expected])
+
+
+def test_load_by_model():
+    skip_if_onnx_frontend_is_disabled()
+
+    fe = fem.load_by_model(onnx_model_filename)
+    assert fe
+    assert fe.get_name() == "onnx"
+    model = fe.load(onnx_model_filename)
+    assert model
+    decoded_function = fe.decode(model)
+    assert decoded_function
+
+    assert not fem.load_by_model("test.xx")
+    assert not fem.load_by_model("onnx.yy")

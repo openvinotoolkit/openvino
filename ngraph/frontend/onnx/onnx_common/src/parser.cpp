@@ -8,6 +8,8 @@
 #include <google/protobuf/text_format.h>
 #include <onnx/onnx_pb.h>
 
+#include <ngraph/file_util.hpp>
+
 #include "ngraph/except.hpp"
 
 namespace ngraph {
@@ -19,8 +21,26 @@ ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path) {
         throw ngraph_error("Could not open the file: " + file_path);
     };
 
-    return parse_from_istream(file_stream);
+    auto model_proto = parse_from_istream(file_stream);
+    file_stream.close();
+    return model_proto;
 }
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+ONNX_NAMESPACE::ModelProto parse_from_file(const std::wstring& file_path) {
+    std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
+
+    if (!file_stream.is_open()) {
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        throw ngraph_error("Could not open the file: " + file_util::wstring_to_string(file_path));
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    };
+
+    auto model_proto = parse_from_istream(file_stream);
+    file_stream.close();
+    return model_proto;
+}
+#endif
 
 ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream) {
     if (!model_stream.good()) {
