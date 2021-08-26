@@ -21,6 +21,8 @@ void random_uniform(const uint64_t* out_shape,
                     uint64_t seed,
                     uint64_t seed2);
 
+// Following const values are taken from the original paper:
+// https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
 const uint32_t crush_resistance_const_lower_value = 0x9E3779B9;
 const uint32_t crush_resistance_const_upper_value = 0xBB67AE85;
 const uint64_t statistic_maximizing_multiplier_n = 0xD2511F53;
