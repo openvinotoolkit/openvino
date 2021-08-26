@@ -59,31 +59,382 @@ Ranks of `start`, `stop`, `step` and `axes` are required to be equal.
 * *T*: any arbitrary supported type.
 * *T_INT*: any supported integer type.
 
-**Example**
+
+**Examples**
+
+*Example 1: basic slicing*
+
+```xml
+<layer id="1" type="Slice" ...>
+    <input>
+        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <dim>10</dim>
+        </port>
+        <port id="1">       <!-- start: [1] -->
+          <dim>1</dim>
+        </port>
+        <port id="2">       <!-- stop: [8] -->
+          <dim>1</dim>
+        </port>
+        <port id="3">       <!-- step: [1] -->
+          <dim>1</dim>
+        </port>
+        <port id="4">       <!-- axes: [0] -->
+          <dim>1</dim>
+        </port>
+    </input>
+    <output>
+        <port id="5">       <!-- output: [1, 2, 3, 4, 5, 6, 7] -->
+            <dim>7</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 2: basic slicing, `axis` and `step` default*
+
+```xml
+<layer id="1" type="Slice" ...>
+    <input>
+        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <dim>10</dim>
+        </port>
+        <port id="1">       <!-- start: [1] -->
+          <dim>1</dim>
+        </port>
+        <port id="2">       <!-- stop: [8] -->
+          <dim>1</dim>
+        </port>
+    </input>
+    <output>
+        <port id="3">       <!-- output: [1, 2, 3, 4, 5, 6, 7] -->
+            <dim>7</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 3: basic slicing, `step: [2]`*
+
+```xml
+<layer id="1" type="Slice" ...>
+    <input>
+        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <dim>10</dim>
+        </port>
+        <port id="1">       <!-- start: [1] -->
+          <dim>1</dim>
+        </port>
+        <port id="2">       <!-- stop: [8] -->
+          <dim>1</dim>
+        </port>
+        <port id="3">       <!-- step: [2] -->
+          <dim>1</dim>
+        </port>
+        <port id="4">       <!-- axes: [0] -->
+          <dim>1</dim>
+        </port>
+    </input>
+    <output>
+        <port id="5">       <!-- output: [1, 3, 5, 7] -->
+            <dim>4</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 4: basic slicing, `step: [2]`*
+
+```xml
+<layer id="1" type="Slice" ...>
+    <input>
+        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <dim>10</dim>
+        </port>
+        <port id="1">       <!-- start: [1] -->
+          <dim>1</dim>
+        </port>
+        <port id="2">       <!-- stop: [8] -->
+          <dim>1</dim>
+        </port>
+        <port id="3">       <!-- step: [2] -->
+          <dim>1</dim>
+        </port>
+        <port id="4">       <!-- axes: [0] -->
+          <dim>1</dim>
+        </port>
+    </input>
+    <output>
+        <port id="5">       <!-- output: [1, 3, 5, 7] -->
+            <dim>4</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 5: `start` and `stop` out of the dimension size, `step: [1]`*
+
+```xml
+<layer id="1" type="Slice" ...>
+    <input>
+        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <dim>10</dim>
+        </port>
+        <port id="1">       <!-- start: [-100] -->
+          <dim>1</dim>
+        </port>
+        <port id="2">       <!-- stop: [100] -->
+          <dim>1</dim>
+        </port>
+        <port id="3">       <!-- step: [1] -->
+          <dim>1</dim>
+        </port>
+        <port id="4">       <!-- axes: [0] -->
+          <dim>1</dim>
+        </port>
+    </input>
+    <output>
+        <port id="5">       <!-- output: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+            <dim>10</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 6: slicing backward all elements, `step: [-1]`, `stop: [-11]`*
+
+```xml
+<layer id="1" type="Slice" ...>
+    <input>
+        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <dim>10</dim>
+        </port>
+        <port id="1">       <!-- start: [9] -->
+          <dim>1</dim>
+        </port>
+        <port id="2">       <!-- stop: [-11] -->
+          <dim>1</dim>
+        </port>
+        <port id="3">       <!-- step: [-1] -->
+          <dim>1</dim>
+        </port>
+        <port id="4">       <!-- axes: [0] -->
+          <dim>1</dim>
+        </port>
+    </input>
+    <output>
+        <port id="5">       <!-- output: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0] -->
+            <dim>10</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 7: slicing backward, `step: [-1]`, `stop: [0]`*
+
+```xml
+<layer id="1" type="Slice" ...>
+    <input>
+        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <dim>10</dim>
+        </port>
+        <port id="1">       <!-- start: [9] -->
+          <dim>1</dim>
+        </port>
+        <port id="2">       <!-- stop: [0] -->
+          <dim>1</dim>
+        </port>
+        <port id="3">       <!-- step: [-1] -->
+          <dim>1</dim>
+        </port>
+        <port id="4">       <!-- axes: [0] -->
+          <dim>1</dim>
+        </port>
+    </input>
+    <output>
+        <port id="5">       <!-- output: [9, 8, 7, 6, 5, 4, 3, 2, 1] -->
+            <dim>9</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 8: slicing backward, `step: [-1]`, `stop: [-10]`*
+
+```xml
+<layer id="1" type="Slice" ...>
+    <input>
+        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <dim>10</dim>
+        </port>
+        <port id="1">       <!-- start: [9] -->
+          <dim>1</dim>
+        </port>
+        <port id="2">       <!-- stop: [-10] -->
+          <dim>1</dim>
+        </port>
+        <port id="3">       <!-- step: [-1] -->
+          <dim>1</dim>
+        </port>
+        <port id="4">       <!-- axes: [0] -->
+          <dim>1</dim>
+        </port>
+    </input>
+    <output>
+        <port id="5">       <!-- output: [9, 8, 7, 6, 5, 4, 3, 2, 1] -->
+            <dim>9</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 9: slicing backward, `step: [-2]`*
+
+```xml
+<layer id="1" type="Slice" ...>
+    <input>
+        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <dim>10</dim>
+        </port>
+        <port id="1">       <!-- start: [9] -->
+          <dim>1</dim>
+        </port>
+        <port id="2">       <!-- stop: [-11] -->
+          <dim>1</dim>
+        </port>
+        <port id="3">       <!-- step: [-2] -->
+          <dim>1</dim>
+        </port>
+        <port id="4">       <!-- axes: [0] -->
+          <dim>1</dim>
+        </port>
+    </input>
+    <output>
+        <port id="5">       <!-- output: [9, 7, 5, 3, 1] -->
+            <dim>5</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 10: `start` and `stop` out of the dimension size, slicing backward*
+
+```xml
+<layer id="1" type="Slice" ...>
+    <input>
+        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <dim>10</dim>
+        </port>
+        <port id="1">       <!-- start: [100] -->
+          <dim>1</dim>
+        </port>
+        <port id="2">       <!-- stop: [-100] -->
+          <dim>1</dim>
+        </port>
+        <port id="3">       <!-- step: [-1] -->
+          <dim>1</dim>
+        </port>
+        <port id="4">       <!-- axes: [0] -->
+          <dim>1</dim>
+        </port>
+    </input>
+    <output>
+        <port id="5">       <!-- output: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0] -->
+            <dim>10</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 11: slicing 2D tensor, all axes specified*
+
+```xml
+<layer id="1" type="Slice" ...>
+    <input>
+        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+          <dim>2</dim>
+          <dim>5</dim>
+        </port>
+        <port id="1">       <!-- start: [0, 1] -->
+          <dim>2</dim>
+        </port>
+        <port id="2">       <!-- stop: [2, 4] -->
+          <dim>2</dim>
+        </port>
+        <port id="3">       <!-- step: [1, 2] -->
+          <dim>2</dim>
+        </port>
+        <port id="4">       <!-- axes: [0, 1] -->
+          <dim>2</dim>
+        </port>
+    </input>
+    <output>
+        <port id="5">      <!-- output: [1, 3, 6, 8] -->
+            <dim>2</dim>
+            <dim>2</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 12: slicing 3D tensor, all axes specified*
 
 ```xml
 <layer id="1" type="Slice" ...>
     <input>
         <port id="0">       <!-- data -->
-            <dim>20</dim>
-            <dim>10</dim>
-            <dim>5</dim>
+          <dim>20</dim>
+          <dim>10</dim>
+          <dim>5</dim>
         </port>
-        <port id="1">       <!-- start: 0, 0 -->
+        <port id="1">       <!-- start: [0, 0, 0] -->
           <dim>2</dim>
         </port>
-        <port id="2">       <!-- stop: 4, 10 -->
+        <port id="2">       <!-- stop: [4, 10, 5] -->
           <dim>2</dim>
         </port>
-        <port id="3">       <!-- step: 1, 1 -->
+        <port id="3">       <!-- step: [1, 1, 1] -->
           <dim>2</dim>
         </port>
-        <port id="4">       <!-- axes: 0, 1 -->
+        <port id="4">       <!-- axes: [0, 1, 2] -->
           <dim>2</dim>
         </port>
     </input>
     <output>
-        <port id="5">
+        <port id="5">       <!-- output -->
+            <dim>4</dim>
+            <dim>10</dim>
+            <dim>5</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example 13: slicing 3D tensor, last axes default*
+
+```xml
+<layer id="1" type="Slice" ...>
+    <input>
+        <port id="0">       <!-- data -->
+          <dim>20</dim>
+          <dim>10</dim>
+          <dim>5</dim>
+        </port>
+        <port id="1">       <!-- start: [0, 0] -->
+          <dim>2</dim>
+        </port>
+        <port id="2">       <!-- stop: [4, 10] -->
+          <dim>2</dim>
+        </port>
+        <port id="3">       <!-- step: [1, 1] -->
+          <dim>2</dim>
+        </port>
+        <port id="4">       <!-- axes: [0, 1] -->
+          <dim>2</dim>
+        </port>
+    </input>
+    <output>
+        <port id="5">       <!-- output -->
             <dim>4</dim>
             <dim>10</dim>
             <dim>5</dim>
