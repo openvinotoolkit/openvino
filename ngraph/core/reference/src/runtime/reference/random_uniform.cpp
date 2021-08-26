@@ -110,11 +110,6 @@ double uint32_to_double(uint32_t x1, uint32_t x2) {
     return x_double - 1.0;
 }
 
-// Helper function for converting uint32 values to uint64.
-uint64_t uint32_to_uint64(uint32_t x1, uint32_t x2) {
-    // Concatenates x1 and x2 and casts to uint64_t.
-    return (static_cast<uint64_t>(x2) << 32) | static_cast<uint64_t>(x1);
-}
 
 // Helper function for converting uint32 values to bfloat16.
 bfloat16 uint32_to_bfloat16(uint32_t x) {
@@ -155,7 +150,7 @@ void random_uniform(const uint64_t* out_shape,
                     const char* max_val,
                     char* out,
                     const Shape& out_shape_shape,
-                    ngraph::element::Type elem_type,
+                    const ngraph::element::Type& elem_type,
                     uint64_t seed,
                     uint64_t seed2) {
     if (seed == 0 && seed2 == 0) {
@@ -265,8 +260,11 @@ void random_uniform(const uint64_t* out_shape,
             memcpy(mx, max_val, elem_type.size());
             // convert 2 pairs of uint32 values to 2 double values and normalize to
             // range [min_val, max_val)
-            res_int64[0] = uint32_to_uint64(res[0], res[1]) % (mx[0] - mn[0]) + mn[0];
-            res_int64[1] = uint32_to_uint64(res[2], res[3]) % (mx[0] - mn[0]) + mn[0];
+            auto v1 = static_cast<int64_t>(unite_high_low(res[1], res[0]) % (mx[0] - mn[0]));
+            auto v2 = static_cast<int64_t>(unite_high_low(res[3], res[2]) % (mx[0] - mn[0]));
+
+            res_int64[0] = v1 + mn[0];
+            res_int64[1] = v2 + mn[0];
             memcpy(out + k * elem_type.size(), res_int64.data(), std::min(step, elem_count - k) * elem_type.size());
             break;
         }
