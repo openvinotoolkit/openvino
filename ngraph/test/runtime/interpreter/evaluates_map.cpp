@@ -37,6 +37,7 @@
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
 #include <ngraph/runtime/reference/fft.hpp>
+#include <ngraph/runtime/reference/gather.hpp>
 #include <ngraph/runtime/reference/gather_elements.hpp>
 #include <ngraph/runtime/reference/gather_nd.hpp>
 #include <ngraph/runtime/reference/gather_tree.hpp>
@@ -2911,6 +2912,35 @@ namespace
                                                   outputs[1]->get_data_ptr<int64_t>(),
                                                   inputs[0]->get_shape(),
                                                   op->get_output_shape(0));
+        }
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v8::Gather>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs) {
+        using T = typename element_type_traits<ET>::value_type;
+        if (op->get_input_element_type(1) == element::i64) {
+            runtime::reference::gather<T, int64_t>(inputs[0]->get_data_ptr<T>(),
+                                                   inputs[1]->get_data_ptr<int64_t>(),
+                                                   outputs[0]->get_data_ptr<T>(),
+                                                   op->get_input_shape(0),
+                                                   op->get_input_shape(1),
+                                                   op->get_output_shape(0),
+                                                   op->get_axis(),
+                                                   op->get_batch_dims());
+        } else if (op->get_input_element_type(1) == element::i32) {
+            runtime::reference::gather<T, int32_t>(inputs[0]->get_data_ptr<T>(),
+                                                   inputs[1]->get_data_ptr<int32_t>(),
+                                                   outputs[0]->get_data_ptr<T>(),
+                                                   op->get_input_shape(0),
+                                                   op->get_input_shape(1),
+                                                   op->get_output_shape(0),
+                                                   op->get_axis(),
+                                                   op->get_batch_dims());
+        } else {
+            throw ngraph_error("Unexpected indices type for Gather operation");
         }
         return true;
     }
