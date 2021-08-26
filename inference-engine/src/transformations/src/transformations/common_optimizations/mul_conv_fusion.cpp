@@ -18,6 +18,32 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyConvolutionFusion, "MultiplyConvolutionFusion", 0);
 
+static bool is_dequantization_subgraph(const Output<Node>& multiply) {
+    auto inputs = multiply.get_node()->input_values();
+    const auto subtract = std::find_if(inputs.begin(), inputs.end(),
+                                       [] (const Output<Node>& n) -> bool {
+                                           return ov::is_type<ngraph::opset8::Subtract>(n.get_node());
+                                       });
+    if (subtract != inputs.end())
+        inputs = subtract->get_node()->input_values();
+    const auto first_convert = std::find_if(inputs.begin(), inputs.end(),
+                                      [] (const Output<Node>& n) -> bool {
+                                          if (ov::is_type<ngraph::opset8::Convert>(n.get_node())) {
+                                              const auto input = n.get_node()->input_value(0);
+                                              return ov::is_type<ngraph::opset8::Convert>(input.get_node());
+                                          }
+                                          return false;
+                                      });
+    if (first_convert == inputs.end())
+        return false;
+    const auto second_convert = first_convert->get_node()->input_value(0);
+    const element::Type& first_convert_src_type = second_convert.get_element_type();
+    const element::Type& first_convert_dest_type = first_convert->get_element_type();
+    const element::Type second_convert_src_type = second_convert.get_node()->input_value(0).get_element_type();
+    return (first_convert_src_type == element::i8 || first_convert_src_type == element::u8) &&
+        first_convert_dest_type == second_convert_src_type;
+}
+
 ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
     auto input_pattern = pattern::any_input();
@@ -28,6 +54,9 @@ ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
 
     matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
+
+        if (is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+            return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
         const auto& mul_const = pattern_to_output.at(mul_const_pattern);
@@ -72,6 +101,9 @@ ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
 
     matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
+
+        if (is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+            return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
         std::shared_ptr<Node> mul_const = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
@@ -127,6 +159,10 @@ ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackprop
 
     matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
+
+        if (is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+            return false;
+
         const auto& weights = pattern_to_output.at(weights_pattern);
         const auto& weights_shape = weights.get_shape();
         std::shared_ptr<Node> mul_const = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
@@ -182,6 +218,9 @@ ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvoluti
 
     matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
+
+        if (is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
+            return false;
 
         const auto& weights = pattern_to_output.at(weights_pattern);
         std::shared_ptr<Node> mul_const = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
