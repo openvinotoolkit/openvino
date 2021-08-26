@@ -344,7 +344,7 @@ public:
     descriptor::Tensor& get_input_tensor(size_t i) const;
 
     /// Returns the tensor name for output i
-    NGRAPH_DEPRECATED("The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
+    OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
     const std::string& get_output_tensor_name(size_t i) const;
 
     std::set<Input<Node>> get_output_target_inputs(size_t i) const;
@@ -365,7 +365,7 @@ public:
     const PartialShape& get_input_partial_shape(size_t i) const;
 
     /// Returns the tensor name for input i
-    NGRAPH_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
+    OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
     const std::string& get_input_tensor_name(size_t i) const;
 
     std::unordered_set<descriptor::Tensor*> liveness_new_list;
@@ -433,7 +433,7 @@ public:
         return get_type_info().version;
     }
 
-    NGRAPH_DEPRECATED("This method is deprecated and will be removed soon.")
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
     virtual std::shared_ptr<Node> get_default_value() const {
         return nullptr;
     }
@@ -476,16 +476,16 @@ public:
     /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
     Output<const Node> output(size_t output_index) const;
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    NGRAPH_DEPRECATED("This method is deprecated and will be removed soon.")
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
     void set_op_annotations(std::shared_ptr<ngraph::op::util::OpAnnotations> op_annotations) {
         m_op_annotations = op_annotations;
     }
-    NGRAPH_DEPRECATED("This method is deprecated and will be removed soon.")
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
     std::shared_ptr<ngraph::op::util::OpAnnotations> get_op_annotations() const {
         return m_op_annotations;
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     virtual bool match_value(ngraph::pattern::Matcher* matcher,
                              const Output<Node>& pattern_value,
@@ -508,9 +508,9 @@ private:
     std::set<std::shared_ptr<Node>> m_provenance_group;
     std::deque<descriptor::Input> m_inputs;
     std::deque<descriptor::Output> m_outputs;
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
 };
 
@@ -519,7 +519,7 @@ using NodeTypeInfo = Node::type_info_t;
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node&);
 OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
 
-#define _NGRAPH_RTTI_EXPAND(X) X
+#define _OPENVINO_RTTI_EXPAND(X) X
 
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
 /// Should be used in the scope of class that requires type identification besides one provided by
@@ -543,7 +543,7 @@ OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
 ///         public:
 ///             // Don't use Node as a parent for type_info, it doesn't have any value and
 ///             prohibited
-///             NGRAPH_RTTI_DECLARATION;
+///             OPENVINO_RTTI_DECLARATION;
 ///
 ///             ...
 ///     };
@@ -551,50 +551,50 @@ OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
 ///     class MyInheritedOp : public MyOp
 ///     {
 ///         public:
-///             NGRAPH_RTTI_DECLARATION;
+///             OPENVINO_RTTI_DECLARATION;
 ///
 ///             ...
 ///     };
 ///
-/// To complete type identification for a class, use NGRAPH_RTTI_DEFINITION.
+/// To complete type identification for a class, use OPENVINO_RTTI_DEFINITION.
 ///
-#define NGRAPH_RTTI_DECLARATION                                    \
+#define OPENVINO_RTTI_DECLARATION                                  \
     static const ::ov::Node::type_info_t type_info;                \
     const ::ov::Node::type_info_t& get_type_info() const override; \
     static const ::ov::Node::type_info_t& get_type_info_static()
 
-#define _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)                     \
+#define _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)                   \
     const ::ov::Node::type_info_t& CLASS::get_type_info() const { \
         return get_type_info_static();                            \
     }                                                             \
     const ::ov::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static()
-#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)           \
+#define _OPENVINO_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)         \
     const ::ov::Node::type_info_t& CLASS::get_type_info_static() {                                    \
         static const ::ov::Node::type_info_t type_info_static{TYPE_NAME,                              \
                                                               _VERSION_INDEX,                         \
                                                               &PARENT_CLASS::get_type_info_static()}; \
         return type_info_static;                                                                      \
     }                                                                                                 \
-    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
+    _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)
 
-#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)               \
+#define _OPENVINO_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX)             \
     const ::ov::Node::type_info_t& CLASS::get_type_info_static() {                        \
         static const ::ov::Node::type_info_t type_info_static{TYPE_NAME, _VERSION_INDEX}; \
         return type_info_static;                                                          \
     }                                                                                     \
-    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
+    _OPENVINO_RTTI_DEFINITION_COMMON(CLASS)
 
-#define _NGRAPH_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
+#define _OPENVINO_RTTI_DEFINITION_SELECTOR(_1, _2, _3, _4, NAME, ...) NAME
 
-/// Complementary to NGRAPH_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
-/// NGRAPH_RTTI_DECLARATION.
+/// Complementary to OPENVINO_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
+/// OPENVINO_RTTI_DECLARATION.
 /// Should be used outside the class definition scope in place where ODR is ensured.
 ///
-/// \param CLASS is a C++ name of the class where corresponding NGRAPH_RTTI_DECLARATION was applied.
+/// \param CLASS is a C++ name of the class where corresponding OPENVINO_RTTI_DECLARATION was applied.
 /// \param TYPE_NAME a string literal of type const char* that names your class in type
 /// identification namespace;
 ///        It is your choice how to name it, but it should be unique among all
-///        NGRAPH_RTTI_DECLARATION-enabled classes that can be
+///        OPENVINO_RTTI_DECLARATION-enabled classes that can be
 ///        used in conjunction with each other in one transformation flow.
 /// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
 ///        operations that shares the same TYPE_NAME
@@ -603,20 +603,20 @@ OPENVINO_API std::ostream& operator<<(std::ostream&, const Node*);
 ///        that all derived from some common base class. Don't use Node as a parent, it is a base
 ///        class
 ///        for all operations and doesn't provide ability to define some perfect subset of
-///        operations. PARENT_CLASS should define RTTI with NGRAPH_RTTI_{DECLARATION/DEFINITION}
+///        operations. PARENT_CLASS should define RTTI with OPENVINO_RTTI_{DECLARATION/DEFINITION}
 ///        macros.
 ///
-/// Examples (see corresponding declarations in NGRAPH_RTTI_DECLARATION description):
+/// Examples (see corresponding declarations in OPENVINO_RTTI_DECLARATION description):
 ///
-///     NGRAPH_RTTI_DEFINITION(MyOp,"MyOp", 1);
-///     NGRAPH_RTTI_DEFINITION(MyInheritedOp, "MyInheritedOp", 1, MyOp)
+///     OPENVINO_RTTI_DEFINITION(MyOp,"MyOp", 1);
+///     OPENVINO_RTTI_DEFINITION(MyInheritedOp, "MyInheritedOp", 1, MyOp)
 ///
 /// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
 ///
-#define NGRAPH_RTTI_DEFINITION(...)                                                           \
-    _NGRAPH_RTTI_EXPAND(_NGRAPH_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                         \
-                                                         _NGRAPH_RTTI_DEFINITION_WITH_PARENT, \
-                                                         _NGRAPH_RTTI_DEFINITION_NO_PARENT)(__VA_ARGS__))
+#define OPENVINO_RTTI_DEFINITION(...)                                                               \
+    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                           \
+                                                             _OPENVINO_RTTI_DEFINITION_WITH_PARENT, \
+                                                             _OPENVINO_RTTI_DEFINITION_NO_PARENT)(__VA_ARGS__))
 
 // Like an Output but with a Node* instead of a shared_ptr<Node>
 struct RawNodeOutput {

@@ -85,4 +85,8 @@ using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
 using ov::check_new_args_count;
 
+#define NGRAPH_RTTI_DECLARATION OPENVINO_RTTI_DECLARATION
+
+#define NGRAPH_RTTI_DEFINITION(...) OPENVINO_RTTI_DEFINITION(__VA_ARGS__)
+
 }  // namespace ngraph
