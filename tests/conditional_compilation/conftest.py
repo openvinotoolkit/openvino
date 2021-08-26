@@ -190,13 +190,15 @@ def save_session_info(pytestconfig, artifacts):
 
 
 @pytest.fixture(scope="function")
-def download_models(openvino_ref, models, request):
+def prepare_models(openvino_ref, models, request):
     for model in models:
         if "OMZ" in model["path"]:
-            model["path"] = download_model(openvino_ref, model, request)
+            model["path"] = download_omz_model(openvino_ref, model, request)
+    models = [model["path"] for model in models]
+    return models
 
 
-def download_model(openvino_ref, model, request):
+def download_omz_model(openvino_ref, model, request):
     # Step 1: downloader
     python_executable = sys.executable
     omz_path = request.config.getoption("omz_repo")

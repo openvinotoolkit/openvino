@@ -22,17 +22,16 @@ log = logging.getLogger()
 
 
 @pytest.mark.dependency(name="cc_collect")
-def test_cc_collect(download_models, test_id, models, openvino_ref, test_info,
+def test_cc_collect(prepare_models, test_id, models, openvino_ref, test_info,
                     save_session_info, sea_runtool, collector_dir, artifacts):  # pylint: disable=unused-argument
     """Test conditional compilation statistics collection
     :param test_info: custom `test_info` field of built-in `request` pytest fixture.
                       contain a dictionary to store test metadata.
     """
+    models = prepare_models
     out = artifacts / test_id
     infer_out_dir = out / "inference_result"
     test_info["test_id"] = test_id
-
-    model_paths = (model["path"] for model in models)
 
     # cleanup old data if any
     prev_result = glob.glob(f"{out / test_id}.pid*.csv")
@@ -48,7 +47,7 @@ def test_cc_collect(download_models, test_id, models, openvino_ref, test_info,
             "!",
             sys.executable,
             infer_tool,
-            *[f"-m={model_path}" for model_path in model_paths],
+            *[f"-m={model}" for model in models],
             "-d=CPU",
             f"-r={infer_out_dir}"
         ]
@@ -83,32 +82,29 @@ def test_minimized_pkg(test_id, models, openvino_root_dir, artifacts):  # pylint
 
 
 @pytest.mark.dependency(depends=["cc_collect", "minimized_pkg"])
-def test_infer(download_models, test_id, models, artifacts):
+def test_infer(prepare_models, test_id, models, artifacts):
     """Test inference with conditional compiled binaries."""
     out = artifacts / test_id
     minimized_pkg = out / "install_pkg"
     infer_out_dir_cc = out / "inference_result_cc/"
 
-    model_paths = (model["path"] for model in models)
-
-    return_code, output = run_infer(model_paths, infer_out_dir_cc, minimized_pkg)
+    return_code, output = run_infer(prepare_models, infer_out_dir_cc, minimized_pkg)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
 
 
 @pytest.mark.dependency(depends=["cc_collect", "minimized_pkg"])
-def test_verify(download_models, test_id, models, openvino_ref, artifacts, tolerance=1e-6):  # pylint: disable=too-many-arguments
+def test_verify(prepare_models, test_id, models, openvino_ref, artifacts, tolerance=1e-6):  # pylint: disable=too-many-arguments
     """Test verifying that inference results are equal."""
+    models = prepare_models
     out = artifacts / test_id
     minimized_pkg = out / "install_pkg"
 
     infer_out_dir_cc = out / "inference_result_cc/"
     infer_out_dir = out / "inference_result/"
 
-    model_paths = (model["path"] for model in models)
-
-    return_code, output = run_infer(model_paths, infer_out_dir, openvino_ref)
+    return_code, output = run_infer(models, infer_out_dir, openvino_ref)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
-    return_code, output = run_infer(model_paths, infer_out_dir_cc, minimized_pkg)
+    return_code, output = run_infer(models, infer_out_dir_cc, minimized_pkg)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
 
     for model in models:
