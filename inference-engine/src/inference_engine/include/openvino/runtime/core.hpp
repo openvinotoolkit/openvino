@@ -19,6 +19,7 @@
 #include "cpp/ie_executable_network.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_version.hpp"
+#include "remote_context.hpp"
 
 namespace InferenceEngine {
 class IExtension;
@@ -146,7 +147,7 @@ public:
      * @return An executable network object
      */
     ie::ExecutableNetwork compile_model(const std::shared_ptr<const ov::Function>& network,
-                                        const std::shared_ptr<ie::RemoteContext>& context,
+                                        const RemoteContext& context,
                                         const ConfigMap& config = {});
 
     /**
@@ -178,7 +179,7 @@ public:
      * @return An executable network reference
      */
     ie::ExecutableNetwork import_model(std::istream& networkModel,
-                                       const std::shared_ptr<ie::RemoteContext>& context,
+                                       const RemoteContext& context,
                                        const ConfigMap& config = {});
 
     /**
@@ -291,14 +292,14 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
-    std::shared_ptr<ie::RemoteContext> create_context(const std::string& deviceName, const ie::ParamMap& params);
+    RemoteContext create_context(const std::string& deviceName, const ie::ParamMap& params);
 
     /**
      * @brief Get a pointer to default(plugin-supplied) shared context object for specified accelerator device.
      * @param deviceName  - A name of a device to get create shared context from.
      * @return A shared pointer to a default remote context.
      */
-    std::shared_ptr<ie::RemoteContext> get_default_context(const std::string& deviceName);
+    RemoteContext get_default_context(const std::string& deviceName);
 };
 }  // namespace runtime
 }  // namespace ov
