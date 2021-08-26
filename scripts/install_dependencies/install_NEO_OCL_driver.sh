@@ -616,9 +616,9 @@ check_specific_generation()
     proc_description['20.35.17767']="10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)."
     proc_description['21.29.20389']="12th generation Intel® Core™ processor (formerly Alder Lake)."
     for driver in "${!specific_generation[@]}"; do 
-        detected_generation=$(grep -m1 'model name' /proc/cpuinfo | grep -E "${!specific_generation[$driver]}")
+        detected_generation=$(grep -m1 'model name' /proc/cpuinfo | grep -E "${specific_generation[${driver}]}")
         if [[ ! -z "$detected_generation" && "$INSTALL_DRIVER_VERSION" != "${driver}" ]]; then
-            echo "$(basename "$0"): Detected ${!proc_description[$driver]}"
+            echo "$(basename "$0"): Detected ${proc_description[${driver}]}"
             echo "Driver version ${driver} is going to be installed to fully utilize hardware features and performance."
             if [ "$auto_mode" == true ]; then
                 INSTALL_DRIVER_VERSION=$driver
