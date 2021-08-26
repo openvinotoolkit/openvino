@@ -60,7 +60,7 @@ if(NGRAPH_ONNX_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         NGRAPH_ONNX_FRONTEND_ENABLE
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
-    add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
+    add_dependencies(${TARGET_NAME} onnx_ngraph_frontend)
 endif()
 
 if(NGRAPH_PDPD_FRONTEND_ENABLE)
