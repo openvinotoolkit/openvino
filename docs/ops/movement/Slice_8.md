@@ -16,6 +16,8 @@ where `n` is equal to `step` element for corresponding axis.
 Optional `axes` input allows specifying slice indexes only on selected axes.
 Other axes will not be affected and will be output in full.
 
+**Attributes**: *Transpose* operation has no attributes.
+
 **Inputs**
 
 * **1**: `data` - tensor (to be sliced) of type *T* and arbitrary shape. **Required.**
