@@ -102,137 +102,116 @@ TEST_P(ExecutableNetworkBaseTest,  CanGetOutputsInfoAndCheck) {
 
 TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoBeforeExecution) {
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-        targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
-        // Load CNNNetwork to target plugins
-        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-        ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
-        // Create InferRequest
-        InferenceEngine::InferRequest req;
-        ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-        // Store all the original layers from the network
-        const auto originalLayers = function->get_ops();
-        std::map<std::string, int> originalLayersMap;
-        for (const auto &layer : originalLayers) {
-            originalLayersMap[layer->get_friendly_name()] = 0;
-        }
-        int IteratorForLayersConstant = 0;
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
+    std::map<std::string, int> originalLayersMap;
+    for (const auto &layer : function->get_ops()) {
+        originalLayersMap[layer->get_friendly_name()] = 0;
+    }
+    int constCnt = 0;
 
-        auto getFunction = execGraph.getFunction();
-        ASSERT_NE(getFunction, nullptr);
+    auto getFunction = execGraph.getFunction();
+    ASSERT_NE(getFunction, nullptr);
 
-        for (const auto & op : getFunction->get_ops()) {
-            const auto & rtInfo = op->get_rt_info();
+    for (const auto & op : getFunction->get_ops()) {
+        const ov::RTMap& rtInfo = op->get_rt_info();
 
-            auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
-                auto it = rtInfo.find(paramName);
-                IE_ASSERT(rtInfo.end() != it);
-                auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-                IE_ASSERT(nullptr != value);
+        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+            auto it = rtInfo.find(paramName);
+            IE_ASSERT(rtInfo.end() != it);
+            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
+            IE_ASSERT(nullptr != value);
 
-                return value->get();
-            };
+            return value->get();
+        };
 
-            // Each layer from the execGraphInfo network must have PM data option set
-            ASSERT_EQ("not_executed", getExecValue(ExecGraphInfoSerialization::PERF_COUNTER));
-            // Parse origin layer names (fused/merged layers) from the executable graph
-            // and compare with layers from the original model
-            auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
-            if (origFromExecLayer == "")
-                IteratorForLayersConstant++;
-            std::vector<std::string> origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
-            std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string &layer) {
-                auto origLayer = originalLayersMap.find(layer);
-                ASSERT_NE(originalLayersMap.end(), origLayer) << layer;
+        // Each layer from the execGraphInfo network must have PM data option set
+        ASSERT_EQ("not_executed", getExecValue(ExecGraphInfoSerialization::PERF_COUNTER));
+        // Parse origin layer names (fused/merged layers) from the executable graph
+        // and compare with layers from the original model
+        auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
+        if (origFromExecLayer.empty()) {
+            constCnt++;
+        } else {
+            auto origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
+            std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string &op) {
+                auto origLayer = originalLayersMap.find(op);
+                ASSERT_NE(originalLayersMap.end(), origLayer) << op;
                 origLayer->second++;
             });
         }
+    }
 
-        // All layers from the original IR must be present with in ExecGraphInfo
-        for (auto &layer : originalLayersMap) {
-            if ((layer.second == 0) && (IteratorForLayersConstant > 0)) {
-                IteratorForLayersConstant--;
-                continue;
-            }
+    // All layers from the original IR must be present with in ExecGraphInfo
+    for (auto &layer : originalLayersMap) {
+        if ((layer.second == 0) && (constCnt > 0)) {
+            constCnt--;
+        } else {
             ASSERT_GE(layer.second, 0);
         }
-    } else {
-        InferenceEngine::ExecutableNetwork network;
-        ASSERT_NO_THROW(network = ie->LoadNetwork(cnnNet, targetDevice, configuration));
-        ASSERT_THROW(network.GetExecGraphInfo(), InferenceEngine::NotImplemented);
     }
 }
 
 TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoAfterExecution) {
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-        targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
-        // Load CNNNetwork to target plugins
-        execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-        ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
-        // Create InferRequest
-        InferenceEngine::InferRequest req;
-        ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-        // Store all the original layers from the network
-        const auto originalLayers = function->get_ops();
-        std::map<std::string, int> originalLayersMap;
-        for (const auto &layer : originalLayers) {
-            originalLayersMap[layer->get_friendly_name()] = 0;
-        }
-        int IteratorForLayersConstant = 0;
-        // Store all the layers from the executable graph information represented as CNNNetwork
-        bool has_layer_with_valid_time = false;
-        auto getFunction = execGraph.getFunction();
-        ASSERT_NE(nullptr, getFunction);
+    // Load CNNNetwork to target plugins
+    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
+    std::map<std::string, int> originalLayersMap;
+    for (const auto &layer : function->get_ops()) {
+        originalLayersMap[layer->get_friendly_name()] = 0;
+    }
+    int constCnt = 0;
+    // Store all the layers from the executable graph information represented as CNNNetwork
+    bool hasOpWithValidTime = false;
+    auto getFunction = execGraph.getFunction();
+    ASSERT_NE(nullptr, getFunction);
 
-        for (const auto & op : getFunction->get_ops()) {
-            const auto & rtInfo = op->get_rt_info();
+    for (const auto & op : getFunction->get_ops()) {
+        const auto & rtInfo = op->get_rt_info();
 
-            auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
-                auto it = rtInfo.find(paramName);
-                IE_ASSERT(rtInfo.end() != it);
-                auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-                IE_ASSERT(nullptr != value);
+        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+            auto it = rtInfo.find(paramName);
+            IE_ASSERT(rtInfo.end() != it);
+            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
+            IE_ASSERT(nullptr != value);
 
-                return value->get();
-            };
+            return value->get();
+        };
 
-            // At least one layer in the topology should be executed and have valid perf counter value
-            try {
-                float x = static_cast<float>(std::atof(
-                        getExecValue(ExecGraphInfoSerialization::PERF_COUNTER).c_str()));
-                ASSERT_GE(x, 0.0f);
-                has_layer_with_valid_time = true;
-            } catch (std::exception &) {}
+        // At least one layer in the topology should be executed and have valid perf counter value
+        try {
+            float x = static_cast<float>(std::atof(getExecValue(ExecGraphInfoSerialization::PERF_COUNTER).c_str()));
+            std::cout << "TIME: " << x << std::endl;
+            ASSERT_GE(x, 0.0f);
+            hasOpWithValidTime = true;
+        } catch (std::exception &) {}
 
-            // Parse origin layer names (fused/merged layers) from the executable graph
-            // and compare with layers from the original model
-            auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
-            std::vector<std::string> origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
-            if (origFromExecLayer == "")
-                IteratorForLayersConstant++;
+        // Parse origin layer names (fused/merged layers) from the executable graph
+        // and compare with layers from the original model
+        auto origFromExecLayer = getExecValue(ExecGraphInfoSerialization::ORIGINAL_NAMES);
+        std::vector<std::string> origFromExecLayerSep = CommonTestUtils::splitStringByDelimiter(origFromExecLayer);
+        if (origFromExecLayer.empty()) {
+            constCnt++;
+        } else {
             std::for_each(origFromExecLayerSep.begin(), origFromExecLayerSep.end(), [&](const std::string &layer) {
                 auto origLayer = originalLayersMap.find(layer);
                 ASSERT_NE(originalLayersMap.end(), origLayer) << layer;
                 origLayer->second++;
             });
         }
+    }
 
-        ASSERT_TRUE(has_layer_with_valid_time);
+    ASSERT_TRUE(hasOpWithValidTime);
 
-        // All layers from the original IR must be present within ExecGraphInfo
-        for (auto &layer : originalLayersMap) {
-            if ((layer.second == 0) && (IteratorForLayersConstant > 0)) {
-                IteratorForLayersConstant--;
-                continue;
-            }
+    // All layers from the original IR must be present within ExecGraphInfo
+    for (auto &layer : originalLayersMap) {
+        if ((layer.second == 0) && (constCnt > 0)) {
+            constCnt--;
+        } else {
             ASSERT_GE(layer.second, 0);
         }
-    } else {
-        ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration).GetExecGraphInfo(),
-                InferenceEngine::NotImplemented);
     }
 }
 
@@ -242,21 +221,20 @@ TEST_P(ExecutableNetworkBaseTest, CheckExecGraphInfoSerialization) {
     std::string out_bin_path = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts + ".bin";
 
     InferenceEngine::CNNNetwork execGraph;
-    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
-        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
-        targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
-        // Load CNNNetwork to target plugins
-        auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-        ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
-        // Create InferRequest
-        InferenceEngine::InferRequest req;
-        ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-        execGraph.serialize(out_xml_path, out_bin_path);
-        ASSERT_EQ(0, std::remove(out_xml_path.c_str()));
-        ASSERT_EQ(0, std::remove(out_bin_path.c_str()));
-    } else {
-        ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration).GetExecGraphInfo(),
-                     InferenceEngine::NotImplemented);
-    }
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    ASSERT_NO_THROW(execGraph = execNet.GetExecGraphInfo());
+    ASSERT_NO_THROW(execGraph.serialize(out_xml_path, out_bin_path));
+    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+}
+
+TEST_P(ExecutableNetworkBaseTest, canExport) {
+    auto ts = CommonTestUtils::GetTimestamp();
+    std::string modelName = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts;
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    ASSERT_NO_THROW(execNet.Export(modelName));
+    ASSERT_TRUE(CommonTestUtils::fileExists(modelName + ".xml"));
+    ASSERT_TRUE(CommonTestUtils::fileExists(modelName + ".bin"));
+    CommonTestUtils::removeIRFiles(modelName + ".xml", modelName + ".bin");
 }
 }  // namespace BehaviorTestsDefinitions
