@@ -86,6 +86,7 @@ private:
     void optimizedNspc2Ncsp();
     void optimizedNcsp2Nspc();
     void createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr);
+    bool canUseDirectCopy();
 };
 
 }  // namespace MKLDNNPlugin

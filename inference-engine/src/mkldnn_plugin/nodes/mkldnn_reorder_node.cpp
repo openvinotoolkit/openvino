@@ -118,47 +118,13 @@ void MKLDNNReorderNode::prepareParams() {
 
         auto inDims = srcMemPtr->GetShape().getStaticDims();
 
-        BlockedMemoryDescPtr srcBlockDesc;
-        BlockedMemoryDescPtr dstBlockDesc;
-        bool descsAreBlocked = true;
-        // This ugly construction will be changed with a bitmask check when the Dynamic Shapes Phase 2 is completed
-        try {
-            srcBlockDesc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(srcMemPtr->GetDescWithType<BlockedMemoryDesc>());
-            dstBlockDesc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(dstMemPtr->GetDescWithType<BlockedMemoryDesc>());
-        }
-        catch (const InferenceEngine::GeneralError& excp) {
-            descsAreBlocked = false;
-        }
-
-        if (descsAreBlocked &&
-            srcBlockDesc->isDefined() && dstBlockDesc->isDefined()) {
-            // Only partial compatibility check since we allow incompatible offsets
-            useDirectCopy = srcBlockDesc->getShape().getRank() == srcBlockDesc->getShape().getRank() &&
-                    srcBlockDesc->getShape().getRank() != 0 &&
-                    srcBlockDesc->getPrecision() == dstBlockDesc->getPrecision() &&
-                    srcBlockDesc->getBlockDims() == dstBlockDesc->getBlockDims() &&
-                    srcBlockDesc->getOrder() == dstBlockDesc->getOrder() &&
-                    srcBlockDesc->getOffsetPaddingToData() == dstBlockDesc->getOffsetPaddingToData();
-
-            auto& srcStrides = srcBlockDesc->getStrides();
-            auto& dstStrides = dstBlockDesc->getStrides();
-            size_t startAxis = srcBlockDesc->getBlockDims().front() == 1 ? 1 : 0;
-            useDirectCopy = useDirectCopy && std::equal(srcStrides.begin() + startAxis, srcStrides.end(), dstStrides.begin() + startAxis);
-
-            //Check that the tensors are dense
-            useDirectCopy = useDirectCopy && srcStrides.back() == 1;
-            auto &blkDims = srcBlockDesc->getBlockDims();
-            for (size_t i = startAxis; useDirectCopy && i < srcStrides.size() - 1; ++i) {
-                useDirectCopy = useDirectCopy && (srcStrides[i] == blkDims[i + 1] * srcStrides[i + 1]);
-            }
-
-            if (useDirectCopy) {
-                directCopyParams.srcMem = srcMemPtr;
-                directCopyParams.dstMem = dstMemPtr;
-                directCopyParams.dataSize = dstMemPtr->GetSize(); // be careful since this is just padded elements count multiplied by the data size
-            }
-        }
-        if (!useDirectCopy) {
+        useDirectCopy = canUseDirectCopy();
+        if (useDirectCopy) {
+            directCopyParams.srcMem = srcMemPtr;
+            directCopyParams.dstMem = dstMemPtr;
+            auto dstBlockedDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
+            directCopyParams.dataSize = dstBlockedDesc->getPaddedElementsCount() * dstBlockedDesc->getPrecision().size();
+       } else {
             if (isNspc2NcspCase) {
                 const auto &inDims = srcMemPtr->getStaticDims();
                 canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
@@ -310,8 +276,8 @@ void MKLDNNReorderNode::execute(mkldnn::stream strm) {
         return;
 
     if (useDirectCopy) {
-        auto srcPtr = directCopyParams.srcMem->GetPtr();
-        auto dstPtr = directCopyParams.dstMem->GetPtr();
+        const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(directCopyParams.srcMem->GetPtr());
+        uint8_t* dstPtr = reinterpret_cast<uint8_t*>(directCopyParams.dstMem->GetPtr());
         cpu_memcpy(dstPtr, srcPtr, directCopyParams.dataSize);
     } else if (canUseNspc2Ncsp) {
         optimizedNspc2Ncsp();
@@ -358,6 +324,54 @@ std::string MKLDNNReorderNode::getReorderArgs(const MemoryDesc &parentDesc, cons
         outArgs += (outArgs.empty() ? "" : "_") + formatDst;
     }
     return inArgs + "_" + outArgs;
+}
+
+bool MKLDNNReorderNode::canUseDirectCopy() {
+    const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+
+    auto isSupportedDesc = [](const MemoryDesc& desc) {
+        if (!(desc.getType() & MemoryDescType::Blocked)) {
+            return false;
+        }
+        if ((desc.getType() & MemoryDescType::Mkldnn) && !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) {
+            return false;
+        }
+        if (!desc.isDefined()) {
+            return false;
+        }
+        return true;
+    };
+
+    if (!isSupportedDesc(srcMemPtr->getDesc()) || !isSupportedDesc(dstMemPtr->getDesc())) {
+        return false;
+    }
+
+    BlockedMemoryDescPtr srcBlockDesc = srcMemPtr->GetDescWithType<BlockedMemoryDesc>();
+    BlockedMemoryDescPtr dstBlockDesc = dstMemPtr->GetDescWithType<BlockedMemoryDesc>();
+
+    // Only partial compatibility check since we allow incompatible offsets
+    bool tensorsAreSuitable = srcBlockDesc->getShape().getRank() == srcBlockDesc->getShape().getRank() &&
+                              srcBlockDesc->getShape().getRank() != 0 &&
+                              srcBlockDesc->getPrecision() == dstBlockDesc->getPrecision() &&
+                              srcBlockDesc->getBlockDims() == dstBlockDesc->getBlockDims() &&
+                              srcBlockDesc->getOrder() == dstBlockDesc->getOrder() &&
+                              srcBlockDesc->getOffsetPaddingToData() == dstBlockDesc->getOffsetPaddingToData();
+
+    if (!tensorsAreSuitable) return false;
+
+    auto &srcStrides = srcBlockDesc->getStrides();
+    auto &dstStrides = dstBlockDesc->getStrides();
+    size_t startAxis = srcBlockDesc->getBlockDims().front() == 1 ? 1 : 0;
+    if (!std::equal(srcStrides.begin() + startAxis, srcStrides.end(), dstStrides.begin() + startAxis)) return false;
+
+    //Check that the tensors are dense
+    if (srcStrides.back() != 1) return false;
+    auto &blkDims = srcBlockDesc->getBlockDims();
+    for (size_t i = startAxis; i < srcStrides.size() - 1; ++i) {
+        if (srcStrides[i] != blkDims[i + 1] * srcStrides[i + 1]) return false;
+    }
+    return true;
 }
 
 void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size) {
