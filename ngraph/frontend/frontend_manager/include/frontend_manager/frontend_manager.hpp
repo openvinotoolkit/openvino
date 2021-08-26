@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include "frontend.hpp"
@@ -101,6 +102,16 @@ template <>
 class FRONTEND_API VariantWrapper<std::istream*> : public VariantImpl<std::istream*> {
 public:
     static constexpr VariantTypeInfo type_info{"Variant::std::istream*", 0};
+    const VariantTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
+};
+
+template <>
+class FRONTEND_API VariantWrapper<std::istringstream*> : public VariantImpl<std::istringstream*> {
+public:
+    static constexpr VariantTypeInfo type_info{"Variant::std::istringstream*", 0};
     const VariantTypeInfo& get_type_info() const override {
         return type_info;
     }
