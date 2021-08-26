@@ -16,7 +16,7 @@ class TestCropPartialInfer(unittest.TestCase):
     @staticmethod
     def _create_graph_type1():
         nodes_attributes = {'crop_input': {'shape': None, 'value': None, 'kind': 'data'},
-                            'crop_node': {'type': 'Crop', 'kind': 'op'},
+                            'crop_node': {'op': 'Crop', 'kind': 'op'},
                             'crop_output': {'shape': None, 'value': None, 'kind': 'data'}
                             }
         return build_graph(nodes_attributes,
@@ -34,7 +34,7 @@ class TestCropPartialInfer(unittest.TestCase):
     @staticmethod
     def _create_graph_type2():
         nodes_attributes = {'crop_input': {'shape': None, 'value': None, 'kind': 'data'},
-                            'crop_node': {'type': 'Crop', 'kind': 'op'},
+                            'crop_node': {'op': 'Crop', 'kind': 'op'},
                             'crop_output': {'shape': None, 'value': None, 'kind': 'data'}
                             }
         return build_graph(nodes_attributes,
@@ -50,7 +50,7 @@ class TestCropPartialInfer(unittest.TestCase):
     def _create_graph_type3():
         nodes_attributes = {'crop_input': {'shape': None, 'value': None, 'kind': 'data'},
                             'crop_input2': {'shape': None, 'value': None, 'kind': 'data'},
-                            'crop_node': {'type': 'Crop', 'kind': 'op'},
+                            'crop_node': {'op': 'Crop', 'kind': 'op'},
                             'crop_output': {'shape': None, 'value': None, 'kind': 'data'}
                             }
         return build_graph(nodes_attributes,
