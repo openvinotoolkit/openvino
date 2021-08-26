@@ -182,7 +182,7 @@ static ngraph::OutputVector SplitInput(const GraphData& graph_data, ConvData& co
     auto padded_input_plane = std::make_shared<ngraph::opset7::Reshape>(graph_data.leading_transpose->input_value(0),
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
             ngraph::Shape{1, shape_size(graph_data.leading_transpose->input_value(0).get_shape())}), false);
-    ngraph::copy_runtime_info(graph_data.conv, padded_input_plane);
+    copy_runtime_info(graph_data.conv, padded_input_plane);
 
     if (graph_data.conv_count > 1) {
         // If we have split input plane and convolutions due to GNA limitation - we must sum their results at the end
@@ -219,7 +219,7 @@ static std::vector<std::shared_ptr<ngraph::Node>> SplitFilters(const GraphData& 
     h_1_filters = Split2DConvFilters(filter_values, vertical_permute, horizontal_permute, graph_data.conv_count);
 
     for (auto filter : h_1_filters)
-        ngraph::copy_runtime_info(graph_data.conv, filter);
+        copy_runtime_info(graph_data.conv, filter);
 
     return h_1_filters;
 }
@@ -247,13 +247,13 @@ static void TransformInput(const GraphData& graph_data, const ConvData& conv_dat
                 offset = (filter_height * conv_data.filter_dilation_height + output_height * conv_data.filter_stride_height) *
                     conv_data.input_width * conv_data.input_channel_count;
                 auto slice = FlatCrop(split_input_plane, offset, conv_data.input_width * conv_data.input_channel_count);
-                ngraph::copy_runtime_info(graph_data.conv, slice);
+                copy_runtime_info(graph_data.conv, slice);
                 dilated_input_planes.push_back(slice);
             }
         } else {
             offset = filter_height * conv_data.filter_dilation_height * conv_data.input_width * conv_data.input_channel_count;
             auto slice = FlatCrop(split_input_plane, offset, conv_data.input_width * conv_data.input_channel_count * conv_data.output_height);
-            ngraph::copy_runtime_info(graph_data.conv, slice);
+            copy_runtime_info(graph_data.conv, slice);
             dilated_input_planes.push_back(slice);
         }
     }
@@ -276,7 +276,7 @@ static void TransformInput(const GraphData& graph_data, const ConvData& conv_dat
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
             {(size_t)1, conv_data.input_width * conv_data.input_channel_count * conv_data.output_height * conv_data.filter_height}), false);
 
-    ngraph::copy_runtime_info(graph_data.conv, {dilated_chunks_concat, flattened_dilated_transposed_input, transposed_dilated_chunks });
+    copy_runtime_info(graph_data.conv, {dilated_chunks_concat, flattened_dilated_transposed_input, transposed_dilated_chunks });
     split_input_plane = flattened_dilated_transposed_input;
 }
 
@@ -311,7 +311,7 @@ static std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, c
         std::shared_ptr<ngraph::Node> last_conv_block_op = conv;
         if (graph_data.bias_const && conv_index == 0) {
             last_conv_block_op = std::make_shared<ngraph::opset7::Add>(conv, graph_data.bias_const);
-            ngraph::copy_runtime_info(graph_data.conv, last_conv_block_op);
+            copy_runtime_info(graph_data.conv, last_conv_block_op);
             InsertFQLayer(graph_data.fq_bias, last_conv_block_op);
         }
 
@@ -325,14 +325,14 @@ static std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, c
         // Activation function & fake quantize
         if (graph_data.af && graph_data.conv_count == 1) {
             last_conv_block_op = graph_data.af->copy_with_new_inputs({last_conv_block_op});
-            ngraph::copy_runtime_info(conv, last_conv_block_op);
+            copy_runtime_info(conv, last_conv_block_op);
             InsertFQLayer(graph_data.fq_af, last_conv_block_op);
         }
 
         // Transpose NCHW => NHWC
         auto nhwc_output = std::make_shared<ngraph::opset7::Transpose>(last_conv_block_op,
             ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 3, 1})->output(0));
-        ngraph::copy_runtime_info(graph_data.conv, {nchw_input, conv, nhwc_output});
+        copy_runtime_info(graph_data.conv, {nchw_input, conv, nhwc_output});
         return nhwc_output;
 }
 
@@ -380,7 +380,7 @@ static std::shared_ptr<ngraph::Node> CreateDecomposedConv(const GraphData& graph
                 for (size_t filter_width = 0; filter_width < conv_data.filter_width; filter_width++) {
                     size_t offset = filter_width * conv_data.filter_dilation_width * h_1_filter_channel_count;
                     auto slice = FlatCrop(row, offset, h_1_filter_channel_count * output_width);
-                    ngraph::copy_runtime_info(graph_data.conv, slice);
+                    copy_runtime_info(graph_data.conv, slice);
                     dilated_chunks.push_back(slice);
                 }
 
@@ -394,7 +394,7 @@ static std::shared_ptr<ngraph::Node> CreateDecomposedConv(const GraphData& graph
                 ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4},
                     ngraph::Shape{1, 1, output_width, h_1_filter_channel_count * conv_data.filter_width}), false);
 
-            ngraph::copy_runtime_info(graph_data.conv, ngraph::NodeVector{flattened_dilated_conv_input, transposed_dilated_chunks, dilated_chunks_concat});
+            copy_runtime_info(graph_data.conv, ngraph::NodeVector{flattened_dilated_conv_input, transposed_dilated_chunks, dilated_chunks_concat});
 
             nhwc_conv_y_input = flattened_dilated_conv_input;
         } else {
@@ -417,7 +417,7 @@ static std::shared_ptr<ngraph::Node> CreateDecomposedConv(const GraphData& graph
         // Concat in horizontal dimension
         // In NHWC index of H is 1
         auto concatenated_sub_results = std::make_shared<ngraph::opset7::Concat>(result_chunks, 1);
-        ngraph::copy_runtime_info(graph_data.conv, concatenated_sub_results);
+        copy_runtime_info(graph_data.conv, concatenated_sub_results);
         last_op = concatenated_sub_results;
     }
     return last_op;
@@ -447,7 +447,7 @@ static void Decompose(const GraphData& graph_data, ConvData& conv_data) {
     std::shared_ptr<ngraph::Node> conv_result = partial_conv_results.front();
     for (size_t i = 1; i < partial_conv_results.size(); i++) {
         auto add_result = std::make_shared<ngraph::opset7::Add>(partial_conv_results[i], conv_result);
-        ngraph::copy_runtime_info(graph_data.conv, add_result);
+        copy_runtime_info(graph_data.conv, add_result);
         conv_result = add_result;
     }
 
@@ -458,12 +458,12 @@ static void Decompose(const GraphData& graph_data, ConvData& conv_data) {
     // Activation function after trailing Transpose NCHW->NHWC
     if (graph_data.af && graph_data.conv_count > 1) {
         auto af_result = graph_data.af->copy_with_new_inputs({conv_result});
-        ngraph::copy_runtime_info(graph_data.conv, af_result);
+        copy_runtime_info(graph_data.conv, af_result);
         conv_result = af_result;
     }
     // We need to put the same name as before for the Convolution layer, so its output can be used as network result
     std::string conv_result_name = graph_data.last_op_in_sequence_for_replacement->get_friendly_name();
-    ngraph::replace_node(graph_data.last_op_in_sequence_for_replacement, conv_result);
+    replace_node(graph_data.last_op_in_sequence_for_replacement, conv_result);
     conv_result->set_friendly_name(conv_result_name);
 }
 

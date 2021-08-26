@@ -52,7 +52,7 @@ static void InsertPadding(ngraph::OutputVector& input_rows_to_concat, size_t siz
         input_rows_to_concat.push_back(padding_const);
     } else {
         auto slice = FlatCrop(padding_const, 0, size);
-        ngraph::copy_runtime_info(conv, slice);
+        copy_runtime_info(conv, slice);
         input_rows_to_concat.push_back(slice);
     }
 }
@@ -77,7 +77,7 @@ static std::shared_ptr<ngraph::Node> CreatePaddedNet(std::shared_ptr<ngraph::ops
     // Constant with zero padding
     auto const_holding_padding = std::make_shared<ngraph::opset7::Constant>(conv_data.element_type, ngraph::Shape{1, biggest_padding}, 0);
 
-    ngraph::copy_runtime_info(conv, const_holding_padding);
+    copy_runtime_info(conv, const_holding_padding);
     std::shared_ptr<ngraph::Node> original_row = flat_input;
     ngraph::OutputVector input_rows_to_concat;
 
@@ -98,7 +98,7 @@ static std::shared_ptr<ngraph::Node> CreatePaddedNet(std::shared_ptr<ngraph::ops
             if (conv_data.input_height > 1)
                 original_row = FlatCrop(flat_input, h * conv_data.input_width * conv_data.input_channel_count,
                     conv_data.input_width * conv_data.input_channel_count);
-            ngraph::copy_runtime_info(conv, original_row);
+            copy_runtime_info(conv, original_row);
 
             ngraph::OutputVector single_row_concat_inputs;
             if (flat_left_padding) {
@@ -109,11 +109,11 @@ static std::shared_ptr<ngraph::Node> CreatePaddedNet(std::shared_ptr<ngraph::ops
                 InsertPadding(single_row_concat_inputs, flat_right_padding, conv, const_holding_padding, biggest_padding);
             }
             auto padded_row_concat = std::make_shared<ngraph::opset7::Concat>(single_row_concat_inputs, 1);
-            ngraph::copy_runtime_info(conv, padded_row_concat);
+            copy_runtime_info(conv, padded_row_concat);
             input_rows_to_concat.push_back(padded_row_concat);
         }
     } else {
-        ngraph::copy_runtime_info(conv, original_row);
+        copy_runtime_info(conv, original_row);
         input_rows_to_concat.push_back(original_row);
     }
 
@@ -123,7 +123,7 @@ static std::shared_ptr<ngraph::Node> CreatePaddedNet(std::shared_ptr<ngraph::ops
     }
 
     auto padded_input_plane = std::make_shared<ngraph::opset7::Concat>(input_rows_to_concat, 1);
-    ngraph::copy_runtime_info(conv, padded_input_plane);
+    copy_runtime_info(conv, padded_input_plane);
     return padded_input_plane;
 }
 
@@ -160,7 +160,7 @@ static void GeneratePadding(std::shared_ptr<ngraph::opset7::Transpose> leading_t
         conv->get_dilations(),
         ngraph::op::PadType::EXPLICIT);
 
-    ngraph::replace_node(conv, conv_copy);
+    replace_node(conv, conv_copy);
 }
 
 static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,

@@ -91,7 +91,7 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
 
         // If axes are empty we just remove Reduction operation
         if (axes_vector.empty()) {
-            return ngraph::replace_output_update_name(reduce->output(0), input);
+            return replace_output_update_name(reduce->output(0), input);
         }
 
         auto input_shape = input.get_shape();
@@ -104,8 +104,8 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
                     ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_shape.size()}, reshape_shape), true);
 
             reshape->set_friendly_name(reduce->get_friendly_name());
-            ngraph::copy_runtime_info(reduce, reshape);
-            ngraph::replace_node(reduce, reshape);
+            copy_runtime_info(reduce, reshape);
+            replace_node(reduce, reshape);
             return true;
         }
 
@@ -260,7 +260,7 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             new_ops.push_back(input.get_node_shared_ptr());
         }
         input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name());
-        ngraph::copy_runtime_info(reduce, new_ops);
+        copy_runtime_info(reduce, new_ops);
         reduce->output(0).replace(input);
         return true;
     };

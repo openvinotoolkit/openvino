@@ -49,7 +49,7 @@ static void insert_pooling(const ngraph::Output<ngraph::Node>& first, ngraph::In
         auto ones = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{diff}, std::vector<int64_t>(diff, 1));
         auto current_shape = std::make_shared<ngraph::opset7::ShapeOf>(first);
         std::shared_ptr<ngraph::Node> new_shape = std::make_shared<ngraph::opset7::Concat>(ngraph::OutputVector{ones, current_shape}, 0);
-        std::shared_ptr<ngraph::Node> constant_new_shape = ngraph::get_constant_from_source(new_shape);
+        std::shared_ptr<ngraph::Node> constant_new_shape = get_constant_from_source(new_shape);
         if (constant_new_shape)
             new_shape = constant_new_shape;
         first_node = std::make_shared<ngraph::opset7::Reshape>(first_node, new_shape, false);
@@ -64,7 +64,7 @@ static void insert_pooling(const ngraph::Output<ngraph::Node>& first, ngraph::In
         new_node = std::make_shared<ngraph::opset7::Squeeze>(new_node,
                 ngraph::opset7::Constant::create(ngraph::element::u64, ngraph::Shape{diff}, axes));
     }
-    std::shared_ptr<ngraph::Node> constant_new_node = ngraph::get_constant_from_source(new_node);
+    std::shared_ptr<ngraph::Node> constant_new_node = get_constant_from_source(new_node);
     if (constant_new_node)
         new_node = constant_new_node;
     second.replace_source_output(new_node);
@@ -118,12 +118,6 @@ ngraph::pass::ConvStridesPropagation::ConvStridesPropagation() {
             auto conv_input = conv->input(0);
             insert_strides_prop(conv_input, conv_strides);
         } else {
-            // Retain original padding
-            // Make sure that setting strides does not change padding in cases when auto_pad is not EXPLICIT.
-            // When padding type is not EXPLICIT, strides make a role to paddings calculation.
-            // Change in padding, results in change in image position that filter is applied,
-            // so we may end up with unwanted results after that.
-            conv->set_auto_pad(op::PadType::EXPLICIT);
             conv->set_strides(conv_strides);
         }
 

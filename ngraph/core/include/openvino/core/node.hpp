@@ -19,8 +19,6 @@
 #include <vector>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate.hpp"
-#include "ngraph/coordinate_diff.hpp"
 #include "ngraph/deprecated.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
@@ -633,7 +631,7 @@ struct RawNodeOutput {
     size_t index{0};
 
     operator Output<Node>() {
-        return Output<Node>(node->shared_from_this(), index);
+        return Output<Node>(node, index);
     }
     bool operator==(const RawNodeOutput& other) const {
         return node == other.node && index == other.index;
