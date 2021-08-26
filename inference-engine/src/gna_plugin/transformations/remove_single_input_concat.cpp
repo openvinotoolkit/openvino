@@ -22,18 +22,15 @@ namespace GNAPluginNS {
     RemoveSingleInputConcat::RemoveSingleInputConcat() {
         MATCHER_SCOPE(RemoveSingleInputConcat);
 
-        auto is_required_node = [](std::shared_ptr<ngraph::Node> node) {
-            return ngraph::is_type<ngraph::opset8::Concat>(node) && (node->get_input_size() == 1);
+        auto is_required_node = [](const ngraph::Output<ngraph::Node>& value) {
+            return value.get_node_shared_ptr()->get_input_size() == 1;
         };
 
-        auto concat_operation = std::make_shared<ngraph::pattern::op::Label>(ngraph::pattern::any_input(),
-                                                                             is_required_node);
+        auto concat_operation = ngraph::pattern::wrap_type<ngraph::opset8::Concat>(is_required_node);
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-            auto concat_operation_node = std::dynamic_pointer_cast<ngraph::opset8::Concat>(m.get_match_root());
-            if (!concat_operation_node) {
-                return false;
-            }
+            const auto& pattern_map = m.get_pattern_value_map();
+            auto concat_operation_node = pattern_map.find(concat_operation)->second.get_node_shared_ptr();
 
             NodeOutput prev_node_output = concat_operation_node->get_input_source_output(0);
 

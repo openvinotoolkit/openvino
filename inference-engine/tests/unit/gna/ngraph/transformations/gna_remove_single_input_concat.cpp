@@ -69,12 +69,14 @@ Graph createGraph(int n_inputs, bool has_concat, int n_outputs) {
         outputs = {concat_operation};
     }
 
-    for (auto output : outputs) {
+    {
         Operations new_outputs;
-        for (int i = 0; i < n_outputs; ++i) {
-            auto add_bias = ngraph::opset8::Constant::create(ngraph::element::i64, {1, 1, 1}, {3});
-            auto add_operation = std::make_shared<ngraph::opset8::Add>(output, add_bias);
-            new_outputs.push_back(add_operation);
+        for (auto output : outputs) {
+            for (int i = 0; i < n_outputs; ++i) {
+                auto add_bias = ngraph::opset8::Constant::create(ngraph::element::i64, {1, 1, 1}, {3});
+                auto add_operation = std::make_shared<ngraph::opset8::Add>(output, add_bias);
+                new_outputs.push_back(add_operation);
+            }
         }
         outputs.swap(new_outputs);
     }
