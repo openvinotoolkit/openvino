@@ -99,5 +99,6 @@ NGRAPH_OP(Roll, ngraph::op::v7)
 
 NGRAPH_OP(AdaptiveAvgPool, ngraph::op::v8)
 NGRAPH_OP(AdaptiveMaxPool, ngraph::op::v8)
+NGRAPH_OP(Gather, op::v8)
 NGRAPH_OP(MatrixNms, op::v8)
 NGRAPH_OP(MulticlassNms, op::v8)
