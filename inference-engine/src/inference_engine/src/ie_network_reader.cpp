@@ -96,9 +96,9 @@ namespace {
 // Extension to plugins creator
 std::multimap<std::string, Reader::Ptr> readers;
 
-static ngraph::frontend::FrontEndManager* get_frontend_manager() {
+static ngraph::frontend::FrontEndManager& get_frontend_manager() {
     static ngraph::frontend::FrontEndManager manager;
-    return &manager;
+    return manager;
 }
 
 void registerReaders() {
@@ -233,7 +233,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         }
     }
     // Try to load with FrontEndManager
-    const auto manager = get_frontend_manager();
+    auto& manager = get_frontend_manager();
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
     if (!binPath.empty()) {
@@ -242,11 +242,11 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 #else
         std::string weights_path = binPath;
 #endif
-        FE = manager->load_by_model(model_path, weights_path);
+        FE = manager.load_by_model(model_path, weights_path);
         if (FE)
             inputModel = FE->load(model_path, weights_path);
     } else {
-        FE = manager->load_by_model(model_path);
+        FE = manager.load_by_model(model_path);
         if (FE)
             inputModel = FE->load(model_path);
     }
@@ -277,10 +277,10 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     }
     // Try to load with FrontEndManager
     // NOTE: weights argument is ignored
-    const auto manager = get_frontend_manager();
+    auto& manager = get_frontend_manager();
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
-    FE = manager->load_by_model(&modelStream);
+    FE = manager.load_by_model(&modelStream);
     if (FE)
         inputModel = FE->load(&modelStream);
     if (inputModel) {
