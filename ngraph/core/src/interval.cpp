@@ -21,7 +21,14 @@ Interval::value_type clip_times(Interval::value_type a, Interval::value_type b) 
     }
 }
 Interval::value_type clip_add(Interval::value_type a, Interval::value_type b) {
-    return (a == Interval::s_max || b == Interval::s_max) ? Interval::s_max : a + b;
+    if (a == Interval::s_max || b == Interval::s_max) {
+        return Interval::s_max;
+    }
+    Interval::value_type res = a + b;
+    if (res < a || res < b) {
+        return Interval::s_max;
+    }
+    return res;
 }
 Interval::value_type clip_minus(Interval::value_type a, Interval::value_type b) {
     if (a <= b) {
