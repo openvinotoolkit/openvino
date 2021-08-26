@@ -764,10 +764,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         if (!isNgraphPassesUsed) {
             passes->registerPass<UnrollTIPass>();
             passes->registerPass<RemoveConstPass>();
+            passes->registerPass<UnrollLSTMCellPass>();
         }
 
-        if (!isNgraphPassesUsed)
-            passes->registerPass<UnrollLSTMCellPass>();
         passes->registerPass<RemoveSingleInputConcatPass>();
 
         // fake quantisation aware passes
