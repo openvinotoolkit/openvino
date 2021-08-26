@@ -40,14 +40,13 @@ public:
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RefLogicalParams>& obj) {
         const auto& param = obj.param;
-        int counter = 1;
         std::ostringstream result;
         result << "LogicalType=" << param.opType << "_";
-        for (auto& input : param.inputs) {
-            result << "inpt_shape" << counter << "=" << input.shape << "_";
-            counter++;
+        for (size_t i =0; i< param.inputs.size(); i++) {
+            const auto input = param.inputs[i];
+            result << "inpt_shape" << i << "=" << input.shape << "_";
+            result << "inpt_type" << i << "=" << input.type << "_";
         }
-        result << "iType=" << param.inputs[0].type << "_";
         result << "oType=" << param.expected.type;
         return result.str();
     }
