@@ -77,11 +77,10 @@ using ResultVector = std::vector<std::shared_ptr<ngraph::op::v0::Result>>;
 OPENVINO_API
 std::string node_validation_failure_loc_string(const Node* node);
 
+OPENVINO_API
 const std::shared_ptr<Node>& check_single_output_arg(const std::shared_ptr<Node>& node, size_t i);
 OPENVINO_API
 const NodeVector& check_single_output_args(const NodeVector& args);
-
-const std::shared_ptr<Node>& check_single_output_arg(const std::shared_ptr<Node>& node, size_t i);
 
 OPENVINO_API
 OutputVector as_output_vector(const NodeVector& args);
