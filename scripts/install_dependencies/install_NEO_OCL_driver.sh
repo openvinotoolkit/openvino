@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #
-# Installs the Intel® Graphics Compute Runtime for OpenCL™ Driver on Linux.
+# Installs the Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver on Linux.
 #
 # Usage: sudo -E ./install_NEO_OCL_driver.sh
 #
@@ -28,7 +28,7 @@ print_help()
 {
     # Display Help
     usage="Usage: $(basename "$0") [OPTIONS]...
-Download and installs the Intel® Graphics Compute Runtime for OpenCL™ Driver on Linux
+Download and installs the Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver on Linux
 
     Available options:
     -y                      Replace the currently installed driver with the newer version.
@@ -543,7 +543,7 @@ _check_distro_version()
         if [[ "$INSTALL_DRIVER_VERSION" == "21.29.20389" ]]; then
             echo "ERROR: This runtime can be installed only on Ubuntu 18.04, Ubuntu 20.04 or RHEL 8.3-8.4" >&2
             echo "More info https://dgpu-docs.intel.com/releases/releases-20210720.html" >&2
-            echo "Installation of Intel Compute Runtime interrupted"
+            echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver"
             exit $EXIT_FAILURE
         else
             CENTOS_MINOR=$(sed 's/CentOS Linux release 7\.\([[:digit:]]\+\).\+/\1/' /etc/centos-release)
@@ -561,7 +561,7 @@ _check_distro_version()
         RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.${RHEL_MINOR_VERSION_SUPPORTED}")
         if [[ $? -ne 0 ]]; then
             echo "Warning: This runtime can be installed only on RHEL 8" >&2
-            echo "Installation of Intel Compute Runtime interrupted"
+            echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted"
             exit $EXIT_FAILURE
         fi
     elif [[ $DISTRO == ubuntu ]]; then
@@ -569,7 +569,7 @@ _check_distro_version()
         if [[ $UBUNTU_VERSION != '18.04' && $UBUNTU_VERSION != '20.04' ]]; then
             echo "Warning: This runtime can be installed only on Ubuntu 18.04 or Ubuntu 20.04."
             echo "More info https://github.com/intel/compute-runtime/releases" >&2
-            echo "Installation of Intel Compute Runtime interrupted"
+            echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted"
             exit $EXIT_FAILURE
         fi
     fi
@@ -594,7 +594,7 @@ check_agreement()
         return 0
     fi
 
-    echo "This script will download and install Intel(R) Graphics Compute Runtime $INSTALL_DRIVER_VERSION, "
+    echo "This script will download and install Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver $INSTALL_DRIVER_VERSION, "
     echo "that was used to validate this OpenVINO™ package."
     echo "In case if you already have the driver - script will try to remove it."
     while true; do
@@ -651,8 +651,8 @@ check_current_driver()
     
     # install NEO OCL driver if the current driver version < INSTALL_DRIVER_VERSION
     if [[ ! -z $gfx_version && "$(printf '%s\n' "$INSTALL_DRIVER_VERSION" "$gfx_version" | sort -V | head -n 1)" = "$INSTALL_DRIVER_VERSION" ]]; then
-        echo "Intel® Graphics Compute Runtime for OpenCL™ Driver installation skipped because current version greater or equal to $INSTALL_DRIVER_VERSION" >&2
-        echo "Installation of Intel® Graphics Compute Runtime for OpenCL™ Driver interrupted." >&2
+        echo "Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver installation skipped because current version greater or equal to $INSTALL_DRIVER_VERSION" >&2
+        echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted." >&2
         exit $EXIT_FAILURE
     else
         echo "Starting installation..."
@@ -670,7 +670,7 @@ install()
 
 main()
 {
-    echo "Intel® Graphics Compute Runtime for OpenCL™ Driver installer"
+    echo "Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver installer"
     distro_init
     check_root_access
     check_current_driver
