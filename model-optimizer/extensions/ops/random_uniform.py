@@ -67,7 +67,7 @@ class AttributedRandomUniform(Op):
             'type': None,
             'op': self.op,
             'infer': None,
-            'in_ports_count': 3,
+            'in_ports_count': 1,
             'out_ports_count': 1,
             'global_seed': 0,
             'op_seed': 0,
