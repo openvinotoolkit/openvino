@@ -12,16 +12,18 @@ at indexes provides in `stop` input (exclusively).
 
 Optional `step` input allows subsampling of `data`, selecting evey *n*-th element,
 where `n` is equal to `step` element for corresponding axis.
-Negative value indicates slicing backwards, starting exclusively from the element at index spefcified by `stop`, so for the corresponding axis the sequence is reversed.
+Negative `step` value indicates slicing backwards, so the sequence along corresponding axis is reversed in the output tensor.
 
 Optional `axes` input allows specifying slice indexes only on selected axes.
 Other axes will not be affected and will be output in full.
+
+The rules follow python language slicing `data[start:stop:step]`.
 
 **Attributes**: *Slice* operation has no attributes.
 
 **Inputs**
 
-* **1**: `data` - tensor (to be sliced) of type *T* and arbitrary shape. **Required.**
+* **1**: `data` - tensor (to be sliced) of type *T* and shape rank greater or equal to 1. **Required.**
 
 * **2**: `start` - 1D tensor of type *T_INT*. Indices corresponding to axes in `data`.
   Defines the starting coordinate of the slice in the `data` tensor.
@@ -42,13 +44,15 @@ Other axes will not be affected and will be output in full.
 
 * **5**: `axes` - 1D tensor of type *T_INT*.
   Optional 1D tensor indicating to which dimensions, the values in `start` and `stop` apply.
-  Negative value means counting dimension from the end. The range is `[-r, r - 1]`, where `r` is the rank of the input tensor.
-  Default value: `[0, 1, 2, ..., r - 1]`. **Optional.**
+  Negative value means counting dimension from the end. The range is `[-r, r - 1]`, where `r` is the rank of the `data` input tensor.
+  Values are required to be unique. If a particular axis is unspecified, it is considered as whole dimension.
+  Default value: `[0, 1, 2, ..., start.shape[0] - 1]`. **Optional.**
 
+Ranks of `start`, `stop`, `step` and `axes` are required to be equal.
 
-**Outputs**:
+**Outputs**
 
-*   **1**: Tensor of type *T* with values of the selected slice. Shape of the output tensor has same rank as the shape of `data` input and reduced dimensions according to the values specified by `start`, `stop` and `step` inputs.
+* **1**: Tensor of type *T* with values of the selected slice. Shape of the output tensor has same rank as the shape of `data` input and reduced dimensions according to the values specified by `start`, `stop` and `step` inputs.
 
 **Types**
 
