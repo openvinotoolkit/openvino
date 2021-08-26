@@ -41,8 +41,8 @@ Other axes will not be affected and will be output in full.
 
 * **5**: `axes` - 1D tensor of type *T_INT*.
   Optional 1D tensor indicating to which dimensions, the values in `start` and `stop` apply.
-  A negative value means counting dimensions from the highest rank.
-  Default value: `[0, 1, 2, ..., rank(data) - 1]`. **Optional.**
+  Negative value means counting dimension from the end. The range is `[-r, r - 1]`, where `r` is the rank of the input tensor.
+  Default value: `[0, 1, 2, ..., r - 1]`. **Optional.**
 
 
 **Outputs**:
