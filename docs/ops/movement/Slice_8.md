@@ -12,6 +12,7 @@ at indexes provides in `stop` input (exclusively).
 
 Optional `step` input allows subsampling of `data`, selecting evey *n*-th element,
 where `n` is equal to `step` element for corresponding axis.
+Negative value indicates slicing backwards, starting exclusively from the element at index spefcified by `stop`, so for the corresponding axis the sequence is reversed.
 
 Optional `axes` input allows specifying slice indexes only on selected axes.
 Other axes will not be affected and will be output in full.
