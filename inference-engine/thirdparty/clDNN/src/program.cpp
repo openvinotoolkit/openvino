@@ -893,6 +893,7 @@ void program::replace(program_node& old_node, program_node& new_node) {
     new_node.constant = old_node.constant;
     new_node.data_flow = old_node.data_flow;
     new_node.user_mark = old_node.user_mark;
+    const_cast<primitive_id&>(new_node.desc->ext_prim_id) = old_node.desc->ext_prim_id;
 
     processing_order.insert(&old_node, &new_node);
     if (processing_order.get_processing_iterator(old_node) != processing_order.end())

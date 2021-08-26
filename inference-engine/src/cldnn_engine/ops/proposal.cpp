@@ -65,8 +65,9 @@ void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal
         auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
 
         cldnn::primitive_id proposal_mutable_id_w = layer_type_name_ID(op) + "_md_write";
-        auto argmax_mutable_prim = cldnn::mutable_data(proposal_mutable_id_w, shared_memory);
-        p.primitivesToIRLayersMap[proposal_mutable_id_w] = { op->get_friendly_name() };
+        auto argmax_mutable_prim = cldnn::mutable_data(proposal_mutable_id_w,
+                                                       shared_memory,
+                                                       op->get_friendly_name());
         p.primitiveIDs[proposal_mutable_id_w] = proposal_mutable_id_w;
         p.AddPrimitive(argmax_mutable_prim);
         inputPrimitives.push_back(proposal_mutable_id_w);
@@ -96,13 +97,16 @@ void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal
                                             clip_after_nms,
                                             round_ratios,
                                             shift_anchors,
-                                            normalize);
+                                            normalize,
+                                            op->get_friendly_name());
 
         p.AddPrimitive(proposalPrim);
 
         cldnn::primitive_id proposal_mutable_id_r = layer_type_name_ID(op) + ".1";
-        auto argmax_mutable_prim_r = cldnn::mutable_data(proposal_mutable_id_r, { proposalLayerName }, shared_memory);
-        p.primitivesToIRLayersMap[proposal_mutable_id_r] = { op->get_friendly_name() };
+        auto argmax_mutable_prim_r = cldnn::mutable_data(proposal_mutable_id_r,
+                                                         { proposalLayerName },
+                                                         shared_memory,
+                                                         op->get_friendly_name());
         p.primitiveIDs[proposal_mutable_id_r] = proposal_mutable_id_r;
         p.AddPrimitive(argmax_mutable_prim_r);
 
@@ -134,7 +138,8 @@ void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal
                                         clip_after_nms,
                                         round_ratios,
                                         shift_anchors,
-                                        normalize);
+                                        normalize,
+                                        op->get_friendly_name());
 
     p.AddPrimitive(proposalPrim);
     p.AddPrimitiveToProfiler(op);
