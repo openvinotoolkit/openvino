@@ -84,11 +84,12 @@ def test_minimized_pkg(test_id, models, openvino_root_dir, artifacts):  # pylint
 @pytest.mark.dependency(depends=["cc_collect", "minimized_pkg"])
 def test_infer(prepare_models, test_id, models, artifacts):
     """Test inference with conditional compiled binaries."""
+    models = prepare_models
     out = artifacts / test_id
     minimized_pkg = out / "install_pkg"
     infer_out_dir_cc = out / "inference_result_cc/"
 
-    return_code, output = run_infer(prepare_models, infer_out_dir_cc, minimized_pkg)
+    return_code, output = run_infer(models, infer_out_dir_cc, minimized_pkg)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
 
 
