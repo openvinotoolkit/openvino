@@ -110,7 +110,6 @@ double uint32_to_double(uint32_t x1, uint32_t x2) {
     return x_double - 1.0;
 }
 
-
 // Helper function for converting uint32 values to bfloat16.
 bfloat16 uint32_to_bfloat16(uint32_t x) {
     // bfloat16 is formatted as follows: sign(1 bit) exponent(8 bits) mantissa(7 bits). The value is interpreted
