@@ -57,7 +57,8 @@ void raise_key(uint64_t& key) {
     key = unite_high_low(key_lr.second, key_lr.first);
 }
 
-// Helper function for converting uint32 values to float32.
+// Helper function for converting uint32 values to float32. Sets fractional part of
+// floating value with bits from uint32 value. Resulting value is in interval [0,1).
 float uint32_to_float(uint32_t x) {
     // float32 is formatted as follows: sign(1 bit) exponent(8 bits) mantissa(23 bits). The value is interpreted
     // The value is interpreted using following formula:
@@ -74,7 +75,8 @@ float uint32_to_float(uint32_t x) {
     return x_float - 1.0f;
 }
 
-// Helper function for converting uint32 values to float16.
+// Helper function for converting uint32 values to float16.Sets fractional part of
+// floating value with bits from uint32 value. Resulting value is in interval [0,1).
 float16 uint32_to_float16(uint32_t x) {
     // float16 is formatted as follows: sign(1 bit) exponent(5 bits) mantissa(10 bits). The value is interpreted
     // The value is interpreted using following formula:
@@ -92,7 +94,8 @@ float16 uint32_to_float16(uint32_t x) {
     return x_float16 - static_cast<float16>(1);
 }
 
-// Helper function for converting uint32 values to double.
+// Helper function for converting uint32 values to double. Sets fractional part of
+// floating double with bits from uint32 values. Resulting value is in interval [0,1).
 double uint32_to_double(uint32_t x1, uint32_t x2) {
     // float64 is formatted as follows: sign(1 bit) exponent(11 bits) mantissa(52 bits). The value is interpreted
     // The value is interpreted using following formula:
@@ -110,7 +113,8 @@ double uint32_to_double(uint32_t x1, uint32_t x2) {
     return x_double - 1.0;
 }
 
-// Helper function for converting uint32 values to bfloat16.
+// Helper function for converting uint32 values to bfloat16. Sets fractional part of
+// floating value with bits from uint32 value. Resulting value is in interval [0,1).
 bfloat16 uint32_to_bfloat16(uint32_t x) {
     // bfloat16 is formatted as follows: sign(1 bit) exponent(8 bits) mantissa(7 bits). The value is interpreted
     // The value is interpreted using following formula:
