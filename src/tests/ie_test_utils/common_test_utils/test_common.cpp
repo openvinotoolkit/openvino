@@ -82,4 +82,12 @@ std::string TestsCommon::GetTestName() const {
     return test_name;
 }
 
+std::string TestsCommon::GetTestCaseName() const {
+    std::string test_case_name =
+        ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name();
+    std::replace_if(test_case_name.begin(), test_case_name.end(),
+        [](char c) { return !std::isalnum(c); }, '_');
+    return test_case_name;
+}
+
 }  // namespace CommonTestUtils

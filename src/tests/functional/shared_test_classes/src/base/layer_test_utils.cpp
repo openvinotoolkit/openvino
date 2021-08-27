@@ -347,7 +347,18 @@ void LayerTestsCommon::ConfigureNetwork() {
 }
 
 void LayerTestsCommon::LoadNetwork() {
-    cnnNetwork = InferenceEngine::CNNNetwork{function};
+    auto& e_t = ExternalNetworkTool::getInstance();
+    if (e_t.getMode() == ExternalNetworkMode::EXPORT) {
+        e_t.dumpNetworkToFile(function, GetTestCaseName() + "_" + GetTestName());
+    }
+
+    if (e_t.getMode() == ExternalNetworkMode::IMPORT) {
+        cnnNetwork = e_t.loadNetworkFromFile(getCore(), GetTestCaseName() + "_" + GetTestName());
+        function = cnnNetwork.getFunction();
+    } else {
+        cnnNetwork = InferenceEngine::CNNNetwork{function};
+    }
+
     CoreConfiguration(this);
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);

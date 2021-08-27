@@ -6,6 +6,7 @@
 
 #include "functional_test_utils/layer_test_utils/environment.hpp"
 #include "functional_test_utils/layer_test_utils/summary.hpp"
+#include "functional_test_utils/layer_test_utils/external_network_tool.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 int main(int argc, char *argv[]) {
@@ -32,6 +33,18 @@ int main(int argc, char *argv[]) {
                 throw std::runtime_error("Incorrect value of \"--save_report_timeout\" argument");
             }
             LayerTestsUtils::Summary::setSaveReportTimeout(timeout);
+        } else if (std::string(argv[i]).find("--external_network_mode") != std::string::npos) {
+            auto mode = std::string(argv[i]).substr(std::string("--external_network_mode").length() + 1);
+            if (mode == "IMPORT") {
+                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::IMPORT);
+            } else if (mode == "EXPORT") {
+                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::EXPORT);
+            } else {
+                throw std::runtime_error("Incorrect value of \"--external_network_mode\" argument");
+            }
+        } else if (std::string(argv[i]).find("--external_network_path") != std::string::npos) {
+            auto path = std::string(argv[i]).substr(std::string("--external_network_path").length() + 1);
+            LayerTestsUtils::ExternalNetworkTool::setModelsPath(path);
         }
     }
 
@@ -51,6 +64,13 @@ int main(int argc, char *argv[]) {
                   "Mutually exclusive with --extend_report." << std::endl;
         std::cout << "  --save_report_timeout" << std::endl;
         std::cout << "       Allow to try to save report in cycle using timeout (in seconds). " << std::endl;
+        std::cout << "  --external_network_mode" << std::endl;
+        std::cout << "       Unlocks functionality to dump network to file or load it from file " << std::endl;
+        std::cout << "       for supported tests. The mode is defined by value of argument [IMPORT, EXPORT] " << std::endl;
+        std::cout << "       Example is --external_network_mode=EXPORT" << std::endl;
+        std::cout << "  --external_network_path" << std::endl;
+        std::cout << "       Set up path for dumping or loading (depends on --external_network_mode) network" << std::endl;
+        std::cout << "       for supported tests. Example is --external_network_path=/home/user/tests_networks" << std::endl;
         std::cout << std::endl;
     }
 
