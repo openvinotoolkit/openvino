@@ -25,7 +25,7 @@ from test_utils import make_build, validate_path_arg, write_session_info, \
     SESSION_INFO_FILE  # pylint: disable=import-error
 
 log = logging.getLogger()
-logging.basicConfig(format="[ %(levelname)s ] %(message)s", level=logging.INFO, stream=sys.stdout)
+logging.basicConfig(format="[ %(name)s ] [ %(levelname)s ] %(message)s", level=logging.INFO, stream=sys.stdout)
 
 
 def pytest_addoption(parser):
@@ -193,13 +193,15 @@ def save_session_info(pytestconfig, artifacts):
 def prepare_models(openvino_ref, models, request):
     for model in models:
         if "OMZ" in model["path"]:
-            model["path"] = download_omz_model(openvino_ref, model, request)
+            model["path"] = prepare_omz_model(openvino_ref, model, request)
     models = [model["path"] for model in models]
     return models
 
 
-def download_omz_model(openvino_ref, model, request):
+def prepare_omz_model(openvino_ref, model, request):
     # Step 1: downloader
+    omz_log = logging.getLogger("prepare_omz_model")
+
     python_executable = sys.executable
     omz_path = request.config.getoption("omz_repo")
     cache_dir = request.config.getoption("omz_cache_dir")
@@ -212,7 +214,7 @@ def download_omz_model(openvino_ref, model, request):
           f' --output_dir {omz_path / "_omz_repo"}' \
           f' --cache_dir {cache_dir}'
 
-    cmd_exec(cmd)
+    cmd_exec(cmd, log=omz_log)
 
     # Step 2: converter
     converter_path = omz_path / "tools" / "downloader" / "converter.py"
@@ -224,13 +226,13 @@ def download_omz_model(openvino_ref, model, request):
           f' --download_dir {omz_path / "_omz_repo"}' \
           f' --mo {Path("../../model-optimizer/mo.py").resolve()}'
 
-    cmd_exec(cmd, env=get_openvino_environment(openvino_ref))
+    cmd_exec(cmd, env=get_openvino_environment(openvino_ref), log=omz_log)
 
     # Step 3: info_dumper
     info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
     cmd = f'"{python_executable}" "{info_dumper_path}" --name {model["name"]}'
 
-    return_code, output = cmd_exec(cmd)
+    return_code, output = cmd_exec(cmd, log=omz_log)
     model_info = json.loads(output)[0]
 
     # Step 4: form model_path
