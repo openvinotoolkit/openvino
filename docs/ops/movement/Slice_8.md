@@ -47,11 +47,11 @@ The rules follow python language slicing `data[start:stop:step]`.
   Values are required to be unique. If a particular axis is unspecified, it is considered as a whole dimension.
   Default value: `[0, 1, 2, ..., start.shape[0] - 1]`. **Optional.**
 
-Number of elements in `start`, `stop`, `step` and `axes` inputs are required to be equal.
+Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to be equal.
 
 **Outputs**
 
-* **1**: Tensor of type *T* with values of the selected slice. The shape of the output tensor has the same rank as the shape of `data` input and reduced dimensions according to the values specified by `start`, `stop` and `step` inputs.
+* **1**: Tensor of type *T* with values of the selected slice. The shape of the output tensor has the same rank as the shape of `data` input and reduced dimensions according to the values specified by `start`, `stop`, and `step` inputs.
 
 **Types**
 
