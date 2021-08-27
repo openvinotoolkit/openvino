@@ -14,7 +14,7 @@ using namespace std;
 
 OPENVINO_RTTI_DEFINITION(ov::pass::FunctionPass, "ov::pass::FunctionPass", 0);
 
-ov::pass::PassBase::PassBase() : m_property{all_pass_property_off}, m_pass_config(std::make_shared<PassConfig>()) {}
+ov::pass::PassBase::PassBase() : m_property(), m_pass_config(std::make_shared<PassConfig>()) {}
 
 bool ov::pass::PassBase::get_property(const PassPropertyMask& prop) const {
     return m_property.is_set(prop);

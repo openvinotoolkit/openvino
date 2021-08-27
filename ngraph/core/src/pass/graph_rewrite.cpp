@@ -18,9 +18,6 @@
 #include "ngraph/op/util/sub_graph_base.hpp"
 #include "perf_counters.hpp"
 
-using namespace std;
-using namespace ngraph;
-
 /* GraphRewrite algorithm:
  * GraphRewrite processes an input graph in an topological order(i.e. args before users)
  * Given the following graph:          Abs2
@@ -70,25 +67,26 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace pass
 }  // namespace ov
 
-bool pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ov::Function> f) {
+bool ov::pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ov::Function> f) {
     // Initialize execution queue with nodes in topological order
-    deque<std::weak_ptr<Node>> nodes_to_run;
+    std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
         nodes_to_run.emplace_front(node);
     }
     return apply_matcher_passes(f, std::move(nodes_to_run));
 }
 
-bool pass::GraphRewrite::run_on_function(std::shared_ptr<ov::Function> f) {
+bool ov::pass::GraphRewrite::run_on_function(std::shared_ptr<ov::Function> f) {
     // Initialize execution queue with nodes in topological order
-    deque<std::weak_ptr<Node>> nodes_to_run;
+    std::deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops()) {
         nodes_to_run.emplace_back(node);
     }
     return apply_matcher_passes(f, std::move(nodes_to_run));
 }
 
-bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std::weak_ptr<Node>> nodes_to_run) {
+bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Function> f,
+                                                  std::deque<std::weak_ptr<Node>> nodes_to_run) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
 
     bool rewritten = false;
@@ -111,7 +109,7 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
         auto root = matcher->get_pattern_value().get_node_shared_ptr();
         // pattern::op::AnyOutput operation automatically appends for multi output operations inside
         // Matcher and to gen actual root node we need to take it's parent.
-        if (auto any_type = dynamic_pointer_cast<pattern::op::AnyOutput>(root)) {
+        if (auto any_type = std::dynamic_pointer_cast<pattern::op::AnyOutput>(root)) {
             root = any_type->input_value(0).get_node_shared_ptr();
         }
 
@@ -119,8 +117,8 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
         // it's type
         // and use it in unordered_map as key for fast MatcherPass search. Otherwise type is unknown
         // and default algorithm is used.
-        if (auto p = dynamic_pointer_cast<pattern::op::Pattern>(root)) {
-            if (auto any_type = dynamic_pointer_cast<pattern::op::WrapType>(p)) {
+        if (auto p = std::dynamic_pointer_cast<pattern::op::Pattern>(root)) {
+            if (auto any_type = std::dynamic_pointer_cast<pattern::op::WrapType>(p)) {
                 for (const auto& root_type_info : any_type->get_wrapped_types()) {
                     type_to_matcher[root_type_info].push_back(matcher_index);
                 }
@@ -180,7 +178,7 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
             continue;
 
         // Recursive apply Matchers for sub-graph based nodes
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+        if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(node)) {
             if (auto sub_graph = sub_graph_node->get_function()) {
                 run_on_function(sub_graph);
             }
@@ -236,9 +234,9 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
     return rewritten;
 }
 
-void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
-                                     const graph_rewrite_callback& callback,
-                                     const PassPropertyMask& property) {
+void ov::pass::GraphRewrite::add_matcher(const std::shared_ptr<pattern::Matcher>& m,
+                                         const graph_rewrite_callback& callback,
+                                         const PassPropertyMask& property) {
     m_matchers.push_back(std::make_shared<MatcherPass>(
         m->get_name(),
         m,
@@ -258,7 +256,8 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
         property));
 }
 
-void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m, const graph_rewrite_callback& callback) {
+void ov::pass::GraphRewrite::add_matcher(const std::shared_ptr<pattern::Matcher>& m,
+                                         const graph_rewrite_callback& callback) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     // TODO: before deprecate this function, by default expect the
     // callback require static shape.
@@ -266,7 +265,7 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m, cons
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-void pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& rhs) {
+void ov::pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& rhs) {
     auto pass_config = get_pass_config();
     // We have to preserve disabled passes because in case when we register matchers inside
     // GraphRewrite c-tor we work with local PassConfig instance.
@@ -293,9 +292,9 @@ void pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& rhs)
     }
 }
 
-void pass::RecurrentGraphRewrite::add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
-                                              const ov::recurrent_graph_rewrite_callback& callback,
-                                              const PassPropertyMask& property) {
+void ov::pass::RecurrentGraphRewrite::add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
+                                                  const ov::recurrent_graph_rewrite_callback& callback,
+                                                  const PassPropertyMask& property) {
     m_matchers.push_back(std::make_shared<MatcherPass>(
         "Recurrent matcher",
         nullptr,
@@ -310,20 +309,20 @@ void pass::RecurrentGraphRewrite::add_matcher(const std::shared_ptr<pattern::Rec
         property));
 }
 
-void pass::RecurrentGraphRewrite::add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
-                                              const ov::recurrent_graph_rewrite_callback& callback) {
+void ov::pass::RecurrentGraphRewrite::add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
+                                                  const ov::recurrent_graph_rewrite_callback& callback) {
     // TODO: before deprecate this function, by default expect the
     // callback require static shape.
     add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
 }
 
-bool pass::RecurrentGraphRewrite::run_on_function(shared_ptr<Function> f) {
+bool ov::pass::RecurrentGraphRewrite::run_on_function(std::shared_ptr<Function> f) {
     bool changed = false;
     size_t i = 0;
 
     // This check is very expensive and is only needed for experimental features, so we will hide
     // it behind an environment variable for now. TODO: Find a less expensive way to handle this.
-    static bool s_rerun_dynamic_check = getenv_bool("NGRAPH_GRAPH_REWRITE_RERUN_DYNAMIC_CHECK");
+    static bool s_rerun_dynamic_check = ngraph::getenv_bool("NGRAPH_GRAPH_REWRITE_RERUN_DYNAMIC_CHECK");
 
     auto run_matchers = [&]() -> bool {
         bool is_dyn_func = s_rerun_dynamic_check && f->is_dynamic();

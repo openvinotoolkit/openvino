@@ -31,6 +31,8 @@ using ov::pass::Manager;
 using ov::pass::PassBase;
 using ov::pass::PassProperty;
 using ov::pass::PassPropertyMask;
+NGRAPH_DEPRECATED("This variable is deprecated and will be removed soon.")
+const PassPropertyMask all_pass_property_off;
 
 class NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.") NGRAPH_API NodePass : public PassBase {
 public:

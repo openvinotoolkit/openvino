@@ -25,7 +25,6 @@ enum class PassProperty : uint32_t {
 };
 
 using PassPropertyMask = ngraph::EnumMask<PassProperty>;
-const PassPropertyMask all_pass_property_off;
 
 class OPENVINO_API PassBase {
     friend class Manager;
