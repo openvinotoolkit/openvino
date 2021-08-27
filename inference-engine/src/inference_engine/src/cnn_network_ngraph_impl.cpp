@@ -296,9 +296,9 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
     });
 
     for (const auto& param : params) {
-        if (param->get_partial_shape().rank().is_dynamic())
+        if (param->get_output_partial_shape(0).rank().is_dynamic())
             continue;
-        auto pshape = param->get_partial_shape();
+        auto pshape = param->get_output_partial_shape(0);
         auto rank = pshape.rank().get_length();
         // WA: for speech recognition and scalar layouts (copy-past from CNNNetwork)
         if ((rank == 2 || rank > 3) && pshape[0].is_static()) {
@@ -326,7 +326,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
         if (it == inputShapes.end()) {
             continue;
         }
-        if (param->get_partial_shape().is_dynamic() || param->get_partial_shape() != it->second) {
+        if (param->get_output_partial_shape(0).is_dynamic() || param->get_output_partial_shape(0) != it->second) {
             needReshape = true;
             break;
         }
@@ -338,7 +338,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
     // save original parameters shape
     std::map<std::string, ngraph::PartialShape> originalInputShapes;
     for (const auto& param : params) {
-        originalInputShapes[param->get_friendly_name()] = param->get_partial_shape();
+        originalInputShapes[param->get_friendly_name()] = param->get_output_partial_shape(0);
     }
 
     try {
@@ -573,7 +573,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
             if (i)
                 ss << ", ";
             ss << "\"" << original_parameters[i]->get_friendly_name()
-               << "\": " << original_parameters[i]->get_partial_shape();
+               << "\": " << original_parameters[i]->get_output_partial_shape(0);
         }
 
         // ill-formed logic from the past setBatchSize (we keep it for backward-compatibility)
@@ -583,7 +583,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
                               [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
                                   return lhs->get_friendly_name() < rhs->get_friendly_name();
                               });
-        const auto first_parameter_pshape = first_parameter->get_partial_shape();
+        const auto first_parameter_pshape = first_parameter->get_output_partial_shape(0);
         if (first_parameter_pshape.is_dynamic())
             return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc)
                    << "Cannot set batch! Function contains parameter with partially defined shape!" << ss.str();
@@ -595,7 +595,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
 
         std::map<std::string, std::vector<size_t>> inShapes;
         for (const auto& parameter : original_parameters) {
-            const auto& pshape = parameter->get_partial_shape();
+            const auto& pshape = parameter->get_output_partial_shape(0);
             if (pshape.is_dynamic())
                 return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc)
                        << "Cannot set batch! Function contains parameter with partially defined shape!" << ss.str();

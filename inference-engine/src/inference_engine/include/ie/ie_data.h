@@ -40,7 +40,7 @@ public:
     Data(const std::string& name, Precision _precision, Layout layout = NCHW);
 
     /**
-     * @brief An empty constructor (dimensionless)
+     * @brief A constructor with partial shape
      *
      * @param name Name of the data node
      * @param _precision Precision of the data
