@@ -73,8 +73,9 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape, inputMinMax, levels) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto inputLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { inputMinMax.first });
-        auto inputHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { inputMinMax.second });
+        std::tie(inputDataMin, inputDataMax) = inputMinMax;
+        auto inputLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { inputDataMin });
+        auto inputHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { inputDataMax });
 
         auto inputVector = ngraph::builder::makeParams(ngPrc, {inputShape});
 
