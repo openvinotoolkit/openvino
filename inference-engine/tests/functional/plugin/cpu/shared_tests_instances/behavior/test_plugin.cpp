@@ -33,7 +33,7 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> AutoConfigsInputOutput = {
-        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
     };
 
     const std::vector<std::map<std::string, std::string>> configsOutput = {

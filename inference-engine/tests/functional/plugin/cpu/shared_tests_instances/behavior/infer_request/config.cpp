@@ -24,10 +24,6 @@ namespace {
             {{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "10"}},
     };
 
-    const std::vector<std::map<std::string, std::string>> AutoInConfigs = {
-        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
-    };
-
     const std::vector<std::map<std::string, std::string>> MultiInConfigs = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
              {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
@@ -66,20 +62,5 @@ namespace {
                                      ::testing::ValuesIn(MultiInConfigs)),
                                      InferRequestConfigTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestConfigTest,
-                         ::testing::Combine(
-                             ::testing::Values(1u),
-                             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                             ::testing::ValuesIn(multiConfigs)),
-                         InferRequestConfigTest::getTestCaseName);
-
-
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_, InferRequestConfigTest,
-                         ::testing::Combine(
-                             ::testing::Values(1u),
-                             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                             ::testing::ValuesIn(MultiInConfigs)),
-                         InferRequestConfigTest::getTestCaseName);
 
 }  // namespace

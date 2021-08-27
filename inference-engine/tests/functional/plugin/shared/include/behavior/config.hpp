@@ -189,7 +189,8 @@ namespace BehaviorTestsDefinitions {
         // Load config
         std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)}};
         config.insert(configuration.begin(), configuration.end());
-        if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+        if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+            targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
             targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
             ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
         }
@@ -217,7 +218,8 @@ namespace BehaviorTestsDefinitions {
         // Load config
         std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)}};
         config.insert(configuration.begin(), configuration.end());
-        if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+        if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+            targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
             targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
             ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
         }
