@@ -13,13 +13,13 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::ArithmeticReduction, "ArithmeticReduction", 0);
 
-op::util::ArithmeticReduction::ArithmeticReduction() {}
+op::util::ArithmeticReduction::ArithmeticReduction() = default;
 
 op::util::ArithmeticReduction::ArithmeticReduction(const Output<Node>& arg, const Output<Node>& reduction_axes)
     : ReductionBase(arg, reduction_axes) {}
 
 bool op::util::ArithmeticReduction::reduction_axes_constant() const {
-    return ov::is_type<op::Constant>(input_value(1).get_node());
+    return ov::is_type<ngraph::op::Constant>(input_value(1).get_node());
 }
 
 const AxisSet op::util::ArithmeticReduction::get_reduction_axes() const {
@@ -35,7 +35,8 @@ const AxisSet op::util::ArithmeticReduction::get_reduction_axes() const {
 
 void op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_axes) {
     this->input(1).replace_source_output(
-        op::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())->output(0));
+        ngraph::op::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())
+            ->output(0));
 }
 
 void op::util::ArithmeticReduction::validate_and_infer_types() {

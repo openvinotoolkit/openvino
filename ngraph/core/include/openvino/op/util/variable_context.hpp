@@ -15,7 +15,7 @@
 namespace ov {
 namespace op {
 namespace util {
-using VariableMap = std::unordered_map<VariablePtr, VariableValue::Ptr>;
+using VariableMap = std::unordered_map<Variable::Ptr, VariableValue::Ptr>;
 
 /// VariableContext stores and manages a evaluation context for Variables.
 class NGRAPH_API VariableContext {
@@ -43,13 +43,13 @@ public:
     /// \brief Changes/sets the values for Variable.
     /// \param variable New or stored Variable.
     /// \param variable_value The values associated with the variable.
-    void set_variable_value(const VariablePtr& variable, const VariableValue::Ptr& variable_value) {
+    void set_variable_value(const Variable::Ptr& variable, const VariableValue::Ptr& variable_value) {
         m_variable_values[variable] = variable_value;
     }
 
     /// \brief Removes context for a particular Variable.
     /// \param variable The variable for which the context will be cleared.
-    void remove_variable_value(const VariablePtr& variable) {
+    void remove_variable_value(const Variable::Ptr& variable) {
         m_variable_values.erase(variable);
     }
 
@@ -59,7 +59,7 @@ public:
     }
 
     /// \brief Returns the value for specified Variable.
-    VariableValue::Ptr get_variable_value(const VariablePtr& variable) const {
+    VariableValue::Ptr get_variable_value(const Variable::Ptr& variable) const {
         auto var_value = m_variable_values.find(variable);
         if (var_value != m_variable_values.end()) {
             return (*var_value).second;

@@ -52,7 +52,7 @@ shared_ptr<Node> op::util::ActivationFunction::operator()(const shared_ptr<Node>
     return m_function(arg, m_alpha, m_beta);
 }
 
-op::util::ActivationFunction op::util::get_activation_func_by_name(const string& func_name) {
+op::util::ActivationFunction ov::op::util::get_activation_func_by_name(const string& func_name) {
     using ActivationFunctionMap = unordered_map<string, op::util::ActivationFunction>;
 
     static ActivationFunctionMap func_map{

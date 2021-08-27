@@ -52,8 +52,8 @@ protected:
 
     bool evaluate_broadcast(const HostTensorPtr& arg0,
                             const HostTensorPtr& out,
-                            const std::pair<bool, AxisSet> pair_broadcast_axes,
-                            const ngraph::Shape output_shape) const;
+                            const std::pair<bool, AxisSet>& pair_broadcast_axes,
+                            const ngraph::Shape& output_shape) const;
 
     bool evaluate_broadcast(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisSet& broadcast_axes) const;
 
@@ -70,7 +70,7 @@ protected:
                                                                   const ngraph::Shape& result_shape,
                                                                   const op::BroadcastModeSpec& broadcast_spec);
 
-    static std::pair<bool, AxisSet> get_broadcast_axes_none(const AxisVector axes_mapping_val,
+    static std::pair<bool, AxisSet> get_broadcast_axes_none(const AxisVector& axes_mapping_val,
                                                             const size_t target_shape);
 
     void validate_target_shape_none(const PartialShape& arg_shape,

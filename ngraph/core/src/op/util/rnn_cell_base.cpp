@@ -22,10 +22,10 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::RNNCellBase, "RNNCellBase", 0);
 
-std::shared_ptr<Node> ngraph::op::util::convert_lstm_node_format(const Output<Node>& node,
-                                                                 LSTMWeightsFormat from_format,
-                                                                 LSTMWeightsFormat to_format,
-                                                                 int64_t axis) {
+std::shared_ptr<Node> ov::op::util::convert_lstm_node_format(const Output<Node>& node,
+                                                             LSTMWeightsFormat from_format,
+                                                             LSTMWeightsFormat to_format,
+                                                             int64_t axis) {
     static const std::map<op::util::LSTMWeightsFormat, std::vector<size_t>> gate_order_map{
         {op::util::LSTMWeightsFormat::FICO, {0, 1, 2, 3}},
         {op::util::LSTMWeightsFormat::ICOF, {1, 2, 3, 0}},
@@ -141,15 +141,15 @@ op::util::ActivationFunction op::util::RNNCellBase::get_activation_function(size
 }
 
 shared_ptr<Node> op::util::RNNCellBase::add(const Output<Node>& lhs, const Output<Node>& rhs) {
-    return {make_shared<op::v1::Add>(lhs, rhs)};
+    return {make_shared<ngraph::op::v1::Add>(lhs, rhs)};
 }
 
 shared_ptr<Node> op::util::RNNCellBase::sub(const Output<Node>& lhs, const Output<Node>& rhs) {
-    return {make_shared<op::v1::Subtract>(lhs, rhs)};
+    return {make_shared<ngraph::op::v1::Subtract>(lhs, rhs)};
 }
 
 shared_ptr<Node> op::util::RNNCellBase::mul(const Output<Node>& lhs, const Output<Node>& rhs) {
-    return {make_shared<op::v1::Multiply>(lhs, rhs)};
+    return {make_shared<ngraph::op::v1::Multiply>(lhs, rhs)};
 }
 
 shared_ptr<Node> op::util::RNNCellBase::clip(const Output<Node>& data) const {
@@ -157,5 +157,5 @@ shared_ptr<Node> op::util::RNNCellBase::clip(const Output<Node>& data) const {
         return data.get_node_shared_ptr();
     }
 
-    return make_shared<op::Clamp>(data, -m_clip, m_clip);
+    return make_shared<ngraph::op::Clamp>(data, -m_clip, m_clip);
 }

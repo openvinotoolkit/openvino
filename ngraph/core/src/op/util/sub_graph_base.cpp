@@ -15,24 +15,24 @@ op::util::SubGraphOp::SubGraphOp() : MultiSubGraphOp(1) {}
 
 op::util::SubGraphOp::SubGraphOp(const OutputVector& args) : MultiSubGraphOp(args, 1) {}
 
-void op::util::SubGraphOp::set_merged_input(const std::shared_ptr<Parameter>& body_parameter,
+void op::util::SubGraphOp::set_merged_input(const std::shared_ptr<ngraph::op::Parameter>& body_parameter,
                                             const Output<Node>& initial_value,
                                             const Output<Node>& successive_value) {
     auto body = get_function();
 
     m_input_descriptions[0].push_back(
-        std::make_shared<TensorIterator::MergedInputDescription>(input_for_value(initial_value).get_index(),
-                                                                 body->get_parameter_index(body_parameter),
-                                                                 body->get_result_index(successive_value)));
+        std::make_shared<ngraph::op::TensorIterator::MergedInputDescription>(input_for_value(initial_value).get_index(),
+                                                                             body->get_parameter_index(body_parameter),
+                                                                             body->get_result_index(successive_value)));
     validate_and_infer_types();
 }
 
-void op::util::SubGraphOp::set_invariant_input(const std::shared_ptr<Parameter>& body_parameter,
+void op::util::SubGraphOp::set_invariant_input(const std::shared_ptr<ngraph::op::Parameter>& body_parameter,
                                                const Output<Node>& value) {
     auto body = get_function();
-    m_input_descriptions[0].push_back(
-        std::make_shared<TensorIterator::InvariantInputDescription>(input_for_value(value).get_index(),
-                                                                    body->get_parameter_index(body_parameter)));
+    m_input_descriptions[0].push_back(std::make_shared<ngraph::op::TensorIterator::InvariantInputDescription>(
+        input_for_value(value).get_index(),
+        body->get_parameter_index(body_parameter)));
     validate_and_infer_types();
 }
 
@@ -66,7 +66,7 @@ Output<Node> op::util::SubGraphOp::get_concatenated_slices(const Output<Node>& b
     return Output<Node>(shared_from_this(), output_index);
 }
 
-void op::util::SubGraphOp::set_sliced_input(const std::shared_ptr<Parameter>& parameter,
+void op::util::SubGraphOp::set_sliced_input(const std::shared_ptr<ngraph::op::Parameter>& parameter,
                                             const Output<Node>& value,
                                             int64_t start,
                                             int64_t stride,
@@ -87,5 +87,5 @@ void op::util::SubGraphOp::set_sliced_input(const std::shared_ptr<Parameter>& pa
 Input<Node> op::util::SubGraphOp::input_for_value(const Output<Node>& value) {
     auto input_index = get_input_size();
     set_argument(input_index, value);
-    return Input<Node>(this, input_index);
+    return {this, input_index};
 }
