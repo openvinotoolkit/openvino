@@ -5,6 +5,7 @@ import unittest
 
 import numpy as np
 import numpy.testing as npt
+from generator import generate, generator
 
 from extensions.ops.If import If
 from extensions.ops.elementwise import Add, Mul
@@ -21,8 +22,14 @@ from unit_tests.utils.graph import regular_op_with_empty_data, connect, result, 
     empty_data
 
 
+@generator
 class TestIf(unittest.TestCase):
-    def test_simple_shape_inf(self):
+    @generate(*[
+        (np.array([True], dtype=np.bool), shape_array([3]), shape_array([3])),
+        (np.array([False], dtype=np.bool), shape_array([3]), shape_array([2])),
+        (shape_array(dynamic_dimension_value), shape_array([3]), shape_array([dynamic_dimension_value])),
+    ])
+    def test_simple_shape_inf(self, cond, output_port_0_shape, output_port_1_shape):
         then_graph_nodes = {**regular_op_with_empty_data('param_1', {'type': 'Parameter', 'kind': 'op', 'input_id': 1,
                                                                      'shape': None, 'infer': Parameter.infer}),
                             **regular_op_with_empty_data('param_2', {'type': 'Parameter', 'kind': 'op', 'input_id': 2,
@@ -64,7 +71,7 @@ class TestIf(unittest.TestCase):
         then_graph = build_graph_with_edge_attrs(then_graph_nodes, then_graph_edges)
         else_graph = build_graph_with_edge_attrs(else_graph_nodes, else_graph_edges)
         external_graph_nodes = {
-            **valued_const_with_data('cond', np.array([True], dtype=np.bool)),
+            **valued_const_with_data('cond', cond),
             **valued_const_with_data('input_2', int64_array([3, 2, 1])),
             **valued_const_with_data('input_1', int64_array([1, 2, 3])),
             **valued_const_with_data('input_3', int64_array([8, 4])),
@@ -87,10 +94,9 @@ class TestIf(unittest.TestCase):
         graph.stage = 'middle'
         partial_infer(graph)
         if_node = Node(graph, 'if')
-        self.assertTrue(strict_compare_tensors(if_node.out_port(0).data.get_shape(), shape_array([3])))
+        self.assertTrue(strict_compare_tensors(if_node.out_port(0).data.get_shape(), output_port_0_shape))
         # shape of the "then" branch is [3] and shape of the "else" branch is [2], so the output shape is "[dynamic]"
-        self.assertTrue(strict_compare_tensors(if_node.out_port(1).data.get_shape(),
-                                               shape_array([dynamic_dimension_value])))
+        self.assertTrue(strict_compare_tensors(if_node.out_port(1).data.get_shape(), output_port_1_shape))
 
     def test_fake_results(self):
         then_graph_nodes = {**valued_const_with_data('fake_const', int64_array(0)),
@@ -111,7 +117,7 @@ class TestIf(unittest.TestCase):
         then_graph = build_graph_with_edge_attrs(then_graph_nodes, then_graph_edges)
         else_graph = build_graph_with_edge_attrs(else_graph_nodes, else_graph_edges)
         external_graph_nodes = {
-            **valued_const_with_data('cond', np.array([True], dtype=np.bool)),
+            **valued_const_with_data('cond', shape_array([dynamic_dimension_value])),
             **valued_const_with_data('input_1', int64_array([1, 2, 3, 3, 2, 3]).reshape((2, 3))),
             **regular_op_with_empty_data('if', {'kind': 'op', 'op': 'If', 'then_graph': then_graph,
                                                 'else_graph': else_graph, 'infer': If.infer}),

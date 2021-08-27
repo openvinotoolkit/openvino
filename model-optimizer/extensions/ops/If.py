@@ -180,6 +180,8 @@ class If(Op):
         # outputs will have the same shapes as then_body results
         use_then_shape = else_contains_fake_outputs or not then_contains_fake_outputs
 
+        cond_value = if_node.in_port(0).data.get_value()
+
         for port_id in outputs_mapping:
             then_else_nodes = outputs_mapping[port_id]
             assert 'then_graph' in then_else_nodes.keys(), 'then_graph does not connect with If.out_port[{0}] ' \
@@ -188,19 +190,34 @@ class If(Op):
                                                            'in {1} node!'.format(port_id, node_name)
 
             then_shape = then_else_nodes['then_graph'].in_port(0).data.get_shape()
+            then_value = then_else_nodes['then_graph'].in_port(0).data.get_value()
             else_shape = then_else_nodes['else_graph'].in_port(0).data.get_shape()
+            else_value = then_else_nodes['else_graph'].in_port(0).data.get_value()
 
-            if then_contains_fake_outputs ^ else_contains_fake_outputs:
-                # if exactly one of the outputs is fake then use another one
-                if_node.out_port(port_id).data.set_shape(then_shape if use_then_shape else else_shape)
+            if is_fully_defined(cond_value):
+                if cond_value.item() is True:
+                    if then_value is not None:
+                        if_node.out_port(port_id).data.set_value(then_value)
+                    else:
+                        if_node.out_port(port_id).data.set_shape(then_shape)
+                else:
+                    if else_value is not None:
+                        if_node.out_port(port_id).data.set_value(else_value)
+                    else:
+                        if_node.out_port(port_id).data.set_shape(else_shape)
             else:
-                # find "intersection" which is equal to the dimension value if corresponding dimensions are equal and
-                # dynamic otherwise
-                assert len(then_shape) == len(else_shape), 'Ranks of "then" and "else" output tensors are different ' \
-                                                           'for node {} for port {}'.format(node_name, port_id)
-                output_shape = [d1 if is_fully_defined(d1) and is_fully_defined(d2) and d1 == d2 else
-                                dynamic_dimension_value for d1, d2 in zip(then_shape, else_shape)]
-                if_node.out_port(port_id).data.set_shape(output_shape)
+                if then_contains_fake_outputs ^ else_contains_fake_outputs:
+                    # if exactly one of the outputs is fake then use another one
+                    if_node.out_port(port_id).data.set_shape(then_shape if use_then_shape else else_shape)
+                else:
+                    # find "intersection" which is equal to the dimension value if corresponding dimensions are equal
+                    # and dynamic otherwise
+                    assert len(then_shape) == len(else_shape), 'Ranks of "then" and "else" output tensors are ' \
+                                                               'different for node {} for port {}'.format(node_name,
+                                                                                                          port_id)
+                    output_shape = [d1 if is_fully_defined(d1) and is_fully_defined(d2) and d1 == d2 else
+                                    dynamic_dimension_value for d1, d2 in zip(then_shape, else_shape)]
+                    if_node.out_port(port_id).data.set_shape(output_shape)
 
 
     @staticmethod
