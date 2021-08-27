@@ -95,7 +95,6 @@ public:
     virtual void getAttrValue2(const char* name, DataType* x) const = 0;
     virtual void getAttrValue2(const char* name, std::string* x) const = 0;
     virtual void getAttrValue2(const char* name, bool* x) const = 0;
-    virtual void getAttrValue2(const char* name, long int* x) const = 0;
     virtual void getAttrValue2(const char* name, float* x) const = 0;
     virtual void getAttrValue2(const char* name, std::vector<std::string>* x) const = 0;
     virtual void getAttrValue2(const char* name, ngraph::PartialShape* x) const = 0;

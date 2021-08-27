@@ -4,6 +4,15 @@
 
 set(TARGET_NAME "tensorflow_ngraph_frontend")
 
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-undef)
+elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
+endif()
+
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
@@ -60,11 +69,6 @@ add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_P
 
 add_dependencies(${TARGET_NAME} libprotobuf tensorflow_ngraph_frontend_proto)
 
-# if(NOT WIN32)
-#    # Addition dependency on static libprotobuf for non-Windows
-#    add_dependencies(${TARGET_NAME} libprotobuf_static)
-# endif()
-
 target_include_directories(${TARGET_NAME}
         PUBLIC
         $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
@@ -79,15 +83,8 @@ if(COMMAND ie_add_vs_version_file)
             FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format")
 endif()
 
-if(WIN32)
-    target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf)
-else()
-    target_link_libraries(${TARGET_NAME} PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT})
-    #target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf)
-endif()
-
 target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager
-        PRIVATE ngraph::builder inference_engine)
+        PRIVATE ngraph::builder inference_engine libprotobuf)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})

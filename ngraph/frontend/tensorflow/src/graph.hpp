@@ -91,11 +91,12 @@ public:
     GET_ATTR_VALUE_VECTOR(int32_t, i)
     GET_ATTR_VALUE_VECTOR(int64_t, i)
     GET_ATTR_VALUE_VECTOR(float, f)
-    // virtual void getAttrValue (const char* name, std::vector<int32_t>* x) const override {
-    // NGRAPH_TF_FE_NOT_IMPLEMENTED; } virtual void getAttrValue (const char* name, std::vector<float>* x) const
-    // override { NGRAPH_TF_FE_NOT_IMPLEMENTED; }
+    GET_ATTR_VALUE_VECTOR(std::string, s)
     GET_ATTR_VALUE(int32_t, i)
     GET_ATTR_VALUE(int64_t, i)
+    GET_ATTR_VALUE(std::string, s)
+    GET_ATTR_VALUE(bool, b)
+    GET_ATTR_VALUE(float, f)
 
     virtual void getAttrValue2(const char* name, DataType* x) const override {
         *x = node_def->attr().at(name).type();
@@ -114,13 +115,6 @@ public:
     virtual void getAttrValue2(const char* name, ngraph::PartialShape* x) const override {
         TFTensorShapeToNGraphShape(node_def->attr().at(name).shape(), x);
     }
-
-    GET_ATTR_VALUE(std::string, s)
-    GET_ATTR_VALUE(bool, b)
-    GET_ATTR_VALUE(long int, i)
-    GET_ATTR_VALUE(float, f)
-
-    GET_ATTR_VALUE_VECTOR(std::string, s)
 
     // a way to read Const value as a tensor
     virtual void getAttrValue2(const char* name,
@@ -145,11 +139,11 @@ public:
         return node_def->op();
     }
 
-    Status input_node(size_t index, std::string* name) const {
+    Status input_node(size_t index, std::string* name) const override {
         NGRAPH_TF_FE_NOT_IMPLEMENTED;
     }
 
-    Status input_node(size_t index, std::string* name, size_t* outputPortIndex) const {
+    Status input_node(size_t index, std::string* name, size_t* outputPortIndex) const override {
         std::string input_name = node_def->input(index);
         // TODO: Implement full logic to detect only the last : as a separator, consult with TF
         auto portDelimPos = input_name.find(':');
@@ -220,25 +214,25 @@ public:
     }
 
     /// Set iterator to the start position
-    virtual void reset() {
+    virtual void reset() override {
         node_index = 0;
     }
 
-    virtual size_t size() const {
+    virtual size_t size() const override {
         return nodes.size();
     }
 
     /// Moves to the next node in the graph
-    virtual void next() {
+    virtual void next() override {
         node_index++;
     }
 
-    virtual bool is_end() const {
+    virtual bool is_end() const override {
         return node_index >= nodes.size();
     }
 
     /// Return NodeContext for the current node that iterator points to
-    virtual std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> get() const {
+    virtual std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> get() const override {
         return std::make_shared<NodeProtoWrapper>(nodes[node_index]);
     }
 };
