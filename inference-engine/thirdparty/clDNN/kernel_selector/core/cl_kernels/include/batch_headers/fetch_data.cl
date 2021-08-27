@@ -87,7 +87,7 @@
         ((b) / (sub_group_size))*CAT(prefix, _BATCH_PITCH)              \
     )
 
-inline uint FUNC(get_b_fs_yx_fsv_index)(uint b, uint f, uint y, uint x,
+inline uint get_b_fs_yx_fsv_index(uint b, uint f, uint y, uint x,
                                         uint x_size, uint y_size, uint f_size, uint b_size,
                                         uint b_pad_before, uint b_pad_after,
                                         uint f_pad_before, uint f_pad_after,
@@ -111,7 +111,7 @@ inline uint FUNC(get_b_fs_yx_fsv_index)(uint b, uint f, uint y, uint x,
     return output_offset;
 }
 
-inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
+inline uint get_b_fs_yx_fsv_index_safe(uint b, uint f, uint y, uint x,
                                              uint x_size, uint y_size, uint f_size, uint b_size,
                                              uint b_pad_before, uint b_pad_after,
                                              uint f_pad_before, uint f_pad_after,
@@ -136,7 +136,7 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
 }
 
 #define GET_DATA_B_FS_YX_FSV16_INDEX(prefix, b, f, y, x) \
-    FUNC_CALL(get_b_fs_yx_fsv_index)(                    \
+    get_b_fs_yx_fsv_index(                    \
         b, f, y, x,                                      \
         CAT(prefix, _SIZE_X ),                           \
         CAT(prefix, _SIZE_Y),                            \
@@ -152,7 +152,7 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_X), 16)
 
 #define GET_DATA_B_FS_YX_FSV16_INDEX_SAFE(prefix, b, f, y, x) \
-    FUNC_CALL(get_b_fs_yx_fsv_index_safe)(                    \
+    get_b_fs_yx_fsv_index_safe(                    \
         b, f, y, x,                                           \
         CAT(prefix, _SIZE_X ),                                \
         CAT(prefix, _SIZE_Y),                                 \
@@ -168,7 +168,7 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_X), 16)
 
 #define GET_DATA_B_FS_YX_FSV4_INDEX(prefix, b, f, y, x) \
-    FUNC_CALL(get_b_fs_yx_fsv_index)(                   \
+    get_b_fs_yx_fsv_index(                   \
         b, f, y, x,                                     \
         CAT(prefix, _SIZE_X ),                          \
         CAT(prefix, _SIZE_Y),                           \
@@ -184,7 +184,7 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_X), 4)
 
 #define GET_DATA_B_FS_YX_FSV4_INDEX_SAFE(prefix, b, f, y, x) \
-    FUNC_CALL(get_b_fs_yx_fsv_index_safe)(                   \
+    get_b_fs_yx_fsv_index_safe(                   \
         b, f, y, x,                                          \
         CAT(prefix, _SIZE_X ),                               \
         CAT(prefix, _SIZE_Y),                                \
@@ -200,7 +200,7 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_X), 4)
 
 #define GET_DATA_B_FS_YX_FSV32_INDEX(prefix, b, f, y, x) \
-    FUNC_CALL(get_b_fs_yx_fsv_index)(                    \
+    get_b_fs_yx_fsv_index(                    \
         b, f, y, x,                                      \
         CAT(prefix, _SIZE_X ),                           \
         CAT(prefix, _SIZE_Y),                            \
@@ -216,7 +216,7 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_X), 32)
 
 #define GET_DATA_B_FS_YX_FSV32_INDEX_SAFE(prefix, b, f, y, x) \
-    FUNC_CALL(get_b_fs_yx_fsv_index_safe)(                    \
+    get_b_fs_yx_fsv_index_safe(                    \
         b, f, y, x,                                           \
         CAT(prefix, _SIZE_X ),                                \
         CAT(prefix, _SIZE_Y),                                 \
@@ -232,7 +232,7 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_X), 32)
 
 #define GET_DATA_FS_B_YX_FSV32_INDEX(prefix, b, f, y, x) \
-    FUNC_CALL(get_fs_b_yx_fsv32_index)(                  \
+    get_fs_b_yx_fsv32_index(                  \
         b, f, y, x,                                      \
         CAT(prefix, _PAD_BEFORE_SIZE_X),                 \
         CAT(prefix, _SIZE_X),                            \
@@ -243,7 +243,7 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_FEATURE_NUM),            \
         CAT(prefix, _BATCH_NUM))
 
-inline uint FUNC(get_fs_b_yx_fsv32_index)(uint b, uint f, uint y, uint x,
+inline uint get_fs_b_yx_fsv32_index(uint b, uint f, uint y, uint x,
                                           uint x_pad_before, uint x_size, uint x_pad_after,
                                           uint y_pad_before, uint y_size, uint y_pad_after,
                                           uint f_pad_before,
@@ -278,7 +278,7 @@ inline uint FUNC(get_fs_b_yx_fsv32_index)(uint b, uint f, uint y, uint x,
 }
 
 #define GET_DATA_B_FS_ZYX_FSV16_INDEX(prefix, b, f, z, y, x) \
-    FUNC_CALL(get_b_fs_zyx_fsv_index)(                       \
+    get_b_fs_zyx_fsv_index(                       \
         b, f, z, y, x,                                       \
         CAT(prefix, _SIZE_X ),                               \
         CAT(prefix, _SIZE_Y),                                \
@@ -294,7 +294,7 @@ inline uint FUNC(get_fs_b_yx_fsv32_index)(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_X), 16)
 
 #define GET_DATA_B_FS_ZYX_FSV16_INDEX_SAFE(prefix, b, f, z, y, x) \
-    FUNC_CALL(get_b_fs_zyx_fsv_index_safe)(                       \
+    get_b_fs_zyx_fsv_index_safe(                       \
         b, f, z, y, x,                                            \
         CAT(prefix, _SIZE_X),                                     \
         CAT(prefix, _SIZE_Y),                                     \
@@ -311,7 +311,7 @@ inline uint FUNC(get_fs_b_yx_fsv32_index)(uint b, uint f, uint y, uint x,
 
 
 #define GET_DATA_B_FS_ZYX_FSV32_INDEX(prefix, b, f, z, y, x) \
-    FUNC_CALL(get_b_fs_zyx_fsv_index)(                       \
+    get_b_fs_zyx_fsv_index(                       \
         b, f, z, y, x,                                       \
         CAT(prefix, _SIZE_X ),                               \
         CAT(prefix, _SIZE_Y),                                \
@@ -327,7 +327,7 @@ inline uint FUNC(get_fs_b_yx_fsv32_index)(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_X), 32)
 
 #define GET_DATA_B_FS_ZYX_FSV32_INDEX_SAFE(prefix, b, f, z, y, x) \
-    FUNC_CALL(get_b_fs_zyx_fsv_index_safe)(                       \
+    get_b_fs_zyx_fsv_index_safe(                       \
         b, f, z, y, x,                                            \
         CAT(prefix, _SIZE_X),                                     \
         CAT(prefix, _SIZE_Y),                                     \
@@ -342,7 +342,7 @@ inline uint FUNC(get_fs_b_yx_fsv32_index)(uint b, uint f, uint y, uint x,
         CAT(prefix, _PAD_BEFORE_SIZE_X),                          \
         CAT(prefix, _PAD_AFTER_SIZE_X), 32)
 
-inline uint FUNC(get_b_fs_zyx_fsv_index)(uint b, uint f,  uint z, uint y, uint x,
+inline uint get_b_fs_zyx_fsv_index(uint b, uint f,  uint z, uint y, uint x,
                                          uint x_size, uint y_size, uint z_size, uint f_size,
                                          uint f_pad_before, uint f_pad_after,
                                          uint z_pad_before, uint z_pad_after,
@@ -370,7 +370,7 @@ inline uint FUNC(get_b_fs_zyx_fsv_index)(uint b, uint f,  uint z, uint y, uint x
     return output_offset;
 }
 
-inline uint FUNC(get_b_fs_zyx_fsv_index_safe)(uint b, uint f,  uint z, uint y, uint x,
+inline uint get_b_fs_zyx_fsv_index_safe(uint b, uint f,  uint z, uint y, uint x,
                                               uint x_size, uint y_size, uint z_size, uint f_size,
                                               uint f_pad_before, uint f_pad_after,
                                               uint z_pad_before, uint z_pad_after,
@@ -397,7 +397,7 @@ inline uint FUNC(get_b_fs_zyx_fsv_index_safe)(uint b, uint f,  uint z, uint y, u
     return output_offset;
 }
 
-inline uint FUNC(get_bs_fs_zyx_bsv_fsv_index_safe)(uint b, uint f, uint z, uint y, uint x,
+inline uint get_bs_fs_zyx_bsv_fsv_index_safe(uint b, uint f, uint z, uint y, uint x,
                                                   uint x_size, uint y_size, uint z_size, uint f_size, uint b_size,
                                                   uint f_pad_before, uint f_pad_after,
                                                   uint z_pad_before, uint z_pad_after,
@@ -426,7 +426,7 @@ inline uint FUNC(get_bs_fs_zyx_bsv_fsv_index_safe)(uint b, uint f, uint z, uint 
     return output_offset;
 }
 
-inline uint FUNC(get_bs_fs_zyx_bsv_fsv_index)(uint b, uint f,  uint z, uint y, uint x,
+inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
                                               uint x_size, uint y_size, uint z_size, uint f_size,
                                               uint f_pad_before, uint f_pad_after,
                                               uint z_pad_before, uint z_pad_after,
@@ -459,7 +459,7 @@ inline uint FUNC(get_bs_fs_zyx_bsv_fsv_index)(uint b, uint f,  uint z, uint y, u
 }
 
 #define GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(prefix, b, f, y, x)     \
-    FUNC_CALL(get_bs_fs_zyx_bsv_fsv_index)(                         \
+    get_bs_fs_zyx_bsv_fsv_index(                         \
         b, f, 0, y, x,                                              \
         CAT(prefix, _SIZE_X),                                       \
         CAT(prefix, _SIZE_Y),                                       \
@@ -475,7 +475,7 @@ inline uint FUNC(get_bs_fs_zyx_bsv_fsv_index)(uint b, uint f,  uint z, uint y, u
         CAT(prefix, _PAD_AFTER_SIZE_X), 16, 16)
 
 #define GET_DATA_BS_FS_YX_BSV32_FSV32_INDEX(prefix, b, f, y, x)     \
-    FUNC_CALL(get_bs_fs_zyx_bsv_fsv_index)(                         \
+    get_bs_fs_zyx_bsv_fsv_index(                         \
         b, f, 0, y, x,                                              \
         CAT(prefix, _SIZE_X),                                       \
         CAT(prefix, _SIZE_Y),                                       \
@@ -491,7 +491,7 @@ inline uint FUNC(get_bs_fs_zyx_bsv_fsv_index)(uint b, uint f,  uint z, uint y, u
         CAT(prefix, _PAD_AFTER_SIZE_X), 32, 32)
 
 #define GET_DATA_BS_FS_YX_BSV4_FSV4_INDEX(prefix, b, f, y, x)       \
-    FUNC_CALL(get_bs_fs_zyx_bsv_fsv_index)(                         \
+    get_bs_fs_zyx_bsv_fsv_index(                         \
         b, f, 0, y, x,                                              \
         CAT(prefix, _SIZE_X),                                       \
         CAT(prefix, _SIZE_Y),                                       \
@@ -507,7 +507,7 @@ inline uint FUNC(get_bs_fs_zyx_bsv_fsv_index)(uint b, uint f,  uint z, uint y, u
         CAT(prefix, _PAD_AFTER_SIZE_X), 4, 4)
 
 #define GET_DATA_BS_FS_YX_BSV4_FSV2_INDEX(prefix, b, f, y, x)       \
-    FUNC_CALL(get_bs_fs_zyx_bsv_fsv_index)(                         \
+    get_bs_fs_zyx_bsv_fsv_index(                         \
         b, f, 0, y, x,                                              \
         CAT(prefix, _SIZE_X),                                       \
         CAT(prefix, _SIZE_Y),                                       \
@@ -523,7 +523,7 @@ inline uint FUNC(get_bs_fs_zyx_bsv_fsv_index)(uint b, uint f,  uint z, uint y, u
         CAT(prefix, _PAD_AFTER_SIZE_X), 4, 2)
 
 #define GET_DATA_BS_FS_YX_BSV32_FSV16_INDEX(prefix, b, f, y, x)     \
-    FUNC_CALL(get_bs_fs_zyx_bsv_fsv_index)(                         \
+    get_bs_fs_zyx_bsv_fsv_index(                         \
         b, f, 0, y, x,                                              \
         CAT(prefix, _SIZE_X),                                       \
         CAT(prefix, _SIZE_Y),                                       \
@@ -539,7 +539,7 @@ inline uint FUNC(get_bs_fs_zyx_bsv_fsv_index)(uint b, uint f,  uint z, uint y, u
         CAT(prefix, _PAD_AFTER_SIZE_X), 32, 16)
 
 #define GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(prefix, b, f, z, y, x) \
-    FUNC_CALL(get_bs_fs_zyx_bsv_fsv_index)(                         \
+    get_bs_fs_zyx_bsv_fsv_index(                         \
         b, f, z, y, x,                                              \
         CAT(prefix, _SIZE_X),                                       \
         CAT(prefix, _SIZE_Y),                                       \
@@ -555,7 +555,7 @@ inline uint FUNC(get_bs_fs_zyx_bsv_fsv_index)(uint b, uint f,  uint z, uint y, u
         CAT(prefix, _PAD_AFTER_SIZE_X), 16, 16)
 
 #define GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX_SAFE(prefix, b, f, y, x) \
-    FUNC_CALL(get_bs_fs_zyx_bsv_fsv_index_safe)(                     \
+    get_bs_fs_zyx_bsv_fsv_index_safe(                     \
         b, f, 0, y, x,                                               \
         CAT(prefix, _SIZE_X),                                        \
         CAT(prefix, _SIZE_Y),                                        \
@@ -640,7 +640,7 @@ inline uint FUNC(get_bs_fs_zyx_bsv_fsv_index)(uint b, uint f,  uint z, uint y, u
         CAT(prefix, _PAD_AFTER_SIZE_X), 32, 16)
 
 #define GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX_SAFE(prefix, b, f, z, y, x) \
-    FUNC_CALL(get_bs_fs_zyx_bsv_fsv_index_safe)(                         \
+    get_bs_fs_zyx_bsv_fsv_index_safe(                         \
         b, f, z, y, x,                                                   \
         CAT(prefix, _SIZE_X ),                                           \
         CAT(prefix, _SIZE_Y),                                            \

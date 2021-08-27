@@ -21,7 +21,10 @@ namespace cache {
 primitive_db::primitive_db()
     : primitives({
 #include "ks_primitive_db.inc"
-      }) {
+      }),
+      batch_header_str(
+#include "ks_primitive_db_batch_headers.inc"
+      ) {
 }
 
 std::vector<code> primitive_db::get(const primitive_id& id) const {
@@ -58,7 +61,6 @@ std::vector<code> primitive_db::get(const primitive_id& id) const {
         throw std::runtime_error("cannot find the kernel " + id + " in primitive database.");
     }
 }
-
 }  // namespace cache
 }  // namespace gpu
 }  // namespace kernel_selector

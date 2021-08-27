@@ -93,14 +93,25 @@ class kernels_cache {
 public:
     using source_code = std::vector<std::string>;
     struct batch_program {
-        int32_t bucket_id = 0;
-        int32_t batch_id = 0;
-        source_code source;
+        int32_t bucket_id;
+        int32_t batch_id;
         size_t hash_value;
-        uint32_t kernels_counter = 0;
+        uint32_t kernels_counter;
+        source_code source;
         std::string options;
-        bool dump_custom_program = false;
+        bool dump_custom_program;
         std::map<std::string, std::string> entry_point_to_id;
+
+        explicit batch_program(int32_t _bucket_id, int32_t _batch_id, std::string _options, std::string batch_header_str)
+            : bucket_id(_bucket_id),
+              batch_id(_batch_id),
+              hash_value(0),
+              kernels_counter(0),
+              source({batch_header_str}),
+              options(_options),
+              dump_custom_program(false),
+              entry_point_to_id({}) {
+        }
     };
 
     struct kernel_code {

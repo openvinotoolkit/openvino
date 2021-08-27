@@ -5,6 +5,16 @@
 #include "common.cl"
 #include "data_types.cl"
 
+// Defines default accumulator type.
+// TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
+// TODO: Get rid of this include and generate proper accumulator type on host (when needed)
+#if !defined(ACCUMULATOR_TYPE)
+    #define ACCUMULATOR_TYPE float
+    #define TO_ACCUMULATOR_TYPE(v) (float)(v)
+    #define ACCUMULATOR_TYPE_ZERO 0.0f
+#endif
+
+
 #ifndef UNIT_TYPE
 #error Unit type not defined.
 #endif
@@ -31,7 +41,6 @@
 #define UNIT_BLOCK_RW_TYPE4 MAKE_VECTOR_TYPE(UNIT_BLOCK_RW_TYPE, 4)
 #define UNIT_BLOCK_RW_TYPE8 MAKE_VECTOR_TYPE(UNIT_BLOCK_RW_TYPE, 8)
 
-#define AS_TYPE(type, val) CAT(as_, type)(val)
 
 #define UNIT_BLOCK_READ_FUNC2 CAT(UNIT_BLOCK_READ_FUNC, 2)
 #define UNIT_BLOCK_READ_FUNC4 CAT(UNIT_BLOCK_READ_FUNC, 4)

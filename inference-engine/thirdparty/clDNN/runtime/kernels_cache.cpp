@@ -6,6 +6,7 @@
 #include "kernels_cache.hpp"
 #include "ocl/ocl_engine.hpp"
 #include "cldnn/runtime/debug_configuration.hpp"
+#include "kernel_selector/core/common/primitive_db.h"
 
 #include <algorithm>
 #include <cassert>
@@ -55,6 +56,7 @@
 namespace {
 std::mutex cacheAccessMutex;
 
+static const kernel_selector::gpu::cache::primitive_db db;
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 std::wstring multiByteCharToWString(const char* str) {
 #ifdef _WIN32
@@ -166,6 +168,7 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll::GetProgramSource");
     std::map<std::string, std::vector<batch_program>> program_buckets;
+    const std::string batch_header_str = db.get_batch_header_str();
 
     for (const auto& code : kernels_source_code) {
         std::string full_code = code.kernel_strings->jit + code.kernel_strings->str + code.kernel_strings->undefs;
@@ -193,20 +196,16 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
         auto& current_bucket = program_buckets[key];
         if (current_bucket.empty()) { // new bucket
-            const auto& bucket_id = program_buckets.size() - 1;
-            current_bucket.push_back(batch_program());
-            current_bucket.back().bucket_id = static_cast<int32_t>(bucket_id);
-            current_bucket.back().batch_id = 0;
-            current_bucket.back().options = options;
+            const auto& batch_id = 0;
+            const auto& bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
+            current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
         }
 
         // Create new kernels batch when the limit is reached
         if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()) {
-            const auto& batch_id = current_bucket.size();
-            current_bucket.push_back(batch_program());
-            current_bucket.back().bucket_id = static_cast<int32_t>(program_buckets.size());
-            current_bucket.back().batch_id = static_cast<int32_t>(batch_id);
-            current_bucket.back().options = options;
+            const auto& bucket_id =  static_cast<int32_t>(program_buckets.size());
+            const auto& batch_id = static_cast<int32_t>(current_bucket.size());
+            current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
         }
 
         auto& current_batch = current_bucket.back();

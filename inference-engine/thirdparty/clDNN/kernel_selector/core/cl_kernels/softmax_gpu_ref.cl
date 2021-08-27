@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/data_types.cl"
+#include "include/unit_type.cl"
+#include "include/batch_headers/common.cl"
 
 
 __attribute__((intel_reqd_sub_group_size(16)))

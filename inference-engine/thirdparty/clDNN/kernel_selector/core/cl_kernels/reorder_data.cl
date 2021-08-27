@@ -3,9 +3,9 @@
 //
 
 #include "include/reshape_dims.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/fetch_data.cl"
 
-#include "include/data_types.cl"
+#include "include/batch_headers/data_types.cl"
 
 #define INPUT_TYPE4 MAKE_VECTOR_TYPE(INPUT_REORDER_TYPE, 4)
 #define OUTPUT_TYPE4 MAKE_VECTOR_TYPE(OUTPUT_REORDER_TYPE, 4)
