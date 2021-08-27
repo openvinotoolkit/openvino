@@ -257,18 +257,37 @@ void random_uniform(const uint64_t* out_shape,
         }
         case ngraph::element::Type_t::i64: {
             std::vector<int64_t> res_int64(step);
+            std::cout << "random_uniform iteration start." << std::endl;
+            std::cout << step << std::endl;
             int64_t mn[1];
             int64_t mx[1];
             memcpy(mn, min_val, elem_type.size());
             memcpy(mx, max_val, elem_type.size());
+            std::cout << "min max:" << std::endl;
+            std::cout << mn[0] << std::endl;
+            std::cout << mx[0] << std::endl;
             // convert 2 pairs of uint32 values to 2 double values and normalize to
             // range [min_val, max_val)
+            std::cout << "philox output:" << std::endl;
+            std::cout << res[0] << std::endl;
+            std::cout << res[1] << std::endl;
+            std::cout << res[2] << std::endl;
+            std::cout << res[3] << std::endl;
+            std::cout << "unite_high_low:" << std::endl;
+            std::cout << unite_high_low(res[1], res[0]) << std::endl;
+            std::cout << unite_high_low(res[3], res[2]) << std::endl;
             auto v1 = static_cast<int64_t>(unite_high_low(res[1], res[0]) % (mx[0] - mn[0]));
             auto v2 = static_cast<int64_t>(unite_high_low(res[3], res[2]) % (mx[0] - mn[0]));
 
+            std::cout << "v1 v2:" << std::endl;
+            std::cout << v1 << std::endl;
+            std::cout << v2 << std::endl;
             res_int64[0] = v1 + mn[0];
             res_int64[1] = v2 + mn[0];
+            std::cout << "memcopy start:" << std::endl;
             memcpy(out + k * elem_type.size(), res_int64.data(), std::min(step, elem_count - k) * elem_type.size());
+            std::cout << "memcopy end." << std::endl;
+            std::cout << "random_uniform iteration end." << std::endl;
             break;
         }
         default:
