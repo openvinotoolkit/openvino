@@ -52,13 +52,13 @@ enum class InterpolateShapeCalcMode {
 struct jit_interpolate_config_params {
     InterpolateLayoutType layout;
     InterpolateMode mode;
-    mkldnn::memory::data_type src_dt;
-    mkldnn::memory::data_type dst_dt;
+    InferenceEngine::Precision src_prc;
+    InferenceEngine::Precision dst_prc;
     int src_data_size;
     int dst_data_size;
     int indices_size;
     int spatial_dim_size;
-    int ID, IH, IW, OD, OH, OW;
+    int C, ID, IH, IW, OD, OH, OW;
 };
 
 struct jit_interpolate_call_args {
