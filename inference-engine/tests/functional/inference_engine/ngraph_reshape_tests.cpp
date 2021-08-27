@@ -266,14 +266,14 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToDynamic) {
 
     auto changedFunction = cnnNetwork.getFunction();
     ASSERT_NE(nullptr, changedFunction);
-    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_partial_shape().is_dynamic());
-    ASSERT_TRUE(changedFunction->get_results()[0]->get_partial_shape().is_dynamic());
-    ASSERT_TRUE(ngraph->get_parameters()[0]->get_partial_shape().is_dynamic());
-    ASSERT_TRUE(ngraph->get_results()[0]->get_partial_shape().is_dynamic());
-    ASSERT_EQ(changedFunction->get_parameters()[0]->get_partial_shape(), refShape);
-    ASSERT_EQ(changedFunction->get_results()[0]->get_partial_shape(), refShape);
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_partial_shape(), refShape);
-    ASSERT_EQ(ngraph->get_results()[0]->get_partial_shape(), refShape);
+    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(changedFunction->get_results()[0]->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(ngraph->get_parameters()[0]->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(ngraph->get_results()[0]->get_output_partial_shape(0).is_dynamic());
+    ASSERT_EQ(changedFunction->get_parameters()[0]->get_output_partial_shape(0), refShape);
+    ASSERT_EQ(changedFunction->get_results()[0]->get_output_partial_shape(0), refShape);
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_output_partial_shape(0), refShape);
+    ASSERT_EQ(ngraph->get_results()[0]->get_output_partial_shape(0), refShape);
 }
 
 TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToFullyDynamic) {
@@ -304,14 +304,14 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUStaticToFullyDynamic) {
 
     auto changedFunction = cnnNetwork.getFunction();
     ASSERT_NE(nullptr, changedFunction);
-    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_partial_shape().is_dynamic());
-    ASSERT_TRUE(changedFunction->get_results()[0]->get_partial_shape().is_dynamic());
-    ASSERT_TRUE(ngraph->get_parameters()[0]->get_partial_shape().is_dynamic());
-    ASSERT_TRUE(ngraph->get_results()[0]->get_partial_shape().is_dynamic());
-    ASSERT_EQ(changedFunction->get_parameters()[0]->get_partial_shape(), refShape);
-    ASSERT_EQ(changedFunction->get_results()[0]->get_partial_shape(), refShape);
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_partial_shape(), refShape);
-    ASSERT_EQ(ngraph->get_results()[0]->get_partial_shape(), refShape);
+    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(changedFunction->get_results()[0]->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(ngraph->get_parameters()[0]->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(ngraph->get_results()[0]->get_output_partial_shape(0).is_dynamic());
+    ASSERT_EQ(changedFunction->get_parameters()[0]->get_output_partial_shape(0), refShape);
+    ASSERT_EQ(changedFunction->get_results()[0]->get_output_partial_shape(0), refShape);
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_output_partial_shape(0), refShape);
+    ASSERT_EQ(ngraph->get_results()[0]->get_output_partial_shape(0), refShape);
 }
 
 TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUDynamicToDynamic) {
@@ -331,8 +331,8 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUDynamicToDynamic) {
         ngraph = std::make_shared<ngraph::Function>(results, params);
     }
 
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_partial_shape(), ngraph::PartialShape({1, 3, 22, ngraph::Dimension::dynamic()}));
-    ASSERT_EQ(ngraph->get_results()[0]->get_partial_shape(), ngraph::PartialShape({1, 3, 22, ngraph::Dimension::dynamic()}));
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_output_partial_shape(0), ngraph::PartialShape({1, 3, 22, ngraph::Dimension::dynamic()}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_output_partial_shape(0), ngraph::PartialShape({1, 3, 22, ngraph::Dimension::dynamic()}));
 
     CNNNetwork cnnNetwork(ngraph);
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -342,14 +342,14 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUDynamicToDynamic) {
 
     auto changedFunction = cnnNetwork.getFunction();
     ASSERT_NE(nullptr, changedFunction);
-    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_partial_shape().is_dynamic());
-    ASSERT_TRUE(changedFunction->get_results()[0]->get_partial_shape().is_dynamic());
-    ASSERT_TRUE(ngraph->get_parameters()[0]->get_partial_shape().is_dynamic());
-    ASSERT_TRUE(ngraph->get_results()[0]->get_partial_shape().is_dynamic());
-    ASSERT_EQ(changedFunction->get_parameters()[0]->get_partial_shape(), refShape);
-    ASSERT_EQ(changedFunction->get_results()[0]->get_partial_shape(), refShape);
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_partial_shape(), refShape);
-    ASSERT_EQ(ngraph->get_results()[0]->get_partial_shape(), refShape);
+    ASSERT_TRUE(changedFunction->get_parameters()[0]->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(changedFunction->get_results()[0]->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(ngraph->get_parameters()[0]->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(ngraph->get_results()[0]->get_output_partial_shape(0).is_dynamic());
+    ASSERT_EQ(changedFunction->get_parameters()[0]->get_output_partial_shape(0), refShape);
+    ASSERT_EQ(changedFunction->get_results()[0]->get_output_partial_shape(0), refShape);
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_output_partial_shape(0), refShape);
+    ASSERT_EQ(ngraph->get_results()[0]->get_output_partial_shape(0), refShape);
 }
 
 class CustomTestOp: public ngraph::op::Op {

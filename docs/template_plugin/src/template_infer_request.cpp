@@ -272,7 +272,7 @@ void TemplateInferRequest::inferPreprocess() {
             networkOutput = outputBlob;
         }
         const auto& result = _executableNetwork->_function->get_results()[index];
-        if (result->get_partial_shape().is_dynamic()) {
+        if (result->get_output_partial_shape(0).is_dynamic()) {
             _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor();
             continue;
         }
@@ -311,7 +311,7 @@ void TemplateInferRequest::inferPostprocess() {
     for (auto&& output : _networkOutputs) {
         auto index = _executableNetwork->_outputIndex[output.first];
         const auto& result = _executableNetwork->_function->get_results()[index];
-        if (result->get_partial_shape().is_dynamic()) {
+        if (result->get_output_partial_shape(0).is_dynamic()) {
             // Touch blob to allocate it
             Blob::Ptr blob;
             GetBlob(output.first);
@@ -320,7 +320,7 @@ void TemplateInferRequest::inferPostprocess() {
         auto networkOutput = _networkOutputBlobs[output.first];
         if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
             blobCopy(networkOutput, outputBlob);
-        } else if (result->get_partial_shape().is_dynamic()) {
+        } else if (result->get_output_partial_shape(0).is_dynamic()) {
             auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(output.first)];
             tensor->read(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<char*>(),
                          tensor->get_size_in_bytes());

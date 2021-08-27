@@ -512,13 +512,6 @@ const Shape& Node::get_shape() const {
     return get_output_shape(0);
 }
 
-const PartialShape& Node::get_partial_shape() const {
-    NODE_VALIDATION_CHECK(this,
-                          get_output_size() == 1,
-                          "get_partial_shape() must be called on a node with exactly one output");
-    return get_output_partial_shape(0);
-}
-
 std::set<Input<Node>> Node::get_output_target_inputs(size_t i) const {
     std::set<Input<Node>> result;
 

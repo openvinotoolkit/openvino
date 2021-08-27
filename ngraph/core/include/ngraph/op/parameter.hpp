@@ -34,7 +34,7 @@ public:
     bool is_relevant_to_shapes() const;
     void set_is_relevant_to_shapes(bool is_relevant);
 
-    const PartialShape& get_partial_shape() const override {
+    const PartialShape& get_partial_shape() const {
         return m_partial_shape;
     }
     PartialShape& get_partial_shape() {
