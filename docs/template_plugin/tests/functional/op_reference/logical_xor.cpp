@@ -24,18 +24,18 @@ std::vector<RefLogicalParams> generateLogicalParams() {
     std::vector<RefLogicalParams> logicalParams {
         Builder {}
             .opType(LogicalTypes::LOGICAL_XOR)
-            .input1({{2, 2}, element::boolean, std::vector<char> {true, false, true, false}})
-            .input2({{2, 2}, element::boolean, std::vector<char> {false, true, true, false}})
+            .inputs({{{2, 2}, element::boolean, std::vector<char> {true, false, true, false}},
+                     {{2, 2}, element::boolean, std::vector<char> {false, true, true, false}}})
             .expected({{2, 2}, element::boolean, std::vector<char> {true, true, false, false}}),
         Builder {}
             .opType(LogicalTypes::LOGICAL_XOR)
-            .input1({{2, 1, 2, 1}, element::boolean, std::vector<char> {true, false, true, false}})
-            .input2({{1, 1, 2, 1}, element::boolean, std::vector<char> {true, false}})
+            .inputs({{{2, 1, 2, 1}, element::boolean, std::vector<char> {true, false, true, false}},
+                     {{1, 1, 2, 1}, element::boolean, std::vector<char> {true, false}}})
             .expected({{2, 1, 2, 1}, element::boolean, std::vector<char> {false, false, false, false}}),
         Builder {}
             .opType(LogicalTypes::LOGICAL_XOR)
-            .input1({{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, false, true, false, false, true, true, true}})
-            .input2({{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, true, true, false, false, true, true, false}})
+            .inputs({{{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, false, true, false, false, true, true, true}},
+                     {{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, true, true, false, false, true, true, false}}})
             .expected({{3, 4}, element::boolean, std::vector<char> {false, false, false, false, false, true, false, false, false, false, false, true}})};
     return logicalParams;
 }
