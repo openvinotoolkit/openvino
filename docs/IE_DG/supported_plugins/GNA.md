@@ -194,7 +194,7 @@ executableNet.SetConfig(newConfig);
 
 ## GNA3 Automatic QoS Feature on Windows*
 
-Starting with 2021.4.1 release of OpenVINO and 1361 version of Windows* GNA driver, a new execution mode (GNA_HW_WITH_SW_FBACK) is introduced
+Starting with 2021.4.1 release of OpenVINO and 03.00.00.1363 version of Windows* GNA driver, a new execution mode (GNA_HW_WITH_SW_FBACK) is introduced
 to assure that workloads satisfy real-time execution. In this mode, the GNA driver automatically falls back on CPU for a particular infer request
 if the HW queue is not empty, so there is no need for explicitly switching between GNA and CPU.
 
