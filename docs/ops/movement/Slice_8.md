@@ -12,7 +12,7 @@ at indexes provides in `stop` input (exclusively).
 
 Input `step` allows subsampling of `data`, selecting evey *n*-th element,
 where `n` is equal to `step` element for corresponding axis.
-Negative `step` value indicates slicing backwards, so the sequence along corresponding axis is reversed in the output tensor.
+Negative `step` value indicates slicing backwards, so the sequence along the corresponding axis is reversed in the output tensor.
 
 Optional `axes` input allows specifying slice indexes only on selected axes.
 Other axes will not be affected and will be output in full.
@@ -34,24 +34,24 @@ The rules follow python language slicing `data[start:stop:step]`.
   Defines the coordinate of the opposite vertex of the slice, or where the slice ends.
   Stop indexes are exclusive, which means values lying on the ending edge are
   not included in the output slice.
-  In order to slice to the end of a dimension of unknown size `INT_MAX`
+  To slice to the end of a dimension of unknown size `INT_MAX`
   may be used (or `INT_MIN` if slicing backwards). **Required.**
 
 * **4**: `step` - 1D tensor of type *T_INT* and the same shape as `start` and `stop`.
-  Integer value which specifies the increment between each index used in slicing.
+  Integer value that specifies the increment between each index used in slicing.
   Value cannot be `0`, negative value indicates slicing backwards. **Required.**
 
 * **5**: `axes` - 1D tensor of type *T_INT*.
-  Optional 1D tensor indicating to which dimensions, the values in `start` and `stop` apply.
-  Negative value means counting dimension from the end. The range is `[-r, r - 1]`, where `r` is the rank of the `data` input tensor.
-  Values are required to be unique. If a particular axis is unspecified, it is considered as whole dimension.
+  Optional 1D tensor indicating to which dimensions apply the values in `start` and `stop`.
+  Negative value means counting dimensions from the end. The range is `[-r, r - 1]`, where `r` is the rank of the `data` input tensor.
+  Values are required to be unique. If a particular axis is unspecified, it is considered as a whole dimension.
   Default value: `[0, 1, 2, ..., start.shape[0] - 1]`. **Optional.**
 
 Number of elements in `start`, `stop`, `step` and `axes` inputs are required to be equal.
 
 **Outputs**
 
-* **1**: Tensor of type *T* with values of the selected slice. Shape of the output tensor has same rank as the shape of `data` input and reduced dimensions according to the values specified by `start`, `stop` and `step` inputs.
+* **1**: Tensor of type *T* with values of the selected slice. The shape of the output tensor has the same rank as the shape of `data` input and reduced dimensions according to the values specified by `start`, `stop` and `step` inputs.
 
 **Types**
 
