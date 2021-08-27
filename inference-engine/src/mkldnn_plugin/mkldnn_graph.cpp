@@ -1028,6 +1028,8 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
     auto parentConv = parentConvEdge->getParent();
     if (!parentConv) return;
 
+    parentConv->outputShapes[0] = node->outputShapes[0];
+
     for (size_t i = 0; i < 1; i++) {
         auto p_edge = parents[i].lock();
         if (!p_edge) continue;
