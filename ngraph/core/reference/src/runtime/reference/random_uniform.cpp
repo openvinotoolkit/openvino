@@ -135,7 +135,9 @@ bfloat16 uint32_to_bfloat16(uint32_t x) {
 // Runs Philox algorithm.
 void run_philox(uint64_t key, uint64_t counter, uint64_t n, size_t n_rounds, std::vector<uint32_t>& res) {
     for (size_t i = 0; i < n_rounds; i++) {
+        std::cout << "round start." << std::endl;
         calculate_round(key, counter, n);
+        std::cout << "round end." << std::endl;
         if (i < n_rounds - 1)
             raise_key(key);
     }
@@ -156,6 +158,7 @@ void random_uniform(const uint64_t* out_shape,
                     const ngraph::element::Type& elem_type,
                     uint64_t seed,
                     uint64_t seed2) {
+    std::cout << "random_uniform start." << std::endl;
     if (seed == 0 && seed2 == 0) {
         std::srand(std::time(nullptr));
         seed = std::rand();
@@ -168,17 +171,24 @@ void random_uniform(const uint64_t* out_shape,
     for (size_t i = 0; i < shape_count; i++) {
         elem_count *= out_shape[i];
     }
+    std::cout << "elem count = " << elem_count << std::endl;
+    std::cout << "shape_count = " << shape_count << std::endl;
     // Each run of Philox algorithm generates 4 uint32 values.
     // If output_type is int32, f32, bf16, or f16 each value is converted to
     // corresponding type so we have 4 result values. For f64 and i64 we use
     // a pair of values for conversion, so we have 2 result values.
     // Step indicates how many values we generate in one iteration.
     const size_t step = elem_type.size() > 4 ? 2 : 4;
+    std::cout << "step = " << step << std::endl;
+    std::cout << "elem_type.size() = " << elem_type.size() << std::endl;
 
     for (size_t k = 0; k < elem_count; k += step) {
         // generate 4 random uint32 values using Philox algorithm
+        std::cout << "k = " << k << std::endl;
         std::vector<uint32_t> res(step);
+        std::cout << "philox start." << std::endl;
         run_philox(key, counter, n, rounds_number, res);
+        std::cout << "philox end." << std::endl;
 
         // convert values to corresponding output_type
         switch (elem_type) {
@@ -256,38 +266,21 @@ void random_uniform(const uint64_t* out_shape,
             break;
         }
         case ngraph::element::Type_t::i64: {
+            std::cout << "convert to int64 start." << std::endl;
             std::vector<int64_t> res_int64(step);
-            std::cout << "random_uniform iteration start." << std::endl;
-            std::cout << step << std::endl;
             int64_t mn[1];
             int64_t mx[1];
             memcpy(mn, min_val, elem_type.size());
             memcpy(mx, max_val, elem_type.size());
-            std::cout << "min max:" << std::endl;
-            std::cout << mn[0] << std::endl;
-            std::cout << mx[0] << std::endl;
             // convert 2 pairs of uint32 values to 2 double values and normalize to
             // range [min_val, max_val)
-            std::cout << "philox output:" << std::endl;
-            std::cout << res[0] << std::endl;
-            std::cout << res[1] << std::endl;
-            std::cout << res[2] << std::endl;
-            std::cout << res[3] << std::endl;
-            std::cout << "unite_high_low:" << std::endl;
-            std::cout << unite_high_low(res[1], res[0]) << std::endl;
-            std::cout << unite_high_low(res[3], res[2]) << std::endl;
             auto v1 = static_cast<int64_t>(unite_high_low(res[1], res[0]) % (mx[0] - mn[0]));
             auto v2 = static_cast<int64_t>(unite_high_low(res[3], res[2]) % (mx[0] - mn[0]));
 
-            std::cout << "v1 v2:" << std::endl;
-            std::cout << v1 << std::endl;
-            std::cout << v2 << std::endl;
             res_int64[0] = v1 + mn[0];
             res_int64[1] = v2 + mn[0];
-            std::cout << "memcopy start:" << std::endl;
             memcpy(out + k * elem_type.size(), res_int64.data(), std::min(step, elem_count - k) * elem_type.size());
-            std::cout << "memcopy end." << std::endl;
-            std::cout << "random_uniform iteration end." << std::endl;
+            std::cout << "convert to int64 end." << std::endl;
             break;
         }
         default:
@@ -296,6 +289,7 @@ void random_uniform(const uint64_t* out_shape,
         if (++n == 0)
             ++counter;
     }
+    std::cout << "random_uniform end." << std::endl;
 }
 
 }  // namespace reference
