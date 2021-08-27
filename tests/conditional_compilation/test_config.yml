@@ -3,11 +3,6 @@
 
 -
     - model:
-        name: inception-resnet-v2-tf
-        path: ${OMZ_MODELS_PATH}/inception-resnet-v2-tf
-        precision: FP32
--
-    - model:
         path: ${TESTDATA}/models/mobilenet_v2_1.4_224/mobilenet_v2_1.4_224_i8.xml
 -
     - model:
@@ -34,3 +29,39 @@
         path: ${TESTDATA}/models/mobilenet_v2_1.4_224/mobilenet_v2_1.4_224_i8.xml
     - model:
         path: ${TESTDATA}/models/mobilenet_v2_1.0_224/mobilenet_v2_1.0_224_i8.xml
+-
+    - model:
+        name: inception-resnet-v2-tf
+        path: ${OMZ_MODELS_PATH}/inception-resnet-v2-tf
+        precision: FP32
+        framework: TensorFlow
+-
+    - model:
+        name: yolo-v3-tf
+        path: ${OMZ_MODELS_PATH}/yolo-v3-tf
+        precision: FP32
+        framework: Keras
+-
+    - model:
+        name: octave-resnext-101-0.25
+        path: ${OMZ_MODELS_PATH}/octave-resnext-101-0.25
+        precision: FP32
+        framework: MXNet
+-
+    - model:
+        name: fast-neural-style-mosaic-onnx
+        path: ${OMZ_MODELS_PATH}/fast-neural-style-mosaic-onnx
+        precision: FP32
+        framework: ONNX
+-
+    - model:
+        name: efficientdet-d1-tf
+        path: ${OMZ_MODELS_PATH}/efficientdet-d1-tf
+        precision: FP32
+        framework: TensorFlow
+-
+    - model:
+        name: densenet-201
+        path: ${OMZ_MODELS_PATH}/densenet-201
+        precision: FP32
+        framework: Caffe
