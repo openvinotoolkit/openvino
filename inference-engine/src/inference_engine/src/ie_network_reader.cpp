@@ -254,8 +254,9 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         auto ngFunc = FE->convert(inputModel);
         return CNNNetwork(ngFunc, exts);
     }
-    IE_THROW() << "Unknown model format! Cannot find reader for model format: " << fileExt
-               << " and read the model: " << modelPath << ". Please check that reader library exists in your PATH.";
+    IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
+                             << " Please check that model format: " << fileExt
+                             << " is supported and the model is correct.";
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model,
@@ -288,8 +289,8 @@ CNNNetwork details::ReadNetwork(const std::string& model,
         return CNNNetwork(ngFunc, exts);
     }
 
-    IE_THROW() << "Unknown model format! Cannot find reader for the model and read it. Please check that reader "
-                  "library exists in your PATH.";
+    IE_THROW(NetworkNotRead)
+        << "Unable to read the model. Please check if the model format is supported and model is correct.";
 }
 
 }  // namespace InferenceEngine
