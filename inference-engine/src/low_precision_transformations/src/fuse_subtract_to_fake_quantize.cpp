@@ -37,11 +37,11 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
     }
 
     const auto parent = subtract->get_input_node_shared_ptr(0);
-    auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(parent);
-    const auto convert = as_type_ptr<opset1::Convert>(parent);
+    auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(parent);
+    const auto convert = ov::as_type_ptr<opset1::Convert>(parent);
 
     if (convert) {
-        fakeQuantize = as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
     const auto subtractConstant = subtract->get_input_node_shared_ptr(1);
@@ -84,7 +84,7 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
 }
 
 bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!is_type<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
+    if (!ov::is_type<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
         return false;
     }
 
@@ -95,20 +95,20 @@ bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const Transforma
     const auto children = operation->get_output_target_inputs(0);
 
     for (const auto& target : children) {
-        const auto convolution = is_type<opset1::Convolution>(target.get_node());
-        const auto groupConvolution = is_type<opset1::GroupConvolution>(target.get_node());
-        const auto convolutionBackpropData = is_type<opset1::ConvolutionBackpropData>(target.get_node());
+        const auto convolution = ov::is_type<opset1::Convolution>(target.get_node());
+        const auto groupConvolution = ov::is_type<opset1::GroupConvolution>(target.get_node());
+        const auto convolutionBackpropData = ov::is_type<opset1::ConvolutionBackpropData>(target.get_node());
         if (convolution || groupConvolution || convolutionBackpropData) {
             return false;
         }
     }
 
     const auto parent = operation->get_input_node_shared_ptr(0);
-    auto fq = as_type_ptr<opset1::FakeQuantize>(parent);
-    const auto convert = as_type_ptr<opset1::Convert>(parent);
+    auto fq = ov::as_type_ptr<opset1::FakeQuantize>(parent);
+    const auto convert = ov::as_type_ptr<opset1::Convert>(parent);
 
     if (convert) {
-        fq = as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fq = ov::as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
     if (!fq) {

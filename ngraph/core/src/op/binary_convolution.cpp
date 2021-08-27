@@ -117,7 +117,7 @@ bool op::v1::BinaryConvolution::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-namespace ngraph {
+namespace ov {
 template <>
 NGRAPH_API EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>&
 EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>::get() {
@@ -128,11 +128,11 @@ EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>::get() {
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<op::v1::BinaryConvolution::BinaryConvolutionMode>::type_info;
+}  // namespace ov
 
 std::ostream& operator<<(std::ostream& s, const op::v1::BinaryConvolution::BinaryConvolutionMode& type) {
     return s << as_string(type);
 }
-}  // namespace ngraph
 
 op::v1::BinaryConvolution::BinaryConvolutionMode op::v1::BinaryConvolution::mode_from_string(
     const std::string& mode) const {

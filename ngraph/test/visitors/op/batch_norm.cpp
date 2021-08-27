@@ -38,7 +38,7 @@ TYPED_TEST_P(BatchNormAttrTest, batch_norm_inference_op) {
     const auto expected_attr_count = 1;
     NodeBuilder builder(batch_norm);
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
-    auto g_batch_norm = as_type_ptr<TypeParam>(builder.create());
+    auto g_batch_norm = ov::as_type_ptr<TypeParam>(builder.create());
     EXPECT_EQ(g_batch_norm->get_eps_value(), batch_norm->get_eps_value());
 }
 
