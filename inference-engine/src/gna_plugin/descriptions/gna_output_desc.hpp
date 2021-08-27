@@ -10,6 +10,7 @@
 
 namespace GNAPluginNS {
 struct OutputDesc {
+    uint8_t precision;
     double scale_factor = 1.0;
     uint32_t num_bytes_per_element = 0;
     uint32_t num_elements = 0;
