@@ -20,7 +20,7 @@ using namespace InferenceEngine;
 struct ErfParams {
     template <class IT>
     ErfParams(const ngraph::PartialShape& shape, const ngraph::element::Type& iType, const std::vector<IT>& iValues)
-        : pshape(shape), inType(iType), outType(iType), inputData(CreateBlob(iType, iValues)) {
+        : pshape(shape), inType(iType), outType(iType), inputData(CreateBlob(iType, shape, iValues)) {
         std::vector<IT> oValues;
         std::vector<double> output;
         for (auto element : iValues)
@@ -38,7 +38,7 @@ struct ErfParams {
 
         for (auto element : output)
             oValues.push_back(static_cast<IT>(element));
-        refData = CreateBlob(outType, oValues);
+        refData = CreateBlob(outType, pshape, oValues);
     }
     ngraph::PartialShape pshape;
     ngraph::element::Type inType;
