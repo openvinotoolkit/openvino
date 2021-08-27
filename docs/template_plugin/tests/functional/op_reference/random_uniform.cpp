@@ -87,6 +87,7 @@ TEST_P(ReferenceRandomUniformLayerTest, RandomUniformWithHardcodedRefs) {
 
 }  // namespace
 
+// Reference values for the following tests are obtained from single layer TensorFlow model with tf.random.uniform(). 
 INSTANTIATE_TEST_SUITE_P(
     smoke_RandomUniform_With_Hardcoded_Refs,
     ReferenceRandomUniformLayerTest,
@@ -127,6 +128,7 @@ INSTANTIATE_TEST_SUITE_P(
                             10,
                             Tensor{{3, 2, 4},
                                    element::f32,
+#The following numbers are obtained from tf.random.uniform().
                                    std::vector<float>{121.23596191,  -314.06405640, 383.24157715,  390.16381836,
                                                       -521.35742188, -91.52935791,  -78.30828857,  -399.99786377,
                                                       440.51147461,  -259.29055786, 259.61541748,  8.51342773,
@@ -142,6 +144,7 @@ INSTANTIATE_TEST_SUITE_P(
                             10,
                             Tensor{{3, 2, 4},
                                    element::f16,
+#The following numbers are obtained from tf.random.uniform().
                                    std::vector<float16>{-1.19726562, -1.09667969, -1.08398438, -1.30859375, -1.48242188,
                                                         -1.45898438, -1.22851562, -1.08300781, -1.33203125, -1.14062500,
                                                         -1.42285156, -1.43554688, -1.32617188, -1.06542969, -1.29296875,
