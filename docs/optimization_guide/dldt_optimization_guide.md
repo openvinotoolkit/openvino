@@ -338,7 +338,7 @@ For inference on the CPU there are multiple threads binding options, see
 If you are building an app-level pipeline with third-party components like GStreamer*, the general guidance for NUMA machines is as follows:
 - Whenever possible, use at least one instance of the pipeline per NUMA node:
    - Pin the _entire_ pipeline instance to the specific NUMA node at the outer-most level (for example, use Kubernetes* and/or `numactl` command with proper settings before  actual GStreamer commands).
-   - Disable any individual pinning by the pipeline components (e.g. set [CPU_BIND_THREADS to 'NO'](../IE_DG/supported_plugins/CPU.md)).
+   - Disable any individual pinning by the pipeline components (for example, set [CPU_BIND_THREAD to 'NO'](../IE_DG/supported_plugins/CPU.md)).
    - Limit each instance with respect to number of inference threads. Use  [CPU_THREADS_NUM](../IE_DG/supported_plugins/CPU.md) or  or other means (e.g. virtualization, Kubernetes*, etc), to avoid oversubscription.
 - If pinning instancing/pinning of the entire pipeline is not possible or desirable, relax the inference threads pinning to just 'NUMA'.
    - This is less restrictive compared to the default pinning of threads to cores, yet avoids NUMA penalties.
