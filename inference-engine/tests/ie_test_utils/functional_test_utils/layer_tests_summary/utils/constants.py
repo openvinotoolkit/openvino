@@ -45,6 +45,7 @@ VERIFIED_OP_REFERENCES = [
     'Gather-1',
     'GatherElements-6',
     'GatherND-5',
+    'GatherTree-1',
     'Gelu-7',
     'Greater-1',
     'GreaterEqual-1',
