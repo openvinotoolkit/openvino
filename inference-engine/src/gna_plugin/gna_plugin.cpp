@@ -518,6 +518,33 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
     }
 }
 
+void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork & network) {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputsAndOutputsInfoFromNetwork");
+
+    // update inputs
+    {
+        InputsDataMap inputs = network.getInputsInfo();
+        if (inputsDesc->inputPrecisions.size() != 0) {
+            inputsDesc->inputPrecisions.clear();
+        }
+        for (const auto input : inputs) {
+            inputsDesc->inputPrecisions.push_back(input.second->getPrecision().getPrecVal());
+        }
+    }
+
+    // update outputs
+    {
+        OutputsDataMap outputs = network.getOutputsInfo();
+        outputsDesc.resize(outputs.size());
+
+        size_t outputIdx = 0;
+        for (const auto output : outputs) {
+            outputsDesc[outputIdx].precision = output.second->getPrecision().getPrecVal();
+            ++outputIdx;
+        }
+    }
+}
+
 bool GNAPlugin::TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer) {
     auto initOutput = [this, portId, layer]
             (intel_dnn_orientation_t orientation, size_t numBytesPerElem, size_t numElem, void* outputPtr) {
@@ -759,6 +786,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     UpdateGnaQuantModeFromNetwork(network);
     UpdateInputScaleFromNetwork(network);
 
+    // Set input and output information from orginal network
+    UpdateInputsAndOutputsInfoFromNetwork(network);
+
     if (MustBeConvertedFromNCHWToNHWC(details::CNNNetSortTopologically(network))) {
         FillInputsAndOutputsTranspositionInfo(network);
     }
@@ -922,7 +952,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         inputsDesc->getPtrInputsGlobal(input.first).resize(gnaFlags->gna_lib_async_threads_num);
     }
 
-    // CreatingLayer primitives
+    // Creating Layer primitives
     for (auto & layer : sortedNoMem) {
         graphCompiler.CreateLayerPrimitive(layer);
     }
@@ -940,8 +970,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     /// setting-up output layers information
-    outputsDesc.resize(outputsDataMap.size());
-
     int portId = 0;
     for (auto && outPort : outputsDataMap) {
         // gets output layer pointer in original topology not in cloned
