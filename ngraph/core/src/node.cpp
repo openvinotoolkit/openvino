@@ -838,6 +838,7 @@ bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_
     return false;
 }
 
+namespace ov {
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Node>>::type_info;
 
 AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>& value) : m_ref(value) {}
@@ -877,3 +878,4 @@ bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor) {
     }
     return true;
 }
+}  // namespace ov
