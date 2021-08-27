@@ -10,7 +10,7 @@
 Selected values start at indexes provided in the `start` input and end
 at indexes provides in `stop` input (exclusively).
 
-Optional `step` input allows subsampling of `data`, selecting evey *n*-th element,
+Input `step` allows subsampling of `data`, selecting evey *n*-th element,
 where `n` is equal to `step` element for corresponding axis.
 Negative `step` value indicates slicing backwards, so the sequence along corresponding axis is reversed in the output tensor.
 
@@ -39,8 +39,7 @@ The rules follow python language slicing `data[start:stop:step]`.
 
 * **4**: `step` - 1D tensor of type *T_INT* and the same shape as `start` and `stop`.
   Integer value which specifies the increment between each index used in slicing.
-  Value cannot be `0`, negative value indicates slicing backwards.
-  Default value: `[1, 1, ..., 1]`. **Optional.**
+  Value cannot be `0`, negative value indicates slicing backwards. **Required.**
 
 * **5**: `axes` - 1D tensor of type *T_INT*.
   Optional 1D tensor indicating to which dimensions, the values in `start` and `stop` apply.
@@ -48,7 +47,7 @@ The rules follow python language slicing `data[start:stop:step]`.
   Values are required to be unique. If a particular axis is unspecified, it is considered as whole dimension.
   Default value: `[0, 1, 2, ..., start.shape[0] - 1]`. **Optional.**
 
-Ranks of `start`, `stop`, `step` and `axes` are required to be equal.
+Number of elements in `start`, `stop`, `step` and `axes` inputs are required to be equal.
 
 **Outputs**
 
@@ -91,7 +90,7 @@ Ranks of `start`, `stop`, `step` and `axes` are required to be equal.
 </layer>
 ```
 
-*Example 2: basic slicing, `axis` and `step` default*
+*Example 2: basic slicing, `axes` default*
 
 ```xml
 <layer id="1" type="Slice" ...>
@@ -105,9 +104,12 @@ Ranks of `start`, `stop`, `step` and `axes` are required to be equal.
         <port id="2">       <!-- stop: [8] -->
           <dim>1</dim>
         </port>
+        <port id="3">       <!-- step: [1] -->
+          <dim>1</dim>
+        </port>
     </input>
     <output>
-        <port id="3">       <!-- output: [1, 2, 3, 4, 5, 6, 7] -->
+        <port id="4">       <!-- output: [1, 2, 3, 4, 5, 6, 7] -->
             <dim>7</dim>
         </port>
     </output>
