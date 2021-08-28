@@ -108,16 +108,6 @@ public:
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
-template <>
-class FRONTEND_API VariantWrapper<std::istringstream*> : public VariantImpl<std::istringstream*> {
-public:
-    static constexpr VariantTypeInfo type_info{"Variant::std::istringstream*", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
-};
-
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
 class FRONTEND_API VariantWrapper<std::wstring> : public VariantImpl<std::wstring> {
