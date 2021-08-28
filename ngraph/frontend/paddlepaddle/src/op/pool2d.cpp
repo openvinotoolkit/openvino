@@ -100,8 +100,6 @@ NamedOutputs pool2d(const NodeContext& node) {
                                                       {"Out"});
         }
     } else if (adaptive) {
-        PDPD_ASSERT(input_shape[2].is_static() && input_shape[3].is_static(),
-                    "pool2d: spatial dim must be static when using adaptive pool");
         auto pool_size = std::vector<int64_t>(2, 0);
 
         if (kernel_shape.size() == 1) {
