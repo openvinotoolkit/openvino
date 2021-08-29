@@ -27,5 +27,22 @@ std::shared_ptr<ngraph::Node> makeLogical(const ngraph::Output<Node> &in0,
     }
 }
 
+std::shared_ptr<ngraph::Node> makeLogical(const ngraph::ParameterVector& inputs,
+                                          ngraph::helpers::LogicalTypes logicalType) {
+    switch (logicalType) {
+        case ngraph::helpers::LogicalTypes::LOGICAL_AND:
+            return std::make_shared<ngraph::opset3::LogicalAnd>(inputs[0], inputs[1]);
+        case ngraph::helpers::LogicalTypes::LOGICAL_OR:
+            return std::make_shared<ngraph::opset3::LogicalOr>(inputs[0], inputs[1]);
+        case ngraph::helpers::LogicalTypes::LOGICAL_NOT:
+            return std::make_shared<ngraph::opset3::LogicalNot>(inputs[0]);
+        case ngraph::helpers::LogicalTypes::LOGICAL_XOR:
+            return std::make_shared<ngraph::opset3::LogicalXor>(inputs[0], inputs[1]);
+        default: {
+            throw std::runtime_error("Incorrect type of Logical operation");
+        }
+    }
+}
+
 }  // namespace builder
 }  // namespace ngraph
