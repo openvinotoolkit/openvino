@@ -32,13 +32,11 @@ struct OPENVINO_API DiscreteTypeInfo {
 
     DiscreteTypeInfo() = default;
 
-    constexpr DiscreteTypeInfo(const char* _name,
-                               uint64_t _version,
-                               const DiscreteTypeInfo* _parent = nullptr)
+    constexpr DiscreteTypeInfo(const char* _name, uint64_t _version, const DiscreteTypeInfo* _parent = nullptr)
         : name(_name),
           version(_version),
-          parent(_parent),
-          version_id(nullptr) {}
+          version_id(nullptr),
+          parent(_parent) {}
 
     constexpr DiscreteTypeInfo(const char* _name,
                                uint64_t _version,
@@ -46,8 +44,8 @@ struct OPENVINO_API DiscreteTypeInfo {
                                const DiscreteTypeInfo* _parent = nullptr)
         : name(_name),
           version(_version),
-          parent(_parent),
-          version_id(_version_id) {}
+          version_id(_version_id),
+          parent(_parent) {}
 
     bool is_castable(const DiscreteTypeInfo& target_type) const {
         return *this == target_type || (parent && parent->is_castable(target_type));
