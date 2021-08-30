@@ -80,14 +80,14 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
 }
 
 std::vector<TestCaseMemLeaks> generateTestsParamsMemLeaks() {
-    std::vector<TestCase> tests_cases;
+    std::vector<TestCaseMemLeaks> tests_cases;
     const pugi::xml_document & test_config = Environment::Instance().getTestConfig();
 
-    int numprocesses, numthreads, numiteration,
-    std::string device;
+    int numprocesses, numthreads, numiterations;
+    std::string device_name;
 
     pugi::xml_node cases;
-    cases = test_config.child("cases").child("device");
+    cases = test_config.child("cases");
 
     for (pugi::xml_node device = cases.first_child(); device; device = device.next_sibling()) {
         device_name = device.attribute("name").as_string("NULL");
@@ -95,29 +95,28 @@ std::vector<TestCaseMemLeaks> generateTestsParamsMemLeaks() {
         numthreads = device.attribute("threads").as_int(1);
         numiterations = device.attribute("iterations").as_int(1);
 
-        std::vector<std::map<std::string, std::string>> models;
+        std::vector <std::map <std::string, std::string>> models;
 
         for (pugi::xml_node model = device.first_child(); model; model = model.next_sibling()){
-            std::map<std::string, std::string> models;
             std::string full_path = model.attribute("full_path").as_string();
             std::string path = model.attribute("path").as_string();
             if (full_path.empty() || path.empty())
                 throw std::logic_error("One of the 'model' records from test config doesn't contain 'full_path' or 'path' attributes");
-            else {
-                model["path"] = full_path;
-                model["name"] = path;
-            }
             std::string precision = model.attribute("precision").as_string();
-            model["precision"] = precision;
-            models.push_back(model);
+            std::map<std::string, std::string> model_map { {"name", path}, {"path", full_path}, {"path", precision} };
+            models.push_back(model_map);
         }
-        tests_cases.push_back(TestCaseMemLeaks(numprocesses, numthreads, numiters, device_name, models))
+        tests_cases.push_back(TestCaseMemLeaks(numprocesses, numthreads, numiterations, device_name, models));
     }
 
     return tests_cases;
 }
 
 std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj) {
+    return obj.param.test_case_name;
+}
+
+std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<TestCaseMemLeaks> &obj) {
     return obj.param.test_case_name;
 }
 

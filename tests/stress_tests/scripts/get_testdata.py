@@ -85,6 +85,18 @@ def run_in_subprocess(cmd, check_call=True):
     else:
         subprocess.call(cmd, shell=True)
 
+def get_model_recs(test_conf_root, test_framework):
+    """Pparse models from test config."""
+    if test_framework == "memleak":
+        model_recs = []
+        for device_rec in test_conf_root.findall("device"):
+            for model_rec in device_rec.findall("model"):
+                model_recs.append(model_rec)
+
+        return model_recs
+
+    return test_conf_root.findall("model")
+
 
 def main():
     """Main entry point.
@@ -95,6 +107,8 @@ def main():
     parser.add_argument('--test_conf', required=True, type=Path,
                         help='Path to a test config .xml file containing models '
                              'which will be downloaded and converted to IRs via OMZ.')
+    parser.add_argument('--test_framework', required=False, type=str,
+                        help='Test config framework')
     parser.add_argument('--omz_repo', required=False,
                         help='Path to Open Model Zoo (OMZ) repository. It will be used to skip cloning step.')
     parser.add_argument('--mo_tool', type=Path,
@@ -141,10 +155,11 @@ def main():
         Venv.create_n_install_requirements(*requirements)
         python_executable = Venv.get_venv_executable()
 
-    # parse models from test config
     test_conf_obj = ET.parse(str(args.test_conf))
     test_conf_root = test_conf_obj.getroot()
-    for model_rec in test_conf_root.find("models"):
+    model_recs = get_model_recs(test_conf_root, args.test_framework)
+
+    for model_rec in model_recs:
         if "name" not in model_rec.attrib or model_rec.attrib.get("source") != "omz":
             continue
         model_name = model_rec.attrib["name"]
