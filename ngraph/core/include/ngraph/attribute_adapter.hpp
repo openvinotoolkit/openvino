@@ -21,10 +21,7 @@ using ov::DirectValueAccessor;
 
 using ov::IndirectScalarValueAccessor;
 
-template <typename A, typename B>
-A copy_from(B& b) {
-    return ov::copy_from<A>(b);
-}
+using ov::copy_from;
 
 using ov::IndirectVectorValueAccessor;
 

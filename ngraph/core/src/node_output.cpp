@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/node_output.hpp"
+#include "openvino/core/node_output.hpp"
 
 #include "ngraph/log.hpp"
-#include "ngraph/node.hpp"
 #include "ngraph/variant.hpp"
+#include "openvino/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 Output<Node>::Output(Node* node, size_t index) : m_node(node->shared_from_this()), m_index(index) {}
 
 Output<Node>::Output(const std::shared_ptr<Node>& node, size_t index) : m_node(node), m_index(index) {}
@@ -39,7 +39,7 @@ std::shared_ptr<descriptor::Tensor> Output<Node>::get_tensor_ptr() const {
 const element::Type& Output<Node>::get_element_type() const {
     return m_node->get_output_element_type(m_index);
 }
-const Shape& Output<Node>::get_shape() const {
+const ngraph::Shape& Output<Node>::get_shape() const {
     return m_node->get_output_shape(m_index);
 }
 const PartialShape& Output<Node>::get_partial_shape() const {
@@ -128,7 +128,7 @@ std::shared_ptr<descriptor::Tensor> Output<const Node>::get_tensor_ptr() const {
 const element::Type& Output<const Node>::get_element_type() const {
     return m_node->get_output_element_type(m_index);
 }
-const Shape& Output<const Node>::get_shape() const {
+const ngraph::Shape& Output<const Node>::get_shape() const {
     return m_node->get_output_shape(m_index);
 }
 const PartialShape& Output<const Node>::get_partial_shape() const {
@@ -172,4 +172,4 @@ std::ostream& operator<<(std::ostream& out, const Output<const Node>& output) {
     return output.get_node()->write_description(out, 0)
            << "[" << output.get_index() << "]:" << output.get_element_type() << output.get_partial_shape();
 }
-}  // namespace ngraph
+}  // namespace ov

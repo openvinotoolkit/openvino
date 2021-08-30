@@ -11,28 +11,25 @@
 #include <unordered_set>
 
 #include "ngraph/shape.hpp"
+#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ngraph {
-class Node;
-
 namespace runtime {
 class HostTensor;
 }
 using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
-
 }  // namespace ngraph
+
 namespace ov {
+class Node;
 namespace descriptor {
 /// \brief Compile-time descriptor of a first-class value that is a tensor.
-class NGRAPH_API Tensor {
+class OPENVINO_API Tensor {
 public:
     Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name);
-    Tensor(const element::Type& element_type,
-           const PartialShape& pshape,
-           ngraph::Node* node,
-           size_t node_output_number);
+    Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
 
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
@@ -102,7 +99,7 @@ protected:
     std::unordered_set<std::string> m_names;
 };
 
-NGRAPH_API
+OPENVINO_API
 std::ostream& operator<<(std::ostream&, const ov::descriptor::Tensor&);
 }  // namespace descriptor
 }  // namespace ov
