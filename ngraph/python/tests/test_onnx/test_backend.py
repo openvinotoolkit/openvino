@@ -197,7 +197,12 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_argmax_negative_axis_keepdims_random_select_last_index_cpu",
         "OnnxBackendNodeModelTest.test_argmin_negative_axis_keepdims_random_select_last_index_cpu",
     ),
-    (xfail_issue_38091, "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu"),
+    (
+        xfail_issue_38091,
+        "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu",
+        "OnnxBackendNodeModelTest.test_dynamicquantizelinear_cpu",
+        "OnnxBackendNodeModelTest.test_dynamicquantizelinear_expanded_cpu",
+    ),
     (
         xfail_issue_52463,
         "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_singleton_broadcast_cpu",
