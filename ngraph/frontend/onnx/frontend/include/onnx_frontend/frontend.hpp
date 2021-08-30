@@ -19,6 +19,8 @@ public:
     std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override;
     void convert(std::shared_ptr<ngraph::Function> partially_converted) const override;
     std::shared_ptr<ngraph::Function> decode(InputModel::Ptr model) const override;
+    std::string get_name() const override;
+    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
 
 protected:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;

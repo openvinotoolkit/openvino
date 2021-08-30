@@ -26,7 +26,7 @@ constexpr DiscreteTypeInfo Function::type_info;
 atomic<size_t> Function::m_next_instance_id(0);
 
 void check_all_variables_registered(const std::vector<shared_ptr<Node>>& ordered_ops, const VariableVector& variables) {
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT, "Function::check_all_variables_registered");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraphPass_LT, "Function::check_all_variables_registered");
     std::stringstream unregistered_variables;
     for (auto& node : ordered_ops) {
         const auto& variable_op = dynamic_pointer_cast<VariableExtension>(node);
@@ -40,7 +40,7 @@ void check_all_variables_registered(const std::vector<shared_ptr<Node>>& ordered
 
 void check_all_parameters_registered(const std::vector<shared_ptr<Node>>& ordered_ops,
                                      const ParameterVector& parameters) {
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::check_all_parameters_registered");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::check_all_parameters_registered");
 
     std::stringstream unregistered_parameters;
     for (auto& node : ordered_ops) {
@@ -52,7 +52,7 @@ void check_all_parameters_registered(const std::vector<shared_ptr<Node>>& ordere
 }
 
 VariableVector auto_detect_variables(const std::vector<std::shared_ptr<Node>>& ordered_ops) {
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::auto_detect_variables");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::auto_detect_variables");
     unordered_set<VariablePtr> variables;
     for (const auto& op : ordered_ops) {
         if (const auto& variable_op = dynamic_pointer_cast<VariableExtension>(op)) {
@@ -63,7 +63,7 @@ VariableVector auto_detect_variables(const std::vector<std::shared_ptr<Node>>& o
 }
 
 ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr<Node>>& ordered_ops) {
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::auto_detect_parameters");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::auto_detect_parameters");
     ParameterVector parameter_vector;
     for (const auto& op : ordered_ops) {
         if (const auto& param = dynamic_pointer_cast<opset7::Parameter>(op)) {
@@ -168,7 +168,7 @@ Function::Function(const OutputVector& results, const SinkVector& sinks, const s
 Function::Function(const OutputVector& results, const string& name) : Function(results, SinkVector{}, name) {}
 
 void Function::prerequirements(bool detect_variables, bool detect_parameters) {
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::prerequirements");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::prerequirements");
 
     const auto& ordered_ops = get_ordered_ops();
     if (detect_parameters)
@@ -183,7 +183,7 @@ void Function::prerequirements(bool detect_variables, bool detect_parameters) {
 }
 
 void Function::validate_nodes_and_infer_types() const {
-    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::validate_nodes_and_infer_types");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::validate_nodes_and_infer_types");
 
     struct Counter {
         int cnt_assign = 0;
@@ -223,7 +223,7 @@ void Function::validate_nodes_and_infer_types() const {
 }
 
 std::vector<shared_ptr<Node>> Function::get_ordered_ops() const {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Function::get_ordered_ops");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::get_ordered_ops");
 
     vector<shared_ptr<Node>> nodes;
     for (auto& r : get_results()) {
@@ -388,7 +388,7 @@ int64_t Function::get_parameter_index(const std::shared_ptr<op::Parameter>& para
 
 int64_t Function::get_result_index(const Output<Node>& value) const {
     int64_t pos = 0;
-    if (is_type<op::Result>(value.get_node_shared_ptr())) {
+    if (ov::is_type<op::Result>(value.get_node_shared_ptr())) {
         auto result = value.get_node_shared_ptr();
         for (auto r : get_results()) {
             if (r == result) {
