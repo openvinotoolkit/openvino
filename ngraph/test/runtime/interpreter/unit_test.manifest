@@ -157,10 +157,3 @@ INTERPRETER.zero_sized_negative
 # No support yet for RandomUniform
 INTERPRETER.onnx_model_random_uniform
 INTERPRETER.onnx_model_random_uniform_like
-
-# Reference implementation in progress (54659)
-INTERPRETER.onnx_dyn_shapes_max_pool_with_indices_output
-INTERPRETER.onnx_model_max_pool_3d
-INTERPRETER.onnx_model_max_pool_4d_ceil_mode
-INTERPRETER.onnx_model_max_pool_4d_dilations
-INTERPRETER.onnx_model_max_pool_4d_strides
