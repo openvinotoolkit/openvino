@@ -88,17 +88,6 @@ std::vector<ScatterUpdate6Params> generateScatterUpdate6Params(const element::Ty
     using I = typename element_type_traits<INT_ET>::value_type;
     std::vector<ScatterUpdate6Params> ScatterUpdateParams {
         Builder {}
-            .data({{3, 5}, numeric_type, std::vector<N> {-1.0f, 1.0f, -1.0f, 3.0f, 4.0f,
-                                                         -1.0f, 6.0f, -1.0f, 8.0f, 9.0f,
-                                                         -1.0f, 11.0f, 1.0f, 13.0f, 14.0f}}) // rank 2
-            .indices({{2}, integer_type, std::vector<I> {0, 2}}) // rank 1
-            .updates({{2, 2}, numeric_type, std::vector<N> {1.0f, 1.0f, 1.0f, 1.0f,
-                                                            1.0f, 2.0f}}) // rank 2
-            .axis({{1}, integer_type, std::vector<I> {1}})
-            .expected({{3, 5}, numeric_type, std::vector<N> {1.0f, 1.0f, 1.0f, 3.0f, 4.0f,
-                                                             1.0f, 6.0f, 1.0f, 8.0f, 9.0f,
-                                                             1.0f, 11.0f, 2.0f, 13.0f, 14.0f}}),
-        Builder {}
             .data({{3, 3}, numeric_type, std::vector<N> {-1.0f, -1.0f, -1.0f,
                                                          3.0f, 4.0f, 1.0f,
                                                          5.0f, 3.0f, 1.0f}}) // rank 3
@@ -107,48 +96,48 @@ std::vector<ScatterUpdate6Params> generateScatterUpdate6Params(const element::Ty
                                                             1.0f, 2.0f, 3.0f,
                                                             4.0f, 2.0f, 1.0f}}) // rank 3
             .axis({{1}, integer_type, std::vector<I> {1}})
-            .expected({{3, 5}, numeric_type, std::vector<N> {1.0f, -1.0f, 1.0f,
+            .expected({{3, 3}, numeric_type, std::vector<N> {1.0f, -1.0f, 1.0f,
                                                              1.0f, 4.0f, 2.0f,
-                                                             4.0f, 3.0f, 2.0f}})};
-        // Builder {}
-        //     .data({{3, 5}, numeric_type, std::vector<N> {-1.0f, 1.0f, -1.0f, 3.0f, 4.0f,
-        //                                                  -1.0f, 6.0f, -1.0f, 8.0f, 9.0f,
-        //                                                  -1.0f, 11.0f, 1.0f, 13.0f, 14.0f}}) // rank 2
-        //     .indices({{2}, integer_type, std::vector<I> {0, 2}}) // rank 1
-        //     .updates({{3, 2}, numeric_type, std::vector<N> {1.0f, 1.0f, 1.0f, 1.0f,
-        //                                                     1.0f, 2.0f}}) // rank 2
-        //     .axis({{1}, integer_type, std::vector<I> {1}})
-        //     .expected({{3, 5}, numeric_type, std::vector<N> {1.0f, 1.0f, 1.0f, 3.0f, 4.0f,
-        //                                                      1.0f, 6.0f, 1.0f, 8.0f, 9.0f,
-        //                                                      1.0f, 11.0f, 2.0f, 13.0f, 14.0f}})};
-        // Builder {}
-        //     .data({{3}, numeric_type, std::vector<N> {-1.0f, -1.0f, -1.0f}}) // rank 1
-        //     .indices({{2}, integer_type, std::vector<I> {0, 1}}) // rank 1
-        //     .updates({{3}, numeric_type, std::vector<N> {2.0f, 3.0f, -2.0f}}) // rank 1
-        //     .axis({{1}, integer_type, std::vector<I> {1}})
-    //         .expected({{3}, numeric_type, std::vector<N> {2.0f, 3.0f, -2.0f}})};
+                                                             4.0f, 3.0f, 2.0f}}),
+        Builder {}
+            .data({{3, 5}, numeric_type, std::vector<N> {-1.0f, 1.0f, -1.0f, 3.0f, 4.0f,
+                                                         -1.0f, 6.0f, -1.0f, 8.0f, 9.0f,
+                                                         -1.0f, 11.0f, 1.0f, 13.0f, 14.0f}}) // rank 2
+            .indices({{2}, integer_type, std::vector<I> {0, 2}}) // rank 1
+            .updates({{3, 2}, numeric_type, std::vector<N> {1.0f, 1.0f, 1.0f, 1.0f,
+                                                            1.0f, 2.0f}}) // rank 2
+            .axis({{1}, integer_type, std::vector<I> {1}})
+            .expected({{3, 5}, numeric_type, std::vector<N> {1.0f, 1.0f, 1.0f, 3.0f, 4.0f,
+                                                             1.0f, 6.0f, 1.0f, 8.0f, 9.0f,
+                                                             1.0f, 11.0f, 2.0f, 13.0f, 14.0f}}),
+        Builder {}
+            .data({{3}, numeric_type, std::vector<N> {-1.0f, -1.0f, -1.0f}}) // rank 1
+            .indices({{2}, integer_type, std::vector<I> {0, 1}}) // rank 1
+            .updates({{3}, numeric_type, std::vector<N> {2.0f, 3.0f, -2.0f}}) // rank 1
+            .axis({{1}, integer_type, std::vector<I> {1}})
+            .expected({{3}, numeric_type, std::vector<N> {2.0f, 3.0f, -2.0f}})};
     return ScatterUpdateParams;
 }
 
 std::vector<ScatterUpdate6Params> generateScatterUpdateCombinedParams() {
     const std::vector<std::vector<ScatterUpdate6Params>> ScatterUpdateTypeParams {
         generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::i16>(element::f32, element::i16),
-        // generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::i32>(element::f32, element::i32),
-        // generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::i64>(element::f32, element::i64),
-        // generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::u8>(element::f32, element::u8),
-        // generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::u16>(element::f32, element::u16),
-        // generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::u32>(element::f32, element::u32),
-        // generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::i16>(element::f16, element::i16),
-        // generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::i32>(element::f16, element::i32),
-        // generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::i64>(element::f16, element::i64),
-        // generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::u8>(element::f16, element::u8),
-        // generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::u16>(element::f16, element::u16),
-        // generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::u32>(element::f16, element::u32),
-        // generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i16>(element::bf16, element::i16),
-        // generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i32>(element::bf16, element::i32),
-        // generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i64>(element::bf16, element::i64),
-        // generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::u8>(element::bf16, element::u8),
-        // generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::u16>(element::bf16, element::u16),
+        generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::i32>(element::f32, element::i32),
+        generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::i64>(element::f32, element::i64),
+        generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::u8>(element::f32, element::u8),
+        generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::u16>(element::f32, element::u16),
+        generateScatterUpdate6Params<element::Type_t::f32, element::Type_t::u32>(element::f32, element::u32),
+        generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::i16>(element::f16, element::i16),
+        generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::i32>(element::f16, element::i32),
+        generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::i64>(element::f16, element::i64),
+        generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::u8>(element::f16, element::u8),
+        generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::u16>(element::f16, element::u16),
+        generateScatterUpdate6Params<element::Type_t::f16, element::Type_t::u32>(element::f16, element::u32),
+        generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i16>(element::bf16, element::i16),
+        generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i32>(element::bf16, element::i32),
+        generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::i64>(element::bf16, element::i64),
+        generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::u8>(element::bf16, element::u8),
+        generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::u16>(element::bf16, element::u16),
         generateScatterUpdate6Params<element::Type_t::bf16, element::Type_t::u32>(element::bf16, element::u32)};
     std::vector<ScatterUpdate6Params> combinedParams;
 
