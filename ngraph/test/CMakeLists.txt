@@ -330,6 +330,7 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/scatter_elements_update.cpp
     visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp

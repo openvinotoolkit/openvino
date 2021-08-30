@@ -13,7 +13,7 @@
 using namespace ngraph;
 using namespace std;
 
-constexpr NodeTypeInfo op::v3::ScatterElementsUpdate::type_info;
+NGRAPH_RTTI_DEFINITION(op::ScatterElementsUpdate, "ScatterElementsUpdate", 3);
 
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                      const Output<Node>& indices,
