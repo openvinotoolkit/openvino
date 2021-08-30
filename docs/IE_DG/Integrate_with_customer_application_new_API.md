@@ -476,7 +476,7 @@ result = exec_net.infer({input_name: input_data})
 output = result[output_name] 
 ```
 
-#### Run Your Application
+### Run Your Application
 
 Congratulations, you've made your first Python application with OpenVINO™ toolkit, now you may run it.
 

@@ -1,3 +1,7 @@
+:root {
+    --switcher-border-active: var(--tabs--label-background--active);
+}
+
 .switcher-set {
     position: fixed;
     top: 60px;
@@ -5,10 +9,11 @@
     display: flex;
     flex-wrap: wrap;
     margin: 0.75em 0;
+    z-index:1000;
 }
 
 .switcher-button {
-    z-index: 1;
+    z-index: 1000;
     width: auto;
     border-bottom: 2px solid transparent;
     padding: 1em 1.25em 0.5em;
@@ -22,14 +27,10 @@
 }
 
 .switcher-button:hover {
-    color: var(--tabs--label-text--active);
-    background: var(--tabs--label-background--active);
-    border-color: var(--tabs--border--active);
     text-decoration:none;
 }
 
 .switcher-active {
-    color: var(--tabs--label-text--active);
-    background: var(--tabs--label-background--active);
     border-color: var(--tabs--border--active);
+    border-color: var(--switcher-border-active);
 }

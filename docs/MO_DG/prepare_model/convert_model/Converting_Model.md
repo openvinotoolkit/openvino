@@ -19,10 +19,20 @@
 
 @endsphinxdirective
 
-Use the <code>mo.py</code> script from the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory to run the Model Optimizer and convert the model to the Intermediate Representation (IR): 
-```sh
-python3 mo.py --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
-```
+Use the <code>mo.py</code> script from the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory to run the Model Optimizer and convert the model to the Intermediate Representation (IR):
+
+@sphinxdirective
+.. tab:: Package, docker, open source installation
+
+   .. code-block:: sh
+
+      python3 mo.py --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
+
+.. tab:: pip installation
+
+   TBD
+@endsphinxdirective
+
 You need to have have write permissions for an output directory.
 
 > **NOTE**: Some models require using additional arguments to specify conversion parameters, such as `--input_shape`, `--scale`, `--scale_values`, `--mean_values`, `--mean_file`. To learn about when you need to use these parameters, refer to [Converting a Model Using General Conversion Parameters](Converting_Model_General.md).

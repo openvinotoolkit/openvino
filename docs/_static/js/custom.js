@@ -8,15 +8,26 @@ $(document).ready(function() {
     handleSwitcherParam();
 });
 
+(function() {
+    var prevScroll = 0;
+    $(window).scroll(function() {
+        var curScroll = $(this).scrollTop();
+        if (curScroll < prevScroll) {
+            showSwitcherPanel();
+        }
+        else {
+            hideSwitcherPanel();
+        }
+        prevScroll = curScroll;
+    });
+}());
 
-$(window).scroll(function() {
+function hideSwitcherPanel() {
     $('.switcher-set').css('display', 'none');
-    clearTimeout(sw_timer);
-    sw_timer = setTimeout(showSwitcherPanel, 1000);
-});
+}
 
 function showSwitcherPanel() {
-    $('.switcher-set').css('display', 'block');
+    $('.switcher-set').css('display', 'flex');
 }
 
 function init_col_sections() {
