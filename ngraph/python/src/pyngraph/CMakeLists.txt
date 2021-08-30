@@ -18,7 +18,7 @@ target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::frontend_manager)
 
 if (TARGET ngraph::onnx_ngraph_frontend)
-    add_dependencies(_${PROJECT_NAME} onnx_ngraph_frontend::onnx_importer)
+    add_dependencies(_${PROJECT_NAME} ngraph::onnx_ngraph_frontend)
 endif()
 
 # perform copy
