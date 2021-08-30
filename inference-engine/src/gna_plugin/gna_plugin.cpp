@@ -488,7 +488,9 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
             auto fp32eq = [](float p1, float p2) -> bool {
                 return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
             };
-            float scaleInput = (fqLayer.getLevels() - 1) / (inputRange.second[0] - inputRange.first[0]);
+            // GNA input is always quantized to int16, so number of levels can't be greater than max uint16
+            size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max()));
+            float scaleInput = (levels - 1) / (inputRange.second[0] - inputRange.first[0]);
             auto minAbsVal = std::min(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
             auto maxAbsVal = std::max(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
             if (fp32eq(minAbsVal, 0.0f) && !fp32eq(maxAbsVal, 0.0f)) {
@@ -513,6 +515,33 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
         }
 
         inputIdx++;
+    }
+}
+
+void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork & network) {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputsAndOutputsInfoFromNetwork");
+
+    // update inputs
+    {
+        InputsDataMap inputs = network.getInputsInfo();
+        if (inputsDesc->inputPrecisions.size() != 0) {
+            inputsDesc->inputPrecisions.clear();
+        }
+        for (const auto input : inputs) {
+            inputsDesc->inputPrecisions.push_back(input.second->getPrecision().getPrecVal());
+        }
+    }
+
+    // update outputs
+    {
+        OutputsDataMap outputs = network.getOutputsInfo();
+        outputsDesc.resize(outputs.size());
+
+        size_t outputIdx = 0;
+        for (const auto output : outputs) {
+            outputsDesc[outputIdx].precision = output.second->getPrecision().getPrecVal();
+            ++outputIdx;
+        }
     }
 }
 
@@ -757,6 +786,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     UpdateGnaQuantModeFromNetwork(network);
     UpdateInputScaleFromNetwork(network);
 
+    // Set input and output information from orginal network
+    UpdateInputsAndOutputsInfoFromNetwork(network);
+
     if (MustBeConvertedFromNCHWToNHWC(details::CNNNetSortTopologically(network))) {
         FillInputsAndOutputsTranspositionInfo(network);
     }
@@ -920,7 +952,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         inputsDesc->getPtrInputsGlobal(input.first).resize(gnaFlags->gna_lib_async_threads_num);
     }
 
-    // CreatingLayer primitives
+    // Creating Layer primitives
     for (auto & layer : sortedNoMem) {
         graphCompiler.CreateLayerPrimitive(layer);
     }
@@ -938,8 +970,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     /// setting-up output layers information
-    outputsDesc.resize(outputsDataMap.size());
-
     int portId = 0;
     for (auto && outPort : outputsDataMap) {
         // gets output layer pointer in original topology not in cloned

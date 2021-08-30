@@ -41,6 +41,10 @@ onnx_model_matmul_integer_4d_no_zero_point
 onnx_model_qlinear_matmul
 onnx_model_qlinear_matmul_3d
 
+# No support yet for RandomUniform
+onnx_model_random_uniform
+onnx_model_random_uniform_like
+
 # Result mismatch
 onnx_model_shape
 onnx_model_split_equal_parts_default
@@ -1593,3 +1597,5 @@ IE_GPU.deformable_convolution_opset8_2D_neg_offsets_groups_and_deforgroups_mask
 IE_GPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
 IE_GPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
 
+# Not yet implemented - refer PR#6601
+IE_CPU.onnx_model_gather_float_2D_neg_indices
