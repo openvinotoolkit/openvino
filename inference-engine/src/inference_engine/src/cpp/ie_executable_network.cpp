@@ -6,6 +6,7 @@
 
 #include "cpp/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iremote_context.hpp"
 #include "ie_common.h"
 #include "ie_executable_network_base.hpp"
 
@@ -78,7 +79,7 @@ void ExecutableNetwork::Export(std::ostream& networkModel) {
 }
 
 CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo());
+    EXEC_NET_CALL_STATEMENT(return CNNNetwork{_impl->GetExecGraphInfo()});
 }
 
 void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {

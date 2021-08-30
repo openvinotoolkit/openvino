@@ -35,18 +35,6 @@ public:
     NGRAPH_API Shape& operator=(Shape&& v) noexcept;
 };
 
-template <>
-class NGRAPH_API AttributeAdapter<Shape> : public IndirectVectorValueAccessor<Shape, std::vector<int64_t>>
-
-{
-public:
-    AttributeAdapter(Shape& value) : IndirectVectorValueAccessor<Shape, std::vector<int64_t>>(value) {}
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Shape>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
-};
-
 /// Number of elements in spanned by a shape
 template <typename SHAPE_TYPE>
 size_t shape_size(const SHAPE_TYPE& shape) {
@@ -92,3 +80,19 @@ inline bool is_vector(const SHAPE_TYPE& shape) {
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const Shape& shape);
 }  // namespace ngraph
+
+namespace ov {
+
+template <>
+class NGRAPH_API AttributeAdapter<ngraph::Shape>
+    : public IndirectVectorValueAccessor<ngraph::Shape, std::vector<int64_t>>
+
+{
+public:
+    AttributeAdapter(ngraph::Shape& value) : IndirectVectorValueAccessor<ngraph::Shape, std::vector<int64_t>>(value) {}
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Shape>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+};
+}  // namespace ov

@@ -62,11 +62,11 @@ bool op::Result::constant_fold(OutputVector& output_values, const OutputVector& 
     return false;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ResultVector>::type_info;
+constexpr DiscreteTypeInfo ov::AttributeAdapter<ResultVector>::type_info;
 
-AttributeAdapter<ResultVector>::AttributeAdapter(ResultVector& ref) : m_ref(ref) {}
+ov::AttributeAdapter<ResultVector>::AttributeAdapter(ResultVector& ref) : m_ref(ref) {}
 
-bool AttributeAdapter<ResultVector>::visit_attributes(AttributeVisitor& visitor) {
+bool ov::AttributeAdapter<ResultVector>::visit_attributes(AttributeVisitor& visitor) {
     size_t size = m_ref.size();
     visitor.on_attribute("size", size);
     if (size != m_ref.size()) {
@@ -82,7 +82,7 @@ bool AttributeAdapter<ResultVector>::visit_attributes(AttributeVisitor& visitor)
         }
         visitor.on_attribute(index.str(), id);
         if (!m_ref[i]) {
-            m_ref[i] = as_type_ptr<op::v0::Result>(visitor.get_registered_node(id));
+            m_ref[i] = ov::as_type_ptr<op::v0::Result>(visitor.get_registered_node(id));
         }
     }
     return true;

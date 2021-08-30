@@ -14,13 +14,11 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/lstm_cell.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/rnn_cell_base.hpp"
 
 namespace ngraph {
 namespace op {
 namespace v0 {
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 ///
 /// \brief      Class for lstm sequence node.
@@ -31,7 +29,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 /// \sa         LSTMCell, RNNCell, GRUCell
 ///
 ///
-class NGRAPH_API LSTMSequence : public util::FusedOp {
+class NGRAPH_API LSTMSequence : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
     LSTMSequence();
@@ -76,7 +74,6 @@ public:
 
     virtual void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    virtual OutputVector decompose_op() const override;
 
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -138,8 +135,6 @@ private:
     bool m_input_forget;
     LSTMWeightsFormat m_weights_format;
 };
-
-NGRAPH_SUPPRESS_DEPRECATED_END
 }  // namespace v0
 
 namespace v5 {
