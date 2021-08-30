@@ -344,3 +344,5 @@ void infer_conv_backprop_auto_padding(const Shape& input_data_shape,
                                       CoordinateDiff& pads_end);
 }  // namespace opset1
 }  // namespace ngraph
+
+using ngraph::get_constant_from_source;

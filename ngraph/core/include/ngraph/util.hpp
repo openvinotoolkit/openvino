@@ -26,8 +26,11 @@
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 class Node;
+}
+namespace ngraph {
+using ov::Node;
 class stopwatch;
 
 namespace runtime {
