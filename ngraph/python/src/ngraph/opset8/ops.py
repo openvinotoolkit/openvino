@@ -327,7 +327,7 @@ def max_pool(
             "kernel": kernel_shape,
             "rounding_type": rounding_type.upper(),
             "auto_pad": auto_pad.upper(),
-            "index_element_type": index_element_type.lower(),
+            "index_element_type": index_element_type,
             "axis": axis,
         },
     )
