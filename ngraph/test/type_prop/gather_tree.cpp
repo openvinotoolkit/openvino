@@ -17,12 +17,12 @@ constexpr size_t parent_idx_input_idx = 1;
 constexpr size_t max_seq_len_input_idx = 2;
 constexpr size_t end_token_input_idx = 3;
 constexpr size_t gather_tree_required_inputs = 4;
-struct InputInfo {
+struct GatherTreeInputInfo {
     element::Type in_et;
     PartialShape in_pshape;
 };
 
-using GatherTreeInputParams = std::array<InputInfo, gather_tree_required_inputs>;
+using GatherTreeInputParams = std::array<GatherTreeInputInfo, gather_tree_required_inputs>;
 
 std::shared_ptr<Node> makeGatherTreeOp(const GatherTreeInputParams& p) {
     if (p.size() != gather_tree_required_inputs) {
@@ -44,10 +44,10 @@ TEST(type_prop, gather_tree_invalid_input_element_type) {
     Shape tensor_shape{1, 2, 3};
 
     element::Type input_et = element::boolean;
-    GatherTreeInputParams params{InputInfo{input_et, tensor_shape},
-                                 InputInfo{input_et, tensor_shape},
-                                 InputInfo{input_et, vector_shape},
-                                 InputInfo{input_et, scalar_shape}};
+    GatherTreeInputParams params{GatherTreeInputInfo{input_et, tensor_shape},
+                                 GatherTreeInputInfo{input_et, tensor_shape},
+                                 GatherTreeInputInfo{input_et, vector_shape},
+                                 GatherTreeInputInfo{input_et, scalar_shape}};
     try {
         auto gather_tree = makeGatherTreeOp(params);
         FAIL() << "Invalid element types for inputs not detected";
@@ -67,25 +67,25 @@ TEST(type_prop, gather_tree_incompatible_input_element_types) {
     Shape tensor_shape{1, 2, 3};
 
     vector<GatherTreeInputParams> test_cases = {// step_ids input has incompatible element type
-                                                GatherTreeInputParams{InputInfo{integer_et, tensor_shape},
-                                                                      InputInfo{float_et, tensor_shape},
-                                                                      InputInfo{float_et, vector_shape},
-                                                                      InputInfo{float_et, scalar_shape}},
+                                                GatherTreeInputParams{GatherTreeInputInfo{integer_et, tensor_shape},
+                                                                      GatherTreeInputInfo{float_et, tensor_shape},
+                                                                      GatherTreeInputInfo{float_et, vector_shape},
+                                                                      GatherTreeInputInfo{float_et, scalar_shape}},
                                                 // parent_idx input has incompatible element type
-                                                GatherTreeInputParams{InputInfo{float_et, tensor_shape},
-                                                                      InputInfo{integer_et, tensor_shape},
-                                                                      InputInfo{float_et, vector_shape},
-                                                                      InputInfo{float_et, scalar_shape}},
+                                                GatherTreeInputParams{GatherTreeInputInfo{float_et, tensor_shape},
+                                                                      GatherTreeInputInfo{integer_et, tensor_shape},
+                                                                      GatherTreeInputInfo{float_et, vector_shape},
+                                                                      GatherTreeInputInfo{float_et, scalar_shape}},
                                                 // max_seq_len input has incompatible element type
-                                                GatherTreeInputParams{InputInfo{float_et, tensor_shape},
-                                                                      InputInfo{float_et, tensor_shape},
-                                                                      InputInfo{integer_et, vector_shape},
-                                                                      InputInfo{float_et, scalar_shape}},
+                                                GatherTreeInputParams{GatherTreeInputInfo{float_et, tensor_shape},
+                                                                      GatherTreeInputInfo{float_et, tensor_shape},
+                                                                      GatherTreeInputInfo{integer_et, vector_shape},
+                                                                      GatherTreeInputInfo{float_et, scalar_shape}},
                                                 // end_token input has incompatible element type
-                                                GatherTreeInputParams{InputInfo{float_et, tensor_shape},
-                                                                      InputInfo{float_et, tensor_shape},
-                                                                      InputInfo{float_et, vector_shape},
-                                                                      InputInfo{integer_et, scalar_shape}}};
+                                                GatherTreeInputParams{GatherTreeInputInfo{float_et, tensor_shape},
+                                                                      GatherTreeInputInfo{float_et, tensor_shape},
+                                                                      GatherTreeInputInfo{float_et, vector_shape},
+                                                                      GatherTreeInputInfo{integer_et, scalar_shape}}};
 
     for (const auto& test_case : test_cases) {
         try {
@@ -117,10 +117,10 @@ TEST(type_prop, gather_tree_input_element_types) {
                                              element::u32};
     std::vector<GatherTreeInputParams> test_cases;
     std::for_each(std::begin(element_types), std::end(element_types), [&](element::Type et) {
-        GatherTreeInputParams params{InputInfo{et, tensor_shape},
-                                     InputInfo{et, tensor_shape},
-                                     InputInfo{et, vector_shape},
-                                     InputInfo{et, scalar_shape}};
+        GatherTreeInputParams params{GatherTreeInputInfo{et, tensor_shape},
+                                     GatherTreeInputInfo{et, tensor_shape},
+                                     GatherTreeInputInfo{et, vector_shape},
+                                     GatherTreeInputInfo{et, scalar_shape}};
         test_cases.insert(test_cases.end(), params);
     });
     for (const auto& test_case : test_cases) {
@@ -146,10 +146,10 @@ TEST(type_prop, gather_tree_invalid_step_ids_and_parent_idx_input_shapes) {
         {PartialShape{1, 2, 3}, PartialShape{Dimension(), Dimension(3, 5), 3}}};
     std::vector<GatherTreeInputParams> test_cases;
     std::for_each(std::begin(input_shapes), std::end(input_shapes), [&](std::pair<PartialShape, PartialShape> shapes) {
-        GatherTreeInputParams params{InputInfo{et, shapes.first},
-                                     InputInfo{et, shapes.second},
-                                     InputInfo{et, vector_shape},
-                                     InputInfo{et, scalar_shape}};
+        GatherTreeInputParams params{GatherTreeInputInfo{et, shapes.first},
+                                     GatherTreeInputInfo{et, shapes.second},
+                                     GatherTreeInputInfo{et, vector_shape},
+                                     GatherTreeInputInfo{et, scalar_shape}};
         test_cases.insert(test_cases.end(), params);
     });
     for (const auto& test_case : test_cases) {
@@ -174,10 +174,10 @@ TEST(type_prop, gather_tree_invalid_max_seq_len_rank) {
 
     std::vector<GatherTreeInputParams> test_cases;
     std::for_each(std::begin(max_seq_len_shapes), std::end(max_seq_len_shapes), [&](PartialShape shape) {
-        GatherTreeInputParams params{InputInfo{et, tensor_shape},
-                                     InputInfo{et, tensor_shape},
-                                     InputInfo{et, shape},
-                                     InputInfo{et, scalar_shape}};
+        GatherTreeInputParams params{GatherTreeInputInfo{et, tensor_shape},
+                                     GatherTreeInputInfo{et, tensor_shape},
+                                     GatherTreeInputInfo{et, shape},
+                                     GatherTreeInputInfo{et, scalar_shape}};
         test_cases.insert(test_cases.end(), params);
     });
     for (const auto& test_case : test_cases) {
@@ -202,10 +202,10 @@ TEST(type_prop, gather_tree_incompatible_step_ids_and_max_seq_len_shapes) {
         {PartialShape{Dimension(), 2, 3}, PartialShape{Dimension(3, 6)}}};
     std::vector<GatherTreeInputParams> test_cases;
     std::for_each(std::begin(input_shapes), std::end(input_shapes), [&](std::pair<PartialShape, PartialShape> shapes) {
-        GatherTreeInputParams params{InputInfo{et, shapes.first},
-                                     InputInfo{et, shapes.first},
-                                     InputInfo{et, shapes.second},
-                                     InputInfo{et, scalar_shape}};
+        GatherTreeInputParams params{GatherTreeInputInfo{et, shapes.first},
+                                     GatherTreeInputInfo{et, shapes.first},
+                                     GatherTreeInputInfo{et, shapes.second},
+                                     GatherTreeInputInfo{et, scalar_shape}};
         test_cases.insert(test_cases.end(), params);
     });
     for (const auto& test_case : test_cases) {
@@ -238,10 +238,10 @@ TEST(type_prop, gather_tree_output_shape) {
         {PartialShape::dynamic(), PartialShape::dynamic()}};
     std::vector<GatherTreeInputParams> test_cases;
     std::for_each(std::begin(input_shapes), std::end(input_shapes), [&](std::pair<PartialShape, PartialShape> shapes) {
-        GatherTreeInputParams params{InputInfo{et, shapes.first},
-                                     InputInfo{et, shapes.first},
-                                     InputInfo{et, shapes.second},
-                                     InputInfo{et, scalar_shape}};
+        GatherTreeInputParams params{GatherTreeInputInfo{et, shapes.first},
+                                     GatherTreeInputInfo{et, shapes.first},
+                                     GatherTreeInputInfo{et, shapes.second},
+                                     GatherTreeInputInfo{et, scalar_shape}};
         test_cases.insert(test_cases.end(), params);
     });
     for (const auto& test_case : test_cases) {
@@ -271,10 +271,10 @@ TEST(type_prop, gather_tree_invalid_end_token_rank) {
 
     std::vector<GatherTreeInputParams> test_cases;
     std::for_each(std::begin(end_token_shapes), std::end(end_token_shapes), [&](PartialShape shape) {
-        GatherTreeInputParams params{InputInfo{et, tensor_shape},
-                                     InputInfo{et, tensor_shape},
-                                     InputInfo{et, vector_shape},
-                                     InputInfo{et, shape}};
+        GatherTreeInputParams params{GatherTreeInputInfo{et, tensor_shape},
+                                     GatherTreeInputInfo{et, tensor_shape},
+                                     GatherTreeInputInfo{et, vector_shape},
+                                     GatherTreeInputInfo{et, shape}};
         test_cases.insert(test_cases.end(), params);
     });
     for (const auto& test_case : test_cases) {
