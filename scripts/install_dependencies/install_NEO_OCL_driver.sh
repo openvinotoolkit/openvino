@@ -145,7 +145,7 @@ _install_prerequisites_ubuntu()
             codename='bionic'
         fi
         CMDS=("apt-get -y update"
-              "apt-get -y install gpg-agent"
+              "apt-get -y install gpg-agent software-properties-common"
               "curl -L -O https://repositories.intel.com/graphics/intel-graphics.key && apt-key add ./intel-graphics.key"
               "apt-add-repository \
               'deb [arch=amd64] https://repositories.intel.com/graphics/ubuntu ${codename} main'")
@@ -208,8 +208,7 @@ _deploy_deb()
 _install_user_mode_centos()
 {
     if [[ "$INSTALL_DRIVER_VERSION" == "21.29.20389" ]]; then
-        CMDS=("dnf update --refresh"
-              "dnf install -y intel-opencl-21.29.20389-i593.el8.x86_64 \
+        CMDS=("dnf install --refresh -y intel-opencl-21.29.20389-i593.el8.x86_64 \
                intel-media-21.2.2-i593.el8.x86_64 \
                level-zero-1.4.1-i593.el8.x86_64 \
                intel-level-zero-gpu-1.1.20389-i593.el8.x86_64 \
@@ -276,7 +275,7 @@ _install_user_mode_ubuntu()
     else
         _deploy_deb "intel*.deb"
         if [[ $? -ne 0 ]]; then
-            echo "ERROR: failed to install rpms $cmd error"  >&2
+            echo "ERROR: failed to install debs $cmd error"  >&2
             echo "Make sure you have enough disk space or fix the problem manually and try again." >&2
             exit $EXIT_FAILURE
         fi
