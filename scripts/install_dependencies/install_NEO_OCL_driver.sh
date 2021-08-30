@@ -144,7 +144,8 @@ _install_prerequisites_ubuntu()
         if [[ "$UBUNTU_VERSION" == "18.04" ]]; then
             codename='bionic'
         fi
-        CMDS=("apt-get -y install gpg-agent"
+        CMDS=("apt-get -y update"
+              "apt-get -y install gpg-agent"
               "curl -L -O https://repositories.intel.com/graphics/intel-graphics.key && apt-key add ./intel-graphics.key"
               "apt-add-repository \
               'deb [arch=amd64] https://repositories.intel.com/graphics/ubuntu ${codename} main'")
@@ -208,10 +209,14 @@ _install_user_mode_centos()
 {
     if [[ "$INSTALL_DRIVER_VERSION" == "21.29.20389" ]]; then
         CMDS=("dnf update --refresh"
-              "dnf install intel-opencl-21.29.20389-i593.el8.x86_64 \
+              "dnf install -y intel-opencl-21.29.20389-i593.el8.x86_64 \
                intel-media-21.2.2-i593.el8.x86_64 \
                level-zero-1.4.1-i593.el8.x86_64 \
-               intel-level-zero-gpu-1.1.20389-i593.el8.x86_64")
+               intel-level-zero-gpu-1.1.20389-i593.el8.x86_64 \
+               intel-igc-opencl-1.0.7862-i593.el8.x86_64 \
+               intel-igc-core-1.0.7862-i593.el8.x86_64 \
+               intel-ocloc-21.29.20389-i593.el8.x86_64 \
+               intel-gmmlib-21.2.1-i593.el8.x86_64")
     
         for cmd in "${CMDS[@]}"; do
             echo "$cmd"
@@ -241,12 +246,18 @@ _install_user_mode_ubuntu()
             CMDS=("apt-get update"
                   "apt-get -y install --no-install-recommends intel-opencl=21.29.20389 \
                    intel-level-zero-gpu=1.1.20389 \
-                   level-zero=1.4.1")
+                   level-zero=1.4.1 \
+                   intel-ocloc=21.29.20389 \ 
+                   intel-gmmlib=21.2.1 \
+                   intel-igc-core=1.0.7862 \
+                   intel-igc-opencl=1.0.7862")
         elif [[ "$UBUNTU_VERSION" == "20.04" ]]; then
             CMDS=("apt-get update"
                   "apt-get -y install --no-install-recommends intel-opencl-icd=21.29.20389+i593~u20.04 \
                    intel-level-zero-gpu=1.1.20389+i593~u20.04 \
                    level-zero=1.4.1+i593~u20.04 \
+                   libigdgmm11=21.2.1+i593~u20.04 \
+                   libigc1=1.0.7862+i593~u20.04 \
                    intel-media-va-driver-non-free=21.2.2+i593~u20.04 \
                    libmfx1=21.2.2+i593~u20.04")
         fi
@@ -647,7 +658,9 @@ check_current_driver()
     fi
     
     gfx_version="$(echo -e "${gfx_version}" | sed -e 's/^Version[[:space:]]*\:[[:space:]]*//')"
-    check_specific_generation
+    if [[ -z "$user_chosen_driver" ]]; then
+        check_specific_generation
+    fi
     
     # install NEO OCL driver if the current driver version < INSTALL_DRIVER_VERSION
     if [[ ! -z $gfx_version && "$(printf '%s\n' "$INSTALL_DRIVER_VERSION" "$gfx_version" | sort -V | head -n 1)" = "$INSTALL_DRIVER_VERSION" ]]; then
