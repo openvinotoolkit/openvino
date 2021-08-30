@@ -20,11 +20,11 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "ngraph/node.hpp"
 #include "runtime/backend.hpp"
 
 namespace ngraph
 {
-    class Node;
     class TestOpMultiOut : public op::Op
     {
     public:

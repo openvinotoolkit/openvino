@@ -12,8 +12,7 @@
 #include "openvino/core/descriptor/input.hpp"
 
 namespace ngraph {
-class Node;
-
+using ov::Node;
 namespace descriptor {
 
 // Describes a tensor that is an input to an op, directly or indirectly via a tuple

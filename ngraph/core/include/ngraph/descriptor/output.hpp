@@ -17,13 +17,7 @@
 #include "openvino/core/descriptor/output.hpp"
 
 namespace ngraph {
-// The forward declaration of Node is needed here because Node has a deque of
-// Outputs, and Output is an incomplete type at this point. STL containers of
-// incomplete type have undefined behavior according to the C++11 standard, and
-// in practice including node.hpp here was causing compilation errors on some
-// systems (namely macOS).
-class Node;
-
+using ov::Node;
 namespace descriptor {
 // Describes an output tensor of an op
 using ov::descriptor::Output;

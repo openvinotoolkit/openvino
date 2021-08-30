@@ -664,7 +664,7 @@ std::shared_ptr<ngraph::opset7::Result> Decompose(const GraphData& graph_data, C
     }
     // We need to put the same name as before for the Convolution layer, so its output can be used as network result
     std::string conv_result_name = graph_data.last_op_in_sequence_for_replacement->get_friendly_name();
-    replace_node(graph_data.last_op_in_sequence_for_replacement, conv_result);
+    ngraph::replace_node(graph_data.last_op_in_sequence_for_replacement, conv_result);
     conv_result->set_friendly_name(conv_result_name);
 
     return std::make_shared<ngraph::opset7::Result>(conv_result);

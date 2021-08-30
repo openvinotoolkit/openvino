@@ -7,12 +7,10 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/core/node_vector.hpp"
+
 namespace ngraph {
-class Node;
 
-template <typename T>
-class Output;
-
-using NodeVector = std::vector<std::shared_ptr<Node>>;
-using OutputVector = std::vector<Output<Node>>;
+using NodeVector = ov::NodeVector;
+using OutputVector = ov::OutputVector;
 }  // namespace ngraph
