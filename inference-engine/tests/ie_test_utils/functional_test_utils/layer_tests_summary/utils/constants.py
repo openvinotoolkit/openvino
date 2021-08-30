@@ -61,7 +61,8 @@ VERIFIED_OP_REFERENCES = [
     'LRN-1',
     'LSTMCell-4',
     'LSTMSequence-5',
-    'LogicalAnd-1'
+    'LogicalAnd-1',
+    'LogicalNot-1'
     'LogicalOr-1'
     'LogicalXor-1'
     'LogSoftmax-5',
@@ -104,6 +105,7 @@ VERIFIED_OP_REFERENCES = [
     'ReverseSequence-1',
     'Round-5',
     'SpaceToDepth-1',
+    'ScatterElementsUpdate-3',
     'ScatterNDUpdate-4',
     'Select-1',
     'ShapeOf-1',
