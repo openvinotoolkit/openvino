@@ -162,7 +162,7 @@ public:
      */
     bool InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNodePtr node, int parentPort, int childPort, bool initNode = false);
 
-    InferenceEngine::CNNNetwork dump() const;
+    std::shared_ptr<ngraph::Function> dump() const;
 
     void ResetInferCount() { infer_count = 0; }
 
@@ -223,7 +223,7 @@ protected:
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
-    friend InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
+    friend std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
     // these node pointers (from graphNodes) are to avoid regular checking for

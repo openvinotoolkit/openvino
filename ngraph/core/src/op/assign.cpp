@@ -35,7 +35,7 @@ void op::v3::Assign::validate_and_infer_types() {
         }
         auto nodes = topological_sort(start_nodes);
         for (const auto& node : nodes) {
-            if (auto read_value = as_type_ptr<op::v3::ReadValue>(node)) {
+            if (auto read_value = ov::as_type_ptr<op::v3::ReadValue>(node)) {
                 if (read_value->get_variable_id() == m_variable_id)
                     m_variable = read_value->get_variable();
             }

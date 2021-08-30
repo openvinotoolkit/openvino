@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#ifndef WIN32
+#ifndef _WIN32
 #    include <unistd.h>
 #endif
 #include <xml_parse_utils.h>
@@ -23,7 +23,7 @@
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "transformations/serialize.hpp"
 
-#ifdef WIN32
+#ifdef _WIN32
 #    define stat _stat
 #endif
 
