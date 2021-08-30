@@ -1028,6 +1028,8 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
     auto parentConv = parentConvEdge->getParent();
     if (!parentConv) return;
 
+    parentConv->outputShapes[0] = node->outputShapes[0];
+
     for (size_t i = 0; i < 1; i++) {
         auto p_edge = parents[i].lock();
         if (!p_edge) continue;
@@ -1200,6 +1202,6 @@ void MKLDNNGraph::EnforceBF16() {
     }
 }
 
-InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
+std::shared_ptr<ngraph::Function> MKLDNNGraph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
