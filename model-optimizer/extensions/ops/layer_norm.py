@@ -1,0 +1,27 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+from mo.graph.graph import Graph
+from mo.ops.op import Op
+
+
+class LayerNorm(Op):
+    """
+    LayerNorm - normalize along axis 1.
+    We first compute the mean and variance along this axis and
+    then compute the normalized output, which has the same shape as input
+    """
+
+    op = 'LayerNorm'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'op': __class__.op,
+            'type': None,
+            'axis': -1,
+            'epsilon': 0.001,
+            'infer': None,
+            'in_ports_count': 3,
+            'out_ports_count': 1,
+        }, attrs)
