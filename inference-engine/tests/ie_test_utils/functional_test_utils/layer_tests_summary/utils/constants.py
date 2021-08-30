@@ -31,6 +31,7 @@ VERIFIED_OP_REFERENCES = [
     'DepthToSpace-1',
     'DetectionOutput-1',
     'Divide-1',
+    'Equal-1',
     'Erf-1',
     'ExperimentalDetectronDetectionOutput-6',
     'ExperimentalDetectronGenerateProposalsSingleImage-6',
@@ -45,6 +46,8 @@ VERIFIED_OP_REFERENCES = [
     'GatherElements-6',
     'GatherND-5',
     'Gelu-7',
+    'Greater-1',
+    'GreaterEqual-1',
     'GRN-1',
     'GroupConvolution-1',
     'GroupConvolutionBackpropData-1',
@@ -58,8 +61,10 @@ VERIFIED_OP_REFERENCES = [
     'LRN-1',
     'LSTMCell-4',
     'LSTMSequence-5',
-    'LogicalAnd-1'
+    'LogicalAnd-1',
+    'LogicalNot-1'
     'LogicalOr-1'
+    'LogicalXor-1'
     'LogSoftmax-5',
     'Loop-5',
     'MVN-1',
@@ -97,8 +102,10 @@ VERIFIED_OP_REFERENCES = [
     'Relu-1',
     'ReorgYOLO-2',
     'Result-1'
+    'ReverseSequence-1',
     'Round-5',
     'SpaceToDepth-1',
+    'ScatterElementsUpdate-3',
     'ScatterNDUpdate-4',
     'Select-1',
     'ShapeOf-1',

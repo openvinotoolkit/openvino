@@ -7,13 +7,10 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        namespace util
-        {
-            // clang-format off
+namespace ngraph {
+namespace op {
+namespace util {
+// clang-format off
             /// \brief Abstract base class for elementwise binary arithmetic operations, i.e.,
             ///        operations where the same scalar binary arithmetic operation is applied to
             ///        each corresponding pair of elements in the two input tensors. Implicit
@@ -38,35 +35,36 @@ namespace ngraph
             /// | Type                   | Description                                                                                                                                                                                                                      |
             /// | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
             /// | \f$N[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \mathit{op}(\texttt{arg0}[i_1,\dots,i_n],\texttt{arg1}[i_1,\dots,i_n])\f$. This will always have the same shape and element type as the input tensors (after auto broadcasting). |
-            // clang-format on
-            class NGRAPH_API BinaryElementwiseArithmetic : public Op
-            {
-            protected:
-                BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob);
+// clang-format on
+class NGRAPH_API BinaryElementwiseArithmetic : public Op {
+protected:
+    BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob);
 
-                /// \brief Constructs a binary elementwise arithmetic operation.
-                ///
-                /// \param arg0 Output that produces the first input tensor.
-                /// \param arg1 Output that produces the second input tensor.
-                BinaryElementwiseArithmetic(const Output<Node>& arg0,
-                                            const Output<Node>& arg1,
-                                            const AutoBroadcastSpec& autob);
+    /// \brief Constructs a binary elementwise arithmetic operation.
+    ///
+    /// \param arg0 Output that produces the first input tensor.
+    /// \param arg1 Output that produces the second input tensor.
+    BinaryElementwiseArithmetic(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& autob);
 
-            public:
-                NGRAPH_RTTI_DECLARATION;
+public:
+    NGRAPH_RTTI_DECLARATION;
 
-                void validate_and_infer_types() override;
+    void validate_and_infer_types() override;
 
-                const AutoBroadcastSpec& get_autob() const override { return m_autob; }
-                void set_autob(const AutoBroadcastSpec& autob) { m_autob = autob; }
-                bool visit_attributes(AttributeVisitor& visitor) override;
-                bool evaluate_lower(const HostTensorVector& outputs) const override;
-                bool evaluate_upper(const HostTensorVector& outputs) const override;
+    const AutoBroadcastSpec& get_autob() const override {
+        return m_autob;
+    }
+    void set_autob(const AutoBroadcastSpec& autob) {
+        m_autob = autob;
+    }
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    bool evaluate_lower(const HostTensorVector& outputs) const override;
+    bool evaluate_upper(const HostTensorVector& outputs) const override;
 
-            private:
-                AutoBroadcastSpec m_autob;
-                void validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob);
-            };
-        } // namespace util
-    }     // namespace op
-} // namespace ngraph
+private:
+    AutoBroadcastSpec m_autob;
+    void validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob);
+};
+}  // namespace util
+}  // namespace op
+}  // namespace ngraph

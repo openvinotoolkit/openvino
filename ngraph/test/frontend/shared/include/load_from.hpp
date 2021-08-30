@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
-
 #include <gtest/gtest.h>
 
-struct LoadFromFEParam
-{
+#include <frontend_manager/frontend_manager.hpp>
+
+struct LoadFromFEParam {
     std::string m_frontEndName;
     std::string m_modelsPath;
     std::string m_file;
@@ -18,8 +17,7 @@ struct LoadFromFEParam
     std::vector<std::string> m_streams;
 };
 
-class FrontEndLoadFromTest : public ::testing::TestWithParam<LoadFromFEParam>
-{
+class FrontEndLoadFromTest : public ::testing::TestWithParam<LoadFromFEParam> {
 public:
     LoadFromFEParam m_param;
     ngraph::frontend::FrontEndManager m_fem;

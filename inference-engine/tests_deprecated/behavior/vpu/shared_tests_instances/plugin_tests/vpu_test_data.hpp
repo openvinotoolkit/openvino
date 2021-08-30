@@ -81,10 +81,6 @@ const std::vector<BehTestParams> deviceSpecificConfigurations = {
     BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB}}),
     BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE}}),
 
-    // Deprecated
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2450)}}),
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}}),
-
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(USB)}}),
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(PCIE)}}),
 };
@@ -192,17 +188,6 @@ const BehTestParams withIncorrectConfValues[] = {
 
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-1"}}),
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "MICRON"}}),
-
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}}),
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}}),
-    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}),
-
-    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
-                                 {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}}),
-    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
-                                 {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}}),
-    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
-                                 {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}),
 };
 
 const BehTestParams withIncorrectConfKeys[] = {

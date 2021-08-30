@@ -23,7 +23,8 @@ typedef std::chrono::nanoseconds ns;
 
 typedef std::function<void(size_t id, const double latency)> QueueCallbackFunction;
 
-/// @brief Wrapper class for InferenceEngine::InferRequest. Handles asynchronous callbacks and calculates execution time.
+/// @brief Wrapper class for InferenceEngine::InferRequest. Handles asynchronous callbacks and calculates execution
+/// time.
 class InferReqWrap final {
 public:
     using Ptr = std::shared_ptr<InferReqWrap>;
@@ -31,7 +32,9 @@ public:
     ~InferReqWrap() = default;
 
     explicit InferReqWrap(InferenceEngine::ExecutableNetwork& net, size_t id, QueueCallbackFunction callbackQueue)
-        : _request(net.CreateInferRequest()), _id(id), _callbackQueue(callbackQueue) {
+        : _request(net.CreateInferRequest()),
+          _id(id),
+          _callbackQueue(callbackQueue) {
         _request.SetCompletionCallback([&]() {
             _endTime = Time::now();
             _callbackQueue(_id, getExecutionTimeInMilliseconds());
@@ -79,8 +82,10 @@ class InferRequestsQueue final {
 public:
     InferRequestsQueue(InferenceEngine::ExecutableNetwork& net, size_t nireq) {
         for (size_t id = 0; id < nireq; id++) {
-            requests.push_back(
-                std::make_shared<InferReqWrap>(net, id, std::bind(&InferRequestsQueue::putIdleRequest, this, std::placeholders::_1, std::placeholders::_2)));
+            requests.push_back(std::make_shared<InferReqWrap>(
+                net,
+                id,
+                std::bind(&InferRequestsQueue::putIdleRequest, this, std::placeholders::_1, std::placeholders::_2)));
             _idleIds.push(id);
         }
         resetTimes();
@@ -90,7 +95,8 @@ public:
         // So it should be released before any context that the request can use inside internal asynchronous tasks
         // For example all members of InferRequestsQueue would be destroyed before `requests` vector
         // So requests can try to use this members from `putIdleRequest()` that would be called from request callback
-        // To avoid this we should move this vector declaration after all members declaration or just clear it manually in destructor
+        // To avoid this we should move this vector declaration after all members declaration or just clear it manually
+        // in destructor
         requests.clear();
     }
 

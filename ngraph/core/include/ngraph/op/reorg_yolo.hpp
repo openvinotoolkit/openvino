@@ -6,40 +6,37 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        namespace v0
-        {
-            class NGRAPH_API ReorgYolo : public Op
-            {
-            public:
-                NGRAPH_RTTI_DECLARATION;
+namespace ngraph {
+namespace op {
+namespace v0 {
+class NGRAPH_API ReorgYolo : public Op {
+public:
+    NGRAPH_RTTI_DECLARATION;
 
-                ReorgYolo() = default;
-                /// \brief Constructs a ReorgYolo operation
-                ///
-                /// \param input          Input
-                /// \param stride         Stride to reorganize input by
-                ReorgYolo(const Output<Node>& input, const size_t stride);
+    ReorgYolo() = default;
+    /// \brief Constructs a ReorgYolo operation
+    ///
+    /// \param input          Input
+    /// \param stride         Stride to reorganize input by
+    ReorgYolo(const Output<Node>& input, const size_t stride);
 
-                // Constructor with `strides` for backward compatibility
-                ReorgYolo(const Output<Node>& input, const Strides& strides);
+    // Constructor with `strides` for backward compatibility
+    ReorgYolo(const Output<Node>& input, const Strides& strides);
 
-                void validate_and_infer_types() override;
+    void validate_and_infer_types() override;
 
-                bool visit_attributes(AttributeVisitor& visitor) override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
+    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                Strides get_strides() const { return m_strides; }
+    Strides get_strides() const {
+        return m_strides;
+    }
 
-            private:
-                Strides m_strides;
-            };
-        } // namespace v0
-        using v0::ReorgYolo;
-    } // namespace op
-} // namespace ngraph
+private:
+    Strides m_strides;
+};
+}  // namespace v0
+using v0::ReorgYolo;
+}  // namespace op
+}  // namespace ngraph

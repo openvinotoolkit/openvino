@@ -89,7 +89,7 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
             cldnn::layout mutableLayoutFirst = cldnn::layout(
                 DataTypeFromPrecision(mutable_precision_first),
                 cldnn::format::bfyx,
-                cldnn::tensor(outputIndices, 3, 1, 1));
+                cldnn::tensor(static_cast<int32_t>(outputIndices), 3, 1, 1));
 
             shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayoutFirst));
 
@@ -105,6 +105,7 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
     }
 
     auto nonMaxSupressionLayerName = num_output > 1 ? layer_type_name_ID(op) + ".0" : layer_type_name_ID(op);
+
     auto prim = cldnn::non_max_suppression(
             nonMaxSupressionLayerName,
             reorderedInputs[0],
