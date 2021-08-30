@@ -57,7 +57,6 @@ def batch_norm_inference(
 ) -> Node:
     """Perform layer normalizes a input tensor by mean and variance with appling scale and offset.
 
-    @ingroup ngraph_python_api
     @param data: The input tensor with data for normalization.
     @param gamma: The scalar scaling for normalized value.
     @param beta: The bias added to the scaled normalized value.
@@ -81,7 +80,6 @@ def gather_nd(
 ) -> Node:
     """Return a node which performs GatherND.
 
-    @ingroup ngraph_python_api
     @param data:       N-D tensor with data for gathering
     @param indices:    K-D tensor of tuples with indices by which data is gathered
     @param batch_dims: Scalar value of batch dimensions
@@ -100,7 +98,6 @@ def gather_nd(
 def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     """Apply LogSoftmax operation on each element of input tensor.
 
-    @ingroup ngraph_python_api
     @param data: The tensor providing input data.
     @param axis: An axis along which LogSoftmax should be calculated
     @return: The new node with LogSoftmax operation applied on each element.
@@ -123,7 +120,6 @@ def non_max_suppression(
 ) -> Node:
     """Return a node which performs NonMaxSuppression.
 
-    @ingroup ngraph_python_api
     @param boxes: Tensor with box coordinates.
     @param scores: Tensor with box scores.
     @param max_output_boxes_per_class: Tensor Specifying maximum number of boxes
@@ -165,7 +161,6 @@ def non_max_suppression(
 def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = None) -> Node:
     """Apply Round operation on each element of input tensor.
 
-    @ingroup ngraph_python_api
     @param data: The tensor providing input data.
     @param mode: Rule to round halfway cases. If set to 'half_to_even' then halfs round to the nearest even
         integer or rounding in such a way that the result heads away from zero if `mode` attribute is
@@ -195,7 +190,6 @@ def lstm_sequence(
 ) -> Node:
     """Return a node which performs LSTMSequence operation.
 
-    @ingroup ngraph_python_api
     @param X: The input tensor. Shape: [batch_size, seq_length, input_size].
     @param initial_hidden_state:    The hidden state tensor.
                                     Shape: [batch_size, num_directions, hidden_size].
