@@ -216,7 +216,8 @@ _install_user_mode_centos()
                intel-igc-opencl-1.0.7862-i593.el8.x86_64 \
                intel-igc-core-1.0.7862-i593.el8.x86_64 \
                intel-ocloc-21.29.20389-i593.el8.x86_64 \
-               intel-gmmlib-21.2.1-i593.el8.x86_64")
+               intel-gmmlib-21.2.1-i593.el8.x86_64 \
+               ocl-icd-2.2.12-1.el8.x86_64")
     
         for cmd in "${CMDS[@]}"; do
             echo "$cmd"
