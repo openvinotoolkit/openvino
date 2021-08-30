@@ -22,12 +22,7 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include <legacy/ie_layers_property.hpp>
-
-namespace ngraph {
-
-class Node;
-
-}  // namespace ngraph
+#include <ngraph/node.hpp>
 
 namespace InferenceEngine {
 
