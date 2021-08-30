@@ -4,7 +4,7 @@
     "setupvars": {
       "mandatory" : "yes",
       "files": [
-        "bin"
+        "setupvars.bat"
       ]
     },
     "openvino_license": {
@@ -16,21 +16,21 @@
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "deployment_tools/inference_engine/version.txt",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_transformations.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_preproc.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_ir_reader.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_c_api.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/AutoPlugin.dll",
-        "deployment_tools/inference_engine/lib/intel64/Release/HeteroPlugin.dll",
-        "deployment_tools/inference_engine/lib/intel64/Release/MultiDevicePlugin.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/plugins.xml",
-        "deployment_tools/inference_engine/lib/intel64/Release/inference_engine.lib",
-        "deployment_tools/inference_engine/lib/intel64/Release/inference_engine_transformations.lib",
-        "deployment_tools/inference_engine/lib/intel64/Release/inference_engine_c_api.lib",
-        "deployment_tools/inference_engine/external/tbb",
-        "deployment_tools/ngraph/lib"
+        "runtime/bin/Release/inference_engine.dll",
+        "runtime/bin/Release/inference_engine_transformations.dll",
+        "runtime/bin/Release/inference_engine_preproc.dll",
+        "runtime/bin/Release/inference_engine_ir_reader.dll",
+        "runtime/bin/Release/inference_engine_c_api.dll",
+        "runtime/bin/Release/AutoPlugin.dll",
+        "runtime/bin/Release/HeteroPlugin.dll",
+        "runtime/bin/Release/MultiDevicePlugin.dll",
+        "runtime/bin/Release/ngraph.dll",
+        "runtime/bin/Release/frontend_manager.dll",
+        "runtime/bin/Release/ir_ngraph_frontend.dll",
+        "runtime/bin/Release/onnx_ngraph_frontend.dll",
+        "runtime/bin/Release/paddlepaddle_ngraph_frontend.dll",
+        "runtime/bin/Release/plugins.xml",
+        "runtime/3rdparty/tbb"
       ]
     },
     "cpu": {
@@ -38,8 +38,8 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_lp_transformations.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/MKLDNNPlugin.dll"
+        "runtime/bin/Release/inference_engine_lp_transformations.dll",
+        "runtime/bin/Release/MKLDNNPlugin.dll"
       ]
     },
     "gpu": {
@@ -47,9 +47,9 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "deployment_tools/inference_engine/bin/intel64/Release/cache.json",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_lp_transformations.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/clDNNPlugin.dll"
+        "runtime/bin/Release/cache.json",
+        "runtime/bin/Release/inference_engine_lp_transformations.dll",
+        "runtime/bin/Release/clDNNPlugin.dll"
       ]
     },
     "vpu": {
@@ -57,10 +57,10 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "deployment_tools/inference_engine/bin/intel64/Release/usb-ma2x8x.mvcmd",
-        "deployment_tools/inference_engine/bin/intel64/Release/pcie-ma2x8x.elf",
-        "deployment_tools/inference_engine/bin/intel64/Release/myriadPlugin.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_legacy.dll"
+        "runtime/bin/Release/usb-ma2x8x.mvcmd",
+        "runtime/bin/Release/pcie-ma2x8x.elf",
+        "runtime/bin/Release/myriadPlugin.dll",
+        "runtime/bin/Release/inference_engine_legacy.dll"
       ]
     },
     "gna": {
@@ -68,9 +68,9 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "deployment_tools/inference_engine/bin/intel64/Release/gna.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_legacy.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/GNAPlugin.dll"
+        "runtime/bin/Release/gna.dll",
+        "runtime/bin/Release/inference_engine_legacy.dll",
+        "runtime/bin/Release/GNAPlugin.dll"
       ]
     },
     "hddl": {
@@ -78,11 +78,11 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "deployment_tools/inference_engine/bin/intel64/Release/HDDLPlugin.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_legacy.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/hddl_perfcheck.exe",
-        "deployment_tools/inference_engine/external/MovidiusDriver",
-        "deployment_tools/inference_engine/external/hddl"
+        "runtime/bin/Release/HDDLPlugin.dll",
+        "runtime/bin/Release/inference_engine_legacy.dll",
+        "runtime/bin/Release/hddl_perfcheck.exe",
+        "runtime/3rdparty/MovidiusDriver",
+        "runtime/3rdparty/hddl"
       ]
     },
     "opencv": {
