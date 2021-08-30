@@ -15,7 +15,7 @@ for each `m, n, ..., p` of the `indices` tensor indices:
 
 \f[data[\dots,\;indices[m,\;n,\;\dots,\;p],\;\dots] = updates[\dots,\;m,\;n,\;\dots,\;p,\;\dots]\f]
 
-where first \f$\dots\f$ in the `data` corresponds to first `axis` dimensions, last\f$\dots\f$ in the `data` corresponds to the
+where first \f$\dots\f$ in the `data` corresponds to \f$[d_0, \dots, d_{axis - 1}]\f$ dimensions, last\f$\dots\f$ in the `data` corresponds to the
 `rank(data) - (axis + 1)` dimensions.
 
 Several examples for case when `axis = 0`:
@@ -30,14 +30,14 @@ Several examples for case when `axis = 0`:
 *   **1**: `data` tensor of arbitrary rank `r` and of type *T_NUMERIC*. **Required.**
 
 *   **2**: `indices` tensor with indices of type *T_IND*.
-All index values are expected to be within bounds \f$[0, s - 1]\f$ along axis of size `s`. If multiple indices point to the
+All index values are expected to be within bounds `[0, s - 1]` along axis of size `s`. If multiple indices point to the
 same output location then the order of updating the values is undefined. If an index points to non-existing output
 tensor element or is negative then an exception is raised. **Required.**
 
 *   **3**: `updates` tensor of type *T_NUMERIC* and rank equal to rank(indices) + rank(data) - 1 **Required.**
 
 *   **4**: `axis` tensor with scalar or 1D tensor with one element of type *T_AXIS* specifying axis for scatter.
-The value can be in range \f$[-r, r - 1]\f$ where `r` is the rank of `data`. **Required.**
+The value can be in range `[ -r, r - 1]` where `r` is the rank of `data`. **Required.**
 
 **Outputs**:
 
@@ -51,7 +51,9 @@ The value can be in range \f$[-r, r - 1]\f$ where `r` is the rank of `data`. **R
 
 * *T_AXIS*: any supported integer types.
 
-**Example**
+**Examples**
+
+*Example 1*
 
 ```xml
 <layer ... type="ScatterUpdate">
@@ -84,6 +86,35 @@ The value can be in range \f$[-r, r - 1]\f$ where `r` is the rank of `data`. **R
             <dim>10</dim>
             <dim>15</dim>
         </port>
+    </output>
+</layer>
+```
+
+*Example 2*
+
+```xml
+<layer ... type="ScatterUpdate">
+    <input>
+        <port id="0">  <!-- data -->
+            <dim>3</dim>    <!-- {{-1.0f, 1.0f, -1.0f, 3.0f, 4.0f},  -->
+            <dim>5</dim>    <!-- {-1.0f, 6.0f, -1.0f, 8.0f, 9.0f},   -->
+        </port>             <!-- {-1.0f, 11.0f, 1.0f, 13.0f, 14.0f}} -->
+        <port id="1">  <!-- indices -->
+            <dim>2</dim> <!-- {0, 2} -->
+        </port>
+        <port id="2">  <!-- udpates -->
+            <dim>3</dim> <!-- {1.0f, 1.0f} -->
+            <dim>2</dim> <!-- {1.0f, 1.0f} -->
+        </port>          <!-- {1.0f, 2.0f} -->
+        <port id="3">   <!-- axis -->
+            <dim>1</dim> <!-- {1} -->
+        </port>
+    </input>
+    <output>
+        <port id="4">  <!-- output -->
+            <dim>3</dim>    <!-- {{1.0f, 1.0f, 1.0f, 3.0f, 4.0f},   -->
+            <dim>5</dim>    <!-- {1.0f, 6.0f, 1.0f, 8.0f, 9.0f},    -->
+        </port>             <!-- {1.0f, 11.0f, 2.0f, 13.0f, 14.0f}} -->
     </output>
 </layer>
 ```
