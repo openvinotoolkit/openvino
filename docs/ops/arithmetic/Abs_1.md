@@ -2,7 +2,7 @@
 
 **Versioned name**: *Abs-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Abs* performs element-wise the absolute value with given tensor.
 
@@ -25,7 +25,7 @@
 *Abs* does the following with the input tensor *a*:
 
 \f[
-a_{i} = abs(a_{i})
+a_{i} = \vert a_{i} \vert
 \f]
 
 **Examples**

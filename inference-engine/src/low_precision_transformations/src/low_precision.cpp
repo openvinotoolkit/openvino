@@ -50,6 +50,7 @@
 #include "low_precision/multiply.hpp"
 #include "low_precision/mvn.hpp"
 #include "low_precision/normalize_l2.hpp"
+#include "low_precision/pad.hpp"
 #include "low_precision/prelu.hpp"
 #include "low_precision/reduce_max.hpp"
 #include "low_precision/reduce_mean.hpp"
@@ -94,7 +95,7 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
     using namespace ngraph;
 
     auto is_op_type = [](std::shared_ptr<Node> n) {
-        return !!as_type_ptr<BaseOp>(n);
+        return !!ov::as_type_ptr<BaseOp>(n);
     };
 
     auto p_node = std::make_shared<pattern::op::Label>(element::f32, Shape{}, is_op_type);
@@ -219,6 +220,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     common->add_matcher<ngraph::pass::low_precision::MultiplyTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::MVNTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::NormalizeL2Transformation>(params);
+    common->add_matcher<ngraph::pass::low_precision::PadTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::PReluTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ReduceMaxTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ReduceMeanTransformation>(params);
@@ -268,7 +270,7 @@ bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::s
                 continue;
             }
 
-            const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
+            const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = ov::as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
             if ((fakeQuantize != nullptr) &&
                 QuantizationDetails::outputLayoutIsSupported(fakeQuantize) &&
                 QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {

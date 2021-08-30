@@ -3,8 +3,8 @@
 //
 
 #include "ngraph/op/proposal.hpp"
-#include "itt.hpp"
 
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
@@ -16,14 +16,12 @@ op::v0::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& bbox_deltas,
                            const Output<Node>& image_shape,
                            const ProposalAttrs& attrs)
-    : Op({class_probs, bbox_deltas, image_shape})
-    , m_attrs(attrs)
-{
+    : Op({class_probs, bbox_deltas, image_shape}),
+      m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
-void op::v0::Proposal::validate_and_infer_types()
-{
+void op::v0::Proposal::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Proposal_validate_and_infer_types);
     const auto& class_probs_ps = get_input_partial_shape(0);
     const auto& bbox_deltas_ps = get_input_partial_shape(1);
@@ -65,8 +63,7 @@ void op::v0::Proposal::validate_and_infer_types()
                           image_shape_ps,
                           ").");
 
-    if (bbox_deltas_ps.is_static() && class_probs_ps.is_static())
-    {
+    if (bbox_deltas_ps.is_static() && class_probs_ps.is_static()) {
         // class probs and bbox deltas shapes are static, check anchor count and batch number
         // consistency
         NODE_VALIDATION_CHECK(this,
@@ -86,26 +83,19 @@ void op::v0::Proposal::validate_and_infer_types()
                               ").");
     }
 
-    if (image_shape_ps.is_static())
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            image_shape_ps[0].get_length() >= 3 && image_shape_ps[0].get_length() <= 4,
-            "Image_shape 1D tensor must have => 3 and <= 4 elements (image_shape_shape[0]",
-            image_shape_ps[0],
-            ").");
+    if (image_shape_ps.is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              image_shape_ps[0].get_length() >= 3 && image_shape_ps[0].get_length() <= 4,
+                              "Image_shape 1D tensor must have => 3 and <= 4 elements (image_shape_shape[0]",
+                              image_shape_ps[0],
+                              ").");
     }
 
-    if (class_probs_ps.rank().is_static() && bbox_deltas_ps.rank().is_static())
-    {
+    if (class_probs_ps.rank().is_static() && bbox_deltas_ps.rank().is_static()) {
         out_dim = (class_probs_ps[0] & bbox_deltas_ps[0]);
-    }
-    else if (class_probs_ps.rank().is_static())
-    {
+    } else if (class_probs_ps.rank().is_static()) {
         out_dim = class_probs_ps[0];
-    }
-    else if (bbox_deltas_ps.rank().is_static())
-    {
+    } else if (bbox_deltas_ps.rank().is_static()) {
         out_dim = bbox_deltas_ps[0];
     }
 
@@ -113,15 +103,13 @@ void op::v0::Proposal::validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), PartialShape{out_dim * m_attrs.post_nms_topn, 5});
 }
 
-shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
-{
+shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_Proposal_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v0::Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
-bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor)
-{
+bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_Proposal_visit_attributes);
     visitor.on_attribute("base_size", m_attrs.base_size);
     visitor.on_attribute("pre_nms_topn", m_attrs.pre_nms_topn);
@@ -146,27 +134,23 @@ op::v4::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& class_bbox_deltas,
                            const Output<Node>& image_shape,
                            const op::ProposalAttrs& attrs)
-    : v0::Proposal(class_probs, class_bbox_deltas, image_shape, attrs)
-{
+    : v0::Proposal(class_probs, class_bbox_deltas, image_shape, attrs) {
     constructor_validate_and_infer_types();
 }
 
-void op::v4::Proposal::validate_and_infer_types()
-{
+void op::v4::Proposal::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_Proposal_validate_and_infer_types);
     v0::Proposal::validate_and_infer_types();
     // Output shape was inferred in v0's validate_and_infer_types
     const auto proposals_ps = get_output_partial_shape(0);
     auto out_ps = PartialShape{Dimension::dynamic()};
-    if (proposals_ps.rank().is_static() && proposals_ps.rank().compatible(2))
-    {
+    if (proposals_ps.rank().is_static() && proposals_ps.rank().compatible(2)) {
         out_ps = PartialShape{proposals_ps[0]};
     }
     set_output_type(1, get_input_element_type(0), out_ps);
 }
 
-std::shared_ptr<Node> op::v4::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
-{
+std::shared_ptr<Node> op::v4::Proposal::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v4_Proposal_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v4::Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);

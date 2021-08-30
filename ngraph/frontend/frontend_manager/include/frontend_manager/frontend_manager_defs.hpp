@@ -10,12 +10,12 @@
 #define OV_FRONTEND_API_VERSION 1
 
 #ifdef USE_STATIC_FRONTEND_MANAGER
-#define FRONTEND_API
+#    define FRONTEND_API
 #else
 // Defined if cmake is building the frontend_manager DLL (instead of using it)
-#ifdef frontend_manager_EXPORTS
-#define FRONTEND_API NGRAPH_HELPER_DLL_EXPORT
-#else
-#define FRONTEND_API NGRAPH_HELPER_DLL_IMPORT
-#endif // frontend_manager_EXPORTS
-#endif // USE_STATIC_FRONTEND_MANAGER
+#    ifdef frontend_manager_EXPORTS
+#        define FRONTEND_API NGRAPH_HELPER_DLL_EXPORT
+#    else
+#        define FRONTEND_API NGRAPH_HELPER_DLL_IMPORT
+#    endif  // frontend_manager_EXPORTS
+#endif      // USE_STATIC_FRONTEND_MANAGER
