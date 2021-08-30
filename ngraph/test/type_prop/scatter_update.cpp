@@ -24,7 +24,10 @@ void type_check(const type& refType) {
     EXPECT_EQ(scatter_update->get_output_shape(0), ref_shape);
 }
 
-void incorrect_type_check(const type& refType, const type& indicesType, const type& updatesType, const type& axisType,
+void incorrect_type_check(const type& refType,
+                          const type& indicesType,
+                          const type& updatesType,
+                          const type& axisType,
                           const std::string& errorStr) {
     Shape ref_shape{2, 3, 4};
     Shape indices_shape{2, 1};
@@ -44,8 +47,12 @@ void incorrect_type_check(const type& refType, const type& indicesType, const ty
     }
 }
 
-void incorrect_shape_check(const Shape& refShape, const Shape& indicesShape, const Shape& updatesShape, const Shape& axisShape,
-                           const float axisVal, const std::string& errorStr) {
+void incorrect_shape_check(const Shape& refShape,
+                           const Shape& indicesShape,
+                           const Shape& updatesShape,
+                           const Shape& axisShape,
+                           const float axisVal,
+                           const std::string& errorStr) {
     Shape ref_shape{2, 3, 4};
     Shape indices_shape{2, 1};
     Shape updates_shape{2, 2, 1, 4};
@@ -63,7 +70,7 @@ void incorrect_shape_check(const Shape& refShape, const Shape& indicesShape, con
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
-} // namespace
+}  // namespace
 
 TEST(type_prop, scatter_update_output_type_check_f16) {
     type_check(element::f16);
@@ -110,39 +117,81 @@ TEST(type_prop, scatter_update_output_type_check_u64) {
 }
 
 TEST(type_prop, scatter_update_v3_fail_updates_data_et_not_equal) {
-    incorrect_type_check(element::f32, element::i32, element::u32, element::i32, "Element types for input data and updates do not match");
+    incorrect_type_check(element::f32,
+                         element::i32,
+                         element::u32,
+                         element::i32,
+                         "Element types for input data and updates do not match");
 }
 
 TEST(type_prop, scatter_update_v3_fail_indices_element_type) {
-    incorrect_type_check(element::f32, element::f16, element::f32, element::i64, "Indices element type must be of an integral number type");
+    incorrect_type_check(element::f32,
+                         element::f16,
+                         element::f32,
+                         element::i64,
+                         "Indices element type must be of an integral number type");
 }
 
 TEST(type_prop, scatter_update_v3_fail_axis_element_type) {
-    incorrect_type_check(element::i16, element::u64, element::i16, element::f32, "Axis element type must be of an integral number type");
+    incorrect_type_check(element::i16,
+                         element::u64,
+                         element::i16,
+                         element::f32,
+                         "Axis element type must be of an integral number type");
 }
 
 TEST(type_prop, scatter_update_v3_fail_updates_rank) {
-    incorrect_shape_check({2, 3, 4}, {2, 1}, {2, 1, 4}, {}, 0, "Updates rank is expected to be rank(indices) + rank(data) - 1");
+    incorrect_shape_check({2, 3, 4},
+                          {2, 1},
+                          {2, 1, 4},
+                          {},
+                          0,
+                          "Updates rank is expected to be rank(indices) + rank(data) - 1");
 }
 
 TEST(type_prop, scatter_update_v3_fail_updates_shape_axis) {
-    incorrect_shape_check({2, 3, 4}, {2, 1}, {2, 2, 1, 4}, {}, 0, "Updates shape must have appropriate dimensions equal to indices and data dimensions");
+    incorrect_shape_check({2, 3, 4},
+                          {2, 1},
+                          {2, 2, 1, 4},
+                          {},
+                          0,
+                          "Updates shape must have appropriate dimensions equal to indices and data dimensions");
 }
 
 TEST(type_prop, scatter_update_v3_fail_updates_shape_indices) {
-    incorrect_shape_check({2, 3, 4}, {2, 1}, {2, 3, 1, 4}, {}, 1, "Updates shape must have appropriate dimensions equal to indices and data dimensions");
+    incorrect_shape_check({2, 3, 4},
+                          {2, 1},
+                          {2, 3, 1, 4},
+                          {},
+                          1,
+                          "Updates shape must have appropriate dimensions equal to indices and data dimensions");
 }
 
 TEST(type_prop, scatter_update_v3_fail_updates_shape_data_before_axis) {
-    incorrect_shape_check({2, 3, 4}, {2, 1}, {3, 2, 1, 4}, {}, 1, "Updates shape must have appropriate dimensions equal to indices and data dimensions");
+    incorrect_shape_check({2, 3, 4},
+                          {2, 1},
+                          {3, 2, 1, 4},
+                          {},
+                          1,
+                          "Updates shape must have appropriate dimensions equal to indices and data dimensions");
 }
 
 TEST(type_prop, scatter_update_v3_fail_updates_shape_data_after_axis) {
-    incorrect_shape_check({2, 3, 4}, {2, 1}, {2, 2, 1, 5}, {}, 1, "Updates shape must have appropriate dimensions equal to indices and data dimensions");
+    incorrect_shape_check({2, 3, 4},
+                          {2, 1},
+                          {2, 2, 1, 5},
+                          {},
+                          1,
+                          "Updates shape must have appropriate dimensions equal to indices and data dimensions");
 }
 
 TEST(type_prop, scatter_update_v3_fail_axis_shape) {
-    incorrect_shape_check({2, 3, 4}, {2, 1}, {2, 2, 1, 4}, {2}, 1, "Axis input shape is required to be scalar or 1D tensor");
+    incorrect_shape_check({2, 3, 4},
+                          {2, 1},
+                          {2, 2, 1, 4},
+                          {2},
+                          1,
+                          "Axis input shape is required to be scalar or 1D tensor");
 }
 
 TEST(type_prop, scatter_update_v3_dynamic_data_shape) {
