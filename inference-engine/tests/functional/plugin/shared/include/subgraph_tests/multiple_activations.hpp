@@ -8,7 +8,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-TEST_P(MultipleActivationsTest, TanhActivation) {
+TEST_P(MultipleActivationsTest, CompareWithRefs) {
     Run();
 };
 

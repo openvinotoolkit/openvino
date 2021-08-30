@@ -29,7 +29,7 @@ const std::vector<InferenceEngine::Precision> net_precisions = {
 std::map<std::string, std::string> additional_config = {};
 } // namespace
 
-INSTANTIATE_TEST_SUITE_P(smoke_fc_inputs, MultipleActivationsTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MultipleActivationsTest, MultipleActivationsTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(input_sizes),
                                 ::testing::ValuesIn(net_precisions),
