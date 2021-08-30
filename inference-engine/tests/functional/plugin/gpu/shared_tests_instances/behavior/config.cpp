@@ -97,6 +97,13 @@ namespace {
                 ::testing::ValuesIn(conf)),
             CorrectConfigAPITests::getTestCaseName);
 
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, DefaultValuesConfigTests,
+            ::testing::Combine(
+                ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                ::testing::ValuesIn(conf)),
+            CorrectConfigAPITests::getTestCaseName);
+
     INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, CorrectConfigAPITests,
             ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),

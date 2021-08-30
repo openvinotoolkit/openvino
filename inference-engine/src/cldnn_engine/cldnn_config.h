@@ -30,7 +30,7 @@ struct Config {
                tuningConfig(),
                graph_dumps_dir(""),
                sources_dumps_dir(""),
-               device_id(""),
+               device_id("0"),
                kernels_cache_dir(""),
                n_threads(std::max(static_cast<unsigned int>(1), std::thread::hardware_concurrency())),
                enable_loop_unrolling(true) {
