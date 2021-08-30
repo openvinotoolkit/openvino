@@ -2,7 +2,7 @@
 
 **Versioned name**: *Sin-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Sin* performs element-wise sine operation with given tensor.
 

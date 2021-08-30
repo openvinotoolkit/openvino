@@ -64,16 +64,16 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
     }
 
     const std::shared_ptr<Node> multiply = operation->get_input_node_shared_ptr(0);
-    auto scalesConst = as_type_ptr<ngraph::opset1::Constant>(multiply->get_input_node_shared_ptr(1));
+    auto scalesConst = ov::as_type_ptr<ngraph::opset1::Constant>(multiply->get_input_node_shared_ptr(1));
     if (scalesConst == nullptr) {
-        scalesConst = as_type_ptr<ngraph::opset1::Constant>(multiply->get_input_node_shared_ptr(0));
+        scalesConst = ov::as_type_ptr<ngraph::opset1::Constant>(multiply->get_input_node_shared_ptr(0));
     }
     if (scalesConst == nullptr) {
         return false;
     }
 
     // TODO: Expand transformation for all cases of axes values
-    const auto axes = as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1));
+    const auto axes = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1));
     const std::vector<int64_t> axesAcrossSpatial = { 1 };
     const std::vector<int64_t> axesByChannels = { 1, 2, 3 };
 
@@ -104,13 +104,13 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         return false;
     }
 
-    auto normalize = as_type_ptr<opset1::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation));
+    auto normalize = ov::as_type_ptr<opset1::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation));
 
-    const auto axes = as_type_ptr<opset1::Constant>(normalize->get_input_node_shared_ptr(1));
+    const auto axes = ov::as_type_ptr<opset1::Constant>(normalize->get_input_node_shared_ptr(1));
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(normalize);
-    auto scalesConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
+    auto scalesConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
     if (scalesConst == nullptr) {
-        scalesConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
+        scalesConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
     }
 
     std::shared_ptr<opset1::Constant> newScalesConst;

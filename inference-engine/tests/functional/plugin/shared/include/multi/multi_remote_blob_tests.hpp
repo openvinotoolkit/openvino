@@ -17,7 +17,7 @@ TEST_P(MultiDevice_SupportTest, canCreateContextThenRequestThenBlobsAndInfer) {
 
     auto exec_net = ie->LoadNetwork(net, device_names);
     if (expected_status) {
-        InferenceEngine::RemoteContext::Ptr ctx;
+        std::shared_ptr<InferenceEngine::RemoteContext> ctx;
         ASSERT_NE(ctx = exec_net.GetContext(), nullptr);
         InferenceEngine::InferRequest req = exec_net.CreateInferRequest();
         ASSERT_TRUE(req);

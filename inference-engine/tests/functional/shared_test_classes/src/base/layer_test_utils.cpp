@@ -67,7 +67,7 @@ void LayerTestsCommon::Run() {
 void LayerTestsCommon::Serialize() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = GetTestName().substr(0, maxFileNameLength) + "_" + GetTimestamp();
+    std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -268,6 +268,14 @@ void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const
         case InferenceEngine::Precision::I32:
             Compare(reinterpret_cast<const std::int32_t *>(expectedBuffer),
                     reinterpret_cast<const std::int32_t *>(actualBuffer), size, 0);
+            break;
+        case InferenceEngine::Precision::I16:
+            Compare(reinterpret_cast<const std::int16_t *>(expectedBuffer),
+                    reinterpret_cast<const std::int16_t *>(actualBuffer), size, 0);
+            break;
+        case InferenceEngine::Precision::U8:
+            Compare(reinterpret_cast<const std::uint8_t *>(expectedBuffer),
+                    reinterpret_cast<const std::uint8_t *>(actualBuffer), size, 0);
             break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";

@@ -5,6 +5,7 @@
 #include "ie_common.h"
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
+#include "shared_object.hpp"
 
 //
 // LoadLibraryA, LoadLibraryW:
@@ -274,3 +275,112 @@ void* SharedObjectLoader::get_symbol(const char* symbolName) const {
 
 }  // namespace details
 }  // namespace InferenceEngine
+
+
+namespace ov {
+namespace runtime {
+SharedObject::SharedObject(const char* path) {
+    using GetDllDirectoryA_Fnc = DWORD(*)(DWORD, LPSTR);
+    GetDllDirectoryA_Fnc IEGetDllDirectoryA = nullptr;
+    if (HMODULE hm = GetModuleHandleW(L"kernel32.dll")) {
+        IEGetDllDirectoryA = reinterpret_cast<GetDllDirectoryA_Fnc>(GetProcAddress(hm, "GetDllDirectoryA"));
+    }
+#if !WINAPI_PARTITION_SYSTEM
+    // ExcludeCurrentDirectory
+    if (IEGetDllDirectoryA && IEGetDllDirectoryA(0, NULL) <= 1) {
+        SetDllDirectoryA("");
+    }
+    // LoadPluginFromDirectory
+    if (IEGetDllDirectoryA) {
+        DWORD nBufferLength = IEGetDllDirectoryA(0, NULL);
+        std::vector<CHAR> lpBuffer(nBufferLength);
+        IEGetDllDirectoryA(nBufferLength, &lpBuffer.front());
+
+        // GetDirname
+        auto dirname = [&] {
+            auto pos = strchr(path, '\\');
+            if (pos == nullptr) {
+                return std::string{path};
+            }
+            std::string original(path);
+            original[pos - path] = 0;
+            return original;
+        } ();
+
+        SetDllDirectoryA(dirname.c_str());
+        shared_object = LoadLibraryA(path);
+
+        SetDllDirectoryA(&lpBuffer.front());
+    }
+#endif
+    if (!shared_object) {
+        shared_object = LoadLibraryA(path);
+    }
+    if (!shared_object) {
+        char cwd[1024];
+        IE_THROW() << "Cannot load library '" << path << "': " << GetLastError()
+            << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+    }
+}
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+SharedObject::SharedObject(const wchar_t* path) {
+    using GetDllDirectoryW_Fnc = DWORD(*)(DWORD, LPWSTR);
+    static GetDllDirectoryW_Fnc IEGetDllDirectoryW = nullptr;
+    if (HMODULE hm = GetModuleHandleW(L"kernel32.dll")) {
+        IEGetDllDirectoryW = reinterpret_cast<GetDllDirectoryW_Fnc>(GetProcAddress(hm, "GetDllDirectoryW"));
+    }
+    // ExcludeCurrentDirectory
+#if !WINAPI_PARTITION_SYSTEM
+    if (IEGetDllDirectoryW && IEGetDllDirectoryW(0, NULL) <= 1) {
+        SetDllDirectoryW(L"");
+    }
+    if (IEGetDllDirectoryW) {
+        DWORD nBufferLength = IEGetDllDirectoryW(0, NULL);
+        std::vector<WCHAR> lpBuffer(nBufferLength);
+        IEGetDllDirectoryW(nBufferLength, &lpBuffer.front());
+
+        auto dirname = [&] {
+            auto pos = wcsrchr(path, '\\');
+            if (pos == nullptr) {
+                return std::wstring{path};
+            }
+            std::wstring original(path);
+            original[pos - path] = 0;
+            return original;
+        } ();
+        SetDllDirectoryW(dirname.c_str());
+        shared_object = LoadLibraryW(path);
+
+        SetDllDirectoryW(&lpBuffer.front());
+    }
+#endif
+    if (!shared_object) {
+        shared_object = LoadLibraryW(path);
+    }
+    if (!shared_object) {
+        char cwd[1024];
+        IE_THROW() << "Cannot load library '" << FileUtils::wStringtoMBCSstringChar(std::wstring(path)) << "': " << GetLastError()
+                            << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+    }
+}
+#endif
+
+SharedObject::~SharedObject() {
+    FreeLibrary(reinterpret_cast<HMODULE>(shared_object));
+}
+
+void* SharedObject::get_symbol(const char* symbolName) const {
+    if (!shared_object) {
+        IE_THROW() << "Cannot get '" << symbolName << "' content from unknown library!";
+    }
+    auto procAddr = reinterpret_cast<void*>(GetProcAddress(
+        reinterpret_cast<HMODULE>(const_cast<void*>(shared_object)), symbolName));
+    if (procAddr == nullptr)
+        IE_THROW(NotFound)
+            << "GetProcAddress cannot locate method '" << symbolName << "': " << GetLastError();
+
+    return procAddr;
+}
+}  // namespace runtime
+}  // namespace ov

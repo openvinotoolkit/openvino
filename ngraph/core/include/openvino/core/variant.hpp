@@ -11,10 +11,8 @@
 #include "ngraph/type.hpp"
 #include "openvino/core/core_visibility.hpp"
 
-namespace ngraph {
-class Node;
-}
 namespace ov {
+class Node;
 using VariantTypeInfo = ngraph::DiscreteTypeInfo;
 
 class OPENVINO_API Variant {
@@ -23,7 +21,7 @@ public:
     virtual const VariantTypeInfo& get_type_info() const = 0;
 
     virtual bool is_copyable() const;
-    virtual std::shared_ptr<ov::Variant> init(const std::shared_ptr<ngraph::Node>& node);
+    virtual std::shared_ptr<ov::Variant> init(const std::shared_ptr<Node>& node);
     virtual std::shared_ptr<ov::Variant> merge(const ngraph::NodeVector& nodes);
     virtual std::string to_string() {
         return "";

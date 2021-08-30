@@ -63,15 +63,19 @@ protected:
     size_t m_byte_size;
 };
 }  // namespace runtime
+}  // namespace ngraph
+
+namespace ov {
 template <>
-class NGRAPH_API AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>
-    : public DirectValueAccessor<std::shared_ptr<runtime::AlignedBuffer>> {
+class NGRAPH_API AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>
+    : public DirectValueAccessor<std::shared_ptr<ngraph::runtime::AlignedBuffer>> {
 public:
-    AttributeAdapter(std::shared_ptr<runtime::AlignedBuffer>& value);
+    AttributeAdapter(std::shared_ptr<ngraph::runtime::AlignedBuffer>& value);
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+
+}  // namespace ov

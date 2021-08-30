@@ -32,7 +32,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 47315
         ".*ProposalLayerTest.*",
         // TODO: Issue 51804
-        ".*PreprocessConversionTest.*oPRC=U8.*",
+        ".*InferRequestPreprocessConversionTest.*oPRC=U8.*",
         // TODO: Issue: 56556
         R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
         R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
@@ -47,6 +47,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*HoldersTestOnImportedNetwork\.CreateRequestWithCoreRemoved.*)",
         // TODO: Issue 58621
         R"(.*IEClassNetworkTestP\.LoadNetworkActualNoThrow.*)",
-        R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)"
+        R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)",
+        // CVS-58963: Not implemented yet
+        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
     };
 }
