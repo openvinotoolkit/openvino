@@ -304,11 +304,12 @@ def max_pool(
     @param  rounding_type:       Determines used rounding schema when computing output shape.
                                  Acceptable values are: ['floor', 'ceil']
     @param  auto_pad:            Determines how the padding is calculated. Acceptable values:
-                                 [None, 'same_upper', 'same_lower', 'valid']
-    @param  index_element_type:  The data type used for the indices outputof this operator.
+                                 [None, 'same_upper', 'same_lower', 'valid']. Defaults to None.
+    @param  index_element_type:  The data type used for the indices output of this operator.
+                                 Defaults to i64.
     @param  axis:                The first dimension in the data shape used to determine the maximum
                                  returned index value. The value is the product of all dimensions
-                                 starting at the provided axis.
+                                 starting at the provided axis. Defaults to 0.
     @param  name:                The optional name for the created output node.
 
     @return   The new node performing max pooling operation.
@@ -326,7 +327,7 @@ def max_pool(
             "kernel": kernel_shape,
             "rounding_type": rounding_type.upper(),
             "auto_pad": auto_pad.upper(),
-            "index_element_type": index_element_type,
+            "index_element_type": index_element_type.lower(),
             "axis": axis,
         },
     )
