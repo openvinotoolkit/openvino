@@ -14,10 +14,7 @@ namespace util {
 ///
 class NGRAPH_API ScatterBase : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"ScatterBase", 3};
-    const NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    NGRAPH_RTTI_DECLARATION;
     virtual void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
