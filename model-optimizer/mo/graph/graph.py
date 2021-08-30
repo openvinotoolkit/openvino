@@ -147,7 +147,7 @@ class Node:
         for idx in self._in_ports:
             if control_flow or 'control_flow' not in self._in_ports[idx] or not self._in_ports[idx]['control_flow']:
                 ports.update({idx: self.in_port(idx, control_flow=control_flow)})
-        return dict_to_ordered_dict(ports, func=lambda t: str(t))
+        return dict_to_ordered_dict(ports, func=lambda t: int(t))
 
     def out_port(self, idx=None, control_flow=False) -> Port:
         if not self.has_valid('_out_ports'):
@@ -165,7 +165,7 @@ class Node:
         for idx in self._out_ports:
             if control_flow or 'control_flow' not in self._out_ports[idx] or not self._out_ports[idx]['control_flow']:
                 ports.update({idx: self.out_port(idx, control_flow=control_flow)})
-        return dict_to_ordered_dict(ports, func=lambda t: str(t))
+        return dict_to_ordered_dict(ports, func=lambda t: int(t))
 
     def has_port(self, port_type, idx, control_flow=False):
         assert port_type in ['in', 'out'], "Invalid usage of has_port method"
