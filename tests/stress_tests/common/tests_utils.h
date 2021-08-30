@@ -69,7 +69,7 @@ public:
                 "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device);
         int i = 1;
         for (auto model: models){
-            test_case_name += "_Model" + std::to_string(i) + "_" + update_item_for_name(model["name"])  "_Precision_" +  update_item_for_name(model["precision"]);
+            test_case_name += "_Model" + std::to_string(i) + "_" + update_item_for_name(model["name"]) + "_Precision_" +  update_item_for_name(model["precision"]);
             models_names += update_item_for_name(model["path"]) + "\n";
             i += 1;
         }
@@ -107,6 +107,7 @@ public:
 std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> items);
 std::vector<TestCaseMemLeaks> generateTestsParamsMemLeaks();
 std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj);
+std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<TestCaseMemLeaks> &obj);
 
 void runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
 void _runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
