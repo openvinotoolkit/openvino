@@ -123,7 +123,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::run_on_function(std::shared_
 
 template <class Operation>
 std::string name() {
-    return Operation::get_type_info_static().name;
+    return Operation::type_info.name;
 }
 
 bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::shared_ptr<Node>& node) {

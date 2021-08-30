@@ -15,6 +15,10 @@ class NGRAPH_API Op : public Node {
 protected:
     Op() : Node() {}
     Op(const OutputVector& arguments);
+
+public:
+    static const ::ov::Node::type_info_t type_info;
+    const ::ov::Node::type_info_t& get_type_info() const override;
 };
 }  // namespace op
 }  // namespace ngraph

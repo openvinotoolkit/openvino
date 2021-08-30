@@ -47,6 +47,7 @@ set(SRC
     main.cpp
     matcher_pass.cpp
     misc.cpp
+    rtti.cpp
     node_input_output.cpp
     op.cpp
     op_eval/binary_convolution.cpp

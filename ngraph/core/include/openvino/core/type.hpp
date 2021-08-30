@@ -25,16 +25,29 @@ namespace ov {
 struct OPENVINO_API DiscreteTypeInfo {
     const char* name;
     uint64_t version;
+    const char* version_id;
     // A pointer to a parent type info; used for casting and inheritance traversal, not for
     // exact type identification
     const DiscreteTypeInfo* parent;
 
     DiscreteTypeInfo() = default;
 
-    constexpr DiscreteTypeInfo(const char* _name, uint64_t _version, const DiscreteTypeInfo* _parent = nullptr)
+    constexpr DiscreteTypeInfo(const char* _name,
+                               uint64_t _version,
+                               const DiscreteTypeInfo* _parent = nullptr)
         : name(_name),
           version(_version),
-          parent(_parent) {}
+          parent(_parent),
+          version_id(nullptr) {}
+
+    constexpr DiscreteTypeInfo(const char* _name,
+                               uint64_t _version,
+                               const char* _version_id,
+                               const DiscreteTypeInfo* _parent = nullptr)
+        : name(_name),
+          version(_version),
+          parent(_parent),
+          version_id(_version_id) {}
 
     bool is_castable(const DiscreteTypeInfo& target_type) const {
         return *this == target_type || (parent && parent->is_castable(target_type));
@@ -42,22 +55,41 @@ struct OPENVINO_API DiscreteTypeInfo {
 
     // For use as a key
     bool operator<(const DiscreteTypeInfo& b) const {
-        return version < b.version || (version == b.version && strcmp(name, b.name) < 0);
+        if (version_id == nullptr)
+            return version < b.version || (version == b.version && strcmp(name, b.name) < 0);
+        else
+            return strcmp(version_id, b.version_id) < 0 ||
+                   (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) < 0);
     }
     bool operator<=(const DiscreteTypeInfo& b) const {
-        return version < b.version || (version == b.version && strcmp(name, b.name) <= 0);
+        if (version_id == nullptr)
+            return version < b.version || (version == b.version && strcmp(name, b.name) <= 0);
+        else
+            return strcmp(version_id, b.version_id) < 0 ||
+                   (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) <= 0);
     }
     bool operator>(const DiscreteTypeInfo& b) const {
-        return version < b.version || (version == b.version && strcmp(name, b.name) > 0);
+        if (version_id == nullptr)
+            return version > b.version || (version == b.version && strcmp(name, b.name) > 0);
+        else
+            return strcmp(version_id, b.version_id) > 0 ||
+                   (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) > 0);
     }
     bool operator>=(const DiscreteTypeInfo& b) const {
-        return version < b.version || (version == b.version && strcmp(name, b.name) >= 0);
+        if (version_id == nullptr)
+            return version > b.version || (version == b.version && strcmp(name, b.name) >= 0);
+        else
+            return strcmp(version_id, b.version_id) > 0 ||
+                   (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) >= 0);
     }
     bool operator==(const DiscreteTypeInfo& b) const {
-        return version == b.version && strcmp(name, b.name) == 0;
+        if (version_id == nullptr)
+            return version == b.version && strcmp(name, b.name) == 0;
+        else
+            return (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0);
     }
     bool operator!=(const DiscreteTypeInfo& b) const {
-        return version != b.version || strcmp(name, b.name) != 0;
+        return !(*this == b);
     }
 };
 

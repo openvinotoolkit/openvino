@@ -14,7 +14,7 @@ namespace v0 {
 /// \brief Concatenation operation.
 class NGRAPH_API Concat : public Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI_DECLARATION;
 
     /// \brief Constructs a concatenation operation.
     Concat() = default;
@@ -33,7 +33,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return The concatenation axis.
     int64_t get_concatenation_axis() const {

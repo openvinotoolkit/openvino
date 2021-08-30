@@ -1,0 +1,99 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "gtest/gtest.h"
+#include "ngraph/node.hpp"
+#include "util/all_close_f.hpp"
+#include "util/test_tools.hpp"
+
+using namespace ngraph;
+using namespace std;
+
+class OpType : public ngraph::op::Op {
+public:
+    OPENVINO_RTTI_DECLARATION;
+    OpType() = default;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        return nullptr;
+    }
+};
+OPENVINO_RTTI_DEFINITION(OpType, "OpType");
+
+class OpTypeVersion : public ngraph::op::Op {
+public:
+    OPENVINO_RTTI_DECLARATION;
+    OpTypeVersion() = default;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        return nullptr;
+    }
+};
+OPENVINO_RTTI_DEFINITION(OpTypeVersion, "OpTypeVersion", "my_version");
+
+class OpTypeVersionParent : public OpType {
+public:
+    OPENVINO_RTTI_DECLARATION;
+    OpTypeVersionParent() = default;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        return nullptr;
+    }
+};
+OPENVINO_RTTI_DEFINITION(OpTypeVersionParent, "OpTypeVersionParent", "my_version", OpType);
+
+class OpTypeVersionParentOld : public OpType {
+public:
+    OPENVINO_RTTI_DECLARATION;
+    OpTypeVersionParentOld() = default;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+        return nullptr;
+    }
+};
+OPENVINO_RTTI_DEFINITION(OpTypeVersionParentOld, "OpTypeVersionParentOld", "my_version1", OpType, 1);
+
+TEST(rtti, op_with_type) {
+    auto op = OpType();
+    auto type_info = op.get_type_info();
+    ASSERT_EQ(type_info, OpType::type_info);
+    ASSERT_EQ(type_info.name, "OpType");
+    ASSERT_EQ(type_info.version, 0);
+    ASSERT_EQ(type_info.version_id, "extension");
+    ASSERT_NE(type_info.parent, nullptr);
+    ASSERT_EQ(*type_info.parent, ngraph::op::Op::type_info);
+}
+
+TEST(rtti, op_with_type_version) {
+    auto op = OpTypeVersion();
+    auto type_info = op.get_type_info();
+    ASSERT_EQ(type_info, OpTypeVersion::type_info);
+    ASSERT_EQ(type_info.name, "OpTypeVersion");
+    ASSERT_EQ(type_info.version, 0);
+    ASSERT_EQ(type_info.version_id, "my_version");
+    ASSERT_NE(type_info.parent, nullptr);
+    ASSERT_EQ(*type_info.parent, ngraph::op::Op::type_info);
+}
+
+TEST(rtti, op_with_type_version_parent) {
+    auto op = OpTypeVersionParent();
+    auto type_info = op.get_type_info();
+    ASSERT_EQ(type_info, OpTypeVersionParent::type_info);
+    ASSERT_EQ(type_info.name, "OpTypeVersionParent");
+    ASSERT_EQ(type_info.version, 0);
+    ASSERT_EQ(type_info.version_id, "my_version");
+    ASSERT_NE(type_info.parent, nullptr);
+    ASSERT_EQ(*type_info.parent, OpType::type_info);
+}
+
+TEST(rtti, op_with_type_version_parent_old) {
+    auto op = OpTypeVersionParentOld();
+    auto type_info = op.get_type_info();
+    ASSERT_EQ(type_info, OpTypeVersionParentOld::type_info);
+    ASSERT_EQ(type_info.name, "OpTypeVersionParentOld");
+    ASSERT_EQ(type_info.version, 1);
+    ASSERT_EQ(type_info.version_id, "my_version1");
+    ASSERT_NE(type_info.parent, nullptr);
+    ASSERT_EQ(*type_info.parent, OpType::type_info);
+}
