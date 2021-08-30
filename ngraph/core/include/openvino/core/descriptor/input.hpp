@@ -7,37 +7,35 @@
 #include <map>
 #include <memory>
 
+#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/variant.hpp"
 
-namespace ngraph {
-class Node;
-}
-
 namespace ov {
+class Node;
 namespace descriptor {
 class Output;
 
 // Describes a tensor that is an input to an op, directly or indirectly via a tuple
-class NGRAPH_API Input {
-    friend class ngraph::Node;
+class OPENVINO_API Input {
+    friend class ov::Node;
 
 public:
     /// \param node The node that owns this input
     /// \param index The position of this this tensor in all input tensors
     /// \param output The output that supplies a value for this input
-    Input(ngraph::Node* node, size_t index, Output& output);
+    Input(Node* node, size_t index, Output& output);
     /// \brief Create an Input that is not connected to an output
     /// \param node The node that owns this input
     /// \param index The position of this this tensor in all input tensors
-    Input(ngraph::Node* node, size_t index);
+    Input(Node* node, size_t index);
     ~Input();
 
     /// \return the node that this is an input of
-    std::shared_ptr<ngraph::Node> get_node() const;
+    std::shared_ptr<Node> get_node() const;
 
     /// \return the raw pointer to the node that this is an input of
-    ngraph::Node* get_raw_pointer_node() const {
+    Node* get_raw_pointer_node() const {
         return m_node;
     }
     /// \return the position within all supplied tensors of this input
@@ -71,7 +69,7 @@ public:
 
     /// \brief Replace the current output that supplies a value for this input with output i
     ///        of node
-    void replace_output(const std::shared_ptr<ngraph::Node>& node, size_t i);
+    void replace_output(const std::shared_ptr<Node>& node, size_t i);
     /// \brief Replace the current output that supplies a value for this input with output
     void replace_output(Output& output);
     /// \brief Remove the output from this input. The node will not be valid until another
@@ -114,9 +112,9 @@ protected:
     std::shared_ptr<Tensor> get_tensor_ptr();
 
     // owner of an argument node (in lieu of m_arguments)
-    std::shared_ptr<ngraph::Node> m_src_node;
-    ngraph::Node* m_node;  // The node we are an input for
-    size_t m_index;        // Index into all input tensors
+    std::shared_ptr<Node> m_src_node;
+    Node* m_node;    // The node we are an input for
+    size_t m_index;  // Index into all input tensors
     Output* m_output;
     RTMap m_rt_info;
 
