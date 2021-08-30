@@ -317,8 +317,15 @@ TEST(GroupConvMulFusion, WeightsWithFakeQuantizeAndReshape) {
 
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 4, 7, 7});
-        auto weights = opset5::Constant::create(element::f32, Shape{2, 3, 2, 3, 3}, std::vector<float>(108, 1));
-        auto conv = std::make_shared<opset5::GroupConvolution>(data, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto weights = opset5::Constant::create(element::f32, Shape{6, 2, 3, 3}, std::vector<float>(108, 1));
+        auto fq = std::make_shared<opset5::FakeQuantize>(weights,
+                                                         opset5::Constant::create(element::f32, Shape{1}, {0}),
+                                                         opset5::Constant::create(element::f32, Shape{1}, {1}),
+                                                         opset5::Constant::create(element::f32, Shape{1}, {0}),
+                                                         opset5::Constant::create(element::f32, Shape{1}, {10}), 2);
+        auto mul = std::make_shared<opset5::Multiply>(fq, opset5::Constant::create(element::f32, Shape{6, 1, 1, 1}, std::vector<float>(6, 2)));
+        auto reshape = std::make_shared<opset5::Reshape>(mul, opset5::Constant::create(element::i64, Shape{5}, Shape{2, 3, 2, 3, 3}), false);
+        auto conv = std::make_shared<opset5::GroupConvolution>(data, reshape, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
         f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
 
