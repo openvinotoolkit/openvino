@@ -127,8 +127,7 @@
         <tbody id="data">
             {% for op in ordered_ops -%}
             <tr>
-                <th scope="row" {% if op not in verified_operations -%} class="colorRed" {% endif -%} name="{{ op }}">{{
-                    op }}</th>
+                <th scope="row" name="{{ op }}">{{ op }}</th>
 
                 {% for d in devices -%}
                 {% if op in results[d] -%}
