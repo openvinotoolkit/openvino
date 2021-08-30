@@ -30,14 +30,14 @@ class DropoutWithRandomUniformReplacer(FrontReplacementSubgraph):
                   |                    |
                Const(0.5)           Const(0)
     """
-    enabled = False
+    enabled = True
 
     @staticmethod
     def pattern(**kwargs):
         return dict(
             nodes=[
                 ('shape', dict(op='ShapeOf')),
-                ('random_uniform', dict(op='RandomUniform')),
+                ('random_uniform', dict(op='AttributedRandomUniform')),
                 ('mul', dict(op='Mul')),
                 ('add_const', dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 0.0, atol=0)))),
                 ('add', dict(op='Add')),
