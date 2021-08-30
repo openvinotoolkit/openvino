@@ -14,10 +14,6 @@ namespace {
             {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_CPU}}
     };
 
-    const std::vector<std::map<std::string, std::string>> Autoconfigs = {
-            {{ AUTO_CONFIG_KEY(DEVICE_LIST) , CommonTestUtils::DEVICE_CPU}}
-    };
-
     const std::vector<std::map<std::string, std::string>> Heteroconfigs = {
             {{ HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) , CommonTestUtils::DEVICE_CPU}}
     };
@@ -40,7 +36,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(Autoconfigs)),
+                                    ::testing::ValuesIn(Multiconfigs)),
                             VersionTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, VersionTest,

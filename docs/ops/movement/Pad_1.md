@@ -2,7 +2,7 @@
 
 **Versioned name**: *Pad-1*
 
-**Category**: *Data movement operations*
+**Category**: *Data movement*
 
 **Short description**: *Pad* operation extends an input tensor on edges. The amount and value of padded elements are defined by inputs and attributes.
 

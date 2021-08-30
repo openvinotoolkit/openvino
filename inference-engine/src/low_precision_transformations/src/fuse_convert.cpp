@@ -62,26 +62,26 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
         return false;
     }
 
-    const auto convert = as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
+    const auto convert = ov::as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
     std::shared_ptr<Node> parent = convert->get_input_node_shared_ptr(0);
 
-    if (is_type<opset1::Constant>(parent)) {
+    if (ov::is_type<opset1::Constant>(parent)) {
         auto convertedConstant = foldConvert(parent, convert->get_convert_element_type());
         NetworkHelper::copyInfo(parent, convertedConstant);
         replace_node(convert, convertedConstant);
     } else {
         std::shared_ptr<Node> newOp;
-        if (is_type<opset1::Subtract>(op)) {
-            auto subtract = as_type_ptr<opset1::Subtract>(op);
+        if (ov::is_type<opset1::Subtract>(op)) {
+            auto subtract = ov::as_type_ptr<opset1::Subtract>(op);
             newOp = removeConvertIfPossibleForSubtract(convert, subtract);
-        } else if (is_type<opset1::Multiply>(op)) {
+        } else if (ov::is_type<opset1::Multiply>(op)) {
             newOp = std::make_shared<ngraph::op::TypeRelaxed<opset1::Multiply>>(
                     std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
                     ngraph::op::TemporaryReplaceOutputType(convert->get_input_source_output(0), element::f32).get(),
                     ngraph::op::TemporaryReplaceOutputType(op->get_input_node_shared_ptr(1), element::f32).get());
             NetworkHelper::setOutDataPrecisionForTypeRelaxed(newOp, op->get_output_element_type(0));
             replace_node(op, newOp);
-        } else if (is_type<opset1::Add>(op)) {
+        } else if (ov::is_type<opset1::Add>(op)) {
             newOp = std::make_shared<ngraph::op::TypeRelaxed<opset1::Add>>(
                     std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
                     ngraph::op::TemporaryReplaceOutputType(convert->get_input_source_output(0), element::f32).get(),
@@ -103,7 +103,7 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
 }
 
 bool FuseConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    const auto convert = as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
+    const auto convert = ov::as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
     // issue #40395
     if (convert == nullptr) {
         return false;

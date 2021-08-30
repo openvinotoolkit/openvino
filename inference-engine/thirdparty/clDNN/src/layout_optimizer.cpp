@@ -3,8 +3,6 @@
 //
 
 #include "layout_optimizer.h"
-#include "topology_impl.h"
-#include "network_impl.h"
 #include "primitive_inst.h"
 #include "cldnn/runtime/error_handler.hpp"
 
@@ -827,6 +825,23 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node) {
     impl_types preferred_impl = impl_types::any;
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;
+    } else if (node.is_type<detection_output>()) {
+        auto& detection_output_node = node.as<detection_output>();
+        auto confidence_layout = detection_output_node.confidence().get_output_layout();
+        auto prim = detection_output_node.get_primitive();
+        if (confidence_layout.size.batch[0] >= 4 && prim->confidence_threshold >= 0.1 && prim->top_k <= 400 &&
+            prim->num_classes >= 16 && confidence_layout.size.feature[0] > 10000)
+            preferred_impl = impl_types::ocl;
+        else
+            preferred_impl = impl_types::cpu;
+    } else if (node.is_type<non_max_suppression>()) {
+        auto& nms_node = node.as<non_max_suppression>();
+        auto scoresTensor = convert_data_tensor(nms_node.input_scores().get_output_layout());
+        const size_t kBatchNum = scoresTensor.Batch().v;
+        const size_t kClassNum = scoresTensor.Feature().v;
+        const size_t kNStreams = static_cast<size_t>(node.get_program().get_engine().configuration().n_streams);
+        const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
+        preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
     }
 
     return preferred_impl;

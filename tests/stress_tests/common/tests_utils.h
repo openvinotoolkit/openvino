@@ -11,8 +11,7 @@
 #include <string>
 #include <vector>
 #include <thread>
-#include <unistd.h>
-#include <sys/wait.h>
+
 
 enum TestStatus
 {

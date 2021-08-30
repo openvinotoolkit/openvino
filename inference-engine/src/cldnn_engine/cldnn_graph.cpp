@@ -88,11 +88,11 @@ void CLDNNGraph::Build() {
 
 std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::BuildNetwork");
-    auto network = std::make_shared<cldnn::network>(*program, m_stream_id);
+    auto network = std::make_shared<cldnn::network>(program, m_stream_id);
 
     if (!m_config.graph_dumps_dir.empty() && m_stream_id == 0) {
         static int net_id = 0;
-        auto steps_info = network->get_optimization_steps_info();
+        auto steps_info = network->get_optimizer_passes_info();
         size_t step_idx = 0;
         for (auto& step : steps_info) {
             CNNNetwork net(GetExecGraphInfoByPrimitivesInfo(step.second, true));
@@ -106,7 +106,7 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
     return network;
 }
 
-InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
+std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                                bool filter_const_primitives) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::GetExecGraphInfoByPrimitivesInfo");
     if (m_config.useProfiling) {
@@ -467,12 +467,10 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         create_ngraph_node(pi);
     }
 
-    auto function = std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
-    InferenceEngine::CNNNetwork net(function);
-    return net;
+    return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
 }
 
-InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfo() {
     auto primitives_info = GetNetwork()->get_primitives_info();
     return GetExecGraphInfoByPrimitivesInfo(primitives_info, true);
 }

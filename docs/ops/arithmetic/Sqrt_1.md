@@ -2,7 +2,7 @@
 
 **Versioned name**: *Sqrt-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: Square root element-wise operation.
 
