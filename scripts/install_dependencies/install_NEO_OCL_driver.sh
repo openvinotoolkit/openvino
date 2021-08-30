@@ -247,7 +247,7 @@ _install_user_mode_ubuntu()
                   "apt-get -y install --no-install-recommends intel-opencl=21.29.20389 \
                    intel-level-zero-gpu=1.1.20389 \
                    level-zero=1.4.1 \
-                   intel-ocloc=21.29.20389 \ 
+                   intel-ocloc=21.29.20389 \
                    intel-gmmlib=21.2.1 \
                    intel-igc-core=1.0.7862 \
                    intel-igc-opencl=1.0.7862")
