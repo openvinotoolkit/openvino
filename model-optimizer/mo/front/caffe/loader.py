@@ -130,10 +130,16 @@ def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] =
                 map = mmap.mmap(infile.fileno(), 0, access=mmap.ACCESS_READ)
                 model.MergeFromString(map)
     except Exception as e:
+        third_point = ''
+        if api_implementation._implementation_type == 'python':
+            third_point = '      3. Python protobuf implementation was used. Some models can\'t be converted ' + \
+                          ' in this configuration. Please, use Python version with existing cpp implementation of ' + \
+                          'protobuf library or build it by yourself\n' + refer_to_faq_msg(103)
         log.error('Exception message: {}\n\n'.format(e) +
                   '    Possible reasons:\n' +
                   '      1. {} does not exist\n'.format(model_path) +
-                  '      2. {} does not have a valid structure\n'.format(model_path), extra={'framework_error': True})
+                  '      2. {} does not have a valid structure\n'.format(model_path) + third_point,
+                  extra={'framework_error': True})
         raise FrameworkError('Model Optimizer is not able to parse {}'.format(model_path)) from e
 
     return proto, model
@@ -282,6 +288,8 @@ def caffe_pb_to_nx(graph, proto, model):
 
         node_id = graph.unique_id(layer.name)
         graph.add_node(node_id, pb=layer, model_pb=model_layer, kind='op', type='Parameter')
+        if hasattr(graph, 'op_names_statistic') and hasattr(layer, 'type'):
+            graph.op_names_statistic[layer.type] += 1
 
         # connect inputs based on blob_producers dictionary
         for dst_port, bottom in enumerate(layer.bottom):
@@ -319,8 +327,8 @@ def add_edge_caffe(graph: Graph, bottom: str, dst_layer: str, blob_producers: di
         'out': src_port,
         'in': dst_port,
         'name': bottom,
-        # debug anchor for a framework name, out port and tensor name
-        'fw_tensor_debug_info': [(blob_producers[bottom][2], src_port, bottom)],
+        # debug anchor for a framework name and tensor name
+        'fw_tensor_debug_info': [(blob_producers[bottom][2], bottom)],
         'in_attrs': ['in', 'name'],
         'out_attrs': ['out', 'name'],
         'data_attrs': ['fw_tensor_debug_info']

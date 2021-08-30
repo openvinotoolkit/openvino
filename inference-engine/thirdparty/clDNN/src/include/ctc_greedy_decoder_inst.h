@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/ctc_greedy_decoder.hpp"
+#include "cldnn/primitives/ctc_greedy_decoder.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {
@@ -35,7 +36,7 @@ public:
     static std::string to_string(ctc_greedy_decoder_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, ctc_greedy_decoder_node const& node);
+    typed_primitive_inst(network& network, ctc_greedy_decoder_node const& node);
 };
 
 using ctc_greedy_decoder_inst = typed_primitive_inst<ctc_greedy_decoder>;

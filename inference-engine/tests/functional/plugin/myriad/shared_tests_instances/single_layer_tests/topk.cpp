@@ -40,7 +40,7 @@ const std::vector<ngraph::opset5::TopK::SortType> sortTypes = {
         ngraph::opset5::TopK::SortType::SORT_VALUES,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_IndicesValuesSort, TopKLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_IndicesValuesSort, TopKLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(k),
             ::testing::ValuesIn(axes),
@@ -54,7 +54,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_IndicesValuesSort, TopKLayerTest,
             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
         TopKLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_NoneSort, TopKLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_NoneSort, TopKLayerTest,
         ::testing::Combine(
             ::testing::Values(1),
             ::testing::ValuesIn(axes),

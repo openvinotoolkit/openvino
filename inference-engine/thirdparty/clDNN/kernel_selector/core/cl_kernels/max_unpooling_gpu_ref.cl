@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
-KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output, const __global float* arg_max)
+KERNEL(pooling_gpu)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output, const __global float* arg_max)
 {
 #if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF
     const uint x    = (uint)get_global_id(0);
@@ -12,7 +13,7 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output,
     const uint bf   = (uint)get_global_id(2);
     const uint f    = bf % INPUT0_FEATURE_NUM;
     const uint b    = bf / INPUT0_FEATURE_NUM;
-    
+
     if (x >= INPUT0_SIZE_X)
     {
         return;

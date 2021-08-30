@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include "mkldnn_exec_network.h"
 
 #include <string>
@@ -16,16 +16,16 @@
 
 namespace MKLDNNPlugin {
 
-class Engine : public InferenceEngine::InferencePluginInternal {
+class Engine : public InferenceEngine::IInferencePlugin {
 public:
     Engine();
     ~Engine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                        const std::map<std::string, std::string> &config) override;
 
-    void AddExtension(InferenceEngine::IExtensionPtr extension) override;
+    void AddExtension(const InferenceEngine::IExtensionPtr& extension) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
 

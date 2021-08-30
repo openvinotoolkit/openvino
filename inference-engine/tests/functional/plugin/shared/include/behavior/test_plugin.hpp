@@ -10,10 +10,8 @@
 #include <memory>
 #include "ie_extension.h"
 #include <condition_variable>
-#include <legacy/ie_util_internal.hpp>
 #include <common_test_utils/ngraph_test_utils.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
-#include <functional_test_utils/test_model/test_model.hpp>
 #include <fstream>
 #include <base/behavior_test_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
@@ -45,15 +43,6 @@ TEST_P(BehaviorTests, allocateNullBlob) {
                                                                     InferenceEngine::NCHW);
     InferenceEngine::TBlob<float> blob(tdesc);
     ASSERT_NO_THROW(blob.allocate());
-}
-
-TEST_P(BehaviorTests, canNotLoadNetworkWithoutWeights) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    InferenceEngine::Core core;
-    auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
-    ASSERT_THROW(core.ReadNetwork(model.model_xml_str, InferenceEngine::Blob::CPtr()),
-                 InferenceEngine::Exception);
 }
 
 TEST_P(BehaviorTests, pluginDoesNotChangeOriginalNetwork) {

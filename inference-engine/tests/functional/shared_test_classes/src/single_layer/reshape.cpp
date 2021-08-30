@@ -5,11 +5,12 @@
 #include "shared_test_classes/single_layer/reshape.hpp"
 
 namespace LayerTestsDefinitions {
-    std::string ReshapeLayerTest::getTestCaseName(testing::TestParamInfo<reshapeParams> obj) {
+std::string ReshapeLayerTest::getTestCaseName(testing::TestParamInfo<reshapeParams> obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
-    InferenceEngine::SizeVector inputShapes, outFormShapes;
+    InferenceEngine::SizeVector inputShapes;
+    std::vector<int64_t> outFormShapes;
     std::string targetDevice;
     std::map<std::string, std::string> config;
     bool specialZero;
@@ -28,7 +29,8 @@ namespace LayerTestsDefinitions {
 }
 
 void ReshapeLayerTest::SetUp() {
-    InferenceEngine::SizeVector inputShapes, outFormShapes;
+    InferenceEngine::SizeVector inputShapes;
+    std::vector<int64_t> outFormShapes;
     bool specialZero;
     InferenceEngine::Precision netPrecision;
     std::tie(specialZero, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, outFormShapes, targetDevice, configuration) =
@@ -44,4 +46,5 @@ void ReshapeLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape)};
     function = std::make_shared<ngraph::Function>(results, paramsIn, "Reshape");
 }
+
 }  // namespace LayerTestsDefinitions

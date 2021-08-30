@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
+#include "xml_net_builder.hpp"
 #include "tests_common.hpp"
 #include "precision_utils.h"
 
@@ -139,6 +139,7 @@ protected:
     }
 
     void TearDown() override {
+        PluginCache::get().reset();
     }
 
     template <Precision::ePrecision PRC>
@@ -216,10 +217,10 @@ conv_param conv_p = { 3,3, // kernel
                       {2,16,13,13}}; // out shape
 
 #define PLUGING_CASE(_device, _test, _params) \
-    INSTANTIATE_TEST_CASE_P(_device##_run, _test, ::testing::Combine(::testing::Values(#_device), _params) )
+    INSTANTIATE_TEST_SUITE_P(_device##_run, _test, ::testing::Combine(::testing::Values(#_device), _params) )
 
 #define PLUGING_CASE_WITH_SUFFIX(_device, _suffix, _test, _params) \
-    INSTANTIATE_TEST_CASE_P(_device##_run##_suffix, _test, ::testing::Combine(::testing::Values(#_device), _params) )
+    INSTANTIATE_TEST_SUITE_P(_device##_run##_suffix, _test, ::testing::Combine(::testing::Values(#_device), _params) )
 
 #define PLUGING_CASE_WITH_PREFIX(_device, _prefix, _test, _params) \
-    INSTANTIATE_TEST_CASE_P(_prefix##_device##_run, _test, ::testing::Combine(::testing::Values(#_device), _params) )
+    INSTANTIATE_TEST_SUITE_P(_prefix##_device##_run, _test, ::testing::Combine(::testing::Values(#_device), _params) )

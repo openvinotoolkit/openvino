@@ -5,7 +5,7 @@
 #include "average_unpooling_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -78,7 +78,7 @@ std::string average_unpooling_inst::to_string(average_unpooling_node const& node
     return primitive_description.str();
 }
 
-average_unpooling_inst::typed_primitive_inst(network_impl& network, average_unpooling_node const& node)
+average_unpooling_inst::typed_primitive_inst(network& network, average_unpooling_node const& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

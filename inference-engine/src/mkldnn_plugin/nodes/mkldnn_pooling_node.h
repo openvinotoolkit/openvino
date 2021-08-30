@@ -14,15 +14,14 @@ namespace MKLDNNPlugin {
 
 class MKLDNNPoolingNode : public MKLDNNNode {
 public:
-    MKLDNNPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNPoolingNode() override = default;
+    MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
-    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims &dims) const override;
+    void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
+                          const std::vector<const MemoryDesc*>& outputDesc) override;
+    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void initDescriptor(const InferenceEngine::LayerConfig &config) override;
+    void initDescriptor(const NodeConfig& config) override;
     void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {
@@ -32,7 +31,6 @@ public:
 private:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 
-    InferenceEngine::PoolingLayer::PoolType type = InferenceEngine::PoolingLayer::MAX;
     bool exclude_pad = false;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> kernel;
@@ -52,8 +50,6 @@ private:
 
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
-
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
 };
 
 }  // namespace MKLDNNPlugin

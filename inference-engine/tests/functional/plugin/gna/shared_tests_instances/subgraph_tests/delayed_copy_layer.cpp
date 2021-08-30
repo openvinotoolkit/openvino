@@ -17,7 +17,7 @@ namespace {
             {"GNA_COMPACT_MODE", "NO"}
     };
 
-    INSTANTIATE_TEST_CASE_P(delayed_copy_layer, DelayedCopyTest,
+    INSTANTIATE_TEST_SUITE_P(delayed_copy_layer, DelayedCopyTest,
                             ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

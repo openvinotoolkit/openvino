@@ -11,7 +11,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-void MKLDNNExtensionManager::AddExtension(IExtensionPtr extension) {
+void MKLDNNExtensionManager::AddExtension(const IExtensionPtr& extension) {
     _extensions.push_back(extension);
 }
 
@@ -31,17 +31,14 @@ InferenceEngine::ILayerImpl::Ptr MKLDNNExtensionManager::CreateImplementation(co
     return nullptr;
 }
 
-std::shared_ptr<InferenceEngine::ILayerImplFactory> MKLDNNExtensionManager::CreateExtensionFactory(
-        const InferenceEngine::CNNLayerPtr &layer) {
-    if (!layer)
-        IE_THROW() << "Cannot get cnn layer!";
+std::shared_ptr<InferenceEngine::ILayerImplFactory> MKLDNNExtensionManager::CreateExtensionFactory(const std::shared_ptr<ngraph::Node>& op) {
     std::shared_ptr<ILayerImplFactory> factory;
     for (auto& ext : _extensions) {
         ResponseDesc responseDesc;
         StatusCode rc = GENERAL_ERROR;
         ILayerImplFactory* factory_ptr = nullptr;
-        if (auto mkldnnExt = std::dynamic_pointer_cast<Extensions::Cpu::MKLDNNExtensions>(ext))
-            rc = mkldnnExt->getFactoryFor(factory_ptr, layer.get(), &responseDesc);
+        if (auto mkldnnExt = dynamic_cast<Extensions::Cpu::MKLDNNExtensions*>(ext.get()))
+            rc = mkldnnExt->getFactoryFor(factory_ptr, op, &responseDesc);
         if (rc != OK) {
             factory = nullptr;
             continue;

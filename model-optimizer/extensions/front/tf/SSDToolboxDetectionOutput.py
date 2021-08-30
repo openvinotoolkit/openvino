@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.front.standalone_const_eraser import StandaloneConstEraser
 from extensions.ops.DetectionOutput import DetectionOutput
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.subgraph_matcher import SubgraphMatch
@@ -15,9 +14,6 @@ from mo.ops.result import Result
 
 class SSDToolboxDetectionOutputReplacement(FrontReplacementFromConfigFileSubGraph):
     replacement_id = 'SSDToolboxDetectionOutput'
-
-    def run_before(self):
-        return [StandaloneConstEraser]
 
     def nodes_to_remove(self, graph: Graph, match: SubgraphMatch):
         return []

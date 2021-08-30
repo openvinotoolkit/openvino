@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
 #include <memory>
@@ -73,9 +72,9 @@ struct jit_uni_mvn_kernel {
 
 class MKLDNNMVNNode : public MKLDNNNode {
 public:
-    MKLDNNMVNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNMVNNode() override = default;
+    MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
@@ -85,7 +84,15 @@ public:
         return false;
     }
 
-    static bool checkAxesSuitability(const std::shared_ptr<const ngraph::Node>&);
+    inline bool getAcrossChannels() const {
+        return acrossChannels_;
+    }
+
+    inline bool getNormalizeVariance() const {
+        return normalizeVariance_;
+    }
+
+    bool canFuse(const MKLDNNNodePtr& node) const override;
 
 private:
     void mvn_pln(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
@@ -96,17 +103,19 @@ private:
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 
-    std::tuple<size_t, size_t, size_t, size_t, size_t> get5dShapes(const InferenceEngine::SizeVector& dims);
+    void transformTo5DCase(const InferenceEngine::SizeVector& shape);
 
-    bool across_channels = false;
-    bool normalize_variance = true;
-    float eps = 1e-9f;
+    std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
+
+    bool acrossChannels_ = false;
+    bool normalizeVariance_ = true;
+    float epsValue_ = 1e-9f;
     // Defines way to add epsilon: inside sqrt or outside.
-    enum epsType {
-        insideSqrt,
-        outsideSqrt
+    enum MVNEpsMode {
+        INSIDE_SQRT,
+        OUTSIDE_SQRT
     };
-    epsType epsMode_;
+    MVNEpsMode epsMode_;
 
     InferenceEngine::Precision input_prec, output_prec;
     size_t src_data_size, dst_data_size;

@@ -8,16 +8,13 @@
 #include <cpp/ie_cnn_network.h>
 #include <cpp/ie_executable_network.hpp>
 #include <cpp/ie_infer_request.hpp>
-#include <multi-device/multi_device_config.hpp>
 
 #include <file_utils.h>
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <functional_test_utils/blob_utils.hpp>
-#include <functional_test_utils/test_model/test_model.hpp>
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
 #include <common_test_utils/test_constants.hpp>
-#include <common_test_utils/common_layers_params.hpp>
 
 #include <gtest/gtest.h>
 #include <thread>
@@ -177,7 +174,7 @@ TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
 }
 
 //
-//  Parametrized tests with numfer of parallel threads, iterations
+//  Parameterized tests with number of parallel threads, iterations
 //
 
 using Threads = unsigned int;

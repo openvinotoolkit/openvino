@@ -44,7 +44,7 @@ const auto binConv2DParams_ValidPadding = ::testing::Combine(
     ::testing::Values(ngraph::op::PadType::VALID),
     ::testing::ValuesIn(padValues));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_BinaryConvolution2D_ExplicitPadding, BinaryConvolutionLayerTest,
     ::testing::Combine(
         binConv2DParams_ExplicitPadding,
@@ -57,7 +57,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     BinaryConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_BinaryConvolution2D_AutoPadValid, BinaryConvolutionLayerTest,
     ::testing::Combine(
         binConv2DParams_ValidPadding,

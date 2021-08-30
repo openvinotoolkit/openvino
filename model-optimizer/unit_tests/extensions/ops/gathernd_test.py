@@ -14,7 +14,7 @@ nodes_attributes = {'data': {'kind': 'op'},
                     'data_data': {'shape': None, 'value': None, 'kind': 'data'},
                     'indices': {'kind': 'op'},
                     'indices_data': {'shape': None, 'value': None, 'kind': 'data'},
-                    'gathernd_node': {'op': 'ScatterNDUpdate', 'kind': 'op', 'batch_dims': 0},
+                    'gathernd_node': {'op': 'GatherNDUpdate', 'kind': 'op', 'batch_dims': 0},
                     'output': {'shape': None, 'value': None, 'kind': 'data'}}
 
 # graph 1
@@ -118,7 +118,7 @@ inputs_inv2 = {'data_data': {'shape': int64_array([10, 40, 20]), 'value': None},
 inputs_inv3 = {'data_data': {'shape': int64_array([10, 40, 20, 10, 2]), 'value': None},
                'indices_data': {'shape': int64_array([10, 40, 4]), 'value': None}}
 
-class TestScatterNDUpdate(unittest.TestCase):
+class TestGatherNDUpdate(unittest.TestCase):
     def setUp(self):
         nodes_attributes['gathernd_node']['batch_dims'] = 0
 

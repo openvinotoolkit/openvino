@@ -33,7 +33,7 @@ const std::vector<Precision> precisions = {
         Precision::BF16
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvertLayerTest_From_BF16, ConvertCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertLayerTest_From_BF16, ConvertCPULayerTest,
                         ::testing::Combine(
                                 ::testing::Values(inShape),
                                 ::testing::Values(Precision::BF16),
@@ -43,7 +43,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvertLayerTest_From_BF16, ConvertCPULayerTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvertLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvertLayerTest_To_BF16, ConvertCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertLayerTest_To_BF16, ConvertCPULayerTest,
                         ::testing::Combine(
                                 ::testing::Values(inShape),
                                 ::testing::ValuesIn(precisions),

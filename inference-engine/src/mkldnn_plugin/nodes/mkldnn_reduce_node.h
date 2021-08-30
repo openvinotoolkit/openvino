@@ -12,24 +12,9 @@
 
 namespace MKLDNNPlugin {
 
-enum class Reduce {
-    And,
-    L1,
-    L2,
-    LogSum,
-    LogSumExp,
-    Max,
-    Mean,
-    Min,
-    Or,
-    Prod,
-    Sum,
-    SumSquare
-};
-
 struct jit_reduce_config_params {
     bool planar_layout;
-    Reduce reduce_mode;
+    Algorithm reduce_mode;
     mkldnn::memory::data_type src_dt;
     mkldnn::memory::data_type dst_dt;
     int src_data_size;
@@ -79,8 +64,7 @@ struct jit_uni_reduce_post_kernel {
 
 class MKLDNNReduceNode : public MKLDNNNode {
 public:
-    MKLDNNReduceNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNReduceNode() override = default;
+    MKLDNNReduceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -90,6 +74,8 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
+
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     void reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size_t dst_size);
@@ -104,11 +90,10 @@ private:
     void reduce_ref_process(const float *in_ptr, float *out_ptr, float init_value, std::function<float(float, float)> func);
     inline void reduce_ref_map(float *out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount);
 
-    Reduce reduceMode = Reduce::Sum;
     size_t blk_size;
     size_t dims_size;
-    const size_t REDUCE_DATA = 0;
-    const size_t REDUCE_INDEXES = 1;
+    static const size_t REDUCE_DATA = 0;
+    static const size_t REDUCE_INDEXES = 1;
     bool planar_layout = true;
     bool jit_mode = true;
     bool keep_dims = true;
@@ -124,6 +109,10 @@ private:
 
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;
     std::shared_ptr<jit_uni_reduce_post_kernel> reduce_post_kernel;
+
+    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node)>> initializers;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

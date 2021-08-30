@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from extensions.front.caffe.argmax_ext import ArgMaxFrontExtractor
-from extensions.ops.argmax import ArgMaxOp
+from extensions.ops.argmax import ArgMaxOp, arg_ops_infer
 from mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
@@ -44,7 +44,7 @@ class TestArgMaxExt(unittest.TestCase):
             'out_max_val': True,
             'top_k': 100,
             'axis': 2,
-            'infer': ArgMaxOp.argmax_infer,
+            'infer': arg_ops_infer,
             'remove_values_output': True,
         }
 

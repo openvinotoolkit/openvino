@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 
 inline INPUT0_TYPE FUNC(logistic_activate)(INPUT0_TYPE x) {
     return 1. / (1. + exp(-x));
@@ -10,7 +10,7 @@ inline INPUT0_TYPE FUNC(logistic_activate)(INPUT0_TYPE x) {
 
 inline int FUNC(output_index)(int batch, int region_num, int x, int y, int xy, int feature_offset) {
 #if DO_SOFTMAX
-    return OUTPUT_GET_INDEX(batch, feature_offset * INPUT0_SIZE_X * INPUT0_SIZE_Y + xy, 1, 1);
+    return OUTPUT_GET_INDEX(batch, feature_offset * INPUT0_SIZE_X * INPUT0_SIZE_Y + xy, 0, 0);
 #else
     return OUTPUT_GET_INDEX(batch, feature_offset, y, x);
 #endif

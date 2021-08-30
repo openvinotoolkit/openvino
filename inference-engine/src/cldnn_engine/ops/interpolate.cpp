@@ -9,21 +9,21 @@
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/resample.hpp"
+#include "cldnn/primitives/resample.hpp"
 
 namespace CLDNNPlugin {
 
 static cldnn::coordinate_transformation_mode GetCoordinateTransformationMode(ngraph::op::v4::Interpolate::CoordinateTransformMode mode) {
     switch (mode) {
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel:
+    case ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL:
         return cldnn::coordinate_transformation_mode::half_pixel;
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
+    case ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL:
         return cldnn::coordinate_transformation_mode::pytorch_half_pixel;
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric:
+    case ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC:
         return cldnn::coordinate_transformation_mode::asymmetric;
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
+    case ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN:
         return cldnn::coordinate_transformation_mode::tf_half_pixel_for_nn;
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners:
+    case ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS:
         return cldnn::coordinate_transformation_mode::align_corners;
     }
 
@@ -32,15 +32,15 @@ static cldnn::coordinate_transformation_mode GetCoordinateTransformationMode(ngr
 
 static cldnn::nearest_mode GetNearestMode(ngraph::op::v4::Interpolate::NearestMode mode) {
     switch (mode) {
-    case ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor:
+    case ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR:
         return cldnn::nearest_mode::round_prefer_floor;
-    case ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil:
+    case ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL:
         return cldnn::nearest_mode::round_prefer_ceil;
-    case ngraph::op::v4::Interpolate::NearestMode::floor:
+    case ngraph::op::v4::Interpolate::NearestMode::FLOOR:
         return cldnn::nearest_mode::floor;
-    case ngraph::op::v4::Interpolate::NearestMode::ceil:
+    case ngraph::op::v4::Interpolate::NearestMode::CEIL:
         return cldnn::nearest_mode::ceil;
-    case ngraph::op::v4::Interpolate::NearestMode::simple:
+    case ngraph::op::v4::Interpolate::NearestMode::SIMPLE:
         return cldnn::nearest_mode::simple;
     }
 
@@ -49,18 +49,18 @@ static cldnn::nearest_mode GetNearestMode(ngraph::op::v4::Interpolate::NearestMo
 
 static cldnn::shape_calculation_mode GetShapeCalculationMode(ngraph::op::v4::Interpolate::ShapeCalcMode mode) {
     switch (mode) {
-    case ngraph::op::v4::Interpolate::ShapeCalcMode::sizes:  return cldnn::shape_calculation_mode::sizes;
-    case ngraph::op::v4::Interpolate::ShapeCalcMode::scales: return cldnn::shape_calculation_mode::scales;
+    case ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES:  return cldnn::shape_calculation_mode::sizes;
+    case ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES: return cldnn::shape_calculation_mode::scales;
     }
     IE_THROW() << "Unknown shape calculation mode: " << static_cast<int>(mode);
 }
 
 static cldnn::resample_type GetResampleType(ngraph::op::v4::Interpolate::InterpolateMode mode) {
     switch (mode) {
-    case ngraph::op::v4::Interpolate::InterpolateMode::nearest: return cldnn::resample_type::nearest;
-    case ngraph::op::v4::Interpolate::InterpolateMode::linear: return cldnn::resample_type::caffe_bilinear;
-    case ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx: return cldnn::resample_type::linear_onnx;
-    case ngraph::op::v4::Interpolate::InterpolateMode::cubic: return cldnn::resample_type::cubic;
+    case ngraph::op::v4::Interpolate::InterpolateMode::NEAREST: return cldnn::resample_type::nearest;
+    case ngraph::op::v4::Interpolate::InterpolateMode::LINEAR: return cldnn::resample_type::caffe_bilinear;
+    case ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX: return cldnn::resample_type::linear_onnx;
+    case ngraph::op::v4::Interpolate::InterpolateMode::CUBIC: return cldnn::resample_type::cubic;
     }
     IE_THROW() << "Unknown interpolation mode: " << static_cast<int>(mode);
 }

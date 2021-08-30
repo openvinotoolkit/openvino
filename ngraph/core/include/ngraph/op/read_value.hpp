@@ -6,114 +6,85 @@
 
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/variable.hpp"
+#include "ngraph/op/util/variable_extension.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        class NGRAPH_API ReadValueBase : public Op
-        {
-        public:
-            NGRAPH_RTTI_DECLARATION;
+namespace ngraph {
+namespace op {
+class NGRAPH_API ReadValueBase : public Op, public VariableExtension {
+public:
+    NGRAPH_RTTI_DECLARATION;
 
-            ReadValueBase() = default;
+    ReadValueBase() = default;
 
-            /// \brief Constructs an AssignBase operation.
-            explicit ReadValueBase(const OutputVector& arguments)
-                : Op(arguments)
-            {
-            }
+    /// \brief Constructs an AssignBase operation.
+    explicit ReadValueBase(const OutputVector& arguments) : Op(arguments) {}
+};
 
-            /// \brief Sets the identifier of corresponding variable
-            ///
-            /// \param variable_id New identifier of the variable.
-            virtual void set_variable_id(const std::string& variable_id){};
+namespace v3 {
+/// \brief ReadValue operation creates the variable with `variable_id` and returns value
+/// of this variable.
+class NGRAPH_API ReadValue : public ReadValueBase {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ReadValue() = default;
 
-            /// \brief Returns the identifier of corresponding variable.
-            virtual std::string get_variable_id() const = 0;
+    /// \brief Constructs a ReadValue operation.
+    ///
+    /// \param init_value   Node that produces the input tensor.
+    /// \param variable_id  identificator of the variable to create.
+    ReadValue(const Output<Node>& init_value, const std::string& variable_id);
 
-            /// \brief Returns variable connected to this node.
-            virtual std::shared_ptr<ngraph::Variable> get_variable() const { return m_variable; }
-            /// \brief Sets a new variable to be connected to this node.
-            ///
-            /// \param variable New variable to be connected to this node.
-            virtual void set_variable(const std::shared_ptr<ngraph::Variable>& variable)
-            {
-                m_variable = variable;
-            }
+    void validate_and_infer_types() override;
 
-        protected:
-            std::shared_ptr<ngraph::Variable> m_variable;
-        };
-        namespace v3
-        {
-            /// \brief ReadValue operation creates the variable with `variable_id` and returns value
-            /// of this variable.
-            class NGRAPH_API ReadValue : public ReadValueBase
-            {
-            public:
-                NGRAPH_RTTI_DECLARATION;
-                ReadValue() = default;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                /// \brief Constructs a ReadValue operation.
-                ///
-                /// \param init_value   Node that produces the input tensor.
-                /// \param variable_id  identificator of the variable to create.
-                ReadValue(const Output<Node>& init_value, const std::string& variable_id);
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
-                void validate_and_infer_types() override;
+    std::string get_variable_id() const override {
+        return m_variable_id;
+    }
 
-                std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
+private:
+    std::string m_variable_id;
+};
+}  // namespace v3
 
-                bool visit_attributes(AttributeVisitor& visitor) override;
+namespace v6 {
+/// \brief ReadValue operation gets an input value from the variable with `variable_id`
+/// and returns it as an output.
+class NGRAPH_API ReadValue : public ReadValueBase {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ReadValue() = default;
 
-                std::string get_variable_id() const override { return m_variable_id; }
-                void set_variable_id(const std::string& variable_id) override
-                {
-                    m_variable_id = variable_id;
-                }
+    /// \brief Constructs a ReadValue operation.
+    ///
+    /// \param init_value Node that produces the input tensor.
+    /// \param variable Class for storing and synchronizing element types, shapes and
+    /// identifiers
+    /// between pairs of Assign/ReadValue nodes.
+    ReadValue(const Output<Node>& init_value, const std::shared_ptr<Variable>& variable);
 
-            private:
-                std::string m_variable_id;
-            };
-        } // namespace v3
+    void validate_and_infer_types() override;
 
-        namespace v6
-        {
-            /// \brief ReadValue operation gets an input value from the variable with `variable_id`
-            /// and returns it as an output.
-            class NGRAPH_API ReadValue : public ReadValueBase
-            {
-            public:
-                NGRAPH_RTTI_DECLARATION;
-                ReadValue() = default;
+    void revalidate_and_infer_types() override;
 
-                /// \brief Constructs a ReadValue operation.
-                ///
-                /// \param init_value Node that produces the input tensor.
-                /// \param variable Class for storing and synchronizing element types, shapes and
-                /// identifiers
-                /// between pairs of Assign/ReadValue nodes.
-                ReadValue(const Output<Node>& init_value,
-                          const std::shared_ptr<Variable>& variable);
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                void validate_and_infer_types() override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
-                void revalidate_and_infer_types() override;
+    std::string get_variable_id() const override {
+        NGRAPH_CHECK(m_variable, "Variable is not initialized. Variable_id is unavailable");
+        return m_variable->get_info().variable_id;
+    }
 
-                std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool evaluate(const HostTensorVector& outputs,
+                  const HostTensorVector& inputs,
+                  const EvaluationContext& evaluation_context) const override;
+    bool has_evaluate() const override;
 
-                bool visit_attributes(AttributeVisitor& visitor) override;
-
-                std::string get_variable_id() const override
-                {
-                    NGRAPH_CHECK(m_variable,
-                                 "Variable is not initialized. Variable_id is unavailable");
-                    return m_variable->get_info().variable_id;
-                }
-            };
-        } // namespace v6
-    }     // namespace op
-} // namespace ngraph
+    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+};
+}  // namespace v6
+}  // namespace op
+}  // namespace ngraph

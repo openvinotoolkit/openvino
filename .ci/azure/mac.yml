@@ -22,7 +22,6 @@ jobs:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    WORKERS_NUMBER: 3
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
@@ -76,6 +75,7 @@ jobs:
   - script: |
       brew install cython
       brew install automake
+      python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test_onnx.txt
       # Speed up build
       brew install ninja
       # Speed up tests
@@ -87,10 +87,7 @@ jobs:
       export PATH="/usr/local/opt/cython/bin:$PATH"
       export CC=gcc
       export CXX=g++
-      # Disable errors with Ninja
-      export CXXFLAGS="-Wno-error=unused-command-line-argument"
-      export CFLAGS="-Wno-error=unused-command-line-argument"
-      cmake -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules $(REPO_DIR)
+      cmake -GNinja -DVERBOSE_BUILD=ON -DENABLE_REQUIREMENTS_INSTALL=OFF -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
@@ -106,6 +103,7 @@ jobs:
     displayName: 'Install'
 
   - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid:IE_CPU/GRUSequenceOp.onnx_model_gru* --gtest_output=xml:TEST-NGraphUT.xml
+    workingDirectory: $(BIN_DIR)
     displayName: 'nGraph UT'
     continueOnError: false
 
@@ -133,21 +131,10 @@ jobs:
     displayName: 'IE FuncTests'
     continueOnError: false
 
-  - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
+  - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke*:-smoke_LPT/ReduceMinTransformation.CompareWithRefImpl/f32_Shape* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
-
-  - script: $(BIN_DIR)/MklDnnBehaviorTests --gtest_output=xml:TEST-MklDnnBehaviorTests.xml
-    displayName: 'MklDnnBehaviorTests'
-    continueOnError: false
-
-  - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
-      python3 $(WORK_DIR)/gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
-    workingDirectory: $(WORK_DIR)
-    displayName: 'MklDnnFunctionalTests'
-    continueOnError: false
+    enabled: false
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)

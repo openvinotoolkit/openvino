@@ -98,7 +98,7 @@ TEST_P(OutShapeOfReshapeTests, CanValidateAndInferTypes) {
             ngraph::ParameterVector{m_inDataShapeParam, m_outShapeDescriptorParam}));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, OutShapeOfReshapeTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, OutShapeOfReshapeTests, testing::Combine(
         testing::ValuesIn(tensorShapes),
         testing::ValuesIn(allNGraphIntegralNumberTypes()),
         testing::ValuesIn(tensorShapes),
@@ -125,7 +125,7 @@ TEST_P(OutShapeOfReshapeTestsNegativeDataType, ThrowsOnInvalidDataType) {
             m_inDataShapeParam, m_outShapeDescriptorParam, true),
                  ngraph::NodeValidationFailure);
 }
-INSTANTIATE_TEST_CASE_P(smoke_InvalidInDataShapeTensorType, OutShapeOfReshapeTestsNegativeDataType,
+INSTANTIATE_TEST_SUITE_P(smoke_InvalidInDataShapeTensorType, OutShapeOfReshapeTestsNegativeDataType,
         testing::Combine(
             testing::Values(TensorShape{4}),
             testing::ValuesIn(allNGraphNotIntegralTypes()),
@@ -133,7 +133,7 @@ INSTANTIATE_TEST_CASE_P(smoke_InvalidInDataShapeTensorType, OutShapeOfReshapeTes
             testing::Values(ngraph::element::i64))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_InvalidOutShapeDescriptorTensorType, OutShapeOfReshapeTestsNegativeDataType,
+INSTANTIATE_TEST_SUITE_P(smoke_InvalidOutShapeDescriptorTensorType, OutShapeOfReshapeTestsNegativeDataType,
         testing::Combine(
             testing::Values(TensorShape{4}),
             testing::Values(ngraph::element::i64),
@@ -155,7 +155,7 @@ TEST_P(OutShapeOfReshapeTestsNegativeDataShape, ThrowsOnInvalidDataShape) {
                  ngraph::NodeValidationFailure);
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_InvalidInDataShapeTensorShape, OutShapeOfReshapeTestsNegativeDataShape,
+INSTANTIATE_TEST_SUITE_P(smoke_InvalidInDataShapeTensorShape, OutShapeOfReshapeTestsNegativeDataShape,
         testing::Combine(
             testing::ValuesIn(invalidTensorShapes),
             testing::Values(ngraph::element::i64),
@@ -163,7 +163,7 @@ INSTANTIATE_TEST_CASE_P(smoke_InvalidInDataShapeTensorShape, OutShapeOfReshapeTe
             testing::Values(ngraph::element::i64))
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_InvalidOutShapeDescriptorTensorShape, OutShapeOfReshapeTestsNegativeDataShape,
+INSTANTIATE_TEST_SUITE_P(smoke_InvalidOutShapeDescriptorTensorShape, OutShapeOfReshapeTestsNegativeDataShape,
         testing::Combine(
             testing::ValuesIn(tensorShapes),
             testing::Values(ngraph::element::i64),

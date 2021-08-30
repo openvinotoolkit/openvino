@@ -89,6 +89,7 @@ void PassImpl::run(const Model& model) {
 }
 }  // namespace
 
+
 Pass::Ptr PassManager::replaceWithReduceMean() {
     return std::make_shared<PassImpl>(_stageBuilder);
 }

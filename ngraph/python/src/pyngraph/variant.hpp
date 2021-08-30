@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <sstream>
 #include <string>
 
 #include "ngraph/variant.hpp" // ngraph::Variant
@@ -52,8 +53,21 @@ extern void regclass_pyngraph_VariantWrapper(py::module m, std::string typestrin
     });
 
     variant_wrapper.def("get",
-                        (VT & (ngraph::VariantWrapper<VT>::*)()) & ngraph::VariantWrapper<VT>::get);
-    variant_wrapper.def("set", &ngraph::VariantWrapper<VT>::set);
+                        (VT & (ngraph::VariantWrapper<VT>::*)()) & ngraph::VariantWrapper<VT>::get,
+                        R"(
+                            Returns
+                            ----------
+                            get : Variant
+                                Value of Variant.
+                        )");
+    variant_wrapper.def("set",
+                        &ngraph::VariantWrapper<VT>::set,
+                        R"(
+                            Parameters
+                            ----------
+                            set : str or int
+                                Value to be set in Variant.
+                        )");
 
     variant_wrapper.def_property("value",
                                  (VT & (ngraph::VariantWrapper<VT>::*)()) &

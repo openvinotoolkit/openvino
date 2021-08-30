@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
-from xml.etree.ElementTree import Element, SubElement, tostring
 
+from defusedxml import defuse_stdlib
+import defusedxml.ElementTree as ET
 from defusedxml.minidom import parseString
 
 from mo.graph.graph import *
@@ -11,6 +12,13 @@ from mo.middle.passes.convert_data_type import np_data_type_to_precision
 from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
+
+# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
+# in a safe manner without including unsafe xml.etree.ElementTree
+ET_defused = defuse_stdlib()[ET]
+Element = ET_defused.Element
+SubElement = ET_defused.SubElement
+tostring = ET_defused.tostring
 
 
 def serialize_constants(graph: Graph, bin_file_name: str, data_type=np.float32):
@@ -227,7 +235,7 @@ def serialize_element(
         if value is not None:
             element.set(key, str(value))
     serialize_node_attributes(graph, node, subelements, element, edges, unsupported)
-    if len(element.attrib) == 0 and len(element.getchildren()) == 0:
+    if len(element.attrib) == 0 and len(list(element)) == 0:
         parent_element.remove(element)
 
 
@@ -438,3 +446,27 @@ def port_renumber(graph: Graph):
         for v, d in node.get_sorted_outputs():
             d['out'] = base
             base += 1
+
+
+def append_ir_info(file: str, meta_info: dict = dict(), mean_data: [list, None] = None, input_names: list = None):
+    path_to_xml = file + ".xml"
+    path_to_bin = file + ".bin"
+
+    et = ET.parse(path_to_xml)
+    net = et.getroot()
+
+    if mean_data:
+        mean_offset, mean_size = serialize_mean_image(path_to_bin, mean_data=mean_data)
+        create_pre_process_block_for_image(net, input_names, mean_offset, mean_size)
+
+    add_meta_data(net, meta_info)
+
+    for elem in et.iter():
+        if elem.text:
+            elem.text = elem.text.strip()
+        if elem.tail:
+            elem.tail = elem.tail.strip()
+
+    pretty_xml_as_string = parseString(tostring(net)).toprettyxml()
+    with open(path_to_xml, 'wb') as file:
+        file.write(bytes(pretty_xml_as_string, "UTF-8"))

@@ -135,7 +135,7 @@ protected:
 TEST_P(DynamicToStaticShapeTopKConst, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeTopKConst, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeTopKConst, combinations);
 
 
 class DynamicToStaticShapeTopK : public CommonTestUtils::TestsCommon,
@@ -239,6 +239,6 @@ protected:
 TEST_P(DynamicToStaticShapeTopK, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeTopK, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeTopK, combinations);
 
 }  // namespace

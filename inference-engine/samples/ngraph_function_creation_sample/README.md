@@ -1,6 +1,6 @@
 # nGraph Function Creation C++ Sample {#openvino_inference_engine_samples_ngraph_function_creation_sample_README}
 
-This sample demonstrates how to execute an synchronous inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a network, which uses weights from LeNet classification network.
+This sample demonstrates how to execute an synchronous inference using [nGraph function feature](../../../docs/nGraph_DG/build_function.md) to create a network, which uses weights from LeNet classification network, which is known to work well on digit classification tasks.
 
 The sample supports only single-channel `ubyte` images as an input.
 
@@ -19,7 +19,7 @@ Basic Inference Engine API is covered by [Hello Classification C++ sample](../he
 
 | Options  | Values |
 |:---                              |:---
-| Validated Models                 | LeNet (image classification network)
+| Validated Models                 | LeNet
 | Model Format                     | Network weights file (\*.bin)
 | Validated images                 | single-channel `ubyte` images
 | Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
@@ -50,7 +50,7 @@ To run the sample, you need specify a model wights and ubyte image:
 
 Running the application with the `-h` option yields the following usage message:
 
-```sh
+```
 ngraph_function_creation_sample -h
 [ INFO ] InferenceEngine:
         API version ............<version>
@@ -75,8 +75,8 @@ Running the application with the empty list of options yields the usage message 
 
 You can do inference of an image using a pre-trained model on a GPU using the following command:
 
-```sh
-./ngraph_function_creation_sample -m <path_to_weights_file>/lenet.bin -i <path_to_image> -d GPU
+```
+<path_to_sample>/ngraph_function_creation_sample -m <path_to_weights_file>/lenet.bin -i <path_to_image> -d GPU
 ```
 
 ## Sample Output

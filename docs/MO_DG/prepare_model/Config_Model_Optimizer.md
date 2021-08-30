@@ -122,10 +122,12 @@ virtualenv -p /usr/bin/python3.6 .env3 --system-site-packages
 virtualenv -p /usr/bin/python3.6 .env3/bin/activate
 ```
 3.  Install all dependencies or only the dependencies for a specific framework:
-    *   To install dependencies for all frameworks except TensorFlow* 2.x:
+    *   To install dependencies for all frameworks except TensorFlow* 1.x:
 ```shell
 pip3 install -r requirements.txt
 ```
+> **NOTE**: TensorFlow 1.x and 2.x are incompatible. Use separate virtual environments if you want to install multiple TensorFlow versions.
+
     *   To install dependencies only for Caffe:
 ```shell
 pip3 install -r requirements_caffe.txt
@@ -156,7 +158,7 @@ pip3 install -r requirements_onnx.txt
 These procedures require:
 
 *   Access to GitHub and the ability to use git commands
-*   Microsoft Visual Studio\* 2013 for Win64\*
+*   Microsoft Visual Studio\* 2013 for Win64\* (if using Windows\*)
 *   C/C++
 
 Model Optimizer uses the protobuf library to load trained Caffe models.

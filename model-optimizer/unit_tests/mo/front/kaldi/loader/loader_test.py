@@ -203,3 +203,31 @@ class TestKaldiModelsLoading(unittest.TestCase):
                                 )
         (flag, resp) = compare_graphs(graph, ref_graph, 'tdnn1.relu')
         self.assertTrue(flag, resp)
+
+    def test_component_map_loading_scale(self):
+        test_map = "input-node name=input dim=16\n" + \
+                   "component-node name=lda component=lda input=Scale(0.1, input)\n" + \
+                   "\n"
+        graph = Graph(name="test_graph_component_map_loading_scale")
+
+        test_top_map = load_topology_map(io.BytesIO(bytes(test_map, 'ascii')), graph)
+
+        ref_map = {b"lda": ["lda"]}
+        self.assertEqual(test_top_map, ref_map)
+        self.assertTrue("input" in graph.nodes())
+        self.assertListEqual(list(Node(graph, 'input')['shape']), [1, 16])
+
+        ref_graph = build_graph({'input': {'shape': np.array([1, 16]), 'kind': 'op', 'op': 'Parameter'},
+                                 'lda': {'kind': 'op'},
+                                 'mul': {'kind': 'op'},
+                                 'scale_const': {'kind': 'op', 'op': 'Const'},
+                                 },
+                                [
+                                    ('input', 'mul', {'in': 0}),
+                                    ('scale_const', 'mul', {'in': 1}),
+                                    ('mul', 'lda', {'out': 0}),
+                                ]
+                                )
+
+        (flag, resp) = compare_graphs(graph, ref_graph, 'lda')
+        self.assertTrue(flag, resp)

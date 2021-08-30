@@ -15,7 +15,6 @@ struct permute_params : public base_params {
     permute_params() : base_params(KernelType::PERMUTE) {}
 
     std::vector<uint16_t> order;
-    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

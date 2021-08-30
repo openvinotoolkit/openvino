@@ -15,8 +15,6 @@
 #include "ngraph/specialize_function.hpp"
 #include "ngraph/util.hpp"
 #include "pass/dyn_elimination.hpp"
-#include "pass/opset0_downgrade.hpp"
-#include "pass/opset1_downgrade.hpp"
 #include "pass/shape_relevance.hpp"
 
 using namespace std;
@@ -77,8 +75,8 @@ runtime::dynamic::DynamicExecutable::DynamicExecutable(shared_ptr<Function> wrap
 // count_dyn_nodes.
 bool is_dynamic_op(const std::shared_ptr<Node>& op)
 {
-    return is_type<op::Range>(op) || is_type<op::v1::ConvolutionBackpropData>(op) ||
-           is_type<op::v3::Broadcast>(op);
+    return ov::is_type<op::Range>(op) || ov::is_type<op::v1::ConvolutionBackpropData>(op) ||
+           ov::is_type<op::v3::Broadcast>(op);
 }
 
 // Helper for a vile hack in DynamicExecutable::call. See body of that function for details.
@@ -232,17 +230,17 @@ bool runtime::dynamic::DynamicExecutable::call(
                 i++;
             }
 
+            NGRAPH_SUPPRESS_DEPRECATED_START;
             clone = specialize_function(
                 m_wrapped_function, arg_element_types, arg_shapes, arg_value_base_pointers);
+            NGRAPH_SUPPRESS_DEPRECATED_END;
         }
 
         pass::Manager passes;
         // Opset1Downgrade should be moved below DynElimination
         // when ConstantFolding for v3 ops will be ready
-        passes.register_pass<pass::Opset1Downgrade>();
         passes.register_pass<pass::ConstantFolding>();
         passes.register_pass<pass::DynElimination>();
-        passes.register_pass<pass::Opset0Downgrade>(); // Converts dynamic v1 variants to v0 ops
         passes.set_per_pass_validation(false);
 
         // FIXME(amprocte): Vile, temporary hack: we need to do repeated rounds of

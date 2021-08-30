@@ -3,41 +3,59 @@
 //
 
 #include "mkldnn_scatter_update_node.h"
-#include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include <algorithm>
 #include "common/cpu_memcpy.h"
+
+#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset4.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNScatterUpdateNode::MKLDNNScatterUpdateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache), dataSize(0lu), indicesSize(0lu), axisSize(0lu),
-        dataPrec(Precision::UNSPECIFIED), indicesPrec(Precision::UNSPECIFIED), axisPrec(Precision::UNSPECIFIED) {}
+bool MKLDNNScatterUpdateNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto scatterElemUpd = std::dynamic_pointer_cast<const ngraph::opset3::ScatterElementsUpdate>(op);
+        const auto scatterUpd = std::dynamic_pointer_cast<const ngraph::opset3::ScatterUpdate>(op);
+        const auto scatterNdUpd = std::dynamic_pointer_cast<const ngraph::opset4::ScatterNDUpdate>(op);
+        if (scatterElemUpd == nullptr && scatterUpd == nullptr && scatterNdUpd == nullptr) {
+            const std::string opType = op->get_type_name();
+            errorMessage = "Only opset" + opType == "ScatterNDUpdate" ? "4 " : "3 " + opType + " operation is supported";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNScatterUpdateNode::MKLDNNScatterUpdateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache), dataSize(0lu), indicesSize(0lu), axisSize(0lu), dataPrec(Precision::UNSPECIFIED), indicesPrec(Precision::UNSPECIFIED),
+          axisPrec(Precision::UNSPECIFIED) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        errorPrefix = std::string(op->get_type_name()) + " node with name '" + getName() + "'";
+    } else {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+}
 
 void MKLDNNScatterUpdateNode::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if ((getParentEdges().size() != 3) && (getParentEdges().size() != 4))
-        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-        << "' has incorrect number of input edges";
+        IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
-        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-        << "' has incorrect number of output edges";
+        IE_THROW() << errorPrefix << " has incorrect number of output edges";
 
-    if (getParentEdgeAt(DATA_ID)->getDims().ndims() < 1 ||
-        getParentEdgeAt(INDICES_ID)->getDims().ndims() < 1 ||
-        getParentEdgeAt(UPDATE_ID)->getDims().ndims() < 1) {
-        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-        << "' do not support scalar input";
+    if (getParentEdgeAt(DATA_ID)->getShape().getRank() < 1 ||
+        getParentEdgeAt(INDICES_ID)->getShape().getRank() < 1 ||
+        getParentEdgeAt(UPDATE_ID)->getShape().getRank() < 1) {
+        IE_THROW() << errorPrefix << " do not support scalar input";
     }
 
     Type scatterUpdateType = getType();
@@ -51,8 +69,7 @@ void MKLDNNScatterUpdateNode::getSupportedDescriptors() {
         scatterUpdateMode = ScatterUpdateMode::ScatterNDUpdate;
         axisRelaxed = false;
     } else {
-        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-        << "' is not supported";
+        IE_THROW() << errorPrefix << " is not supported";
     }
 }
 
@@ -60,26 +77,24 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto srcDataDim = getParentEdgeAt(DATA_ID)->getDims();
-    auto indicesDim = getParentEdgeAt(INDICES_ID)->getDims();
-    auto updateDim = getParentEdgeAt(UPDATE_ID)->getDims();
-    auto dstDataDim = getChildEdgeAt(0)->getDims();
+    auto srcDataDim = getParentEdgeAt(DATA_ID)->getShape().getStaticDims();
+    auto indicesDim = getParentEdgeAt(INDICES_ID)->getShape().getStaticDims();
+    auto updateDim = getParentEdgeAt(UPDATE_ID)->getShape().getStaticDims();
+    auto dstDataDim = getChildEdgeAt(0)->getShape().getStaticDims();
 
-    size_t srcRank = srcDataDim.ndims();
-    size_t indicesRank = indicesDim.ndims();
-    size_t updateRank = updateDim.ndims();
-    size_t dstRank = dstDataDim.ndims();
+    size_t srcRank = srcDataDim.size();
+    size_t indicesRank = indicesDim.size();
+    size_t updateRank = updateDim.size();
+    size_t dstRank = dstDataDim.size();
 
     // common check
     if (srcRank != dstRank) {
-        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-        << "' should have same rank for input and outpt tensor";
+        IE_THROW() << errorPrefix << " should have same rank for input and output tensor";
     } else {
         for (size_t r = 0; r < srcRank; r++) {
             if (srcDataDim[r] != dstDataDim[r]) {
-                IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-                << "' should have same shape for input and outpt tensor." << " The input shape is "
-                << srcDataDim[r] << ", while output shape is " << dstDataDim[r] << "for" << r << "th dimension";
+                IE_THROW() << errorPrefix << " should have same shape for input and output tensor. The input shape is "
+                                   << srcDataDim[r] << ", while output shape is " << dstDataDim[r] << " for " << r << "th dimension";
             }
         }
     }
@@ -87,16 +102,15 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     switch (scatterUpdateMode) {
         case ScatterUpdateMode::ScatterUpdate: {
             if (updateRank != (srcRank + indicesRank - 1)) {
-                IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-                << "' do not have matched tensor rank relationship for input, indices and update";
+                IE_THROW() << errorPrefix << " do not have matched tensor rank relationship for input, indices and update";
             }
             break;
         }
         case ScatterUpdateMode::ScatterNDUpdate: {
             size_t k = indicesDim[indicesRank - 1];
             if (k > srcRank) {
-                IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-                << "' do not have an correct indices' last dimension value, which should be smaller than or equal to input tensor rank";
+                IE_THROW() << errorPrefix << "' do not have an correct indices' last dimension value, "
+                                   << "which should be smaller than or equal to input tensor rank";
             }
 
             SizeVector expectUpdateShape = {};
@@ -108,37 +122,32 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
                 expectUpdateShape.push_back(srcDataDim[rd]);
             }
             if (expectUpdateShape.size() != updateRank) {
-                IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-                << "' do not have matched tensor rank relationship for input, indices and update";
+                IE_THROW() << errorPrefix << " do not have matched tensor rank relationship for input, indices and update";
             }
             for (size_t ru = 0; ru < updateRank; ru++) {
                 if (updateDim[ru] != expectUpdateShape[ru]) {
-                    IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-                    << "' do not have matched tensor shape relationship for input, indices and update";
+                    IE_THROW() << errorPrefix << " do not have matched tensor shape relationship for input, indices and update";
                 }
             }
             break;
         }
         case ScatterUpdateMode::ScatterElementsUpdate: {
             if (srcRank != indicesRank || srcRank != updateRank) {
-                IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-                << "' do not have the same tensor rank for input, indices and update";
+                IE_THROW() << errorPrefix << " do not have the same tensor rank for input, indices and update";
             }
             for (size_t ri = 0; ri < indicesRank; ri++) {
                 if (indicesDim[ri] != updateDim[ri]) {
-                    IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-                    << "' do not have the same tensor shape for indices and update";
+                    IE_THROW() << errorPrefix << " do not have the same tensor shape for indices and update";
                 }
             }
             break;
         }
         default: {
-            IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-            << "' is not supported";
+            IE_THROW() << errorPrefix << " is not supported";
         }
     }
 
-    indicesPrec = getCnnLayer()->insData[INDICES_ID].lock()->getPrecision();
+    indicesPrec = getOriginalInputPrecisionAtPort(INDICES_ID);
     auto indicesType = MKLDNNExtensionUtils::IEPrecisionToDataType(indicesPrec);
     indicesSize = MKLDNNExtensionUtils::sizeOfDataType(indicesType);
     if (indicesSize >= 8) {
@@ -151,7 +160,7 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     indicesType = MKLDNNExtensionUtils::IEPrecisionToDataType(indicesPrec);
 
     if (axisRelaxed) {
-        axisPrec = getCnnLayer()->insData[AXIS_ID].lock()->getPrecision();
+        axisPrec = getOriginalInputPrecisionAtPort(AXIS_ID);
         auto axisType = MKLDNNExtensionUtils::IEPrecisionToDataType(axisPrec);
         axisSize = MKLDNNExtensionUtils::sizeOfDataType(axisType);
         if (axisSize >= 8) {
@@ -163,14 +172,14 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    dataPrec = getCnnLayer()->insData[DATA_ID].lock()->getPrecision();
+    dataPrec = getOriginalInputPrecisionAtPort(DATA_ID);
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(dataPrec);
     dataSize = MKLDNNExtensionUtils::sizeOfDataType(dataType);
 
     bool canBeInplace = getParentEdgeAt(DATA_ID)->getParent()->getChildEdges().size() == 1 &&
             !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = false;
     if (axisRelaxed) {
         config.inConfs.resize(4);
@@ -192,20 +201,22 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     }
 
     auto pushDesc = [&](memory::format_tag inFormat, memory::format_tag idxFormat, memory::format_tag updateFormat, memory::format_tag outFormat) {
-        config.inConfs[DATA_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA_ID)->getDims(), dataType, inFormat);
-        config.inConfs[INDICES_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(INDICES_ID)->getDims(), indicesType, idxFormat);
-        config.inConfs[UPDATE_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(UPDATE_ID)->getDims(), dataType, updateFormat);
+        config.inConfs[DATA_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticDims(), dataType, inFormat);
+        config.inConfs[INDICES_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(INDICES_ID)->getShape().getStaticDims(), indicesType,
+                                                                                      idxFormat);
+        config.inConfs[UPDATE_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(UPDATE_ID)->getShape().getStaticDims(), dataType,
+                                                                                     updateFormat);
         if (axisRelaxed)
-            config.inConfs[AXIS_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(AXIS_ID)->getDims(),
+            config.inConfs[AXIS_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXIS_ID)->getShape().getStaticDims(),
                 MKLDNNExtensionUtils::IEPrecisionToDataType(axisPrec), memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, outFormat);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, outFormat});
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), dataType, outFormat);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     };
 
-    pushDesc(MKLDNNMemory::GetPlainFormat(memory::dims(getParentEdgeAt(DATA_ID)->getDims())),
-        MKLDNNMemory::GetPlainFormat(memory::dims(getParentEdgeAt(INDICES_ID)->getDims())),
-        MKLDNNMemory::GetPlainFormat(memory::dims(getParentEdgeAt(UPDATE_ID)->getDims())),
-        MKLDNNMemory::GetPlainFormat(memory::dims(getChildEdgeAt(0)->getDims())));
+    pushDesc(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(DATA_ID)->getShape().getRank()),
+             MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(INDICES_ID)->getShape().getRank()),
+             MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(UPDATE_ID)->getShape().getRank()),
+             MKLDNNMemory::GetPlainFormatByRank(getChildEdgeAt(0)->getShape().getRank()));
 }
 
 void MKLDNNScatterUpdateNode::createPrimitive() {
@@ -215,20 +226,15 @@ void MKLDNNScatterUpdateNode::createPrimitive() {
     auto &updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
 
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-        << "' did not allocate destination memory";
+        IE_THROW() << errorPrefix << " did not allocate destination memory";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-        << "' did not allocate input memory";
+        IE_THROW() << errorPrefix << " did not allocate input memory";
     if (!indicesMemPtr || !indicesMemPtr->GetPrimitivePtr())
-        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-        << "' did not allocate indices memory";
+        IE_THROW() << errorPrefix << " did not allocate indices memory";
     if (!updateMemPtr || !updateMemPtr->GetPrimitivePtr())
-        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-        << "' did not allocate update memory";
+        IE_THROW() << errorPrefix << " did not allocate update memory";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "'" << getType() << "'" << " layer with name '" << getName()
-        << "' did not set preferable primitive descriptor";
+        IE_THROW() << errorPrefix << " did not set preferable primitive descriptor";
 }
 
 int64_t MKLDNNScatterUpdateNode::getIndicesValue(uint8_t *indices, size_t offset) {
@@ -268,11 +274,10 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
     uint8_t *indicesPtr = reinterpret_cast<uint8_t*>(indicesMemPtr->GetPtr());
     uint8_t *updatePtr = reinterpret_cast<uint8_t*>(updateMemPtr->GetPtr());
 
-    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getDesc().getDims();
-    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
+    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getShape().getStaticDims();
+    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getShape().getStaticDims();
     size_t srcRank = srcDataDim.size();
     int axis = 0;
-    std::string errorPrefix = std::string("'") + getTypeStr() + "'" + " layer with name '" + getName() + "'";
     if (axisRelaxed) {
         auto &axisMemPtr = getParentEdgeAt(AXIS_ID)->getMemoryPtr();
         uint8_t *axisPtr = reinterpret_cast<uint8_t*>(axisMemPtr->GetData()) +
@@ -306,8 +311,8 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
         });
 
         if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate) {
-            SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
-            SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getDesc().getDims();
+            SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getShape().getStaticDims();
+            SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getShape().getStaticDims();
             size_t indicesRank = indicesDim.size();
             size_t updateRank = updateDim.size();
             SizeVector expectUpdateShape = {};
@@ -367,9 +372,9 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
 // and indices tensor of shape [i_0, i_1, ..., i_k].
 // Updates tensor shape should be [d_0, d_1, ... d_(axis - 1), i_0, i_1, ..., i_k, d_(axis + 1), ..., d_n].
 void MKLDNNScatterUpdateNode::scatterUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
-    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getDesc().getDims();
-    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
-    SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getDesc().getDims();
+    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getShape().getStaticDims();
+    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getShape().getStaticDims();
+    SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getShape().getStaticDims();
     size_t indicesRank = indicesDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
@@ -400,8 +405,8 @@ void MKLDNNScatterUpdateNode::scatterUpdate(uint8_t *indices, uint8_t *update, i
 // k is indices.shape[-1] and should not be greater than rank of input, q is rank of indicies.
 // updates is a (q-1)-dimension tensor of replacement-slice-values
 void MKLDNNScatterUpdateNode::scatterNDUpdate(uint8_t *indices, uint8_t *update, uint8_t *dstData) {
-    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getDesc().getDims();
-    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
+    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getShape().getStaticDims();
+    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getShape().getStaticDims();
     size_t indicesRank = indicesDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
@@ -430,9 +435,9 @@ void MKLDNNScatterUpdateNode::scatterNDUpdate(uint8_t *indices, uint8_t *update,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
 void MKLDNNScatterUpdateNode::scatterElementsUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
-    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getDesc().getDims();
-    SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getDesc().getDims();
-    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
+    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getShape().getStaticDims();
+    SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getShape().getStaticDims();
+    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getShape().getStaticDims();
     size_t updateRank = updateDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
