@@ -28,7 +28,6 @@ def test_cc_collect(prepare_models, test_id, models, openvino_ref, test_info,
     :param test_info: custom `test_info` field of built-in `request` pytest fixture.
                       contain a dictionary to store test metadata.
     """
-    models = prepare_models
     out = artifacts / test_id
     infer_out_dir = out / "inference_result"
     test_info["test_id"] = test_id
@@ -47,7 +46,7 @@ def test_cc_collect(prepare_models, test_id, models, openvino_ref, test_info,
             "!",
             sys.executable,
             infer_tool,
-            *[f"-m={model}" for model in models],
+            *[f"-m={model}" for model in prepare_models],
             "-d=CPU",
             f"-r={infer_out_dir}"
         ]
@@ -84,31 +83,29 @@ def test_minimized_pkg(test_id, models, openvino_root_dir, artifacts):  # pylint
 @pytest.mark.dependency(depends=["cc_collect", "minimized_pkg"])
 def test_infer(prepare_models, test_id, models, artifacts):
     """Test inference with conditional compiled binaries."""
-    models = prepare_models
     out = artifacts / test_id
     minimized_pkg = out / "install_pkg"
     infer_out_dir_cc = out / "inference_result_cc/"
 
-    return_code, output = run_infer(models, infer_out_dir_cc, minimized_pkg)
+    return_code, output = run_infer(prepare_models, infer_out_dir_cc, minimized_pkg)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
 
 
 @pytest.mark.dependency(depends=["cc_collect", "minimized_pkg"])
 def test_verify(prepare_models, test_id, models, openvino_ref, artifacts, tolerance=1e-6):  # pylint: disable=too-many-arguments
     """Test verifying that inference results are equal."""
-    models = prepare_models
     out = artifacts / test_id
     minimized_pkg = out / "install_pkg"
 
     infer_out_dir_cc = out / "inference_result_cc/"
     infer_out_dir = out / "inference_result/"
 
-    return_code, output = run_infer(models, infer_out_dir, openvino_ref)
+    return_code, output = run_infer(prepare_models, infer_out_dir, openvino_ref)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
-    return_code, output = run_infer(models, infer_out_dir_cc, minimized_pkg)
+    return_code, output = run_infer(prepare_models, infer_out_dir_cc, minimized_pkg)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
 
-    for model in models:
+    for model in prepare_models:
         out_file = f"{infer_out_dir / Path(model).name}.npz"
         out_file_cc = f"{infer_out_dir_cc / Path(model).name}.npz"
 
