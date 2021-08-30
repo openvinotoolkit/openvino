@@ -78,21 +78,21 @@ def compare_with_reference(result: np.ndarray, reference: np.ndarray):
 
 
 def get_input_layer_list(net: Union[IENetwork, ExecutableNetwork], args: argparse.Namespace) -> list:
+    """Get a list of input layer names"""
     return re.split(', |,', args.input_layers) if args.input_layers else [next(iter(net.input_info))]
 
 
 def get_output_layer_list(net: Union[IENetwork, ExecutableNetwork],
                           args: argparse.Namespace, with_ports: bool) -> list:
+    """Get a list of output layer names"""
     if args.output_layers:
         output_name_port = [output.split(':') for output in re.split(', |,', args.output_layers)]
-        try:
-            output_name_port = [(blob_name, int(port)) for blob_name, port in output_name_port]
-        except ValueError:
-            log.error('Output Parameter does not have a port.')
-            sys.exit(-4)
-
         if with_ports:
-            return output_name_port
+            try:
+                return [(blob_name, int(port)) for blob_name, port in output_name_port]
+            except ValueError:
+                log.error('Incorrect value for -oname/--output_layers option, please specify a port for output layer.')
+                sys.exit(-4)
         else:
             return [blob_name for blob_name, port in output_name_port]
     else:
