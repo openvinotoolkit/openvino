@@ -134,6 +134,12 @@ void validate_max_pool_kernel_params(const size_t dims,
                  pads_end);
 }
 
+/// \brief A helper struct representing spatial coordinates of a tensor element. It can use signed numbers as the
+///        underlying type; this way it is possible to represent elements which belong to the padding area
+///        (by using negative values).
+///
+/// \note  This struct can be used to represent a location of a pooling kernel in space (non-flattened version)
+///        but at the same time it can represent pixel offsets in the filter itself (dilated or non-dilated)
 template <typename T>
 struct Coord : public std::vector<T> {
     Coord(const Shape& pads_begin) {
@@ -149,7 +155,7 @@ struct Coord : public std::vector<T> {
 bool elem_in_padding_area(const Coord<int>& kernel_position,
                           const Coord<size_t>& kernel_offset,
                           const Shape& data_shape) {
-    for (size_t dim = 0; dim < data_shape.size() - 2; ++dim) {
+    for (size_t dim = 0; dim + 2 < data_shape.size(); ++dim) {
         if (kernel_position[dim] + kernel_offset[dim] < 0 ||
             kernel_position[dim] + kernel_offset[dim] >= data_shape[dim + 2]) {
             return true;
@@ -222,14 +228,11 @@ void max_pool_1d(const Values_t* data,
         Indices_t max_elem_idx = Indices_t{0};
         for (size_t kernel_elem = 0; kernel_elem < kernel_size; ++kernel_elem) {
             const size_t kernel_elem_offset = kernel_elem * kernel_dilation;
-            if (kernel_position + kernel_elem_offset < 0 || kernel_position + kernel_elem_offset >= data_elems) {
-                // don't process the padding elements
-                continue;
-            } else {
-                if (data[kernel_position + kernel_elem_offset] > max_elem) {
-                    max_elem = data[kernel_position + kernel_elem_offset];
-                    max_elem_idx = kernel_position + kernel_elem_offset;
-                }
+            // don't process the padding elements
+            if (kernel_position + kernel_elem_offset >= 0 && kernel_position + kernel_elem_offset < data_elems &&
+                data[kernel_position + kernel_elem_offset] > max_elem) {
+                max_elem = data[kernel_position + kernel_elem_offset];
+                max_elem_idx = kernel_position + kernel_elem_offset;
             }
         }
         values[out_idx] = max_elem;
@@ -266,17 +269,15 @@ void max_pool_2d(const Values_t* data,
                 const Coord<size_t> kernel_offset{kernel_row * kernel_dilations[0], kernel_col * kernel_dilations[1]};
 
                 // ignore the elements in the padding area
-                if (elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
-                    continue;
-                }
+                if (!elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
+                    // index of the flattened tensor element under the current row & column of the kernel
+                    const size_t data_elem_index =
+                        data_shape[2] * (kernel_offset[0] + kernel_position[0]) + kernel_offset[1] + kernel_position[1];
 
-                // index of the flattened tensor element under the current row & column of the kernel
-                const size_t data_elem_index =
-                    data_shape[2] * (kernel_offset[0] + kernel_position[0]) + kernel_offset[1] + kernel_position[1];
-
-                if (data[data_elem_index] > max_elem) {
-                    max_elem = data[data_elem_index];
-                    max_elem_idx = data_elem_index;
+                    if (data[data_elem_index] > max_elem) {
+                        max_elem = data[data_elem_index];
+                        max_elem_idx = data_elem_index;
+                    }
                 }
             }
         }
@@ -326,18 +327,17 @@ void max_pool_3d(const Values_t* data,
                                                       kernel_col * kernel_dilations[2]};
 
                     // ignore the elements in the padding area
-                    if (elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
-                        continue;
-                    }
+                    if (!elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
+                        // index of the flattened tensor element under the current row & column of the kernel
+                        const size_t data_elem_index =
+                            data_shape[2] * data_shape[3] * (kernel_offset[0] + kernel_position[0]) +
+                            data_shape[3] * (kernel_offset[1] + kernel_position[1]) + kernel_offset[2] +
+                            kernel_position[2];
 
-                    // index of the flattened tensor element under the current row & column of the kernel
-                    const size_t data_elem_index =
-                        data_shape[2] * data_shape[3] * (kernel_offset[0] + kernel_position[0]) +
-                        data_shape[3] * (kernel_offset[1] + kernel_position[1]) + kernel_offset[2] + kernel_position[2];
-
-                    if (data[data_elem_index] > max_elem) {
-                        max_elem = data[data_elem_index];
-                        max_elem_idx = data_elem_index;
+                        if (data[data_elem_index] > max_elem) {
+                            max_elem = data[data_elem_index];
+                            max_elem_idx = data_elem_index;
+                        }
                     }
                 }
             }
