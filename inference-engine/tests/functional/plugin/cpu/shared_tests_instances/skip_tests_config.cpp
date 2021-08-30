@@ -88,7 +88,8 @@ std::vector<std::string> disabledTestPatterns() {
         // azure is failing after #6199
         R"(.*/NmsLayerTest.*)",
         // TODO: 56520 Accuracy mismatch
-        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32|U64).*)"
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)"
     };
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
