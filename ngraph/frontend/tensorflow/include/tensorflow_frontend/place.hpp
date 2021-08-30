@@ -8,27 +8,31 @@
 
 namespace ngraph {
 namespace frontend {
-class PlaceTensorflow : public Place {
+
+class PlaceTF : public Place {
 public:
-    std::string name;
-    enum Kind { PORT_INPUT, PORT_OUTPUT, TENSOR, OP } kind;
-    size_t port;
+    PlaceTF(const InputModel& input_model, const std::vector<std::string>& names)
+        : m_input_model(input_model),
+          m_names(names) {}
 
-    PlaceTensorflow(const std::string& _name, Kind _kind = OP, size_t _port = 0)
-        : name(_name),
-          kind(_kind),
-          port(_port) {}
+    explicit PlaceTF(const InputModel& input_model) : PlaceTF(input_model, std::vector<std::string>{}) {}
 
-    virtual std::vector<std::string> get_names() const override {
-        return {name};
+    ~PlaceTF() override = default;
+
+    bool is_input() const override;
+    bool is_output() const override;
+    bool is_equal(Ptr another) const override {
+        return this == another.get();
     }
 
-    virtual bool is_equal(Ptr another) const override {
-        auto another_tf = std::dynamic_pointer_cast<PlaceTensorflow>(another);
-        return another_tf && name == another_tf->name && kind == another_tf->kind && port == another_tf->port;
+    std::vector<std::string> get_names() const override {
+        return m_names;
     }
+
+private:
+    const InputModel& m_input_model;
+    std::vector<std::string> m_names;
 };
 
 }  // namespace frontend
-
 }  // namespace ngraph

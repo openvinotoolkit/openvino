@@ -103,7 +103,8 @@ static void SaveNgOp(Builder::OpMap& ng_op_map, const std::string& op_name, ng::
 
 void Builder::SetTracingInfo(const std::string& op_name, const ng::Output<ng::Node> ng_node) {
     auto node = ng_node.get_node_shared_ptr();
-    node->set_friendly_name(op_name + "/" + node->get_name());
+    //node->set_friendly_name(op_name + "/" + node->get_name());
+    node->set_friendly_name(op_name);
     node->add_provenance_tag(op_name);
 #if 0
   if (api::IsLoggingPlacement()) {
@@ -2311,6 +2312,7 @@ static OutputVector PlaceholderOp(const NodeContext& node) {
     auto ng_shape = overridden_shape == node.get_overridden_shapes().end()
                         ? node.get_attribute<ngraph::PartialShape>("shape", ngraph::PartialShape())
                         : overridden_shape->second;
+    std::cout << "Name: " << node.get_name() << std::endl;
     return {ConstructNgNode<opset::Parameter>(node.get_name(), ng_et, ng_shape)};
 
 #if 0  // Old code
