@@ -43,6 +43,7 @@ class HostTensor;
 }  // namespace runtime
 
 namespace op {
+
 namespace v0 {
 class Result;
 }  // namespace v0
