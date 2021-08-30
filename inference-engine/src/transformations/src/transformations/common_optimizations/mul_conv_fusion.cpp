@@ -18,16 +18,16 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MultiplyConvolutionFusion, "MultiplyConvolutionFusion", 0);
 
-static bool is_dequantization_subgraph(const ngraph::Output<Node>& multiply) {
+static bool is_dequantization_subgraph(const ngraph::Output<ngraph::Node>& multiply) {
     auto inputs = multiply.get_node()->input_values();
     const auto subtract = std::find_if(inputs.begin(), inputs.end(),
-                                       [] (const ngraph::Output<Node>& n) -> bool {
+                                       [] (const ngraph::Output<ngraph::Node>& n) -> bool {
                                            return ov::is_type<ngraph::opset8::Subtract>(n.get_node());
                                        });
     if (subtract != inputs.end())
         inputs = subtract->get_node()->input_values();
     const auto first_convert = std::find_if(inputs.begin(), inputs.end(),
-                                      [] (const ngraph::Output<Node>& n) -> bool {
+                                      [] (const ngraph::Output<ngraph::Node>& n) -> bool {
                                           if (ov::is_type<ngraph::opset8::Convert>(n.get_node())) {
                                               const auto input = n.get_node()->input_value(0);
                                               return ov::is_type<ngraph::opset8::Convert>(input.get_node());
@@ -40,7 +40,7 @@ static bool is_dequantization_subgraph(const ngraph::Output<Node>& multiply) {
     const auto& first_convert_src_type = second_convert.get_element_type();
     const auto& first_convert_dest_type = first_convert->get_element_type();
     const auto second_convert_src_type = second_convert.get_node()->input_value(0).get_element_type();
-    return (first_convert_src_type == element::i8 || first_convert_src_type == element::u8) &&
+    return (first_convert_src_type == ngraph::element::i8 || first_convert_src_type == ngraph::element::u8) &&
         first_convert_dest_type == second_convert_src_type;
 }
 
