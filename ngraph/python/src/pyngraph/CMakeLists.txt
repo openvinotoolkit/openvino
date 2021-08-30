@@ -28,7 +28,11 @@ file(GLOB_RECURSE SOURCES *.cpp)
 pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer)
+target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::frontend_manager)
+
+if (TARGET ngraph::onnx_ngraph_frontend)
+    add_dependencies(_${PROJECT_NAME} ngraph::onnx_ngraph_frontend)
+endif()
 
 # perform copy
 if(OpenVINO_MAIN_SOURCE_DIR)
