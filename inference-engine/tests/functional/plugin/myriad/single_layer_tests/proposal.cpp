@@ -10,7 +10,7 @@
 #include "common_test_utils/test_constants.hpp"
 
 // additional features for developer testing
-//#define PROPOSAL_TESTS_LOGGING
+#define PROPOSAL_TESTS_LOGGING
 const bool compareOutputScoresSoft = true; // do compare scores against reference with threshold
 const float scoresThreshold = 0.01f; // threshold for soft scores comparison
 const bool compareOutputScores = false; // do compare scores output against reference without threshold
@@ -166,26 +166,26 @@ private:
     void validateData(const float* reference, std::size_t count_reference,
                       const float* optimized, std::size_t count_optimized) {
         for (std::size_t i = 0; i < count_reference; i++) {
-            assert(reference[i * 5 + 1] <= reference[i * 5 + 3] &&
-                   "Incorrect data: x1 > x2 in reference boxes");
-            assert(reference[i * 5 + 2] <= reference[i * 5 + 4] &&
-                   "Incorrect data: y1 > y2 in reference boxes");
+            ASSERT_TRUE(reference[i * 5 + 1] <= reference[i * 5 + 3])
+                   << "Incorrect data: x1 > x2 in reference boxes";
+            ASSERT_TRUE(reference[i * 5 + 2] <= reference[i * 5 + 4])
+                   << "Incorrect data: y1 > y2 in reference boxes";
         }
 
         for (std::size_t i = 0; i < count_optimized; i++) {
-            assert(optimized[i * 5 + 1] <= optimized[i * 5 + 3] &&
-                   "Incorrect data: x1 > x2 in optimized boxes");
-            assert(optimized[i * 5 + 2] <= optimized[i * 5 + 4] &&
-                   "Incorrect data: y1 > y2 in optimized boxes");
+            ASSERT_TRUE(optimized[i * 5 + 1] <= optimized[i * 5 + 3])
+                   << "Incorrect data: x1 > x2 in optimized boxes";
+            ASSERT_TRUE(optimized[i * 5 + 2] <= optimized[i * 5 + 4])
+                   << "Incorrect data: y1 > y2 in optimized boxes";
         }
     }
 };
 
 namespace LayerTestsDefinitions {
     const normalize_type normalize = true;
-    const feat_stride_type feat_stride = 1;
-    const box_size_scale_type box_size_scale = 2.0f;
-    const box_coordinate_scale_type box_coordinate_scale = 2.0f;
+    const feat_stride_type feat_stride = 16;
+    const box_size_scale_type box_size_scale = 1.0f;
+    const box_coordinate_scale_type box_coordinate_scale = 1.0f;
 
 class MyriadProposalLayerTest
         : public testing::WithParamInterface<proposalLayerTestParamsSet>,
@@ -255,6 +255,7 @@ public:
             const auto &expected = expectedOutputs[outputIndex].second;
             const auto &actual = actualOutputs[outputIndex];
             const auto &expectedBuffer = expected.data();
+            std::cout << "Precision: " << actual->getTensorDesc().getPrecision() << "\n";
 
             auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
             IE_ASSERT(memory);
@@ -305,21 +306,29 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
-        InferenceEngine::Blob::Ptr blobPtr;
+        InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
+        blob->allocate();
 
         const std::string name = info.name();
+        std::ifstream in;
         if (name == "a_scores") {
-            blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 1000, 8234231);
+                in.open("../../../scores.txt");
         } else if (name == "b_boxes") {
-            blobPtr = FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
+                in.open("../../../boxes.txt");
+        }
+        auto *rawBlobDataPtr = blob->buffer().as<float *>();
+        for (size_t i = 0; i < blob->size(); i++) {
+                float value;
+                in >> value;
+                rawBlobDataPtr[i] = value;
         }
 
-    return blobPtr;
+        return blob;
     }
 protected:
     void SetUp() override{
         proposalSpecificParams proposalParams;
-        std::vector<float> img_info = {225.0f, 225.0f, 1.0f};
+        std::vector<float> img_info = {224.0f, 224.0f, 1.0f};
 
         std::tie(proposalParams, targetDevice) = this->GetParam();
         base_size_type base_size;
@@ -343,8 +352,8 @@ protected:
                  clip_after_nms,
                  framework) = proposalParams;
 
-        size_t bottom_w = base_size;
-        size_t bottom_h = base_size;
+        size_t bottom_w = 14;
+        size_t bottom_h = 14;
         size_t num_anchors = ratio.size() * scale.size();
 
         std::vector<size_t> scoresShape = {1, 2 * num_anchors, bottom_h, bottom_w};
@@ -381,19 +390,20 @@ protected:
 };
 
 } // namespace LayerTestsDefinitions
+
 using namespace ngraph::helpers;
 using namespace LayerTestsDefinitions;
 
 namespace {
 /* ============= Proposal ============= */
 const std::vector<base_size_type> base_size_ = {16};
-const std::vector<pre_nms_topn_type> pre_nms_topn_ = {300, 100};
-const std::vector<post_nms_topn_type> post_nms_topn_ = {100};
+const std::vector<pre_nms_topn_type> pre_nms_topn_ = {6000, 300, 100};
+const std::vector<post_nms_topn_type> post_nms_topn_ = {300, 100};
 const std::vector<nms_thresh_type> nms_thresh_ = {0.7f};
-const std::vector<min_size_type> min_size_ = {1};
-const std::vector<ratio_type> ratio_ = {{1.0f, 2.0f}, {1.0f, 1.0f}};
-const std::vector<scale_type> scale_ = {{1.2f, 1.5f}};
-const std::vector<clip_before_nms_type> clip_before_nms_ = {false};
+const std::vector<min_size_type> min_size_ = {16};
+const std::vector<ratio_type> ratio_ = {{0.5f, 1.0f, 2.0f}};
+const std::vector<scale_type> scale_ = {{8.0f, 16.0f, 32.0f}};
+const std::vector<clip_before_nms_type> clip_before_nms_ = {true};
 const std::vector<clip_after_nms_type> clip_after_nms_ = {false};
 
 // empty string corresponds to Caffe framework
@@ -420,7 +430,7 @@ TEST_P(MyriadProposalLayerTest, CompareWithRefs) {
 INSTANTIATE_TEST_SUITE_P(smoke_Proposal_tests, MyriadProposalLayerTest,
                         ::testing::Combine(
                                 proposalParams,
-                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         MyriadProposalLayerTest::getTestCaseName
 );
 
