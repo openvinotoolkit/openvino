@@ -104,7 +104,7 @@ namespace SubgraphTestsDefinitions {
         // TI construction
         auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
-        tensor_iterator->set_invariant_input(X, permute_in);
+        tensor_iterator->set_sliced_input(X, permute_in, 0, 1, 1, -1, 0);
         tensor_iterator->set_merged_input(H_t, hidden_memory_read, H_o);
         tensor_iterator->set_merged_input(C_t, cell_memory_read, C_o);
 
@@ -130,6 +130,7 @@ namespace SubgraphTestsDefinitions {
                                               SinkVector{cell_memory_write, hidden_memory_write},
                                               input_parameter,
                                               "TI_with_memory");
+        tensor_iterator->validate_and_infer_types();
     }
 
     void MemoryLSTMCellTest::switchToNgraphFriendlyModel() {
