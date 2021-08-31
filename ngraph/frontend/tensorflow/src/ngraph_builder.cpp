@@ -2312,7 +2312,6 @@ static OutputVector PlaceholderOp(const NodeContext& node) {
     auto ng_shape = overridden_shape == node.get_overridden_shapes().end()
                         ? node.get_attribute<ngraph::PartialShape>("shape", ngraph::PartialShape())
                         : overridden_shape->second;
-    std::cout << "Name: " << node.get_name() << std::endl;
     return {ConstructNgNode<opset::Parameter>(node.get_name(), ng_et, ng_shape)};
 
 #if 0  // Old code
