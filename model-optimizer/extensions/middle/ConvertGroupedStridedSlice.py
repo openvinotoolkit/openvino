@@ -99,7 +99,8 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             split_channel_dim = None
             for dim_id, s in enumerate(out_nodes[0].slices):
                 l, r, stride = s.start, s.stop, s.step
-                if l != 0 or r != input_shape[dim_id]:
+                # if both l and r are None then the dimension is not sliced
+                if (l != 0 or r != input_shape[dim_id]) and (l is not None or r is not None):
                     if split_channel_dim is None:
                         split_channel_dim = dim_id
                     else:
