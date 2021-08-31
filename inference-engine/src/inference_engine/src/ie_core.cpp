@@ -416,6 +416,10 @@ public:
             {
                 PluginDescriptor desc = {pluginPath, config, listOfExtentions};
                 pluginRegistry[deviceName] = desc;
+
+                // if (deviceName == "MULTI") {
+                //     pluginRegistry["AUTO"] = desc;
+                // }
             }
         }
     }
@@ -649,9 +653,6 @@ public:
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
         auto deviceName = pluginName;
-        if (deviceName == "AUTO") {
-            deviceName = "MULTI";
-        }
         auto it = pluginRegistry.find(deviceName);
         if (it == pluginRegistry.end()) {
             IE_THROW() << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
