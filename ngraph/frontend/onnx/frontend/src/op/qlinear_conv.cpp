@@ -25,15 +25,15 @@ namespace set_1 {
 OutputVector qlinear_conv(const Node& node) {
     const OutputVector& inputs = node.get_ng_inputs();
 
-    auto x = inputs[0];
-    auto x_scale = inputs[1];
-    auto x_zero_point = inputs[2];
-    auto w = inputs[3];
-    auto w_scale = inputs[4];
-    auto w_zero_point = inputs[5];
-    auto y_scale = inputs[6];
-    auto y_zero_point = inputs[7];
-    Output<ngraph::Node> B = inputs.size() > 8 ? inputs[8] : std::make_shared<NullNode>()->output(0);
+    auto x = inputs.at(0);
+    auto x_scale = inputs.at(1);
+    auto x_zero_point = inputs.at(2);
+    auto w = inputs.at(3);
+    auto w_scale = inputs.at(4);
+    auto w_zero_point = inputs.at(5);
+    auto y_scale = inputs.at(6);
+    auto y_zero_point = inputs.at(7);
+    Output<ngraph::Node> B = inputs.size() > 8 ? inputs.at(8) : std::make_shared<NullNode>()->output(0);
 
     x = set_13::detail::dequantize_linear(x,
                                           x_scale,

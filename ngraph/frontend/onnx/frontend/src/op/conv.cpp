@@ -65,7 +65,6 @@ OutputVector conv(const Node& node,
                   Output<ngraph::Node> bias) {
     // in the current implementation we assume that the data input rank is static
     // and only the 'batch' dimension can be dynamic
-    const OutputVector& inputs = node.get_ng_inputs();
     const auto groups = node.get_attribute_value<int64_t>("group", 1);
 
     NGRAPH_CHECK(data.get_partial_shape().rank().is_static(), "The input data tensor's rank has to be known (static)");
@@ -84,7 +83,6 @@ OutputVector conv(const Node& node,
     if (ngraph::op::is_null(bias)) {
         return {conv_node};
     } else {
-        // const auto& bias = inputs.at(2);
         const auto& bias_ps = bias.get_partial_shape();
 
         NGRAPH_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
