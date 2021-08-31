@@ -3,12 +3,9 @@
 #
 """
 Basic high-level plugin file for pytest.
-
 See [Writing plugins](https://docs.pytest.org/en/latest/writing_plugins.html)
 for more information.
-
 This plugin adds the following command-line options:
-
 * `--test_conf` - Path to test configuration file. Used to parametrize tests.
   Format: YAML file.
 * `--exe` - Path to a timetest binary to execute.
@@ -22,20 +19,19 @@ import logging
 import os
 import shutil
 import sys
-import tempfile
 import pytest
 import yaml
 
 from pathlib import Path
 from jsonschema import validate, ValidationError
 
-TIME_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
-sys.path.append(TIME_TESTS_DIR)
+UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
+sys.path.insert(0, str(UTILS_DIR))
 
-from scripts.run_timetest import check_positive_int
-from test_runner.utils import upload_timetest_data, metadata_from_manifest, get_os_name, get_os_version, \
-    get_cpu_info, DATABASE, DB_COLLECTIONS
-
+from plugins.conftest import *
+from path_utils import check_positive_int
+from platform_utils import get_os_name, get_os_version, get_cpu_info
+from utils import upload_data, metadata_from_manifest, DB_COLLECTIONS
 
 # -------------------- CLI options --------------------
 
@@ -82,7 +78,7 @@ def pytest_addoption(parser):
         '--db_collection',
         type=str,
         required=is_db_used,
-        help='collection name in "{}" database'.format(DATABASE),
+        help='collection name in database',
         choices=DB_COLLECTIONS
     )
     db_args_parser.addoption(
@@ -119,19 +115,8 @@ def niter(request):
 
 
 @pytest.fixture(scope="function")
-def temp_dir(pytestconfig):
-    """Create temporary directory for test purposes.
-    It will be cleaned up after every test run.
-    """
-    temp_dir = tempfile.TemporaryDirectory()
-    yield Path(temp_dir.name)
-    temp_dir.cleanup()
-
-
-@pytest.fixture(scope="function")
 def cl_cache_dir(pytestconfig, instance):
     """Generate directory to save OpenCL cache before test run and clean up after run.
-
     Folder `cl_cache` should be created in a directory where tests were run. In this case
     cache will be saved correctly. This behaviour is OS independent.
     More: https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#how-can-cl_cache-be-enabled
@@ -171,7 +156,6 @@ def model_cache_dir(pytestconfig, instance):
 @pytest.fixture(scope="function")
 def test_info(request, pytestconfig):
     """Fixture for collecting timetests information.
-
     Current fixture fills in `request` and `pytestconfig` global
     fixtures with timetests information which will be used for
     internal purposes.
@@ -186,7 +170,6 @@ def test_info(request, pytestconfig):
 @pytest.fixture(scope="function")
 def validate_test_case(request, test_info):
     """Fixture for validating test case on correctness.
-
     Fixture checks current test case contains all fields required for
     a correct work.
     """
@@ -226,7 +209,6 @@ def validate_test_case(request, test_info):
 @pytest.fixture(scope="function")
 def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
     """Fixture for preparing and validating data to submit to a database.
-
     Fixture prepares data and metadata to submit to a database. One of the steps
     is parsing of build information from build manifest. After preparation,
     it checks if data contains required properties.
@@ -345,7 +327,6 @@ def manifest_metadata(request):
 
 def pytest_generate_tests(metafunc):
     """Pytest hook for test generation.
-
     Generate parameterized tests from discovered modules and test config
     parameters.
     """
@@ -376,7 +357,6 @@ def pytest_make_parametrize_id(config, val, argname):
 @pytest.mark.hookwrapper
 def pytest_runtest_makereport(item, call):
     """Pytest hook for report preparation.
-
     Submit tests' data to a database.
     """
 
@@ -403,5 +383,5 @@ def pytest_runtest_makereport(item, call):
 
         db_url = item.config.getoption("db_url")
         db_collection = item.config.getoption("db_collection")
-        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, DATABASE, db_collection, data))
-        upload_timetest_data(data, db_url, db_collection)
+        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, 'timetests', db_collection, data))
+        upload_data(data, db_url, 'timetests', db_collection)

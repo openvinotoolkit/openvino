@@ -7,8 +7,10 @@
 """
 
 import os
-import sys
+import argparse
 from pathlib import Path
+
+from platform_utils import get_os_name
 
 
 def expand_env_vars(obj):
@@ -23,15 +25,6 @@ def expand_env_vars(obj):
     else:
         obj = os.path.expandvars(obj)
     return obj
-
-
-def get_os_name():
-    """Function for getting OS name"""
-    if sys.platform == "win32":
-        os_name = 'Windows'
-    else:
-        os_name = 'Linux'
-    return os_name
 
 
 def get_lib_path(lib_name):
@@ -49,3 +42,12 @@ def get_lib_path(lib_name):
             'Linux': Path('deployment_tools/ngraph/lib/libngraph.so')}
                 }
     return all_libs[lib_name][os_name]
+
+
+def check_positive_int(val):
+    """Check argsparse argument is positive integer and return it"""
+    value = int(val)
+    if value < 1:
+        msg = "%r is less than 1" % val
+        raise argparse.ArgumentTypeError(msg)
+    return value
