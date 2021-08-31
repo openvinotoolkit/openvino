@@ -154,7 +154,7 @@ void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shape
     // repalace power with power static
     for (auto op : m_body->get_ordered_ops()) {
         if (auto power = ngraph::as_type_ptr<opset1::Power>(op)) {
-            if (ngraph::as_type_ptr<snippets::op::Scalar>(power->input(1).get_node()->shared_from_this())) {
+            if (ngraph::as_type_ptr<snippets::op::Scalar>(power->get_input_node_shared_ptr(1))) {
                 auto power_static = std::make_shared<snippets::op::PowerStatic>(
                     power->input(0).get_source_output(), power->input(1).get_source_output(), power->get_autob());
                 power_static->set_friendly_name(power->get_friendly_name());
