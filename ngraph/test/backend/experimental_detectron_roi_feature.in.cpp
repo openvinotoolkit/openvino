@@ -49,10 +49,8 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_roi_feature_eval)
 
     auto roi = std::make_shared<ExperimentalROI>(NodeVector{input, pyramid_layer0}, attrs);
 
-    auto f0 =
-        make_shared<Function>(OutputVector{roi->output(0)}, ParameterVector{input, pyramid_layer0});
-    auto f1 =
-        make_shared<Function>(OutputVector{roi->output(1)}, ParameterVector{input, pyramid_layer0});
+    auto f0 = make_shared<Function>(OutputVector{roi->output(0)}, ParameterVector{input, pyramid_layer0});
+    auto f1 = make_shared<Function>(OutputVector{roi->output(1)}, ParameterVector{input, pyramid_layer0});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -85,14 +83,12 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_roi_feature_eval)
     const auto calculated_rois = read_vector<float>(output_rois);
 
     std::cout << "Calculated features:\n    ";
-    for (auto x : calculated_features)
-    {
+    for (auto x : calculated_features) {
         std::cout << x << ", ";
     }
     std::cout << "\n\n";
     std::cout << "Calculated rois:\n    ";
-    for (auto x : calculated_rois)
-    {
+    for (auto x : calculated_rois) {
         std::cout << x << ", ";
     }
     std::cout << "\n\n";
@@ -136,11 +132,10 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_roi_feature_eval)
 
     std::vector<float> expected_rois = {0, 1, 2, 3, 4, 5, 6, 7};
 
-    EXPECT_TRUE(test::all_close_f(
-        expected_output_features, read_vector<float>(output_features), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(
+        test::all_close_f(expected_output_features, read_vector<float>(output_features), MIN_FLOAT_TOLERANCE_BITS));
 
-    EXPECT_TRUE(test::all_close_f(
-        expected_rois, read_vector<float>(output_rois), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f(expected_rois, read_vector<float>(output_rois), MIN_FLOAT_TOLERANCE_BITS));
 
     ASSERT_TRUE(true);
 }
