@@ -53,35 +53,23 @@ struct OPENVINO_API DiscreteTypeInfo {
 
     // For use as a key
     bool operator<(const DiscreteTypeInfo& b) const {
-        if (version_id == nullptr)
+        if (version_id == nullptr || b.version_id == nullptr)
             return version < b.version || (version == b.version && strcmp(name, b.name) < 0);
         else
             return strcmp(version_id, b.version_id) < 0 ||
                    (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) < 0);
     }
     bool operator<=(const DiscreteTypeInfo& b) const {
-        if (version_id == nullptr)
-            return version < b.version || (version == b.version && strcmp(name, b.name) <= 0);
-        else
-            return strcmp(version_id, b.version_id) < 0 ||
-                   (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) <= 0);
+        return *this < b || *this == b;
     }
     bool operator>(const DiscreteTypeInfo& b) const {
-        if (version_id == nullptr)
-            return version > b.version || (version == b.version && strcmp(name, b.name) > 0);
-        else
-            return strcmp(version_id, b.version_id) > 0 ||
-                   (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) > 0);
+        return !(*this <= b);
     }
     bool operator>=(const DiscreteTypeInfo& b) const {
-        if (version_id == nullptr)
-            return version > b.version || (version == b.version && strcmp(name, b.name) >= 0);
-        else
-            return strcmp(version_id, b.version_id) > 0 ||
-                   (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) >= 0);
+        return !(*this < b);
     }
     bool operator==(const DiscreteTypeInfo& b) const {
-        if (version_id == nullptr)
+        if (version_id == nullptr || b.version_id == nullptr)
             return version == b.version && strcmp(name, b.name) == 0;
         else
             return (strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0);
