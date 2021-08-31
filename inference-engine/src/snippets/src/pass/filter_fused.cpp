@@ -33,7 +33,7 @@ bool hasIgnoredParent(std::shared_ptr<Node> node) {
 bool hasParameterParent(std::shared_ptr<Node> node) {
     for (const auto& input : node->inputs()) {
         const auto parent = input.get_source_output().get_node_shared_ptr();
-        if (!!as_type_ptr<ngraph::op::Parameter>(parent))
+        if (!!ov::as_type_ptr<ngraph::op::Parameter>(parent))
             return true;
     }
     return false;
@@ -52,7 +52,7 @@ int getNumNonConstInputs(std::shared_ptr<Node> node) {
     int num_non_const_inputs = 0;
     for (const auto &parent_out : node->input_values()) {
         const auto parent = parent_out.get_node_shared_ptr();
-        if (!!as_type_ptr<ngraph::op::v1::Reshape>(parent)) {
+        if (!!ov::as_type_ptr<ngraph::op::v1::Reshape>(parent)) {
             for (const auto &grandparent_out : parent->input_values()) {
                 const auto grandparent = grandparent_out.get_node_shared_ptr();
                 if (!ngraph::op::is_constant(grandparent))
@@ -67,43 +67,43 @@ int getNumNonConstInputs(std::shared_ptr<Node> node) {
 bool SupportsFusingWithConvolution_SumActivation(std::shared_ptr<Node> node) {
     // todo: Do all PReLUs are fused? Not sure about round and softRelu
     // EltwiseRoundHalfToEven, EltwiseRoundHalfAwayFromZero, EltwiseSoftRelu
-    return  !!as_type_ptr<ngraph::op::Relu>(node) ||
-            !!as_type_ptr<ngraph::op::PRelu>(node) ||
-            !!as_type_ptr<ngraph::op::Elu>(node) ||
-            !!as_type_ptr<ngraph::op::Sigmoid>(node) ||
-            !!as_type_ptr<ngraph::op::v5::HSigmoid>(node) ||
-            !!as_type_ptr<ngraph::op::Clamp>(node) ||
-            !!as_type_ptr<ngraph::op::v4::Swish>(node) ||
-            !!as_type_ptr<ngraph::op::v4::HSwish>(node) ||
-            !!as_type_ptr<ngraph::op::v4::Mish>(node) ||
-            !!as_type_ptr<ngraph::op::v5::Round>(node);
+    return  !!ov::as_type_ptr<ngraph::op::Relu>(node) ||
+            !!ov::as_type_ptr<ngraph::op::PRelu>(node) ||
+            !!ov::as_type_ptr<ngraph::op::Elu>(node) ||
+            !!ov::as_type_ptr<ngraph::op::Sigmoid>(node) ||
+            !!ov::as_type_ptr<ngraph::op::v5::HSigmoid>(node) ||
+            !!ov::as_type_ptr<ngraph::op::Clamp>(node) ||
+            !!ov::as_type_ptr<ngraph::op::v4::Swish>(node) ||
+            !!ov::as_type_ptr<ngraph::op::v4::HSwish>(node) ||
+            !!ov::as_type_ptr<ngraph::op::v4::Mish>(node) ||
+            !!ov::as_type_ptr<ngraph::op::v5::Round>(node);
 }
 bool SupportsFusingWithConvolution_Simple(std::shared_ptr<Node> node) {
     //  This is an approximate solution. Do ann bynaries are supported?
     //   node->canBePerformedAsScaleShift(this);
     if (ngraph::op::is_binary_elementwise_arithmetic(node) ||
         SupportsFusingWithConvolution_SumActivation(node) ||
-        !!as_type_ptr<ngraph::op::Tanh>(node) ||
-        !!as_type_ptr<ngraph::op::Gelu>(node) ||
-        !!as_type_ptr<ngraph::op::Abs>(node) ||
-        !!as_type_ptr<ngraph::op::Sqrt>(node))
+        !!ov::as_type_ptr<ngraph::op::Tanh>(node) ||
+        !!ov::as_type_ptr<ngraph::op::Gelu>(node) ||
+        !!ov::as_type_ptr<ngraph::op::Abs>(node) ||
+        !!ov::as_type_ptr<ngraph::op::Sqrt>(node))
         return true;
     else
         return false;
 }
 bool isSutableParentForFusingSimple(std::shared_ptr<Node> node) {
-    const bool is_suitable_node = !!as_type_ptr<ngraph::op::v1::Convolution>(node) ||
-                                 !!as_type_ptr<ngraph::op::v1::GroupConvolution>(node) ||
-                                 !!as_type_ptr<ngraph::op::v1::BinaryConvolution>(node) ||
-                                 !!as_type_ptr<ngraph::op::v0::MVN>(node) ||
-                                 !!as_type_ptr<ngraph::op::v0::NormalizeL2>(node) ||
-                                 !!as_type_ptr<ngraph::op::v0::Interpolate>(node) ||
-                                 !!as_type_ptr<ngraph::op::v0::LSTMCell>(node) ||
-                                 !!as_type_ptr<ngraph::op::v4::LSTMCell>(node) ||
+    const bool is_suitable_node = !!ov::as_type_ptr<ngraph::op::v1::Convolution>(node) ||
+                                 !!ov::as_type_ptr<ngraph::op::v1::GroupConvolution>(node) ||
+                                 !!ov::as_type_ptr<ngraph::op::v1::BinaryConvolution>(node) ||
+                                 !!ov::as_type_ptr<ngraph::op::v0::MVN>(node) ||
+                                 !!ov::as_type_ptr<ngraph::op::v0::NormalizeL2>(node) ||
+                                 !!ov::as_type_ptr<ngraph::op::v0::Interpolate>(node) ||
+                                 !!ov::as_type_ptr<ngraph::op::v0::LSTMCell>(node) ||
+                                 !!ov::as_type_ptr<ngraph::op::v4::LSTMCell>(node) ||
                                  // FullyConnected has a special shape restriction
                                  // Plus Matmul is converted to FC in convert_to_cpu_specific_opset
-                                 ( (!!as_type_ptr<ngraph::op::FullyConnected>(node)
-                                    || !!as_type_ptr<ngraph::op::MatMul>(node)) &&
+                                 ( (!!ov::as_type_ptr<ngraph::op::FullyConnected>(node)
+                                    || !!ov::as_type_ptr<ngraph::op::MatMul>(node)) &&
                                  node->input_value(0).get_shape().size() != 3);
 
     // has a single output, connected to a single child
@@ -134,7 +134,7 @@ SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node) {
     const auto rinfo = rt.find("MayBeFusedInPlugin");
     if (rinfo == rt.end())
         return SnippetsNodeType::NotSet;
-    const int64_t type_val = ngraph::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get();
+    const int64_t type_val = ov::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get();
     const int64_t lower_bound = static_cast<int64_t>(SnippetsNodeType::Fused);
     const int64_t upper_bound = static_cast<int64_t>(SnippetsNodeType::SubgraphBody);
     if ((type_val < lower_bound) || (type_val > upper_bound))
