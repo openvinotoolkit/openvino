@@ -334,9 +334,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Use --input option to specify a value for freezing.',
                               default=None)
     common_group.add_argument('--generate_deprecated_IR_V7',
-                              help='Force to generate deprecated IR V7 with layers from old IR specification.',
-                              action=IgnoredAction,
-                              default=False)
+                              help=argparse.SUPPRESS, action=IgnoredAction, default=False)
     common_group.add_argument('--static_shape',
                               help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
                                    'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
@@ -358,8 +356,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                           help='Use the configuration file with transformations description.',
                           action=CanonicalizePathCheckExistenceAction)
     common_group.add_argument('--legacy_ir_generation',
-                              help='Use legacy IR serialization engine',
-                              action=DeprecatedStoreTrue, default=False)
+                              help=argparse.SUPPRESS, action=DeprecatedStoreTrue, default=False)
     return parser
 
 
