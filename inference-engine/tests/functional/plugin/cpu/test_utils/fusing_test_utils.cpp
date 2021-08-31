@@ -76,7 +76,7 @@ void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNet
 
 std::shared_ptr<ngraph::Node>
 postFunctionMgr::addPostOps(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
-    auto clonedPostFunction = clone_function(*_pFunction);
+    auto clonedPostFunction = ngraph::clone_function(*_pFunction);
     clonedPostFunction->set_friendly_name(_pFunction->get_friendly_name());
     clonedPostFunction->replace_node(clonedPostFunction->get_parameters()[0], lastNode);
     return clonedPostFunction->get_result()->get_input_node_shared_ptr(0);

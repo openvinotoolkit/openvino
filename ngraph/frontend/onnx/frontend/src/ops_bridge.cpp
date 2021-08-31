@@ -26,6 +26,7 @@
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
 #include "op/cast.hpp"
+#include "op/cast_like.hpp"
 #include "op/ceil.hpp"
 #include "op/clip.hpp"
 #include "op/compress.hpp"
@@ -38,6 +39,7 @@
 #include "op/conv_transpose.hpp"
 #include "op/cos.hpp"
 #include "op/cosh.hpp"
+#include "op/crop.hpp"
 #include "op/cum_sum.hpp"
 #include "op/depth_to_space.hpp"
 #include "op/dequantize_linear.hpp"
@@ -61,6 +63,7 @@
 #include "op/greater.hpp"
 #include "op/gru.hpp"
 #include "op/hard_sigmoid.hpp"
+#include "op/hard_swish.hpp"
 #include "op/hardmax.hpp"
 #include "op/identity.hpp"
 #include "op/image_scaler.hpp"
@@ -105,6 +108,8 @@
 #include "op/org.openvinotoolkit/prior_box.hpp"
 #include "op/org.openvinotoolkit/swish.hpp"
 #include "op/quantize_linear.hpp"
+#include "op/random_uniform.hpp"
+#include "op/random_uniform_like.hpp"
 #include "op/range.hpp"
 #include "op/reciprocal.hpp"
 #include "op/reduce.hpp"
@@ -282,6 +287,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
     REGISTER_OPERATOR("Cast", 1, cast);
+    REGISTER_OPERATOR("CastLike", 1, cast_like);
     REGISTER_OPERATOR("Ceil", 1, ceil);
     REGISTER_OPERATOR("Clip", 1, clip);
     REGISTER_OPERATOR("Clip", 11, clip);
@@ -327,6 +333,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
     REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
+    REGISTER_OPERATOR("HardSwish", 1, hard_swish);
     REGISTER_OPERATOR("Identity", 1, identity);
     REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
     REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
@@ -365,6 +372,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
     REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
     REGISTER_OPERATOR("Range", 1, range);
+    REGISTER_OPERATOR("RandomUniform", 1, random_uniform);
+    REGISTER_OPERATOR("RandomUniformLike", 1, random_uniform_like);
     REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
     REGISTER_OPERATOR("ReduceLogSum", 1, reduce_log_sum);
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);
@@ -427,6 +436,7 @@ OperatorsBridge::OperatorsBridge() {
 
     // deprecated ops
     REGISTER_OPERATOR("Affine", 1, affine);
+    REGISTER_OPERATOR("Crop", 1, crop);
     REGISTER_OPERATOR("Scatter", 1, scatter_elements);
     REGISTER_OPERATOR("Upsample", 1, upsample);
     REGISTER_OPERATOR("Upsample", 7, upsample);
