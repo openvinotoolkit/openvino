@@ -131,6 +131,7 @@ public:
     void SetUp() override {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        ie = PluginCache::get().ie(targetDevice);
         std::tie(targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
@@ -148,7 +149,7 @@ public:
 protected:
     InferenceEngine::CNNNetwork cnnNet;
     InferenceEngine::ExecutableNetwork execNet;
-    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    std::shared_ptr<InferenceEngine::Core> ie;
     std::shared_ptr<ngraph::Function> function;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
