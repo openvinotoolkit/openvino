@@ -31,7 +31,7 @@ namespace BehaviorTestsDefinitions {
 
     using EmptyConfigTests = BehaviorTestsUtils::BehaviorTestsEmptyConfig;
 
-    // Setting empty config doesn't throw
+// Setting empty config doesn't throw
     TEST_P(EmptyConfigTests, SetEmptyConfig) {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -131,6 +131,24 @@ namespace BehaviorTestsDefinitions {
         ASSERT_NO_THROW(metric = ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
         const auto& supportedOptions = metric.as<std::vector<std::string>>();
         ASSERT_EQ(std::find(supportedOptions.cbegin(), supportedOptions.cend(), key), supportedOptions.cend());
+    }
+
+    using DefaultValuesConfigTests = BehaviorTestsUtils::BehaviorTestsBasic;
+
+    TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        InferenceEngine::CNNNetwork cnnNet(function);
+        InferenceEngine::Parameter metric;
+        ASSERT_NO_THROW(metric = ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+        std::vector<std::string> keys = metric;
+
+        for (auto& key : keys) {
+            InferenceEngine::Parameter configValue;
+            ASSERT_NO_THROW(configValue = ie->GetConfig(targetDevice, key));
+
+            ASSERT_NO_THROW(ie->SetConfig({{ key, configValue.as<std::string>()}}, targetDevice));
+        }
     }
 
     using IncorrectConfigTests = BehaviorTestsUtils::BehaviorTestsBasic;
