@@ -160,13 +160,6 @@ task_arena::task_arena(const constraints& constraints_, unsigned reserved_for_ma
     , my_binding_observer{}
 {}
 
-task_arena::task_arena(const task_arena &s)
-    : my_task_arena{s.my_task_arena}
-    , my_initialization_state{}
-    , my_constraints{s.my_constraints}
-    , my_binding_observer{}
-{}
-
 void task_arena::initialize() {
     my_task_arena.initialize();
 #if USE_TBBBIND_2_4

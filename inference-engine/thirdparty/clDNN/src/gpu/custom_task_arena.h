@@ -117,7 +117,6 @@ public:
 
     task_arena(int max_concurrency_ = automatic, unsigned reserved_for_masters = 1);
     task_arena(const constraints& constraints_, unsigned reserved_for_masters = 1);
-    task_arena(const task_arena &s);
 
     void initialize();
     void initialize(int max_concurrency_, unsigned reserved_for_masters = 1);
