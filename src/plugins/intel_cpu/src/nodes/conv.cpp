@@ -289,7 +289,7 @@ bool Convolution::canBeExecutedInInt8() const {
     if (!weightsZeroPoints.empty())
         weightsDataType = memory::data_type::s8;
 
-    return inputDataType == memory::data_type::u8 && weightsDataType == memory::data_type::s8;
+    return one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) && weightsDataType == memory::data_type::s8;
 }
 
 InferenceEngine::Precision Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) const {
@@ -805,7 +805,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 
     memory::data_type wdt = static_cast<memory::data_type>(inDnnlDesc.data.data_type);
 
-    if (inDnnlDesc.data.data_type == dnnl_u8) {
+    if (inDnnlDesc.data.data_type == dnnl_s8 || inDnnlDesc.data.data_type == dnnl_u8) {
         wdt = memory::data_type::s8;
     }
 
