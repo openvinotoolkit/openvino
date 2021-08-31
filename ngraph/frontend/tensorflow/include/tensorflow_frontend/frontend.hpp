@@ -28,10 +28,6 @@ public:
 
     FrontEndTensorflow() {}
 
-    virtual InputModel::Ptr load_from_file(const std::string& path) const {
-        return std::make_shared<InputModelTensorflow>(path);
-    }
-
     virtual std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override;
 
     /// \brief Gets name of this FrontEnd. Can be used by clients

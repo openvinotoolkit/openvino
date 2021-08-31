@@ -54,7 +54,7 @@ namespace ngraph_bridge {
 #endif
 
 
-    class Builder {
+class Builder {
  public:
   static void TranslateGraph(
       const std::map<std::string, ngraph::PartialShape>& inputs,

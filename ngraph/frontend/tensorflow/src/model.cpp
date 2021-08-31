@@ -38,18 +38,8 @@ InputModelTensorflow::InputModelTensorflow(const std::string& _path) : path(_pat
     std::cout << "[ INFO ] Model Parsed: " << graph_def->ParseFromIstream(&pb_stream) << std::endl;
     std::cout << "[ INFO ] Loaded model contains " << graph_def->node_size() << " nodes." << std::endl;
     graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(graph_def.get());
-}
 
-InputModelTensorflow::InputModelTensorflow(std::shared_ptr<::tensorflow::GraphDef> _graph_def,
-                                           std::vector<ngraph::PartialShape> _input_shapes)
-    : input_shapes(_input_shapes) {
-    graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(_graph_def.get());
-}
-
-InputModelTensorflow::InputModelTensorflow(const std::vector<std::shared_ptr<::tensorflow::NodeDef>>& _nodes_def,
-                                           std::vector<ngraph::PartialShape> _input_shapes)
-    : input_shapes(_input_shapes) {
-    graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(_nodes_def);
+    determine_outputs();
 }
 
 std::vector<Place::Ptr> InputModelTensorflow::get_inputs() const {
@@ -82,4 +72,39 @@ ngraph::PartialShape InputModelTensorflow::get_partial_shape(Place::Ptr place) c
     // WARNING! Redesign GraphIterator -- it is not really good thing, detach an iterator from graph itself
     graph_impl->reset();
     return result_shape;
+}
+
+void InputModelTensorflow::determine_outputs() {
+    std::set<std::string> all_names;
+    std::set<std::string> names_with_consumers;
+    for (; !graph_impl->is_end(); graph_impl->next()) {
+        auto op = graph_impl->get();
+        all_names.insert(op->name());
+        ops[op->name()] = op.get();
+        for (size_t i = 0; i < op->num_inputs(); ++i) {
+            std::string input_name;
+            size_t port_idx;
+            try {
+                op->input_node(i, &input_name, &port_idx);
+                names_with_consumers.insert(input_name);
+            } catch (const std::exception& e) {
+                std::cerr << "[ ERROR ] Exception happened when preparing input " << i << " for op '" << op->name()
+                          << "', expected input name: '" << input_name << "', expected input port index: " << port_idx
+                          << '\n';
+                throw;
+            }
+        }
+    }
+    std::set<std::string> names_without_consumers;
+    std::set_difference(all_names.begin(),
+                        all_names.end(),
+                        names_with_consumers.begin(),
+                        names_with_consumers.end(),
+                        std::inserter(names_without_consumers, names_without_consumers.begin()));
+    graph_impl->reset();
+
+    outputs.clear();
+    for (auto& out_name : names_without_consumers) {
+        outputs.push_back(ops[out_name]);
+    }
 }

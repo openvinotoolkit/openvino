@@ -19,6 +19,14 @@ class GraphIteratorProto;
 namespace ngraph {
 namespace frontend {
 
+namespace tensorflow {
+namespace detail {
+
+class TFNodeDecoder;
+
+}  // namespace detail
+}  // namespace tensorflow
+
 class TF_API InputModelTensorflow : public InputModel {
 public:
     // TODO: move these members to private section
@@ -32,11 +40,6 @@ public:
 public:
     InputModelTensorflow(const std::string& _path);
     InputModelTensorflow(const std::vector<std::istream*>& streams);
-    // TODO: remove these constructors
-    InputModelTensorflow(std::shared_ptr<::tensorflow::GraphDef> _graph_def,
-                         std::vector<ngraph::PartialShape> _input_shapes = {});
-    InputModelTensorflow(const std::vector<std::shared_ptr<::tensorflow::NodeDef>>& _nodes_def,
-                         std::vector<ngraph::PartialShape> _input_shapes = {});
 
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override {
@@ -64,6 +67,12 @@ public:
     void set_tensor_value(Place::Ptr place, const void* value) override{
         // TODO: implement
     };
+
+private:
+    std::map<std::string, tensorflow::detail::TFNodeDecoder*> ops;
+    std::vector<tensorflow::detail::TFNodeDecoder*> outputs;
+    // traverse graph to find output ops
+    void determine_outputs();
 };
 
 }  // namespace frontend
