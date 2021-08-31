@@ -223,7 +223,7 @@ const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info() const { 
 
 template <typename BaseOp>
 const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
-    auto baseOpTypeInfoPtr = &BaseOp::get_type_info_static();
+    auto baseOpTypeInfoPtr = &BaseOp::type_info;
 
     // TODO: it should be static const std::string name = std::string("TypeRelaxed_") + baseOpTypeInfoPtr->name;
     //       but currently it will not pass conversion ot Legacy Opset correctly
