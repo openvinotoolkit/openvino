@@ -28,7 +28,8 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
 
     ngraph::Shape new_weights_shape(node->input_value(1).get_shape());
     new_weights_shape.insert(new_weights_shape.begin() + new_weights_shape.size() - 1, 1);
-    auto weights = ngraph::op::util::reshapeTo(node->input_value(1), new_weights_shape);
+    auto reshape_const = ngraph::opset1::Constant::create(ngraph::element::i64, { new_weights_shape.size() }, new_weights_shape);
+    auto weights = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(node->input_value(1), reshape_const, true);
 
     new_ops.push_back(weights);
 
@@ -97,23 +98,56 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
                                              node->get_auto_pad());
 }
 
+std::shared_ptr<ngraph::Node> add_reshape_before(const ngraph::Output<ngraph::Node>& data) {
+    auto shape_of = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(data);
+
+    std::vector<std::int32_t> gather_values_first{ 0, 1 };
+    auto gather_indices_first = ngraph::opset1::Constant::create(
+        ngraph::element::i64,
+        ngraph::Shape{ gather_values_first.size() },
+        gather_values_first);
+
+    auto gather_axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 0 });
+    auto gather_first = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(shape_of, gather_indices_first, gather_axis);
+
+    std::vector<std::int32_t> gather_values_last{ 2 };
+    auto gather_indices_last = ngraph::opset1::Constant::create(
+        ngraph::element::i64,
+        ngraph::Shape{ gather_values_last.size() },
+        gather_values_last);
+    auto gather_last = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(shape_of, gather_indices_last, gather_axis);
+
+    auto unsqueezed_dimension = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+
+    ngraph::NodeVector concatInputs = { gather_first, unsqueezed_dimension, gather_last };
+    auto concat = ngraph::op::util::make_try_fold<ngraph::opset1::Concat>(concatInputs, 0);
+    auto reshape = std::make_shared<ngraph::opset1::Reshape>(data, concat, true);
+    return reshape;
+}
+
+std::shared_ptr<ngraph::Node> add_reshape_after(const ngraph::Output<ngraph::Node>& data) {
+    auto shape_of = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(data);
+
+    std::vector<std::int32_t> gather_values{ 0, 1, 3 };
+    auto gather_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ gather_values.size() }, gather_values);
+    auto gather_axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 0 });
+    auto gather = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(shape_of, gather_const, gather_axis);
+    auto reshape = std::make_shared<ngraph::opset1::Reshape>(data, gather, true);
+    return reshape;
+}
+
 ngraph::matcher_pass_callback get_callback() {
     return [](ngraph::pattern::Matcher& m) {
         auto node = m.get_match_root();
-        if (node->input(0).get_partial_shape().rank().get_length() != 3) {
+        auto input_rank = node->input(0).get_partial_shape().rank();
+        if (input_rank.is_dynamic() || input_rank.get_length() != 3) {
             return false;
         }
 
-        // Insert H dimension equal to 1
-        auto input_shape = node->input(0).get_shape();
-        auto output_shape = node->output(0).get_shape();
-
-        input_shape.insert(input_shape.begin() + 2, 1);
-
         ngraph::NodeVector new_ops;
 
-        // Reshape(input_shape)->Op->Reshape(output_shape)
-        ngraph::Output<ngraph::Node> last = ngraph::op::util::reshapeTo(node->input_value(0), input_shape);
+        // Update pshape from [N, C, W] to [N, C, 1, W]
+        ngraph::Output<ngraph::Node> last = add_reshape_before(node->input_value(0));
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/reshape_begin");
         new_ops.push_back(last.get_node_shared_ptr());
 
@@ -133,38 +167,41 @@ ngraph::matcher_pass_callback get_callback() {
         new_ops.push_back(last.get_node_shared_ptr());
 
         // if convolution is followed by add we need to replace add before output reshape to fuse conv+bias on plug-in side
-        std::shared_ptr<ngraph::Node> addToReplace = nullptr;
-        std::shared_ptr<ngraph::Node> reshapedAdd = nullptr;
-        ngraph::NodeVector biasOps;
+        std::shared_ptr<ngraph::Node> add_to_replace = nullptr;
+        std::shared_ptr<ngraph::Node> reshaped_add = nullptr;
+        ngraph::NodeVector bias_ops;
         if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) || std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node)) {
-            ngraph::Shape expectedShape = ngraph::Shape(node->get_output_shape(0).size(), 1);
-            expectedShape[1] = node->get_output_shape(0)[1];
-            const auto dstNodes = node->get_output_target_inputs(0);
-            if (dstNodes.size() == 1) {
-                addToReplace = dstNodes.begin()->get_node()->shared_from_this();
-                if (std::dynamic_pointer_cast<ngraph::opset1::Add>(addToReplace) &&
-                    std::dynamic_pointer_cast<ngraph::opset1::Constant>(addToReplace->input(1).get_source_output().get_node_shared_ptr()) &&
-                        addToReplace->get_input_shape(1) == expectedShape) {
-                    ngraph::Shape newBiasShape(addToReplace->get_input_shape(1));
-                    newBiasShape.push_back(1);
-                    auto newBias = ngraph::op::util::reshapeTo(addToReplace->input_value(1), newBiasShape);
-                    reshapedAdd = std::make_shared<ngraph::opset1::Add>(last, newBias);
-                    reshapedAdd->set_friendly_name(addToReplace->get_friendly_name() + "/new");
-                    biasOps.push_back(newBias);
-                    biasOps.push_back(reshapedAdd);
+            ngraph::Shape expected_shape = ngraph::Shape(input_rank.get_length(), 1);
+            expected_shape[1] = node->get_output_partial_shape(0)[1].get_length();
+            const auto dst_nodes = node->get_output_target_inputs(0);
+            if (dst_nodes.size() == 1) {
+                add_to_replace = dst_nodes.begin()->get_node()->shared_from_this();
+                if (std::dynamic_pointer_cast<ngraph::opset1::Add>(add_to_replace) &&
+                    std::dynamic_pointer_cast<ngraph::opset1::Constant>(add_to_replace->get_input_node_shared_ptr(1)) &&
+                    add_to_replace->get_input_shape(1) == expected_shape) {
+                    ngraph::Shape new_shape(add_to_replace->get_input_shape(1));
+                    new_shape.push_back(1);
+                    auto new_shape_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ new_shape.size() }, new_shape);
+
+                    auto new_bias = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(add_to_replace->input_value(1), new_shape_const, true);
+                    reshaped_add = std::make_shared<ngraph::opset1::Add>(last, new_bias);
+                    reshaped_add->set_friendly_name(add_to_replace->get_friendly_name() + "/new");
+                    bias_ops.push_back(new_bias);
+                    bias_ops.push_back(reshaped_add);
                 }
             }
         }
 
-        if (reshapedAdd != nullptr) {
+        if (reshaped_add != nullptr) {
             ngraph::replace_node(node, last.get_node_shared_ptr());
             ngraph::copy_runtime_info(node, new_ops);
-            last = reshapedAdd;
-            node = addToReplace;
-            new_ops = biasOps;
+            last = reshaped_add;
+            node = add_to_replace;
+            new_ops = bias_ops;
         }
 
-        last = ngraph::op::util::reshapeTo(last, output_shape);
+        // Update pshape from [N, C, 1, W] to [N, C, W]
+        last = add_reshape_after(last);
         last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name());
         ngraph::replace_node(node, last.get_node_shared_ptr());
         ngraph::copy_runtime_info(node, new_ops);
@@ -175,7 +212,7 @@ ngraph::matcher_pass_callback get_callback() {
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::Reshape1DConvolution, "Reshape1DConvolution", 0);
 
 MKLDNNPlugin::Reshape1DConvolution::Reshape1DConvolution() {
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset1::Convolution>(ngraph::pattern::has_static_shape());
+    auto conv = ngraph::pattern::wrap_type<ngraph::opset1::Convolution>(ngraph::pattern::has_static_rank());
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "Reshape1DConvolution");
     this->register_matcher(m, get_callback());
 }
@@ -183,7 +220,7 @@ MKLDNNPlugin::Reshape1DConvolution::Reshape1DConvolution() {
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::Reshape1DGroupConvolution, "Reshape1DGroupConvolution", 0);
 
 MKLDNNPlugin::Reshape1DGroupConvolution::Reshape1DGroupConvolution() {
-    auto group_conv = ngraph::pattern::wrap_type<ngraph::opset1::GroupConvolution>(ngraph::pattern::has_static_shape());
+    auto group_conv = ngraph::pattern::wrap_type<ngraph::opset1::GroupConvolution>(ngraph::pattern::has_static_rank());
     auto m = std::make_shared<ngraph::pattern::Matcher>(group_conv, "Reshape1DGroupConvolution");
     this->register_matcher(m, get_callback());
 }
@@ -191,7 +228,7 @@ MKLDNNPlugin::Reshape1DGroupConvolution::Reshape1DGroupConvolution() {
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::Reshape1DAvgPool, "Reshape1DAvgPool", 0);
 
 MKLDNNPlugin::Reshape1DAvgPool::Reshape1DAvgPool() {
-    auto pool = ngraph::pattern::wrap_type<ngraph::opset1::AvgPool>(ngraph::pattern::has_static_shape());
+    auto pool = ngraph::pattern::wrap_type<ngraph::opset1::AvgPool>(ngraph::pattern::has_static_rank());
     auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DAvgPool");
     this->register_matcher(m, get_callback());
 }
@@ -199,7 +236,7 @@ MKLDNNPlugin::Reshape1DAvgPool::Reshape1DAvgPool() {
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::Reshape1DMaxPool, "Reshape1DMaxPool", 0);
 
 MKLDNNPlugin::Reshape1DMaxPool::Reshape1DMaxPool() {
-    auto pool = ngraph::pattern::wrap_type<ngraph::opset1::MaxPool>(ngraph::pattern::has_static_shape());
+    auto pool = ngraph::pattern::wrap_type<ngraph::opset1::MaxPool>(ngraph::pattern::has_static_rank());
     auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DMaxPool");
     this->register_matcher(m, get_callback());
 }
