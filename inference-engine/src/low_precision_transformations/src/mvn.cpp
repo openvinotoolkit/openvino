@@ -126,15 +126,9 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
 
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn);
     const auto scalesConst = dequantization.multiplyConstant;
-<<<<<<< HEAD
-
-    auto newScalesConst = dequantization.multiplyConstant;
-    const auto type = scalesConst->get_output_element_type(0);
-=======
     const auto type = scalesConst->get_element_type();
 
     auto newScalesConst = scalesConst;
->>>>>>> 26cc94ef7 ([LPT] MVNTransformation quick refactoring)
     if (normalizeVariance) {
         switch (type) {
             case ngraph::element::Type_t::f16: {
