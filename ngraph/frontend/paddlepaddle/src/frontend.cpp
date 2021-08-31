@@ -50,7 +50,7 @@ NamedOutputs make_ng_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
         }
     }
     NamedOutputs outputs;
-    //In case the conversion function throws exception
+    // In case the conversion function throws exception
     try {
         outputs = creator_it->second(NodeContext(DecoderPDPDProto(op_place), named_inputs));
     } catch (std::exception& ex) {
