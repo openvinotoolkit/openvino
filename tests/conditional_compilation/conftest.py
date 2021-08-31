@@ -66,12 +66,12 @@ def pytest_addoption(parser):
     parser.addoption(
         "--omz_repo",
         type=Path,
-        help="Path to OMZ repository root directory",
+        help="Path to Open Model Zoo repository root directory",
     )
     parser.addoption(
         "--omz_cache_dir",
         type=Path,
-        help="Path to OMZ cache directory",
+        help="Path to Open Model Zoo cache directory",
     )
 
 
