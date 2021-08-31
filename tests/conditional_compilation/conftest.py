@@ -27,6 +27,8 @@ from test_utils import make_build, validate_path_arg, write_session_info, \
 log = logging.getLogger()
 logging.basicConfig(format="[ %(name)s ] [ %(levelname)s ] %(message)s", level=logging.INFO, stream=sys.stdout)
 
+OMZ_NUM_ATTEMPTS = 6
+
 
 def pytest_addoption(parser):
     """Define extra options for pytest options."""
@@ -213,11 +215,10 @@ def prepare_omz_model(openvino_ref, model, request):
     omz_path = request.config.getoption("omz_repo")
     cache_dir = request.config.getoption("omz_cache_dir")
     downloader_path = str(omz_path / "tools" / "downloader" / "downloader.py")
-    omz_num_attempts = 6
 
     cmd = f'{python_executable} {downloader_path} --name {model["name"]}' \
           f' --precisions={model["precision"]}' \
-          f' --num_attempts {omz_num_attempts}' \
+          f' --num_attempts {OMZ_NUM_ATTEMPTS}' \
           f' --output_dir {omz_path / "_omz_repo"}' \
           f' --cache_dir {cache_dir}'
 
