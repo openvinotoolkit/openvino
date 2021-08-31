@@ -18,82 +18,76 @@ class LocaleTests : public ::testing::Test {
 <net name="model" version="10">
 	<layers>
 		<layer id="0" name="input" type="Parameter" version="opset1">
-			<data shape="10, 12" element_type="f16"/>
+			<data shape="1,256,200,272" element_type="f16"/>
 			<output>
 				<port id="0" precision="FP16" names="input">
-					<dim>10</dim>
-					<dim>12</dim>
+					<dim>1</dim>
+					<dim>256</dim>
+					<dim>200</dim>
+					<dim>272</dim>
 				</port>
 			</output>
 		</layer>
-		<layer id="1" name="output" type="Abs" version="opset1">
+		<layer id="1" name="rois" type="Parameter" version="opset1">
+			<data shape="1000,4" element_type="f16"/>
+			<output>
+				<port id="0" precision="FP16" names="rois">
+					<dim>1000</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="indices" type="Parameter" version="opset1">
+			<data shape="1000" element_type="f16"/>
+			<output>
+				<port id="0" precision="FP16" names="indices">
+					<dim>1000</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="output" type="ROIAlign" version="opset3">
+			<data mode="avg" pooled_h="7" pooled_w="7" sampling_ratio="2" spatial_scale="0.25"/>
 			<input>
-				<port id="0" precision="FP16">
-					<dim>10</dim>
-					<dim>12</dim>
+				<port id="0">
+					<dim>1</dim>
+					<dim>256</dim>
+					<dim>200</dim>
+					<dim>272</dim>
+				</port>
+				<port id="1">
+					<dim>1000</dim>
+					<dim>4</dim>
+				</port>
+				<port id="2">
+					<dim>1000</dim>
 				</port>
 			</input>
 			<output>
-				<port id="1" precision="FP16" names="output">
-					<dim>10</dim>
-					<dim>12</dim>
+				<port id="3" precision="FP16" names="output">
+					<dim>1000</dim>
+					<dim>256</dim>
+					<dim>7</dim>
+					<dim>7</dim>
 				</port>
 			</output>
 		</layer>
-		<layer id="2" name="output/sink_port_0" type="Result" version="opset1">
+		<layer id="4" name="output/sink_port_0" type="Result" version="opset1">
 			<input>
-				<port id="0" precision="FP16">
-					<dim>10</dim>
-					<dim>12</dim>
+				<port id="0">
+					<dim>1000</dim>
+					<dim>256</dim>
+					<dim>7</dim>
+					<dim>7</dim>
 				</port>
 			</input>
 		</layer>
 	</layers>
 	<edges>
-		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
-		<edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+		<edge from-layer="0" from-port="0" to-layer="3" to-port="0"/>
+		<edge from-layer="1" from-port="0" to-layer="3" to-port="1"/>
+		<edge from-layer="2" from-port="0" to-layer="3" to-port="2"/>
+		<edge from-layer="3" from-port="3" to-layer="4" to-port="0"/>
 	</edges>
-	<meta_data>
-		<MO_version value="2021.4.0-3839-cd81789d294-releases/2021/4"/>
-		<cli_parameters>
-			<caffe_parser_path value="DIR"/>
-			<data_type value="FP16"/>
-			<disable_nhwc_to_nchw value="False"/>
-			<disable_omitting_optional value="False"/>
-			<disable_resnet_optimization value="False"/>
-			<disable_weights_compression value="False"/>
-			<enable_concat_optimization value="False"/>
-			<enable_flattening_nested_params value="False"/>
-			<enable_ssd_gluoncv value="False"/>
-			<extensions value="DIR"/>
-			<framework value="onnx"/>
-			<freeze_placeholder_with_value value="{}"/>
-			<generate_deprecated_IR_V7 value="False"/>
-			<input_model value="DIR\model.onnx"/>
-			<input_model_is_text value="False"/>
-			<k value="DIR\CustomLayersMapping.xml"/>
-			<keep_shape_ops value="True"/>
-			<legacy_ir_generation value="False"/>
-			<legacy_mxnet_model value="False"/>
-			<log_level value="ERROR"/>
-			<mean_scale_values value="{}"/>
-			<mean_values value="()"/>
-			<model_name value="model"/>
-			<output_dir value="DIR"/>
-			<placeholder_data_types value="{}"/>
-			<progress value="False"/>
-			<remove_memory value="False"/>
-			<remove_output_softmax value="False"/>
-			<reverse_input_channels value="False"/>
-			<save_params_from_nd value="False"/>
-			<scale_values value="()"/>
-			<silent value="False"/>
-			<static_shape value="False"/>
-			<stream_output value="False"/>
-			<transform value=""/>
-			<unset unset_cli_parameters="batch, counts, disable_fusing, disable_gfusing, finegrain_fusing, input, input_checkpoint, input_meta_graph, input_proto, input_shape, input_symbol, mean_file, mean_file_offsets, move_to_preprocess, nd_prefix_name, output, placeholder_shapes, pretrained_model_name, saved_model_dir, saved_model_tags, scale, tensorboard_logdir, tensorflow_custom_layer_libraries, tensorflow_custom_operations_config_update, tensorflow_object_detection_api_pipeline_config, tensorflow_use_custom_operations_config, transformations_config"/>
-		</cli_parameters>
-	</meta_data>
 </net>
 )V0G0N";
 
@@ -603,47 +597,6 @@ class LocaleTests : public ::testing::Test {
 		<edge from-layer="18" from-port="0" to-layer="19" to-port="1"/>
 		<edge from-layer="19" from-port="2" to-layer="20" to-port="0"/>
 	</edges>
-	<meta_data>
-		<MO_version value="2021.4.0-3839-cd81789d294-releases/2021/4"/>
-		<cli_parameters>
-			<caffe_parser_path value="DIR"/>
-			<data_type value="FP16"/>
-			<disable_nhwc_to_nchw value="False"/>
-			<disable_omitting_optional value="False"/>
-			<disable_resnet_optimization value="False"/>
-			<disable_weights_compression value="False"/>
-			<enable_concat_optimization value="False"/>
-			<enable_flattening_nested_params value="False"/>
-			<enable_ssd_gluoncv value="False"/>
-			<extensions value="DIR"/>
-			<framework value="onnx"/>
-			<freeze_placeholder_with_value value="{}"/>
-			<generate_deprecated_IR_V7 value="False"/>
-			<input_model value="DIR\model.onnx"/>
-			<input_model_is_text value="False"/>
-			<k value="DIR\CustomLayersMapping.xml"/>
-			<keep_shape_ops value="True"/>
-			<legacy_ir_generation value="False"/>
-			<legacy_mxnet_model value="False"/>
-			<log_level value="ERROR"/>
-			<mean_scale_values value="{}"/>
-			<mean_values value="()"/>
-			<model_name value="model"/>
-			<output_dir value="DIR"/>
-			<placeholder_data_types value="{}"/>
-			<progress value="False"/>
-			<remove_memory value="False"/>
-			<remove_output_softmax value="False"/>
-			<reverse_input_channels value="False"/>
-			<save_params_from_nd value="False"/>
-			<scale_values value="()"/>
-			<silent value="False"/>
-			<static_shape value="False"/>
-			<stream_output value="False"/>
-			<transform value=""/>
-			<unset unset_cli_parameters="batch, counts, disable_fusing, disable_gfusing, finegrain_fusing, input, input_checkpoint, input_meta_graph, input_proto, input_shape, input_symbol, mean_file, mean_file_offsets, move_to_preprocess, nd_prefix_name, output, placeholder_shapes, pretrained_model_name, saved_model_dir, saved_model_tags, scale, tensorboard_logdir, tensorflow_custom_layer_libraries, tensorflow_custom_operations_config_update, tensorflow_object_detection_api_pipeline_config, tensorflow_use_custom_operations_config, transformations_config"/>
-		</cli_parameters>
-	</meta_data>
 </net>
 )V0G0N";
 
