@@ -9,7 +9,7 @@
 namespace tensorflow {
 class OpDef;
 class TensorProto;
-}
+}  // namespace tensorflow
 
 namespace ngraph {
 namespace frontend {
@@ -92,9 +92,7 @@ private:
 
 class OpPlaceTF : public PlaceTF {
 public:
-    OpPlaceTF(const InputModel& input_model,
-                const tensorflow::OpDef& op_def,
-                const std::vector<std::string>& names);
+    OpPlaceTF(const InputModel& input_model, const tensorflow::OpDef& op_def, const std::vector<std::string>& names);
 
     OpPlaceTF(const InputModel& input_model, const tensorflow::OpDef& op_def);
 
@@ -150,8 +148,8 @@ private:
 class TensorPlaceTF : public PlaceTF {
 public:
     TensorPlaceTF(const InputModel& input_model,
-                    const std::vector<std::string>& names,
-                    const tensorflow::TensorProto& tensor);
+                  const std::vector<std::string>& names,
+                  const tensorflow::TensorProto& tensor);
 
     void add_producing_port(const std::shared_ptr<OutPortPlaceTF>& out_port);
     void add_consuming_port(const std::shared_ptr<InPortPlaceTF>& in_port);

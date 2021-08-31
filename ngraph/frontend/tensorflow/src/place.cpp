@@ -22,8 +22,7 @@ std::map<tensorflow::DataType, ngraph::element::Type> TYPE_MAP{
     {tensorflow::DataType::DT_DOUBLE, ngraph::element::f64},
     {tensorflow::DataType::DT_UINT8, ngraph::element::u8},
     {tensorflow::DataType::DT_INT8, ngraph::element::i8},
-    {tensorflow::DataType::DT_BFLOAT16, ngraph::element::bf16}
-};
+    {tensorflow::DataType::DT_BFLOAT16, ngraph::element::bf16}};
 
 bool PlaceTF::is_input() const {
     const auto& model_ins = m_input_model.get_inputs();
@@ -43,8 +42,8 @@ bool PlaceTF::is_output() const {
 }
 
 OpPlaceTF::OpPlaceTF(const InputModel& input_model,
-                         const tensorflow::OpDef& op_def,
-                         const std::vector<std::string>& names)
+                     const tensorflow::OpDef& op_def,
+                     const std::vector<std::string>& names)
     : PlaceTF(input_model, names),
       m_op_def(op_def) {}
 
@@ -60,14 +59,13 @@ const std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>>& OpPlac
 }
 
 std::shared_ptr<OutPortPlaceTF> OpPlaceTF::get_output_port_tf(const std::string& outputName,
-                                                                    int outputPortIndex) const {
+                                                              int outputPortIndex) const {
     FRONT_END_GENERAL_CHECK(outputPortIndex <= m_output_ports.at(outputName).size(),
                             "outputPortIndex is out of bounds.");
     return m_output_ports.at(outputName)[outputPortIndex];
 }
 
-std::shared_ptr<InPortPlaceTF> OpPlaceTF::get_input_port_tf(const std::string& inputName,
-                                                                  int inputPortIndex) const {
+std::shared_ptr<InPortPlaceTF> OpPlaceTF::get_input_port_tf(const std::string& inputName, int inputPortIndex) const {
     FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
     return m_input_ports.at(inputName)[inputPortIndex];
 }
@@ -128,7 +126,7 @@ std::vector<Place::Ptr> OpPlaceTF::get_consuming_operations() const {
 }
 
 std::vector<Place::Ptr> OpPlaceTF::get_consuming_operations(const std::string& outputPortName,
-                                                              int outputPortIndex) const {
+                                                            int outputPortIndex) const {
     return get_output_port(outputPortName, outputPortIndex)->get_consuming_operations();
 }
 
@@ -211,7 +209,7 @@ Place::Ptr OpPlaceTF::get_target_tensor(int outputPortIndex) const {
 }
 
 TensorPlaceTF::TensorPlaceTF(const InputModel& input_model,
-    const std::vector<std::string>& names,
+                             const std::vector<std::string>& names,
                              const tensorflow::TensorProto& tensor)
     : PlaceTF(input_model, names),
       m_tensor(tensor) {

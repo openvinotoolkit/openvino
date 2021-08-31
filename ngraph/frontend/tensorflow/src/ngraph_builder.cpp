@@ -15,9 +15,8 @@
  *******************************************************************************/
 
 #include <fstream>
-#include <numeric>
-
 #include <ngraph/pass/manager.hpp>
+#include <numeric>
 
 #include "ngraph/op/util/logical_reduction.hpp"
 #include "ngraph/pass/constant_folding.hpp"
