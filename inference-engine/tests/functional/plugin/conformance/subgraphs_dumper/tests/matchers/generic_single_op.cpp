@@ -13,7 +13,7 @@ using ngraph::element::Type_t;
 
 class SingleOpMatcherTest : public ::testing::Test {
 protected:
-    void SetUp() {
+    void SetUp() override {
         matcher = SubgraphsDumper::SingleOpMatcher();
         op_info = LayerTestsUtils::OPInfo();
     }

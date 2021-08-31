@@ -12,7 +12,6 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <low_precision/transformer.hpp>
 #include <low_precision/fake_quantize.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include "lpt_ngraph_functions/common/add.hpp"
@@ -54,7 +53,7 @@ public:
     };
 
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
@@ -386,12 +385,12 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         },
         {
             element::f32,
-            { {127}, element::f32 },
+            {},
             element::f32,
-            { {element::f32}, { -128 }, { 0.01f } },
+            { {}, {}, {} },
             element::f32,
             element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+            { 256ul, {}, { -255.f }, { 0.f }, { 0.f }, { 2.55f } }
         }
     },
     // negative multiply

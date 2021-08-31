@@ -7,16 +7,19 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::StridedSliceTransformation, "StridedSliceTransformation", 0);
+
 std::shared_ptr<Node> stridedSliceDeqConstant(
     const std::shared_ptr<ngraph::Node> strSlice,
     const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
-    auto constant = as_type_ptr<ngraph::opset1::Constant>(dequantizaitonConstant);
+    auto constant = ov::as_type_ptr<ngraph::opset1::Constant>(dequantizaitonConstant);
     auto constantShape = constant->get_shape();
     if (shape_size(constantShape) == 1ul) {
         return NetworkHelper::toScalar(constant);
@@ -42,10 +45,10 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
         const auto newConstant = fold<ngraph::opset1::Broadcast>(
             constant,
             ngraph::opset1::Constant::create(ngraph::element::i32, { newConstantShape.size() }, newConstantShape));
-        constant = as_type_ptr<ngraph::opset1::Constant>(newConstant);
+        constant = ov::as_type_ptr<ngraph::opset1::Constant>(newConstant);
     }
 
-    const auto stridedSlice = as_type_ptr<ngraph::opset1::StridedSlice>(strSlice);
+    const auto stridedSlice = ov::as_type_ptr<ngraph::opset1::StridedSlice>(strSlice);
 
     auto beginMask = stridedSlice->get_begin_mask();
     auto endMask = stridedSlice->get_end_mask();
@@ -71,19 +74,22 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     return NetworkHelper::toScalarIfPossible(result);
 }
 
-StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {}
+StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = ngraph::pattern::wrap_type<opset1::StridedSlice>();
 
-void StridedSliceTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addPattern(pass,
-        context,
-        make_op_pattern<opset1::StridedSlice>({
-            make_op_label<opset1::Multiply>(),
-            make_op_label<opset1::Constant>(),
-            make_op_label<opset1::Constant>(),
-            make_op_label<opset1::Constant>() }));
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "StridedSliceTransformation");
+    this->register_matcher(m, callback);
 }
 
-bool StridedSliceTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {
+bool StridedSliceTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     if (!StridedSliceTransformation::canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -110,7 +116,7 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ngrap
 }
 
 bool StridedSliceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!is_type<ngraph::opset1::StridedSlice>(operation) || NetworkHelper::isDQByDynamicDimension(operation)) {
+    if (!ov::is_type<ngraph::opset1::StridedSlice>(operation) || NetworkHelper::isDQByDynamicDimension(operation)) {
         return false;
     }
 

@@ -19,16 +19,16 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape inputShape,
+    const ngraph::PartialShape inputShape,
     const float low,
     const float high) {
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
         input1, precision, 256ul, { 1ul },
         { low / 4.f }, { high / 4.f }, { low / 4.f }, { high / 4.f });
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(
         input2, precision, 256ul, { 1ul },
         { low / 8.f }, { high / 8.f }, { low / 8.f }, { high / 8.f });
@@ -51,12 +51,12 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape inputShape1,
-    const ngraph::Shape inputShape2,
+    const ngraph::PartialShape inputShape1,
+    const ngraph::PartialShape inputShape2,
     const bool transpose1,
     const bool transpose2) {
     const auto paramNode = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
-    const std::vector<size_t> constShapes(inputShape1.size(), 1ul);
+    const std::vector<size_t> constShapes(inputShape1.rank().get_length(), 1ul);
     const auto fakeQuantizeOnAcitvations = ngraph::builder::makeFakeQuantize(
         paramNode, precision, 256ul, constShapes,
         { 0.f }, { 255.f / 4.f }, { 0.f }, { 255.f / 4.f });
@@ -64,7 +64,7 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
 
     auto weightsConst = std::make_shared<ngraph::op::Constant>(
         precision,
-        inputShape2,
+        inputShape2.to_shape(),
         std::vector<float>({ 1.f }));
     const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
         weightsConst, precision, 256ul, { 1ul, 1ul },
@@ -298,7 +298,7 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
 
 std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnDataWithConstant& fqOnData,
     const Constant& weights,
     const FakeQuantizeOnDataWithConstant& fqOnWeights,

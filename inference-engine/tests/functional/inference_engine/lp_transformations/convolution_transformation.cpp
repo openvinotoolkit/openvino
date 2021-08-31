@@ -43,7 +43,7 @@ public:
         ngraph::element::Type precisionAfterDequantization;
     };
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
@@ -70,6 +70,12 @@ public:
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
+        if (testValues.params.supportAsymmetricQuantization == false) {
+            transform.get_pass_config()->set_callback<ngraph::pass::low_precision::ConvolutionTransformation>(
+                [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+                    return ngraph::pass::low_precision::LayerTransformation::isAsymmetricQuantization(node);
+                });
+        }
         transform.transform(actualFunction);
 
         if (!testValues.params.updatePrecisions) {
@@ -77,7 +83,7 @@ public:
             OutputVector convertedOutput(1);
             convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
             const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
-            testValues.expected.weights = as_type_ptr<opset1::Constant>(convertedWeights);
+            testValues.expected.weights = ov::as_type_ptr<opset1::Constant>(convertedWeights);
         }
 
         referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(
@@ -112,7 +118,7 @@ public:
 
 TEST_P(ConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -147,7 +153,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // with zero point
@@ -164,8 +170,8 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
         {
             ngraph::element::u8,
             {{ ngraph::element::f32 }, { 128.f }, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -1.25f }),
-            {},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
             ngraph::element::f32,
             {}
         }
@@ -187,7 +193,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // without zero point
@@ -207,7 +213,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // without zero point
@@ -227,7 +233,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // without zero point, not update precisions
@@ -247,7 +253,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // with zero point, per-channel quantization with the same values
@@ -267,7 +273,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // with zero point, per-channel quantization with different values
@@ -383,7 +389,7 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // incorrect zero point on activations [not transformed]
@@ -406,26 +412,27 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
             {}
         }
     },
-    // incorrect zero point on weights [not transformed, weights folded]
-    {
-        LayerTransformation::createParamsU8I8(),
-        // ActualValues
-        {
-            ngraph::element::u8,
-            {{element::f32}, {}, { {0.02f}, element::f32 }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 0.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { 5.f }, { 6.f } }
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
-            {{element::f32}, {}, { {0.02f}, element::f32 }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 5.f }),
-            {},
-            ngraph::element::f32,
-            {}
-        }
-    },
+    // TODO: uncomment: remove precisionsOnActivations & precisionsOnWeights
+//    // incorrect zero point on weights [not transformed, weights folded]
+//    {
+//        LayerTransformation::createParamsU8I8(),
+//        // ActualValues
+//        {
+//            ngraph::element::u8,
+//            {{element::f32}, {}, { {0.02f}, element::f32 }},
+//            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 0.f }),
+//            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { 5.f }, { 6.f } }
+//        },
+//        // ExpectedValues
+//        {
+//            ngraph::element::u8,
+//            {{element::f32}, {}, { {0.02f}, element::f32 }},
+//            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 5.f }),
+//            {},
+//            ngraph::element::f32,
+//            {}
+//        }
+//    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

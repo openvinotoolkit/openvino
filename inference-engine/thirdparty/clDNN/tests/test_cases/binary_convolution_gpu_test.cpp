@@ -170,7 +170,7 @@ void compute_ref_conv_bin(const cldnn::memory::ptr src,
 }
 
 class binary_convolution_test : public ::testing::TestWithParam<TestParams> {
-    void SetUp() {
+    void SetUp() override {
         std::cout << GetParam() << std::endl;
         ASSERT_TRUE(GetParam().isConsistent());
     }

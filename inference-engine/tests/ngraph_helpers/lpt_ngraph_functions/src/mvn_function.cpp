@@ -45,7 +45,7 @@ std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const AxisSet& reductionAxes,
     const bool& normalizeVariance) {
     float k = 50.f;

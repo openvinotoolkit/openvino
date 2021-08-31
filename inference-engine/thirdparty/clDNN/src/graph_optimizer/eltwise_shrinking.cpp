@@ -8,7 +8,7 @@
 
 using namespace cldnn;
 
-void eltwise_shrinking::run(program_impl& p) {
+void eltwise_shrinking::run(program& p) {
     std::vector<program_node*> convs_to_shrink;
 
     for (auto& node : p.get_processing_order()) {

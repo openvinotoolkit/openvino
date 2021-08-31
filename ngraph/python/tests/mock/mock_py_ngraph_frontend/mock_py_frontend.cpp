@@ -3,23 +3,23 @@
 //
 
 #include "mock_py_frontend.hpp"
+
 #include "frontend_manager/frontend_manager.hpp"
 #include "frontend_manager/frontend_manager_defs.hpp"
-#include "ngraph/visibility.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-extern "C" MOCK_API FrontEndVersion GetAPIVersion()
-{
+extern "C" MOCK_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;
 }
 
-extern "C" MOCK_API void* GetFrontEndData()
-{
+extern "C" MOCK_API void* GetFrontEndData() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "mock_py";
-    res->m_creator = [](FrontEndCapFlags flags) { return std::make_shared<FrontEndMockPy>(flags); };
+    res->m_creator = []() {
+        return std::make_shared<FrontEndMockPy>();
+    };
 
     return res;
 }

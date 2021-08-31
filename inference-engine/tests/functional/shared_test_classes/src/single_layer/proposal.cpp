@@ -7,9 +7,9 @@
 namespace LayerTestsDefinitions {
 
 const normalize_type normalize = true;
-const feat_stride_type feat_stride = 16;
-const box_size_scale_type box_size_scale = 1.0f;
-const box_coordinate_scale_type box_coordinate_scale = 1.0f;
+const feat_stride_type feat_stride = 1;
+const box_size_scale_type box_size_scale = 2.0f;
+const box_coordinate_scale_type box_coordinate_scale = 2.0f;
 
 std::string ProposalLayerTest::SerializeProposalSpecificParams(proposalSpecificParams& params) {
     base_size_type base_size;
@@ -113,7 +113,7 @@ void ProposalLayerTest::Compare(
 
 void ProposalLayerTest::SetUp() {
     proposalSpecificParams proposalParams;
-    std::vector<float> img_info = {224.0f, 224.0f, 1.0f};
+    std::vector<float> img_info = {225.0f, 225.0f, 1.0f};
 
     std::tie(proposalParams, targetDevice) = this->GetParam();
     base_size_type base_size;
@@ -137,8 +137,8 @@ void ProposalLayerTest::SetUp() {
              clip_after_nms,
              framework) = proposalParams;
 
-    size_t bottom_w = 14;
-    size_t bottom_h = 14;
+    size_t bottom_w = base_size;
+    size_t bottom_h = base_size;
     size_t num_anchors = ratio.size() * scale.size();
 
     std::vector<size_t> scoresShape = {1, 2 * num_anchors, bottom_h, bottom_w};
@@ -174,23 +174,15 @@ void ProposalLayerTest::SetUp() {
 }
 
 InferenceEngine::Blob::Ptr ProposalLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
-    blob->allocate();
+    InferenceEngine::Blob::Ptr blobPtr;
 
     const std::string name = info.name();
-    std::ifstream in;
     if (name == "a_scores") {
-        in.open("openvino/scores.txt");
+        blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 1000, 8234231);
     } else if (name == "b_boxes") {
-        in.open("openvino/boxes.txt");
-    }
-    auto *rawBlobDataPtr = blob->buffer().as<float *>();
-    for (size_t i = 0; i < blob->size(); i++) {
-        float value;
-        in >> value;
-        rawBlobDataPtr[i] = value;
+        blobPtr = FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
     }
 
-    return blob;
+    return blobPtr;
 }
 }  // namespace LayerTestsDefinitions

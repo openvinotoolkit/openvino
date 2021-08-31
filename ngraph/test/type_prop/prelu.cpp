@@ -9,8 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, prelu)
-{
+TEST(type_prop, prelu) {
     auto param = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto slope = make_shared<op::Parameter>(element::f32, Shape{2});
     Shape prelu_shape{2, 4};

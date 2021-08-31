@@ -23,7 +23,7 @@ using namespace PrecisionUtils;
 *   A, B: 4-dim array (x1, y1, x2, y2)
 */
 
-static float check_iou(const float* A, const float* B) {
+float check_iou(const float* A, const float* B) {
     if (A[0] > B[2] || A[1] > B[3] || A[2] < B[0] || A[3] < B[1]) {
         return 0.0f;
     } else {
@@ -47,7 +47,7 @@ static float check_iou(const float* A, const float* B) {
     }
 }
 
-static float check_iou_normalized(const float* A, const float* B) {
+float check_iou_normalized(const float* A, const float* B) {
     if (A[0] > B[2] || A[1] > B[3] || A[2] < B[0] || A[3] < B[1]) {
         return 0.0f;
     } else {
@@ -71,7 +71,7 @@ static float check_iou_normalized(const float* A, const float* B) {
     }
 }
 
-static std::size_t get_num_rois(const float* array, std::size_t size) {
+std::size_t get_num_rois(const float* array, std::size_t size) {
     std::size_t count = 0;
     while (count < size && array[count] != -1.f)
         count += 5;
@@ -255,7 +255,6 @@ public:
             const auto &expected = expectedOutputs[outputIndex].second;
             const auto &actual = actualOutputs[outputIndex];
             const auto &expectedBuffer = expected.data();
-            std::cout << "Precision: " << actual->getTensorDesc().getPrecision() << "\n";
 
             auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
             IE_ASSERT(memory);
@@ -299,34 +298,16 @@ public:
                 if (fabs(reference_scores[i] - optimized_scores[i]) <= scoresThreshold)
                     scores_count++;
             }
-            res = (scores_count >= 0.9f);
+            float score_ratio = static_cast<float>(scores_count) / num_optimized;
+            res = (score_ratio >= 0.9f);
         }
         ASSERT_TRUE(res) << "PROPOSAL TEST failed with "
-        << matching_count << " matched boxes of " << num_optimized << std::endl;
-    }
-
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
-        InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
-        blob->allocate();
-
-        const std::string name = info.name();
-        std::ifstream in;
-        if (name == "a_scores") {
-                in.open("../../../scores.txt");
-        } else if (name == "b_boxes") {
-                in.open("../../../boxes.txt");
-        }
-        auto *rawBlobDataPtr = blob->buffer().as<float *>();
-        for (size_t i = 0; i < blob->size(); i++) {
-                float value;
-                in >> value;
-                rawBlobDataPtr[i] = value;
-        }
-
-        return blob;
+        << matching_count << " matched boxes of " << num_optimized << std::endl
+        << "Precision: " << actualOutputs[0]->getTensorDesc().getPrecision() << " "
+        << "Precision: " << actualOutputs[1]->getTensorDesc().getPrecision() << "\n";
     }
 protected:
-    void SetUp() override{
+    void SetUp() override {
         proposalSpecificParams proposalParams;
         std::vector<float> img_info = {224.0f, 224.0f, 1.0f};
 
@@ -386,7 +367,20 @@ protected:
             std::make_shared<ngraph::opset1::Result>(proposal->output(0)),
             std::make_shared<ngraph::opset1::Result>(proposal->output(1))};
         function = std::make_shared<ngraph::Function>(results, params, "proposal");
-}
+    }
+
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
+        InferenceEngine::Blob::Ptr blobPtr;
+
+        const std::string name = info.name();
+        if (name == "a_scores") {
+            blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 1000, 8234231);
+        } else if (name == "b_boxes") {
+            blobPtr = FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
+        }
+
+        return blobPtr;
+    }
 };
 
 } // namespace LayerTestsDefinitions
@@ -397,14 +391,14 @@ using namespace LayerTestsDefinitions;
 namespace {
 /* ============= Proposal ============= */
 const std::vector<base_size_type> base_size_ = {16};
-const std::vector<pre_nms_topn_type> pre_nms_topn_ = {6000, 300, 100};
-const std::vector<post_nms_topn_type> post_nms_topn_ = {300, 100};
+const std::vector<pre_nms_topn_type> pre_nms_topn_ = {3000, 1500, 1000, 750, 500, 300};
+const std::vector<post_nms_topn_type> post_nms_topn_ = {200, 150, 100, 75, 50, 30, 20};
 const std::vector<nms_thresh_type> nms_thresh_ = {0.7f};
 const std::vector<min_size_type> min_size_ = {16};
 const std::vector<ratio_type> ratio_ = {{0.5f, 1.0f, 2.0f}};
 const std::vector<scale_type> scale_ = {{8.0f, 16.0f, 32.0f}};
-const std::vector<clip_before_nms_type> clip_before_nms_ = {true};
-const std::vector<clip_after_nms_type> clip_after_nms_ = {false};
+const std::vector<clip_before_nms_type> clip_before_nms_ = {true, false};
+const std::vector<clip_after_nms_type> clip_after_nms_ = {false, true};
 
 // empty string corresponds to Caffe framework
 // Myriad plugin does not take this parameter; uses "" by default
@@ -430,7 +424,7 @@ TEST_P(MyriadProposalLayerTest, CompareWithRefs) {
 INSTANTIATE_TEST_SUITE_P(smoke_Proposal_tests, MyriadProposalLayerTest,
                         ::testing::Combine(
                                 proposalParams,
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         MyriadProposalLayerTest::getTestCaseName
 );
 

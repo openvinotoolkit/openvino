@@ -16,13 +16,12 @@ jobs:
   timeoutInMinutes: 90
 
   pool:
-    name: LIN_VMSS_VENV_F16S_WU2
+    name: LIN_VMSS_VENV_F16S_U20_WU2
 
   variables:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    WORKERS_NUMBER: 16
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
@@ -30,8 +29,10 @@ jobs:
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
-    BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
+    BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
     INSTALL_DIR: $(WORK_DIR)/install_pkg
+    INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
+    LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
     SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
 
   steps:
@@ -43,6 +44,7 @@ jobs:
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
       lsb_release
       env
       cat /proc/cpuinfo
@@ -74,22 +76,26 @@ jobs:
     submodules: recursive
     path: openvino_contrib
 
-  - checkout: testdata
-    clean: true
-    lfs: true
-    path: testdata
-
   - script: |
-      sudo apt --assume-yes install libusb-1.0-0-dev
-      # For opencv-python: setuptools and upgrade
-      sudo apt-get install python3-setuptools patchelf
+      set -e
+      $(REPO_DIR)/install_build_dependencies.sh
+      # Move jdk into contrib
+      sudo apt --assume-yes install openjdk-11-jdk
+      # For opencv-python: python3-setuptools and pip upgrade
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/wheel/requirements-dev.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
+      # For running PaddlePaddle frontend unit tests
+      python3 -m pip install -r $(REPO_DIR)/ngraph/test/frontend/paddlepaddle/requirements_dev.txt
+      # For running ONNX frontend unit tests
+      python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test_onnx.txt
+      # For MO unit tests
+      python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements_dev.txt
       # Speed up build
-      wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
+      wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
       # Speed up tests
@@ -97,25 +103,32 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
+  - checkout: testdata
+    clean: true
+    lfs: true
+    path: testdata
+
   - task: CMake@1
     inputs:
       # CMake must get Python 3.x version by default
       cmakeArgs: >
         -GNinja
         -DVERBOSE_BUILD=ON
-        -DENABLE_TEMPLATE_PLUGIN=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
-        -DPYTHON_EXECUTABLE=/usr/bin/python3.6
+        -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
-        -DNGRAPH_ONNX_IMPORT_ENABLE=ON
-        -DNGRAPH_ONNX_EDITOR_ENABLE=ON
+        -DNGRAPH_ONNX_FRONTEND_ENABLE=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DENABLE_REQUIREMENTS_INSTALL=OFF
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
+
+  - script: ls -alR $(REPO_DIR)/inference-engine/temp/
+    displayName: 'List temp SDKs'
 
   - script: ninja
     workingDirectory: $(BUILD_DIR)
@@ -127,7 +140,33 @@ jobs:
   - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
+  
+  - task: CMake@1
+    inputs:
+      cmakeArgs: >
+        -GNinja
+        $(REPO_DIR)/tests/layer_tests
+      workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+      
+  - script: ninja
+    workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+    displayName: 'Build Layer Tests'
+    
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+    workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+    displayName: 'Install Layer Tests'
 
+  - script: ls -alR $(INSTALL_DIR)
+    displayName: 'List install files'
+
+  - script: |
+      set -e
+      mkdir $(INSTALL_DIR)/opencv/
+      cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake
+      cp -R $(REPO_DIR)/inference-engine/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install tests'
+    
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
@@ -138,66 +177,92 @@ jobs:
   - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
+  
+  - script: rm -fr $(BUILD_DIR)
+    displayName: 'Clean build dir'
+    continueOnError: false
 
-  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
+  - script: . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+    displayName: 'nGraph Python Bindings Tests'
+    continueOnError: false
+
+  - script: |
+      export MO_ROOT=$(INSTALL_DIR)/deployment_tools/model_optimizer
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/deployment_tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
+    displayName: 'Model Optimizer UT'
+    continueOnError: false
+
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'nGraph UT'
     continueOnError: false
 
-    # python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(BIN_DIR)/InferenceEngineUnitTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
-  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/paddlepaddle_tests --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-PaddlePaddle.xml
+    displayName: 'PaddlePaddle Frontend UT'
+    continueOnError: false
+
+    # . $(SETUPVARS) && python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
     continueOnError: false
 
-  - script: $(BIN_DIR)/ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
     displayName: 'IE UT'
     continueOnError: false
 
-  - script: $(BIN_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
     displayName: 'CPU UT'
     continueOnError: false
 
-  - script: $(BIN_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
     displayName: 'GNA UT'
     continueOnError: false
 
-  - script: $(BIN_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
     continueOnError: false
 
-  - script: $(BIN_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
     displayName: 'ONNX Importer UT'
     continueOnError: false
 
-  - script: $(BIN_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
     continueOnError: false
 
-  - script: $(BIN_DIR)/templateFuncTests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/templateFuncTests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
     continueOnError: false
 
-  - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      $(BIN_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
+      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: false
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      export LD_LIBRARY_PATH=$(BIN_DIR)/lib
-      export PYTHONPATH=$(BIN_DIR)/lib/python_api/python3.6
-      env
       cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
-      pytest pytest --junitxml=TEST-PythonAPI.xml
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
     displayName: 'Python API Tests'
     continueOnError: false
-    enabled: false
+    
+  - script: |
+      . $(SETUPVARS)
+      python3 -m pip install -r requirements.txt
+      export MO_ROOT=$(INSTALL_DIR)/deployment_tools/model_optimizer
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xmlTEST
+    workingDirectory: $(LAYER_TESTS_DIR)
+    displayName: 'Layer Tests'
+    continueOnError: false
 
   - task: PublishTestResults@2
     condition: always()

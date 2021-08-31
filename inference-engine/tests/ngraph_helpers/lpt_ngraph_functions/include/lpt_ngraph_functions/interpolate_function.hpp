@@ -23,7 +23,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::Shape& outputShape,
         const ngraph::op::InterpolateAttrs& interpAttrs);
 

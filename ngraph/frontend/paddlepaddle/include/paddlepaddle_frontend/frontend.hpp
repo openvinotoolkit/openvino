@@ -5,54 +5,68 @@
 #pragma once
 
 #include <frontend_manager/frontend_manager.hpp>
+
 #include "exceptions.hpp"
 #include "model.hpp"
 
-namespace ngraph
-{
-    namespace frontend
-    {
-        class PDPD_API FrontEndPDPD : public FrontEnd
-        {
-            static std::shared_ptr<Function>
-                convert_model(const std::shared_ptr<InputModelPDPD>& model);
+namespace ngraph {
+namespace frontend {
+class OpPlacePDPD;
 
-        public:
-            FrontEndPDPD() = default;
+class PDPD_API FrontEndPDPD : public FrontEnd {
+public:
+    FrontEndPDPD() = default;
 
-            /**
-             * @brief Reads model from file and deducts file names of weights
-             * @param path path to folder which contains __model__ file or path to .pdmodel file
-             * @return InputModel::Ptr
-             */
-            InputModel::Ptr load_from_file(const std::string& path) const override;
+    /// \brief Completely convert the remaining, not converted part of a function.
+    /// \param partiallyConverted partially converted nGraph function
+    /// \return fully converted nGraph function
+    std::shared_ptr<Function> convert(InputModel::Ptr model) const override;
 
-            /**
-             * @brief Reads model and weights from files
-             * @param paths vector containing path to .pdmodel and .pdiparams files
-             * @return InputModel::Ptr
-             */
-            InputModel::Ptr load_from_files(const std::vector<std::string>& paths) const override;
+    /// \brief Completely convert the remaining, not converted part of a function.
+    /// \param partiallyConverted partially converted nGraph function
+    void convert(std::shared_ptr<Function> partiallyConverted) const override;
 
-            /**
-             * @brief Reads model from stream
-             * @param model_stream stream containing .pdmodel or __model__ files. Can only be used
-             * if model have no weights
-             * @return InputModel::Ptr
-             */
-            InputModel::Ptr load_from_stream(std::istream& model_stream) const override;
+    /// \brief Convert only those parts of the model that can be converted leaving others
+    /// as-is. Converted parts are not normalized by additional transformations; normalize
+    /// function or another form of convert function should be called to finalize the
+    /// conversion process.
+    /// \param model Input model
+    /// \return partially converted nGraph function
+    std::shared_ptr<Function> convert_partially(InputModel::Ptr model) const override;
 
-            /**
-             * @brief Reads model from stream
-             * @param paths vector of streams containing .pdmodel and .pdiparams files. Can't be
-             * used in case of multiple weight files
-             * @return InputModel::Ptr
-             */
-            InputModel::Ptr
-                load_from_streams(const std::vector<std::istream*>& paths) const override;
+    /// \brief Convert operations with one-to-one mapping with decoding nodes.
+    /// Each decoding node is an nGraph node representing a single FW operation node with
+    /// all attributes represented in FW-independent way.
+    /// \param model Input model
+    /// \return nGraph function after decoding
+    std::shared_ptr<Function> decode(InputModel::Ptr model) const override;
 
-            std::shared_ptr<Function> convert(InputModel::Ptr model) const override;
-        };
+    /// \brief Gets name of this FrontEnd. Can be used by clients
+    /// if frontend is selected automatically by FrontEndManager::load_by_model
+    ///
+    /// \return Paddle frontend name.
+    std::string get_name() const override;
 
-    } // namespace frontend
-} // namespace ngraph
+protected:
+    /// \brief Check if FrontEndPDPD can recognize model from given parts
+    /// \param params Can be path to folder which contains __model__ file or path to
+    /// .pdmodel file
+    /// \return InputModel::Ptr
+    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
+
+    /// \brief Reads model from 1 or 2 given file names or 1 or 2 std::istream containing
+    /// model in protobuf format and weights
+    /// \param params Can contain path to folder with __model__ file or path to .pdmodel
+    /// file or 1 or 2 streams with model and weights
+    /// \return InputModel::Ptr
+    InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
+
+private:
+    static std::shared_ptr<Function> convert_each_node(
+        const std::shared_ptr<InputModelPDPD>& model,
+        std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
+                                                          const std::shared_ptr<OpPlacePDPD>&)> func);
+};
+
+}  // namespace frontend
+}  // namespace ngraph

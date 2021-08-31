@@ -10,30 +10,15 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-
+#include <ngraph/rt_info.hpp>
 #include "backend/gna_limitations.hpp"
+#include "layers/gna_split_layer.hpp"
 
 using namespace GNAPluginNS;
 
 NGRAPH_RTTI_DEFINITION(SplitConvolution, "SplitConvolution", 0);
 NGRAPH_RTTI_DEFINITION(SplitConvolutionWithBias, "SplitConvolutionWithBias", 0);
 NGRAPH_RTTI_DEFINITION(SplitConvolutionWithFq, "SplitConvolutionWithFq", 0);
-
-static std::vector<int64_t> GetConvSplitSizes(std::shared_ptr<ngraph::Node> conv) {
-    uint32_t width = conv->get_input_shape(0).back();
-    uint32_t in_channels = conv->get_input_shape(0).at(1);
-    uint32_t usedWidth = 0;
-    std::vector<int64_t> split_sizes;
-    uint32_t width_max_size = GNALimitations::bufferMaxSize / in_channels;
-    width_max_size = width_max_size - width_max_size % 64;
-    while (usedWidth < width) {
-        uint32_t width_part = std::min(width - usedWidth, width_max_size);
-        split_sizes.push_back(width_part);
-        usedWidth += width_part;
-    }
-    IE_ASSERT(usedWidth == width);
-    return split_sizes;
-}
 
 static bool Convert(std::shared_ptr<ngraph::Node> conv,
                     std::shared_ptr<ngraph::Node> add,
@@ -45,33 +30,44 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
         return false;
     }
 
-    auto split_sizes = GetConvSplitSizes(conv);
+    uint32_t width = conv->get_input_shape(0).back();
+    uint32_t in_channels = conv->get_input_shape(0).at(1);
+    auto split_sizes = GetAlignedSplitSizes(width, GNALimitations::bufferMaxSize / in_channels);
     IE_ASSERT(split_sizes.size() > 1);
+    std::vector<int64_t> split_sizes_casted(split_sizes.size());
+    std::transform(std::begin(split_sizes), std::end(split_sizes), std::begin(split_sizes_casted), [](uint32_t size) {
+        return static_cast<int64_t>(size);
+    });
 
     /* TODO check if it's NHWC convolution wrapped with transposes or all input dimensions except of width == 1,
         otherwise this split axis isn't supported */
     const int64_t width_axis = conv->get_input_shape(0).size() - 1;
     auto split_node = std::make_shared<ngraph::opset7::VariadicSplit>(conv->input_value(0),
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{width_axis}),
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({split_sizes.size()}), split_sizes));
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({split_sizes_casted.size()}), split_sizes_casted));
+    ngraph::copy_runtime_info(conv, split_node);
     split_node->set_friendly_name(conv->get_friendly_name() + "/split");
     ngraph::OutputVector convOutputs;
     std::shared_ptr<ngraph::Node> root_node = fq ? fq : (add ? add : conv);
     for (int i = 0; i < split_sizes.size(); ++i) {
         std::shared_ptr<ngraph::Node> output = conv->clone_with_new_inputs({split_node->output(i), conv->input_value(1)});
+        ngraph::copy_runtime_info(split_node, output);
         output->set_friendly_name(conv->get_friendly_name() + "_" + std::to_string(i));
         if (bias) {
             output = std::make_shared<ngraph::opset7::Add>(output, bias);
+            ngraph::copy_runtime_info(conv, output);
         }
 
         if (fq) {
             output = fq->clone_with_new_inputs({output, fq->input_value(1), fq->input_value(2),
                 fq->input_value(3), fq->input_value(4)});
+            ngraph::copy_runtime_info(fq, output);
         }
         convOutputs.push_back(output);
     }
 
     auto concat = std::make_shared<ngraph::opset7::Concat>(convOutputs, width_axis);
+    ngraph::copy_runtime_info(conv, concat);
     concat->set_friendly_name(conv->get_friendly_name());
     ngraph::replace_node(root_node, concat);
     return true;

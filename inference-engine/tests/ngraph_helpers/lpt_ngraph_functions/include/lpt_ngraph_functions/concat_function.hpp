@@ -19,7 +19,7 @@ class ConcatFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fakeQuantize1,
         const FakeQuantizeOnData& fakeQuantize2);
 
@@ -31,7 +31,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginalWithChildAndOutput(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fakeQuantize1,
         const FakeQuantizeOnData& fakeQuantize2);
 
@@ -82,6 +82,7 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginalWithDifferentPrecisionOnChildren(
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
+        const std::int64_t axis,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2);
 
@@ -122,9 +123,29 @@ public:
         const FakeQuantizeOnDataWithConstant& fakeQuantize2,
         const DequantizationOperations::Convert& convert2,
         const DequantizationOperations& dequantization2,
+        const std::vector<std::shared_ptr<Variant>>& concatAttributes,
         const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationAfter,
-        const std::int64_t& axis);
+        const std::int64_t& axis,
+        const bool addNotPrecisionPreservedOperation = false);
+
+    static std::shared_ptr<ngraph::Function> get(
+        const ngraph::element::Type inputPrecision,
+        const ngraph::Shape& inputShape1,
+        const FakeQuantizeOnDataWithConstant& fakeQuantize1,
+        const DequantizationOperations::Convert& convert1,
+        const DequantizationOperations& dequantization1,
+        const bool addReshape1,
+        const ngraph::Shape& inputShape2,
+        const FakeQuantizeOnDataWithConstant& fakeQuantize2,
+        const DequantizationOperations::Convert& convert2,
+        const DequantizationOperations& dequantization2,
+        const bool addReshape2,
+        const std::vector<std::shared_ptr<Variant>>& concatAttributes,
+        const ngraph::element::Type precisionAfterOperation,
+        const DequantizationOperations& dequantizationAfter,
+        const std::int64_t& axis,
+        const bool addNotPrecisionPreservedOperation = false);
 
     static std::shared_ptr<ngraph::Function> getReferenceWithNeighbors(
         const ngraph::element::Type precision,
@@ -209,10 +230,12 @@ public:
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
         const bool multiChannel,
+        const std::int64_t axis,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
         const ngraph::element::Type precisionBeforeOp,
-        const DequantizationOperations& dequantizationBefore,
+        const DequantizationOperations& dequantizationBefore1,
+        const DequantizationOperations& dequantizationBefore2,
         const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationAfter1,
         const DequantizationOperations& dequantizationAfter2);

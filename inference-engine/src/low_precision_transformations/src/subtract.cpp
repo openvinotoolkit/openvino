@@ -11,6 +11,9 @@
 #include <utility>
 #include <vector>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
+
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -18,20 +21,28 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-void SubtractTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Subtract>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::SubtractTransformation, "SubtractTransformation", 0);
 
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Subtract>({ make_op_label<opset1::Convert>(), make_op_label<opset1::Constant>() }));
+SubtractTransformation::SubtractTransformation(const Params& params) : LayerTransformation(params) {
+    auto convert = pattern::wrap_type<opset1::Convert>();
+    auto multiply = pattern::wrap_type<opset1::Multiply>();
+    auto subParent = std::make_shared<pattern::op::Or>(OutputVector{ convert, multiply });
+    auto subtract = pattern::wrap_type<opset1::Subtract>({ subParent, pattern::wrap_type<opset1::Constant>() });
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(subtract, "SubtractTransformation");
+    this->register_matcher(m, callback);
 }
 
-bool SubtractTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(m.get_match_root());
+bool SubtractTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+    std::shared_ptr<opset1::Subtract> subtract = ov::as_type_ptr<opset1::Subtract>(m.get_match_root());
     if (!canBeTransformed(context, subtract)) {
         return false;
     }
@@ -43,7 +54,7 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
         // before: Y = X * SC - SH, after:  Y = (X - SH') * SC
         //    X * SC - SH = X * SC - SH' * SC
         //    SH' = SH / SC
-        std::shared_ptr<opset1::Subtract> newSubtract = as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
+        std::shared_ptr<opset1::Subtract> newSubtract = ov::as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
             dequantization.multiply->get_input_node_shared_ptr(0),
             ngraph::pass::low_precision::fold<ngraph::opset1::Divide>(
                 subtract->get_input_node_shared_ptr(1),
@@ -60,7 +71,7 @@ bool SubtractTransformation::transform(TransformationContext& context, ngraph::p
     }
 
     if (dequantization.subtract != nullptr) {
-        std::shared_ptr<opset1::Subtract> newSubtract = as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
+        std::shared_ptr<opset1::Subtract> newSubtract = ov::as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
             dequantization.subtract->get_input_node_shared_ptr(0),
             ngraph::pass::low_precision::fold<ngraph::opset1::Add>(
                 subtract->get_input_node_shared_ptr(1),

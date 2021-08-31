@@ -4,7 +4,7 @@
 
 **Name**: *ShuffleChannels*
 
-**Category**: Data movement
+**Category**: *Data movement*
 
 **Short description**: *ShuffleChannels* permutes data in the channel dimension of the input tensor.
 
@@ -41,7 +41,7 @@ where `group` is the layer attribute described below.
   * **Range of values**: an integer number in the range `[-rank(data_shape), rank(data_shape) - 1]`
   * **Type**: `int`
   * **Default value**: 1
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *group*
 
@@ -49,7 +49,7 @@ where `group` is the layer attribute described below.
   * **Range of values**: a positive integer in the range `[1, data_shape[axis]]`
   * **Type**: `int`
   * **Default value**: 1
-  * **Required**: *No*
+  * **Required**: *no*
 
 **Inputs**:
 

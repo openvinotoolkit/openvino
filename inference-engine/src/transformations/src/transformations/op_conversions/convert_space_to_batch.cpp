@@ -142,9 +142,9 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         auto pads_begin = space_to_batch->input_value(2);
         auto pads_end = space_to_batch->input_value(3);
 
-        const auto block_const = as_type_ptr<opset3::Constant>(block.get_node_shared_ptr());
-        const auto pads_begin_const = as_type_ptr<opset3::Constant>(pads_begin.get_node_shared_ptr());
-        const auto pads_end_const = as_type_ptr<opset3::Constant>(pads_end.get_node_shared_ptr());
+        const auto block_const = ov::as_type_ptr<opset3::Constant>(block.get_node_shared_ptr());
+        const auto pads_begin_const = ov::as_type_ptr<opset3::Constant>(pads_begin.get_node_shared_ptr());
+        const auto pads_end_const = ov::as_type_ptr<opset3::Constant>(pads_end.get_node_shared_ptr());
 
         if (!block_const || !pads_begin_const || !pads_end_const) {
             return false;

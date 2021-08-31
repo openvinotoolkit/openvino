@@ -1,5 +1,3 @@
-fake_quantize_pdpd
-
 INTERPRETER.onnx_model_quant_conv_linear
 INTERPRETER.onnx_top_k_opset_10
 
@@ -155,3 +153,7 @@ onnx_model_deformable_conv_2d
 
 # No support for unsigned types
 INTERPRETER.zero_sized_negative
+
+# No support yet for RandomUniform
+INTERPRETER.onnx_model_random_uniform
+INTERPRETER.onnx_model_random_uniform_like

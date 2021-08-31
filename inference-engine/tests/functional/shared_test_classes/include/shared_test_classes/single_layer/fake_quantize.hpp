@@ -26,11 +26,13 @@
 
 namespace LayerTestsDefinitions {
 
+
 typedef std::tuple<
-        size_t,              // levels
-        std::vector<size_t>, // const inputs shape
-        std::vector<float>,  // fake quantize inputLow, inputHigh, outputLow, outputHigh or empty for random
-        std::vector<float>   // input generator data: low, high, resolution
+        size_t,                         // fake quantize levels
+        std::vector<size_t>,            // fake quantize inputs shape
+        std::vector<float>,             // fake quantize (inputLow, inputHigh, outputLow, outputHigh) or empty for random
+        std::vector<float>,             // input generator data (low, high, resolution) or empty for default
+        ngraph::op::AutoBroadcastSpec   // fake quantize broadcast mode
 > fqSpecificParams;
 typedef std::tuple<
         fqSpecificParams,
@@ -48,7 +50,7 @@ typedef std::tuple<
 class FakeQuantizeLayerTest : public testing::WithParamInterface<fqLayerTestParamsSet>,
                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<fqLayerTestParamsSet>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 protected:
     void SetUp() override;

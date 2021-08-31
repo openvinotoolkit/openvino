@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
@@ -16,16 +17,29 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-void SubtractMultiplyToMultiplyAddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addSingleNodePattern<opset1::Multiply>(pass, context);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::SubtractMultiplyToMultiplyAddTransformation, "SubtractMultiplyToMultiplyAddTransformation", 0);
+
+SubtractMultiplyToMultiplyAddTransformation::SubtractMultiplyToMultiplyAddTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = pattern::wrap_type<opset1::Multiply>();
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "SubtractMultiplyToMultiplyAddTransformation");
+    this->register_matcher(m, callback);
 }
 
 FakeQuantizeDequantization get(const std::shared_ptr<Node> node) {
     Output<Node> dataNode = node;
 
-    const std::shared_ptr<ngraph::opset1::Multiply> multiply = is_type<opset1::Constant>(
+    const std::shared_ptr<ngraph::opset1::Multiply> multiply = ov::is_type<opset1::Constant>(
         dataNode.get_node_shared_ptr()->get_input_node_shared_ptr(1)) ?
-        as_type_ptr<ngraph::opset1::Multiply>(dataNode.get_node_shared_ptr()) :
+        ov::as_type_ptr<ngraph::opset1::Multiply>(dataNode.get_node_shared_ptr()) :
         nullptr;
     std::shared_ptr<opset1::Constant> multiplyConstant;
     if (multiply != nullptr) {
@@ -34,8 +48,8 @@ FakeQuantizeDequantization get(const std::shared_ptr<Node> node) {
     }
 
     const std::shared_ptr<opset1::Subtract> subtract = (dataNode.get_node_shared_ptr()->get_input_size() > 1ul)
-        && is_type<opset1::Constant>(dataNode.get_node_shared_ptr()->get_input_node_ptr(1)) ?
-            as_type_ptr<opset1::Subtract>(dataNode.get_node_shared_ptr()) :
+        && ov::is_type<opset1::Constant>(dataNode.get_node_shared_ptr()->get_input_node_ptr(1)) ?
+            ov::as_type_ptr<opset1::Subtract>(dataNode.get_node_shared_ptr()) :
             nullptr;
     std::shared_ptr<opset1::Convert> subtractConvert;
     std::shared_ptr<opset1::Constant> subtractConstant;
@@ -44,7 +58,7 @@ FakeQuantizeDequantization get(const std::shared_ptr<Node> node) {
         dataNode = subtract->get_input_source_output(0);
     }
 
-    const std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(dataNode.get_node_shared_ptr());
+    const std::shared_ptr<opset1::Convert> convert = ov::as_type_ptr<opset1::Convert>(dataNode.get_node_shared_ptr());
     if (convert != nullptr) {
         dataNode = convert->get_input_source_output(0);
     }
@@ -52,7 +66,7 @@ FakeQuantizeDequantization get(const std::shared_ptr<Node> node) {
     return FakeQuantizeDequantization(dataNode, convert, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
 }
 
-bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
         return false;
@@ -105,8 +119,8 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
                 std::make_shared<opset1::Constant>(deqPrecision, Shape{}, std::vector<float>{ -1.f })),
             foldConvert(dequantization.multiply->get_input_node_shared_ptr(1), deqPrecision));
 
-        if (is_type<opset1::Constant>(subtractConstant)) {
-            std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(subtractConstant);
+        if (ov::is_type<opset1::Constant>(subtractConstant)) {
+            std::shared_ptr<opset1::Constant> constant = ov::as_type_ptr<opset1::Constant>(subtractConstant);
             if (NetworkHelper::isScalarLike(constant)) {
                 subtractConstant = NetworkHelper::toScalar(constant);
             }
@@ -123,7 +137,7 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
 
         lastNewPrecision = precisionAfterDequantization;
     } else {
-        NetworkHelper::setOutDataPrecision(as_type_ptr<opset1::Multiply>(lastNew.get_node_shared_ptr()), precisionAfterDequantization);
+        NetworkHelper::setOutDataPrecision(ov::as_type_ptr<opset1::Multiply>(lastNew.get_node_shared_ptr()), precisionAfterDequantization);
     }
 
     const std::shared_ptr<Node> lastOriginal = dequantization.multiply == nullptr ?
