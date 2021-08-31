@@ -4,9 +4,15 @@
 
 #include "ngraph/op/slice.hpp"
 
+#include <numeric>
+
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/range.hpp"
+#include "ngraph/op/shape_of.hpp"
+#include "ngraph/op/squeeze.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -17,17 +23,39 @@ NGRAPH_RTTI_DEFINITION(op::v8::Slice, "Slice", 8);
 op::v8::Slice::Slice(const Output<Node>& data,
                      const Output<Node>& start,
                      const Output<Node>& stop,
-                     const Output<Node>& step)
-    : Op({data, start, stop, step}) {
+                     const Output<Node>& step,
+                     const Output<Node>& axes)
+    : Op({data, start, stop, step, axes}) {
     constructor_validate_and_infer_types();
 }
+
+namespace {
+
+std::shared_ptr<Node> calculate_default_axes(const Output<Node>& start) {
+    const auto start_pshape = start.get_partial_shape();
+
+    // Static case
+    if (start_pshape.rank().is_static() && start_pshape.rank().get_length() == 1 && start_pshape[0].is_static()) {
+        size_t axes_length = start_pshape[0].get_length();
+        std::vector<int64_t> axes(axes_length);
+        std::iota(axes.begin(), axes.end(), 0);
+        return op::Constant::create(element::i64, Shape{axes_length}, axes);
+    }
+
+    // Dynamic case
+    const auto axes_start_val = op::Constant::create(element::i64, {}, {0});
+    const auto axes_end_val = std::make_shared<op::v0::Squeeze>(std::make_shared<op::v3::ShapeOf>(start));
+    const auto axes_step_val = op::Constant::create(element::i64, {}, {1});
+
+    return std::make_shared<op::v4::Range>(axes_start_val, axes_end_val, axes_step_val, element::i64);
+}
+}  // namespace
 
 op::v8::Slice::Slice(const Output<Node>& data,
                      const Output<Node>& start,
                      const Output<Node>& stop,
-                     const Output<Node>& step,
-                     const Output<Node>& axes)
-    : Op({data, start, stop, step, axes}) {
+                     const Output<Node>& step)
+    : Op({data, start, stop, step, calculate_default_axes(start)}) {
     constructor_validate_and_infer_types();
 }
 
