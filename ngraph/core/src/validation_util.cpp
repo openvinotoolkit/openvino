@@ -966,7 +966,7 @@ struct MaxValue {
 
 vector<MaxValue> exec_constant(Node* node, vector<MaxValue>& inputs) {
     auto result = MaxValue();
-    auto op = as_type<op::Constant>(node);
+    auto op = ov::as_type<op::Constant>(node);
     auto element_type = op->get_output_element_type(0);
     if (element_type.is_integral()) {
         uint64_t max_val = 0;
@@ -1024,7 +1024,7 @@ vector<MaxValue> exec_minimum(Node* node, vector<MaxValue>& inputs) {
 }
 
 vector<MaxValue> exec_concat(Node* node, vector<MaxValue>& inputs) {
-    auto op = as_type<op::v0::Concat>(node);
+    auto op = ov::as_type<op::v0::Concat>(node);
     vector<uint64_t> slice_maxen;
     for (auto input : inputs) {
         slice_maxen.push_back(input.m_value);
@@ -1036,7 +1036,7 @@ vector<MaxValue> exec_concat(Node* node, vector<MaxValue>& inputs) {
 vector<MaxValue> exec_reduce_min(Node* node, vector<MaxValue>& inputs) {
     auto data = inputs.at(0);
     if (data.m_slice_axis >= 0 && data.m_slices.size() > 1) {
-        if (auto indices_const = as_type<op::v0::Constant>(node->get_input_node_ptr(1))) {
+        if (auto indices_const = ov::as_type<op::v0::Constant>(node->get_input_node_ptr(1))) {
             if (indices_const->get_output_element_type(0).is_integral()) {
                 auto indices_shape = indices_const->get_output_shape(0);
                 if (indices_shape == Shape{1}) {
@@ -1068,10 +1068,10 @@ vector<MaxValue> exec_shape_of(Node* node, vector<MaxValue>& inputs) {
 }
 
 vector<MaxValue> exec_gather(Node* node, vector<MaxValue>& inputs) {
-    auto gather = as_type<op::v1::Gather>(node);
+    auto gather = ov::as_type<op::v1::Gather>(node);
 
-    const auto& indices = as_type_ptr<op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
-    const auto& axis = as_type_ptr<op::v0::Constant>(node->input_value(2).get_node_shared_ptr());
+    const auto& indices = ov::as_type_ptr<op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
+    const auto& axis = ov::as_type_ptr<op::v0::Constant>(node->input_value(2).get_node_shared_ptr());
 
     if (!indices || !axis) {
         return {MaxValue()};
@@ -1482,7 +1482,7 @@ bool ngraph::host_tensor_is_positive(const HostTensorPtr& bound) {
     const auto axes = op::Constant::create(element::i64, {axes_vector.size()}, axes_vector);
     OutputVector all(1);
     folded = std::make_shared<op::v1::ReduceLogicalAnd>(greater[0], axes)->constant_fold(all, {greater[0], axes});
-    NGRAPH_CHECK(folded && is_type<op::Constant>(all[0].get_node_shared_ptr()));
+    NGRAPH_CHECK(folded && ov::is_type<op::Constant>(all[0].get_node_shared_ptr()));
     const auto result = std::dynamic_pointer_cast<op::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>();
     NGRAPH_CHECK(all[0].get_shape() == Shape{});
     return result[0];
@@ -1499,7 +1499,7 @@ bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {
 shared_ptr<op::Constant> ngraph::get_constant_from_source(const Output<Node>& source) {
     if (!has_and_set_equal_bounds(source))
         return nullptr;
-    if (const auto& c = as_type_ptr<op::Constant>(source.get_node_shared_ptr()))
+    if (const auto& c = ov::as_type_ptr<op::Constant>(source.get_node_shared_ptr()))
         return c;
     return std::make_shared<op::Constant>(source.get_tensor().get_upper_value());
 }

@@ -41,11 +41,7 @@
 #include "transformations/common_optimizations/space_to_batch_fusion.hpp"
 #include "transformations/common_optimizations/split_squeeze_concat_fusion.hpp"
 #include "transformations/common_optimizations/strides_optimization.hpp"
-#include "transformations/common_optimizations/swish_fusion.hpp"
-#include "transformations/common_optimizations/transpose_sinking.hpp"
-#include "transformations/common_optimizations/transpose_to_reshape.hpp"
-#include "transformations/init_node_info.hpp"
-#include "transformations/op_conversions/batch_norm_decomposition.hpp"
+#include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
@@ -67,6 +63,9 @@
 #include "transformations/op_conversions/einsum_decomposition.hpp"
 #include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
+#include "transformations/op_conversions/reduce_l1_decomposition.hpp"
+#include "transformations/op_conversions/reduce_l2_decomposition.hpp"
+#include "transformations/op_conversions/hswish_decomposition.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
@@ -78,154 +77,133 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
-#include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
+#include <transformations/op_conversions/normalize_l2_decomposition.hpp>
 
-#include "transformations/serialize.hpp"
+NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations",
-                       0);
+bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
+    ngraph::pass::Manager manager(get_pass_config());
 
-bool ngraph::pass::CommonOptimizations::run_on_function(
-    std::shared_ptr<ngraph::Function> f) {
-  RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
-  ngraph::pass::Manager manager(get_pass_config());
+    // This pass must be called first in pipeline
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
+    manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>(); // workaround until dynamism in NMS is not supported
 
-  // This pass must be called first in pipeline
-  manager.register_pass<ngraph::pass::InitNodeInfo>();
-  manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
+    // TODO: move to KMB
+    manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
+    manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
 
-  // This transformation must be called before constant folding as it folds
-  // ShapeOf node, which is required to be checked in dropout subgraph
-  manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
+    manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
 
-  manager.register_pass<ngraph::pass::ConstantFolding>();
-  manager.register_pass<
-      ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism
-                                                   // (replaces NonZero), CF
-                                                   // needed
+    auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
+    transpose_sinking->add_matcher<ngraph::pass::TransposeSinking>();
+    // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
+    // because it replaces pattern that may contain Transposes which must be optimized before
+    // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
+    transpose_sinking->add_matcher<ngraph::pass::SplitSqueezeConcatFusion>();
 
-  // TODO: move to KMB
-  manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
-  manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+    auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
+    eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
+    eliminations->add_matcher<ngraph::pass::NopElimination>(); // may introduce fake dynamism
+    eliminations->set_name("ngraph::pass::CommonEliminations");
 
-  manager.register_pass<ngraph::pass::ConstantFolding>();
-  manager
-      .register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
-  manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
 
-  auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
-  transpose_sinking->add_matcher<ngraph::pass::TransposeSinking>();
-  // SplitSqueezeConcatFusion should work in same GraphRewrite as
-  // TransposesSinking, because it replaces pattern that may contain Transposes
-  // which must be optimized before the transformation and it also inserts
-  // Transpose that can be optimized by TransposeSinking
-  transpose_sinking->add_matcher<ngraph::pass::SplitSqueezeConcatFusion>();
+    auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    common_fusions->add_matcher<ngraph::pass::ConvertScatterElementsToScatter>();
+    common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
+    common_fusions->add_matcher<ngraph::pass::SwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(false);
+    common_fusions->add_matcher<ngraph::pass::HSwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
+    common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
+    common_fusions->add_matcher<ngraph::pass::ClampFusion>();
+    common_fusions->add_matcher<ngraph::pass::PadFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftmaxFusion>();
+    common_fusions->add_matcher<ngraph::pass::MVNFusion>();
+    common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
+    common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
+    common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
+    common_fusions->add_matcher<ngraph::pass::GeluFusion>();
+    common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
+    common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
+    common_fusions->set_name("ngraph::pass::CommonFusions");
 
-  auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
-  eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
-  eliminations->add_matcher<ngraph::pass::NopElimination>(); // may introduce
-                                                             // fake dynamism
-  eliminations->set_name("ngraph::pass::CommonEliminations");
+    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
+    manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
+    manager.register_pass<ngraph::pass::BinarizeWeights>();
+    manager.register_pass<ngraph::pass::ConvToBinaryConv>();
 
-  manager.register_pass<ngraph::pass::ConstantFolding>();
+    auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();
+    decomp->add_matcher<ngraph::pass::BidirectionalSequenceDecomposition>();
+    decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
+    decomp->add_matcher<ngraph::pass::ReduceL2Decomposition>();
+    decomp->add_matcher<ngraph::pass::HSwishDecomposition>();
+    decomp->add_matcher<ngraph::pass::HSigmoidDecomposition>();
+    decomp->add_matcher<ngraph::pass::LogSoftmaxDecomposition>();
+    decomp->add_matcher<ngraph::pass::ConvertReduceToPooling>();
+    decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
+    decomp->add_matcher<ngraph::pass::ConvertMod>();
+    decomp->add_matcher<ngraph::pass::ConvertGELU>();
+    decomp->add_matcher<ngraph::pass::ConvertMinimum>();
+    decomp->add_matcher<ngraph::pass::ConvertSubtract>();
+    decomp->add_matcher<ngraph::pass::ConvertDivide>();
+    decomp->add_matcher<ngraph::pass::ConvertNegative>();
+    decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
+    decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
+    decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
+    decomp->add_matcher<ngraph::pass::MVN6Decomposition>();
+    decomp->add_matcher<ngraph::pass::NormalizeL2Decomposition, false>();
+    decomp->add_matcher<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+    decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
+    decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+    decomp->set_name("ngraph::pass::CommonDecompositions");
 
-  auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-  common_fusions->add_matcher<ngraph::pass::ConvertScatterElementsToScatter>();
-  common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
-  common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
-  common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
-  common_fusions->add_matcher<ngraph::pass::SwishFusion>();
-  common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(false);
-  common_fusions->add_matcher<ngraph::pass::HSwishFusion>();
-  common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
-  common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
-  common_fusions->add_matcher<ngraph::pass::ClampFusion>();
-  common_fusions->add_matcher<ngraph::pass::PadFusion>();
-  common_fusions->add_matcher<ngraph::pass::SoftmaxFusion>();
-  common_fusions->add_matcher<ngraph::pass::MVNFusion>();
-  common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
-  common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
-  common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
-  common_fusions->add_matcher<ngraph::pass::GeluFusion>();
-  common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
-  common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
-  common_fusions->set_name("ngraph::pass::CommonFusions");
+    // CF is required after all decompositions
+    manager.register_pass<ngraph::pass::ConstantFolding>();
 
-  manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
-  manager
-      .register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
-  manager.register_pass<ngraph::pass::BinarizeWeights>();
-  manager.register_pass<ngraph::pass::ConvToBinaryConv>();
+    // LinOpSequenceFusion must be executed after all decompositions
+    manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
-  auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
-  decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();
-  decomp->add_matcher<ngraph::pass::BidirectionalSequenceDecomposition>();
-  decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
-  decomp->add_matcher<ngraph::pass::ReduceL2Decomposition>();
-  decomp->add_matcher<ngraph::pass::HSwishDecomposition>();
-  decomp->add_matcher<ngraph::pass::HSigmoidDecomposition>();
-  decomp->add_matcher<ngraph::pass::LogSoftmaxDecomposition>();
-  decomp->add_matcher<ngraph::pass::ConvertReduceToPooling>();
-  decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
-  decomp->add_matcher<ngraph::pass::ConvertMod>();
-  decomp->add_matcher<ngraph::pass::ConvertGELU>();
-  decomp->add_matcher<ngraph::pass::ConvertMinimum>();
-  decomp->add_matcher<ngraph::pass::ConvertSubtract>();
-  decomp->add_matcher<ngraph::pass::ConvertDivide>();
-  decomp->add_matcher<ngraph::pass::ConvertNegative>();
-  decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
-  decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
-  decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
-  decomp->add_matcher<ngraph::pass::MVN6Decomposition>();
-  decomp->add_matcher<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
-  decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
-  decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
-  decomp->set_name("ngraph::pass::CommonDecompositions");
+    auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->set_name("ngraph::pass::ConvFusions");
 
-  // CF is required after all decompositions
-  manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();  // not plugins implemented gather8
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();  // not plugins implemented gather7
+    manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
+    manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
 
-  // LinOpSequenceFusion must be executed after all decompositions
-  manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+    auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
+    fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
+    fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
+    fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
+    fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
-  auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-  conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
-  conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
-  conv_fusions
-      ->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
-  conv_fusions
-      ->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
-  conv_fusions->set_name("ngraph::pass::ConvFusions");
+    // StridesOptimization should be at the very end
+    // because we cannot insert any MaxPools since they may prevent
+    // other optimizations
+    manager.register_pass<ngraph::pass::StridesOptimization>();
 
-  manager.register_pass<ngraph::pass::ConstantFolding>();
-  manager.register_pass<ngraph::pass::ConvertGather8ToGather7>(); // not plugins
-                                                                  // implemented
-                                                                  // gather8
-  manager.register_pass<ngraph::pass::ConvertGather7ToGather1>(); // not plugins
-                                                                  // implemented
-                                                                  // gather7
-  manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
-  manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
-  manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
+    manager.run_passes(f);
 
-  auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-  fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
-  fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
-  fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
-  fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
-  fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
-
-  // StridesOptimization should be at the very end
-  // because we cannot insert any MaxPools since they may prevent
-  // other optimizations
-  manager.register_pass<ngraph::pass::StridesOptimization>();
-
-  manager.run_passes(f);
-
-  // Returning value is false because pass::Manager always apply Validation pass
-  // if function was changed. This helps to avoid excess Validations after
-  // applying this pass. In future when we will return more meaningful status
-  // code it will be replaced with real status reported by manager.run_passes()
-  // method call.
-  return false;
+    // Returning value is false because pass::Manager always apply Validation pass
+    // if function was changed. This helps to avoid excess Validations after applying
+    // this pass. In future when we will return more meaningful status code it will be
+    // replaced with real status reported by manager.run_passes() method call.
+    return false;
 }

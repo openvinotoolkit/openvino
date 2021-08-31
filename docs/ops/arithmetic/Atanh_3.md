@@ -2,7 +2,7 @@
 
 **Versioned name**: *Atanh-3*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Atanh* performs element-wise hyperbolic inverse tangent (arctangenth) operation with a given tensor.
 

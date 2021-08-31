@@ -2,7 +2,7 @@
 
 **Versioned name**: *Squeeze-1*
 
-**Category**: Shape manipulation
+**Category**: *Shape manipulation*
 
 **Short description**: *Squeeze* removes dimensions equal to 1 from the first input tensor.
 
