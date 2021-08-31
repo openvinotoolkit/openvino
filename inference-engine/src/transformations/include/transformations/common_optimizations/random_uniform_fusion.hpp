@@ -22,8 +22,6 @@ class TRANSFORMATIONS_API RandomUniformMinValFusion;
  * @brief RandomUniformMaxValFusion transformation replaces RandomUniform -> Mul subgraph
  * with a single RandomUniform node.
  *
- * * Restrictions:
- * RandomUniform node should have floating output type and input max value = 1.0.
  */
 class ngraph::pass::RandomUniformMaxValFusion : public ngraph::pass::MatcherPass {
 public:
@@ -36,8 +34,6 @@ public:
  * @brief RandomUniformMinValFusion transformation replaces RandomUniform -> Add subgraph
  * with a RandomUniform and replaces min and max const with corrected values.
  *
- * * Restrictions:
- * RandomUniform node should have floating output type and input min value = 0.0.
  */
 class ngraph::pass::RandomUniformMinValFusion : public ngraph::pass::MatcherPass {
 public:
