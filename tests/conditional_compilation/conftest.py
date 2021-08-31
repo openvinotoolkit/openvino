@@ -88,10 +88,10 @@ def pytest_generate_tests(metafunc):
     for test in test_cases:
         model_list = []
         test_id_list = []
-        for models in test:
+        for model in test:
             extra_args = {}
-            model_path = models["model"]["path"]
-            model = models["model"]
+            model_path = model["model"]["path"]
+            model = model["model"]
             if "marks" in test:
                 extra_args["marks"] = test["marks"]
             model["path"] = Path(expand_env_vars(model["path"]))
