@@ -108,8 +108,15 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
                                 'out_ports_count': len(node.out_ports()), 'can_be_fused': False})
         w_mul.in_port(const_port.idx).connect(mul_const.out_port(0))
         w_const = weights_port.get_source()
-        weights_port.get_connection().set_source(w_mul.out_port(0))
-        w_const.connect(w_mul.in_port(tensor_port.idx))
+
+        weights_port.get_connection().set_destination(w_mul.in_port(tensor_port.idx))
+        w_mul.out_port(0).connect(weights_port)
+
+        in_edge = w_mul.in_edge(tensor_port.idx)
+        if 'permutation' in w_mul.in_edge(tensor_port.idx):
+            fuse_node.in_edge(weights_port.idx)['permutation'] = w_mul.in_edge(tensor_port.idx)['permutation']
+        if 'input_permutation' in w_mul.in_edge(tensor_port.idx):
+            fuse_node.in_edge(weights_port.idx)['input_permutation'] = w_mul.in_edge(tensor_port.idx)['input_permutation']
 
         fuse_node_in_data = fuse_node.in_node(weights_port.idx)
         w_const_out_data = w_const.node.out_node(w_const.idx)
