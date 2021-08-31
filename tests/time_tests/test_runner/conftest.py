@@ -19,17 +19,17 @@ import logging
 import os
 import shutil
 import sys
+import tempfile
+from pathlib import Path
+
 import pytest
 import yaml
-
-from pathlib import Path
 from jsonschema import validate, ValidationError
 
 # add utils folder to imports
 UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
 sys.path.insert(0, str(UTILS_DIR))
 
-from plugins.conftest import *
 from path_utils import check_positive_int
 from platform_utils import get_os_name, get_os_version, get_cpu_info
 from utils import upload_data, metadata_from_manifest, DB_COLLECTIONS
@@ -113,6 +113,15 @@ def niter(request):
 
 
 # -------------------- CLI options --------------------
+
+@pytest.fixture(scope="function")
+def temp_dir(pytestconfig):
+    """Create temporary directory for test purposes.
+    It will be cleaned up after every test run.
+    """
+    temp_dir = tempfile.TemporaryDirectory()
+    yield Path(temp_dir.name)
+    temp_dir.cleanup()
 
 
 @pytest.fixture(scope="function")
