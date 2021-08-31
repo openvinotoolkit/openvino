@@ -215,7 +215,7 @@ def prepare_omz_model(openvino_ref, model, request):
     python_executable = sys.executable
     omz_path = request.config.getoption("omz_repo")
     cache_dir = request.config.getoption("omz_cache_dir")
-    downloader_path = str(omz_path / "tools" / "downloader" / "downloader.py")
+    downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
 
     cmd = f'{python_executable} {downloader_path} --name {model["name"]}' \
           f' --precisions={model["precision"]}' \
