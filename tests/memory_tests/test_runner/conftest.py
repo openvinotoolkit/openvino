@@ -44,7 +44,7 @@ sys.path.append(MEMORY_TESTS_DIR)
 from test_runner.utils import query_memory_timeline, REFS_FACTOR
 
 
-OMZ_NUM_ATTEMPTS = 1
+OMZ_NUM_ATTEMPTS = 6
 
 
 def abs_path(relative_path):
@@ -81,22 +81,16 @@ def pytest_addoption(parser):
     )
     omz_args_parser = parser.getgroup("test with omz models")
     omz_args_parser.addoption(
-        "--omz_repo",
+        "--omz",
         type=Path,
-        required=True,
-        help="Path to Open Model Zoo (OMZ) repository.",
+        required=False,
+        help="Path to Open Model Zoo (OMZ) repository root.",
     )
     omz_args_parser.addoption(
         "--omz_models_out_dir",
         type=Path,
         default=abs_path('../_omz_out/models'),
         help="Directory to put test data into.",
-    )
-    omz_args_parser.addoption(
-        "--mo_path",
-        type=Path,
-        default=abs_path("../../../model-optimizer/mo.py"),
-        help="Path to model-optimizer mo.py. Required for OMZ converter.py only",
     )
     omz_args_parser.addoption(
         '--omz_cache_dir',
@@ -109,6 +103,12 @@ def pytest_addoption(parser):
         type=Path,
         default=abs_path('../_omz_out/irs'),
         help='Directory to put test data into. Required for OMZ converter.py only.'
+    )
+    omz_args_parser.addoption(
+        "--mo",
+        type=Path,
+        default=abs_path("../../../model-optimizer/mo.py"),
+        help="Path to model-optimizer mo.py. Required for OMZ converter.py only",
     )
     helpers_args_parser = parser.getgroup("test helpers")
     helpers_args_parser.addoption(
@@ -133,12 +133,6 @@ def pytest_addoption(parser):
         help='MongoDB URL in a form "mongodb://server:port"'
     )
     db_args_parser.addoption(
-        '--timeline_report',
-        type=str,
-        required=is_db_used,
-        help='path to build manifest to extract commit information'
-    )
-    db_args_parser.addoption(
         '--db_name',
         type=str,
         required=is_db_used,
@@ -153,15 +147,21 @@ def pytest_addoption(parser):
         choices=DB_COLLECTIONS
     )
     db_args_parser.addoption(
+        '--manifest',
+        type=Path,
+        required=is_db_used,
+        help='path to build manifest to extract commit information'
+    )
+    db_args_parser.addoption(
         '--db_metadata',
         type=str,
         default=None,
         help='path to JSON-formatted file to extract additional information'
     )
     db_args_parser.addoption(
-        '--manifest',
-        type=Path,
-        required=is_db_used,
+        '--timeline_report',
+        type=str,
+        required=False,
         help='path to build manifest to extract commit information'
     )
 
@@ -186,59 +186,61 @@ def omz_models_conversion(pytestconfig, request):
     """
     Fixture for preparing omz models and updating test config with new paths
     """
-    omz_path = request.config.getoption("omz_repo")
-    cache_dir = request.config.getoption("omz_cache_dir")
-    omz_models_out_dir = request.config.getoption("omz_models_out_dir")
-    omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
-    mo_path = request.config.getoption("mo_path")
+    # Check Open Model Zoo key
+    omz_path = request.config.getoption("omz")
+    if omz_path:
+        cache_dir = request.config.getoption("omz_cache_dir")
+        omz_models_out_dir = request.config.getoption("omz_models_out_dir")
+        omz_irs_out_dir = request.config.getoption("omz_irs_out_dir")
+        mo_path = request.config.getoption("mo")
 
-    downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
-    converter_path = omz_path / "tools" / "downloader" / "converter.py"
-    info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
+        downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
+        converter_path = omz_path / "tools" / "downloader" / "converter.py"
+        info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
 
-    records = [rec for rec in pytestconfig.session_info]
+        records = [rec for rec in pytestconfig.session_info]
 
-    for record in records:
-        if record["instance"]["model"]["source"] != "omz":
-            continue
-        model_name = record["instance"]["model"]["name"]
-        model_precision = record["instance"]["model"]["precision"]
+        for record in records:
+            if record["instance"]["model"]["source"] != "omz":
+                continue
+            model_name = record["instance"]["model"]["name"]
+            model_precision = record["instance"]["model"]["precision"]
 
-        # get full model info
-        cmd = f'"{sys.executable}" "{info_dumper_path}" --name {model_name}'
-        _, info = cmd_exec([cmd], shell=True, log=logging)
+            # get full model info
+            cmd = f'"{sys.executable}" "{info_dumper_path}" --name {model_name}'
+            _, info = cmd_exec([cmd], shell=True, log=logging)
 
-        model_info = json.loads(info)[0]
+            model_info = json.loads(info)[0]
 
-        if model_precision not in model_info['precisions']:
-            logging.error(f"Please specify precision for the model "
-                          f"{model_name} from the list: {model_info['precisions']}")
-            continue
+            if model_precision not in model_info['precisions']:
+                logging.error(f"Please specify precision for the model "
+                              f"{model_name} from the list: {model_info['precisions']}")
+                continue
 
-        model_path = str(Path(model_info["subdirectory"]) / model_precision / (model_name + ".xml"))
-        model_full_path = str(omz_irs_out_dir / model_info["subdirectory"] / model_precision / (model_name + ".xml"))
+            model_path = str(Path(model_info["subdirectory"]) / model_precision / (model_name + ".xml"))
+            model_full_path = str(omz_irs_out_dir / model_info["subdirectory"] / model_precision / (model_name + ".xml"))
 
-        # prepare models and convert models to IRs
-        cmd = f'{sys.executable} {downloader_path}' \
-              f' --name {model_name}' \
-              f' --precisions={model_precision}' \
-              f' --num_attempts {OMZ_NUM_ATTEMPTS}' \
-              f' --output_dir {omz_models_out_dir}' \
-              f' --cache_dir {cache_dir}'
-        cmd_exec([cmd], shell=True, log=logging)
+            # prepare models and convert models to IRs
+            cmd = f'{sys.executable} {downloader_path}' \
+                  f' --name {model_name}' \
+                  f' --precisions={model_precision}' \
+                  f' --num_attempts {OMZ_NUM_ATTEMPTS}' \
+                  f' --output_dir {omz_models_out_dir}' \
+                  f' --cache_dir {cache_dir}'
+            cmd_exec([cmd], shell=True, log=logging)
 
-        cmd = f'{sys.executable} {converter_path}' \
-              f' --name {model_name}' \
-              f' -p {sys.executable}' \
-              f' --precisions={model_precision}' \
-              f' --output_dir {omz_irs_out_dir}' \
-              f' --download_dir {omz_models_out_dir}' \
-              f' --mo {mo_path}'
-        cmd_exec([cmd], shell=True, log=logging)
+            cmd = f'{sys.executable} {converter_path}' \
+                  f' --name {model_name}' \
+                  f' -p {sys.executable}' \
+                  f' --precisions={model_precision}' \
+                  f' --output_dir {omz_irs_out_dir}' \
+                  f' --download_dir {omz_models_out_dir}' \
+                  f' --mo {mo_path}'
+            cmd_exec([cmd], shell=True, log=logging)
 
-        record["instance"]["model"]["framework"] = model_info["framework"]
-        record["instance"]["model"]["path"] = model_path
-        record["instance"]["model"]["full_path"] = model_full_path
+            record["instance"]["model"]["framework"] = model_info["framework"]
+            record["instance"]["model"]["path"] = model_path
+            record["instance"]["model"]["full_path"] = model_full_path
 
 
 @pytest.fixture(scope="function")
@@ -453,7 +455,7 @@ def prepare_tconf_with_refs(pytestconfig):
 
         upd_cases = []
         steps_to_dump = {"create_exenetwork", "first_inference"}
-        vm_metrics_to_dump = {"vmhwm", "vmpeak", "vmrss", "vmsize"}
+        vm_metrics_to_dump = {"vmhwm", "vmrss"}
         stat_metrics_to_dump = {"avg"}
 
         for record in pytestconfig.session_info:

@@ -34,7 +34,7 @@ sys.path.insert(0, str(UTILS_DIR))
 from plugins.conftest import *
 from path_utils import check_positive_int
 from platform_utils import get_os_name, get_os_version, get_cpu_info
-from utils import upload_data, metadata_from_manifest, DATABASES, DB_COLLECTIONS
+from utils import upload_data, metadata_from_manifest, DB_COLLECTIONS
 
 # -------------------- CLI options --------------------
 
@@ -76,13 +76,6 @@ def pytest_addoption(parser):
         type=str,
         required=is_db_used,
         help='MongoDB URL in a form "mongodb://server:port"'
-    )
-    db_args_parser.addoption(
-        '--db_name',
-        type=str,
-        required=is_db_used,
-        help='database name',
-        choices=DATABASES
     )
     db_args_parser.addoption(
         '--db_collection',
@@ -398,7 +391,6 @@ def pytest_runtest_makereport(item, call):
                 data["status"] = "passed"
 
         db_url = item.config.getoption("db_url")
-        db_name = item.config.getoption("db_name")
         db_collection = item.config.getoption("db_collection")
-        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, db_name, db_collection, data))
-        upload_data(data, db_url, db_name, db_collection)
+        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, 'timetests', db_collection, data))
+        upload_data(data, db_url, 'timetests', db_collection)

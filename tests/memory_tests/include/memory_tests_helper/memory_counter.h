@@ -9,9 +9,10 @@
 namespace MemoryTest {
 
 /** Encapsulate memory measurements.
-Object of a class measures memory at finish of object's life cycle.
-When destroyed, reports measurements.
+Object of a class measures memory at start of object's life cycle.
+StatisticsWriter adds MemCounter to the memory structure.
 */
+
 class MemoryCounter {
 private:
   std::string name;

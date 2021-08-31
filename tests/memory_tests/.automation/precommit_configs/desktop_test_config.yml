@@ -89,7 +89,6 @@
   references: {}
 
 # Models with precision: FP16 -- device: GPU
-
 - device:
     name: GPU
   model:

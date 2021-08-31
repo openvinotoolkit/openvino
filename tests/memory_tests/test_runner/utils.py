@@ -83,7 +83,8 @@ def query_memory_timeline(records, db_url, db_name, db_collection, max_items=20,
 def compare_with_references(aggr_stats: dict, reference: dict):
     """Compare values with provided reference"""
 
-    vm_metrics_to_compare = {"vmrss", "vmhw"}
+    vm_metrics_to_compare = {"vmrss", "vmhwm"}
+    stat_metrics_to_compare = {"avg"}
     status = 0
 
     for step_name, vm_records in reference.items():
@@ -91,6 +92,8 @@ def compare_with_references(aggr_stats: dict, reference: dict):
             if vm_metric not in vm_metrics_to_compare:
                 continue
             for stat_metric_name, reference_val in stat_metrics.items():
+                if stat_metric_name not in stat_metrics_to_compare:
+                    continue
                 if aggr_stats[step_name][vm_metric][stat_metric_name] > reference_val * REFS_FACTOR:
                     logging.error(f"Comparison failed for '{step_name}' step for '{vm_metric}' for"
                                   f" '{stat_metric_name}' metric. Reference: {reference_val}."

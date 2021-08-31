@@ -26,14 +26,19 @@ is created when you configure and build OpenVINO™ from sources:
 cmake .. -DInferenceEngine_DIR=$(realpath ../../../build) && make memory_tests
 ```
 
-2. Run test:
+2. Install tests:
 ``` bash
-./scripts/run_memorytest.py ../../bin/intel64/Release/memtest_infer -m model.xml -d CPU
+make install tests
 ```
 
-2. Run several configurations using `pytest`:
+3. Run test:
 ``` bash
-pytest ./test_runner/test.py --exe ../../bin/intel64/Release/memorytest_infer
+./scripts/run_memorytest.py tests/memtest_infer -m model.xml -d CPU
+```
+
+4. Run several configurations using `pytest`:
+``` bash
+pytest ./test_runner/test.py --exe tests/memorytest_infer
 
 # For parse_stat testing:
 pytest ./scripts/run_memorytest.py
