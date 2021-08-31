@@ -191,6 +191,9 @@ def save_session_info(pytestconfig, artifacts):
 
 @pytest.fixture(scope="function")
 def prepare_models(openvino_ref, models, request):
+    """
+    Process models: prepare Open Model Zoo models, skip non-OMZ models.
+    """
     for model in models:
         if "OMZ" in model["path"]:
             model["path"] = prepare_omz_model(openvino_ref, model, request)
@@ -199,6 +202,10 @@ def prepare_models(openvino_ref, models, request):
 
 
 def prepare_omz_model(openvino_ref, model, request):
+    """
+    Download and convert Open Model Zoo model to Intermediate Representation,
+    get path to model XML.
+    """
     # Step 1: downloader
     omz_log = logging.getLogger("prepare_omz_model")
 
