@@ -16,7 +16,7 @@ addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
-            ${OpenCV_LIBRARIES}
+            ${OpenCV_LIBRARIES} offline_transformations
 )
 
 if(SUGGEST_OVERRIDE_SUPPORTED)

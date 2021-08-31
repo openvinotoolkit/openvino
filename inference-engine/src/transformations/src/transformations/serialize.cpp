@@ -116,6 +116,20 @@ private:
     bool m_enable_compression;
 };
 
+NodeVector sort_topologicaly(const Function & f) {
+    NodeVector nodes;
+    for (auto& r : f.get_results()) {
+        nodes.push_back(r);
+    }
+    for (auto& r : f.get_sinks()) {
+        nodes.emplace_back(r);
+    }
+    for (auto& param : f.get_parameters()) {
+        nodes.push_back(param);
+    }
+    return topological_sort(nodes);
+}
+
 void ngfunction_2_irv10(pugi::xml_node& node,
                         const ngraph::Function& f,
                         const std::map<std::string, ngraph::OpSet>& custom_opsets,
@@ -607,8 +621,23 @@ bool has_dynamic_output(std::shared_ptr<Node> n) {
     return false;
 }
 
+bool is_topological_order(const NodeVector & nodes) {
+        std::unordered_set<Node *> visited;
+        for (const auto & node : nodes) {
+            for (auto in : node->input_values()) {
+                if (!visited.count(in.get_node())) {
+                    std::cout << "For Node: " << node << " input: " << *in.get_node() << " is not visited\n";
+                    return false;
+                }
+            }
+            visited.insert(node.get());
+        }
+        return true;
+    }
+
+
 bool resolve_dynamic_shapes(const ngraph::Function& f) {
-    const auto & f_ops = f.get_ordered_ops();
+    const auto & f_ops = sort_topologicaly(f);
     if (std::all_of(f_ops.begin(), f_ops.end(),
             [](std::shared_ptr<Node> results) {
                 return !results->is_dynamic() && !has_dynamic_output(results); })) {
@@ -616,8 +645,11 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
     }
 
     auto f_clone = ngraph::clone_function(f);
-    const auto & f_clone_ops = f_clone->get_ordered_ops();
+    const auto & f_clone_ops = sort_topologicaly(*f_clone);
     NGRAPH_CHECK(f_ops.size() == f_clone_ops.size(), "Unexpected get_ordered_ops method behaviour");
+
+    NGRAPH_CHECK(is_topological_order(f_ops));
+    NGRAPH_CHECK(is_topological_order(f_clone_ops));
 
     for (size_t id = 0; id < f_ops.size(); ++id) {
         auto & op = f_ops[id];

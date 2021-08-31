@@ -178,6 +178,14 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, bool forwa
             node = el->node->shared_from_this();
             el = (forward ? el->output : el->input);
         }
+//
+//        if (node->get_output_size() == 1) {
+//            int64_t tmp = node->output(0).get_target_inputs().size() + 1;
+//            if (std::dynamic_pointer_cast<op::Parameter>(node) || std::dynamic_pointer_cast<op::Result>(node)) {
+//                tmp += 1;
+//            }
+//            NGRAPH_CHECK(node.use_count() == tmp);
+//        }
 
         // Recursive apply Matchers for sub-graph based nodes
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {

@@ -7,11 +7,14 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/topological_order.hpp>
 #include <chrono>
 
 #include <inference_engine.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
+#include <moc_transformations.hpp>
+#include <transformations/serialize.hpp>
 
 using namespace ngraph;
 
@@ -34,12 +37,13 @@ TEST(check, bert) {
     auto core = InferenceEngine::Core();
     //auto net = core.ReadNetwork("/tmp/googlenet-v4.xml");
     //auto net = core.ReadNetwork("/tmp/text-to-speech-en-multi-0001-regression.xml");
-    auto net = core.ReadNetwork("/home/gleb/repos/openvino/model-optimizer/bert-large-uncased-whole-word-masking-squad-int8-0001.xml");
+    // auto net = core.ReadNetwork("/home/gleb/repos/openvino/model-optimizer/bert-large-uncased-whole-word-masking-squad-int8-0001.xml");
+    auto net = core.ReadNetwork("/home/gleb/repos/openvino/model-optimizer/instance_segmentation.xml");
     //auto net = core.ReadNetwork("/Users/gleb_dmitrievich/Work/repos/openvino/yolo-v2-ava-0001.xml");
     //auto net = core.ReadNetwork("/Users/gleb_dmitrievich/Work/repos/openvino/bert-small-uncased-whole-word-masking-squad-0002.xml");
     auto f = net.getFunction();
 
-    const int iter = 100;
+    const int iter = 1;
 
 //    std::cout << "get_ordered_ops()\n";
 //    {
@@ -127,7 +131,8 @@ TEST(check, bert) {
 //    }
 
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::CommonOptimizations>();
+    m.register_pass<ngraph::pass::MOCTransformations>(false);
+    m.register_pass<ngraph::pass::Serialize>("/tmp/out.xml", "/tmp/out.bin");
 
     std::cout << "apply common optimizations\n";
     {
