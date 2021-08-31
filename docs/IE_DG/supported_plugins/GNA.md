@@ -133,6 +133,7 @@ seconds = cycles / frequency
 Refer to the table below to learn about the frequency of Intel® GNA inside a particular processor.
 Processor | Frequency of Intel® GNA
 ---|---
+Intel® Tiger Lake processors| 400MHz
 Intel® Ice Lake processors| 400MHz
 Intel® Core™ i3-8121U processor| 400MHz
 Intel® Gemini Lake  processors | 200MHz
