@@ -147,7 +147,10 @@ namespace BehaviorTestsDefinitions {
             InferenceEngine::Parameter configValue;
             ASSERT_NO_THROW(configValue = ie->GetConfig(targetDevice, key));
 
-            ASSERT_NO_THROW(ie->SetConfig({{ key, configValue.as<std::string>()}}, targetDevice));
+            ASSERT_NO_THROW(ie->SetConfig({{ key, configValue.as<std::string>()}}, targetDevice))
+                << "device=" << targetDevice << " "
+                << "config key=" << key << " "
+                << "value=" << configValue.as<std::string>();
         }
     }
 
