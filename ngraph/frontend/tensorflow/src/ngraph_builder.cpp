@@ -17,9 +17,6 @@
 #include <fstream>
 #include <numeric>
 
-//#include "graph.pb.h"
-//#include "tensor.pb.h"
-
 #include <ngraph/pass/manager.hpp>
 
 #include "ngraph/op/util/logical_reduction.hpp"
@@ -103,14 +100,8 @@ static void SaveNgOp(Builder::OpMap& ng_op_map, const std::string& op_name, ng::
 
 void Builder::SetTracingInfo(const std::string& op_name, const ng::Output<ng::Node> ng_node) {
     auto node = ng_node.get_node_shared_ptr();
-    //node->set_friendly_name(op_name + "/" + node->get_name());
     node->set_friendly_name(op_name);
     node->add_provenance_tag(op_name);
-#if 0
-  if (api::IsLoggingPlacement()) {
-    cout << "TF_to_NG: " << op_name << " --> " << node << "\n";
-  }
-#endif
 }
 
 template <class TOpType, class... TArg>
