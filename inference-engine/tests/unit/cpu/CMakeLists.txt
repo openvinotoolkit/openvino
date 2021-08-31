@@ -18,6 +18,7 @@ addIeTargetTest(
             inference_engine_transformations
             inference_engine_lp_transformations
             inference_engine_s
+            unitTestUtils
         ADD_CPPLINT
         LABELS
             CPU
