@@ -289,7 +289,14 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::basic_string<T
 
     FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file doesn't exist");
     FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
-
+    // According to Paddle, the saved model has the framework version
+    // For exmaple Paddle 2.1.0 is encoded as 2001000. 0 means latest framework.
+    // https://github.com/PaddlePaddle/Paddle/blob/develop/cmake/version.cmake
+    // https://github.com/PaddlePaddle/Paddle/blob/2100816c5190693cc7dee181e96af72e9f0fbd1d/paddle/fluid/framework/program_desc.cc#L52
+    int64_t version = m_fw_ptr->version().version();
+    FRONT_END_GENERAL_CHECK(
+        version >= 2001000 || version == 0,
+        "[Frontend]Only Support Paddle greater than 2.1.0, current version " + std::to_string(version));
     loadPlaces();
     if (weights_stream && weights_stream.is_open()) {
         loadConsts(std::basic_string<T>{}, &weights_stream);
