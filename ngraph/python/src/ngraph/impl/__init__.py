@@ -48,5 +48,5 @@ from _pyngraph import AxisSet
 from _pyngraph import AxisVector
 from _pyngraph import Coordinate
 from _pyngraph import Output
-
+from _pyngraph import DiscreteTypeInfo
 from _pyngraph import util
