@@ -126,6 +126,7 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
             }
         }
 
+        lastPrevious = lastNew.get_node_shared_ptr();
         lastNew = std::make_shared<op::TypeRelaxed<DequantizationAdd>>(
             std::vector<element::Type>{element::f32, element::f32},
             std::vector<element::Type>{precisionAfterDequantization},

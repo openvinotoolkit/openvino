@@ -87,46 +87,6 @@ pass::low_precision::LayerTransformation::Params TestTransformationParams::toPar
         params.deqPrecision);
 }
 
-//TestTransformationParams LayerTransformation::createParamsU8U8() {
-//    return low_precision::LayerTransformation::Params(
-//        true,
-//        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
-//        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-//        true,
-//        { ngraph::element::u8 },
-//        { ngraph::element::u8 });
-//}
-//
-//TestTransformationParams LayerTransformation::createParamsU8I8() {
-//    return low_precision::LayerTransformation::Params(
-//        true,
-//        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
-//        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-//        true,
-//        { ngraph::element::u8 },
-//        { ngraph::element::i8 });
-//}
-//
-//TestTransformationParams LayerTransformation::createParamsI8I8() {
-//    return low_precision::LayerTransformation::Params(
-//        true,
-//        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
-//        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-//        true,
-//        { ngraph::element::i8 },
-//        { ngraph::element::i8 });
-//}
-//
-//TestTransformationParams LayerTransformation::createParamsU8I8AndI8() {
-//    return low_precision::LayerTransformation::Params(
-//        true,
-//        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
-//        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-//        true,
-//        { ngraph::element::u8, ngraph::element::i8 },
-//        { ngraph::element::i8 });
-//}
-
 std::string LayerTransformation::toString(const TestTransformationParams& params) {
     std::ostringstream result;
     result <<
@@ -198,4 +158,19 @@ ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequa
     }
 
     return ngraph::builder::subgraph::DequantizationOperations(convert, subtract, multiply);
+}
+
+bool LayerTransformation::allNamesAreUnique(const std::shared_ptr<ngraph::Function>& function) {
+    const auto& ops = function->get_ops();
+    std::set<std::string> opNames;
+    for (const auto& op : ops) {
+        auto it = opNames.find(op->get_friendly_name());
+        if (it != opNames.end()) {
+            return false;
+        }
+
+        opNames.insert(op->get_friendly_name());
+    }
+
+    return true;
 }
