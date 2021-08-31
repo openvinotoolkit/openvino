@@ -3,11 +3,9 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset8.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -15,8 +13,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, deformable_convolution_default_attributes)
-{
+TEST(attributes, deformable_convolution_default_attributes) {
     NodeBuilder::get_ops().register_factory<opset8::DeformableConvolution>();
     const Shape inputs_shape{1, 1, 5, 5};
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 1, 5, 5});
@@ -26,9 +23,10 @@ TEST(attributes, deformable_convolution_default_attributes)
     auto pads_begin = CoordinateDiff{0, 0};
     auto pads_end = CoordinateDiff{0, 0};
     auto dilations = Strides{1, 1};
-    auto convolution = make_shared<opset8::DeformableConvolution>(data, offsets, filters, strides, pads_begin, pads_end, dilations);
+    auto convolution =
+        make_shared<opset8::DeformableConvolution>(data, offsets, filters, strides, pads_begin, pads_end, dilations);
     NodeBuilder builder(convolution);
-    auto g_convolution = as_type_ptr<opset8::DeformableConvolution>(builder.create());
+    auto g_convolution = ov::as_type_ptr<opset8::DeformableConvolution>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 8;
@@ -44,8 +42,7 @@ TEST(attributes, deformable_convolution_default_attributes)
     EXPECT_EQ(g_convolution->get_bilinear_interpolation_pad(), convolution->get_bilinear_interpolation_pad());
 }
 
-TEST(attributes, deformable_convolution_attributes)
-{
+TEST(attributes, deformable_convolution_attributes) {
     NodeBuilder::get_ops().register_factory<opset8::DeformableConvolution>();
     const Shape inputs_shape{1, 1, 5, 5};
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 5, 5});
@@ -56,10 +53,20 @@ TEST(attributes, deformable_convolution_attributes)
     auto pads_begin = CoordinateDiff{0, 0};
     auto pads_end = CoordinateDiff{0, 0};
     auto dilations = Strides{1, 1};
-    auto convolution = make_shared<opset8::DeformableConvolution>(data, offsets, filters, mask, strides, pads_begin, pads_end, dilations,
-                                                                  op::PadType::SAME_LOWER, 2, 2, true);
+    auto convolution = make_shared<opset8::DeformableConvolution>(data,
+                                                                  offsets,
+                                                                  filters,
+                                                                  mask,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations,
+                                                                  op::PadType::SAME_LOWER,
+                                                                  2,
+                                                                  2,
+                                                                  true);
     NodeBuilder builder(convolution);
-    auto g_convolution = as_type_ptr<opset8::DeformableConvolution>(builder.create());
+    auto g_convolution = ov::as_type_ptr<opset8::DeformableConvolution>(builder.create());
 
     // attribute count
     const auto expected_attr_count = 8;

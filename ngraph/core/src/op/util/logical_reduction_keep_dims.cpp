@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/util/logical_reduction_keep_dims.hpp"
+
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
@@ -13,32 +14,26 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::LogicalReductionKeepDims, "LogicalReductionKeepDims", 1);
 
-op::util::LogicalReductionKeepDims::LogicalReductionKeepDims(
-    const ngraph::Output<ngraph::Node>& arg,
-    const ngraph::Output<ngraph::Node>& reduction_axes,
-    const bool keep_dims)
-    : LogicalReduction(arg, reduction_axes)
-    , m_keep_dims{keep_dims}
-{
-}
+op::util::LogicalReductionKeepDims::LogicalReductionKeepDims(const ngraph::Output<ngraph::Node>& arg,
+                                                             const ngraph::Output<ngraph::Node>& reduction_axes,
+                                                             const bool keep_dims)
+    : LogicalReduction(arg, reduction_axes),
+      m_keep_dims{keep_dims} {}
 
-bool ngraph::op::util::LogicalReductionKeepDims::visit_attributes(AttributeVisitor& visitor)
-{
+bool ngraph::op::util::LogicalReductionKeepDims::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_util_LogicalReductionKeepDims_visit_attributes);
     visitor.on_attribute("keep_dims", m_keep_dims);
     return true;
 }
 
-void op::util::LogicalReductionKeepDims::validate_and_infer_types()
-{
+void op::util::LogicalReductionKeepDims::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_util_LogicalReductionKeepDims_validate_and_infer_types);
 
     const element::Type& data_et = get_input_element_type(0);
     const PartialShape& axes_shape = get_input_partial_shape(1);
     const element::Type& axes_et = get_input_element_type(1);
 
-    NODE_VALIDATION_CHECK(
-        this, data_et.compatible(element::boolean), "Element type of data input must be boolean.");
+    NODE_VALIDATION_CHECK(this, data_et.compatible(element::boolean), "Element type of data input must be boolean.");
 
     NODE_VALIDATION_CHECK(this,
                           axes_et.is_integral_number(),

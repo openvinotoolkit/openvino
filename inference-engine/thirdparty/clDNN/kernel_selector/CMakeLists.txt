@@ -6,13 +6,6 @@
 
 set(CLDNN_BUILD__PROJ             "cldnn_kernel_selector")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
-set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ}${CLDNN__OUT_CPU_SUFFIX}")
-
-# ================================== Compiler preprocessor definitions =================================
-
-if (CLDNN__ENABLE_PERSISTENT_CACHE)
-  set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS CLDNN_ENABLE_PERSISTENT_CACHE)
-endif ()
 
 # ========================================= Source/Header files ========================================
 
@@ -131,7 +124,6 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
   )
 
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
-set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
 if(COMMAND add_cpplint_target)
   add_cpplint_target("${CLDNN_BUILD__PROJ}_cpplint" FOR_TARGETS "${CLDNN_BUILD__PROJ}")

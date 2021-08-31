@@ -59,7 +59,7 @@ std::string activation_inst::to_string(activation_node const& node) {
     return primitive_description.str();
 }
 
-activation_inst::typed_primitive_inst(network_impl& network, activation_node const& node) : parent(network, node) {
+activation_inst::typed_primitive_inst(network& network, activation_node const& node) : parent(network, node) {
     auto input_arg = node.input().get_output_layout();
     auto output_arg = node.get_output_layout();
 

@@ -16,7 +16,7 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
     const ngraph::element::Type precision,
-    const std::pair<ngraph::Shape, ngraph::Shape>& shapes,
+    const std::pair<ngraph::PartialShape, ngraph::Shape>& shapes,
     const ngraph::element::Type precisionOnActivation,
     const std::vector<uint64_t>& axes,
     const bool fuseMultiply,
@@ -43,8 +43,11 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
 
     ngraph::ResultVector results;
     if (fuseMultiply) {
-        const auto multiplyConst = std::make_shared<ngraph::op::Constant>(
-            precision, ngraph::Shape{ shapes.first[0], shapes.first[1], 1ul, 1ul }, std::vector<float>{ 2.f });
+        ngraph::Shape constantShape(4ul, 1ul);
+        constantShape[0] = shapes.first[0].get_length();
+        constantShape[1] = shapes.first[1].get_length();
+
+        const auto multiplyConst = std::make_shared<ngraph::op::Constant>(precision, constantShape, std::vector<float>{ 2.f });
         multiplyConst->set_friendly_name("multiplyConst");
         const auto multiply = std::make_shared<ngraph::opset1::Multiply>(normalizeL2->output(0), multiplyConst);
         multiply->set_friendly_name("output");

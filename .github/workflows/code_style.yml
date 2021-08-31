@@ -25,22 +25,24 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_PYTHON=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT ..
+          cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT ..
 
       - name: Check code style
-        run: cmake --build build --target clang_format_check_all
+        run: cmake --build . --target clang_format_check_all -j8
+        working-directory: build
 
       - name: Create code style diff
         if: failure()
         run: |
-          cmake --build build --target clang_format_fix_all
+          cmake --build . --target clang_format_fix_all -j8
           git diff > code_style_diff.diff
+        working-directory: build
 
       - uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: code_style_diff
-          path: code_style_diff.diff
+          path: build/code_style_diff.diff
 
   ShellCheck:
     runs-on: ubuntu-18.04
@@ -53,16 +55,37 @@ jobs:
         run: sudo apt --assume-yes install shellcheck
 
       - name: Install dependencies
-        run: |
-          sudo apt --assume-yes install libusb-1.0-0-dev
-          python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+        run: python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
 
       - name: CMake
         run: |
           mkdir build
           cd build
-          cmake ..
+          cmake -DENABLE_VPU=OFF ..
 
       - name: ShellCheck
-        run: make ie_shellcheck
+        run: cmake --build . --target ie_shellcheck -j8
+        working-directory: build
+
+  NamingConventionCheck:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Install Clang dependency
+        run: sudo apt --assume-yes install libclang-9-dev
+
+      - name: Install Python-based dependencies
+        run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
+
+      - name: CMake
+        run: |
+          mkdir build
+          cd build
+          cmake -DENABLE_VPU=OFF ..
+
+      - name: Naming convention check
+        run: cmake --build . --target ncc_all -j8
         working-directory: build

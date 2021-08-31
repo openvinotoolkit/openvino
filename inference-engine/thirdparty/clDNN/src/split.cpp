@@ -82,7 +82,7 @@ std::string split_inst::to_string(split_node const& node) {
     return primitive_description.str();
 }
 
-split_inst::typed_primitive_inst(network_impl& network, split_node const& node) : parent(network, node) {
+split_inst::typed_primitive_inst(network& network, split_node const& node) : parent(network, node) {
     CLDNN_ERROR_MESSAGE(node.id(), "Split primitive instance should not be created!");
 }
 

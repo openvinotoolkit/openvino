@@ -35,35 +35,12 @@ ncDeviceProtocol_t convertProtocolToNC(
     }
 }
 
-XLinkPlatform_t convertPlatformToXlink(
-    const ncDevicePlatform_t ncProtocol) {
-    switch (ncProtocol) {
-        case NC_ANY_PLATFORM: return X_LINK_ANY_PLATFORM;
-        case NC_MYRIAD_2:     return X_LINK_MYRIAD_2;
-        case NC_MYRIAD_X:     return X_LINK_MYRIAD_X;
-        default:           return X_LINK_ANY_PLATFORM;
-    }
-}
-
-ncDevicePlatform_t convertPlatformToNC(
-    const XLinkPlatform_t xLinkProtocol) {
-    switch (xLinkProtocol) {
-        case X_LINK_ANY_PLATFORM:   return NC_ANY_PLATFORM;
-        case X_LINK_MYRIAD_2:       return NC_MYRIAD_2;
-        case X_LINK_MYRIAD_X:       return NC_MYRIAD_X;
-        default:
-            mvLog(MVLOG_WARN, "This convertation not supported, set to NC_ANY_PLATFORM");
-            return NC_ANY_PLATFORM;
-    }
-}
-
 int copyNcDeviceDescrToXLink(const struct ncDeviceDescr_t *in_ncDeviceDesc,
                                     deviceDesc_t *out_deviceDesc) {
     CHECK_HANDLE_CORRECT(in_ncDeviceDesc);
     CHECK_HANDLE_CORRECT(out_deviceDesc);
 
     out_deviceDesc->protocol = convertProtocolToXlink(in_ncDeviceDesc->protocol);
-    out_deviceDesc->platform = convertPlatformToXlink(in_ncDeviceDesc->platform);
     mv_strncpy(out_deviceDesc->name, XLINK_MAX_NAME_SIZE, in_ncDeviceDesc->name, XLINK_MAX_NAME_SIZE - 1);
 
     return NC_OK;
@@ -75,7 +52,6 @@ int copyXLinkDeviceDescrToNc(const deviceDesc_t *in_DeviceDesc,
     CHECK_HANDLE_CORRECT(out_ncDeviceDesc);
 
     out_ncDeviceDesc->protocol = convertProtocolToNC(in_DeviceDesc->protocol);
-    out_ncDeviceDesc->platform = convertPlatformToNC(in_DeviceDesc->platform);
     mv_strncpy(out_ncDeviceDesc->name, XLINK_MAX_NAME_SIZE, in_DeviceDesc->name, XLINK_MAX_NAME_SIZE - 1);
 
     return NC_OK;

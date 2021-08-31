@@ -514,12 +514,11 @@ CV_ALWAYS_INLINE void downx(T dst[], int outWidth, int xmaxdf, const I xindex[],
 #undef HSUM
 }
 
-template<typename T, typename A, typename I, typename W>
-CV_ALWAYS_INLINE void calcRowArea_impl(T dst[], const T *src[], const Size& inSz,
-                                       const Size& outSz, A yalpha,
-                                       const MapperUnit<A, I>& ymap, int xmaxdf,
-                                       const I xindex[], const A xalpha[],
-                                       W vbuf[]) {
+template<typename isa_tag_t, typename T, typename A, typename I, typename W>
+CV_ALWAYS_INLINE void calcRowAreaImpl(isa_tag_t, T dst[], const T *src[],
+                                      const Size& inSz, const Size& outSz, A yalpha,
+                                      const MapperUnit<A, I>& ymap, int xmaxdf,
+                                      const I xindex[], const A xalpha[], W vbuf[]) {
     bool xRatioEq1 = inSz.width  == outSz.width;
     bool yRatioEq1 = inSz.height == outSz.height;
 

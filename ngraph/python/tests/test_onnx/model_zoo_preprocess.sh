@@ -23,6 +23,8 @@ function print_help {
     echo "    -s Onnx Model Zoo commit SHA"
     echo "    -m update MSFT models"
     echo "    -f force update of a chosen model"
+    echo ""
+    echo "Note: This script requires wget, GNU tar (not bsdtar) and git with LFS support."
 }
 
 while getopts "homfd:s:" opt; do
@@ -63,14 +65,16 @@ function pull_and_postprocess_onnx_model_zoo() {
     git fetch
     git reset HEAD --hard
 
-    git checkout $ONNX_SHA
+    git checkout -f $ONNX_SHA
 
     echo "Pulling models data via Git LFS for onnx model zoo repository"
     git lfs pull --include="*" --exclude="*.onnx"
     find "$ONNX_MODELS_DIR" -name "*.onnx" | while read filename; do rm "$filename"; done;
 
     printf "Extracting tar.gz archives into %s\n" "$ONNX_MODELS_DIR"
-    find "$ONNX_MODELS_DIR" -name '*.tar.gz' -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && rm -rf $BASEDIR && mkdir -p $BASEDIR' \; -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && tar --warning=no-unknown-keyword -xvzf "{}" -C $BASEDIR' \;
+    find "$ONNX_MODELS_DIR" -name '*.tar.gz' \
+        -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && rm -rf $BASEDIR && mkdir -p $BASEDIR' \; \
+        -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && tar --warning=no-unknown-keyword -xvzf "{}" -C $BASEDIR' \;
 
     echo "Postprocessing of ONNX Model Zoo models:"
 
@@ -96,6 +100,7 @@ function update_onnx_models() {
 
     if [[ ! -d $ONNX_MODELS_DIR ]] ; then
         touch $MODEL_ZOO_DIR/executing_$ONNX_SHA
+        trap "rm -f $MODEL_ZOO_DIR/executing_$ONNX_SHA" EXIT INT TERM
         echo "The ONNX Model Zoo repository doesn't exist on your filesystem then will be cloned"
         git clone https://github.com/onnx/models.git "$ONNX_MODELS_DIR"
         cd "$ONNX_MODELS_DIR"
@@ -128,7 +133,7 @@ function postprocess_msft_models() {
 }
 
 if [[ $ENABLE_ONNX_MODELS_ZOO = false ]] && [[ $ENABLE_MSFT_MODELS = false ]] ; then
-    printf "Please choose an option to update chosen model:
+    echo "Please choose an option to update chosen model:
             -o to update ONNX Model ZOO
             -m to update MSFT models"
     exit 170
@@ -143,7 +148,7 @@ fi
 
 # check if general model zoo directory exists (directory to store ONNX model zoo and MSFT models)
 if [[ ! -d $MODEL_ZOO_DIR ]] ; then
-    printf "The general model directory: %s doesn't exist on your filesystem then will be created \n" "$MODEL_ZOO_DIR"
+    printf "The general model directory: %s doesn't exist on your filesystem, it will be created \n" "$MODEL_ZOO_DIR"
     mkdir -p $MODEL_ZOO_DIR
 else
     printf "The general model directory: %s found\n" "$MODEL_ZOO_DIR"

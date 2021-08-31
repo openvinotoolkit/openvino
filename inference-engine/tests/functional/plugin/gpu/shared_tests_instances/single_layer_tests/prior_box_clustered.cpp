@@ -34,6 +34,10 @@ const std::vector<float> step_heights = {
     0.0f, 1.5f
 };
 
+const std::vector<float> step = {
+    0.0f, 1.0f, 1.5f
+};
+
 const std::vector<float> offsets = {
     0.5f
 };
@@ -52,6 +56,7 @@ const auto layerSpeficParams = ::testing::Combine(
     ::testing::ValuesIn(clips),
     ::testing::ValuesIn(step_widths),
     ::testing::ValuesIn(step_heights),
+    ::testing::ValuesIn(step),
     ::testing::ValuesIn(offsets),
     ::testing::ValuesIn(variances)
 );

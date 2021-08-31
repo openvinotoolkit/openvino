@@ -3,7 +3,6 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -11,7 +10,6 @@
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/opsets/opset8.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -19,8 +17,7 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
-TEST(attributes, multiclass_nms_v8_op_custom_attributes)
-{
+TEST(attributes, multiclass_nms_v8_op_custom_attributes) {
     NodeBuilder::get_ops().register_factory<opset8::MulticlassNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
@@ -39,7 +36,7 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
 
     auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, attrs);
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset8::MulticlassNms>(builder.create());
+    auto g_nms = ov::as_type_ptr<opset8::MulticlassNms>(builder.create());
     const auto expected_attr_count = 10;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
@@ -69,15 +66,14 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
     EXPECT_EQ(attrs.normalized, nms_attrs.normalized);
 }
 
-TEST(attributes, multiclass_nms_v8_op_default_attributes)
-{
+TEST(attributes, multiclass_nms_v8_op_default_attributes) {
     NodeBuilder::get_ops().register_factory<opset8::MulticlassNms>();
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
     auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, opset8::MulticlassNms::Attributes());
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<opset8::MulticlassNms>(builder.create());
+    auto g_nms = ov::as_type_ptr<opset8::MulticlassNms>(builder.create());
     const auto expected_attr_count = 10;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 

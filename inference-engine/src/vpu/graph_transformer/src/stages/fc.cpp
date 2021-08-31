@@ -11,6 +11,9 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>
 
+#include <vpu/utils/hw_disabled.hpp>
+#include <vpu/configuration/options/hw_acceleration.hpp>
+
 namespace vpu {
 
 void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
@@ -37,13 +40,13 @@ void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _l
     // Check if HW is applicable
     //
 
-    auto tryHW = env.config.compileConfig().hwOptimization;
+    auto tryHW = env.config.get<HwAccelerationOption>();
 
     if (output->desc().dim(Dim::W, 1) != 1 || output->desc().dim(Dim::H, 1) != 1) {
         tryHW = false;
     }
 
-    if (env.config.compileConfig().hwDisabled(layer->name)) {
+    if (HwDisabled(env.config, layer->name)) {
         tryHW = false;
     }
 

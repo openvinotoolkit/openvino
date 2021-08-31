@@ -1,10 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-if (NOT NGRAPH_PYTHON_BUILD_ENABLE)
-    message(WARNING "Please enable nGraph Python API (_pyngraph) target to enable Model Optimizer target")
-elseif(NOT ENABLE_PYTHON)
-    message(WARNING "Please enable IE Python API (ie_api and offline_transformations_api) targets to enable Model Optimizer target")
+if(NOT ENABLE_PYTHON)
+    message(WARNING "Please enable IE & nGraph Python API (ie_api and offline_transformations_api) targets to enable Model Optimizer target")
 else()
     add_custom_target(model_optimizer DEPENDS ie_api offline_transformations_api inference_engine_ir_reader)
     if(ENABLE_TESTS)
@@ -48,6 +46,11 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         )
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/unit_tests
+        DESTINATION deployment_tools/model_optimizer
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/automation
         DESTINATION deployment_tools/model_optimizer
         COMPONENT tests
         EXCLUDE_FROM_ALL)

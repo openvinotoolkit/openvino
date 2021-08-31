@@ -14,7 +14,7 @@ Inference Engine sample applications include the following:
    - [Automatic Speech Recognition Python Sample](../../inference-engine/ie_bridges/python/sample/speech_sample/README.md)
 - **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.
    - [Benchmark C++ Tool](../../inference-engine/samples/benchmark_app/README.md)
-   - [Benchmark Python Tool](../../inference-engine/tools/benchmark_tool/README.md)
+   - [Benchmark Python Tool](../../tools/benchmark_tool/README.md)
 - **Hello Classification Sample** – Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API. Input of any size and layout can be set to an infer request which will be pre-processed automatically during inference (the sample supports only images as inputs and supports Unicode paths).
    - [Hello Classification C++ Sample](../../inference-engine/samples/hello_classification/README.md)
    - [Hello Classification C Sample](../../inference-engine/ie_bridges/c/samples/hello_classification/README.md)

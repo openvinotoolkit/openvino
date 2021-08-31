@@ -20,8 +20,6 @@ struct extract_image_patches_params : public base_params {
     std::vector<unsigned int> strides;
     std::vector<unsigned int> rates;
     std::string auto_pad;
-
-    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

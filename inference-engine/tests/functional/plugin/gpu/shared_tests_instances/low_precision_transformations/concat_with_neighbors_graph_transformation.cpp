@@ -17,16 +17,16 @@ const std::vector<ngraph::element::Type> precisions = {
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithNeighborsGraphTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues)),
     ConcatWithNeighborsGraphTransformation::getTestCaseName);

@@ -33,7 +33,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::padLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = this->GetParam();

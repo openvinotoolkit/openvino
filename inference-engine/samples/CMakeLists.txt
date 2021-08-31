@@ -56,40 +56,44 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 
 if (WIN32)
     set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS -DNOMINMAX")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc") #no asynchronous structured exception handling
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc") # no asynchronous structured exception handling
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
 
     if (TREAT_WARNING_AS_ERROR)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX") #treating warnings as errors
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX") # treating warnings as errors
     endif ()
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
     endif()
 
+    # disable some noisy warnings
     if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819") #disable some warnings
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819")
     endif()
 else()
+    # treating warnings as errors
     if(TREAT_WARNING_AS_ERROR)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror") #treating warnings as errors
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
     endif()
 
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-    if (APPLE)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-command-line-argument")
-    elseif(UNIX)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self")
-        if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wmaybe-uninitialized")
-        endif()
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
     endif()
 endif()
 
 if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
+endif()
+
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64.*|aarch64.*|AARCH64.*)")
+  set(AARCH64 ON)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
+  set(ARM ON)
+endif()
+if(ARM AND NOT CMAKE_CROSSCOMPILING)
+    add_compile_options(-march=armv7-a)
 endif()
 
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
@@ -104,27 +108,12 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
     set (CMAKE_CXX_STANDARD 11)
     set (CMAKE_CXX_EXTENSIONS OFF)
     set (CMAKE_CXX_STANDARD_REQUIRED ON)
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
-    endif()
 endif()
 ####################################
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
     NOT DEFINED OpenVINO_SOURCE_DIR)
-    function(add_gflags)
-        # common gflags settings
-        set(GFLAGS_IS_SUBPROJECT TRUE)
-        set(HAVE_SYS_STAT_H 1)
-        set(HAVE_INTTYPES_H 1)
-        set(INTTYPES_FORMAT C99)
-        set(BUILD_TESTING OFF)
-        set(BUILD_SHARED_LIBS OFF)
-
-        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
-    endfunction()
-    add_gflags()
+    add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
@@ -133,10 +122,6 @@ endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
     add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
-endif()
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")

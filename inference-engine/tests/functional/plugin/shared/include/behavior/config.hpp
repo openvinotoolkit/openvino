@@ -19,6 +19,7 @@
 #include <ie_core.hpp>
 #include "ie_common.h"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include <threading/ie_executor_manager.hpp>
@@ -30,7 +31,7 @@ namespace BehaviorTestsDefinitions {
 
     using EmptyConfigTests = BehaviorTestsUtils::BehaviorTestsEmptyConfig;
 
-    // Setting empty config doesn't throw
+// Setting empty config doesn't throw
     TEST_P(EmptyConfigTests, SetEmptyConfig) {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -82,6 +83,17 @@ namespace BehaviorTestsDefinitions {
         ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
     }
 
+    TEST_P(CorrectConfigTests, CanUseCache) {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        // Create CNNNetwork from ngrpah::Function
+        InferenceEngine::CNNNetwork cnnNet(function);
+        ie->SetConfig({ { CONFIG_KEY(CACHE_DIR), "./test_cache" } });
+        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        CommonTestUtils::removeDir("./test_cache");
+    }
+
     using CorrectSingleOptionCustomValueConfigTests = BehaviorTestsUtils::BehaviorTestsSingleOptionCustom;
 
     TEST_P(CorrectSingleOptionCustomValueConfigTests, CheckCustomValueOfConfig) {
@@ -119,6 +131,24 @@ namespace BehaviorTestsDefinitions {
         ASSERT_NO_THROW(metric = ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
         const auto& supportedOptions = metric.as<std::vector<std::string>>();
         ASSERT_EQ(std::find(supportedOptions.cbegin(), supportedOptions.cend(), key), supportedOptions.cend());
+    }
+
+    using DefaultValuesConfigTests = BehaviorTestsUtils::BehaviorTestsBasic;
+
+    TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        InferenceEngine::CNNNetwork cnnNet(function);
+        InferenceEngine::Parameter metric;
+        ASSERT_NO_THROW(metric = ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+        std::vector<std::string> keys = metric;
+
+        for (auto& key : keys) {
+            InferenceEngine::Parameter configValue;
+            ASSERT_NO_THROW(configValue = ie->GetConfig(targetDevice, key));
+
+            ASSERT_NO_THROW(ie->SetConfig({{ key, configValue.as<std::string>()}}, targetDevice));
+        }
     }
 
     using IncorrectConfigTests = BehaviorTestsUtils::BehaviorTestsBasic;

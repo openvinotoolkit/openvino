@@ -1,54 +1,28 @@
-BasedOnStyle: LLVM
+BasedOnStyle: Google
 IndentWidth: 4
 UseTab: Never
+ColumnLimit: 120
+
 Language: Cpp
 Standard: Cpp11
 
 AccessModifierOffset: -4
-
-AlignConsecutiveDeclarations: false
-AlignConsecutiveAssignments: false
-AlignTrailingComments: true
-
-AllowShortBlocksOnASingleLine: true
-AllowShortCaseLabelsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: Inline
-
-AlwaysBreakBeforeMultilineStrings: true
-AlwaysBreakTemplateDeclarations: true
-
+AlignConsecutiveMacros: true
+AllowAllArgumentsOnNextLine: false
+AllowAllConstructorInitializersOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Empty
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakBeforeMultilineStrings: false
 BinPackArguments: false
 BinPackParameters: false
-
-BreakBeforeBraces: Allman
-BreakConstructorInitializersBeforeComma: true
-
-ColumnLimit: 100
-
-IndentCaseLabels: false
-IndentWrappedFunctionNames: true
-
-KeepEmptyLinesAtTheStartOfBlocks: false
-NamespaceIndentation: All
-
-PointerAlignment: Left
-SpaceAfterCStyleCast: false
-SpaceBeforeAssignmentOperators: true
-SpaceBeforeParens: ControlStatements
-SpaceInEmptyParentheses: false
-SpacesInAngles: false
-SpacesInCStyleCastParentheses: false
-SpacesInParentheses: false
-SpacesInSquareBrackets: false
-
-SortIncludes: false
-ReflowComments: true
-
-IncludeCategories:
-  - Regex:           '^".*'
-    Priority:        3
-  - Regex:           '^<.*'
-    Priority:        2
-SortIncludes: true
-
+CommentPragmas: '^#'
+DerivePointerAlignment: false
 FixNamespaceComments: true
+IndentCaseLabels: false
+IndentPPDirectives: AfterHash
+ForEachMacros:
+  - foreach
+  - FOREACH_CHILD

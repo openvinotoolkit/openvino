@@ -5,7 +5,7 @@
 This Guide provides an overview of the Inference Engine describing the typical workflow for performing
 inference of a pre-trained and optimized deep learning model and a set of sample applications.
 
-> **NOTE:** Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_intel_index).
+> **NOTE:** Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_group_intel).
 
 After you have used the Model Optimizer to create an Intermediate Representation (IR), use the Inference Engine to infer the result for a given input data.
 
@@ -46,10 +46,10 @@ This library contains the classes to:
 Starting from 2020.4 release, Inference Engine introduced a concept of `CNNNetwork` reader plugins. Such plugins can be automatically dynamically loaded by Inference Engine in runtime depending on file format:
 * Unix* OS:
     - `libinference_engine_ir_reader.so` to read a network from IR
-    - `libinference_engine_onnx_reader.so` to read a network from ONNX model format
+    - `onnx_ngraph_frontend.so` to read a network from ONNX model format
 * Windows* OS:
     - `inference_engine_ir_reader.dll` to read a network from IR
-    - `inference_engine_onnx_reader.dll` to read a network from ONNX model format
+    - `onnx_ngraph_frontend.dll` to read a network from ONNX model format
 
 ### Device-specific Plugin Libraries ###
 

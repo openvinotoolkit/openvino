@@ -6,74 +6,77 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
-{
-    class Function;
-    namespace op
-    {
-        namespace v0
-        {
-            /// \brief A function parameter.
-            ///
-            /// Parameters are nodes that represent the arguments that will be passed to
-            /// user-defined functions. Function creation requires a sequence of parameters.
-            /// Basic graph operations do not need parameters attached to a function.
-            class NGRAPH_API Parameter : public op::Op
-            {
-            public:
-                NGRAPH_RTTI_DECLARATION;
-                /// \brief Constructions a tensor-typed parameter node.
-                Parameter() = default;
-                /// \brief Constructions a tensor-typed parameter node.
-                ///
-                /// \param element_type The element type of the parameter.
-                /// \param pshape The partial shape of the parameter.
-                Parameter(const ngraph::element::Type& element_type, const PartialShape& pshape);
+namespace ngraph {
+namespace op {
+namespace v0 {
+/// \brief A function parameter.
+///
+/// Parameters are nodes that represent the arguments that will be passed to
+/// user-defined functions. Function creation requires a sequence of parameters.
+/// Basic graph operations do not need parameters attached to a function.
+class NGRAPH_API Parameter : public op::Op {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    /// \brief Constructions a tensor-typed parameter node.
+    Parameter() = default;
+    /// \brief Constructions a tensor-typed parameter node.
+    ///
+    /// \param element_type The element type of the parameter.
+    /// \param pshape The partial shape of the parameter.
+    Parameter(const ngraph::element::Type& element_type, const PartialShape& pshape);
 
-                bool visit_attributes(AttributeVisitor& visitor) override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
-                void validate_and_infer_types() override;
+    void validate_and_infer_types() override;
 
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                bool is_relevant_to_shapes() const;
-                void set_is_relevant_to_shapes(bool is_relevant);
+    bool is_relevant_to_shapes() const;
+    void set_is_relevant_to_shapes(bool is_relevant);
 
-                const PartialShape& get_partial_shape() const { return m_partial_shape; }
-                PartialShape& get_partial_shape() { return m_partial_shape; }
-                void set_partial_shape(const PartialShape& partial_shape)
-                {
-                    m_partial_shape = partial_shape;
-                }
-                const element::Type& get_element_type() const { return m_element_type; }
-                void set_element_type(const element::Type& element_type)
-                {
-                    m_element_type = element_type;
-                }
+    const PartialShape& get_partial_shape() const {
+        return m_partial_shape;
+    }
+    PartialShape& get_partial_shape() {
+        return m_partial_shape;
+    }
+    void set_partial_shape(const PartialShape& partial_shape) {
+        m_partial_shape = partial_shape;
+    }
+    const element::Type& get_element_type() const {
+        return m_element_type;
+    }
+    void set_element_type(const element::Type& element_type) {
+        m_element_type = element_type;
+    }
 
-            protected:
-                PartialShape m_partial_shape;
-                element::Type m_element_type;
-                bool m_is_relevant_to_shapes{false};
-            };
-        } // namespace v0
-        using v0::Parameter;
-    } // namespace op
-    using ParameterVector = std::vector<std::shared_ptr<op::Parameter>>;
+protected:
+    PartialShape m_partial_shape;
+    element::Type m_element_type;
+    bool m_is_relevant_to_shapes{false};
+};
+}  // namespace v0
+using v0::Parameter;
+}  // namespace op
+using ParameterVector = std::vector<std::shared_ptr<op::Parameter>>;
+}  // namespace ngraph
 
-    template <>
-    class NGRAPH_API AttributeAdapter<ParameterVector> : public VisitorAdapter
-    {
-    public:
-        AttributeAdapter(ParameterVector& ref);
+namespace ov {
 
-        bool visit_attributes(AttributeVisitor& visitor) override;
+template <>
+class NGRAPH_API AttributeAdapter<ngraph::ParameterVector> : public VisitorAdapter {
+public:
+    AttributeAdapter(ngraph::ParameterVector& ref);
 
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<ParameterVector>", 0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
-    protected:
-        ParameterVector& m_ref;
-    };
-} // namespace ngraph
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<ParameterVector>", 0};
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+
+protected:
+    ngraph::ParameterVector& m_ref;
+};
+
+}  // namespace ov

@@ -14,7 +14,7 @@ namespace {
 const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     // 1) Multiply
     {
-        ngraph::Shape{1, 3, 16, 16},
+        {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -26,7 +26,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         }
     },
     {
-        ngraph::Shape{128, 3},
+        {128, 3},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -39,7 +39,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // 1) Multiply by zero
     {
-        ngraph::Shape{1, 3, 16, 16},
+        {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -52,7 +52,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // 1) Subtract + Multiply
     {
-        ngraph::Shape{1, 3, 16, 16},
+        {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -65,7 +65,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // 1) Convert + Subtract + Multiply
     {
-        ngraph::Shape{1, 3, 16, 16},
+        {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -78,7 +78,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // 1) Convert + Subtract + Multiply 2) Add
     {
-        ngraph::Shape{1, 3, 16, 16},
+        {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -91,7 +91,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // issue #40611 for FP32
     {
-        ngraph::Shape{1, 3, 16, 16},
+        {1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             { },

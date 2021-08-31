@@ -30,15 +30,15 @@ each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with
 
 ## Running
 
-Run the application with the <code>-h</code> option to see the usage message:
+Run the application with the `-h` option to see the usage message:
 
-```sh
-python style_transfer_sample.py -h
+```
+python <path_to_sample>/style_transfer_sample.py -h
 ```
 
 Usage message:
 
-```sh
+```
 usage: style_transfer_sample.py [-h] -m MODEL -i INPUT [INPUT ...]
                                 [-l EXTENSION] [-c CONFIG] [-d DEVICE]
                                 [--original_size] [--mean_val_r MEAN_VAL_R]
@@ -79,7 +79,7 @@ Options:
 ```
 
 To run the sample, you need specify a model and image:
-- you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
@@ -90,23 +90,35 @@ To run the sample, you need specify a model and image:
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-You can do inference of an image using a pre-trained model on a GPU using the following command:
+### Example
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+```
+python <path_to_omz_tools>/downloader.py --name fast-neural-style-mosaic-onnx
+```
 
-```sh
-python style_transfer_sample.py -m <path_to_model>/fast-neural-style-mosaic-onnx.onnx -i <path_to_image>/car.png <path_to_image>/cat.jpg -d GPU
+2. `fast-neural-style-mosaic-onnx` model does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use a other model that is not in the Inference Engine IR or ONNX format, you can convert it using the model converter script:
+
+```
+python <path_to_omz_tools>/converter.py --name <model_name>
+```
+
+3. Perform inference of `car.bmp` and `cat.jpg` using `fast-neural-style-mosaic-onnx` model on a `GPU`, for example:
+
+```
+python <path_to_sample>/style_transfer_sample.py -m <path_to_model>/fast-neural-style-mosaic-onnx.onnx -i <path_to_image>/car.bmp <path_to_image>/cat.jpg -d GPU
 ```
 
 ## Sample Output
 
 The sample application logs each step in a standard output stream and creates an output image (`out_0.bmp`) or a sequence of images (`out_0.bmp`, .., `out_<n>.bmp`) that are redrawn in the style of the style transfer model used.
 
-```sh
+```
 [ INFO ] Creating Inference Engine
-[ INFO ] Reading the network: models\fast-neural-style-mosaic-onnx.onnx
+[ INFO ] Reading the network: c:\openvino\deployment_tools\open_model_zoo\tools\downloader\public\fast-neural-style-mosaic-onnx\fast-neural-style-mosaic-onnx.onnx
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
-[ WARNING ] Image images\car.bmp is resized from (259, 787) to (224, 224)
-[ WARNING ] Image images\cat.bmp is resized from (300, 300) to (224, 224)
+[ WARNING ] Image c:\images\car.bmp is resized from (637, 749) to (224, 224)
+[ WARNING ] Image c:\images\cat.jpg is resized from (300, 300) to (224, 224)
 [ INFO ] Starting inference in synchronous mode
 [ INFO ] Image out_0.bmp created!
 [ INFO ] Image out_1.bmp created!
@@ -117,7 +129,7 @@ The sample application logs each step in a standard output stream and creates an
 
 - [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
 - [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
-- [Model Downloader](@ref omz_tools_downloader_README)
+- [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html

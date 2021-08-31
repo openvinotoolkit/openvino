@@ -33,7 +33,7 @@ std::shared_ptr<ngraph::Function> ClampFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> ClampFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
     const double clampLowConst,
     const double clampHighConst) {

@@ -41,25 +41,12 @@ public:
     };
 
     ngraph::PartialShape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool transformed;
     bool haveMultiplyWithNoConstBeforeDequantization;
     Actual actual;
     Expected expected;
 };
-
-template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
 
 class MultiplyToGroupConvolutionTransformation :
     public LayerTransformation,
@@ -73,7 +60,15 @@ public:
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization,
             testValues.haveMultiplyWithNoConstBeforeDequantization);
-        SimpleLowPrecisionTransformer transformer;
+
+        auto precisionRestrictions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
+            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Multiply>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}}
+            })
+        });
+
+        SimpleLowPrecisionTransformer transformer(precisionRestrictions);
         transformer.add<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(testValues.params);
         transformer.transform(actualFunction);
 
@@ -321,22 +316,23 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             }
         }
     },
-    // i8 (not transformed)
-    {
-        { 1, 4, 1, 1 },
-        LayerTransformation::createParamsU8I8(),
-        false,
-        false,
-        {
-            ngraph::element::i8,
-            {
-                {},
-                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32},
-                {{0.45f, 0.82f, 0.71f, 0.37f}}
-            }
-        },
-        {}
-    },
+    // TODO: LPT: not implemented
+//    // i8 (not transformed)
+//    {
+//        ngraph::Shape{ 1, 4, 1, 1 },
+//        LayerTransformation::createParamsU8I8(),
+//        false,
+//        false,
+//        {
+//            ngraph::element::i8,
+//            {
+//                {},
+//                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32},
+//                {{0.45f, 0.82f, 0.71f, 0.37f}}
+//            }
+//        },
+//        {}
+//    },
     // by spatial dimensions (not transformed)
     {
         { 1, 1, 2, 2 },

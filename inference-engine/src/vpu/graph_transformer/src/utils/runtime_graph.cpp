@@ -25,7 +25,7 @@ std::map<std::string, std::string> extractMeta(const StageMetaInfo&);
 
 }  // namespace
 
-InferenceEngine::CNNNetwork buildRuntimeGraph(GraphMetaInfo& graphMetaInfo, const std::vector<float>& perfInfo) {
+std::shared_ptr<ngraph::Function> buildRuntimeGraph(GraphMetaInfo& graphMetaInfo, const std::vector<float>& perfInfo) {
     std::map<size_t, std::shared_ptr<ngraph::Node>> stageMetaIndexToNode;
     std::function<void(size_t)> createNodeFromMeta;
 
@@ -112,9 +112,7 @@ InferenceEngine::CNNNetwork buildRuntimeGraph(GraphMetaInfo& graphMetaInfo, cons
         createNodeFromMeta(i);
     }
 
-    auto ngraph = std::make_shared<ngraph::Function>(results, params, graphMetaInfo.graphName);
-    InferenceEngine::CNNNetwork net(ngraph);
-    return net;
+    return std::make_shared<ngraph::Function>(results, params, graphMetaInfo.graphName);
 }
 
 namespace {

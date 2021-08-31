@@ -37,19 +37,28 @@ std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOrigina
 
 std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
-    const FakeQuantizeOnData& fqOnData) {
+    const ngraph::PartialShape& inputShape,
+    const FakeQuantizeOnData& fqOnData,
+    const Constant& constant) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
-    const auto fakeQuantizeOnActivations = makeFakeQuantize(input, precision, fqOnData);
-    const auto reshape = std::make_shared<ngraph::opset1::Reshape>(
-        fakeQuantizeOnActivations,
-        std::make_shared<ngraph::opset1::Constant>(element::i32, Shape{ inputShape.size() }, inputShape),
-        true);
-    reshape->set_friendly_name("output");
+    const auto fakeQuantize = makeFakeQuantize(input, precision, fqOnData);
 
-    ngraph::ResultVector results{
-        std::make_shared<ngraph::opset1::Result>(reshape)
-    };
+    const auto rank = inputShape.rank();
+    assert(rank.is_static());
+    const size_t size = rank.get_length() - 2;
+    const auto maxPool = std::make_shared<opset1::MaxPool>(
+        fakeQuantize,
+        Strides(size, 1),
+        Shape(size, 1),
+        Shape(size, 0),
+        Shape(size, 2));
+
+    const auto multiply = std::make_shared<ngraph::opset1::Multiply>(
+        maxPool,
+        std::make_shared<ngraph::opset1::Constant>(constant.outPrecision, constant.shape, constant.values));
+    multiply->set_friendly_name("output");
+
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(multiply)};
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MultiplyToGroupConvolutionFunction");
 }
 

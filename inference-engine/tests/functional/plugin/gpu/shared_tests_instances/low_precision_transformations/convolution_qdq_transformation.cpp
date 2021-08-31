@@ -17,7 +17,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
     // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };
 
@@ -233,7 +233,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
     },
 };
 
-const std::vector<ngraph::Shape> shapes = {
+const std::vector<ngraph::PartialShape> shapes = {
     { 1, 3, 4, 4 },
     { 4, 3, 4, 4 }
 };

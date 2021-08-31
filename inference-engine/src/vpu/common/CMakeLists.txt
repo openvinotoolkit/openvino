@@ -15,7 +15,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
         UNITY
     )
 
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_COMPILER_IS_GNUCXX)
         # TODO: enable some day and fix all warnings
 #        target_compile_options(${TARGET_NAME} PRIVATE "-Wall")
         target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-function")

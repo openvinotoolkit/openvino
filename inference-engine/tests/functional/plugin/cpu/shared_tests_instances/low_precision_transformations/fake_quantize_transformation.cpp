@@ -31,7 +31,7 @@ const std::vector<FakeQuantizeTransformationParam> fakeQuantizeOnDataValues = {
         "Pooling", "U8"
     },
     {
-        { 256ul, { 1ul }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        { 256ul, { {1ul}, {1ul}, {1ul}, {1ul} }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         "Pooling", "U8"
     },
     {
@@ -62,7 +62,7 @@ const std::vector<FakeQuantizeTransformationParam> fakeQuantizeOnDataValues = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizeOnDataValues)),

@@ -11,9 +11,9 @@
 #include <samples/slog.hpp>
 
 #ifdef _WIN32
-    #include <samples/os/windows/w_dirent.h>
+#    include <samples/os/windows/w_dirent.h>
 #else
-    #include <dirent.h>
+#    include <dirent.h>
 #endif
 
 /**
@@ -142,10 +142,18 @@ InferenceEngine::Precision getPrecision(std::string value, const supported_preci
 
 InferenceEngine::Precision getPrecision(const std::string& value) {
     static const supported_precisions_t supported_precisions = {
-        {"FP32", InferenceEngine::Precision::FP32}, {"FP16", InferenceEngine::Precision::FP16}, {"BF16", InferenceEngine::Precision::BF16},
-        {"U64", InferenceEngine::Precision::U64},   {"I64", InferenceEngine::Precision::I64},   {"U32", InferenceEngine::Precision::U32},
-        {"I32", InferenceEngine::Precision::I32},   {"U16", InferenceEngine::Precision::U16},   {"I16", InferenceEngine::Precision::I16},
-        {"U8", InferenceEngine::Precision::U8},     {"I8", InferenceEngine::Precision::I8},     {"BOOL", InferenceEngine::Precision::BOOL},
+        {"FP32", InferenceEngine::Precision::FP32},
+        {"FP16", InferenceEngine::Precision::FP16},
+        {"BF16", InferenceEngine::Precision::BF16},
+        {"U64", InferenceEngine::Precision::U64},
+        {"I64", InferenceEngine::Precision::I64},
+        {"U32", InferenceEngine::Precision::U32},
+        {"I32", InferenceEngine::Precision::I32},
+        {"U16", InferenceEngine::Precision::U16},
+        {"I16", InferenceEngine::Precision::I16},
+        {"U8", InferenceEngine::Precision::U8},
+        {"I8", InferenceEngine::Precision::I8},
+        {"BOOL", InferenceEngine::Precision::BOOL},
     };
 
     return getPrecision(value, supported_precisions);
@@ -176,7 +184,10 @@ void setPrecisions(const InferenceEngine::CNNNetwork& network, const std::string
 
 }  // namespace
 
-void processPrecision(InferenceEngine::CNNNetwork& network, const std::string& ip, const std::string& op, const std::string& iop) {
+void processPrecision(InferenceEngine::CNNNetwork& network,
+                      const std::string& ip,
+                      const std::string& op,
+                      const std::string& iop) {
     if (!ip.empty()) {
         const auto user_precision = getPrecision(ip);
         for (auto&& layer : network.getInputsInfo()) {
@@ -213,20 +224,27 @@ InferenceEngine::Layout getLayout(std::string value, const supported_layouts_t& 
 
 InferenceEngine::Layout getLayout(const std::string& value) {
     static const supported_layouts_t supported_layouts = {
-        {"NCDHW", InferenceEngine::Layout::NCDHW}, {"NDHWC", InferenceEngine::Layout::NDHWC}, {"NCHW", InferenceEngine::Layout::NCHW},
-        {"NHWC", InferenceEngine::Layout::NHWC},   {"CHW", InferenceEngine::Layout::CHW},     {"HWC", InferenceEngine::Layout::HWC},
-        {"NC", InferenceEngine::Layout::NC},       {"C", InferenceEngine::Layout::C},
+        {"NCDHW", InferenceEngine::Layout::NCDHW},
+        {"NDHWC", InferenceEngine::Layout::NDHWC},
+        {"NCHW", InferenceEngine::Layout::NCHW},
+        {"NHWC", InferenceEngine::Layout::NHWC},
+        {"CHW", InferenceEngine::Layout::CHW},
+        {"HWC", InferenceEngine::Layout::HWC},
+        {"NC", InferenceEngine::Layout::NC},
+        {"C", InferenceEngine::Layout::C},
     };
 
     return getLayout(value, supported_layouts);
 }
 
 bool isMatchLayoutToDims(InferenceEngine::Layout layout, size_t dimension) {
-    static const matchLayoutToDims_t matchLayoutToDims = {
-        {static_cast<size_t>(InferenceEngine::Layout::NCDHW), 5}, {static_cast<size_t>(InferenceEngine::Layout::NDHWC), 5},
-        {static_cast<size_t>(InferenceEngine::Layout::NCHW), 4},  {static_cast<size_t>(InferenceEngine::Layout::NHWC), 4},
-        {static_cast<size_t>(InferenceEngine::Layout::CHW), 3},   {static_cast<size_t>(InferenceEngine::Layout::NC), 2},
-        {static_cast<size_t>(InferenceEngine::Layout::C), 1}};
+    static const matchLayoutToDims_t matchLayoutToDims = {{static_cast<size_t>(InferenceEngine::Layout::NCDHW), 5},
+                                                          {static_cast<size_t>(InferenceEngine::Layout::NDHWC), 5},
+                                                          {static_cast<size_t>(InferenceEngine::Layout::NCHW), 4},
+                                                          {static_cast<size_t>(InferenceEngine::Layout::NHWC), 4},
+                                                          {static_cast<size_t>(InferenceEngine::Layout::CHW), 3},
+                                                          {static_cast<size_t>(InferenceEngine::Layout::NC), 2},
+                                                          {static_cast<size_t>(InferenceEngine::Layout::C), 1}};
 
     const auto dims = matchLayoutToDims.find(static_cast<size_t>(layout));
     if (dims == matchLayoutToDims.end()) {
@@ -269,7 +287,10 @@ void setLayouts(const InferenceEngine::CNNNetwork& network, const std::string io
 
 }  // namespace
 
-void processLayout(InferenceEngine::CNNNetwork& network, const std::string& il, const std::string& ol, const std::string& iol) {
+void processLayout(InferenceEngine::CNNNetwork& network,
+                   const std::string& il,
+                   const std::string& ol,
+                   const std::string& iol) {
     if (!il.empty()) {
         const auto layout = getLayout(il);
         for (auto&& layer : network.getInputsInfo()) {
@@ -296,10 +317,12 @@ void processLayout(InferenceEngine::CNNNetwork& network, const std::string& il, 
 void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network) {
     std::cout << "Network inputs:" << std::endl;
     for (auto&& layer : network.getInputsInfo()) {
-        std::cout << "    " << layer.first << " : " << layer.second->getPrecision() << " / " << layer.second->getLayout() << std::endl;
+        std::cout << "    " << layer.first << " : " << layer.second->getPrecision() << " / "
+                  << layer.second->getLayout() << std::endl;
     }
     std::cout << "Network outputs:" << std::endl;
     for (auto&& layer : network.getOutputsInfo()) {
-        std::cout << "    " << layer.first << " : " << layer.second->getPrecision() << " / " << layer.second->getLayout() << std::endl;
+        std::cout << "    " << layer.first << " : " << layer.second->getPrecision() << " / "
+                  << layer.second->getLayout() << std::endl;
     }
 }

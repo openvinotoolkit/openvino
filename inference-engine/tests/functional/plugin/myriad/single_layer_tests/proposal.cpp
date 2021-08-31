@@ -12,7 +12,11 @@
 // additional features for developer testing
 //#define PROPOSAL_TESTS_LOGGING
 const bool compareOutputScoresSoft = true; // do compare scores against reference with threshold
-const float scoresThreshold = 0.01f; // threshold for soft scores comparison
+const float scoresThreshold = 0.1f; // threshold for soft scores comparison
+const float ratioScores = 0.9f; // required ratio(matching_scores_count/count_optimized_scores) to assume
+                                // that test is passed (for soft scores comparison)
+const float ratioBoxes = 0.9f; // required ratio(matching_boxes_count/count_optimized_boxes) to assume
+                                // that test is passed
 const bool compareOutputScores = false; // do compare scores output against reference without threshold
 
 using namespace InferenceEngine;
@@ -23,62 +27,85 @@ using namespace PrecisionUtils;
 *   A, B: 4-dim array (x1, y1, x2, y2)
 */
 
-static float check_iou(const float* A, const float* B) {
+namespace {
+
+float check_iou(const float* A, const float* B, bool normalized) {
     if (A[0] > B[2] || A[1] > B[3] || A[2] < B[0] || A[3] < B[1]) {
         return 0.0f;
     } else {
+        float additional = 0.f;
+        if (!normalized)
+            additional = 1.0f;
+
         // overlapped region (= box)
-        const float x1 = std::max(A[0], B[0]);
-        const float y1 = std::max(A[1], B[1]);
-        const float x2 = std::min(A[2], B[2]);
-        const float y2 = std::min(A[3], B[3]);
+        const auto x1 = std::max(A[0], B[0]);
+        const auto y1 = std::max(A[1], B[1]);
+        const auto x2 = std::min(A[2], B[2]);
+        const auto y2 = std::min(A[3], B[3]);
 
         // intersection area
-        const float width = std::max(0.0f, x2 - x1 + 1.0f);
-        const float height = std::max(0.0f, y2 - y1 + 1.0f);
-        const float area = width * height;
+        const auto width = std::max(0.0f, x2 - x1 + additional);
+        const auto height = std::max(0.0f, y2 - y1 + additional);
+        const auto area = width * height;
 
         // area of A, B
-        const float A_area = (A[2] - A[0] + 1.0f) * (A[3] - A[1] + 1.0f);
-        const float B_area = (B[2] - B[0] + 1.0f) * (B[3] - B[1] + 1.0f);
+        const auto A_area = (A[2] - A[0] + additional) * (A[3] - A[1] + additional);
+        const auto B_area = (B[2] - B[0] + additional) * (B[3] - B[1] + additional);
 
         // IoU
         return area / (A_area + B_area - area);
     }
 }
 
-static float check_iou_normalized(const float* A, const float* B) {
-    if (A[0] > B[2] || A[1] > B[3] || A[2] < B[0] || A[3] < B[1]) {
-        return 0.0f;
-    } else {
-        // overlapped region (= box)
-        const float x1 = std::max(A[0], B[0]);
-        const float y1 = std::max(A[1], B[1]);
-        const float x2 = std::min(A[2], B[2]);
-        const float y2 = std::min(A[3], B[3]);
-
-        // intersection area
-        const float width = std::max(0.0f, x2 - x1);
-        const float height = std::max(0.0f, y2 - y1);
-        const float area = width * height;
-
-        // area of A, B
-        const float A_area = (A[2] - A[0]) * (A[3] - A[1]);
-        const float B_area = (B[2] - B[0]) * (B[3] - B[1]);
-
-        // IoU
-        return area / (A_area + B_area - area);
-    }
-}
-
-static std::size_t get_num_rois(const float* array, std::size_t size) {
+std::size_t get_num_rois(const float* array, std::size_t size) {
     std::size_t count = 0;
     while (count < size && array[count] != -1.f)
         count += 5;
     return count / 5;
 }
 
+}// namespace
 typedef std::vector<std::vector<int>> Graph;
+
+class KunhsAlgorithm {
+public:
+    int findMaximumMatching(const Graph& graph, std::size_t second_part_size) {
+        int matching_count = 0;
+        std::vector<bool> used(graph.size(), false);
+        std::vector<int> matching(second_part_size, -1); // -1 means there is no matching
+        for (std::size_t vertex = 0; vertex < graph.size(); ++vertex) {
+            if (try_kuhn(used, matching, graph, vertex)) {
+                used.assign(graph.size(), false);
+                ++matching_count;
+            }
+        }
+        return matching_count;
+    }
+
+private:
+    bool try_kuhn(std::vector<bool>& used,
+                  std::vector<int>& matching,
+                  const Graph& graph,
+                  int cur_vertex) {
+        if (used[cur_vertex]) return false;
+        used[cur_vertex] = true;
+
+        for (auto to : graph[cur_vertex]) {
+            if (matching[to] == -1) {
+                matching[to] = cur_vertex;
+                return true;
+            }
+        }
+        for (auto to : graph[cur_vertex]) {
+            if (try_kuhn(used, matching, graph, matching[to])) {
+                matching[to] = cur_vertex;
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
 
 class GraphComparison {
 public:
@@ -93,15 +120,9 @@ public:
                                 reference_scores, output_scores,
                                 normalized, withOutputScores)};
 
-        int matching_count = 0;
-        std::vector<bool> used(count_optimized, false);
-        std::vector<int> mt(count_reference, -1); // matching, -1 means there is no matching
-        for (std::size_t vertex = 0; vertex < count_optimized; ++vertex) {
-            if (try_kuhn(used, mt, graph, vertex)) {
-                used.assign(count_optimized, false);
-                ++matching_count;
-            }
-        }
+        KunhsAlgorithm method;
+        auto matching_count = method.findMaximumMatching(graph, count_reference);
+
         return matching_count;
     }
 
@@ -116,7 +137,7 @@ private:
                      const float* optimized, std::size_t count_optimized,
                      const float* reference_scores, const float* output_scores,
                      bool normalized, bool withOutputScores) {
-        Graph g(count_optimized);
+        Graph graph(count_optimized);
         for (std::size_t i = 0; i < count_optimized; ++i) {
             float out_values[4]{};
             for (int k = 0; k < 4; k++)
@@ -130,36 +151,11 @@ private:
                 if (compareOutputScores && withOutputScores)
                     isScoresEqual = (output_scores[i] == reference_scores[j]);
 
-                if (isScoresEqual) {
-                    if (!normalized && check_iou(out_values, gt_values) >= _threshold)
-                        g[i].push_back(j);
-                    else if (normalized && check_iou_normalized(out_values, gt_values) >= _threshold)
-                        g[i].push_back(j);
-                }
+                if (isScoresEqual && check_iou(out_values, gt_values, normalized) >= _threshold)
+                        graph[i].push_back(j);
             }
         }
-        return g;
-    }
-
-    bool try_kuhn(std::vector<bool>& used,
-                  std::vector<int>& mt,
-                  Graph& graph,
-                  int cur_vertex) {
-        if (used[cur_vertex]) return false;
-        used[cur_vertex] = true;
-        for (auto to : graph[cur_vertex]) {
-            if (mt[to] == -1) {
-                mt[to] = cur_vertex;
-                return true;
-            }
-        }
-        for (auto to : graph[cur_vertex]) {
-            if (try_kuhn(used, mt, graph, mt[to])) {
-                mt[to] = cur_vertex;
-                return true;
-            }
-        }
-        return false;
+        return graph;
     }
 
     // if x1 > x2 or y1 > y2, then we can assume that the data is incorrect
@@ -240,7 +236,7 @@ public:
         result << "box_coordinate_scale=" << box_coordinate_scale << "_";
         result << "framework=" << framework << "_";
 
-    return result.str();
+        return result.str();
     }
 
     void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
@@ -290,7 +286,8 @@ public:
         #endif
 
         float precision = static_cast<float>(matching_count) / num_optimized;
-        bool res = (precision >= 0.9f);
+        bool res = (precision >= ratioBoxes);
+
         if (compareOutputScoresSoft && res) {
             int min_size = std::min(num_reference, num_optimized);
             int scores_count = 0;
@@ -298,7 +295,8 @@ public:
                 if (fabs(reference_scores[i] - optimized_scores[i]) <= scoresThreshold)
                     scores_count++;
             }
-            res = (scores_count >= 0.9f);
+            float score_ratio = static_cast<float>(scores_count) / num_optimized;
+            res = (score_ratio >= ratioScores);
         }
         ASSERT_TRUE(res) << "PROPOSAL TEST failed with "
         << matching_count << " matched boxes of " << num_optimized << std::endl;
@@ -314,7 +312,7 @@ public:
             blobPtr = FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
         }
 
-    return blobPtr;
+        return blobPtr;
     }
 protected:
     void SetUp() override{

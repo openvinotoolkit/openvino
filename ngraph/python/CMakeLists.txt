@@ -11,15 +11,11 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(ngraph REQUIRED)
 endif()
 
-if(ngraph_FOUND)
-    message("ngraph version = {${ngraph_VERSION}}")
-endif()
-
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pybind11 EXCLUDE_FROM_ALL)
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-message("Python version=${PYTHON_VERSION}")
+message(STATUS "Python version=${PYTHON_VERSION}")
 
 set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 if(OpenVINO_SOURCE_DIR)
@@ -28,7 +24,7 @@ if(OpenVINO_SOURCE_DIR)
     else()
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/)
     endif()
-    
+
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
     set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
@@ -65,14 +61,15 @@ target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}
 
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::frontend_manager)
 
-if (TARGET ngraph::onnx_importer)
-    add_dependencies(_${PROJECT_NAME} ngraph::onnx_importer)
+if (TARGET ngraph::onnx_ngraph_frontend)
+    add_dependencies(_${PROJECT_NAME} ngraph::onnx_ngraph_frontend)
 endif()
 
 if(NGRAPH_UNIT_TEST_ENABLE)
     add_subdirectory(tests/mock/mock_py_ngraph_frontend)
     add_dependencies(_${PROJECT_NAME} mock_py_ngraph_frontend)
-    set_target_properties(mock_py_ngraph_frontend PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
+    set_target_properties(mock_py_ngraph_frontend PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
             ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
             COMPILE_PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
             PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN})
@@ -106,6 +103,10 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
             DESTINATION python/${PYTHON_VERSION}
             COMPONENT pyngraph_${PYTHON_VERSION}
             USE_SOURCE_PERMISSIONS)
+
+    install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/tests
+            DESTINATION tests/${PROJECT_NAME}
+            COMPONENT tests EXCLUDE_FROM_ALL)
 
     ie_cpack(pyngraph_${PYTHON_VERSION})
 endif()

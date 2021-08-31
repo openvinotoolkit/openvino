@@ -3,7 +3,7 @@
 //
 
 #include "program_node.h"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "primitive_inst.h"
 #include "to_string_utils.h"
 #include "json_object.h"
@@ -15,7 +15,7 @@
 
 using namespace cldnn;
 
-program_node::program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
     : desc(prim), myprog(prog), org_id(prim->id) {
     if (prim)
         output_layout.data_padding = prim->output_padding;
@@ -72,6 +72,9 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     node_info->add("id", id());
     node_info->add("type", desc->type_string());
     node_info->add("valid output layout", bool_to_str(valid_output_layout));
+    std::stringstream s;
+    s << get_preferred_impl_type();
+    node_info->add("preferred impl", s.str());
 
     json_composite output_layout_info;
     output_layout_info.add("data type", dt_to_str(output_layout.data_type));

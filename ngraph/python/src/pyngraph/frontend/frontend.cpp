@@ -13,16 +13,19 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_FrontEnd(py::module m)
-{
-    py::class_<ngraph::frontend::FrontEnd, std::shared_ptr<ngraph::frontend::FrontEnd>> fem(
-        m, "FrontEnd", py::dynamic_attr());
+void regclass_pyngraph_FrontEnd(py::module m) {
+    py::class_<ngraph::frontend::FrontEnd, std::shared_ptr<ngraph::frontend::FrontEnd>> fem(m,
+                                                                                            "FrontEnd",
+                                                                                            py::dynamic_attr());
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
 
-    fem.def("load_from_file",
-            &ngraph::frontend::FrontEnd::load_from_file,
-            py::arg("path"),
-            R"(
+    fem.def(
+        "load",
+        [](ngraph::frontend::FrontEnd& self, const std::string& s) {
+            return self.load(s);
+        },
+        py::arg("path"),
+        R"(
                 Loads an input model by specified model file path.
 
                 Parameters
@@ -32,7 +35,7 @@ void regclass_pyngraph_FrontEnd(py::module m)
 
                 Returns
                 ----------
-                load_from_file : InputModel
+                load : InputModel
                     Loaded input model.
              )");
 
@@ -55,8 +58,8 @@ void regclass_pyngraph_FrontEnd(py::module m)
              )");
 
     fem.def("convert",
-            static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(
-                std::shared_ptr<ngraph::Function>) const>(&ngraph::frontend::FrontEnd::convert),
+            static_cast<void (ngraph::frontend::FrontEnd::*)(std::shared_ptr<ngraph::Function>) const>(
+                &ngraph::frontend::FrontEnd::convert),
             py::arg("function"),
             R"(
                 Completely convert the remaining, not converted part of a function.
@@ -121,4 +124,16 @@ void regclass_pyngraph_FrontEnd(py::module m)
                 function : Function
                     Partially converted nGraph function.
              )");
+
+    fem.def("get_name",
+            &ngraph::frontend::FrontEnd::get_name,
+            R"(
+                Gets name of this FrontEnd. Can be used by clients
+                if frontend is selected automatically by FrontEndManager::load_by_model.
+
+                Parameters
+                ----------
+                get_name : str
+                    Current frontend name. Empty string if not implemented.
+            )");
 }

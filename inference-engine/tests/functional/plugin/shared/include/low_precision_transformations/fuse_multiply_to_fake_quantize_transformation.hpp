@@ -22,7 +22,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
 };
@@ -39,9 +39,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

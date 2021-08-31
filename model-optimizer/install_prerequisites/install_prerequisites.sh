@@ -35,6 +35,7 @@ for ((i=1;i <= $#;i++)) {
         esac
 }
 
+VENV_DIR="$HOME/venv_openvino"
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 
 if [[ -f /etc/centos-release ]]; then
@@ -53,23 +54,8 @@ if [[ $DISTRO == "centos" ]]; then
     elif command -v python3.5 >/dev/null 2>&1; then
         python_binary=python3.5
     fi
-
-    if [ -z "$python_binary" ]; then
-        sudo -E yum install -y https://centos7.iuscommunity.org/ius-release.rpm
-        sudo -E yum install -y python36u python36u-pip
-        sudo -E pip3.6 install virtualenv
-        python_binary=python3.6
-    fi
-    # latest pip is needed to install tensorflow
-    sudo -E "$python_binary" -m pip install --upgrade pip
-elif [[ $DISTRO == "ubuntu" ]]; then
-    sudo -E apt update
-    sudo -E apt -y --no-install-recommends install python3-pip python3-venv
+else
     python_binary=python3
-    sudo -E "$python_binary" -m pip install --upgrade pip
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-    python_binary=python3
-    python3 -m pip install --upgrade pip
 fi
 
 install_latest_ov() {
@@ -181,21 +167,21 @@ find_ie_bindings() {
 }
 
 if [[ $V_ENV -eq 1 ]]; then
-    "$python_binary" -m venv "$SCRIPTDIR/../venv${postfix}"
-    source "$SCRIPTDIR/../venv${postfix}/bin/activate"
-    venv_python_binary="$SCRIPTDIR/../venv${postfix}/bin/$python_binary"
-    $venv_python_binary -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
+    "$python_binary" -m venv "$VENV_DIR"
+    source "$VENV_DIR/bin/activate"
+    venv_python_binary="$VENV_DIR/bin/$python_binary"
+    # latest pip is needed to install tensorflow
+    "$venv_python_binary" -m pip install --upgrade pip
+    "$venv_python_binary" -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
     find_ie_bindings "$venv_python_binary" false
     echo
-    echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${SCRIPTDIR}/../venv${postfix}/bin/activate\""
+    echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source $VENV_DIR/bin/activate\""
 else
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        python3 -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
-        find_ie_bindings python3 false
-    else
-        sudo -E $python_binary -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
-        find_ie_bindings $python_binary true
-    fi
+    # latest pip is needed to install tensorflow
+    "$python_binary" -m pip install --upgrade pip
+    "$python_binary" -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
+    find_ie_bindings "$python_binary" false
+    echo
     echo "[WARNING] All Model Optimizer dependencies are installed globally."
     echo "[WARNING] If you want to keep Model Optimizer in separate sandbox"
     echo "[WARNING] run install_prerequisites.sh \"{caffe|tf|tf2|mxnet|kaldi|onnx}\" venv"

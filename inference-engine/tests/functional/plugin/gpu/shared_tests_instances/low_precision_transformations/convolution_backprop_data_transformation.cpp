@@ -102,7 +102,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationPa
     }
 };
 
-const std::vector<std::pair<ngraph::Shape, bool>> inputShapes = {
+const std::vector<std::pair<ngraph::PartialShape, bool>> inputShapes = {
         {{ 1, 8, 16, 16 }, false},
         {{ 1, 32, 16, 16 }, true}
 };

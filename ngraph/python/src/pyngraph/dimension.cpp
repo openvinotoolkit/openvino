@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/dimension.hpp"  // ngraph::Dimension
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -9,13 +11,11 @@
 #include <sstream>
 #include <string>
 
-#include "ngraph/dimension.hpp" // ngraph::Dimension
 #include "pyngraph/dimension.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Dimension(py::module m)
-{
+void regclass_pyngraph_Dimension(py::module m) {
     using value_type = ngraph::Dimension::value_type;
 
     py::class_<ngraph::Dimension, std::shared_ptr<ngraph::Dimension>> dim(m, "Dimension");
@@ -71,11 +71,15 @@ void regclass_pyngraph_Dimension(py::module m)
 
     dim.def(
         "__eq__",
-        [](const ngraph::Dimension& a, const ngraph::Dimension& b) { return a == b; },
+        [](const ngraph::Dimension& a, const ngraph::Dimension& b) {
+            return a == b;
+        },
         py::is_operator());
     dim.def(
         "__eq__",
-        [](const ngraph::Dimension& a, const int64_t& b) { return a == b; },
+        [](const ngraph::Dimension& a, const int64_t& b) {
+            return a == b;
+        },
         py::is_operator());
 
     dim.def("__len__", &ngraph::Dimension::get_length);

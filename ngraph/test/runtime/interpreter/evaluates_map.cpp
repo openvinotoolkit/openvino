@@ -37,6 +37,7 @@
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
 #include <ngraph/runtime/reference/fft.hpp>
+#include <ngraph/runtime/reference/gather.hpp>
 #include <ngraph/runtime/reference/gather_elements.hpp>
 #include <ngraph/runtime/reference/gather_nd.hpp>
 #include <ngraph/runtime/reference/gather_tree.hpp>
@@ -66,7 +67,6 @@
 #include <ngraph/runtime/reference/roi_pooling.hpp>
 #include <ngraph/runtime/reference/roll.hpp>
 #include <ngraph/runtime/reference/scatter_nd_update.hpp>
-#include <ngraph/runtime/reference/select.hpp>
 #include <ngraph/runtime/reference/selu.hpp>
 #include <ngraph/runtime/reference/sequences.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
@@ -342,6 +342,60 @@ namespace
                                                           op->get_pads_begin(),
                                                           op->get_pads_end(),
                                                           op->get_output_padding());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v8::DeformableConvolution>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs) {
+        const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
+        const auto offset_data_ptr = inputs[1]->get_data_ptr<ET>();
+        const auto filter_data_ptr = inputs[2]->get_data_ptr<ET>();
+        auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
+        const auto& out_shape = outputs[0]->get_shape();
+        const auto& in_shape = inputs[0]->get_shape();
+        const auto& offset_shape = inputs[1]->get_shape();
+        const auto& filter_shape = inputs[2]->get_shape();
+        if (inputs.size() == 3) {
+            runtime::reference::deformable_convolution<typename element_type_traits<ET>::value_type>(
+                    in_data_ptr,
+                    offset_data_ptr,
+                    filter_data_ptr,
+                    out_data_ptr,
+                    in_shape,
+                    offset_shape,
+                    filter_shape,
+                    out_shape,
+                    op->get_strides(),
+                    op->get_dilations(),
+                    op->get_pads_begin(),
+                    op->get_pads_end(),
+                    op->get_group(),
+                    op->get_deformable_group(),
+                    op->get_bilinear_interpolation_pad());
+        } else {
+            const auto mask_data_ptr = inputs[3]->get_data_ptr<ET>();
+            const auto& mask_shape = inputs[3]->get_shape();
+            runtime::reference::deformable_convolution<typename element_type_traits<ET>::value_type>(
+                    in_data_ptr,
+                    offset_data_ptr,
+                    filter_data_ptr,
+                    mask_data_ptr,
+                    out_data_ptr,
+                    in_shape,
+                    offset_shape,
+                    filter_shape,
+                    mask_shape,
+                    out_shape,
+                    op->get_strides(),
+                    op->get_dilations(),
+                    op->get_pads_begin(),
+                    op->get_pads_end(),
+                    op->get_group(),
+                    op->get_deformable_group(),
+                    op->get_bilinear_interpolation_pad());
+        }
         return true;
     }
 
@@ -1173,7 +1227,7 @@ namespace
                                                 info.selected_outputs_shape,
                                                 selected_indices.data(),
                                                 info.selected_indices_shape,
-                                                valid_outputs.data());                                                  
+                                                valid_outputs.data());
 
         void* pscores = nullptr;
         void* pselected_num = nullptr;
@@ -1554,24 +1608,6 @@ namespace
     }
 
     template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v1::Select>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-
-        runtime::reference::select<T>(inputs[0]->get_data_ptr<const char>(),
-                                      inputs[1]->get_data_ptr<const T>(),
-                                      inputs[2]->get_data_ptr<const T>(),
-                                      outputs[0]->get_data_ptr<T>(),
-                                      op->get_input_shape(0),
-                                      op->get_input_shape(1),
-                                      op->get_input_shape(2),
-                                      op->get_auto_broadcast());
-        return true;
-    }
-
-    template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v1::AvgPool>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
@@ -1934,13 +1970,25 @@ namespace
                              const HostTensorVector& outputs,
                              const HostTensorVector& inputs)
         {
-            using TI = typename element_type_traits<ti>::value_type;
-            using TO = typename element_type_traits<to>::value_type;
-            runtime::reference::convert<TI, TO>(inputs[0]->get_data_ptr<TI>(),
-                                                outputs[0]->get_data_ptr<TO>(),
-                                                shape_size(inputs[0]->get_shape()));
-        }
+            outputs[0]->set_shape(inputs[0]->get_shape());
+            size_t element_count = shape_size(outputs[0]->get_shape());
 
+            if (((ti == element::u1) || (to == element::u1)) ||
+            ((ti == element::u4) || (to == element::u4)) ||
+            ((ti == element::i4) || (to == element::i4)))
+            {
+                runtime::reference::detail::lp_convert(inputs[0]->get_data_ptr<ti>(),
+                                                       outputs[0]->get_data_ptr<to>(),
+                                                       element_count,
+                                                       ti,
+                                                       to);
+            }
+            else
+            {
+                runtime::reference::convert(
+                    inputs[0]->get_data_ptr<ti>(), outputs[0]->get_data_ptr<to>(), element_count);
+            }
+        }
     } // namespace convert_like_v1
 
     template <element::Type_t OUT_ET>
@@ -1953,6 +2001,12 @@ namespace
         case element::Type_t::boolean:
             convert_like_v1::evaluate<element::Type_t::boolean, OUT_ET>(op, outputs, inputs);
             break;
+        case element::Type_t::u1:
+            convert_like_v1::evaluate<element::Type_t::u1, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u4:
+            convert_like_v1::evaluate<element::Type_t::u4, OUT_ET>(op, outputs, inputs);
+            break;
         case element::Type_t::u8:
             convert_like_v1::evaluate<element::Type_t::u8, OUT_ET>(op, outputs, inputs);
             break;
@@ -1964,6 +2018,9 @@ namespace
             break;
         case element::Type_t::u64:
             convert_like_v1::evaluate<element::Type_t::u64, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i4:
+            convert_like_v1::evaluate<element::Type_t::i4, OUT_ET>(op, outputs, inputs);
             break;
         case element::Type_t::i8:
             convert_like_v1::evaluate<element::Type_t::i8, OUT_ET>(op, outputs, inputs);
@@ -2394,7 +2451,8 @@ namespace
                                              op->get_input_shape(2),
                                              op->get_input_shape(3),
                                              op->get_input_shape(4),
-                                             op->get_levels());
+                                             op->get_levels(),
+                                             op->get_auto_broadcast());
         return true;
     }
 
@@ -2469,7 +2527,7 @@ namespace
                     op->get_merge_repeated());
             }
         }
-    }
+    } // ctc_greedy_decoder_v6
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
                   const HostTensorVector& outputs,
@@ -2727,7 +2785,7 @@ namespace
     {
         using T = typename element_type_traits<ET>::value_type;
         NGRAPH_CHECK(inputs.size() > 1 && inputs[1]->get_shape().size() == 2,
-                        "2D tensor must be provided as second input. ");
+                     "2D tensor must be provided as second input. ");
         outputs[0]->set_shape({inputs[1]->get_shape()[0],
                                static_cast<size_t>(op->get_output_dim()),
                                static_cast<size_t>(op->get_group_size()),
@@ -2842,11 +2900,48 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
-                                              outputs[0]->get_data_ptr<T>(),
-                                              outputs[1]->get_data_ptr<int64_t>(),
-                                              inputs[0]->get_shape(),
-                                              op->get_output_shape(0));
+        if (op->get_index_element_type() == element::i32) {
+            runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  outputs[1]->get_data_ptr<int32_t>(),
+                                                  inputs[0]->get_shape(),
+                                                  op->get_output_shape(0));
+        } else if (op->get_index_element_type() == element::i64) {
+            runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  outputs[1]->get_data_ptr<int64_t>(),
+                                                  inputs[0]->get_shape(),
+                                                  op->get_output_shape(0));
+        }
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v8::Gather>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs) {
+        using T = typename element_type_traits<ET>::value_type;
+        if (op->get_input_element_type(1) == element::i64) {
+            runtime::reference::gather<T, int64_t>(inputs[0]->get_data_ptr<T>(),
+                                                   inputs[1]->get_data_ptr<int64_t>(),
+                                                   outputs[0]->get_data_ptr<T>(),
+                                                   op->get_input_shape(0),
+                                                   op->get_input_shape(1),
+                                                   op->get_output_shape(0),
+                                                   op->get_axis(),
+                                                   op->get_batch_dims());
+        } else if (op->get_input_element_type(1) == element::i32) {
+            runtime::reference::gather<T, int32_t>(inputs[0]->get_data_ptr<T>(),
+                                                   inputs[1]->get_data_ptr<int32_t>(),
+                                                   outputs[0]->get_data_ptr<T>(),
+                                                   op->get_input_shape(0),
+                                                   op->get_input_shape(1),
+                                                   op->get_output_shape(0),
+                                                   op->get_axis(),
+                                                   op->get_batch_dims());
+        } else {
+            throw ngraph_error("Unexpected indices type for Gather operation");
+        }
         return true;
     }
 
@@ -2856,21 +2951,21 @@ namespace
                        const HostTensorVector& inputs)
     {
         auto element_type = node->get_output_element_type(0);
-        if (is_type<op::v1::Select>(node))
+        if (ov::is_type<op::v1::Select>(node))
         {
             element_type = node->get_input_element_type(1);
         }
-        else if (is_type<op::v0::PriorBox>(node))
+        else if (ov::is_type<op::v0::PriorBox>(node))
         {
             element_type = node->get_input_element_type(0);
         }
         for (size_t i = 1; i < node->outputs().size(); i++)
         {
-            if ((is_type<op::v5::NonMaxSuppression>(node) ||
-                 is_type<op::v8::MulticlassNms>(node) ||
-                 is_type<op::v8::MatrixNms>(node) ||
-                 is_type<op::v6::ExperimentalDetectronDetectionOutput>(node) ||
-                 is_type<op::v8::AdaptiveMaxPool>(node)) &&
+            if ((ov::is_type<op::v5::NonMaxSuppression>(node) ||
+                 ov::is_type<op::v8::MulticlassNms>(node) ||
+                 ov::is_type<op::v8::MatrixNms>(node) ||
+                 ov::is_type<op::v6::ExperimentalDetectronDetectionOutput>(node) ||
+                 ov::is_type<op::v8::AdaptiveMaxPool>(node)) &&
                  i == 1)
             {
                 continue;
@@ -2879,31 +2974,37 @@ namespace
         switch (element_type)
         {
         case element::Type_t::boolean:
-            return evaluate<element::Type_t::boolean>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::boolean>(ov::as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::bf16:
-            return evaluate<element::Type_t::bf16>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::bf16>(ov::as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::f16:
-            return evaluate<element::Type_t::f16>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::f16>(ov::as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::f64:
-            return evaluate<element::Type_t::f64>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::f64>(ov::as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::f32:
-            return evaluate<element::Type_t::f32>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::f32>(ov::as_type_ptr<T>(node), outputs, inputs);
+        case element::Type_t::i4:
+            return evaluate<element::Type_t::i4>(ov::as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::i8:
-            return evaluate<element::Type_t::i8>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::i8>(ov::as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::i16:
-            return evaluate<element::Type_t::i16>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::i16>(ov::as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::i32:
-            return evaluate<element::Type_t::i32>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::i32>(ov::as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::i64:
-            return evaluate<element::Type_t::i64>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::i64>(ov::as_type_ptr<T>(node), outputs, inputs);
+        case element::Type_t::u1:
+            return evaluate<element::Type_t::u1>(ov::as_type_ptr<T>(node), outputs, inputs);
+        case element::Type_t::u4:
+            return evaluate<element::Type_t::u4>(ov::as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::u8:
-            return evaluate<element::Type_t::u8>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::u8>(ov::as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::u16:
-            return evaluate<element::Type_t::u16>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::u16>(ov::as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::u32:
-            return evaluate<element::Type_t::u32>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::u32>(ov::as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::u64:
-            return evaluate<element::Type_t::u64>(as_type_ptr<T>(node), outputs, inputs);
+            return evaluate<element::Type_t::u64>(ov::as_type_ptr<T>(node), outputs, inputs);
         default:
             throw ngraph_error(std::string("Unhandled data type ") +
                                node->get_element_type().get_type_name() +

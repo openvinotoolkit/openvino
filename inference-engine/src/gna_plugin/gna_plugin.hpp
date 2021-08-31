@@ -114,8 +114,12 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;
-    InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& params) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const InferenceEngine::ParamMap&) override { THROW_GNA_EXCEPTION << "Not implemented"; }
+    std::shared_ptr<InferenceEngine::IRemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
+    std::shared_ptr<InferenceEngine::IRemoteContext> GetDefaultContext(const InferenceEngine::ParamMap&) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
 
     void Wait(uint32_t sync, InferenceEngine::Blob &result) { THROW_GNA_EXCEPTION << "Not implemented"; }
 
@@ -126,7 +130,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& networkModel,
-                                                     const InferenceEngine::RemoteContext::Ptr& context,
+                                                     const std::shared_ptr<InferenceEngine::IRemoteContext>& context,
                                                      const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
@@ -209,6 +213,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void UpdateFieldsFromConfig();
     void UpdateGnaQuantModeFromNetwork(InferenceEngine::CNNNetwork &);
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork &);
+    void UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork &);
     /**
      * @brief Tries to init an output on the base of a layer data
      * @param portId output port identificator

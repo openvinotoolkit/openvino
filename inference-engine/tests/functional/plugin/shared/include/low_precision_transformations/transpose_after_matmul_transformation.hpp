@@ -13,7 +13,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     bool,
@@ -27,9 +27,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

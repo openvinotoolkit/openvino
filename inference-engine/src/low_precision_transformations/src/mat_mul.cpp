@@ -9,6 +9,9 @@
 #include <string>
 #include <vector>
 
+#include <ngraph/pattern/op/or.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
@@ -16,29 +19,47 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-bool MatMulTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
-    std::shared_ptr<opset1::MatMul> matMul = as_type_ptr<opset1::MatMul>(m.get_match_root());
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MatMulTransformation, "MatMulTransformation", 0);
+
+MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransformation(params) {
+    auto mul1 = pattern::wrap_type<opset1::Multiply>();
+    auto mul2 = pattern::wrap_type<opset1::Multiply>();
+    auto fq2 = pattern::wrap_type<opset1::FakeQuantize>();
+    auto matcher = pattern::wrap_type<opset1::MatMul>({ mul1, std::make_shared<pattern::op::Or>(OutputVector{ mul2, fq2 })});
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MatMulTransformation");
+    this->register_matcher(m, callback);
+}
+
+bool MatMulTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
+    std::shared_ptr<opset1::MatMul> matMul = ov::as_type_ptr<opset1::MatMul>(m.get_match_root());
     if ((matMul == nullptr) || !canBeTransformed(context, matMul)) {
         return false;
     }
 
-    matMul = as_type_ptr<opset1::MatMul>(NetworkHelper::separateInStandaloneBranch(matMul));
-    if (!support3DTensorOnActivations) {
-        const auto inputRank = matMul->get_input_partial_shape(0).rank();
-        if (inputRank.is_dynamic() || inputRank.get_length() == 3) {
-            return false;
-        }
-    }
-
+    matMul = ov::as_type_ptr<opset1::MatMul>(NetworkHelper::separateInStandaloneBranch(matMul));
     const auto dequantization1 = NetworkHelper::getDequantization(matMul, 0);
     auto dequantization2 = NetworkHelper::getDequantization(matMul, 1);
 
     if (dequantization2.empty()) {
         const std::shared_ptr<opset1::FakeQuantize> fakeQuantize =
-            as_type_ptr<opset1::FakeQuantize>(dequantization2.data.get_node_shared_ptr());
+            ov::as_type_ptr<opset1::FakeQuantize>(dequantization2.data.get_node_shared_ptr());
         if (fakeQuantize != nullptr) {
             const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
-            const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, true);
+
+            const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttributePtr>(fakeQuantize);
+            const auto precisions = precisionsAttribute == nullptr ?
+                PrecisionsAttribute::defaultPrecisions :
+                precisionsAttribute->get()->sharedValue->precisions;
+            const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
 
             auto tuple = NetworkHelper::decomposeFakeQuantize(
                 fakeQuantize,
@@ -69,11 +90,14 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
     // dequantization with subtract on activations & constant weights
     if (dequantization1.subtract) {
-        auto broadcastShape = NetworkHelper::isScalarLike(as_type_ptr<opset1::Constant>(dequantization1.subtractConstant)) ?
+        auto broadcastShape = NetworkHelper::isScalarLike(ov::as_type_ptr<opset1::Constant>(dequantization1.subtractConstant)) ?
             Shape(dequantization1.subtract->get_output_partial_shape(0).rank().get_length(), 1) :
             dequantization1.subtractConstant->get_shape();
 
-        const auto weightsShape = newMatMul->get_input_shape(1);
+        const auto weightsPShape = newMatMul->get_input_partial_shape(1);
+        assert(weightsPShape.is_static());
+        const auto weightsShape = weightsPShape.to_shape();
+
         const size_t firstWeightsIdx = matMul->get_transpose_b() ? weightsShape.size() - 1ul : weightsShape.size() - 2ul;
         const size_t lastDataIdx = matMul->get_transpose_a() ? broadcastShape.size() - 2 : broadcastShape.size() - 1;
         broadcastShape[lastDataIdx] = weightsShape[firstWeightsIdx];
@@ -97,8 +121,8 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         parent = newSubtract;
     }
 
-    auto transpose = [](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
-        const Shape outputShape = node->get_output_shape(0);
+    auto transpose = [](const std::shared_ptr<opset1::Constant>& node) -> std::shared_ptr<Node> {
+        const Shape outputShape = node->get_shape();
         if (outputShape.size() < 2ul) {
             return node;
         }
@@ -115,8 +139,8 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     const auto mulConst1 = matMul->get_transpose_a() ? transpose(dequantization1.multiplyConstant) : dequantization1.multiplyConstant;
     auto mulConst2 = matMul->get_transpose_b() ? transpose(dequantization2.multiplyConstant) : dequantization2.multiplyConstant;
 
-    if (NetworkHelper::isScalarLike(as_type_ptr<opset1::Constant>(mulConst2))) {
-        mulConst2 = NetworkHelper::toScalar(as_type_ptr<opset1::Constant>(mulConst2));
+    if (NetworkHelper::isScalarLike(ov::as_type_ptr<opset1::Constant>(mulConst2))) {
+        mulConst2 = NetworkHelper::toScalar(ov::as_type_ptr<opset1::Constant>(mulConst2));
     } else {
         const auto constShape = mulConst2->get_shape();
         const size_t inputRank = matMul->get_input_partial_shape(0).rank().get_length();
@@ -132,7 +156,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         }
     }
 
-    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<ngraph::opset1::Multiply>(
+    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<opset1::Multiply>(
             mulConst1,
             foldConvert(mulConst2, element::f32)));
 
@@ -147,25 +171,18 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     replace_node(matMul, newMultiply);
     copy_runtime_info({ newMultiply, matMul }, newMultiply);
 
-    updateOutput(context, newMultiply, matMul);
+    updateOutput(context, newMultiply, newMatMul);
 
     return true;
 }
 
-void MatMulTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::MatMul>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>() }));
-
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::MatMul>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>() }));
-}
-
 bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
     return false;
+}
+
+bool MatMulTransformation::is3DTensorOnActivations(const std::shared_ptr<const Node>& node) {
+    const auto inputDataRank = node->get_input_partial_shape(0).rank();
+    return inputDataRank.is_dynamic() || inputDataRank.get_length() == 3;
 }
 
 bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
@@ -177,7 +194,7 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
-    std::shared_ptr<opset1::MatMul> matMul = as_type_ptr<opset1::MatMul>(layer);
+    std::shared_ptr<opset1::MatMul> matMul = ov::as_type_ptr<opset1::MatMul>(layer);
     if (matMul == nullptr) {
         return false;
     }
@@ -204,6 +221,8 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         if (!NetworkHelper::checkZeroPoint(dequantization1.subtract)) {
             return false;
         }
+    } else {
+        return false;
     }
 
     const auto dequantization2 = NetworkHelper::getDequantization(layer, 1);
@@ -233,14 +252,20 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         }
     }
 
-    const auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
+    const auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
     if (fakeQuantize) {
         if (!QuantizationDetails::outputLayoutIsSupported(fakeQuantize)) {
             return false;
         }
 
         const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
-        const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, true);
+
+        const auto precisionsAttribute = getAttribute<PrecisionsAttributePtr>(matMul->input(1));
+        const auto precisions = precisionsAttribute == nullptr ?
+            PrecisionsAttribute::defaultPrecisions :
+            precisionsAttribute->get()->sharedValue->precisions;
+
+        const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
         if (dataPrecision.hasZeroPoint) {
             return false;
         }
@@ -257,6 +282,10 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
             ((outHighShape.size() == rank) && (outHighShape[rowsIdx] != 1))) {
             return false;
         }
+    }
+
+    if (!fakeQuantize && dequantization2.empty()) {
+        return false;
     }
 
     if ((!NetworkHelper::isConstantPath(layer->get_input_node_shared_ptr(1))) && (dequantization1.subtract)) {

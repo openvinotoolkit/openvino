@@ -11,7 +11,7 @@ target_link_libraries(cpuSpecificRtInfo PRIVATE ngraph)
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin)
 set(DEPENDENCIES MKLDNNPlugin AutoPlugin)
 set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo)
-if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND INCLUDES "${OpenVINO_SOURCE_DIR}/docs/onnx_custom_op")
     list(APPEND LINK_LIBRARIES onnx_custom_op)
     list(APPEND DEPENDENCIES template_extension onnx_custom_op)
@@ -30,3 +30,5 @@ addIeTargetTest(
         LABELS
             CPU
 )
+
+set_ie_threading_interface_for(${TARGET_NAME})

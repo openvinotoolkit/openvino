@@ -49,7 +49,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         groupConvBackpropDataLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;

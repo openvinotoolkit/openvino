@@ -15,6 +15,8 @@ const std::vector<std::vector<int>> indices_4D = {
 };
 
 const std::vector<std::vector<int>> indices_3D = {
+        {2},
+        {0, 2},
         {1, 2},     // equivalent MVN-1 across_channel=0
         {0, 1, 2}   // equivalent MVN-1 across_channel=1
 };

@@ -7,10 +7,6 @@ cmake_policy(SET CMP0054 NEW)
 # TODO: fix it
 set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
 
-if(CMAKE_CROSSCOMPILING)
-    set(CMAKE_STAGING_PREFIX "${TEMP}")
-endif()
-
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
     branchName(MODELS_BRANCH)
 else()
@@ -315,25 +311,25 @@ if(ENABLE_SPEECH_DEMO)
     if(DEFINED IE_PATH_TO_DEPS)
         if(WIN32 AND X86_64)
             RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_WIN "speech_demo_1.0.0.774_windows.zip"
+                    ARCHIVE_WIN "speech_demo_1.0.0.780_windows.zip"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.774"
-                    SHA256 "67b25170be5e89a4f0e90e8b39623b60c9a15b965c30329385e295fcd2edc856")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.780"
+                    SHA256 "957bd274a1f6dc1d83a46879c7ef3b3b06f17d11af85cc45c18919051d145abd")
             debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
         elseif(LINUX AND X86_64)
             if(LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.774_centos.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.780_centos.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.774"
-                    SHA256 "5ec3b7be9ae05376aefae5bd5fd4a39b12c274e82817fd3218120b8e8fc8ff5a")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.780"
+                    SHA256 "6d8d1111d0e662fe71d71cd3debad2995f6fb6fe5df3b92196dae06ff7abdf44")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             else()
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.774_linux.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.780_linux.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.774"
-                    SHA256 "f0bbd0a6218b0365e7cfb1f860b34e4ace7e0d47dd60b369cdea8a480329810f")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.780"
+                    SHA256 "0ec6f1e47c00d781dc918af5d3055ab474ff47b9978dd6fe2add73e3339b0763")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             endif()
         else()

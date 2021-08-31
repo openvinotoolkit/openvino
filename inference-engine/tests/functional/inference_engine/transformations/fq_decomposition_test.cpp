@@ -56,7 +56,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         FakeQuantizeDecompositionBasicParams basic_params;
         std::pair<float, float> input_ranges_values;
         bool should_be_decompos;

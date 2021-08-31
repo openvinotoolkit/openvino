@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../shared/include/basic_api.hpp"
+#include "basic_api.hpp"
+
+#include "paddle_utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
-
-static const std::string PDPD = "pdpd";
 
 using PDPDBasicTest = FrontEndBasicTest;
 
@@ -21,8 +21,8 @@ static const std::vector<std::string> models{
 };
 
 INSTANTIATE_TEST_SUITE_P(PDPDBasicTest,
-                        FrontEndBasicTest,
-                        ::testing::Combine(::testing::Values(PDPD),
-                                           ::testing::Values(std::string(TEST_PDPD_MODELS)),
-                                           ::testing::ValuesIn(models)),
-                        FrontEndBasicTest::getTestCaseName);
+                         FrontEndBasicTest,
+                         ::testing::Combine(::testing::Values(PADDLE_FE),
+                                            ::testing::Values(std::string(TEST_PADDLE_MODELS_DIRNAME)),
+                                            ::testing::ValuesIn(models)),
+                         FrontEndBasicTest::getTestCaseName);

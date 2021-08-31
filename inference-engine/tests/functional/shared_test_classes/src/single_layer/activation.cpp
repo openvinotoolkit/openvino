@@ -84,6 +84,12 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
             resolution = 32768;
             break;
         }
+        case ngraph::helpers::ActivationTypes::Acosh: {
+            data_start_from = 1;
+            data_range = 200;
+            resolution = 32768;
+            break;
+        }
         case ngraph::helpers::ActivationTypes::Ceiling: {
             data_start_from = -1000;
             data_range = 2000;

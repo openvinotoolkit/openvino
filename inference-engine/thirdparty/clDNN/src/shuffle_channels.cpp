@@ -62,7 +62,7 @@ std::string shuffle_channels_inst::to_string(shuffle_channels_node const& node) 
     return primitive_description.str();
 }
 
-shuffle_channels_inst::typed_primitive_inst(network_impl& network, shuffle_channels_node const& node)
+shuffle_channels_inst::typed_primitive_inst(network& network, shuffle_channels_node const& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

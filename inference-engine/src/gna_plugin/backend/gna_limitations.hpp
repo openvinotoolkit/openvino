@@ -7,6 +7,7 @@
 #include "dnn_types.h"
 #include <cstdint>
 #include <cpp/ie_cnn_network.h>
+#include <ie_algorithm.hpp>
 
 namespace GNAPluginNS {
 namespace GNALimitations {
@@ -16,12 +17,26 @@ constexpr uint32_t bufferMaxSize = 65528;
 constexpr uint32_t convMinFiltersNum = 4;
 constexpr uint32_t convMaxFiltersNum = 65532;
 constexpr uint32_t convFiltersNumDivider = 4;
+constexpr uint32_t convFilterSizeDivider = 8;
 constexpr uint32_t convFilterMaxSize = 768;
 constexpr uint32_t convEachKernelByteAlignment = 16;
 constexpr uint32_t noOfInputsDivisor = 8;
 constexpr uint32_t noOfInputsLowPrecDivisor = 16;
 
 constexpr uint32_t affineMaxBatchSize = 8;
+
+constexpr uint32_t maxPoolMaxWindowSize = 6;
+constexpr uint32_t copyMaxGrouping = 8;
+constexpr uint32_t transposeMaxSize = 65528;
+
+inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
+    auto shape_no_1 = shape;
+    shape_no_1.erase(std::remove(shape_no_1.begin(), shape_no_1.end(), 1), shape_no_1.end());
+    if (shape_no_1.size() != 2) return false;
+    size_t min, max;
+    std::tie(min, max) = std::minmax(shape_no_1[0], shape_no_1[1]);
+    return min <= 8 && max % 8 == 0 && max >= 8 && max <= transposeMaxSize;
+}
 
 namespace Cnn2D {
 struct RangeLimit {
@@ -86,6 +101,8 @@ class Validator {
 
     static void ThrowIfNotEmpty(const std::string prefix, const std::string error);
 public:
+    Validator() = default;
+
     void ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
         const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
         const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision) const;
@@ -97,6 +114,11 @@ public:
 } // namespace Cnn2D
 
 bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
+
+inline size_t GetMinBatchToFitInBuffer(InferenceEngine::DataPtr input) {
+    auto total_size = InferenceEngine::details::product(std::begin(input->getDims()), std::end(input->getDims()));
+    return total_size / bufferMaxSize + 1;
+}
 
 } // namespace GNALimitations
 } // namespace GNAPluginNS

@@ -30,13 +30,11 @@ std::shared_ptr<ngraph::Function> TransposeFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> TransposeFunction::getOriginal(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const std::vector<int>& transposeConstValues,
     const ngraph::element::Type precisionBeforeFq,
     const FakeQuantizeOnData& fqOnData) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeFq,
-        ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeFq, inputShape);
 
     const std::shared_ptr<Node> quantizationOp = fqOnData.empty() ?
         std::dynamic_pointer_cast<ngraph::Node>(input) :

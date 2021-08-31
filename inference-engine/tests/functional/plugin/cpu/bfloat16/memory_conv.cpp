@@ -32,7 +32,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         SizeVector ie_shape;
         std::tie(inPrc, ie_shape, targetDevice) = this->GetParam();
 

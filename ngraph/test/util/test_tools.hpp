@@ -20,12 +20,11 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "ngraph/node.hpp"
 #include "runtime/backend.hpp"
 
 namespace ngraph
 {
-    class Node;
-    class Function;
     class TestOpMultiOut : public op::Op
     {
     public:
@@ -53,7 +52,7 @@ namespace ngraph
         bool evaluate(const HostTensorVector& outputs,
                       const HostTensorVector& inputs) const override;
     };
-}
+} // namespace ngraph
 
 bool validate_list(const std::vector<std::shared_ptr<ngraph::Node>>& nodes);
 std::shared_ptr<ngraph::Function> make_test_graph();

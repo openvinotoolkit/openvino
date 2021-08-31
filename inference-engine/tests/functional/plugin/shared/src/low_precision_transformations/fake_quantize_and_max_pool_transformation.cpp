@@ -18,7 +18,7 @@ namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeAndMaxPoolTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeAndMaxPoolTransformationParams> obj) {
     ngraph::element::Type precision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
@@ -29,7 +29,7 @@ std::string FakeQuantizeAndMaxPoolTransformation::getTestCaseName(testing::TestP
 
 void FakeQuantizeAndMaxPoolTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShape, targetDevice, params, fakeQuantize) = this->GetParam();
@@ -40,26 +40,6 @@ void FakeQuantizeAndMaxPoolTransformation::SetUp() {
         fakeQuantize);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    validate();
-}
-
-void FakeQuantizeAndMaxPoolTransformation::validate() {
-    ngraph::element::Type precision;
-    ngraph::Shape inputShapes;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
-    std::tie(precision, inputShapes, targetDevice, params, fakeQuantize) = this->GetParam();
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-    EXPECT_EQ(1ul, transformed->get_output_size());
-
-    const auto output = transformed->get_output_op(0);
-    const auto scaleShift = output->get_input_node_shared_ptr(0);
-    ASSERT_FALSE(scaleShift == nullptr);
-
-    const std::string typeName = scaleShift->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(FakeQuantizeAndMaxPoolTransformation, CompareWithRefImpl) {

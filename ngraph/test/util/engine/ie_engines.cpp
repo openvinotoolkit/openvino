@@ -6,7 +6,6 @@
 
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "pass/opset1_upgrade.hpp"
 #include "shared_utils.hpp"
 
 using namespace ngraph;
@@ -178,7 +177,6 @@ namespace
 test::IE_Engine::IE_Engine(const std::shared_ptr<Function> function, const char* device)
     : m_function{function}
 {
-    upgrade_and_validate_function(m_function);
     const auto cnn_network = InferenceEngine::CNNNetwork(m_function);
     m_network_inputs = cnn_network.getInputsInfo();
     m_network_outputs = cnn_network.getOutputsInfo();
@@ -200,7 +198,7 @@ void test::IE_Engine::infer()
     if (m_network_inputs.size() != m_allocated_inputs)
     {
         IE_THROW() << "The tested graph has " << m_network_inputs.size() << " inputs, but "
-                           << m_allocated_inputs << " were passed.";
+                   << m_allocated_inputs << " were passed.";
     }
     else
     {
@@ -294,26 +292,6 @@ testing::AssertionResult
     return comparison_result;
 }
 
-std::shared_ptr<Function>
-    test::IE_Engine::upgrade_and_validate_function(const std::shared_ptr<Function> function) const
-{
-    pass::Manager passes;
-    passes.register_pass<pass::Opset1Upgrade>();
-    passes.run_passes(function);
-
-    static std::set<NodeTypeInfo> ie_ops = get_ie_ops();
-    for (const auto& node : function->get_ops())
-    {
-        if (ie_ops.find(node->get_type_info()) == ie_ops.end())
-        {
-            IE_THROW() << "Unsupported operator detected in the graph: "
-                               << node->get_type_info().name;
-        }
-    }
-
-    return function;
-}
-
 std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
 {
     std::set<NodeTypeInfo> ie_ops = get_opset1().get_type_info_set();
@@ -329,6 +307,8 @@ std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
     ie_ops.insert(opset6.begin(), opset6.end());
     const auto& opset7 = get_opset7().get_type_info_set();
     ie_ops.insert(opset7.begin(), opset7.end());
+    const auto& opset8 = get_opset8().get_type_info_set();
+    ie_ops.insert(opset8.begin(), opset8.end());
     return ie_ops;
 }
 
@@ -341,8 +321,8 @@ void test::IE_Engine::reset()
 
 namespace InferenceEngine
 {
-// Without this section the linker is not able to find destructors for missing TBlob specializations
-// which are instantiated in the unit tests that use TestCase and this engine
+    // Without this section the linker is not able to find destructors for missing TBlob
+    // specializations which are instantiated in the unit tests that use TestCase and this engine
     template <typename T, typename U>
     TBlob<T, U>::~TBlob()
     {

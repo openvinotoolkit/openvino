@@ -12,7 +12,7 @@ if(CMAKE_COMPILER_IS_GNUCC)
     endif()
 endif()
 
-if(GPU_DEBUG_CONFIG)
+if(ENABLE_GPU_DEBUG_CAPS)
   add_definitions(-DGPU_DEBUG_CONFIG=1)
 endif()
 

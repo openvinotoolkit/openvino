@@ -11,11 +11,12 @@ from extensions.front.TransposeOrderNormalizer import TransposeOrderNormalizer
 from extensions.front.split_normalizer import SqueezeAxis
 from extensions.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
 from extensions.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
-from extensions.front.tf.KerasRNNTransformation import KerasRNNInputSlicing, KerasRNNOutputConcatenation
+from extensions.front.tf.MapFNTransformation import MapFNInputSlicing, MapFNOutputConcatenation
 from extensions.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
 from extensions.front.tf.pad_tf_to_pad import PadTFToPad
 from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
     mark_input_as_in_correct_layout, mark_output_as_in_correct_layout
+from extensions.ops.Cast import Cast
 from extensions.ops.DetectionOutput import DetectionOutput
 from extensions.ops.ReduceOps import ReduceMean
 from extensions.ops.activation_ops import Sigmoid
@@ -25,17 +26,21 @@ from extensions.ops.parameter import Parameter
 from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
 from extensions.ops.proposal import ProposalOp
 from extensions.ops.psroipooling import PSROIPoolingOp
+from extensions.ops.split import Split
 from extensions.ops.transpose import Transpose
 from mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.extractor import output_user_data_repack, add_output_ops
 from mo.front.subgraph_matcher import SubgraphMatch
+from mo.front.tf.custom_subgraph_call import skip_nodes_by_condition
 from mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
     mark_squeeze_reshape_concat_before_detection_output, add_fake_background_loc, create_op_node_with_second_input, \
     create_op_with_const_inputs
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph, Node
+from mo.middle.passes.convert_data_type import data_type_str_to_np
+from mo.ops.clamp import AttributedClamp
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.crop import Crop
@@ -45,9 +50,12 @@ from mo.ops.result import Result
 from mo.ops.roipooling import ROIPooling
 from mo.ops.shape import Shape
 from mo.ops.softmax import Softmax
+from mo.ops.squeeze import Squeeze
+from mo.ops.tile import Tile
 from mo.utils.error import Error
 from mo.utils.graph import backward_bfs_for_operation, bfs_search, clear_tensor_names_info, sub_graph_between_nodes
 from mo.utils.pipeline_config import PipelineConfig
+from mo.utils.shape import node_to_get_shape_value_of_indices
 
 missing_param_error = 'To convert the model specify path to the pipeline configuration file which was used to ' \
                       'generate the model. Please use "--tensorflow_object_detection_api_pipeline_config" option:\n' \
@@ -346,12 +354,6 @@ def swap_weights_xy(graph: Graph, nodes: list):
                 insert_weights_swap_xy_sub_graph(graph, m.in_port(1).get_connection())
 
 
-def skip_nodes_by_condition(current_node: Node, condition: callable):
-    while condition(current_node):
-        current_node = current_node.in_node()
-    return current_node
-
-
 def calculate_shape_keeping_aspect_ratio(height: int, width: int, min_size: int, max_size: int,
                                          pad_to_max_dimension: bool = False):
     """
@@ -529,7 +531,7 @@ class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
         # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
         # results in TransposeOrderNormalizer transformation failure.
         return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, TFSliceToSliceReplacer,
-                KerasRNNOutputConcatenation, KerasRNNInputSlicing]
+                MapFNOutputConcatenation, MapFNInputSlicing]
 
     def find_and_replace_pattern(self, graph: Graph):
         pass
@@ -1079,6 +1081,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
     """
     replacement_id = 'ObjectDetectionAPIProposalReplacement'
     run_not_recursively = True
+    matched_input_nodes_to_keep = 2  # number of matched input nodes to keep
 
     def run_after(self):
         return [ObjectDetectionAPIPreprocessorReplacement, ObjectDetectionAPIPreprocessor2Replacement]
@@ -1091,9 +1094,9 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 
     def nodes_to_remove(self, graph: Graph, match: SubgraphMatch):
         new_list = match.matched_nodes_names().copy()
-        # do not remove nodes that produce box predictions and class predictions
-        new_list.remove(match.single_input_node(0)[0].id)
-        new_list.remove(match.single_input_node(1)[0].id)
+        # do not remove nodes that produce box predictions and class predictions and optionally generated anchors
+        for port in range(self.matched_input_nodes_to_keep):
+            new_list.remove(match.single_input_node(port)[0].id)
         return new_list
 
     def generate_sub_graph(self, graph: Graph, match: SubgraphMatch):
@@ -1101,6 +1104,11 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         if argv.tensorflow_object_detection_api_pipeline_config is None:
             raise Error(missing_param_error)
         pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
+
+        # the transformation configuration file specifies what operations should be included with this transformation
+        if match.custom_replacement_desc.custom_attributes.get('operation_to_add', 'Proposal') == 'DetectionOutput':
+            self.matched_input_nodes_to_keep = 3  # keep the third input with prior boxes (anchors)
+            return self.insert_detection_output_instead_of_proposal(graph, match, pipeline_config)
 
         max_proposals = _value_or_raise(match, pipeline_config, 'first_stage_max_proposals')
         proposal_ratios = _value_or_raise(match, pipeline_config, 'anchor_generator_aspect_ratios')
@@ -1185,14 +1193,175 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 
         proposal_node = proposal_op.create_node([reshape_permute_node, anchors_node, input_with_image_size_node],
                                                 dict(name='proposals'))
-
         # models with use_matmul_crop_and_resize = True should not swap order of elements (YX to XY) after the Proposal
         swap_proposals = not match.custom_replacement_desc.custom_attributes.get('do_not_swap_proposals', False) and \
                          not pipeline_config.get_param('use_matmul_crop_and_resize')
-
         if swap_proposals:
             proposal_node = add_convolution_to_swap_xy_coordinates(graph, proposal_node, 5)
 
+        return {'proposal_node': ObjectDetectionAPIProposalReplacement.ie_to_tf_proposals(graph, proposal_node, match,
+                                                                                          max_proposals,
+                                                                                          swap_proposals)}
+
+    @staticmethod
+    def insert_detection_output_instead_of_proposal(graph: Graph, match: SubgraphMatch,
+                                                    pipeline_config: PipelineConfig):
+        """
+        The function inserts DetectionOutput operation instead of Proposal operation which may result in an increase of
+        the accuracy for some models. The function is enabled with the custom attribute "operation_to_insert" with
+        value "DetectionOutput" in the transformation configuration file section for the
+        "ObjectDetectionAPIProposalReplacement" transformation. However, this transformation should not be applied in
+        case when an input image should be scaled before feeding the IR because the DetectionOutput operation does not
+        have information about the original input image size, whilst the Proposal operation has an input which contains
+        this information.
+        :param graph: the graph to operate on
+        :param match: the object containing information about the matched sub-graph
+        :param pipeline_config: object containing information from the pipeline.config file of the model
+        :return: the dictionary with mapping information needed for other transformations
+        """
+        max_proposals = _value_or_raise(match, pipeline_config, 'first_stage_max_proposals')
+
+        # Convolution/matmul node that produces classes predictions
+        # Transpose result of the tensor with classes permissions so it will be in a correct layout for Softmax
+        predictions_nodes = backward_bfs_for_operation(match.single_input_node(1)[0], ['Add'])
+        assert len(predictions_nodes) >= 1, 'Expected to find nodes of type "Add" starting from the node "{}" in ' \
+                                            'backward direction'.format(match.single_input_node(1)[0].id)
+        predictions_node = predictions_nodes[0]
+
+        # prepare input with class probabilities. The DetectionOutput operation which will consume this tensor as a
+        # second input expects probabilities to be normalized with SoftMax operation per each bounding box class. In
+        # order to do this we first reshape the tensor so the last dimension contain probability for 2 classes
+        # (background and foreground) for each bounding box. Before feeding this tensor to the DO operation the tensor
+        # is flattened to the shape [num_batches, num_classes * num_bounding_boxes]
+        reshape_classes_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1, 2]),
+                                                                dict(name='predictions/Reshape'))
+        # transpose from NCHW to NHWC will be inserted as input to the Reshape automatically. This is expected
+        predictions_node.out_port(0).disconnect()
+        predictions_node.out_port(0).connect(reshape_classes_node.in_port(0))
+        softmax_conf_node = Softmax(graph, dict(axis=2, name=reshape_classes_node.id + '/Softmax')).create_node([
+            reshape_classes_node])
+        flattened_conf = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
+                                                          dict(name=softmax_conf_node.name + '/Flatten'),
+                                                          softmax_conf_node)
+
+        # prepare input with box logits
+        boxes_logit = backward_bfs_for_operation(match.single_input_node(0)[0], ['Add'])[0]
+        reshape_box_logits = create_op_node_with_second_input(
+            graph, Reshape, int64_array([0, -1]), dict(name=boxes_logit.soft_get('name', boxes_logit.id) + '/Flatten'),
+            boxes_logit)
+
+        yxyx_anchors = match.single_input_node(2)[0]
+
+        variance_height = pipeline_config.get_param('frcnn_variance_height')
+        variance_width = pipeline_config.get_param('frcnn_variance_width')
+        variance_x = pipeline_config.get_param('frcnn_variance_x')
+        variance_y = pipeline_config.get_param('frcnn_variance_y')
+
+        # get the input image height and width to divide the anchors values by it
+        initial_input_node_name = 'input_tensor' if 'input_tensor' in graph.nodes else 'image_tensor'
+        if initial_input_node_name not in graph.nodes():
+            raise Error('Input node "{}" of the graph is not found. Do not run the Model Optimizer with '
+                        '"--input" command line parameter.'.format(initial_input_node_name))
+        parameter_node = Node(graph, initial_input_node_name)
+
+        input_shape = Shape(graph, {'name': parameter_node.name}).create_node([parameter_node])
+        input_image_hw = node_to_get_shape_value_of_indices(input_shape, [1, 2])  # NHWC layout
+        hwhw = create_op_with_const_inputs(graph, Tile, {1: int64_array([2])}, {'name': 'image_hwhw'}, input_image_hw)
+
+        hwhw_float = Cast(graph,
+                          {'dst_type': data_type_str_to_np(graph.graph['cmd_params'].data_type)}).create_node([hwhw])
+        scaled_anchors = Div(graph, {'name': 'scaled_anchors'}).create_node([yxyx_anchors, hwhw_float])
+
+        flattened_anchors = create_op_with_const_inputs(graph, Reshape, {1: int64_array([1, 1, -1])},
+                                                        {'name': 'flattened_anchors'}, scaled_anchors)
+        cropped_anchors = AttributedClamp(graph, {'min': 0.0, 'max': 1.0, 'name': 'clamped_xyxy',
+                                                  'nchw_layout': True}).create_node([flattened_anchors])
+        # the input tensor "scaled_anchors" for the "flattened_anchors" may be 4D. In order to avoid inserting Transpose
+        # operation mark the "flattened_anchors" with the correct data layout
+        mark_as_correct_data_layout(flattened_anchors)
+
+        # create tensor of shape [4] with variance values which then are tiled by the number of boxes which is obtained
+        # from the 'yxyx_anchors' node
+        variances = Const(graph, {'value': np.float32([1.0 / variance_x, 1.0 / variance_y, 1.0 / variance_width,
+                                                       1.0 / variance_height])}).create_node()
+
+        anchors_shape = Shape(graph, {'name': 'anchors_shape'}).create_node([yxyx_anchors])
+        anchors_count = node_to_get_shape_value_of_indices(anchors_shape, [0])
+        tiled_variances = Tile(graph, {'name': 'tiled_variances'}).create_node([variances, anchors_count])
+        reshaped_tiled_variances = create_op_with_const_inputs(graph, Reshape, {1: int64_array([1, 1, -1])},
+                                                               {'name': 'flattened_variances'}, tiled_variances)
+
+        # now we can merge actual anchors coordinates with a tensor with variances as it is expected by the
+        # DetectionOutput operation
+        duplicate_anchors = Concat(graph, {'axis': 1, 'name': 'anchors_with_variances'}).create_node(
+            [cropped_anchors, reshaped_tiled_variances])
+
+        do = DetectionOutput(graph,
+                             {'background_label_id': 0,
+                              'clip_after_nms': True,
+                              'clip_before_nms': False,
+                              'code_type': 'caffe.PriorBoxParameter.CENTER_SIZE',
+                              'confidence_threshold': 0.0,
+                              'decrease_label_id': False,
+                              'input_height': 1,
+                              'input_width': 1,
+                              'keep_top_k': max_proposals,
+                              'normalized': True,
+                              'num_classes': 2,
+                              'objectness_score': 0,
+                              'share_location': True,
+                              'top_k': 6000,
+                              'variance_encoded_in_target': False,
+                              'nms_threshold': _value_or_raise(match, pipeline_config, 'first_stage_nms_iou_threshold'),
+                              'name': 'first_do',
+                              }).create_node([reshape_box_logits, flattened_conf, duplicate_anchors])
+        # DetectionOutput output tensor has YXYX box coordinates order
+        # switch to 3D to avoid issues that part of the model with 4D shapes should be inferred in NCHW layout
+        do_3d = create_op_with_const_inputs(graph, Squeeze, {1: int64_array(0)}, {'name': do.name + '/SqueezeDO'}, do)
+        mark_as_correct_data_layout(do_3d)
+
+        # DetectionOutput output tensor produces a tensor of tuples with the following 7 elements:
+        # [batch_id, class_id, confidence, x1, y1, x2, y2]. Here we split the DetectionOutput result into the 7
+        # tensors with each of these elements for predictions. Then we crop predicted box coordinates (scaled) to be
+        # within [0, 1] range (as it is predicted in the TF model) and then combine tensors back to the Proposal
+        # operation output format: [batch_id, x1, y1, x2, y2].
+        do_split = create_op_node_with_second_input(graph, Split, int64_array(2), {'num_splits': 7, 'nchw_layout': True,
+                                                                                   'name': do.name + '/Split'}, do_3d)
+
+        xyxy_coord = Concat(graph, {'axis': -1, 'nchw_layout': True, 'in_ports_count': 4,
+                                    'name': do_split.name + '/xyxy'}).create_node()
+        # change output from YXYX to XYXY order
+        do_split.out_port(3).connect(xyxy_coord.in_port(1))
+        do_split.out_port(4).connect(xyxy_coord.in_port(0))
+        do_split.out_port(5).connect(xyxy_coord.in_port(3))
+        do_split.out_port(6).connect(xyxy_coord.in_port(2))
+
+        clamped_xyxy_coord = AttributedClamp(graph, {'min': 0.0, 'max': 1.0, 'name': 'clamped_xyxy',
+                                                     'nchw_layout': True}).create_node([xyxy_coord])
+
+        # prepare final proposal boxes [batch_id, x1, y1, x2, y2]
+        proposal_node = Concat(graph, {'axis': -1, 'nchw_layout': True,  'in_ports_count': 2,
+                                       'name': 'proposals'}).create_node()
+        do_split.out_port(0).connect(proposal_node.in_port(0))
+        clamped_xyxy_coord.out_port(0).connect(proposal_node.in_port(1))
+        return {'proposal_node': ObjectDetectionAPIProposalReplacement.ie_to_tf_proposals(graph, proposal_node, match,
+                                                                                          max_proposals, True)}
+
+    @staticmethod
+    def ie_to_tf_proposals(graph: Graph, proposal_node: Node, match: SubgraphMatch, max_proposals: int,
+                           swap_proposals: bool = False):
+        """
+        Builds a graph which converts the proposals data in IE format to the format of TensorFlow. This includes
+        swapping of XYXY to YXYX (if needed), and cropping the IE output of format [batch, x1, y1, x2, y2] to simply
+        [x1, y1, x2, y2] and reshaping tensor to an appropriate shape.
+
+        :param graph: the graph to operate on
+        :param proposal_node: the node producing IE proposals
+        :param match: the object containing information about matched sub-graph
+        :param max_proposals: maximum number of proposal boxes. Needed for the reshaping of the tensor
+        :param swap_proposals: flag to force swapping proposals for CropAndResize op
+        :return: the node producing output in the TF format.
+        """
         proposal_reshape_2d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 5]),
                                                                     dict(name="reshape_swap_proposals_2d"),
                                                                     proposal_node)
@@ -1225,7 +1394,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         tf_proposals_crop_reshape_3d_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1, 4]),
                                                                              dict(name="reshape_crop_3d"), crop_node)
         mark_input_as_in_correct_layout(tf_proposals_crop_reshape_3d_node, 0)
-        return {'proposal_node': tf_proposals_crop_reshape_3d_node}
+        return tf_proposals_crop_reshape_3d_node
 
 
 class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFileSubGraph):

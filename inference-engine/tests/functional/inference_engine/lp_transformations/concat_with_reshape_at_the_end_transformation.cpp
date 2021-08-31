@@ -12,9 +12,8 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <low_precision/transformer.hpp>
 #include <low_precision/concat.hpp>
-#include <low_precision/concat_multi_channels.hpp>
+#include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/max_pool.hpp>
 #include <low_precision/reshape.hpp>
 
@@ -56,7 +55,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationRes
 
 class ConcatTransformationTestValues {
 public:
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     ConcatTransformationActualValues actual;
     ConcatTransformationResultValues result;
 };
@@ -86,7 +85,8 @@ public:
             testValues.actual.fakeQuantize3);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, ngraph::opset1::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
         transform.add<ngraph::pass::low_precision::ReshapeTransformation, ngraph::opset1::Reshape>(testValues.params);
         transform.transform(actualFunction);
@@ -118,7 +118,7 @@ public:
 
 TEST_P(ConcatWithReshapeAtTheEndTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 

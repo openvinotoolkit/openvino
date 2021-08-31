@@ -32,14 +32,6 @@ ParamsKey GatherNDKernelRef::GetSupportedKey() const {
     return k;
 }
 
-static inline std::string GetOrderString(std::vector<std::string>& order) {
-    std::string order_str = order[0];
-    for (size_t i = 1; i < order.size(); i++)
-        order_str += ", " + order[i];
-
-    return order_str;
-}
-
 static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     std::vector<std::string> default_order;
     if (size <= 4) {
@@ -187,7 +179,7 @@ KernelsData GatherNDKernelRef::GetKernelsData(const Params& params, const option
     auto dispatchData = SetDefault(newParams, options);
     auto cldnn_jit = GetJitConstants(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2, GetFusedPrimitiveInputsCount(params));

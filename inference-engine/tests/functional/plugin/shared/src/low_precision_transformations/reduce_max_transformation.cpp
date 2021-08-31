@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 std::string ReduceMaxTransformation::getTestCaseName(testing::TestParamInfo<ReduceMaxTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ReduceMaxTransformationParam param;;
@@ -32,7 +32,7 @@ std::string ReduceMaxTransformation::getTestCaseName(testing::TestParamInfo<Redu
 
 void ReduceMaxTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ReduceMaxTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();

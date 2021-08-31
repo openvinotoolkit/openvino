@@ -57,7 +57,6 @@ void MvncTestsCommon::openDevices(const int devicesToBoot, ncDeviceHandle_t **de
     amountOfBooted = 0;
     ncDeviceDescr_t ncDeviceDesc = {};
     ncDeviceDesc.protocol = NC_USB;
-    ncDeviceDesc.platform = NC_ANY_PLATFORM;
 
     for (int index = 0; index < devicesToBoot; ++index) {
         ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandlers[index], ncDeviceDesc, m_ncDeviceOpenParams));
@@ -71,7 +70,7 @@ void MvncTestsCommon::bootOneDevice(ncDeviceProtocol_t deviceProtocol) {
     if (deviceProtocol == NC_PCIE) {
         GTEST_FATAL_FAILURE_("Boot doesn't supported for PCIe protocol\n");
     }
-    ASSERT_NO_ERROR(ncDeviceLoadFirmware(NC_ANY_PLATFORM, firmwareDir));
+    ASSERT_NO_ERROR(ncDeviceLoadFirmware(firmwareDir));
 }
 
 
@@ -123,7 +122,6 @@ void MvncLoggingTests::SetUp() {
     MvncOpenDevice::SetUp();
 
     _deviceDesc.protocol = _deviceProtocol;
-    _deviceDesc.platform = NC_ANY_PLATFORM;
 
     for (int index = 0; index < availableDevices_; ++index) {
         ASSERT_NO_ERROR(ncDeviceOpen(&_deviceHandles[index], _deviceDesc, m_ncDeviceOpenParams));

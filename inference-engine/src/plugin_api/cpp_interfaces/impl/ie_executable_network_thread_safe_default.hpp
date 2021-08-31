@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 
 namespace InferenceEngine {
@@ -33,14 +33,13 @@ public:
      * @param[in]  taskExecutor      The task executor used
      * @param[in]  callbackExecutor  The callback executor
      */
-    explicit
-    ExecutableNetworkThreadSafeDefault(const ITaskExecutor::Ptr& taskExecutor
-                                             = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"Default"}),
-                                       const ITaskExecutor::Ptr& callbackExecutor
-                                             = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"Callback"})) :
-        _taskExecutor{taskExecutor},
-        _callbackExecutor{callbackExecutor} {
-    }
+    explicit ExecutableNetworkThreadSafeDefault(
+        const ITaskExecutor::Ptr& taskExecutor = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{
+            "Default"}),
+        const ITaskExecutor::Ptr& callbackExecutor = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{
+            "Callback"}))
+        : _taskExecutor{taskExecutor},
+          _callbackExecutor{callbackExecutor} {}
 
     /**
      * @brief Given optional implementation of creating asynchronous inference request to avoid
@@ -64,7 +63,7 @@ protected:
         return std::make_shared<AsyncInferRequestType>(syncRequestImpl, _taskExecutor, _callbackExecutor);
     }
 
-    ITaskExecutor::Ptr _taskExecutor = nullptr;  //!< Holds a task executor
+    ITaskExecutor::Ptr _taskExecutor = nullptr;      //!< Holds a task executor
     ITaskExecutor::Ptr _callbackExecutor = nullptr;  //!< Holds a callback executor
 };
 

@@ -32,7 +32,7 @@ The Matrix NMS algorithm is described below:
     * *none* - do not guarantee the order.
   * **Type**: `string`
   * **Default value**: `none`
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *sort_result_across_batch*
 
@@ -42,7 +42,7 @@ The Matrix NMS algorithm is described below:
     * *false* - do not sort selected boxes across batches (boxes are sorted per batch element).
   * **Type**: boolean
   * **Default value**: false
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *output_type*
 
@@ -50,7 +50,7 @@ The Matrix NMS algorithm is described below:
   * **Range of values**: `i64` or `i32`
   * **Type**: `string`
   * **Default value**: `i64`
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *score_threshold*
 
@@ -58,7 +58,7 @@ The Matrix NMS algorithm is described below:
   * **Range of values**: a floating-point number
   * **Type**: `float`
   * **Default value**: `0`
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *nms_top_k*
 
@@ -66,7 +66,7 @@ The Matrix NMS algorithm is described below:
   * **Range of values**: an integer
   * **Type**: `int`
   * **Default value**: `-1` meaning to keep all boxes
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *keep_top_k*
 
@@ -74,7 +74,7 @@ The Matrix NMS algorithm is described below:
   * **Range of values**: an integer
   * **Type**: `int`
   * **Default value**: `-1` meaning to keep all boxes
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *background_class*
 
@@ -82,7 +82,7 @@ The Matrix NMS algorithm is described below:
   * **Range of values**: an integer
   * **Type**: `int`
   * **Default value**: `-1` meaning to keep all classes
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *normalized*
 
@@ -92,7 +92,7 @@ The Matrix NMS algorithm is described below:
     * *false* - the box coordinates are not normalized.
   * **Type**: boolean
   * **Default value**: True
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *decay_function*
 
@@ -100,7 +100,7 @@ The Matrix NMS algorithm is described below:
   * **Range of values**: `gaussian`, `linear`
   * **Type**: `string`
   * **Default value**: `linear`
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *gaussian_sigma*
 
@@ -108,7 +108,7 @@ The Matrix NMS algorithm is described below:
   * **Range of values**: a floating-point number
   * **Type**: `float`
   * **Default value**: `2.0`
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *post_threshold*
 
@@ -116,7 +116,7 @@ The Matrix NMS algorithm is described below:
   * **Range of values**: a floating-point number
   * **Type**: `float`
   * **Default value**: `0`
-  * **Required**: *No*
+  * **Required**: *no*
 
 **Inputs**:
 
@@ -136,11 +136,11 @@ When there is no box selected, `selected_num` is filled with `0`. `selected_outp
 
 **Types**
 
-* *T*: floating point type.
+* *T*: floating-point type.
 
 * *T_MAX_BOXES*: integer type.
 
-* *T_THRESHOLDS*: floating point type.
+* *T_THRESHOLDS*: floating-point type.
 
 * *T_IND*: `int64` or `int32`.
 
@@ -168,7 +168,7 @@ When there is no box selected, `selected_num` is filled with `0`. `selected_outp
         </port>
         <port id="6" precision="I64">
             <dim>-1</dim>
-            <dim>1</dim>         
+            <dim>1</dim>
         </port>
         <port id="7" precision="I64">
             <dim>3</dim>

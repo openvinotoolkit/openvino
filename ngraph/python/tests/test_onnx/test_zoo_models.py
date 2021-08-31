@@ -1,11 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import tests
 from operator import itemgetter
 from pathlib import Path
-import os
 from typing import Sequence, Any
 import numpy as np
 
@@ -134,7 +132,7 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
         zoo_models.append(model)
 
 if len(zoo_models) > 0:
-    sorted(zoo_models, key=itemgetter("model_name"))
+    zoo_models = sorted(zoo_models, key=itemgetter("model_name"))
 
     # Set backend device name to be used instead of hardcoded by ONNX BackendTest class ones.
     OpenVinoOnnxBackend.backend_name = tests.BACKEND_NAME

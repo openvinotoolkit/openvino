@@ -22,15 +22,15 @@ The sample queries all available Inference Engine devices and prints their suppo
 
 The sample has no command-line parameters. To see the report, run the following command:
 
-```sh
-python hello_query_device.py
+```
+python <path_to_sample>/hello_query_device.py
 ```
 
 ## Sample Output
 
 The application prints all available devices with their supported metrics and default values for configuration parameters. (Some lines are not shown due to length.) For example:
 
-```sh
+```
 [ INFO ] Creating Inference Engine
 [ INFO ] Available devices:
 [ INFO ] CPU :

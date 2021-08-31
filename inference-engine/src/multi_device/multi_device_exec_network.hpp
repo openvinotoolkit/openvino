@@ -117,7 +117,7 @@ public:
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
-    InferenceEngine::RemoteContext::Ptr GetContext() const override;
+    std::shared_ptr<InferenceEngine::IRemoteContext> GetContext() const override;
     ~MultiDeviceExecutableNetwork() override;
 
     void ScheduleToWorkerInferRequest(InferenceEngine::Task, DeviceName preferred_device = "");

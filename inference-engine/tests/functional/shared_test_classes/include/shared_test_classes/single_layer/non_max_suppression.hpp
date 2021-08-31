@@ -53,7 +53,12 @@ protected:
     void SetUp() override;
 
 private:
+    void CompareBuffer(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                       const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
+    void CompareBBoxes(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                       const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
     size_t numOfSelectedBoxes;
+    InputShapeParams inShapeParams;
 };
 
 }  // namespace LayerTestsDefinitions

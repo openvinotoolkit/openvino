@@ -215,13 +215,13 @@ class XmlSerializer : public ngraph::AttributeVisitor {
             input.append_attribute("external_port_id").set_value(input_description->m_input_index);
             input.append_attribute("internal_layer_id").set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
 
-            if (auto slice_input = as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
+            if (auto slice_input = ov::as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
                 input.prepend_attribute("axis").set_value(slice_input->m_axis);
                 input.append_attribute("start").set_value(slice_input->m_start);
                 input.append_attribute("end").set_value(slice_input->m_end);
                 input.append_attribute("stride").set_value(slice_input->m_stride);
                 input.append_attribute("part_size").set_value(slice_input->m_part_size);
-            } else if (auto merged_input = as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
+            } else if (auto merged_input = ov::as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
                 pugi::xml_node back_edges = m_xml_node.parent().child("back_edges");
                 if (!back_edges) {
                     back_edges = m_xml_node.parent().insert_child_after("back_edges", port_map);
@@ -249,7 +249,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
             output.append_attribute("external_port_id").set_value(input_count + output_description->m_output_index);
             output.append_attribute("internal_layer_id").set_value(result_mapping[output_description->m_body_value_index].c_str());
 
-            if (auto concat_output = as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
+            if (auto concat_output = ov::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
                 output.prepend_attribute("axis").set_value(concat_output->m_axis);
                 output.append_attribute("start").set_value(concat_output->m_start);
                 output.append_attribute("end").set_value(concat_output->m_end);
@@ -465,10 +465,10 @@ const std::vector<Edge> create_edge_mapping(
 std::string get_opset_name(
     const ngraph::Node* n,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
-    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 7>{
+    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 8>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
         ngraph::get_opset4(), ngraph::get_opset5(), ngraph::get_opset6(),
-        ngraph::get_opset7()};
+        ngraph::get_opset7(), ngraph::get_opset8()};
 
     auto special_opset = get_special_opset_for_op(n->get_type_info());
     if (!special_opset.empty()) {
@@ -495,6 +495,7 @@ std::string get_opset_name(
 std::string get_precision_name(const ngraph::element::Type & elem_type) {
     switch (elem_type) {
     case ::ngraph::element::Type_t::undefined:
+    case ::ngraph::element::Type_t::dynamic:
         return "UNSPECIFIED";
     case ::ngraph::element::Type_t::f16:
         return "FP16";
@@ -641,8 +642,6 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
                            [](const Dimension& d) -> Dimension {
                                return d.get_max_length();
                            });
-            NGRAPH_CHECK(PartialShape(out_shape).is_static(),
-                         "Dynamic dimension cannot be resolved in ", op);
             return out_shape;
         };
 
@@ -684,6 +683,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
 
+    // TODO remove resolve_dynamic_shapes function completely when support for -1 will be implemented in the MO
     bool has_dynamic_shapes = resolve_dynamic_shapes(f);
 
     const bool exec_graph = is_exec_graph(f);
@@ -710,9 +710,6 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
             for (const auto & i : node->inputs()) {
-                NGRAPH_CHECK(i.get_partial_shape().is_static(),
-                             "Unsupported dynamic input shape in ", node);
-
                 // WA for LSTMCellv0, peephole input shall not be serialized
                 if (i.get_index() == 6 && dynamic_cast<opset1::LSTMCell *>(node)) {
                     port_id++;
@@ -723,10 +720,14 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
                         .set_value(get_precision_name(i.get_element_type()).c_str());
-                for (auto d : i.get_shape()) {
+                for (auto d : i.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
-                    dim.append_child(pugi::xml_node_type::node_pcdata)
-                        .set_value(std::to_string(d).c_str());
+                    if (d.is_dynamic()) {
+                        dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");
+                    } else {
+                        dim.append_child(pugi::xml_node_type::node_pcdata)
+                                .set_value(std::to_string(d.get_length()).c_str());
+                    }
                 }
             }
 
@@ -738,9 +739,6 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
             for (const auto & o : node->outputs()) {
-                NGRAPH_CHECK(o.get_partial_shape().is_static(),
-                             "Unsupported dynamic output shape in ", node);
-
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
@@ -761,10 +759,14 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                     port.append_attribute("names").set_value(names.c_str());
                 }
 
-                for (auto d : o.get_shape()) {
+                for (auto d : o.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
-                    dim.append_child(pugi::xml_node_type::node_pcdata)
-                        .set_value(std::to_string(d).c_str());
+                    if (d.is_dynamic()) {
+                        dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");
+                    } else {
+                        dim.append_child(pugi::xml_node_type::node_pcdata)
+                                .set_value(std::to_string(d.get_length()).c_str());
+                    }
                 }
             }
             if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
@@ -850,7 +852,7 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
 
         try {
             serializeFunc(xml_file, bin_file);
-        } catch (const ngraph::CheckFailure& e) {
+        } catch (const ngraph::CheckFailure&) {
             // optimization decission was made to create .bin file upfront and
             // write to it directly instead of buffering its content in memory,
             // hence we need to delete it here in case of failure

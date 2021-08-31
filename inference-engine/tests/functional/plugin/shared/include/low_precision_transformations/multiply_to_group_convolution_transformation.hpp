@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include "lpt_ngraph_functions/common/constant.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 
@@ -15,11 +16,19 @@ using namespace ngraph;
 
 namespace LayerTestsDefinitions {
 
+class MultiplyToGroupConvolutionTransformationParam {
+public:
+    builder::subgraph::FakeQuantizeOnData fqOnData;
+    builder::subgraph::Constant constant;
+    std::string layerName;
+    std::string expectedKernelType;
+};
+
 typedef std::tuple <
     element::Type,
-    Shape,
+    PartialShape,
     std::string,
-    builder::subgraph::FakeQuantizeOnData> MultiplyToGroupConvolutionTransformationParams;
+    MultiplyToGroupConvolutionTransformationParam> MultiplyToGroupConvolutionTransformationParams;
 
 class MultiplyToGroupConvolutionTransformation :
     public testing::WithParamInterface<MultiplyToGroupConvolutionTransformationParams>,
@@ -29,6 +38,7 @@ public:
 
 protected:
     void SetUp() override;
+    void Run() override;
 };
 
 }  // namespace LayerTestsDefinitions

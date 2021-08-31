@@ -64,7 +64,7 @@ std::string permute_inst::to_string(permute_node const& node) {
     return primitive_description.str();
 }
 
-permute_inst::typed_primitive_inst(network_impl& network, permute_node const& node) : parent(network, node) {
+permute_inst::typed_primitive_inst(network& network, permute_node const& node) : parent(network, node) {
     auto permute_order = argument.permute_order;
 
     CLDNN_ERROR_LESS_THAN(node.id(),

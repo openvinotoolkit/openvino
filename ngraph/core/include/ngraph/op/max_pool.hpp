@@ -4,93 +4,127 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include <limits>
 
-namespace ngraph
-{
-    namespace op
-    {
-        namespace v1
-        {
-            /// \brief Batched max pooling operation.
-            class NGRAPH_API MaxPool : public Op
-            {
-            public:
-                NGRAPH_RTTI_DECLARATION;
+#include "ngraph/op/util/max_pool_base.hpp"
 
-                /// \brief Constructs a batched max pooling operation.
-                MaxPool() = default;
+namespace ngraph {
+namespace op {
+namespace v1 {
+/// \brief Batched max pooling operation.
+class NGRAPH_API MaxPool : public op::util::MaxPoolBase {
+public:
+    NGRAPH_RTTI_DECLARATION;
 
-                /// \brief Constructs a batched max pooling operation.
-                ///
-                /// \param arg The node producing the input data batch tensor.
-                /// \param strides The strides.
-                /// \param pads_begin The beginning of padding shape.
-                /// \param pads_end The end of padding shape.
-                /// \param kernel The kernel shape.
-                /// \param rounding_mode Whether to use ceiling or floor rounding type while
-                /// computing output shape.
-                /// \param auto_pad The pad type for automatically computing padding sizes.
-                MaxPool(const Output<Node>& arg,
-                        const Strides& strides,
-                        const Shape& pads_begin,
-                        const Shape& pads_end,
-                        const Shape& kernel,
-                        op::RoundingType rounding_mode = op::RoundingType::FLOOR,
-                        const PadType& auto_pad = op::PadType::EXPLICIT);
+    /// \brief Constructs a batched max pooling operation.
+    MaxPool() = default;
 
-                bool visit_attributes(AttributeVisitor& visitor) override;
-                void validate_and_infer_types() override;
+    /// \brief Constructs a batched max pooling operation.
+    ///
+    /// \param arg The node producing the input data batch tensor.
+    /// \param strides The strides.
+    /// \param pads_begin The beginning of padding shape.
+    /// \param pads_end The end of padding shape.
+    /// \param kernel The kernel shape.
+    /// \param rounding_type Whether to use ceiling or floor rounding type while
+    /// computing output shape.
+    /// \param auto_pad The pad type for automatically computing padding sizes.
+    MaxPool(const Output<Node>& arg,
+            const Strides& strides,
+            const Shape& pads_begin,
+            const Shape& pads_end,
+            const Shape& kernel,
+            const op::RoundingType rounding_type = op::RoundingType::FLOOR,
+            const PadType auto_pad = op::PadType::EXPLICIT);
 
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    void validate_and_infer_types() override;
 
-                /// \return The kernel shape.
-                const Shape& get_kernel() const { return m_kernel; }
-                void set_kernel(const Shape& kernel) { m_kernel = kernel; }
-                /// \return The strides.
-                const Strides& get_strides() const { return m_strides; }
-                void set_strides(const Strides& strides) { m_strides = strides; }
-                /// \return The beginning of padding shape.
-                const Shape& get_pads_begin() const { return m_pads_begin; }
-                void set_pads_begin(const Shape& pads_begin) { m_pads_begin = pads_begin; }
-                /// \return The end of padding shape.
-                const Shape& get_pads_end() const { return m_pads_end; }
-                void set_adding_above(const Shape& pads_end) { m_pads_end = pads_end; }
-                /// \return The pad type for pooling.
-                const PadType& get_auto_pad() const { return m_auto_pad; }
-                void set_auto_pad(const PadType& auto_pad) { m_auto_pad = auto_pad; }
-                /// \return The ceiling mode being used for output shape computations
-                op::RoundingType get_rounding_type() const { return m_rounding_type; }
-                void set_rounding_type(op::RoundingType rounding_mode)
-                {
-                    m_rounding_type = rounding_mode;
-                }
-                /// \return The default value for MaxPool.
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                virtual std::shared_ptr<Node> get_default_value() const override;
-                NGRAPH_SUPPRESS_DEPRECATED_END
+    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override;
+    /// \return The default value for MaxPool.
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    virtual std::shared_ptr<Node> get_default_value() const override;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
-            protected:
-                Shape m_kernel;
-                Strides m_strides;
-                Shape m_pads_begin;
-                Shape m_pads_end;
-                PadType m_auto_pad;
-                op::RoundingType m_rounding_type;
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    bool has_evaluate() const override;
 
-            private:
-                bool update_auto_padding(const PartialShape& in_shape,
-                                         Shape& new_pads_end,
-                                         Shape& new_pads_begin) const;
-                bool evaluate_maxpool(const HostTensorVector& outputs,
-                                      const HostTensorVector& inputs) const;
-            };
-        } // namespace v1
-    }     // namespace op
-} // namespace ngraph
+private:
+    bool evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
+};
+}  // namespace v1
+
+namespace v8 {
+/// \brief MaxPooling operation with values and indices calculated as individual outputs
+class NGRAPH_API MaxPool : public op::util::MaxPoolBase {
+public:
+    NGRAPH_RTTI_DECLARATION;
+
+    /// \brief Constructs an empty MaxPool operation.
+    MaxPool() = default;
+
+    /// \brief Constructs a parametrized MaxPool operation.
+    ///
+    /// \param arg Output of a node producing the feature tensor to be pooled.
+    /// \param strides The strides of the pooling filter.
+    /// \param dilations The dilations of the pooling filter.
+    /// \param pads_begin Paddings at the beginning of each spatial axis.
+    /// \param pads_end Paddings at the end of each spatial axis.
+    /// \param kernel The kernel shape.
+    /// \param rounding_type Whether to use ceiling or floor rounding type while
+    ///                      computing the output shape.
+    /// \param auto_pad The pad type for automatic calculation of the padding sizes.
+    /// \param index_element_type The data type used by the second output tensor
+    ///                           containing the selected indices.
+    /// \param axis Indicates a dimension in the input data shape which should be used
+    ///             as a starting point for calculation of the upper bound of allowed
+    ///             values of the indices output.
+    MaxPool(const Output<Node>& arg,
+            const Strides& strides,
+            const Strides& dilations,
+            const Shape& pads_begin,
+            const Shape& pads_end,
+            const Shape& kernel,
+            const op::RoundingType rounding_type = op::RoundingType::FLOOR,
+            const PadType auto_pad = op::PadType::EXPLICIT,
+            const element::Type index_element_type = element::i64,
+            const int64_t axis = 0);
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    void validate_and_infer_types() override;
+
+    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    /// \return The pooling filter's dilations.
+    const Strides& get_dilations() const noexcept {
+        return m_dilations;
+    }
+    void set_dilations(const Strides& dilations) {
+        m_dilations = dilations;
+    }
+
+    /// \return The data type of the second output tensor (indices).
+    element::Type get_index_element_type() const noexcept {
+        return m_index_element_type;
+    }
+    void set_index_element_type(const element::Type index_element_type) {
+        m_index_element_type = index_element_type;
+    }
+
+    // \return The 'axis' attribute value.
+    int64_t get_axis() const {
+        return m_axis;
+    }
+    void set_axis(const int64_t axis) {
+        m_axis = axis;
+    }
+
+private:
+    Strides m_dilations;
+    element::Type m_index_element_type{element::i64};
+    int64_t m_axis{0};
+};
+}  // namespace v8
+}  // namespace op
+}  // namespace ngraph

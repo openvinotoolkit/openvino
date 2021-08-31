@@ -24,7 +24,7 @@ namespace subgraph {
 
 std::shared_ptr<Function> ConvolutionBackpropDataFunction::get(
     const element::Type netPrecision,
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const Shape& outputShape,
     const builder::subgraph::FakeQuantizeOnData& fqOnData,
     const std::shared_ptr<Node>& weights) {
@@ -82,7 +82,7 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
         dequantizationStructure.subtract.constantPrecision = dequantizationOnWeights.subtract.constantPrecision;
     }
     if (weights->get_element_type().is_real()) {
-        weights = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(weights, netPrecision));
+        weights = ov::as_type_ptr<opset1::Constant>(fold<opset1::Convert>(weights, netPrecision));
     }
     const auto dq = makeDequantization(weights, dequantizationStructure);
 

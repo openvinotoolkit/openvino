@@ -26,7 +26,7 @@ public:
         ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
     };
 
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
 };
@@ -43,9 +43,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

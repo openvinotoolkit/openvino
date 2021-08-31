@@ -34,7 +34,7 @@ post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bi
 
 // function which prepares given primitive for weights optimization
 template<typename T>
-void post_optimize_weights::optimize_weights(T& node, program_impl& p) {
+void post_optimize_weights::optimize_weights(T& node, program& p) {
     auto offsets = get_weights_bias_offset(node);
     auto impl = node.get_selected_impl();
     auto output_layout = node.get_output_layout();
@@ -56,7 +56,7 @@ void post_optimize_weights::optimize_weights(T& node, program_impl& p) {
             // Don't run impl selection to avoid double compilation of reorder kernels
             // in main program and internal program for constant propagation
             if (!g_node.is_constant())
-                g_node.selected_impl = g_node.type()->choose_impl(p.get_engine(), g_node);
+                g_node.selected_impl = g_node.type()->choose_impl(g_node);
         }
     }
 
@@ -69,7 +69,7 @@ void post_optimize_weights::optimize_weights(T& node, program_impl& p) {
     node.set_output_layout(output_layout, false);
 }
 
-void post_optimize_weights::run(program_impl& p) {
+void post_optimize_weights::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (node->type() == convolution::type_id()) {
             optimize_weights(node->as<convolution>(), p);

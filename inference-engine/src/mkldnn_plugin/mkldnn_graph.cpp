@@ -39,22 +39,14 @@
 #include "utils/node_dumper.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/cpu_utils.hpp"
+#include "cpu_memory_desc_utils.h"
 
 #include <ngraph/node.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/ops.hpp>
 #include <transformations/utils/utils.hpp>
-#include <low_precision/transformer.hpp>
-
-/*****************************************************
- * Debug capability
- *  - PRINT_GRAPH_INFO : Define it to enable printing
- *    additional information to std output.
- *
- * @todo Align with CPU_DEBUG_CAPS implementation
- *****************************************************/
-// #define PRINT_GRAPH_INFO
+#include <low_precision/low_precision.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -94,7 +86,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
     this->reuse_io_tensors = false;
 
     isQuantizedFlag = (config.lpTransformsMode == Config::On) &&
-                      ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(subgraph);
+                      ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(subgraph);
 
     // Map data object onto producer node
     std::map<std::shared_ptr<ngraph::Node>, std::pair<MKLDNNNodePtr, int>> op2node;
@@ -168,7 +160,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
         auto parentNode = portInfo.first;
         auto port = portInfo.second;
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
-        const MKLDNNNodePtr outNode = std::make_shared<MKLDNNInputNode>(parentNode->outDims[port].ToSizeVector(),
+        const MKLDNNNodePtr outNode = std::make_shared<MKLDNNInputNode>(parentNode->outputShapes[port],
                                                                         parentNode->getOriginalOutputPrecisionAtPort(port),
                                                                         nodeName, "Result", getEngine(), weightsCache);
         MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, outNode, port, 0));
@@ -192,7 +184,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     }
 
     isQuantizedFlag = (config.lpTransformsMode == Config::On) &&
-                      ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(func);
+                      ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
 
     auto orderedOps = func->get_ordered_ops();
 
@@ -269,7 +261,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         auto parentNode = op2node[unusedOutput.get_node_shared_ptr()];
         const auto port = unusedOutput.get_index();
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
-        const MKLDNNNodePtr outNode = std::make_shared<MKLDNNInputNode>(parentNode->outDims[port].ToSizeVector(),
+        const MKLDNNNodePtr outNode = std::make_shared<MKLDNNInputNode>(parentNode->outputShapes[port],
                                                                         parentNode->getOriginalOutputPrecisionAtPort(port),
                                                                         nodeName, "Result", getEngine(), weightsCache);
         MKLDNNEdgePtr edge(new MKLDNNEdge(parentNode, outNode, port, 0));
@@ -306,15 +298,15 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
     // Loading mean images
     for (const auto& input : inputsInfo) {
-        MKLDNNDims outDims;
-        if (!inputNodesMap[input.first]->getChildEdgeAt(0)->getDims().ndims()) {
-            outDims = MKLDNNDims(InferenceEngine::SizeVector(1, 1));
+        Shape outShape;
+        if (!inputNodesMap[input.first]->outputShapes.front().getRank()) {
+            outShape =  Shape(SizeVector({1, 1}));
         } else {
-            outDims = inputNodesMap[input.first]->getChildEdgeAt(0)->getDims();
+            outShape = inputNodesMap[input.first]->outputShapes.front();
         }
         InputInfo::Ptr ii = inputsInfo[input.first];
         if (ii && ii->getPreProcess().getNumberOfChannels()) {
-            _normalizePreprocMap[input.first].Load(outDims, ii);
+            _normalizePreprocMap[input.first].Load(outShape, ii);
         }
     }
 }
@@ -347,6 +339,8 @@ void MKLDNNGraph::InitGraph() {
         graphNode->cleanup();
     }
 #endif
+    ExtractConstantNodes();
+
     ExecuteConstantNodesOnly();
 }
 
@@ -390,6 +384,16 @@ void MKLDNNGraph::InitOptimalPrimitiveDescriptors() {
     }
 }
 
+void MKLDNNGraph::ExtractConstantNodes() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantNodes");
+    for (auto& graphNode : graphNodes) {
+        if (graphNode->isConstant())
+            constantGraphNodes.emplace_back(graphNode);
+        else
+            mutableGraphNodes.emplace_back(graphNode);
+    }
+}
+
 void MKLDNNGraph::ExecuteConstantNodesOnly() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExecuteConstantNodesOnly");
     mkldnn::stream stream(eng);
@@ -418,10 +422,7 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() {
         return std::make_tuple(hasExternalInvalidEdges, hasLocalAllocatedEdges, outputs);
     };
 
-    for (auto &graphNode : graphNodes) {
-        if (!graphNode->isConstant())
-            continue;
-
+    for (auto &graphNode : constantGraphNodes) {
         if (weightsCache) {
             auto sharedOutputs = acquireSharedOutputs(graphNode);
 
@@ -437,9 +438,9 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() {
     }
 }
 
-static bool isReorderAvailable(const TensorDesc& parentDesc, const TensorDesc& childDesc, const mkldnn::engine& eng) {
-    memory::desc dstMemDesc = MKLDNNMemoryDesc(childDesc);
-    memory::desc srcMemDesc = MKLDNNMemoryDesc(parentDesc);
+static bool isReorderAvailable(const MemoryDesc& parentDesc, const MemoryDesc& childDesc, const mkldnn::engine& eng) {
+    memory::desc dstMemDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(childDesc);
+    memory::desc srcMemDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(parentDesc);;
     mkldnn::primitive_attr attr;
 
     dnnl_primitive_desc_t result = nullptr;
@@ -471,14 +472,14 @@ void MKLDNNGraph::InitEdges() {
             if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
                     !isReorderAvailable(edge->getInputDesc(), edge->getOutputDesc(), this->getEngine())) {
                 // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
-                const auto inDesc = edge->getInputDesc();
-                const auto outDesc = edge->getOutputDesc();
+                const auto& inDesc = edge->getInputDesc();
+                const auto& outDesc = edge->getOutputDesc();
 
                 std::string convertName = edge->getParent()->getName() + "_" +
                                           inDesc.getPrecision().name() + "_" + outDesc.getPrecision().name();
 
-                auto convertNode = std::make_shared<MKLDNNConvertNode>(inDesc.getDims(), inDesc.getPrecision(), outDesc.getPrecision(), convertName,
-                                                                       this->getEngine(), this->weightsCache);
+                auto convertNode = std::make_shared<MKLDNNConvertNode>(inDesc.getShape().getStaticDims(), inDesc.getPrecision(), outDesc.getPrecision(),
+                                                                       convertName, this->getEngine(), this->weightsCache);
                 convertNode->setDescs(inDesc, outDesc);
                 InsertNode(edge, convertNode, true);
 
@@ -492,7 +493,7 @@ void MKLDNNGraph::InitEdges() {
 
             if (insertReorder) {
                 std::string basicLayerName = edge->getParent()->getName() + "_" +
-                                             MKLDNNExtensionUtils::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
+                                             MKLDNNReorderNode::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
                                              edge->getChild()->getName();
                 std::string layerName = basicLayerName;
                 int idx = 0;
@@ -601,22 +602,10 @@ void MKLDNNGraph::AllocateWithReuse() {
             int e_start = edge->getParent()->execIndex;
             int e_finish = edge->getChild()->execIndex;
 
-            const BlockingDesc block_desk = edge->getDesc().getBlockingDesc();
-
-            int64_t e_size = block_desk.getOffsetPadding() + 1;  // size in bytes (from begin of data to last element)
-            for (int j = 0; j < block_desk.getBlockDims().size(); j++)
-                e_size += (block_desk.getBlockDims()[j] - 1) * block_desk.getStrides()[j];
-
-            // In some cases computational formula above doesn't work properly (e.g. for OhIw8o4i layout).
-            // This WA allows to limit the size of allocated memory from below.
-            // TODO: need to properly investigate the root cause of incorrect computations
-            int64_t min_size = 1;
-            for (int64_t dim : block_desk.getBlockDims()) {
-                min_size *= dim;
+            int64_t e_size = edge->getDesc().getCurrentSize();  // size in bytes (from the beginning of data to the last element)
+            if (e_size == MemoryDesc::UNDEFINED_SIZE) {
+                IE_THROW() << "Can not allocate memory since the size is undefined.";
             }
-            e_size = std::max(e_size, min_size);
-
-            e_size *= edge->getDesc().getPrecision() == Precision::BIN ? 1 : edge->getDesc().getPrecision().size();
 
             box.start = std::min(e_start, box.start);
             box.finish = std::max(e_finish, box.finish);
@@ -650,7 +639,7 @@ void MKLDNNGraph::AllocateWithReuse() {
     size_t total_size = static_cast<size_t>(memSolver.solve()) * alignment;
 
     memWorkspace = std::make_shared<MKLDNNMemory>(eng);
-    memWorkspace->Create(MKLDNNMemoryDesc(TensorDesc(Precision::I8, {total_size}, Layout::C)));
+    memWorkspace->Create(MKLDNNMemoryDesc({total_size}, mkldnn::memory::data_type::s8));
 
     if (edge_clusters.empty())
         return;
@@ -710,13 +699,11 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
 
     auto input = inputNodesMap.find(name);
     if (input != inputNodesMap.end()) {
-        MKLDNNDims outDims = input->second->getChildEdgeAt(0)->getDims();
-
         const void *ext_data_ptr = in->cbuffer();
         void *inter_data_ptr = input->second->getChildEdgeAt(0)->getMemory().GetData();
 
         if (ext_data_ptr != inter_data_ptr) {
-            auto ext_tdesc = MKLDNNMemoryDesc {in->getTensorDesc()};
+            auto ext_tdesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(in->getTensorDesc());
 
             auto ext_mem = MKLDNNMemory(eng);
             ext_mem.Create(ext_tdesc, ext_data_ptr, false);
@@ -727,7 +714,8 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
         // todo: make sure 'name' exists in this map...
         if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
             if (in->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
-                _normalizePreprocMap[name].NormalizeImage(outDims, reinterpret_cast<float *>(inter_data_ptr),
+                _normalizePreprocMap[name].NormalizeImage(input->second->getChildEdgeAt(0)->getShape(),
+                                                          reinterpret_cast<float *>(inter_data_ptr),
                                                           in->getTensorDesc().getLayout());
             } else {
                 IE_THROW() << "Mean image of type " << in->getTensorDesc().getPrecision().name() << " is unsupported";
@@ -775,7 +763,7 @@ void MKLDNNGraph::PullOutputData(const BlobMap &out) {
             MB_to_process = std::min<int>(config.batchLimit, MB_to_process);
         size_t size_to_copy = intr_blob.GetElementsCount() * MB_to_process / MB;
 
-        const auto actualDesc = node->getParentEdgeAt(0)->getDesc();
+        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(node->getParentEdgeAt(0)->getDesc());
         const auto expectedDesc = ext_blob->getTensorDesc();
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
@@ -790,7 +778,7 @@ void MKLDNNGraph::PullOutputData(const BlobMap &out) {
         }
 
         if (actualDesc.getBlockingDesc() != expectedDesc.getBlockingDesc() && !isScalarOutput) {
-            auto outBlobDesc = MKLDNNMemoryDesc{expectedDesc};
+            auto outBlobDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(expectedDesc);
             auto outBloMem = MKLDNNMemory(eng);
             outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
 
@@ -810,24 +798,27 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
     ENABLE_CPU_DEBUG_CAP(NodeDumper nd(config.debugCaps, infer_count));
 
-    for (int i = 0; i < graphNodes.size(); i++) {
-        if (request != nullptr) {
+#ifdef CPU_DEBUG_CAPS
+    for (const auto& node : constantGraphNodes) {
+        if (request != nullptr)
             request->ThrowIfCanceled();
-        }
 
-        PERF(graphNodes[i]);
+        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(node));
+        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(node));
+    }
+#endif
 
-        if (batch > 0)
-            graphNodes[i]->setDynamicBatchLim(batch);
+    for (const auto& node : mutableGraphNodes) {
+        PERF(config.collectPerfCounters, node);
+        if (request != nullptr)
+            request->ThrowIfCanceled();
 
-        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(graphNodes[i]));
+        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(node));
 
-        if (!graphNodes[i]->isConstant()) {
-            OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, graphNodes[i]->profiling.execute);
-            graphNodes[i]->execute(stream);
-        }
+        OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
+        node->execute(stream);
 
-        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(graphNodes[i]));
+        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(node));
     }
 
     if (infer_count != -1) infer_count++;
@@ -889,7 +880,7 @@ void MKLDNNGraph::SortTopologically() {
     // Make first N (N == port_num) edge indexes are matched with port index
     for (auto &node : graphNodes) {
         {
-            int port_num = node->inDims.size();
+            int port_num = node->inputShapes.size();
             std::vector<MKLDNNEdgePtr> res(port_num);
 
             for (int i = 0; i < node->parentEdges.size(); i++) {
@@ -903,7 +894,7 @@ void MKLDNNGraph::SortTopologically() {
             node->parentEdges = {res.begin(), res.end()};
         }
         {
-            int port_num = node->outDims.size();
+            int port_num = node->outputShapes.size();
             std::vector<MKLDNNEdgePtr> res(port_num);
 
             for (int i = 0; i < node->childEdges.size(); i++) {
@@ -965,29 +956,32 @@ Config MKLDNNGraph::getProperty() const {
     return config;
 }
 
-void MKLDNNGraph::getInputBlobs(InferenceEngine::BlobMap &resp) {
-    for (auto &it : inputNodesMap) {
-        resp[it.first] = it.second->getChildEdgeAt(0)->getBlob();
+Blob::Ptr MKLDNNGraph::getInputBlob(const std::string& name) {
+    auto itr = inputNodesMap.find(name);
+    if (itr != inputNodesMap.end()) {
+        return MemoryDescUtils::interpretAsBlob(itr->second->getChildEdgeAt(0)->getMemory());
     }
+    return nullptr;
 }
 
-void MKLDNNGraph::getOutputBlobs(InferenceEngine::BlobMap &resp) {
-    for (auto &it : outputNodesMap) {
-        resp[it.first] = it.second->getParentEdgeAt(0)->getBlob();
+Blob::Ptr MKLDNNGraph::getOutputBlob(const std::string& name) {
+    auto itr = outputNodesMap.find(name);
+    if (itr != outputNodesMap.end()) {
+        return MemoryDescUtils::interpretAsBlob(itr->second->getParentEdgeAt(0)->getMemory());
+    }
+    return nullptr;
+}
+
+void MKLDNNGraph::RemoveEdge(MKLDNNEdgePtr& edge) {
+    for (auto it = graphEdges.begin(); it != graphEdges.end(); it++) {
+        if ((*it) == edge) {
+            graphEdges.erase(it);
+            return;
+        }
     }
 }
 
 void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
@@ -1009,14 +1003,14 @@ void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
             if (remEdge) {
                 inNum = remEdge->getInputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             remEdge = children[j].lock();
             int outNum = 0;
             if (remEdge) {
                 outNum = remEdge->getOutputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
@@ -1026,16 +1020,6 @@ void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
 }
 
 void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
@@ -1043,6 +1027,8 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
     if (!parentConvEdge) return;
     auto parentConv = parentConvEdge->getParent();
     if (!parentConv) return;
+
+    parentConv->outputShapes[0] = node->outputShapes[0];
 
     for (size_t i = 0; i < 1; i++) {
         auto p_edge = parents[i].lock();
@@ -1062,14 +1048,14 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
             if (remEdge) {
                 inNum = remEdge->getInputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             remEdge = children[j].lock();
             int outNum = 0;
             if (remEdge) {
                 outNum = remEdge->getOutputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
@@ -1088,14 +1074,14 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
         if (remEdge) {
             inNum = remEdge->getInputNum();
             remEdge->drop();
-            removeEdge(*this, remEdge);
+            RemoveEdge(remEdge);
         }
         int outNum = parentConv->parentEdges.size();
 
         MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, parentConv, inNum, outNum));
         graphEdges.push_back(newEdge);
         parent->addEdge(newEdge);
-        parentConv->inDims.push_back(newEdge->getDims());
+        parentConv->inputShapes.push_back(Shape(newEdge->getShape()));
     }
 }
 
@@ -1127,15 +1113,14 @@ void MKLDNNGraph::RemoveDroppedEdges() {
     }
 }
 
-MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const TensorDesc& inDesc, const TensorDesc& outDesc,
-                                bool isOptimized, InferenceEngine::Blob::Ptr scales) {
+MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const MemoryDesc& inDesc, const MemoryDesc& outDesc,
+                                         bool isOptimized) {
     MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layerName, getEngine(), weightsCache));
     auto *reorderPtr = dynamic_cast<MKLDNNReorderNode *>(newReorder.get());
     if (reorderPtr == nullptr) {
         IE_THROW() << "MKLDNNGraph::InsertReorder: Cannot cast to MKLDNNReorderNode";
     }
     reorderPtr->setDescs(inDesc, outDesc);
-    reorderPtr->_scales = scales;
     reorderPtr->setOptimized(isOptimized);
 
     InsertNode(edge, newReorder, true);
@@ -1217,6 +1202,6 @@ void MKLDNNGraph::EnforceBF16() {
     }
 }
 
-InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
+std::shared_ptr<ngraph::Function> MKLDNNGraph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }

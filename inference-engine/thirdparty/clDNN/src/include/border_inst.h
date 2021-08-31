@@ -19,7 +19,7 @@ private:
 public:
     using parent::parent;
 
-    typed_program_node(const std::shared_ptr<border> prim, program_impl& prog) : parent(prim, prog) {
+    typed_program_node(const std::shared_ptr<border> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
     }
     program_node& input() const { return get_dependency(0); }
@@ -34,7 +34,7 @@ class typed_primitive_inst<border> : public typed_primitive_inst_base<border> {
 public:
     static layout calc_output_layout(border_node const& node);
     static std::string to_string(border_node const& node);
-    typed_primitive_inst(network_impl& network, border_node const& node);
+    typed_primitive_inst(network& network, border_node const& node);
 };
 
 using border_inst = typed_primitive_inst<border>;

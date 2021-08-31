@@ -207,3 +207,11 @@ TestResult test_reinfer_request_inference(InferenceEngine::InferRequest& infer_r
                                                           << n << " times");
     return common_test_pipeline(reinfer_request_inference(infer_request, output_info), n);
 }
+
+TestResult test_inference_with_streams(const std::string& model, const std::string& target_device,
+                                       const int& nstreams, const int& n) {
+    log_info("Inference of InferRequest from network: \"" << model
+                                                          << "\" for device: \"" << target_device
+                                                          << "\" with streams: " << nstreams << " for " << n << " times");
+    return common_test_pipeline(inference_with_streams(model, target_device, nstreams), n);
+}

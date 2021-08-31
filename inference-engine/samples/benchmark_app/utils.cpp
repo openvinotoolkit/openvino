@@ -16,7 +16,7 @@
 // clang-format on
 
 #ifdef USE_OPENCV
-    #include <opencv2/core.hpp>
+#    include <opencv2/core.hpp>
 #endif
 
 namespace benchmark_app {
@@ -54,8 +54,13 @@ size_t InputInfo::depth() const {
 }  // namespace benchmark_app
 
 uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device) {
-    static const std::map<std::string, uint32_t> deviceDefaultDurationInSeconds {{"CPU", 60},  {"GPU", 60},   {"VPU", 60},     {"MYRIAD", 60},
-                                                                                 {"HDDL", 60}, {"FPGA", 120}, {"UNKNOWN", 120}};
+    static const std::map<std::string, uint32_t> deviceDefaultDurationInSeconds{{"CPU", 60},
+                                                                                {"GPU", 60},
+                                                                                {"VPU", 60},
+                                                                                {"MYRIAD", 60},
+                                                                                {"HDDL", 60},
+                                                                                {"FPGA", 120},
+                                                                                {"UNKNOWN", 120}};
     uint32_t duration = 0;
     for (const auto& deviceDurationInSeconds : deviceDefaultDurationInSeconds) {
         if (device.find(deviceDurationInSeconds.first) != std::string::npos) {
@@ -63,16 +68,18 @@ uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device) {
         }
     }
     if (duration == 0) {
-        const auto unknownDeviceIt =
-            find_if(deviceDefaultDurationInSeconds.begin(), deviceDefaultDurationInSeconds.end(), [](std::pair<std::string, uint32_t> deviceDuration) {
-                return deviceDuration.first == "UNKNOWN";
-            });
+        const auto unknownDeviceIt = find_if(deviceDefaultDurationInSeconds.begin(),
+                                             deviceDefaultDurationInSeconds.end(),
+                                             [](std::pair<std::string, uint32_t> deviceDuration) {
+                                                 return deviceDuration.first == "UNKNOWN";
+                                             });
 
         if (unknownDeviceIt == deviceDefaultDurationInSeconds.end()) {
             throw std::logic_error("UNKNOWN device was not found in the device duration list");
         }
         duration = unknownDeviceIt->second;
-        slog::warn << "Default duration " << duration << " seconds for unknown device '" << device << "' is used" << slog::endl;
+        slog::warn << "Default duration " << duration << " seconds for unknown device '" << device << "' is used"
+                   << slog::endl;
     }
     return duration;
 }
@@ -84,6 +91,17 @@ std::vector<std::string> split(const std::string& s, char delim) {
 
     while (getline(ss, item, delim)) {
         result.push_back(item);
+    }
+    return result;
+}
+
+std::vector<float> splitFloat(const std::string& s, char delim) {
+    std::vector<float> result;
+    std::stringstream ss(s);
+    std::string item;
+
+    while (getline(ss, item, delim)) {
+        result.push_back(std::stof(item));
     }
     return result;
 }
@@ -101,7 +119,8 @@ std::vector<std::string> parseDevices(const std::string& device_string) {
     return devices;
 }
 
-std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector<std::string>& devices, const std::string& values_string) {
+std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector<std::string>& devices,
+                                                               const std::string& values_string) {
     //  Format: <device1>:<value1>,<device2>:<value2> or just <value>
     std::map<std::string, std::string> result;
     auto device_value_strings = split(values_string, ',');
@@ -114,7 +133,8 @@ std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector
             if (it != devices.end()) {
                 result[device_name] = nstreams;
             } else {
-                throw std::logic_error("Can't set nstreams value " + std::string(nstreams) + " for device '" + device_name + "'! Incorrect device name!");
+                throw std::logic_error("Can't set nstreams value " + std::string(nstreams) + " for device '" +
+                                       device_name + "'! Incorrect device name!");
             }
         } else if (device_value_vec.size() == 1) {
             auto value = device_value_vec.at(0);
@@ -159,6 +179,45 @@ std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& sha
         ss << "]";
     }
     return ss.str();
+}
+
+std::map<std::string, std::vector<float>> parseScaleOrMean(const std::string& scale_mean,
+                                                           const benchmark_app::InputsInfo& inputs_info) {
+    //  Format: data:[255,255,255],info[255,255,255]
+    std::map<std::string, std::vector<float>> return_value;
+
+    std::string search_string = scale_mean;
+    auto start_pos = search_string.find_first_of('[');
+    while (start_pos != std::string::npos) {
+        auto end_pos = search_string.find_first_of(']');
+        if (end_pos == std::string::npos)
+            break;
+        auto input_name = search_string.substr(0, start_pos);
+        auto input_value_string = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
+        auto input_value = splitFloat(input_value_string, ',');
+
+        if (!input_name.empty()) {
+            if (inputs_info.count(input_name)) {
+                return_value[input_name] = input_value;
+            }
+            // ignore wrong input name
+        } else {
+            for (auto& item : inputs_info) {
+                if (item.second.isImage())
+                    return_value[item.first] = input_value;
+            }
+            search_string.clear();
+            break;
+        }
+        search_string = search_string.substr(end_pos + 1);
+        if (search_string.empty() || search_string.front() != ',')
+            break;
+        search_string = search_string.substr(1);
+        start_pos = search_string.find_first_of('[');
+    }
+    if (!search_string.empty())
+        throw std::logic_error("Can't parse input parameter string: " + scale_mean);
+    return return_value;
 }
 
 #ifdef USE_OPENCV

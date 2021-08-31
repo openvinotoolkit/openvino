@@ -146,8 +146,7 @@ typedef struct {
     uint32_t num_bytes_per_bias;
     uint32_t num_filters;
     uint32_t num_filter_coefficients;
-    uint32_t num_feature_map_rows;
-    uint32_t num_feature_map_columns;
+    uint32_t convStride;
     float weight_scale_factor;
     void *ptr_filters;     // filters stored one after the other
     void *ptr_biases;
@@ -228,7 +227,7 @@ OvGnaType OvGnaTypeIntFromBytes(T bytesPerElement) {
     return r->second;
 }
 
-static std::string OvGnaTypeToString(OvGnaType type) {
+inline std::string OvGnaTypeToString(OvGnaType type) {
     static const std::map<OvGnaType, std::string> typeToString = {
         {OvGnaTypeInt8, "OvGnaTypeInt8"},
         {OvGnaTypeInt16, "OvGnaTypeInt16"},
@@ -242,7 +241,7 @@ static std::string OvGnaTypeToString(OvGnaType type) {
     return r->second;
 }
 
-static std::string OvGnaModeToString(OvGnaMode mode) {
+inline std::string OvGnaModeToString(OvGnaMode mode) {
     static const std::map<OvGnaMode, std::string> modeToString = {
         {OvGnaModeDefault, "OvGnaModeDefault"},
         {OvGnaModeDisabled, "OvGnaModeDisabled"},

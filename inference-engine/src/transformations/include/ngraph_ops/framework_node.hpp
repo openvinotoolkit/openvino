@@ -55,7 +55,7 @@ class TRANSFORMATIONS_API FrameworkNode : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
-    explicit FrameworkNode(const OutputVector& inputs);
+    explicit FrameworkNode(const OutputVector& inputs, size_t output_size = 1);
 
     void validate_and_infer_types() override;
 
@@ -71,20 +71,27 @@ public:
     std::shared_ptr<Node>
         clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    void cache_output_descriptor();
+
 private:
     std::vector<std::tuple<ngraph::PartialShape, ngraph::element::Type>> m_inputs_desc;
+    std::vector<std::tuple<ngraph::PartialShape, ngraph::element::Type>> m_output_desc;
 
     FrameworkNodeAttrs m_attrs;
 };
 } // namespace op
+} // namespace ngraph
+
+namespace ov {
 
 template <>
-class TRANSFORMATIONS_API AttributeAdapter<op::FrameworkNodeAttrs>
-    : public DirectValueAccessor<op::FrameworkNodeAttrs> {
+class TRANSFORMATIONS_API AttributeAdapter<ngraph::op::FrameworkNodeAttrs>
+    : public DirectValueAccessor<ngraph::op::FrameworkNodeAttrs> {
 public:
-    AttributeAdapter(op::FrameworkNodeAttrs& value);
+    AttributeAdapter(ngraph::op::FrameworkNodeAttrs& value);
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<FrameworkNodeAttr>", 0};
     const DiscreteTypeInfo& get_type_info() const override { return type_info; }
 };
-} // namespace ngraph
+
+}  // namespace ov

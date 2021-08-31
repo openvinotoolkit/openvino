@@ -61,7 +61,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> params = {
     }
 };
 
-const std::vector<ngraph::Shape> inputShapes = {
+const std::vector<ngraph::PartialShape> inputShapes = {
     { 1, 16, 9, 9 },
     { 4, 16, 9, 9 }
 };

@@ -13,10 +13,9 @@
 #include <memory>
 #include <string>
 
-#include <ie_parameter.hpp>
-#include <cpp/ie_cnn_network.h>
+#include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-
+#include "ie_parameter.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
@@ -103,7 +102,8 @@ public:
      * @param config Optional map of pairs: (config parameter name, config parameter value)
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
-    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
+    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network,
+                                            const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) const = 0;
 
     /**
@@ -147,6 +147,7 @@ public:
 class INFERENCE_ENGINE_API_CLASS(DeviceIDParser) {
     std::string deviceName;
     std::string deviceID;
+
 public:
     explicit DeviceIDParser(const std::string& deviceNameWithID);
 

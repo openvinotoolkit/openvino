@@ -14,6 +14,15 @@ using namespace InferenceEngine;
 MKLDNNReshapeNode::MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache) {}
 
+MKLDNNReshapeNode::MKLDNNReshapeNode(const std::string& name, const Shape& inDims, const Shape& outDims, Precision precision,
+        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &wCache)
+        : MKLDNNNode("Reshape", name, eng, wCache) {
+    this->inputShapes.push_back(inDims);
+    this->outputShapes.push_back(outDims);
+    addOriginalInputPrecision(precision);
+    addOriginalOutputPrecision(precision);
+}
+
 void MKLDNNReshapeNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 1 && getParentEdges().size() != 2)
         IE_THROW() << "Incorrect number of input edges for layer " << getName();
@@ -35,18 +44,18 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     if (inputDataType != outputDataType)
         inputDataType = outputDataType;
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(getParentEdges().size());
     for (size_t i = 0; i <getParentEdges().size(); i++) {
         config.inConfs[i].inPlace = -1;
         config.inConfs[i].constant = false;
-        config.inConfs[i].desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType);
+        config.inConfs[i].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(i)->getShape().getStaticDims(), inputDataType);
     }
     config.outConfs.resize(1);
     config.outConfs[0].inPlace = 0;
     config.outConfs[0].constant = false;
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
+    config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType);
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 

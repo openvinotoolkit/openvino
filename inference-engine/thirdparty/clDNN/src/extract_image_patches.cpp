@@ -52,6 +52,6 @@ std::string extract_image_patches_inst::to_string(extract_image_patches_node con
     return primitive_description.str();
 }
 
-extract_image_patches_inst::typed_primitive_inst(network_impl& network, extract_image_patches_node const& node) : parent(network, node) {}
+extract_image_patches_inst::typed_primitive_inst(network& network, extract_image_patches_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn

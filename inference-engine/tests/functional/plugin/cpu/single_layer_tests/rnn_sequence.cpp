@@ -41,7 +41,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::RNNSequenceParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
@@ -119,7 +119,7 @@ protected:
         }
     }
 
-    void GenerateInputs() {
+    void GenerateInputs() override {
         for (const auto &input : executableNetwork.GetInputsInfo()) {
             const auto &info = input.second;
             auto blob = GenerateInput(*info);
@@ -148,8 +148,8 @@ namespace {
 std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}, {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
-CPUSpecificParams cpuParams{{ntc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};
-CPUSpecificParams cpuParamsBatchSizeOne{{ntc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParams{{ntc, ntc}, {ntc, ntc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc}, {tnc, tnc}, {"ref_any"}, "ref_any"};
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 // output values increase rapidly without clip, so use only seq_lengths = 2

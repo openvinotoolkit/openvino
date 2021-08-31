@@ -3,28 +3,23 @@
 //
 
 #include "ngraph/distributed.hpp"
+
 #include "ngraph/log.hpp"
 #include "ngraph/type.hpp"
 
-using namespace ngraph;
+namespace ov {
+template <>
+EnumNames<ngraph::reduction::Type>& EnumNames<ngraph::reduction::Type>::get() {
+    static auto enum_names = ov::EnumNames<ngraph::reduction::Type>("reduction::Type",
+                                                                    {{"SUM", ngraph::reduction::Type::SUM},
+                                                                     {"PROD", ngraph::reduction::Type::PROD},
+                                                                     {"MIN", ngraph::reduction::Type::MIN},
+                                                                     {"MAX", ngraph::reduction::Type::MAX}});
+    return enum_names;
+}
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::reduction::Type>::type_info;
+}  // namespace ov
 
-namespace ngraph
-{
-    template <>
-    EnumNames<reduction::Type>& EnumNames<reduction::Type>::get()
-    {
-        static auto enum_names = EnumNames<reduction::Type>("reduction::Type",
-                                                            {{"SUM", reduction::Type::SUM},
-                                                             {"PROD", reduction::Type::PROD},
-                                                             {"MIN", reduction::Type::MIN},
-                                                             {"MAX", reduction::Type::MAX}});
-        return enum_names;
-    }
-
-    constexpr DiscreteTypeInfo AttributeAdapter<reduction::Type>::type_info;
-} // namespace ngraph
-
-std::ostream& reduction::operator<<(std::ostream& out, const reduction::Type& obj)
-{
+std::ostream& ngraph::reduction::operator<<(std::ostream& out, const ngraph::reduction::Type& obj) {
     return out << as_string(obj);
 }

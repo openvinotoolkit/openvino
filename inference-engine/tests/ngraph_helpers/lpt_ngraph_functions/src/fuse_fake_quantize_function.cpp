@@ -86,7 +86,7 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
     }
 
 std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::get(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const std::vector<Branch>& branches,
     const ngraph::element::Type precisionFqOnData,
     const FakeQuantizeOnData& fqOnData) {
@@ -101,7 +101,7 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::get(
     ngraph::ParameterVector inputs;
     std::vector<std::shared_ptr<Node>> lastDequantizations;
     for (const Branch& branch : branches) {
-        const auto input = std::make_shared<ngraph::opset1::Parameter>(branch.precisionBeforeDequantization, ngraph::Shape(inputShape));
+        const auto input = std::make_shared<ngraph::opset1::Parameter>(branch.precisionBeforeDequantization, inputShape);
         inputs.push_back(input);
 
         const std::shared_ptr<Node> lastDequantization = makeDequantization(input, branch.dequantization);

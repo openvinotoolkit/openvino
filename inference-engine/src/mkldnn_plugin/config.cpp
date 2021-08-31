@@ -26,8 +26,13 @@ Config::Config() {
     // for the TBB code-path, additional configuration depending on the OS and CPU types
     #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         #if defined(__APPLE__) || defined(_WIN32)
-        // 'CORES' is not implemented for Win/MacOS; so the 'NUMA' is default
-        streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
+        // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
+        auto numaNodes = getAvailableNUMANodes();
+        if (numaNodes.size() > 1) {
+            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
+        } else {
+            streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
+        }
         #endif
 
         if (getAvailableCoresTypes().size() > 1 /*Hybrid CPU*/) {

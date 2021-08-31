@@ -17,7 +17,6 @@
 #include <vpu/graph_transformer.hpp>
 
 #include "myriad_executor.h"
-#include "myriad_config.h"
 
 namespace vpu {
 namespace MyriadPlugin {
@@ -26,7 +25,7 @@ class MyriadInferRequest : public InferenceEngine::IInferRequestInternal {
     MyriadExecutorPtr _executor;
     Logger::Ptr _log;
     std::vector<StageMetaInfo> _stagesMetaData;
-    MyriadConfig _config;
+    PluginConfiguration _config;
 
     const DataInfo _inputInfo;
     const DataInfo _outputInfo;
@@ -46,7 +45,7 @@ public:
                                 DataInfo& compilerInputsInfo,
                                 DataInfo& compilerOutputsInfo,
                                 const std::vector<StageMetaInfo> &blobMetaData,
-                                const MyriadConfig &myriadConfig,
+                                const PluginConfiguration &myriadConfig,
                                 const Logger::Ptr &log,
                                 const MyriadExecutorPtr &executor,
                                 std::map<std::string, ie::Blob::Ptr> constDatas,

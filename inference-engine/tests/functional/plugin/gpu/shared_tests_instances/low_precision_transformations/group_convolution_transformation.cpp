@@ -16,14 +16,16 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };
+
+const std::vector<bool> addPrecisionPreserved = { true, false };
 
 const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> params = {
     // group convolution, tensor quantization
     {
-        ngraph::Shape{ 1, 6, 24, 24 },
+        { 1, 6, 24, 24 },
         ngraph::Shape{ 1, 24, 18, 18 },
         3ul,
         -1,
@@ -34,7 +36,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     },
     // group convolution, tensor quantization
     {
-        ngraph::Shape{ 1, 6, 24, 24 },
+        { 1, 6, 24, 24 },
         ngraph::Shape{ 1, 24, 18, 18 },
         3ul,
         0,
@@ -45,7 +47,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     },
     // group convolution, tensor quantization
     {
-        ngraph::Shape{ 1, 6, 24, 24 },
+        { 1, 6, 24, 24 },
         ngraph::Shape{ 1, 24, 18, 18 },
         3ul,
         1,
@@ -56,7 +58,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     },
     // group convolution, per-channel quantization
     {
-        ngraph::Shape{ 1, 6, 24, 24 },
+        { 1, 6, 24, 24 },
         ngraph::Shape{ 1, 24, 18, 18 },
         3ul,
         -1,
@@ -72,7 +74,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     },
     // depthwise convolution, tensor quantization
     {
-        ngraph::Shape{ 1, 6, 24, 24 },
+        { 1, 6, 24, 24 },
         ngraph::Shape{ 1, 6, 18, 18 },
         6ul,
         -1,
@@ -81,7 +83,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     },
     // depthwise convolution, per-channel quantization
     {
-        ngraph::Shape{ 1, 6, 24, 24 },
+        { 1, 6, 24, 24 },
         ngraph::Shape{ 1, 6, 18, 18 },
         6ul,
         -1,
@@ -102,6 +104,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(params)),
+        ::testing::ValuesIn(params),
+        ::testing::ValuesIn(addPrecisionPreserved)),
     GroupConvolutionTransformation::getTestCaseName);
 }  // namespace

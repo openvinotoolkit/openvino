@@ -24,21 +24,20 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
-#include <transformations/op_conversions/convert_gather_v7_to_gather_v1.hpp>
-#include <transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp>
+#include <transformations/op_conversions/convert_gather_downgrade.hpp>
+#include <transformations/op_conversions/convert_gather_upgrade.hpp>
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
+#include <transformations/op_conversions/normalize_l2_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l1_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l2_decomposition.hpp>
-#include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
 #include <transformations/op_conversions/softplus_decomposition.hpp>
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
@@ -52,10 +51,13 @@
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
-#include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
+#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
+#include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
+#include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
+#include <transformations/smart_reshape/matmul_sr.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -73,13 +75,12 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
-#include <low_precision/pull_reshape_through_dequantization.hpp>
-#include <low_precision/pull_transpose_through_dequantization.hpp>
-#include <low_precision/transformer.hpp>
+#include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/convolution_backprop_data.hpp>
-#include <low_precision/group_convolution.hpp>
+#include <low_precision/layer_transformation.hpp>
+#include <low_precision/low_precision.hpp>
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
 
@@ -87,6 +88,7 @@
 
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
+#include "nodes/mkldnn_normalize_node.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -120,7 +122,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     const bool useLpt =
         (conf.lpTransformsMode == Config::LPTransformsMode::On) &&
-        ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+        ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
     if (useLpt) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
@@ -165,6 +167,9 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+    manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
+    manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
+    manager.register_pass<ngraph::pass::TransposeMatMul>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     if (useLpt) {
@@ -241,8 +246,9 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         return false;
     };
 
-    pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator, ngraph::pass::ConvertGRUSequenceToTensorIterator,
-            ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
+    pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator,
+                              ngraph::pass::ConvertGRUSequenceToTensorIterator,
+                              ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
             [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
                 return isSequencePrimitiveSupported(node);
             });
@@ -272,6 +278,12 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
                 return MKLDNNMVNNode::isSupportedOperation(node, errorMessage);
             });
 
+    pass_config->set_callback<ngraph::pass::NormalizeL2Decomposition>(
+            [](const_node_ptr &node) -> bool {
+                std::string errorMsg;
+                return MKLDNNNormalizeL2Node::isSupportedOperation(node, errorMsg);
+            });
+
     pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
             [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_partial_shape().rank().get_length() > 5;
@@ -293,8 +305,10 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     pass_config->disable<ngraph::pass::ConvertGather7ToGather1>();
 
+    pass_config->enable<ngraph::pass::NormalizeL2Decomposition>();
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
     pass_config->enable<ngraph::pass::ConvertGather1ToGather7>();
+    pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
     if (useLpt) {
         pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
@@ -312,30 +326,45 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     if (useLpt) {
         OV_ITT_SCOPE(FIRST_INFERENCE, MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
 
-        ngraph::pass::Manager manager;
-        auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
-        const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
-        lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
-        lptPrerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
-        lptPrerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
-        manager.run_passes(nGraphFunc);
+        auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
+            OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}},
+            }),
+            OperationPrecisionRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
+                {0, {ngraph::element::u8, ngraph::element::i8}},
+                {1, {ngraph::element::i8}}
+            }),
+            OperationPrecisionRestriction::create<ngraph::opset1::GroupConvolution>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}}
+            }),
+            OperationPrecisionRestriction::create<ngraph::opset1::Multiply>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}},
+            }),
+        });
 
-        auto params = LayerTransformation::Params(
-            true,  // updatePrecisions
-            LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-            LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-            true);  // supportAsymmetricQuantization
-        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-            .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}).setSupportAsymmetricQuantization(true))
-            .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
-            .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }))
-            .add<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>(
-                    LayerTransformation::Params(params).setSupportAsymmetricQuantization(false)));
+        auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
+            OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
+            OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})
+        });
 
-        transformer.transform(nGraphFunc);
+        ngraph::pass::Manager lptManager;
+        lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
+        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
+            if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
+                return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
+            }
+            return false;
+        });
+        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
+            return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
+        });
+        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>([](const_node_ptr& node) -> bool {
+            return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
+        });
+        lptManager.run_passes(nGraphFunc);
     }
 
     ngraph::pass::Manager postLPTPassManager;

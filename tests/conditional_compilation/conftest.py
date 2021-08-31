@@ -6,7 +6,6 @@
 # pylint: disable=line-too-long
 
 """Pytest configuration for compilation tests."""
-
 import logging
 import sys
 from inspect import getsourcefile
@@ -19,8 +18,8 @@ import yaml
 import pytest
 
 from path_utils import expand_env_vars  # pylint: disable=import-error
-from test_utils import make_build, validate_path_arg, write_session_info, SESSION_INFO_FILE  # pylint: disable=import-error
-
+from test_utils import make_build, validate_path_arg, write_session_info, \
+    SESSION_INFO_FILE  # pylint: disable=import-error
 
 log = logging.getLogger()
 
@@ -71,15 +70,19 @@ def pytest_generate_tests(metafunc):
         test_cases = yaml.safe_load(file)
 
     for test in test_cases:
-        extra_args = {}
-        model_path = test["model"]["path"]
-        if "marks" in test:
-            extra_args["marks"] = test["marks"]
+        model_list = []
+        test_id_list = []
+        for models in test:
+            extra_args = {}
+            model_path = models["model"]["path"]
+            if "marks" in test:
+                extra_args["marks"] = test["marks"]
+            model_list.append(expand_env_vars(model_path))
+            test_id_list.append(model_path.split("/")[- 1])
+        ids = ids + ['-'.join(test_id_list)]
+        params.append(pytest.param('-'.join(test_id_list), model_list), **extra_args)
 
-        test_id = model_path.replace("$", "").replace("{", "").replace("}", "")
-        params.append(pytest.param(test_id, Path(expand_env_vars(model_path)), **extra_args))
-        ids = ids + [test_id]
-    metafunc.parametrize("test_id, model", params, ids=ids)
+    metafunc.parametrize("test_id, models", params, ids=ids)
 
 
 @pytest.fixture(scope="session")
@@ -136,10 +139,13 @@ def openvino_ref(request, artifacts):
 
     log.info("--openvino_ref is not specified. Preparing instrumented build at %s", build_dir)
 
+    build_target = {"sea_itt_lib": Path(build_dir / "thirdparty" / "itt_collector" / "sea_itt_lib")}
+
     return_code, output = make_build(
         openvino_root_dir,
         build_dir,
         openvino_ref_path,
+        build_target=build_target,
         cmake_additional_args=["-DSELECTIVE_BUILD=COLLECT"],
         log=log
     )

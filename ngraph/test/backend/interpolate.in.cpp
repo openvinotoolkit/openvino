@@ -22,8 +22,7 @@ static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, interpolate_down_scales_const_linear)
-{
+NGRAPH_TEST(${BACKEND_NAME}, interpolate_down_scales_const_linear) {
     Shape input_shape{1, 1, 2, 4};
     Shape output_shape{1, 1, 1, 2};
     op::v0::InterpolateAttrs attrs;

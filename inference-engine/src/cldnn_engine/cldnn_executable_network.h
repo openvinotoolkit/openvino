@@ -23,16 +23,16 @@ class CLDNNExecNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefa
 public:
     typedef std::shared_ptr<CLDNNExecNetwork> Ptr;
 
-    CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, InferenceEngine::RemoteContext::Ptr context, Config config);
+    CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::IRemoteContext> context, Config config);
 
-    InferenceEngine::CNNNetwork GetExecGraphInfo() override;
+    std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
 
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
-    InferenceEngine::RemoteContext::Ptr GetContext() const override;
+    std::shared_ptr<InferenceEngine::IRemoteContext> GetContext() const override;
 
     std::vector<std::shared_ptr<CLDNNGraph>> m_graphs;
     InferenceEngine::gpu::ClContext::Ptr m_context;

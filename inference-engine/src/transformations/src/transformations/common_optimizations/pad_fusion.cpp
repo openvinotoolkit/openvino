@@ -12,6 +12,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/validation_util.hpp>
 
 using namespace ngraph;
 

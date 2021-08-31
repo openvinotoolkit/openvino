@@ -3,8 +3,6 @@
 //
 
 #include "layout_optimizer.h"
-#include "topology_impl.h"
-#include "network_impl.h"
 #include "primitive_inst.h"
 #include "cldnn/runtime/error_handler.hpp"
 
@@ -106,16 +104,15 @@ bool layout_optimizer::is_format_supported(program_node& node, format::type fmt)
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
 
-    if (!_format_forcing.empty() && _format_forcing.count(node.id()))
-        return _format_forcing.at(node.id()) == fmt;
+    if (!_forcing_map.empty() && _forcing_map.count(node.id()))
+        return _forcing_map.at(node.id()).first == fmt;
 
-    auto& engine = node.get_program().get_engine();
     auto prev_layout = node.get_output_layout();
     auto new_layout = prev_layout;
     new_layout.format = fmt;
     node.set_output_layout(new_layout, false);
 
-    auto supported = node.type()->does_possible_implementation_exist(engine, node);
+    auto supported = node.type()->does_possible_implementation_exist(node);
 
     node.set_output_layout(prev_layout, false);
 
@@ -824,12 +821,38 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     return layout(expected_data_type, expected_format, expected_tensor);
 }
 
+impl_types layout_optimizer::get_preferred_impl_type(program_node& node) {
+    impl_types preferred_impl = impl_types::any;
+    if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
+        preferred_impl = _forcing_map.at(node.id()).second;
+    } else if (node.is_type<detection_output>()) {
+        auto& detection_output_node = node.as<detection_output>();
+        auto confidence_layout = detection_output_node.confidence().get_output_layout();
+        auto prim = detection_output_node.get_primitive();
+        if (confidence_layout.size.batch[0] >= 4 && prim->confidence_threshold >= 0.1 && prim->top_k <= 400 &&
+            prim->num_classes >= 16 && confidence_layout.size.feature[0] > 10000)
+            preferred_impl = impl_types::ocl;
+        else
+            preferred_impl = impl_types::cpu;
+    } else if (node.is_type<non_max_suppression>()) {
+        auto& nms_node = node.as<non_max_suppression>();
+        auto scoresTensor = convert_data_tensor(nms_node.input_scores().get_output_layout());
+        const size_t kBatchNum = scoresTensor.Batch().v;
+        const size_t kClassNum = scoresTensor.Feature().v;
+        const size_t kNStreams = static_cast<size_t>(node.get_program().get_engine().configuration().n_streams);
+        const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
+        preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
+    }
+
+    return preferred_impl;
+}
+
 format layout_optimizer::get_preferred_format(program_node& node) {
     format expected = format::any;
     auto output_layout = node.get_output_layout();
 
-    if (!_format_forcing.empty() && _format_forcing.count(node.id()) != 0) {
-        expected = _format_forcing.at(node.id());
+    if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
+        expected = _forcing_map.at(node.id()).first;
     } else if (node.is_type<convolution>()) {
         auto& conv_node = node.as<convolution>();
         auto weights_layout = conv_node.weights(0).get_output_layout();
@@ -977,7 +1000,7 @@ bool layout_optimizer::is_format_optimized(const deconvolution_node& node, const
 
 void layout_optimizer::set_implementation_forcing(const implementation_forcing_map& map) {
     for (const auto& kv : map) {
-        _format_forcing.emplace(kv.first, kv.second.output_format);
+        _forcing_map.emplace(kv.first, std::make_pair(kv.second.output_format, kv.second.impl_type));
     }
 }
 

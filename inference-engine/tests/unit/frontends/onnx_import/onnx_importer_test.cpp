@@ -7,11 +7,15 @@
 #include <string>
 #include <fstream>
 
+#include "common_test_utils/file_utils.hpp"
 #include "ngraph/file_util.hpp"
 #include "onnx_import/onnx.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 TEST(ONNX_Importer_Tests, ImportBasicModel) {
-    auto model_file_path = ngraph::file_util::path_join(ONNX_MODELS_DIR, "add_abc_initializers.prototxt");
+    auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
+        ngraph::file_util::path_join(ONNX_MODELS_DIR, "add_abc_initializers.onnx"));
     auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
 
     int count_additions = 0;
@@ -35,7 +39,8 @@ TEST(ONNX_Importer_Tests, ImportBasicModel) {
 }
 
 TEST(ONNX_Importer_Tests, ImportModelWithFusedOp) {
-    auto model_file_path = ngraph::file_util::path_join(ONNX_MODELS_DIR, "selu.prototxt");
+    auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
+        ngraph::file_util::path_join(ONNX_MODELS_DIR, "selu.onnx"));
     auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
 
     int count_selu = 0;
@@ -59,7 +64,8 @@ TEST(ONNX_Importer_Tests, ImportModelWithFusedOp) {
 }
 
 TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
-    auto model_file_path = ngraph::file_util::path_join(ONNX_MODELS_DIR, "topk.prototxt");
+    auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
+        ngraph::file_util::path_join(ONNX_MODELS_DIR, "topk.onnx"));
     auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
 
     int count_topk = 0;
@@ -86,7 +92,8 @@ TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
 }
 
 TEST(ONNX_Importer_Tests, ImportModelWithNotSupportedOp) {
-    auto model_file_path = ngraph::file_util::path_join(ONNX_MODELS_DIR, "not_supported.prototxt");
+    auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
+        ngraph::file_util::path_join(ONNX_MODELS_DIR, "not_supported.onnx"));
     try {
         auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
         FAIL() << "Any expection was thrown despite the ONNX model is not supported";
@@ -100,7 +107,8 @@ TEST(ONNX_Importer_Tests, ImportModelWithNotSupportedOp) {
 }
 
 TEST(ONNX_Importer_Tests, ImportModelWhenFileDoesNotExist) {
-    auto model_file_path = ngraph::file_util::path_join(ONNX_MODELS_DIR, "not_exist_file.prototxt");
+    auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
+        ngraph::file_util::path_join(ONNX_MODELS_DIR, "not_exist_file.onnx"));
     try {
         auto function = ngraph::onnx_import::import_onnx_model(model_file_path);
         FAIL() << "Any expection was thrown despite the ONNX model file does not exist";
@@ -113,26 +121,26 @@ TEST(ONNX_Importer_Tests, ImportModelWhenFileDoesNotExist) {
     }
 }
 
-TEST(ONNX_Importer_Tests, ImportModelFromStream) {
-    auto model_file_path = ngraph::file_util::path_join(ONNX_MODELS_DIR, "addmul_abc.prototxt");
+// TODO: CVS-61224
+TEST(ONNX_Importer_Tests, DISABLED_ImportModelFromStream) {
+    auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
+        ngraph::file_util::path_join(ONNX_MODELS_DIR, "addmul_abc.onnx"));
     std::ifstream model_file_stream(model_file_path);
-    if (model_file_stream.is_open()) {
-        int count_adds = 0;
-        int count_multiplies = 0;
-        int count_parameters = 0;
+    ASSERT_TRUE(model_file_stream.is_open());
+    int count_adds = 0;
+    int count_multiplies = 0;
+    int count_parameters = 0;
 
-        auto function = ngraph::onnx_import::import_onnx_model(model_file_stream);
-        for (auto op : function->get_ops()) {
+    auto function = ngraph::onnx_import::import_onnx_model(model_file_stream);
+    for (auto op : function->get_ops()) {
         const auto op_type = std::string(op->get_type_name());
-            count_adds += (op_type == "Add" ? 1 : 0);
-            count_multiplies += (op_type == "Multiply" ? 1 : 0);
-            count_parameters += (op_type == "Parameter" ? 1 : 0);
-        }
-        ASSERT_EQ(count_adds, 1);
-        ASSERT_EQ(count_multiplies, 1);
-        ASSERT_EQ(count_parameters, 3);
+        count_adds += (op_type == "Add" ? 1 : 0);
+        count_multiplies += (op_type == "Multiply" ? 1 : 0);
+        count_parameters += (op_type == "Parameter" ? 1 : 0);
     }
-    model_file_stream.close();
+    ASSERT_EQ(count_adds, 1);
+    ASSERT_EQ(count_multiplies, 1);
+    ASSERT_EQ(count_parameters, 3);
 }
 
 TEST(ONNX_Importer_Tests, GetSupportedOperators) {

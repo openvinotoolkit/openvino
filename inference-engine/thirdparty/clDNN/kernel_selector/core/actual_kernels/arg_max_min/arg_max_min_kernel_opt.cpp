@@ -47,7 +47,7 @@ KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params, const optio
         auto& kernel = kd.kernels[i];
         DispatchData dispatchData = SetDefault(newParams);
         auto cldnnJit = GetJitConstants(newParams);
-        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, options);
+        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, options);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
         dispatchData.gws = { Align(size, 16), orgParams.inputs[0].Batch().v, 1 };

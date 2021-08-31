@@ -45,23 +45,10 @@ public:
 
     ngraph::element::Type precision;
     ngraph::Shape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
-
-template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
 
 class ElementwiseWithMultiParentDequantizationTransformation :
     public LayerTransformation,
@@ -73,21 +60,20 @@ public:
         actualFunction = ElementwiseWithMultiParentDequantizationFunction::get(
             testValues.precision,
             testValues.inputShape,
-            testValues.params,
+            TestTransformationParams::toParams(testValues.params),
             testValues.actual.precision1,
             testValues.actual.dequantization1,
             testValues.actual.precision2,
             testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(
-            low_precision::LayerTransformation::Params(testValues.params));
+        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ElementwiseWithMultiParentDequantizationFunction::get(
             testValues.precision,
             testValues.inputShape,
-            testValues.params,
+            TestTransformationParams::toParams(testValues.params),
             testValues.expected.precision1,
             testValues.expected.dequantization1,
             testValues.expected.precision2,

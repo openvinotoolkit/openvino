@@ -37,7 +37,7 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> VariadicSplitFunction::getOriginal(
     const ngraph::element::Type originalFunctionPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
     const int64_t splitedAxis,
     const std::vector<size_t>& splitLengths) {

@@ -154,7 +154,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     _workerRequests.clear();
 }
 
-RemoteContext::Ptr MultiDeviceExecutableNetwork::GetContext() const {
+std::shared_ptr<InferenceEngine::IRemoteContext> MultiDeviceExecutableNetwork::GetContext() const {
     auto devices = [&] {
         std::lock_guard<std::mutex> lock(_mutex);
         return _devicePriorities;

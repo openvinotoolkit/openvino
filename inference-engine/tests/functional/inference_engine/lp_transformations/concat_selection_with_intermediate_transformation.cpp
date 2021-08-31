@@ -12,9 +12,8 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <low_precision/transformer.hpp>
 #include <low_precision/concat.hpp>
-#include <low_precision/concat_multi_channels.hpp>
+#include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/max_pool.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -58,7 +57,7 @@ inline std::ostream& operator<<(std::ostream& out, const ResultValues& values) {
 class TestValues {
 public:
     ngraph::Shape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool transparentIntermediate;
     ActualValues actual;
     ResultValues result;
@@ -86,8 +85,15 @@ public:
             testValues.actual.fakeQuantize1,
             testValues.actual.fakeQuantize2);
 
-        SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, ngraph::opset1::Concat>(testValues.params);
+        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
+            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+                {0, {ngraph::element::u8}}
+            })
+        });
+
+        SimpleLowPrecisionTransformer transform(supportedPrecisions);
+        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 

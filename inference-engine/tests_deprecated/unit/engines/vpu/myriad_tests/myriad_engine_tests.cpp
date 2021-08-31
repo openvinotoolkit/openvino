@@ -5,6 +5,9 @@
 #include <gtest/gtest.h>
 
 #include "myriad_test_case.h"
+#include "vpu/myriad_config.hpp"
+#include "vpu/vpu_plugin_config.hpp"
+#include "vpu/private_plugin_config.hpp"
 
 using MyriadEngineSetCorrectConfigTest = MyriadEngineSetConfigTest;
 using MyriadEngineSetIncorrectConfigTest = MyriadEngineSetConfigTest;
@@ -18,20 +21,6 @@ TEST_P(MyriadEngineSetIncorrectConfigTest, SetIncorrectConfig) {
 }
 
 IE_SUPPRESS_DEPRECATED_START
-
-static const std::vector<config_t> myriadCorrectPlatformConfigValues = {
-    // Deprecated
-    {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2450)}},
-    {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}},
-    {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), ""}}
-};
-
-static const std::vector<config_t> myriadIncorrectPlatformConfigValues = {
-    // Deprecated
-    {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
-    {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), " 0"}},
-    {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "MyriadX"}}
-};
 
 static const std::vector<config_t> myriadCorrectProtocolConfigValues = {
     {{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE}},
@@ -47,12 +36,10 @@ static const std::vector<config_t> myriadCorrectProtocolConfigValues = {
 static const std::vector<config_t> myriadIncorrectProtocolConfigValues = {
     // Protocols
     {{InferenceEngine::MYRIAD_PROTOCOL, "0"}},
-    {{InferenceEngine::MYRIAD_PROTOCOL, "2450"}},
     {{InferenceEngine::MYRIAD_PROTOCOL, "PCI"}},
 
     // Deprecated
     {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "0"}},
-    {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "2450"}},
     {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "PCI"}},
 };
 
@@ -102,13 +89,6 @@ static const std::vector<config_t> myriadIncorrectPackageTypeConfigValues = {
 };
 
 IE_SUPPRESS_DEPRECATED_END
-
-/// Platform
-INSTANTIATE_TEST_SUITE_P(MyriadPlatformConfigs, MyriadEngineSetCorrectConfigTest,
-                        ::testing::ValuesIn(myriadCorrectPlatformConfigValues));
-
-INSTANTIATE_TEST_SUITE_P(MyriadPlatformConfigs, MyriadEngineSetIncorrectConfigTest,
-                        ::testing::ValuesIn(myriadIncorrectPlatformConfigValues));
 
 /// Protocol
 INSTANTIATE_TEST_SUITE_P(MyriadProtocolConfigs, MyriadEngineSetCorrectConfigTest,

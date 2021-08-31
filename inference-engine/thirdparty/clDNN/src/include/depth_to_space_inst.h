@@ -36,7 +36,7 @@ public:
     static std::string to_string(depth_to_space_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, depth_to_space_node const& desc);
+    typed_primitive_inst(network& network, depth_to_space_node const& desc);
 };
 
 using depth_to_space_inst = typed_primitive_inst<depth_to_space>;

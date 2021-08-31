@@ -10,13 +10,14 @@
 #include "arg_max_min_inst.h"
 #include "fused_conv_eltwise_inst.h"
 
-#include "network_impl.h"
+#include "cldnn/graph/network.hpp"
 #include "cldnn/runtime/engine.hpp"
 #include "cldnn/runtime/memory.hpp"
 
 #include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
+#include <stack>
 #include <vector>
 #include <memory>
 #include <algorithm>
@@ -51,6 +52,8 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
             if (layout.format.is_image_2d())
                 CLDNN_ERROR_MESSAGE(_node.id(), "Attempt to set user-supplied input or output buffer instead of an image");
             break;
+        case shared_mem_type::shared_mem_usm:
+            break;
         default:
             CLDNN_ERROR_MESSAGE(_node.id(), "Attempt to set user-supplied input or output memory of unknown/invalid type");
             break;
@@ -58,12 +61,23 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
     }
 }
 
-void primitive_inst::set_output_memory(memory::ptr mem) {
+void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
+    auto& eng = _network.get_engine();
+    // skip all the buzz if no action actually required
+    if (eng.is_the_same_buffer(*mem_new, *_output)) {
+        return;
+    }
+
     auto ol = _node.get_output_layout();
 
-    check_memory_to_set(*mem, ol);
+    if (check)
+        check_memory_to_set(*mem_new, ol);
 
-    _output = mem;
+    if (_node.is_constant()) {
+        mem_new->copy_from(_network.get_stream(), *_output);
+    } else {
+        _output = mem_new;
+    }
 }
 
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
@@ -112,7 +126,7 @@ void primitive_inst::build_deps() {
     }
 }
 
-primitive_inst::primitive_inst(network_impl& network, program_node const& node, bool allocate_memory)
+primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
     : _network(network), _node(node), _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr), _output(), _output_changed(false) {
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
@@ -149,7 +163,6 @@ primitive_inst::primitive_inst(network_impl& network, program_node const& node, 
 
 memory::ptr primitive_inst::allocate_output() {
     auto layout = _node.get_output_layout();
-    auto net_id = get_network_id();
     auto& engine = get_network().get_engine();
 
     // For outputs, cpu prim we want to have lockable alloc type
@@ -163,12 +176,11 @@ memory::ptr primitive_inst::allocate_output() {
                                                      : allocation_type::usm_device;
 
     if (!_network.is_internal() && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
-        return engine.get_memory_from_pool(layout,
-                                           _node.id(),
-                                           net_id,
-                                           _node.get_memory_dependencies(),
-                                           alloc_type,
-                                           false);
+        return _network.get_memory_from_pool(layout,
+                                             _node.id(),
+                                             _node.get_memory_dependencies(),
+                                             alloc_type,
+                                             false);
     } else if (_network.is_internal() && _node.is_output() && _node.is_type<generic_layer>() &&
                engine.supports_allocation(allocation_type::usm_device)) {
         return engine.allocate_memory(layout, allocation_type::usm_device, false);
@@ -179,12 +191,11 @@ memory::ptr primitive_inst::allocate_output() {
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
         return engine.allocate_memory(layout, alloc_type);
     } else {
-        return engine.get_memory_from_pool(layout,
-                                           _node.id(),
-                                           net_id,
-                                           _node.get_memory_dependencies(),
-                                           alloc_type,
-                                           true);
+        return _network.get_memory_from_pool(layout,
+                                             _node.id(),
+                                             _node.get_memory_dependencies(),
+                                             alloc_type,
+                                             true);
     }
 }
 
