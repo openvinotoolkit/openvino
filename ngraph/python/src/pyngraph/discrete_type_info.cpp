@@ -20,7 +20,6 @@ void regclass_pyngraph_DiscreteTypeInfo(py::module m) {
         char* name = new char[_name.size() + 1];
         std::copy(_name.begin(), _name.end(), name);
         name[_name.size()] = '\0';
-        // py::str name = PyUnicode_DecodeLatin1(_name.data(), _name.length());
         return new ngraph::DiscreteTypeInfo(name, version, parent);
     }),
     py::arg("name"),
