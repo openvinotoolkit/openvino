@@ -46,9 +46,13 @@ endif()
 
 target_link_libraries(onnx_ngraph_frontend PUBLIC ngraph PRIVATE frontend_manager ngraph::builder onnx_common inference_engine_transformations)
 
-target_include_directories(onnx_ngraph_frontend PUBLIC $<BUILD_INTERFACE:${ONNX_FRONTEND_INCLUDE_DIR}>
-                                                $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
-target_include_directories(onnx_ngraph_frontend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(onnx_ngraph_frontend
+    PUBLIC
+        $<BUILD_INTERFACE:${ONNX_FRONTEND_INCLUDE_DIR}>
+        $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>
+        $<TARGET_PROPERTY:frontend_manager,INTERFACE_INCLUDE_DIRECTORIES>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_compile_definitions(onnx_ngraph_frontend PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 if(NGRAPH_USE_PROTOBUF_LITE)

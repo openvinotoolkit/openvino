@@ -61,9 +61,9 @@ target_include_directories(${TARGET_NAME}
         PUBLIC
             $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
             $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>
+            $<TARGET_PROPERTY:frontend_manager,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
-            ${CMAKE_CURRENT_BINARY_DIR})
+            ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${Protobuf_INCLUDE_DIRS}
                                                          ${CMAKE_CURRENT_BINARY_DIR})
@@ -76,7 +76,7 @@ endif()
 link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph::frontend_manager::static
-                                     PRIVATE ngraph::builder inference_engine_transformations)
+                                             ngraph::builder inference_engine_transformations)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
