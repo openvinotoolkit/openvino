@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/deprecated.hpp>
-NGRAPH_SUPPRESS_DEPRECATED_START
+#include <ie_api.h>
+IE_SUPPRESS_DEPRECATED_START
 
 #include "shared_test_classes/single_layer/convert_like.hpp"
 
@@ -40,4 +40,4 @@ void ConvertLikeLayerTest::SetUp() {
 }
 }  // namespace LayerTestsDefinitions
 
-NGRAPH_SUPPRESS_DEPRECATED_END
+IE_SUPPRESS_DEPRECATED_END
