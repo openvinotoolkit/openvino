@@ -31,6 +31,6 @@ void experimental_detectron_roi_feature_extractor_postprocessing(void* prois_fea
                                                                  const std::vector<float>& output_rois,
                                                                  const Shape& output_roi_features_shape,
                                                                  const Shape& output_rois_shape);
-} // namespace reference
-} // namespace runtime
-} // namespace ngraph
+}  // namespace reference
+}  // namespace runtime
+}  // namespace ngraph
