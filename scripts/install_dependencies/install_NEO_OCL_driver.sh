@@ -250,6 +250,7 @@ _install_user_mode_ubuntu()
                    intel-ocloc=21.29.20389 \
                    intel-gmmlib=21.2.1 \
                    intel-igc-core=1.0.7862 \
+                   ocl-icd-libopencl1 \
                    intel-igc-opencl=1.0.7862")
         elif [[ "$UBUNTU_VERSION" == "20.04" ]]; then
             CMDS=("apt-get update"
