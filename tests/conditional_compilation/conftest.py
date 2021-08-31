@@ -73,6 +73,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--omz_cache_dir",
         type=Path,
+        default=Path("../_omz_out/cache").resolve(),
         help="Path to Open Model Zoo cache directory",
     )
 
