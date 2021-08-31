@@ -197,7 +197,7 @@ def prepare_models(openvino_ref, models, request):
     Process models: prepare Open Model Zoo models, skip non-OMZ models.
     """
     for model in models:
-        if "OMZ" in model["path"]:
+        if "OMZ" in model.get("type", "TESTDATA").upper():
             model["path"] = prepare_omz_model(openvino_ref, model, request)
     models = [model["path"] for model in models]
     return models
