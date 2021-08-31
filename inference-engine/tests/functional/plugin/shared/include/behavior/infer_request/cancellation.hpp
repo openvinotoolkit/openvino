@@ -13,7 +13,10 @@ namespace BehaviorTestsDefinitions {
 class InferRequestCancellationTests : public BehaviorTestsUtils::InferRequestTests {
 public:
     void SetUp()  override {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
+        ie = PluginCache::get().ie(targetDevice);
         function = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, 640, 640});
         cnnNet = InferenceEngine::CNNNetwork(function);
         // Load CNNNetwork to target plugins
@@ -22,8 +25,6 @@ public:
 };
 
 TEST_P(InferRequestCancellationTests, canCancelAsyncRequest) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     req.StartAsync();
@@ -37,8 +38,6 @@ TEST_P(InferRequestCancellationTests, canCancelAsyncRequest) {
 }
 
 TEST_P(InferRequestCancellationTests, canResetAfterCancelAsyncRequest) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
 
@@ -55,16 +54,12 @@ TEST_P(InferRequestCancellationTests, canResetAfterCancelAsyncRequest) {
 }
 
 TEST_P(InferRequestCancellationTests, canCancelBeforeAsyncRequest) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     ASSERT_NO_THROW(req.Cancel());
 }
 
 TEST_P(InferRequestCancellationTests, canCancelInferRequest) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
 

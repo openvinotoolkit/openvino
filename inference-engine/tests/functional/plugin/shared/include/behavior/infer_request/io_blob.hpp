@@ -361,6 +361,7 @@ public:
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
+        ie = PluginCache::get().ie(targetDevice);
         execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     }
 protected:
@@ -428,6 +429,7 @@ public:
         std::tie(layout, targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
+        ie = PluginCache::get().ie(targetDevice);
         execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     }
 
