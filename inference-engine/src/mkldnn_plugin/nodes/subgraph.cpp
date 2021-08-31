@@ -425,6 +425,7 @@ void MKLDNNSnippetNode::define_shedule() {
 
     const int collapsedDims = find_dims_to_collapse();
     batchDimIdx = tensorRank - outBlockingDesc_maxRank.getBlockDims().size() + collapsedDims;
+    // Fixme: likely is not correct for the 2d-tile case
     schedulerWorkAmount = fullWorkAmount / dims_out[max_rank_out_desc_idx].back();
 
     initOffsets(tensorRank);
