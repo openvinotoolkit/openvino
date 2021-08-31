@@ -7,7 +7,6 @@
 #include "ngraph/op/convolution.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/op/util/fused_op.hpp"
 
 namespace ngraph {
 namespace op {

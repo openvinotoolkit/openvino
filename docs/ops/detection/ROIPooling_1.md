@@ -2,7 +2,7 @@
 
 **Versioned name**: *ROIPooling-1*
 
-**Category**: Object detection
+**Category**: *Object detection*
 
 **Short description**: *ROIPooling* is a *pooling layer* used over feature maps of non-uniform input sizes and outputs a feature map of a fixed size.
 

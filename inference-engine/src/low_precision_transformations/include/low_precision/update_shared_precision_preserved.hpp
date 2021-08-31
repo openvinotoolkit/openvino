@@ -35,14 +35,14 @@ public:
             const bool needToCheckExpectedAttributeType = !std::is_same<ExpectedAttributeType, AttributeType>::value;
             if (!needToCheckExpectedAttributeType) {
                 // expected attribute is ignored, set attributes for node inputs except Result & FakeQuantize operations
-                if (is_type<ngraph::opset1::Result>(node) ||
-                    is_type<ngraph::opset1::FakeQuantize>(node) ||
+                if (ov::is_type<ngraph::opset1::Result>(node) ||
+                    ov::is_type<ngraph::opset1::FakeQuantize>(node) ||
                     transformation_callback(node)) {
                     return false;
                 }
             }
 
-            if (ngraph::pass::low_precision::NetworkHelper::isPrecisionPreserved(node) || is_type<opset1::FakeQuantize>(node)) {
+            if (ngraph::pass::low_precision::NetworkHelper::isPrecisionPreserved(node) || ov::is_type<opset1::FakeQuantize>(node)) {
                 return false;
             }
 
@@ -87,8 +87,8 @@ private:
     Input<Node> getDequantizationInput(const Input<Node>& input) {
         const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), input.get_index());
         if (!dequantization.empty() &&
-            (is_type<opset1::Convert>(dequantization.data.get_node())) &&
-            is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+            (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
+            ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
             assert(dequantization.data.get_target_inputs().size() == 1ul);
             return *dequantization.data.get_target_inputs().begin();
         }
