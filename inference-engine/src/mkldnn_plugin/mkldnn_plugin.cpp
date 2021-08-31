@@ -450,22 +450,36 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     if (tokenizeSubgraphs != Config::TokenizationMode::Disabled) {
 #if defined (DUMP_TOKENIZATION)
-//        std::cout << "Tokenization is ON" << std::endl;
-        for (auto op : nGraphFunc->get_ordered_ops()) {
-//            std::cout << "IN: " << op << std::endl;
-            if (auto constant = ngraph::as_type_ptr<ngraph::opset1::Constant>(op)) {
-                std::cout << "constant value " << reinterpret_cast<const float*>(constant->get_data_ptr())[0] << std::endl;
+        enum class  dump_tokenization_mode {SVG, XML};
+        const auto mode = dump_tokenization_mode::SVG;
+        auto dump_graph = [&](const std::string& base_name, std::shared_ptr<ov::Function> function){
+            switch (mode) {
+                case dump_tokenization_mode::SVG:
+                    ngraph::pass::VisualizeTree(base_name + ".svg").run_on_function(function);
+                    break;
+                case dump_tokenization_mode::XML:
+                    ngraph::pass::Serialize(base_name + ".xml",
+                                            base_name + ".bin").run_on_function(function);
+                    break;
+                default:
+                    IE_THROW() << "This dump tokenization mode is not supported";
             }
-        }
-        ngraph::pass::VisualizeTree("original.svg").run_on_function(nGraphFunc);
-        std::cout << std::endl << std::endl;
+        };
+//        std::cout << "Tokenization is ON" << std::endl;
+//        for (auto op : nGraphFunc->get_ordered_ops()) {
+//            std::cout << "IN: " << op << std::endl;
+//            if (auto constant = ngraph::as_type_ptr<ngraph::opset1::Constant>(op)) {
+//                std::cout << "constant value " << reinterpret_cast<const float*>(constant->get_data_ptr())[0] << std::endl;
+//            }
+//        }
+        dump_graph("original", nGraphFunc);
+//        std::cout << std::endl << std::endl;
 #endif
         ngraph::pass::Manager tokenization_manager;
         tokenization_manager.register_pass<ngraph::snippets::pass::FilterFused>();
         tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
         tokenization_manager.run_passes(nGraphFunc);
 #if defined (DUMP_TOKENIZATION)
-        int subgraph_index = 0;
         auto formatNodeName = [](const std::string& original_name) {
             std::string name(original_name);
             std::replace(name.begin(), name.end(), '\\', '_');
@@ -480,18 +494,19 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 //                for (auto& bop : subgraph->get_body()->get_ordered_ops()) {
 //                    std::cout << "out:     " << bop << std::endl;
 //                }
-                //ngraph::pass::VisualizeTree(std::string("subgraph_")+std::to_string(subgraph_index++)+".svg").run_on_function(subgraph->get_body());
-                ngraph::pass::VisualizeTree(std::string("subgraph_")+formatNodeName(op->get_friendly_name())+".svg").run_on_function(subgraph->get_body());
+                const std::string name{std::string("subgraph_") + formatNodeName(op->get_friendly_name())};
+                dump_graph(name, subgraph->get_body());
             }
 
             if (auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op)) {
 //                for (auto& bop : ti->get_body()->get_ordered_ops()) {
 //                    std::cout << "out:     " << bop << std::endl;
 //                }
-                ngraph::pass::VisualizeTree(std::string("tensor_iterator")+std::to_string(subgraph_index++)+".svg").run_on_function(ti->get_body());
+                const std::string name{std::string("tensor_iterator_") + formatNodeName(op->get_friendly_name())};
+                dump_graph(name, ti->get_body());
             }
         }
-        ngraph::pass::VisualizeTree("tokenized.svg").run_on_function(nGraphFunc);
+        dump_graph("tokenized", nGraphFunc);
 #endif
     }
 }
