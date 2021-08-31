@@ -22,13 +22,13 @@ from mo.utils.utils import get_mo_root_dir
 
 
 def define_data_type(graph: Graph):
-    precision = 'FP32'
+    data_type = 'FP32'
     for const_node in graph.get_op_nodes(op='Const'):
         if const_node.soft_get('element_type') == 'f16':
             log.warning('Found operation Const with attribute `element_type`== `f16`. Set graph `data_type` '
                         'attribute value to `FP16`!')
-            precision = 'FP16'
-    return precision
+            data_type = 'FP16'
+    return data_type
 
 
 def restore_graph_from_ir(path_to_xml: str, path_to_bin: str = None) -> (Graph, dict):
