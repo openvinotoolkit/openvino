@@ -362,7 +362,7 @@ def add_quantization_info_section(net: Element, meta_info: dict):
 
 def add_meta_data(net: Element, meta_info: dict):
     if meta_info == {}:
-        log.warning('meta_info is not provided, IR will not contain appropriate section.')
+        log.warning('`meta_info` is not provided, IR will not contain appropriate section.')
     else:
         meta = SubElement(net, 'meta_data')
         SubElement(meta, 'MO_version').set('value', get_version())

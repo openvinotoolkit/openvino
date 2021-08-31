@@ -25,8 +25,11 @@ def define_data_type(graph: Graph):
     precision = 'FP32'
     for const_node in graph.get_op_nodes(op='Const'):
         if const_node.soft_get('element_type') == 'f16':
+            log.warning('Found operation Const with attribute `element_type`== `f16`. Set graph `data_type` '
+                        'attribute value to `FP16`!')
             precision = 'FP16'
     return precision
+
 
 def restore_graph_from_ir(path_to_xml: str, path_to_bin: str = None) -> (Graph, dict):
     """
@@ -63,12 +66,16 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
         name = graph.name
 
     if meta_data == {}:
-        log.warning('Provided graph does not contain meta_info section! Trying to define data_type from model.')
-        precision = define_data_type(graph)
-        graph.graph['cmd_params'].data_type = precision
+        log.warning('Provided graph does not contain `meta_info` section! Trying to define `data_type` from the model.')
+        data_type = define_data_type(graph)
+
+        # We need to specify this attribute to pass graph transformations. This information will not be saved into IR.
+        graph.graph['cmd_params'].data_type = data_type
     else:
-        precision = data_type_str_to_precision(graph.graph['cmd_params'].data_type)
-    assert precision in ['FP16', 'FP32'], 'Cannot define precision for restored model!'
+        data_type = data_type_str_to_precision(graph.graph['cmd_params'].data_type)
+
+    assert data_type in ['FP16', 'FP32'], '`data_type` value {} is not supported by MO,' \
+                                          ' cannot save graph'.format(data_type)
 
     # List items order matters, do not change it.
     transformation_list = [
@@ -88,4 +95,4 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
-    prepare_emit_ir(graph, precision, path, name, meta_info=meta_data)
+    prepare_emit_ir(graph, data_type, path, name, meta_info=meta_data)
