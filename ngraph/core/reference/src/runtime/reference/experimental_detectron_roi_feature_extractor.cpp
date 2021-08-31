@@ -122,7 +122,6 @@ namespace
             {
                 for (int64_t iy = 0; iy < iy_upper; iy++)
                 {
-//                    std::cout << "                        iy: " << iy << "\n";
                     const T yy = roi_start_h + static_cast<T>(ph) * bin_size_h +
                                  static_cast<T>(static_cast<T>(iy) + static_cast<T>(0.5f)) * bin_size_h /
                                      static_cast<T>(roi_bin_grid_h);
@@ -153,16 +152,8 @@ namespace
                             continue;
                         }
 
-//                         y = std::max(y, static_cast<T>(0.0));
-                        if (y <= 0)
-                        {
-                            y = 0;
-                        }
-//                         x = std::max(x, static_cast<T>(0.0));
-                        if (x <= 0)
-                        {
-                            x = 0;
-                        }
+                        y = std::max(y, static_cast<T>(0.0));
+                        x = std::max(x, static_cast<T>(0.0));
 
                         int64_t y_low = static_cast<int64_t>(y);
                         int64_t x_low = static_cast<int64_t>(x);
@@ -172,8 +163,7 @@ namespace
                         if (y_low >= height - 1)
                         {
                             y_high = y_low = height - 1;
-//                             y = static_cast<T>(y_low);
-                            y = (T)y_low;
+                            y = static_cast<T>(y_low);
                         }
                         else
                         {
@@ -183,8 +173,7 @@ namespace
                         if (x_low >= width - 1)
                         {
                             x_high = x_low = width - 1;
-//                             x = static_cast<T>(x_low);
-                            x = (T)x_low;
+                            x = static_cast<T>(x_low);
                         }
                         else
                         {
