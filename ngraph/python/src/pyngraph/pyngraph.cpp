@@ -33,6 +33,7 @@
 #include "pyngraph/types/regmodule_pyngraph_types.hpp"
 #include "pyngraph/util.hpp"
 #include "pyngraph/variant.hpp"
+#include "pyngraph/discrete_type_info.hpp"
 
 namespace py = pybind11;
 
@@ -58,6 +59,7 @@ PYBIND11_MODULE(_pyngraph, m) {
     regclass_pyngraph_NodeFactory(m);
     regclass_pyngraph_Strides(m);
     regclass_pyngraph_CoordinateDiff(m);
+    regclass_pyngraph_DiscreteTypeInfo(m);
     regclass_pyngraph_AxisSet(m);
     regclass_pyngraph_AxisVector(m);
     regclass_pyngraph_Coordinate(m);
