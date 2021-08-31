@@ -10,21 +10,20 @@
 #include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::util::FFTBase, "FFTBase", 0);
+NGRAPH_RTTI_DEFINITION(ov::op::util::FFTBase, "FFTBase", 0);
 
-op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {}
+ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {}
 
-op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size)
+ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size)
     : Op({data, axes, signal_size}) {}
 
-bool op::util::FFTBase::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::FFTBase::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(util_FFTBase_visit_attributes);
     return true;
 }
 
-void op::util::FFTBase::validate() {
+void ov::op::util::FFTBase::validate() {
     size_t num_of_inputs = get_input_size();
 
     NODE_VALIDATION_CHECK(this, num_of_inputs == 2 || num_of_inputs == 3, "FFT op must have 2 or 3 inputs.");
@@ -132,7 +131,7 @@ void op::util::FFTBase::validate() {
     }
 }
 
-void op::util::FFTBase::validate_and_infer_types() {
+void ov::op::util::FFTBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_FFTBase_validate_and_infer_types);
     validate();
 
