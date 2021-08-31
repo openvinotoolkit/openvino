@@ -25,6 +25,7 @@ import yaml
 from pathlib import Path
 from jsonschema import validate, ValidationError
 
+# add utils folder to imports
 UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
 sys.path.insert(0, str(UTILS_DIR))
 
