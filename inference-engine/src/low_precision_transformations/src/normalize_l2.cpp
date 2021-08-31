@@ -59,15 +59,12 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    if (NetworkHelper::getDequantization(operation).subtract != nullptr) {
+    const auto dequantization = NetworkHelper::getDequantization(operation);
+    if (dequantization.subtract != nullptr) {
         return false;
     }
 
-    const std::shared_ptr<Node> multiply = operation->get_input_node_shared_ptr(0);
-    auto scalesConst = ov::as_type_ptr<ngraph::opset1::Constant>(multiply->get_input_node_shared_ptr(1));
-    if (scalesConst == nullptr) {
-        scalesConst = ov::as_type_ptr<ngraph::opset1::Constant>(multiply->get_input_node_shared_ptr(0));
-    }
+    const auto scalesConst = dequantization.multiplyConstant;
     if (scalesConst == nullptr) {
         return false;
     }

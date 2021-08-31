@@ -28,6 +28,7 @@ std::shared_ptr<Node> makeDequantization(
             std::make_shared<ngraph::pass::low_precision::DequantizationConvert>(data, dequantizationOperations.convert.outPrecision) :
             std::make_shared<ngraph::opset1::Convert>(data, dequantizationOperations.convert.outPrecision);
         NetworkHelper::copyInfo({ data.get_node_shared_ptr(), convert }, convert);
+        convert->set_friendly_name(data.get_node_shared_ptr()->get_friendly_name() + "/DequantizationConvert");
         parent = convert;
     }
 
@@ -120,6 +121,7 @@ std::shared_ptr<Node> makeDequantization(
                 }
             }
 
+            subtract->set_friendly_name(data.get_node_shared_ptr()->get_friendly_name() + "/DequantizationSubtract");
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, dequantizationOperations.subtract.outPrecision);
         }
         if (!dequantizationOperations.subtract.addDequantizationAttribute) {
@@ -140,6 +142,7 @@ std::shared_ptr<Node> makeDequantization(
     if (!dequantizationOperations.multiply.empty()) {
         auto const newMultiply = makeMultiply(parent, dequantizationOperations.multiply);
         NetworkHelper::copyInfo({ data.get_node_shared_ptr(), newMultiply }, newMultiply);
+        newMultiply->set_friendly_name(data.get_node_shared_ptr()->get_friendly_name() + "/DequantizationMultiply");
         parent = newMultiply;
     }
 

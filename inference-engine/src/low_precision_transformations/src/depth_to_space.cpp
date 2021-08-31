@@ -51,8 +51,7 @@ bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& c
 
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
     if (dequantization.multiply != nullptr) {
-        auto multiplyConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
-        if (!NetworkHelper::isScalarLike(multiplyConst)) {
+        if (!NetworkHelper::isScalarLike(dequantization.multiplyConstant)) {
             return false;
         }
     }

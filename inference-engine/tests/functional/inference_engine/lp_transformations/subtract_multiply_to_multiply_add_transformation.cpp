@@ -103,6 +103,9 @@ public:
 TEST_P(SubtractMultiplyToMultiplyAddTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
+
+    // issue #63030
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
     ASSERT_TRUE(res.first) << res.second;
 }
 
