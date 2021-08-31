@@ -296,8 +296,12 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_nod
             break;
         }
 
-        ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
-
+        auto onnx_node_name = onnx_node.get_name();
+        if (onnx_node_name.empty()) {
+            ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
+        } else {
+            ng_node_vector[i].get_node()->set_friendly_name(onnx_node.get_name());
+        }
         // null node does not have tensor
         if (!ngraph::op::is_null(ng_node_vector[i])) {
             ng_node_vector[i].get_tensor().set_names({onnx_node.output(i)});
