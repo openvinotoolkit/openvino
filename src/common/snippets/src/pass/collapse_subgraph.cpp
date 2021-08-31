@@ -383,7 +383,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                             auto internal = input_body_parameters[i];
                             auto internal_consumers = internal->outputs();
 
-                            if (auto to_replace_with = as_type_ptr<op::Subgraph>(subgraph->input_value(i).get_node_shared_ptr())) {
+                            if (auto to_replace_with = ov::as_type_ptr<op::Subgraph>(subgraph->input_value(i).get_node_shared_ptr())) {
                                  for (auto output : internal_consumers) {
                                      for (auto consumer : output.get_target_inputs()) {
                                          auto other_body = clones[subgraph->input_value(i).get_node_shared_ptr()];
