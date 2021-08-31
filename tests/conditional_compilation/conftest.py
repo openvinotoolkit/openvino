@@ -89,11 +89,11 @@ def pytest_generate_tests(metafunc):
         for models in test:
             extra_args = {}
             model_path = models["model"]["path"]
-            model_struct = models["model"]
+            model = models["model"]
             if "marks" in test:
                 extra_args["marks"] = test["marks"]
-            model_struct["path"] = Path(expand_env_vars(model_struct["path"]))
-            model_list.append(expand_env_vars(model_struct))
+            model["path"] = Path(expand_env_vars(model["path"]))
+            model_list.append(expand_env_vars(model))
             test_id_list.append(model_path.split("/")[-1])
         ids = ids + ['-'.join(test_id_list)]
         params.append(pytest.param('-'.join(test_id_list), model_list), **extra_args)
