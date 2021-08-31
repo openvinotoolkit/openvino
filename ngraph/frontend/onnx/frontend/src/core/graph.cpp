@@ -9,6 +9,7 @@
 #include <numeric>
 #include <sstream>
 
+#include "core/null_node.hpp"
 #include "core/value_info.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
@@ -17,7 +18,6 @@
 #include "ngraph/provenance.hpp"
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "utils/common.hpp"
 #include "utils/provenance_tag.hpp"
 
@@ -116,6 +116,7 @@ Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, std::uniqu
             }
 
             initializers.emplace(initializer_tensor.name(), tensor);
+            ng_constant->get_output_tensor(0).set_names({initializer_tensor.name()});
             detail::add_provenance_tag_to_initializer(tensor, ng_constant);
             m_cache->emplace_node(initializer_tensor.name(), std::move(ng_constant));
         }
@@ -302,6 +303,7 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_nod
         } else {
             ng_node_vector[i].get_node()->set_friendly_name(onnx_node.get_name());
         }
+
         // null node does not have tensor
         if (!ngraph::op::is_null(ng_node_vector[i])) {
             ng_node_vector[i].get_tensor().set_names({onnx_node.output(i)});
