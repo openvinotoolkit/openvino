@@ -92,7 +92,8 @@ ngraph::pass::LowLatency::LowLatency() {
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
-void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op, const shared_ptr<Function>& outer_f) {
+void UnrollSingleIteration(const std::shared_ptr<ngraph::op::util::SubGraphOp>& sub_graph_op,
+                           const std::shared_ptr<Function>& outer_f) {
     using namespace opset7;
 
     const auto& params = sub_graph_op->get_function()->get_parameters();
@@ -135,7 +136,8 @@ void UnrollSingleIteration(const shared_ptr<op::util::SubGraphOp>& sub_graph_op,
     ngraph::copy_runtime_info(sub_graph_op, new_ops);
 }
 
-Output<Node> create_init_subgraph(const shared_ptr<op::util::SubGraphOp>& sub_graph_op, const Output<Node>& in_node) {
+Output<Node> create_init_subgraph(const std::shared_ptr<ngraph::op::util::SubGraphOp>& sub_graph_op,
+                                  const Output<Node>& in_node) {
     using namespace opset7;
 
     auto const_zero = make_shared<Constant>(in_node.get_element_type(), Shape{1}, 0);
@@ -150,7 +152,7 @@ bool pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
 
     SinkVector assigns;
     for (const auto& op : f->get_ordered_ops()) {
-        if (const auto& sub_graph_op = dynamic_pointer_cast<op::util::SubGraphOp>(op)) {
+        if (const auto& sub_graph_op = dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op)) {
             int64_t variable_id = 0;
             const auto& func = sub_graph_op->get_function();
             const auto& params = func->get_parameters();
