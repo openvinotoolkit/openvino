@@ -74,7 +74,9 @@ class ReverseInputChannelsTest(unittest.TestCase):
         node = Node(graph, 'pad')
         reverse_channels = Node(graph, 'reverse_channels')
 
-        ReverseChannelsPropagationUp.lift_up_through(node, reverse_channels)
+        keep_moving_up, new_reverses = ReverseChannelsPropagationUp.lift_up_through(node, reverse_channels)
+        self.assertTrue(keep_moving_up is True)
+        self.assertTrue(len(new_reverses) == 1)
         self.check_graph_attrs(graph, ['placeholder'])
 
 
