@@ -55,11 +55,6 @@ static std::shared_ptr<Node> set_val(int32_t idx, std::shared_ptr<Node> val_node
     return std::make_shared<ngraph::opset6::Concat>(nodes, 0);
 }
 
-// "str_value" type string, default empty. "value" type float, default 0. They are value to be filled.
-// if "str_value" empty, will fill with "value", else fill with "str_value".
-// reference:
-// https://github.com/PaddlePaddle/Paddle/blob/93d862b0adf224a0af547d1442c57fbd6d0e8efc/paddle/fluid/operators/fill_constant_batch_size_like_op.cc#L41
-// https://github.com/PaddlePaddle/Paddle/blob/93d862b0adf224a0af547d1442c57fbd6d0e8efc/paddle/fluid/operators/fill_constant_batch_size_like_op.h#L44
 template <element::Type_t Type,
           typename StorageDataType = fundamental_type_for<Type>,
           typename std::enable_if<Type == element::Type_t::i32 || Type == element::Type_t::i64 ||
