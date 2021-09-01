@@ -1052,8 +1052,8 @@ cdef class InferRequest:
     cdef void user_callback(self, int status) with gil:
         if self._py_callback:
             # Set flag at first since user can call wait in callback
-            self._py_callback_called.set()
             self._py_callback(status, self._py_data)
+            self._py_callback_called.set()
 
     ## Description: Sets a callback function that is called on success or failure of an asynchronous request
     #
