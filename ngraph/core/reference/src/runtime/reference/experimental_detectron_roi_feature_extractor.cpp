@@ -325,7 +325,7 @@ void ROIAlignForward_cpu_kernel(const int64_t nthreads,
         }          // for c
     }
 }
-} // namespace
+}  // namespace
 
 namespace ngraph {
 namespace runtime {
@@ -335,8 +335,7 @@ void experimental_detectron_roi_feature_extractor(
     const std::vector<Shape>& input_shapes,
     const op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes& attrs,
     float* output_rois_features,
-    float* output_rois)
-{
+    float* output_rois) {
     std::cout << "Running reference implementation calculations for "
                  "ExperimentalDetectronROIFeatureExtractor...\n";
     std::cout << "Its arguments are\n\n";
@@ -351,7 +350,7 @@ void experimental_detectron_roi_feature_extractor(
     }
     std::cout << "Input shapes:\n";
     for (size_t i = 0; i < input_shapes.size(); ++i) {
-        std::cout << "    input number " << i << " has shape: " << input_shapes[i] <<"\n\n";
+        std::cout << "    input number " << i << " has shape: " << input_shapes[i] << "\n\n";
     }
 
     int64_t output_dim = attrs.output_size;

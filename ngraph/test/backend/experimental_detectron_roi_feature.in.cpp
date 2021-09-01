@@ -36,8 +36,7 @@ using ExperimentalROI = op::v6::ExperimentalDetectronROIFeatureExtractor;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, experimental_roi_feature_eval)
-{
+NGRAPH_TEST(${BACKEND_NAME}, experimental_roi_feature_eval) {
     Attrs attrs;
     attrs.aligned = false;
     attrs.output_size = 3;
