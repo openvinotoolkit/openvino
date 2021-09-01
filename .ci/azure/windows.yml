@@ -109,6 +109,9 @@ jobs:
   - script: dir $(REPO_DIR)\inference-engine\temp\ /s
     displayName: 'List temp SDKs'
 
+  - script: cp C:\Temp\profile.xml $(BUILD_DIR)\profile.xml
+    displayName: 'copy profile'
+
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" /profile="profile.xml" /LogLevel="Detailed" /MaxCPUS=40 
