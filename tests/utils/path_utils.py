@@ -6,9 +6,14 @@
 """ Common utilities for working with paths
 """
 
-import os
 import argparse
+import os
+import sys
 from pathlib import Path
+
+# add utils folder to imports
+UTILS_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, str(UTILS_DIR))
 
 from platform_utils import get_os_name
 
