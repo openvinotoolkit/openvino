@@ -275,7 +275,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
                 case 65535:
                     resultPrecision = element::i16;
                     break;
-                case 4294967296:
+                case static_cast<size_t>(4294967296):
                 case 4294967295:
                     resultPrecision = element::i32;
                     break;
@@ -292,7 +292,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
                 case 65535:
                     resultPrecision = element::u16;
                     break;
-                case 4294967296:
+                case static_cast<size_t>(4294967296):
                 case 4294967295:
                     resultPrecision = element::u32;
                     break;
@@ -336,7 +336,7 @@ DataPrecision LayerTransformation::getDataPrecision(
             FQPrecisions = {element::u16, element::i16};
             break;
         case 4294967295:
-        case 4294967296:
+        case static_cast<size_t>(4294967296):
             FQPrecisions = {element::u32, element::i32};
     }
     resultPrecisions = NetworkHelper::precisionIntersection(precisions, FQPrecisions);

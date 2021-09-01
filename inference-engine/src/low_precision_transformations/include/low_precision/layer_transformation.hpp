@@ -92,7 +92,7 @@ public:
                 break;
             case element::i32:
                 switch (levels) {
-                    case 4294967296:
+                    case static_cast<size_t>(4294967296):
                         return -2147483648.f;
                     case 4294967295:
                         return -2147483647.f;

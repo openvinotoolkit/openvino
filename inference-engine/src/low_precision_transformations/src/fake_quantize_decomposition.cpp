@@ -124,7 +124,7 @@ DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize>
         case 65535:
             precisionsForLevels = {element::u16, element::i16};
             break;
-        case 4294967296:
+        case static_cast<size_t>(4294967296):
         case 4294967295:
             precisionsForLevels = {element::u32, element::i32};
             break;
