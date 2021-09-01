@@ -148,7 +148,7 @@ class Node:
             if control_flow or 'control_flow' not in self._in_ports[idx] or not self._in_ports[idx]['control_flow']:
                 ports.update({idx: self.in_port(idx, control_flow=control_flow)})
         if control_flow:
-            return dict_to_ordered_dict(ports, func=lambda t: str(t))
+            return dict_to_ordered_dict(ports, func=lambda t: int(str(t).strip('control_flow_')))
         else:
             return dict_to_ordered_dict(ports, func=lambda t: int(t))
 
@@ -169,7 +169,7 @@ class Node:
             if control_flow or 'control_flow' not in self._out_ports[idx] or not self._out_ports[idx]['control_flow']:
                 ports.update({idx: self.out_port(idx, control_flow=control_flow)})
         if control_flow:
-            return dict_to_ordered_dict(ports, func=lambda t: str(t))
+            return dict_to_ordered_dict(ports, func=lambda t: int(str(t).strip('control_flow_')))
         else:
             return dict_to_ordered_dict(ports, func=lambda t: int(t))
 
