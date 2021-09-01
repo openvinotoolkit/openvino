@@ -65,7 +65,7 @@ class Get2DReshapedDataTest : public ::testing::Test {
                            InferenceEngine::Layout layout) const {
         auto data = std::make_shared<InferenceEngine::Data>(input_name,
             InferenceEngine::TensorDesc(precision, input_shape.first, layout));
-        auto new_data = GNAPluginNS::Get2DReshapedData(data, max_batch_size);
+        auto new_data = GNAPluginNS::Get2DReshapedData(data, 1, max_batch_size);
         ASSERT_EQ(new_data->getDims(), input_shape.second);
         ASSERT_EQ(new_data->getPrecision(), precision);
         ASSERT_EQ(new_data->getLayout(), layout);

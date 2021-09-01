@@ -2,7 +2,7 @@
 
 **Versioned name**: *ScatterUpdate-3*
 
-**Category**: Data movement operations
+**Category**: *Data movement*
 
 **Short description**: *ScatterUpdate* creates a copy of the first input tensor with updated elements specified with second and third input tensors.
 

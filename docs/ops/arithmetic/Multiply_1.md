@@ -2,7 +2,7 @@
 
 **Versioned name**: *Multiply-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *Multiply* performs element-wise multiplication operation with two given tensors applying broadcasting rule specified in the *auto_broacast* attribute.
 
