@@ -25,23 +25,23 @@ The rules follow python language slicing `data[start:stop:step]`.
 
 * **1**: `data` - tensor (to be sliced) of type *T* and shape rank greater or equal to 1. **Required.**
 
-* **2**: `start` - 1D tensor of type *T_INT*. Indices corresponding to axes in `data`.
+* **2**: `start` - 1D tensor of type *T_IND*. Indices corresponding to axes in `data`.
   Defines the starting coordinate of the slice in the `data` tensor.
   A negative index value represents counting elements from the end of that dimension.
   A value larger than the size of a dimension is silently clamped. **Required.**
 
-* **3**: `stop` - 1D, type *T_INT*, similar to `start`.
+* **3**: `stop` - 1D, type *T_IND*, similar to `start`.
   Defines the coordinate of the opposite vertex of the slice, or where the slice ends.
   Stop indexes are exclusive, which means values lying on the ending edge are
   not included in the output slice.
   To slice to the end of a dimension of unknown size `INT_MAX`
   may be used (or `INT_MIN` if slicing backwards). **Required.**
 
-* **4**: `step` - 1D tensor of type *T_INT* and the same shape as `start` and `stop`.
+* **4**: `step` - 1D tensor of type *T_IND* and the same shape as `start` and `stop`.
   Integer value that specifies the increment between each index used in slicing.
   Value cannot be `0`, negative value indicates slicing backwards. **Required.**
 
-* **5**: `axes` - 1D tensor of type *T_INT*.
+* **5**: `axes` - 1D tensor of type *T_AXIS*.
   Optional 1D tensor indicating to which dimensions apply the values in `start` and `stop`.
   Negative value means counting dimensions from the end. The range is `[-r, r - 1]`, where `r` is the rank of the `data` input tensor.
   Values are required to be unique. If a particular axis is unspecified, it is considered as a whole dimension.
@@ -56,7 +56,8 @@ Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to
 **Types**
 
 * *T*: any arbitrary supported type.
-* *T_INT*: any supported integer type.
+* *T_IND*: any supported integer type.
+* *T_AXIS*: any supported integer type.
 
 
 **Examples**
