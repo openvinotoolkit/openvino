@@ -193,7 +193,7 @@ def save_session_info(pytestconfig, artifacts):
 
 
 @pytest.fixture(scope="function")
-def prepare_models(openvino_ref, models, request):
+def prepared_models(openvino_ref, models, request):
     """
     Process models: prepare Open Model Zoo models, skip non-OMZ models.
     """
