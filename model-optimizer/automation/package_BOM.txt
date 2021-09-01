@@ -594,6 +594,7 @@ extensions/middle/InsertLayoutPropagationTransposes.py
 extensions/middle/InsertSelect.py
 extensions/middle/InterpolateSequenceToInterpolate.py
 extensions/middle/L2NormFusing.py
+extensions/middle/layer_normalization.py
 extensions/middle/LayoutChangeForConstantShapePaths.py
 extensions/middle/LayoutChangeForEinsum.py
 extensions/middle/LeakyReluPattern.py
