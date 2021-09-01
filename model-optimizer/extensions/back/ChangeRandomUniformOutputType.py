@@ -35,6 +35,9 @@ class ChangeRandomUniformOutputType(BackReplacementPattern):
         for node in graph.get_op_nodes(op='RandomUniform'):
             assert node.has_valid('output_type')
 
+            if node.has_and_set('returns_shape_value'):
+                continue
+
             if node.output_type != ir_data_type and np.issubdtype(node.output_type, np.floating):
                 node_name = node.soft_get('name', node.id)
                 convert_node = Cast(graph, {'name': node_name + "/cast", 'dst_type': ir_data_type}).create_node()
