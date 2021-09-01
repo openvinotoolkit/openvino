@@ -57,7 +57,7 @@ class FullyConnectedDecomposer(FrontReplacementSubgraph):
                                          new_op_attrs={'name': name + '/weights_transpose'}, value=int64_array([1, 0]))
 
         # input normalization for 4D Caffe and MxNet FullyConnected
-        if graph.graph['fw'] in ['caffe', 'mxnet']:
+        if graph.graph['fw'] in ['caffe']:
             node.insert_op_on_input_port(in_port_idx=0, new_op_class=Reshape,
                                          new_op_attrs={'name': name + '/flatten_fc_input'}, value=int64_array([0, -1]))
 
