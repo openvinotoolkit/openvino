@@ -80,15 +80,3 @@ install(DIRECTORY ie_bridges/c/samples/
 install(FILES samples/CMakeLists.txt
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
         COMPONENT c_samples)
-
-# install speech demo files
-
-if(SPEECH_LIBS_AND_DEMOS)
-    ie_cpack_add_component(speech_demo_files)
-
-    install(DIRECTORY ${TEMP}/deployment_tools
-                      ${TEMP}/data_processing
-            DESTINATION .
-            USE_SOURCE_PERMISSIONS
-            COMPONENT speech_demo_files)
-endif()
