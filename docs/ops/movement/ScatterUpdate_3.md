@@ -9,19 +9,19 @@
 **Detailed description**: *ScatterUpdate* creates a copy of the first input tensor with updated elements in positions specified with `indices` input
 and values specified with `updates` tensor starting from the dimension with index `axis`. For the `data` tensor of shape \f$[d_0, d_1, \dots, d_n]\f$,
 `indices` tensor of shape \f$[i_0, i_1, \dots, i_k]\f$ and `updates` tensor of shape
-\f$[d_0, d_1, \dots, d_{axis - 1}, i_0, i_1, \dots, i_k, d_{axis + 1}, \dots, d_n]\f$ the operation computes
+\f$[d_0,\;d_1,\;\dots,\;d_{axis - 1},\;i_0,\;i_1,\;\dots,\;i_k,\;d_{axis + 1},\;\dots, d_n]\f$ the operation computes
 for each `m, n, ..., p` of the `indices` tensor indices:
 
 
 \f[data[\dots,\;indices[m,\;n,\;\dots,\;p],\;\dots] = updates[\dots,\;m,\;n,\;\dots,\;p,\;\dots]\f]
 
-where first \f$\dots\f$ in the `data` corresponds to \f$[d_0, \dots, d_{axis - 1}]\f$ dimensions, last\f$\dots\f$ in the `data` corresponds to the
+where first \f$\dots\f$ in the `data` corresponds to \f$[d_0,\;\dots,\;d_{axis - 1}]\f$ dimensions, last\f$\dots\f$ in the `data` corresponds to the
 `rank(data) - (axis + 1)` dimensions.
 
 Several examples for case when `axis = 0`:
 1. `indices` is a \f$0\f$D tensor: \f$data[indices, \dots] = updates[\dots]\f$
-2. `indices` is a \f$1\f$D tensor (for each `i`): \f$data[indices[i],\;\dots] = updates[i,\;\dots]\f$
-3. `indices` is a \f$N\f$D tensor (for each `i`, \f$\dots\f$, `j`): \f$data[indices[i],\;\dots,\;j],\;\dots] = updates[i,\;\dots,\;j,\;\dots]\f$
+2. `indices` is a \f$1\f$D tensor (\f$\forall_{i}\f$): \f$data[indices[i],\;\dots] = updates[i,\;\dots]\f$
+3. `indices` is a \f$N\f$D tensor (\f$\forall_{i,\;\dots,\;j}\f$): \f$data[indices[i],\;\dots,\;j],\;\dots] = updates[i,\;\dots,\;j,\;\dots]\f$
 
 **Attributes**: *ScatterUpdate* does not have attributes.
 
@@ -34,7 +34,7 @@ All index values are expected to be within bounds `[0, s - 1]` along axis of siz
 same output location then the order of updating the values is undefined. If an index points to non-existing output
 tensor element or is negative then an exception is raised. **Required.**
 
-*   **3**: `updates` tensor of type *T_NUMERIC* and rank equal to rank(indices) + rank(data) - 1 **Required.**
+*   **3**: `updates` tensor of type *T_NUMERIC* and rank equal to `rank(indices) + rank(data) - 1` **Required.**
 
 *   **4**: `axis` tensor with scalar or 1D tensor with one element of type *T_AXIS* specifying axis for scatter.
 The value can be in range `[ -r, r - 1]` where `r` is the rank of `data`. **Required.**
