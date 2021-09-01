@@ -243,7 +243,6 @@ def test_discrete_type_info_init():
     child1 = DiscreteTypeInfo("child", 0, parent1)
     child0 = DiscreteTypeInfo("chil", 0, parent1)
 
-
     child1.name = "children"
     assert child1.name == "children"
     assert child1.version == 0
