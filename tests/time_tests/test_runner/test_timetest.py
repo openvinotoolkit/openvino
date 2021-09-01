@@ -20,8 +20,8 @@ import os
 import shutil
 import sys
 
-UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
-logging.info("UTILS_DIR: {}".format(UTILS_DIR))
+# add utils folder to imports
+UTILS_DIR = os.path.join(Path(__file__).parent.parent, "utils")
 sys.path.insert(0, str(UTILS_DIR))
 
 from path_utils import expand_env_vars
