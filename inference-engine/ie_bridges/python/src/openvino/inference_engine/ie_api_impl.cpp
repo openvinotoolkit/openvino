@@ -313,7 +313,7 @@ void InferenceEnginePython::IENetwork::reshape(const std::map <std::string, std:
     for(auto const& input: input_shapes){
         using ngraph::Dimension;
         std::vector<Dimension> dims;
-        for(auto d : input.second) {
+        for(auto const& d: input.second) {
             if(d.size() == 1)
                 dims.push_back(Dimension(d[0]));
             else if(d.size() == 2)
