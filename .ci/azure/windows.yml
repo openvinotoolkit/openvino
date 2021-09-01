@@ -111,7 +111,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja -j 10" /LogLevel="Detailed" /MaxCPUS=40 /KEEPORIGJOBSNUM
+      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" /LogLevel="Detailed" /MaxCPUS=40 /profile="C:\Temp\profile.xml"
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
 
