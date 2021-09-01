@@ -1,10 +1,6 @@
 INTERPRETER.onnx_model_quant_conv_linear
 INTERPRETER.onnx_top_k_opset_10
 
-# Failed in ubuntu18 i386
-reduce_sum_large_1d_to_scalar
-reduce_sum_keep_large_1d_to_scalar
-
 # Temporarily disabled:
 INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 INTERPRETER.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
@@ -30,16 +26,6 @@ INTERPRETER.onnx_model_matmul_integer_4d_no_zero_point
 # Disabled tests for disabled reference implementations
 INTERPRETER.onnx_dyn_shapes_expand_uint16_dyn_shape
 INTERPRETER.sum_2d_to_scalar_int8
-INTERPRETER.reduce_sum_2d_to_scalar_int8
-INTERPRETER.reduce_sum_keep_2d_to_scalar_int8
-INTERPRETER.reduce_product_to_scalar_int8
-INTERPRETER.reduce_product_keep_to_scalar_int8
-INTERPRETER.reduce_min_to_scalar_int8
-INTERPRETER.reduce_min_keep_to_scalar_int8
-INTERPRETER.reduce_mean_to_scalar_int8
-INTERPRETER.reduce_mean_keep_to_scalar_int8
-INTERPRETER.reduce_max_to_scalar_int8
-INTERPRETER.reduce_max_keep_to_scalar_int8
 INTERPRETER.product_to_scalar_int8
 INTERPRETER.max_pool_uint8
 INTERPRETER.max_pool_int8
