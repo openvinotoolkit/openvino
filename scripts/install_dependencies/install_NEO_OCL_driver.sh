@@ -662,7 +662,7 @@ check_current_driver()
         fi
     fi
     
-    gfx_version="$(echo -e "${gfx_version}" | sed -e 's/^Version[[:space:]]*\:[[:space:]]*//')"
+    gfx_version="$(echo -e "${gfx_version}" | grep -Eo "[0-9]{2,3}\.[0-9]{2,3}\.[0-9]{3,6}")"
     if [[ -z "$user_chosen_driver" ]]; then
         check_specific_generation
     fi
