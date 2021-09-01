@@ -17,6 +17,7 @@
 #    include "pyngraph/onnx_import/onnx_import.hpp"
 #endif
 #include "pyngraph/dimension.hpp"
+#include "pyngraph/discrete_type_info.hpp"
 #include "pyngraph/frontend/frontend.hpp"
 #include "pyngraph/frontend/frontend_manager.hpp"
 #include "pyngraph/frontend/inputmodel.hpp"
@@ -33,7 +34,6 @@
 #include "pyngraph/types/regmodule_pyngraph_types.hpp"
 #include "pyngraph/util.hpp"
 #include "pyngraph/variant.hpp"
-#include "pyngraph/discrete_type_info.hpp"
 
 namespace py = pybind11;
 
