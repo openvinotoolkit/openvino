@@ -56,6 +56,7 @@ op::Constant::Constant(const shared_ptr<runtime::Tensor>& tensor) {
 
 op::Constant::Constant(const element::Type& type, const Shape& shape, const std::vector<std::string>& values)
     : Constant(type, shape) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(this,
                           values.size() == shape_size(m_shape) || values.size() == 1,
                           "Did not get the expected number of literals for a constant of shape ",
@@ -182,6 +183,7 @@ op::Constant::Constant(const element::Type& type, const Shape& shape, const std:
         }
         m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 op::Constant::Constant(const element::Type& type, const Shape& shape) : m_element_type(type), m_shape(shape) {

@@ -14,7 +14,6 @@
 #include "lpt_ngraph_functions/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include <legacy/ngraph_ops/scaleshift.hpp>
-#include "low_precision/common/dequantization_op.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -36,8 +35,9 @@ std::shared_ptr<ngraph::Function> ConvertMulOrAddWithDequantizationFunction::get
         std::vector<element::Type>{});
 
 
-    const auto multiply = std::make_shared<ngraph::pass::low_precision::DequantizationMultiply>(relu,
-                                                            std::make_shared<opset1::Constant>(element::f32, inputShape, multiplyConst));
+    const auto multiply = std::make_shared<opset1::Multiply>(
+        relu,
+        std::make_shared<opset1::Constant>(element::f32, inputShape, multiplyConst));
 
     multiply->set_friendly_name("output");
 
@@ -62,7 +62,6 @@ std::shared_ptr<ngraph::Function> ConvertMulOrAddWithDequantizationFunction::get
     const auto weights = std::make_shared<opset1::Constant>(element::f32, inputShape, multiplyConst);
     const auto bias = std::make_shared<opset1::Constant>(element::f32, inputShape, 0.0);
     std::shared_ptr<Node> scaleShift = std::make_shared<ngraph::op::ScaleShiftIE>(relu, weights, bias);
-    addDequantizationAttribute(scaleShift);
 
     scaleShift->set_friendly_name("output");
 
