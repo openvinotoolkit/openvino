@@ -8,16 +8,7 @@
 #include "openvino/core/enum_names.hpp"
 
 namespace ngraph {
+using ov::as_enum;
+using ov::as_string;
 using ov::EnumNames;
-/// Returns the enum value matching the string
-template <typename Type, typename Value>
-typename std::enable_if<std::is_convertible<Value, std::string>::value, Type>::type as_enum(const Value& value) {
-    return ov::as_enum<Type>(value);
-}
-
-/// Returns the string matching the enum value
-template <typename Value>
-const std::string& as_string(Value value) {
-    return ov::as_string(value);
-}
 }  // namespace ngraph
