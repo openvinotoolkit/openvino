@@ -15,6 +15,12 @@ TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
     ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
 }
 
+TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
+    std::map<std::string, std::string> incorrectConfig = {{ "abc", "def" }};
+    execNet = ie->LoadNetwork(cnnNet, targetDevice, incorrectConfig);
+//    ASSERT_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, incorrectConfig), InferenceEngine::Exception);
+}
+
 TEST_P(ExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {
     execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     InferenceEngine::CNNNetwork execGraph = execNet.GetExecGraphInfo();
@@ -38,6 +44,16 @@ TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNet) {
         config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
     }
     ASSERT_NO_THROW(execNet.SetConfig(config));
+}
+
+TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNetWithIncorrectConfig) {
+    execNet = ie->LoadNetwork(cnnNet, targetDevice);
+    std::map<std::string, std::string> incorrectConfig = {{ "abc", "def" }};
+    std::map<std::string, InferenceEngine::Parameter> config;
+    for (const auto& confItem : incorrectConfig) {
+        config.insert({confItem.first, InferenceEngine::Parameter(confItem.second)});
+    }
+    ASSERT_ANY_THROW(execNet.SetConfig(config));
 }
 
 TEST_P(ExecutableNetworkBaseTest, canSetConfigToExecNetAndCheckConfigAndCheck) {
