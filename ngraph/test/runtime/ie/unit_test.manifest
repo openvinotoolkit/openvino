@@ -361,28 +361,6 @@ all_trivial
 all_2x0_to_scalar
 all_dynamic
 
-# Reduce ops disabled/accuracy: 56520
-# disabled reference implementation
-reduce_max_to_scalar_int8
-reduce_max_keep_to_scalar_int8
-reduce_mean_to_scalar_int8
-reduce_mean_keep_to_scalar_int8
-reduce_sum_keep_2d_to_scalar_int8
-reduce_sum_2d_to_scalar_int8
-reduce_product_to_scalar_int8
-reduce_product_keep_to_scalar_int8
-reduce_min_to_scalar_int8
-reduce_min_keep_to_scalar_int8
-# accuracy
-reduce_mean_matrix_rows_int32
-reduce_mean_keep_matrix_rows_int32
-reduce_sum_keep_stable_acc
-reduce_sum_keep_3d_to_scalar_int32
-reduce_sum_keep_large_1d_to_scalar
-reduce_sum_stable_acc
-reduce_sum_3d_to_scalar_int32
-reduce_sum_large_1d_to_scalar
-
 # Doesn't throw expected exception type.
 unhandled_op
 
