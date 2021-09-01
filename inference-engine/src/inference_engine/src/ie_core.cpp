@@ -64,16 +64,14 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
         deviceName_ = "MULTI";
         config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
     } else if (deviceName.find("AUTO") == 0) {
-        deviceName_ = "MULTI";
+        deviceName_ = "AUTO";
         if (deviceName.find("AUTO:") == 0) {
             config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] =
                 deviceName.substr(std::string("AUTO:").size());
         }
-        config_.insert({CONFIG_KEY_INTERNAL(WORK_MODE), ""});
     } else {
-        if (deviceName_ == "AUTO") {
-            deviceName_ = "MULTI";
-            config_.insert({CONFIG_KEY_INTERNAL(WORK_MODE), ""});
+        if (deviceName_.empty()) {
+            deviceName_ = "AUTO";
         }
         InferenceEngine::DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
@@ -417,9 +415,12 @@ public:
                 PluginDescriptor desc = {pluginPath, config, listOfExtentions};
                 pluginRegistry[deviceName] = desc;
 
-                // if (deviceName == "MULTI") {
-                //     pluginRegistry["AUTO"] = desc;
-                // }
+                // TODO: move to plugins.xml
+                // register the MultiDevicePlugin as AUTO as well
+                if (deviceName == "MULTI") {
+                    desc.defaultConfig.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), ""});
+                    pluginRegistry["AUTO"] = desc;
+                }
             }
         }
     }
@@ -588,17 +589,12 @@ public:
         {
             if (deviceName.find("AUTO:") == 0) {
                 IE_THROW()
-                    << "You can get specific metrics with the GetMetric only for the MULTI itself (without devices). "
+                    << "You can get specific metrics with the GetMetric only for the AUTO itself (without devices). "
                        "To get individual devices's metrics call GetMetric for each device separately";
             }
         }
 
-        std::string pluginName = deviceName;
-        if (pluginName == "AUTO") {
-            pluginName = "MULTI";
-        }
-
-        auto parsed = parseDeviceNameIntoConfig(pluginName);
+        auto parsed = parseDeviceNameIntoConfig(deviceName);
 
         // we need to return a copy of Parameter object which is created on Core side,
         // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
@@ -877,7 +873,7 @@ public:
                 if (pos != std::string::npos) {
                     deviceNames = InferenceEngine::DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
                 }
-                deviceNames.emplace_back("MULTI");
+                deviceNames.emplace_back("AUTO");
             } else {
                 deviceNames.push_back(deviceName);
             }

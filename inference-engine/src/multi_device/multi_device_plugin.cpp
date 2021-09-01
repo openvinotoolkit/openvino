@@ -56,9 +56,9 @@ namespace {
         }
         return config;
     }
-    std::vector<std::string> supported_configKeys = {
+    const std::vector<std::string> supported_configKeys = {
         MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-        CONFIG_KEY_INTERNAL(WORK_MODE)
+        CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO)
     };
 }  // namespace
 
@@ -208,12 +208,13 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
-    auto workMode = fullConfig.find(CONFIG_KEY_INTERNAL(WORK_MODE));
+    auto workMode = fullConfig.find(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
+    bool workModeAuto = workMode != fullConfig.end();
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
 
     // not found device priorities for -d AUTO use case
     if (priorities == fullConfig.end()) {
-        if (workMode != fullConfig.end()) {
+        if (workModeAuto) {
             std::string allDevices;
             auto availableDevices = GetCore()->GetAvailableDevices();
             if (availableDevices.empty()) {
@@ -233,9 +234,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         multiNetworkConfig.insert(*priorities);
     }
     // check if it is -d AUTO or -d AUTO:xPU use case
-    if (workMode != fullConfig.end()) {
+    if (workModeAuto) {
         auto targetDevice = SelectDevice(metaDevices, networkPrecision);
-        // std::cout << "!!! DEBUG: select device is " << targetDevice.deviceName << std::endl;
         metaDevices = { targetDevice };
     }
 
