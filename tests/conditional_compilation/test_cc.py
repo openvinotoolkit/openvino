@@ -22,7 +22,7 @@ log = logging.getLogger()
 
 
 @pytest.mark.dependency(name="cc_collect")
-def test_cc_collect(prepared_models, test_id, models, openvino_ref, test_info,
+def test_cc_collect(test_id, prepared_models, openvino_ref, test_info,
                     save_session_info, sea_runtool, collector_dir, artifacts):  # pylint: disable=unused-argument
     """Test conditional compilation statistics collection
     :param test_info: custom `test_info` field of built-in `request` pytest fixture.
@@ -81,7 +81,7 @@ def test_minimized_pkg(test_id, models, openvino_root_dir, artifacts):  # pylint
 
 
 @pytest.mark.dependency(depends=["cc_collect", "minimized_pkg"])
-def test_infer(prepared_models, test_id, models, artifacts):
+def test_infer(test_id, prepared_models, artifacts):
     """Test inference with conditional compiled binaries."""
     out = artifacts / test_id
     minimized_pkg = out / "install_pkg"
@@ -92,7 +92,7 @@ def test_infer(prepared_models, test_id, models, artifacts):
 
 
 @pytest.mark.dependency(depends=["cc_collect", "minimized_pkg"])
-def test_verify(prepared_models, test_id, models, openvino_ref, artifacts, tolerance=1e-6):  # pylint: disable=too-many-arguments
+def test_verify(test_id, prepared_models, openvino_ref, artifacts, tolerance=1e-6):  # pylint: disable=too-many-arguments
     """Test verifying that inference results are equal."""
     out = artifacts / test_id
     minimized_pkg = out / "install_pkg"
