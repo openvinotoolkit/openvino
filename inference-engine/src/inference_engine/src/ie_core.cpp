@@ -414,13 +414,6 @@ public:
             {
                 PluginDescriptor desc = {pluginPath, config, listOfExtentions};
                 pluginRegistry[deviceName] = desc;
-
-                // TODO: move to plugins.xml
-                // register the MultiDevicePlugin as AUTO as well
-                if (deviceName == "MULTI") {
-                    desc.defaultConfig.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), ""});
-                    pluginRegistry["AUTO"] = desc;
-                }
             }
         }
     }
