@@ -62,7 +62,7 @@ public:
     const ngraph::Shape& get_shape() const;
 
     /// \return the partial shape of the output
-    const PartialShape& get_partial_shape() const;
+    const Shape& get_partial_shape() const;
 
     /// \return the element type of the output
     const element::Type& get_element_type() const;

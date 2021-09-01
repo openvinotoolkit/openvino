@@ -19,10 +19,10 @@ const element::Type& Input<Node>::get_element_type() const {
     return m_node->get_input_element_type(m_index);
 }
 
-const ngraph::Shape& Input<Node>::get_shape() const {
+const StaticShape& Input<Node>::get_shape() const {
     return m_node->get_input_shape(m_index);
 }
-const PartialShape& Input<Node>::get_partial_shape() const {
+const Shape& Input<Node>::get_partial_shape() const {
     return m_node->get_input_partial_shape(m_index);
 }
 
@@ -95,10 +95,10 @@ size_t Input<const Node>::get_index() const {
 const element::Type& Input<const Node>::get_element_type() const {
     return m_node->get_input_element_type(m_index);
 }
-const ngraph::Shape& Input<const Node>::get_shape() const {
+const StaticShape& Input<const Node>::get_shape() const {
     return m_node->get_input_shape(m_index);
 }
-const PartialShape& Input<const Node>::get_partial_shape() const {
+const Shape& Input<const Node>::get_partial_shape() const {
     return m_node->get_input_partial_shape(m_index);
 }
 

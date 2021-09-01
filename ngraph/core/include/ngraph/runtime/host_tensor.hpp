@@ -10,6 +10,7 @@
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "ngraph/partial_shape.hpp"
 
 namespace ov {
 class Node;

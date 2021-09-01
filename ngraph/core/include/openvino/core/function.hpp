@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 #include "ngraph/op/assign.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/read_value.hpp"
@@ -100,7 +100,7 @@ public:
     const ngraph::Shape& get_output_shape(size_t i) const;
 
     /// Return the partial shape of element i
-    const ngraph::PartialShape& get_output_partial_shape(size_t i) const;
+    const Shape& get_output_partial_shape(size_t i) const;
 
     /// Check that there is a single result and return it.
     std::shared_ptr<ngraph::Node> get_result() const;
