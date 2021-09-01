@@ -57,13 +57,13 @@ if [ -e "$INSTALLDIR/tools/compile_tool" ]; then
     export LD_LIBRARY_PATH=$INSTALLDIR/tools/compile_tool${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 fi
 
-if [ -e "$INSTALLDIR/extras/opencv" ]; then
-    if [ -f "$INSTALLDIR/extras/opencv/setupvars.sh" ]; then
-        source "$INSTALLDIR/extras/opencv/setupvars.sh"
+if [ -e "$INSTALLDIR/opencv" ]; then
+    if [ -f "$INSTALLDIR/opencv/setupvars.sh" ]; then
+        source "$INSTALLDIR/opencv/setupvars.sh"
     else
-        export OpenCV_DIR="$INSTALLDIR/extras/opencv/share/OpenCV"
-        export LD_LIBRARY_PATH="$INSTALLDIR/extras/opencv/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-        export LD_LIBRARY_PATH="$INSTALLDIR/extras/opencv/share/OpenCV/3rdparty/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        export OpenCV_DIR="$INSTALLDIR/opencv/share/OpenCV"
+        export LD_LIBRARY_PATH="$INSTALLDIR/opencv/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        export LD_LIBRARY_PATH="$INSTALLDIR/opencv/share/OpenCV/3rdparty/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     fi
 fi
 
