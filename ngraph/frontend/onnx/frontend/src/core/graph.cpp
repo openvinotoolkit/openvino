@@ -321,7 +321,7 @@ const OpsetImports& Graph::get_opset_imports() const {
     return m_model->get_opset_imports();
 }
 
-Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, const Graph& parent_graph)
+Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, const Graph* parent_graph)
     : Graph(model_proto, common::make_unique<GraphCache>()),
       m_parent_graph(parent_graph) {}
 
@@ -329,14 +329,14 @@ bool Subgraph::is_ng_node_in_cache(const std::string& name) const {
     if (m_cache->contains(name)) {
         return true;
     }
-    return m_parent_graph.is_ng_node_in_cache(name);
+    return m_parent_graph->is_ng_node_in_cache(name);
 }
 
 Output<ngraph::Node> Subgraph::get_ng_node_from_cache(const std::string& name) const {
     if (m_cache->contains(name)) {
         return m_cache->get_node(name);
     }
-    return m_parent_graph.get_ng_node_from_cache(name);
+    return m_parent_graph->get_ng_node_from_cache(name);
 }
 
 void Subgraph::replace_input_from_parent_scope_with_parameter(const std::string& in_name,
@@ -357,8 +357,8 @@ void Subgraph::find_inputs_from_parent() {
     for (const auto& node_proto : m_model->get_graph().node()) {
         int input_index = 0;
         for (const auto& in_name : node_proto.input()) {
-            if (m_parent_graph.is_ng_node_in_cache(in_name)) {
-                const auto& from_parent_node = m_parent_graph.get_ng_node_from_cache(in_name);
+            if (m_parent_graph->is_ng_node_in_cache(in_name)) {
+                const auto& from_parent_node = m_parent_graph->get_ng_node_from_cache(in_name);
                 // constants are skipped
                 if (!ngraph::is_type<ngraph::op::Constant>(from_parent_node.get_node_shared_ptr())) {
                     for (const auto& out_name : node_proto.output()) {
@@ -390,8 +390,8 @@ void Subgraph::find_inputs_from_parent() {
                     if (op::is_constant(input_node))
                         continue;
                     const auto& in_name = input_node->get_friendly_name();
-                    if (m_parent_graph.is_ng_node_in_cache(in_name)) {
-                        const auto& from_parent_node = m_parent_graph.get_ng_node_from_cache(in_name);
+                    if (m_parent_graph->is_ng_node_in_cache(in_name)) {
+                        const auto& from_parent_node = m_parent_graph->get_ng_node_from_cache(in_name);
                         replace_input_from_parent_scope_with_parameter(in_name,
                                                                        from_parent_node,
                                                                        node_to_replace_input->input(i));
@@ -416,14 +416,14 @@ void Subgraph::decode_to_framework_nodes() {
 const std::vector<Output<ngraph::Node>> Subgraph::get_inputs_from_parent() const {
     OutputVector result;
     for (const auto& name : m_inputs_from_parent) {
-        result.push_back(m_parent_graph.get_ng_node_from_cache(name));
+        result.push_back(m_parent_graph->get_ng_node_from_cache(name));
     }
     return result;
 }
 
 void Subgraph::infer_inputs_from_parent() {
     for (auto& it : m_parameter_to_parent_node_map) {
-        const auto& node = m_parent_graph.get_ng_node_from_cache(it.second);
+        const auto& node = m_parent_graph->get_ng_node_from_cache(it.second);
         auto& parameter = it.first;
         parameter->set_element_type(node.get_element_type());
         parameter->set_partial_shape(node.get_partial_shape());

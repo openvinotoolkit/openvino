@@ -71,7 +71,7 @@ public:
     ///
     /// \param[in]  model          The ONNX model object.
     /// \param[in]  parent_graph   The reference to the parent graph.
-    Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model, const Graph& parent_graph);
+    Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model, const Graph* parent_graph);
 
     /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
     /// \return     Vector of edge nodes from parent scope.
@@ -98,7 +98,7 @@ private:
                                                         const Output<ngraph::Node>& from_parent_node,
                                                         Input<ngraph::Node>&& out_node_to_replace_input);
 
-    const Graph& m_parent_graph;
+    const Graph* m_parent_graph;
     std::vector<std::string> m_inputs_from_parent;
     std::unordered_map<std::shared_ptr<ngraph::op::Parameter>, std::string> m_parameter_to_parent_node_map;
 };

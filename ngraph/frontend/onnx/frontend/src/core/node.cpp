@@ -27,7 +27,7 @@ public:
         for (const auto& attribute : m_attributes) {
             if (attribute.is_graph())
                 m_subgraphs.insert(
-                    {attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(*m_graph))});
+                    {attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(m_graph))});
         }
         m_has_subgraphs = m_subgraphs.size() > 0;
     }
@@ -128,7 +128,7 @@ Subgraph Node::Impl::get_subgraph_from_attribute(const std::string& name) const 
     if (it == std::end(m_attributes)) {
         throw error::node::UnknownAttribute{this->name(), name};
     }
-    return it->get_subgraph(*m_graph);
+    return it->get_subgraph(m_graph);
 }
 
 bool Node::Impl::has_subgraphs() const {
