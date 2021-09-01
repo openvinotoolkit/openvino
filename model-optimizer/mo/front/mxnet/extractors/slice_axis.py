@@ -12,7 +12,7 @@ def slice_axis_ext(attrs):
     end = attrs.int("end", None)
 
     node_attrs = {
-        'type': 'Crop',
+        'op': 'Crop',
         'axis': axis,
         'offset': begin,
         'dim': end,
