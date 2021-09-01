@@ -132,8 +132,6 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(targetDevice, configuration) = this->GetParam();
-        ie = PluginCache::get().ie(targetDevice);
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
         // Load CNNNetwork to target plugins
         execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
@@ -149,7 +147,7 @@ public:
 protected:
     InferenceEngine::CNNNetwork cnnNet;
     InferenceEngine::ExecutableNetwork execNet;
-    std::shared_ptr<InferenceEngine::Core> ie;
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> function;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
