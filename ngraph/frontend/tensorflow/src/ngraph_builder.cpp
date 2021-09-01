@@ -25,6 +25,7 @@
 #include "ngraph/slice_plan.hpp"
 //#include <ngraph/pass/transpose_sinking.h>
 #include <ngraph/pass/constant_folding.hpp>
+#include <tensorflow_frontend/place.hpp>
 
 #include "default_opset.h"
 #include "graph.hpp"
@@ -2709,10 +2710,8 @@ static std::map<const string, const function<ngraph::OutputVector(const NodeCont
 };
 
 void Builder::TranslateGraph(
-    const std::map<std::string, ngraph::PartialShape>& inputs,
-    const std::vector<ngraph::PartialShape>& indexed_shapes,
+    std::shared_ptr<ngraph::frontend::InputModelTensorflow> tf_model,
     const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
-    const std::vector<std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder>>& ops,
     const std::string name,
     std::shared_ptr<ngraph::Function>& ng_function) {
     //
@@ -2724,22 +2723,27 @@ void Builder::TranslateGraph(
     ngraph::ParameterVector params;
     ngraph::ResultVector results;
 
+    const auto& ops = tf_model->get_ops();
+    const auto& inputs = tf_model->partialShapes;
+    const auto& indexed_shapes = tf_model->input_shapes;
+
     //
     // Now create the nGraph ops from TensorFlow ops.
     //
-    for (auto op : ops) {
+    for (auto& op_place : ops) {
+        auto op = op_place->get_desc();
+        auto op_name = op_place->get_names()[0];
 #if 0
     // TODO: Investigate why do we need it
       if (n->IsSink() || n->IsSource()) {
       continue;
     }
 #endif
-
         if (op->IsControlFlow()) {
             throw errors::Unimplemented("Encountered a control flow op in the nGraph bridge: " + op->DebugString());
         }
 
-        NGRAPH_VLOG(2) << "Constructing op " << op->name() << " which is " << op->type_string() << "\n";
+        NGRAPH_VLOG(2) << "Constructing op " << op_name << " which is " << op->type_string() << "\n";
 
         // const function<Status(const TFNodeDecoder*, const std::vector<const
         // ngraph::frontend::tensorflow::detail::TensorWrapper*>&,
@@ -2753,10 +2757,10 @@ void Builder::TranslateGraph(
             // -----------------------------
             // Catch-all for unsupported ops
             // -----------------------------
-            NGRAPH_VLOG(3) << "No translation handler registered for op: " << op->name() << " (" << op->type_string()
+            NGRAPH_VLOG(3) << "No translation handler registered for op: " << op_name << " (" << op->type_string()
                            << ")";
             NGRAPH_VLOG(3) << op->DebugString();
-            throw errors::InvalidArgument("No translation handler registered for op: " + op->name() + " (" +
+            throw errors::InvalidArgument("No translation handler registered for op: " + op_name + " (" +
                                           op->type_string() + ")\n" + op->DebugString());
         }
 
@@ -2782,7 +2786,7 @@ void Builder::TranslateGraph(
             auto outputs = (*op_fun)(node_context);
 
             // Post-processing: register outputs to the map and detect the edge ops
-            auto& node_record = ng_op_map[op->name()];
+            auto& node_record = ng_op_map[op_name];
             for (auto output : outputs) {
                 if (auto result = std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr())) {
                     results.push_back(result);
@@ -2795,14 +2799,14 @@ void Builder::TranslateGraph(
                 }
             }
         } catch (const Status& e) {
-            throw errors::Internal("Unhandled exception in op handler: " + op->name() + " (" + op->type_string() +
-                                   ")\n" + op->DebugString() + "\nDetails: " + e.message);
+            throw errors::Internal("Unhandled exception in op handler: " + op_name + " (" + op->type_string() + ")\n" +
+                                   op->DebugString() + "\nDetails: " + e.message);
         } catch (const std::exception& e) {
-            throw errors::Internal("Unhandled exception in op handler: " + op->name() + " (" + op->type_string() +
-                                   ")\n" + op->DebugString() + "\n" + "what(): " + e.what());
+            throw errors::Internal("Unhandled exception in op handler: " + op_name + " (" + op->type_string() + ")\n" +
+                                   op->DebugString() + "\n" + "what(): " + e.what());
         } catch (...) {
-            throw errors::Internal("Unhandled exception in op handler: " + op->name() + " (" + op->type_string() +
-                                   ")\n" + op->DebugString());
+            throw errors::Internal("Unhandled exception in op handler: " + op_name + " (" + op->type_string() + ")\n" +
+                                   op->DebugString());
         }
     }
 

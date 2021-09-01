@@ -6,6 +6,7 @@
 
 // TODO: include it by just frontend_manager.hpp without path
 #include <frontend_manager/frontend.hpp>
+#include <frontend_manager/place.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
 namespace tensorflow {
@@ -18,6 +19,8 @@ class GraphIteratorProto;
 
 namespace ngraph {
 namespace frontend {
+
+class OpPlaceTF;
 
 namespace tensorflow {
 namespace detail {
@@ -37,17 +40,15 @@ public:
     // TODO: map from PlaceTensorflow, not from name string
     std::map<std::string, ngraph::PartialShape> partialShapes;
 
-    std::vector<std::shared_ptr<tensorflow::detail::TFNodeDecoder>> get_ops();
+    std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> get_ops() const;
 
 public:
     InputModelTensorflow(const std::string& _path);
     InputModelTensorflow(const std::vector<std::istream*>& streams);
 
     std::vector<Place::Ptr> get_inputs() const override;
-    std::vector<Place::Ptr> get_outputs() const override {
-        // TODO: implement
-        return {};
-    }
+    std::vector<Place::Ptr> get_outputs() const override;
+
     Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override {
         // TODO: implement
         return nullptr;
@@ -71,13 +72,14 @@ public:
     };
 
 private:
-    std::map<std::string, std::shared_ptr<tensorflow::detail::TFNodeDecoder>> m_ops;
-    std::vector<std::shared_ptr<tensorflow::detail::TFNodeDecoder>> m_ops_topology_sorted;
-    std::vector<std::shared_ptr<tensorflow::detail::TFNodeDecoder>> m_outputs;
+    std::map<std::string, std::shared_ptr<OpPlaceTF>> m_ops;
+    std::vector<std::shared_ptr<OpPlaceTF>> m_ops_topology_sorted;
+    std::vector<Place::Ptr> m_inputs;
+    std::vector<Place::Ptr> m_outputs;
     // traverse graph to find output ops
-    void determine_outputs();
+    void initial_traverse_graph();
     // traverse graph from outputs to inputs to get nodes remaining in graph
-    std::vector<std::shared_ptr<tensorflow::detail::TFNodeDecoder>> determine_cut_nodes() const;
+    std::vector<std::shared_ptr<OpPlaceTF>> determine_cut_nodes() const;
 };
 
 }  // namespace frontend

@@ -40,20 +40,15 @@ InputModelTensorflow::InputModelTensorflow(const std::string& _path) : path(_pat
     std::cout << "[ INFO ] Loaded model contains " << graph_def->node_size() << " nodes." << std::endl;
     graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(graph_def.get());
 
-    determine_outputs();
+    initial_traverse_graph();
 }
 
 std::vector<Place::Ptr> InputModelTensorflow::get_inputs() const {
-    std::vector<Place::Ptr> result;
-    for (; !graph_impl->is_end(); graph_impl->next()) {
-        std::cout << "graph_impl->get()->op() = " << graph_impl->get()->op() << "\n";
-        if (graph_impl->get()->op() == "Placeholder") {
-            std::vector<std::string> place_names = {graph_impl->get()->name()};
-            result.push_back(std::make_shared<PlaceTF>(*this, place_names));
-        }
-    }
-    graph_impl->reset();
-    return result;
+    return m_inputs;
+}
+
+std::vector<Place::Ptr> InputModelTensorflow::get_outputs() const {
+    return m_outputs;
 }
 
 void InputModelTensorflow::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& pshape) {
@@ -77,19 +72,24 @@ ngraph::PartialShape InputModelTensorflow::get_partial_shape(Place::Ptr place) c
     return result_shape;
 }
 
-std::vector<std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder>> InputModelTensorflow::get_ops() {
+std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> InputModelTensorflow::get_ops() const {
     // TODO: call that ONLY if model modified
     return determine_cut_nodes();
 }
 
-void InputModelTensorflow::determine_outputs() {
+void InputModelTensorflow::initial_traverse_graph() {
     std::set<std::string> all_names;
     std::set<std::string> names_with_consumers;
+
+    m_inputs.clear();
     for (; !graph_impl->is_end(); graph_impl->next()) {
         auto op = graph_impl->get();
         all_names.insert(op->name());
-        m_ops[op->name()] = op;
-        m_ops_topology_sorted.push_back(op);
+        m_ops_topology_sorted.push_back(std::make_shared<OpPlaceTF>(*this, op));
+        m_ops[op->name()] = m_ops_topology_sorted.back();
+        if (graph_impl->get()->op() == "Placeholder") {
+            m_inputs.push_back(m_ops_topology_sorted.back());
+        }
         for (size_t i = 0; i < op->num_inputs(); ++i) {
             std::string input_name;
             size_t port_idx;
@@ -118,16 +118,20 @@ void InputModelTensorflow::determine_outputs() {
     }
 }
 
-std::vector<std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder>>
-InputModelTensorflow::determine_cut_nodes() const {
+std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> InputModelTensorflow::determine_cut_nodes() const {
     std::queue<tensorflow::detail::TFNodeDecoder*> q;
     std::unordered_set<std::string> visited;
-    std::vector<std::shared_ptr<tensorflow::detail::TFNodeDecoder>> new_ops;
+    std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> new_ops;
     for (const auto& output_op : m_outputs) {
-        if (!visited.count(output_op->name())) {
-            visited.insert(output_op->name());
-            new_ops.push_back(output_op);
-            q.push(output_op.get());
+        auto op_name = output_op->get_names()[0];
+        if (!visited.count(op_name)) {
+            visited.insert(op_name);
+            auto out_op_place = std::dynamic_pointer_cast<ngraph::frontend::OpPlaceTF>(output_op);
+            if (out_op_place) {
+                // TODO: throw if nullptr
+                new_ops.push_back(out_op_place);
+                q.push(out_op_place->get_desc().get());
+            }
         }
     }
     while (!q.empty()) {
@@ -149,7 +153,7 @@ InputModelTensorflow::determine_cut_nodes() const {
                 visited.insert(input_name);
                 new_ops.push_back(op_it->second);
                 // TODO: check that op is not input or frozen
-                q.push(op_it->second.get());
+                q.push(op_it->second->get_desc().get());
             }
         }
     }

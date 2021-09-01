@@ -21,12 +21,7 @@ std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert(
         std::cout << "[ INFO ] FrontEndTensorflow::convert invoked\n";
 
         std::shared_ptr<ngraph::Function> f;
-        ::tensorflow::ngraph_bridge::Builder::TranslateGraph(model_tf->partialShapes,
-                                                             model_tf->input_shapes,
-                                                             {},
-                                                             model_tf->get_ops(),
-                                                             "here_should_be_a_graph_name",
-                                                             f);
+        ::tensorflow::ngraph_bridge::Builder::TranslateGraph(model_tf, {}, "here_should_be_a_graph_name", f);
         std::cout << "[ STATUS ] TranslateGraph was called successfuly.\n";
         std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
         std::cout << "[ STATUS ] Running Transpose Sinking transformation\n";
