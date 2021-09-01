@@ -47,25 +47,27 @@ std::vector<Place::Ptr> InputModelTensorflow::get_inputs() const {
     std::vector<Place::Ptr> result;
     for (; !graph_impl->is_end(); graph_impl->next()) {
         std::cout << "graph_impl->get()->op() = " << graph_impl->get()->op() << "\n";
-        if (graph_impl->get()->op() == "Placeholder")
-            result.push_back(std::make_shared<PlaceTensorflow>(graph_impl->get()->name()));
+        if (graph_impl->get()->op() == "Placeholder") {
+            std::vector<std::string> place_names = {graph_impl->get()->name()};
+            result.push_back(std::make_shared<PlaceTF>(*this, place_names));
+        }
     }
     graph_impl->reset();
     return result;
 }
 
 void InputModelTensorflow::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& pshape) {
-    auto place_tf = std::dynamic_pointer_cast<PlaceTensorflow>(place);
-    partialShapes[place_tf->name] = pshape;
+    auto place_tf = std::dynamic_pointer_cast<PlaceTF>(place);
+    partialShapes[place_tf->get_names()[0]] = pshape;
 }
 
 ngraph::PartialShape InputModelTensorflow::get_partial_shape(Place::Ptr place) const {
-    auto place_tf = std::dynamic_pointer_cast<PlaceTensorflow>(place);
+    auto place_tf = std::dynamic_pointer_cast<PlaceTF>(place);
     ngraph::PartialShape result_shape;
     // TODO: replace by node cache without going through all nodes each time
     for (; !graph_impl->is_end(); graph_impl->next()) {
         auto node = graph_impl->get();
-        if (node->name() == place_tf->name) {
+        if (node->name() == place_tf->get_names()[0]) {
             node->getAttrValue2("shape", &result_shape);
             break;
         }
