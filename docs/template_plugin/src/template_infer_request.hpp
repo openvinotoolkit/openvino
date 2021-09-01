@@ -55,6 +55,8 @@ private:
     std::array<std::chrono::duration<float, std::micro>, numOfStages> _durations;
 
     InferenceEngine::BlobMap _networkOutputBlobs;
+    ngraph::ParameterVector _parameters;
+    ngraph::ResultVector _results;
 
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>> _inputTensors;
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>> _outputTensors;

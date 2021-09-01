@@ -18,7 +18,6 @@
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "ie_precision.hpp"
-#include <ngraph/ngraph.hpp>
 
 namespace InferenceEngine {
 
@@ -103,20 +102,6 @@ public:
      * @param layout new layout
      */
     void reshape(const SizeVector& dims, Layout layout);
-    /**
-     * @brief changes dims and layout at same time
-     *
-     * @param dims new dimensions
-     * @param layout new layout
-     */
-    void reshape(const std::initializer_list<size_t>& dims, Layout layout);
-    /**
-     * @brief changes dims and layout at same time
-     *
-     * @param dims new dimensions
-     * @param layout new layout
-     */
-    void reshape(const ngraph::PartialShape& dims, Layout layout);
 
     /**
      * @brief Gets the layout value for this Data instance
@@ -169,18 +154,6 @@ public:
     const UserValue& getUserObject() const;
 
     /**
-     * @brief Checks if current data has dynamic shapes
-     * @return true if data has dynamic shapes
-     */
-    bool isDynamic() const;
-
-    /**
-     * @brief Returns partial shapes
-     * @return shapes which can have dynamic dimensions
-     */
-    const ngraph::PartialShape& getPartialShape() const;
-
-    /**
      * @private
      * @brief Don't touch this field. An implementation details for Data object.
      */
@@ -201,7 +174,5 @@ private:
      * @brief A tensor descriptor
      */
     mutable TensorDesc tensorDesc;
-
-    ngraph::PartialShape pShape;
 };
 }  // namespace InferenceEngine

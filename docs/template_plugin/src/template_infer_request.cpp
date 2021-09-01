@@ -4,9 +4,6 @@
 
 #include "template_infer_request.hpp"
 
-#include <debug.h>
-#include <ie_compound_blob.h>
-
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -48,6 +45,8 @@ TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap&
     };
 
     _executable = _executableNetwork->_plugin->_backend->compile(_executableNetwork->_function);
+    _parameters = _executableNetwork->_function->get_parameters();
+    _results = _executableNetwork->_function->get_results();
 
     allocateDeviceBuffers();
     allocateBlobs();
@@ -318,6 +317,8 @@ void TemplateInferRequest::inferPostprocess() {
         }
         auto outputBlob = _outputs.at(output.first);
         auto networkOutput = _networkOutputBlobs[output.first];
+        // perform precision conversion of network output's precision and computational
+        // graph output's precision are different
         if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
             blobCopy(networkOutput, outputBlob);
         } else if (result->get_output_partial_shape(0).is_dynamic()) {

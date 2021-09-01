@@ -65,10 +65,13 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
             return false;
         }
     };
-    auto shape = output.get_partial_shape();
-    auto rank = shape.rank().is_static() ? shape.rank().get_length() : 0;
-    for (const auto& dim : shape) {
-        if (dim.is_static() && dim.get_length() == 0)
+    // query shape from ngraph::Parameter output shape and check there are no zeros in it
+    SizeVector dims;
+    if (output.get_partial_shape().is_static()) {
+        dims = output.get_shape();
+    }
+    for (const auto& dim : dims) {
+        if (!dim)
             IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
@@ -79,7 +82,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     } else {
         const auto layout = TensorDesc::getLayoutByRank(rank);
         const auto precision = details::convertPrecision(output.get_element_type());
-        ptr.reset(new Data(outName, precision, shape, layout));
+        ptr.reset(new Data(outName, {precision, dims, layout}));
     }
 }
 
