@@ -4,7 +4,7 @@
 import numpy as np
 
 import ngraph as ng
-from ngraph.impl import Dimension, Function, PartialShape, Shape
+from ngraph.impl import Dimension, Function, PartialShape, Shape, DiscreteTypeInfo
 
 
 def test_dimension():
@@ -234,3 +234,52 @@ def test_repr_dynamic_shape():
     ops = function.get_ordered_ops()
     for op in ops:
         assert "{?,2}" in repr(op)
+
+
+def test_discrete_type_info_init():
+    parent2 = DiscreteTypeInfo("parent2", 4)
+    parent1 = DiscreteTypeInfo("parent1", 1, parent2)
+    child2 = DiscreteTypeInfo("child", 0, parent1)
+    child1 = DiscreteTypeInfo("child", 0, parent1)
+    child0 = DiscreteTypeInfo("chil", 0, parent1)
+
+
+    child1.name = "children"
+    assert child1.name == "children"
+    assert child1.version == 0
+    assert child1.parent == parent1
+
+    child1.parent.name = "parent1"
+    assert child1.parent.name == "parent1"
+    assert parent1.name == "parent1"
+
+    parent1.name = "parent3"
+    assert child1.parent.name == "parent3"
+    assert parent1.name == "parent3"
+
+    child1.parent.version = 2
+    assert child1.parent.version == 2
+    assert parent1.version == 2
+
+    parent1.version = 3
+    assert child1.parent.version == 3
+    assert parent1.version == 3
+
+    assert child1.parent.parent.name == "parent2"
+    assert child1.parent.parent.version == 4
+
+    parent1.parent = child1
+    assert parent1.parent == child1
+    assert child1.parent == parent1
+
+    child1.name = "child"
+
+    assert child1 < parent1
+    assert child1 < parent2
+    assert child1 <= parent1
+    assert child1 <= parent2
+    assert child1 == child2
+    assert child1 > child0
+    assert child1 >= child0
+    assert child1 >= child2
+    assert child1 <= child2
