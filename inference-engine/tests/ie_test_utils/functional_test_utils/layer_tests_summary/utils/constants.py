@@ -105,6 +105,7 @@ VERIFIED_OP_REFERENCES = [
     'ReverseSequence-1',
     'Round-5',
     'SpaceToDepth-1',
+    'ScatterElementsUpdate-3',
     'ScatterNDUpdate-4',
     'Select-1',
     'ShapeOf-1',
