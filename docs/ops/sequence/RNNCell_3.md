@@ -8,7 +8,7 @@
 
 **Detailed description**:
 
-*RNNCell* represents a single RNN cell and is part of  <a href="#RNNSequence">#RNNSequence</a> operation.
+*RNNCell* represents a single RNN cell and is part of  <a href="#RNNSequence">RNNSequence</a> operation.
 
 Detailed RNNCell formula is `Ho = f(clip(X*(W^T) + H*(R^T) + B))`, The explanations of "X H W B Ho clip" are in Attributes and Inputs sections.
 
