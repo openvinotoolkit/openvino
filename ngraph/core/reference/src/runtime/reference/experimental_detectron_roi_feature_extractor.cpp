@@ -272,6 +272,32 @@ void ROIAlignForward_cpu_kernel(const int64_t nthreads,
         // we want to precalculate indices and weights shared by all channels,
         // this is the key point of optimization
         std::vector<PreCalc<T>> pre_calc(roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
+        std::cout << "        Arguments of the call of pre_calc_for_bilinear_interpolate:\n";
+        std::cout << "         height:         " << height << "\n";
+        std::cout << "         width:          " << width << "\n";
+        std::cout << "         pooled_height:  " << pooled_height << "\n";
+        std::cout << "         pooled_width:   " << pooled_width << "\n";
+        std::cout << "         iy_upper:       " << roi_bin_grid_h << "\n";
+        std::cout << "         ix_upper:       " << roi_bin_grid_w << "\n";
+        std::cout << "         roi_start_h:    " << roi_start_h << "\n";
+        std::cout << "         roi_start_w:    " << roi_start_w << "\n";
+        std::cout << "         bin_size_h:     " << bin_size_h << "\n";
+        std::cout << "         bin_size_w:     " << bin_size_w << "\n";
+        std::cout << "         roi_bin_grid_h: " << roi_bin_grid_h << "\n";
+        std::cout << "         roi_bin_grid_w: " << roi_bin_grid_w << "\n";
+        std::cout << "         pre_calc before call:\n";
+        for (const auto& p : pre_calc) {
+            std::cout << "            PreCalc{"
+                      << ".pos1=" << p.pos1 << ", "
+                      << ".pos2=" << p.pos2 << ", "
+                      << ".pos3=" << p.pos3 << ", "
+                      << ".pos4=" << p.pos4 << ", "
+                      << ".w1=" << p.w1 << ", "
+                      << ".w2=" << p.w2 << ", "
+                      << ".w3=" << p.w3 << ", "
+                      << ".w4=" << p.w4 << "}\n";
+        }
+
         pre_calc_for_bilinear_interpolate<T>(height,
                                              width,
                                              pooled_height,
