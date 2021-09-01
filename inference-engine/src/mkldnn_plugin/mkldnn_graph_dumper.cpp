@@ -109,7 +109,7 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
 }  // namespace
 
-InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
+std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
     std::map<MKLDNNNodePtr, std::shared_ptr<ngraph::Node> > node2layer;
 
     ngraph::ResultVector results;
@@ -200,9 +200,7 @@ InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph
         holder->add_control_dependency(node);
     }
 
-    auto function = std::make_shared<ngraph::Function>(results, params, graph._name);
-    InferenceEngine::CNNNetwork net(function);
-    return net;
+    return std::make_shared<ngraph::Function>(results, params, graph._name);
 }
 
 #ifdef CPU_DEBUG_CAPS

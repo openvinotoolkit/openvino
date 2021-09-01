@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -350,7 +350,7 @@ ov::Dimension& ov::Shape::operator[](size_t i) {
     return m_dimensions[i];
 }
 
-const std::vector<int64_t>& ngraph::AttributeAdapter<ov::Shape>::get() {
+const std::vector<int64_t>& ov::AttributeAdapter<ov::Shape>::get() {
     if (!m_buffer_valid) {
         m_buffer.clear();
         if (m_ref.rank().is_dynamic()) {
@@ -366,7 +366,7 @@ const std::vector<int64_t>& ngraph::AttributeAdapter<ov::Shape>::get() {
     return m_buffer;
 }
 
-void ngraph::AttributeAdapter<ov::Shape>::set(const std::vector<int64_t>& value) {
+void ov::AttributeAdapter<ov::Shape>::set(const std::vector<int64_t>& value) {
     m_ref = ov::Shape();
     if (value.size() == 1 && value[0] == -2) {
         m_ref = ov::Shape::dynamic();
@@ -381,4 +381,4 @@ void ngraph::AttributeAdapter<ov::Shape>::set(const std::vector<int64_t>& value)
     m_buffer_valid = false;
 }
 
-NGRAPH_API constexpr ngraph::DiscreteTypeInfo ngraph::AttributeAdapter<ov::Shape>::type_info;
+OPENVINO_API constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ov::Shape>::type_info;

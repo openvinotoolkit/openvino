@@ -89,7 +89,7 @@ bool pass::GraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f) {
 }
 
 bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std::weak_ptr<Node>> nodes_to_run) {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
 
     bool rewritten = false;
     const auto& pass_config = get_pass_config();
@@ -377,7 +377,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
 }
 
 bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node) {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, pass::internal::perf_counters_graph_rewrite()[get_type_info()]);
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, pass::internal::perf_counters_graph_rewrite()[get_type_info()]);
     m_new_nodes.clear();
     if (m_handler)
         return m_handler(node);

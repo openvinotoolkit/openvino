@@ -373,9 +373,6 @@ Shape operator+(const Shape& s1, const Shape& s2);
 OPENVINO_API
 std::ostream& operator<<(std::ostream& str, const Shape& shape);
 
-}  // namespace ov
-namespace ngraph {
-
 template <>
 class OPENVINO_API AttributeAdapter<ov::Shape> : public ValueAccessor<std::vector<int64_t>> {
 public:
@@ -396,4 +393,4 @@ protected:
     std::vector<int64_t> m_buffer;
     bool m_buffer_valid{false};
 };
-}  // namespace ngraph
+}  // namespace ov
