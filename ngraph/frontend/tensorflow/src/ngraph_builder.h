@@ -56,12 +56,13 @@ namespace ngraph_bridge {
 
 class Builder {
  public:
-  static void TranslateGraph(
-      const std::map<std::string, ngraph::PartialShape>& inputs,
-      const std::vector<ngraph::PartialShape>& indexed_shapes,
-      const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
-      ngraph::frontend::tensorflow::GraphIterator& op_iter,
-      const std::string name, std::shared_ptr<ngraph::Function>& ng_function);
+    static void TranslateGraph(
+        const std::map<std::string, ngraph::PartialShape>& inputs,
+        const std::vector<ngraph::PartialShape>& indexed_shapes,
+        const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
+        const std::vector<std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder>>& ops,
+        const std::string name,
+        std::shared_ptr<ngraph::Function>& ng_function);
 
   using OpMap = std::unordered_map<std::string,
                                    std::vector<ngraph::Output<ngraph::Node>>>;

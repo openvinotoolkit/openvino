@@ -37,6 +37,8 @@ public:
     // TODO: map from PlaceTensorflow, not from name string
     std::map<std::string, ngraph::PartialShape> partialShapes;
 
+    std::vector<std::shared_ptr<tensorflow::detail::TFNodeDecoder>> get_ops();
+
 public:
     InputModelTensorflow(const std::string& _path);
     InputModelTensorflow(const std::vector<std::istream*>& streams);
@@ -69,10 +71,13 @@ public:
     };
 
 private:
-    std::map<std::string, tensorflow::detail::TFNodeDecoder*> ops;
-    std::vector<tensorflow::detail::TFNodeDecoder*> outputs;
+    std::map<std::string, std::shared_ptr<tensorflow::detail::TFNodeDecoder>> m_ops;
+    std::vector<std::shared_ptr<tensorflow::detail::TFNodeDecoder>> m_ops_topology_sorted;
+    std::vector<std::shared_ptr<tensorflow::detail::TFNodeDecoder>> m_outputs;
     // traverse graph to find output ops
     void determine_outputs();
+    // traverse graph from outputs to inputs to get nodes remaining in graph
+    std::vector<std::shared_ptr<tensorflow::detail::TFNodeDecoder>> determine_cut_nodes() const;
 };
 
 }  // namespace frontend

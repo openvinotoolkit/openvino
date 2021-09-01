@@ -2721,7 +2721,7 @@ void Builder::TranslateGraph(
     const std::map<std::string, ngraph::PartialShape>& inputs,
     const std::vector<ngraph::PartialShape>& indexed_shapes,
     const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
-    ngraph::frontend::tensorflow::GraphIterator& op_iter,
+    const std::vector<std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder>>& ops,
     const std::string name,
     std::shared_ptr<ngraph::Function>& ng_function) {
     //
@@ -2736,7 +2736,7 @@ void Builder::TranslateGraph(
     //
     // Now create the nGraph ops from TensorFlow ops.
     //
-    for (; !op_iter.is_end(); op_iter.next()) {
+    for (auto op : ops) {
 #if 0
     // TODO: Investigate why do we need it
       if (n->IsSink() || n->IsSource()) {
@@ -2744,7 +2744,6 @@ void Builder::TranslateGraph(
     }
 #endif
 
-        auto op = op_iter.get();
         if (op->IsControlFlow()) {
             throw errors::Unimplemented("Encountered a control flow op in the nGraph bridge: " + op->DebugString());
         }

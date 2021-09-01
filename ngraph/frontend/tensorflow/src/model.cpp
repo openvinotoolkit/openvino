@@ -4,6 +4,7 @@
 
 #include <fstream>
 #include <numeric>
+#include <queue>
 #include <tensorflow_frontend/model.hpp>
 #include <tensorflow_frontend/place.hpp>
 
@@ -74,13 +75,21 @@ ngraph::PartialShape InputModelTensorflow::get_partial_shape(Place::Ptr place) c
     return result_shape;
 }
 
+
+std::vector<std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder>> InputModelTensorflow::get_ops() {
+    // TODO: call that ONLY if model modified
+    return determine_cut_nodes();
+}
+
+
 void InputModelTensorflow::determine_outputs() {
     std::set<std::string> all_names;
     std::set<std::string> names_with_consumers;
     for (; !graph_impl->is_end(); graph_impl->next()) {
         auto op = graph_impl->get();
         all_names.insert(op->name());
-        ops[op->name()] = op.get();
+        m_ops[op->name()] = op;
+        m_ops_topology_sorted.push_back(op);
         for (size_t i = 0; i < op->num_inputs(); ++i) {
             std::string input_name;
             size_t port_idx;
@@ -103,8 +112,46 @@ void InputModelTensorflow::determine_outputs() {
                         std::inserter(names_without_consumers, names_without_consumers.begin()));
     graph_impl->reset();
 
-    outputs.clear();
+    m_outputs.clear();
     for (auto& out_name : names_without_consumers) {
-        outputs.push_back(ops[out_name]);
+        m_outputs.push_back(m_ops[out_name]);
     }
+}
+
+std::vector<std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder>>
+InputModelTensorflow::determine_cut_nodes() const {
+    std::queue<tensorflow::detail::TFNodeDecoder*> q;
+    std::unordered_set<std::string> visited;
+    std::vector<std::shared_ptr<tensorflow::detail::TFNodeDecoder>> new_ops;
+    for (const auto& output_op : m_outputs) {
+        if (!visited.count(output_op->name())) {
+            visited.insert(output_op->name());
+            new_ops.push_back(output_op);
+            q.push(output_op.get());
+        }
+    }
+    while (!q.empty()) {
+        auto op = q.front();
+        q.pop();
+        for (size_t i = 0; i < op->num_inputs(); ++i) {
+            std::string input_name;
+            size_t port_idx;
+            try {
+                op->input_node(i, &input_name, &port_idx);
+            } catch (const std::exception& e) {
+                std::cerr << "[ ERROR ] Exception happened when preparing input " << i << " for op '" << op->name()
+                          << "', expected input name: '" << input_name << "', expected input port index: " << port_idx
+                          << '\n';
+                throw;
+            }
+            auto op_it = m_ops.find(input_name);
+            if (op_it != m_ops.end() && !visited.count(input_name)) {
+                visited.insert(input_name);
+                new_ops.push_back(op_it->second);
+                // TODO: check that op is not input or frozen
+                q.push(op_it->second.get());
+            }
+        }
+    }
+    return new_ops;
 }

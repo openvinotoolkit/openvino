@@ -24,7 +24,7 @@ std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert(
         ::tensorflow::ngraph_bridge::Builder::TranslateGraph(model_tf->partialShapes,
                                                              model_tf->input_shapes,
                                                              {},
-                                                             *model_tf->graph_impl,
+                                                             model_tf->get_ops(),
                                                              "here_should_be_a_graph_name",
                                                              f);
         std::cout << "[ STATUS ] TranslateGraph was called successfuly.\n";
