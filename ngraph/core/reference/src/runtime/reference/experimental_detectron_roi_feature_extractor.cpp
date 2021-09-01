@@ -77,8 +77,7 @@ void split_points(const std::vector<int64_t>& ids, std::vector<int64_t>& rois_pe
 
 // implementation taken from Caffe2
 template <typename T>
-struct PreCalc
-{
+struct PreCalc {
     int64_t pos1;
     int64_t pos2;
     int64_t pos3;
@@ -107,7 +106,7 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
     for (int64_t ph = 0; ph < pooled_height; ph++) {
         for (int64_t pw = 0; pw < pooled_width; pw++) {
             for (int64_t iy = 0; iy < iy_upper; iy++) {
-//                    std::cout << "                        iy: " << iy << "\n";
+                //                    std::cout << "                        iy: " << iy << "\n";
                 const T yy = roi_start_h + static_cast<T>(ph) * bin_size_h +
                              (static_cast<T>(iy) + static_cast<T>(0.5f)) * bin_size_h / static_cast<T>(roi_bin_grid_h);
                 std::cout << "                        yy: " << yy << "\n";
@@ -272,8 +271,7 @@ void ROIAlignForward_cpu_kernel(const int64_t nthreads,
 
         // we want to precalculate indices and weights shared by all channels,
         // this is the key point of optimization
-        std::vector<PreCalc<T>> pre_calc(roi_bin_grid_h * roi_bin_grid_w * pooled_width *
-                                         pooled_height);
+        std::vector<PreCalc<T>> pre_calc(roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
         pre_calc_for_bilinear_interpolate<T>(height,
                                              width,
                                              pooled_height,
@@ -303,22 +301,18 @@ void ROIAlignForward_cpu_kernel(const int64_t nthreads,
 
         for (int64_t c = 0; c < channels; c++) {
             int64_t index_n_c = index_n + c * pooled_width * pooled_height;
-            const T* offset_bottom_data =
-                bottom_data + (roi_batch_ind * channels + c) * height * width;
+            const T* offset_bottom_data = bottom_data + (roi_batch_ind * channels + c) * height * width;
             int64_t pre_calc_index = 0;
 
             for (int64_t ph = 0; ph < pooled_height; ph++) {
                 for (int64_t pw = 0; pw < pooled_width; pw++) {
                     int64_t index = index_n_c + ph * pooled_width + pw;
-
                     T output_val = 0.;
                     for (int64_t iy = 0; iy < roi_bin_grid_h; iy++) {
                         for (int64_t ix = 0; ix < roi_bin_grid_w; ix++) {
                             PreCalc<T> pc = pre_calc[pre_calc_index];
-                            output_val += pc.w1 * offset_bottom_data[pc.pos1] +
-                                          pc.w2 * offset_bottom_data[pc.pos2] +
-                                          pc.w3 * offset_bottom_data[pc.pos3] +
-                                          pc.w4 * offset_bottom_data[pc.pos4];
+                            output_val += pc.w1 * offset_bottom_data[pc.pos1] + pc.w2 * offset_bottom_data[pc.pos2] +
+                                          pc.w3 * offset_bottom_data[pc.pos3] + pc.w4 * offset_bottom_data[pc.pos4];
 
                             pre_calc_index += 1;
                         }
@@ -326,210 +320,174 @@ void ROIAlignForward_cpu_kernel(const int64_t nthreads,
                     output_val /= count;
 
                     top_data[index] = output_val;
-                } // for pw
-            }     // for ph
-        }         // for c
+                }  // for pw
+            }      // for ph
+        }          // for c
     }
 }
 } // namespace
 
-namespace ngraph
+namespace ngraph {
+namespace runtime {
+namespace reference {
+void experimental_detectron_roi_feature_extractor(
+    const std::vector<std::vector<float>>& inputs,
+    const std::vector<Shape>& input_shapes,
+    const op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes& attrs,
+    float* output_rois_features,
+    float* output_rois)
 {
-    namespace runtime
-    {
-        namespace reference
-        {
-            void experimental_detectron_roi_feature_extractor(
-                const std::vector<std::vector<float>>& inputs,
-                const std::vector<Shape>& input_shapes,
-                const op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes& attrs,
-                float* output_rois_features,
-                float* output_rois)
-            {
-                std::cout << "Running reference implementation calculations for "
-                             "ExperimentalDetectronROIFeatureExtractor...\n";
-                std::cout << "Its arguments are\n\n";
-                std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
-                std::cout << "Input data:\n";
-                for (size_t i = 0; i < inputs.size(); ++i)
-                {
-                    std::cout << "    input number " << i << " has data: ";
-                    for (auto x : inputs[i])
-                    {
-                        std::cout << x << ", ";
-                    }
-                    std::cout << "\n\n";
-                }
-                std::cout << "Input shapes:\n";
-                for (size_t i = 0; i < input_shapes.size(); ++i)
-                {
-                    std::cout << "    input number " << i << " has shape: " << input_shapes[i] <<"\n\n";
-                }
+    std::cout << "Running reference implementation calculations for "
+                 "ExperimentalDetectronROIFeatureExtractor...\n";
+    std::cout << "Its arguments are\n\n";
+    std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+    std::cout << "Input data:\n";
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        std::cout << "    input number " << i << " has data: ";
+        for (auto x : inputs[i]) {
+            std::cout << x << ", ";
+        }
+        std::cout << "\n\n";
+    }
+    std::cout << "Input shapes:\n";
+    for (size_t i = 0; i < input_shapes.size(); ++i) {
+        std::cout << "    input number " << i << " has shape: " << input_shapes[i] <<"\n\n";
+    }
 
-                int64_t output_dim = attrs.output_size;
-                auto pyramid_scales = attrs.pyramid_scales;
-                int64_t sampling_ratio = attrs.sampling_ratio;
-                bool aligned = attrs.aligned;
-                int64_t pooled_height = output_dim;
-                int64_t pooled_width = output_dim;
+    int64_t output_dim = attrs.output_size;
+    auto pyramid_scales = attrs.pyramid_scales;
+    int64_t sampling_ratio = attrs.sampling_ratio;
+    bool aligned = attrs.aligned;
+    int64_t pooled_height = output_dim;
+    int64_t pooled_width = output_dim;
 
-                const int64_t levels_num = static_cast<int64_t>(inputs.size() - input_features_start_port);
-                const int64_t num_rois = static_cast<int64_t>(input_shapes[input_rois_port][0]);
-                const int64_t channels_num = static_cast<int64_t>(input_shapes[input_features_start_port][1]);
-                const int64_t feaxels_per_roi = pooled_height * pooled_width * channels_num;
+    const int64_t levels_num = static_cast<int64_t>(inputs.size() - input_features_start_port);
+    const int64_t num_rois = static_cast<int64_t>(input_shapes[input_rois_port][0]);
+    const int64_t channels_num = static_cast<int64_t>(input_shapes[input_features_start_port][1]);
+    const int64_t feaxels_per_roi = pooled_height * pooled_width * channels_num;
 
-                std::cout << "output_dim:     " << output_dim << "\n";
-                std::cout << "pyramid_scales: ";
-                for (auto x : pyramid_scales)
-                {
-                    std::cout << x << ", ";
-                }
-                std::cout << "\n";
-                std::cout << "sampling_ratio: " << sampling_ratio << "\n";
-                std::cout << "aligned:        " << (aligned ? "true" : "false") << "\n";
-                std::cout << "pooled_height:  " << pooled_height << "\n";
-                std::cout << "pooled_width:   " << pooled_width << "\n";
-                std::cout << "levels_num:      " << levels_num << "\n";
-                std::cout << "num_rois:        " << num_rois << "\n";
-                std::cout << "channels_num:    " << channels_num << "\n";
-                std::cout << "feaxels_per_roi: " << feaxels_per_roi << "\n\n";
+    std::cout << "output_dim:     " << output_dim << "\n";
+    std::cout << "pyramid_scales: ";
+    for (auto x : pyramid_scales) {
+        std::cout << x << ", ";
+    }
+    std::cout << "\n";
+    std::cout << "sampling_ratio: " << sampling_ratio << "\n";
+    std::cout << "aligned:        " << (aligned ? "true" : "false") << "\n";
+    std::cout << "pooled_height:  " << pooled_height << "\n";
+    std::cout << "pooled_width:   " << pooled_width << "\n";
+    std::cout << "levels_num:      " << levels_num << "\n";
+    std::cout << "num_rois:        " << num_rois << "\n";
+    std::cout << "channels_num:    " << channels_num << "\n";
+    std::cout << "feaxels_per_roi: " << feaxels_per_roi << "\n\n";
 
-                const float* input_rois = inputs[input_rois_port].data();
+    const float* input_rois = inputs[input_rois_port].data();
 
-                std::vector<int64_t> level_ids(num_rois, 0);
-                redistribute_rois(inputs[input_rois_port], level_ids, levels_num);
-                std::cout << "level_ids:             ";
-                for (auto x : level_ids)
-                {
-                    std::cout << x << ", ";
-                }
-                std::cout << "\n\n";
+    std::vector<int64_t> level_ids(num_rois, 0);
+    redistribute_rois(inputs[input_rois_port], level_ids, levels_num);
+    std::cout << "level_ids:             ";
+    for (auto x : level_ids) {
+        std::cout << x << ", ";
+    }
+    std::cout << "\n\n";
 
-                std::vector<float> reordered_rois(4 * num_rois, 0);
-                std::vector<int64_t> original_rois_mapping(num_rois, 0);
-                reord(inputs[input_rois_port], level_ids, 4, reordered_rois.data(), original_rois_mapping);
-                std::cout << "reordered_rois:        ";
-                for (auto x : reordered_rois)
-                {
-                    std::cout << x << ", ";
-                }
-                std::cout << "\n\n";
-                std::cout << "original_rois_mapping: ";
-                for (auto x : original_rois_mapping)
-                {
-                    std::cout << x << ", ";
-                }
-                std::cout << "\n\n";
+    std::vector<float> reordered_rois(4 * num_rois, 0);
+    std::vector<int64_t> original_rois_mapping(num_rois, 0);
+    reord(inputs[input_rois_port], level_ids, 4, reordered_rois.data(), original_rois_mapping);
+    std::cout << "reordered_rois:        ";
+    for (auto x : reordered_rois) {
+        std::cout << x << ", ";
+    }
+    std::cout << "\n\n";
+    std::cout << "original_rois_mapping: ";
+    for (auto x : original_rois_mapping) {
+        std::cout << x << ", ";
+    }
+    std::cout << "\n\n";
 
-                std::vector<int64_t> rois_per_level;
-                split_points(level_ids, rois_per_level, levels_num + 1);
-                std::cout << "rois_per_level:        ";
-                for (auto x : rois_per_level)
-                {
-                    std::cout << x << ", ";
-                }
-                std::cout << "\n\n";
+    std::vector<int64_t> rois_per_level;
+    split_points(level_ids, rois_per_level, levels_num + 1);
+    std::cout << "rois_per_level:        ";
+    for (auto x : rois_per_level) {
+        std::cout << x << ", ";
+    }
+    std::cout << "\n\n";
 
-                std::vector<float> output_rois_features_temp(feaxels_per_roi * num_rois, 0);
-                std::cout << "Loop through levels...\n";
-                for (int64_t i = 0; i < levels_num; ++i)
-                {
-                    std::cout << "    i:                 " << i << "\n";
-                    const int64_t level_rois_offset = rois_per_level[i];
-                    const int64_t level_rois_num = rois_per_level[i + 1] - level_rois_offset;
-                    std::cout << "    level_rois_offset: " << level_rois_offset << "\n";
-                    std::cout << "    level_rois_num:    " << level_rois_num << "\n";
-                    if (level_rois_num > 0)
-                    {
-                        const float* featuremap = inputs[input_features_start_port + i].data();
-                        const int64_t featuremap_height =
-                            static_cast<int64_t>(input_shapes[input_features_start_port + i][2]);
-                        const int64_t featuremap_width =
-                            static_cast<int64_t>(input_shapes[input_features_start_port + i][3]);
-                        std::cout << "    featuremap_height: " << featuremap_height << "\n";
-                        std::cout << "    featuremap_width:  " << featuremap_width << "\n";
-                        ROIAlignForward_cpu_kernel<float>(
-                            feaxels_per_roi * level_rois_num,
-                            featuremap,
-                            1.0f / pyramid_scales[i],
-                            channels_num,
-                            featuremap_height,
-                            featuremap_width,
-                            pooled_height,
-                            pooled_width,
-                            sampling_ratio,
-                            &reordered_rois[4 * level_rois_offset],
-                            aligned,
-                            &output_rois_features_temp[feaxels_per_roi * level_rois_offset]);
-                    }
-                }
+    std::vector<float> output_rois_features_temp(feaxels_per_roi * num_rois, 0);
+    std::cout << "Loop through levels...\n";
+    for (int64_t i = 0; i < levels_num; ++i) {
+        std::cout << "    i:                 " << i << "\n";
+        const int64_t level_rois_offset = rois_per_level[i];
+        const int64_t level_rois_num = rois_per_level[i + 1] - level_rois_offset;
+        std::cout << "    level_rois_offset: " << level_rois_offset << "\n";
+        std::cout << "    level_rois_num:    " << level_rois_num << "\n";
+        if (level_rois_num > 0) {
+            const float* featuremap = inputs[input_features_start_port + i].data();
+            const int64_t featuremap_height = static_cast<int64_t>(input_shapes[input_features_start_port + i][2]);
+            const int64_t featuremap_width = static_cast<int64_t>(input_shapes[input_features_start_port + i][3]);
+            std::cout << "    featuremap_height: " << featuremap_height << "\n";
+            std::cout << "    featuremap_width:  " << featuremap_width << "\n";
+            ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,
+                                              featuremap,
+                                              1.0f / pyramid_scales[i],
+                                              channels_num,
+                                              featuremap_height,
+                                              featuremap_width,
+                                              pooled_height,
+                                              pooled_width,
+                                              sampling_ratio,
+                                              &reordered_rois[4 * level_rois_offset],
+                                              aligned,
+                                              &output_rois_features_temp[feaxels_per_roi * level_rois_offset]);
+        }
+    }
 
-                std::vector<int64_t> dummy_mapping(num_rois, 0);
-                reord(output_rois_features_temp,
-                      original_rois_mapping,
-                      feaxels_per_roi,
-                      output_rois_features,
-                      dummy_mapping);
+    std::vector<int64_t> dummy_mapping(num_rois, 0);
+    reord(output_rois_features_temp, original_rois_mapping, feaxels_per_roi, output_rois_features, dummy_mapping);
 
-                memcpy(output_rois, input_rois, 4 * num_rois * sizeof(float));
-            }
+    memcpy(output_rois, input_rois, 4 * num_rois * sizeof(float));
+}
 
-            void experimental_detectron_roi_feature_extractor_postprocessing(
-                void* prois_features,
-                void* prois,
-                const ngraph::element::Type output_type,
-                const std::vector<float>& output_rois_features,
-                const std::vector<float>& output_rois,
-                const Shape& output_rois_features_shape,
-                const Shape& output_rois_shape)
-            {
-                size_t output_rois_features_size = shape_size(output_rois_features_shape);
-                size_t output_rois_size = shape_size(output_rois_shape);
+void experimental_detectron_roi_feature_extractor_postprocessing(void* prois_features,
+                                                                 void* prois,
+                                                                 const ngraph::element::Type output_type,
+                                                                 const std::vector<float>& output_rois_features,
+                                                                 const std::vector<float>& output_rois,
+                                                                 const Shape& output_rois_features_shape,
+                                                                 const Shape& output_rois_shape) {
+    size_t output_rois_features_size = shape_size(output_rois_features_shape);
+    size_t output_rois_size = shape_size(output_rois_shape);
 
-                switch (output_type)
-                {
-                case element::Type_t::bf16:
-                {
-                    bfloat16* output_rois_features_ptr =
-                        reinterpret_cast<bfloat16*>(prois_features);
-                    bfloat16* output_rois_ptr = reinterpret_cast<bfloat16*>(prois);
-                    for (size_t i = 0; i < output_rois_features_size; ++i)
-                    {
-                        output_rois_features_ptr[i] = bfloat16(output_rois_features[i]);
-                    }
-                    for (size_t i = 0; i < output_rois_size; ++i)
-                    {
-                        output_rois_ptr[i] = bfloat16(output_rois[i]);
-                    }
-                }
-                break;
-                case element::Type_t::f16:
-                {
-                    float16* output_rois_features_ptr = reinterpret_cast<float16*>(prois_features);
-                    float16* output_rois_ptr = reinterpret_cast<float16*>(prois);
-                    for (size_t i = 0; i < output_rois_features_size; ++i)
-                    {
-                        output_rois_features_ptr[i] = float16(output_rois_features[i]);
-                    }
-                    for (size_t i = 0; i < output_rois_size; ++i)
-                    {
-                        output_rois_ptr[i] = float16(output_rois[i]);
-                    }
-                }
-                break;
-                case element::Type_t::f32:
-                {
-                    float* output_rois_features_ptr = reinterpret_cast<float*>(prois_features);
-                    float* output_rois_ptr = reinterpret_cast<float*>(prois);
-                    memcpy(output_rois_features_ptr,
-                           output_rois_features.data(),
-                           output_rois_features_size * sizeof(float));
-                    memcpy(output_rois_ptr, output_rois.data(), output_rois_size * sizeof(float));
-                }
-                break;
-                default:;
-                }
-            }
-        } // namespace reference
-    }     // namespace runtime
-} // namespace ngraph
+    switch (output_type) {
+    case element::Type_t::bf16: {
+        bfloat16* output_rois_features_ptr = reinterpret_cast<bfloat16*>(prois_features);
+        bfloat16* output_rois_ptr = reinterpret_cast<bfloat16*>(prois);
+        for (size_t i = 0; i < output_rois_features_size; ++i) {
+            output_rois_features_ptr[i] = bfloat16(output_rois_features[i]);
+        }
+        for (size_t i = 0; i < output_rois_size; ++i) {
+            output_rois_ptr[i] = bfloat16(output_rois[i]);
+        }
+    } break;
+    case element::Type_t::f16: {
+        float16* output_rois_features_ptr = reinterpret_cast<float16*>(prois_features);
+        float16* output_rois_ptr = reinterpret_cast<float16*>(prois);
+        for (size_t i = 0; i < output_rois_features_size; ++i) {
+            output_rois_features_ptr[i] = float16(output_rois_features[i]);
+        }
+        for (size_t i = 0; i < output_rois_size; ++i) {
+            output_rois_ptr[i] = float16(output_rois[i]);
+        }
+    } break;
+    case element::Type_t::f32: {
+        float* output_rois_features_ptr = reinterpret_cast<float*>(prois_features);
+        float* output_rois_ptr = reinterpret_cast<float*>(prois);
+        memcpy(output_rois_features_ptr, output_rois_features.data(), output_rois_features_size * sizeof(float));
+        memcpy(output_rois_ptr, output_rois.data(), output_rois_size * sizeof(float));
+    } break;
+    default:;
+    }
+}
+}  // namespace reference
+}  // namespace runtime
+}  // namespace ngraph
