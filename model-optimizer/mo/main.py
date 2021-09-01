@@ -11,6 +11,7 @@ import sys
 import traceback
 from collections import OrderedDict
 from copy import deepcopy
+from typing import List
 
 import numpy as np
 
@@ -44,7 +45,7 @@ from mo.utils.version import get_version, get_simplified_mo_version, get_simplif
 from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 
 # pylint: disable=no-name-in-module,import-error
-from ngraph.frontend import FrontEndManager
+from ngraph.frontend import Frontend, FrontEndManager
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -96,12 +97,13 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('\n'.join(lines), flush=True)
 
 
-def prepare_ir(argv: argparse.Namespace):
+def load_moc_frontends(argv: argparse.Namespace) -> (Frontend, List[str]):
     fem = argv.feManager
     available_moc_front_ends = []
     moc_front_end = None
 
     # TODO: in future, check of 'use_legacy_frontend' in argv can be added here (issue 61973)
+    # use_new_frontend
     force_use_legacy_frontend = False
 
     if fem and not force_use_legacy_frontend:
@@ -109,6 +111,8 @@ def prepare_ir(argv: argparse.Namespace):
         if argv.input_model:
             if not argv.framework:
                 moc_front_end = fem.load_by_model(argv.input_model)
+                print('argv', argv)
+
                 # skip onnx frontend as not fully supported yet (63050)
                 if moc_front_end and moc_front_end.get_name() == "onnx":
                     moc_front_end = None
@@ -116,6 +120,12 @@ def prepare_ir(argv: argparse.Namespace):
                     argv.framework = moc_front_end.get_name()
             elif argv.framework in available_moc_front_ends:
                 moc_front_end = fem.load_by_framework(argv.framework)
+
+    return moc_front_end, available_moc_front_ends
+
+
+def prepare_ir(argv: argparse.Namespace):
+    moc_front_end, available_moc_front_ends = load_moc_frontends(argv)
 
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
         deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
