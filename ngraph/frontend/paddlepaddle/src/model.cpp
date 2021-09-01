@@ -314,7 +314,10 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::vector<std::is
                                 "Two streams are needed to load a model: model and weights streams");
     }
     FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(streams[0]), "Model can't be parsed");
-
+    int64_t version = m_fw_ptr->version().version();
+    FRONT_END_GENERAL_CHECK(
+        version >= 2001000 || version == 0,
+        "[Frontend]Only Support Paddle greater than 2.1.0, current version " + std::to_string(version));
     loadPlaces();
     if (streams.size() > 1)
         loadConsts(std::string(), streams[1]);
