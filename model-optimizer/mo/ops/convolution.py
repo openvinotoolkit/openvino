@@ -5,8 +5,8 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, float_array, mark_input_bins, assign_dims_to_weights, \
-    tf_window_op_pad_infer
+from mo.front.common.partial_infer.utils import int64_array, mark_input_bins, assign_dims_to_weights, \
+    tf_window_op_pad_infer, dynamic_dimension_value, shape_array
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
@@ -58,26 +58,26 @@ class Convolution(Op):
 
     @staticmethod
     def calc_convolution(input_spatial_shape, stride_spatial_shape, pad_spatial_shape, kernel_extent):
-        ''' Calculates output shape for Convolution.
-            Verified to be applicable for both Caffe and ONNX.
-        '''
+        """
+        Calculates output shape for Convolution.
+        Verified to be applicable for both Caffe and ONNX.
+        """
         spatial_val_wo_stride = input_spatial_shape + pad_spatial_shape - kernel_extent
 
         if np.any(spatial_val_wo_stride < 0):
             raise Error("Data after padding has dimension less than window size. " +
                         "Possible reason of error is incorrectly specified model input shape(s).")
 
-        float_spatial_val_wo_stride = float_array(spatial_val_wo_stride)
-        return float_spatial_val_wo_stride / stride_spatial_shape + 1
+        return spatial_val_wo_stride / stride_spatial_shape + 1
 
     @staticmethod
     def calc_deconvolution(node, input_spatial_shape, pad_spatial_shape, kernel_extent):
-        ''' Calculates output shape for Deconvolution.
-            Verified to be applicable for both Caffe and ONNX with explicitly defined pads.
-            If pads are not specified for ONNX operator, this function is not applicable.
-        '''
-        shape = node.stride[node.spatial_dims] * (input_spatial_shape - 1) + kernel_extent - pad_spatial_shape
-        return shape
+        """
+        Calculates output shape for Deconvolution.
+        Verified to be applicable for both Caffe and ONNX with explicitly defined pads.
+        If pads are not specified for ONNX operator, this function is not applicable.
+        """
+        return node.stride[node.spatial_dims] * (input_spatial_shape - 1) + kernel_extent - pad_spatial_shape
 
     @staticmethod
     def infer(node: Node):
@@ -89,9 +89,9 @@ class Convolution(Op):
         Args:
             node: graph convolution node
         """
-        input_shape = node.in_node(0).shape
+        input_shape = node.in_port(0).data.get_shape()
         if input_shape is None:
-            return
+            raise Error('Input data shape is None for node {}'.format(node.soft_get('name', node.id)))
 
         # bias_term cannot be deduced earlier for frameworks that represent
         # convolution weights/biases as regular inputs; so the number of inputs
@@ -116,10 +116,10 @@ class Convolution(Op):
                                        *[node.kernel_spatial[i] for i in range(len(node.kernel_spatial))]])
             if node.type == 'Deconvolution':  # layout for Deconvolution weights is IOHW
                 kernel_shape[[0, 1]] = kernel_shape[[1, 0]]
-                #node.input_feature_channel, node.output_feature_channel = node.output_feature_channel, node.input_feature_channel
 
             if np.prod(kernel_shape) != np.prod(node.in_node(weights_index).value.shape):
-                log.error("Size of weights {} does not match kernel shape: {}\n".format(np.prod(node.in_node(weights_index).value.shape), kernel_shape) +
+                log.error("Size of weights {} does not match kernel shape: {}\n"
+                          "".format(np.prod(node.in_node(weights_index).value.shape), kernel_shape) +
                           "    Possible reason is wrong channel number in input shape\n")
                 raise Error("Cannot reshape weights to kernel shape")
 
@@ -133,10 +133,12 @@ class Convolution(Op):
         # Calculate kernel_spatial_idx and spatial_dims if it is not specified
         # It is necessary for ONNX dut to convolution can be 1D/2D/3D
         if not node.has_valid('kernel_spatial_idx'):
-            node['kernel_spatial_idx'] = np.delete([x for x in range(len(kernel_shape))], (node.input_feature_channel, node.output_feature_channel))
+            node['kernel_spatial_idx'] = np.delete([x for x in range(len(kernel_shape))],
+                                                   (node.input_feature_channel, node.output_feature_channel))
 
         if not node.has_valid('spatial_dims'):
-            node['spatial_dims'] = np.delete([x for x in range(len(input_shape))], (node.channel_dims[0], node.batch_dims[0]))
+            node['spatial_dims'] = np.delete([x for x in range(len(input_shape))],
+                                             (node.channel_dims[0], node.batch_dims[0]))
 
         node['kernel_spatial'] = kernel_shape[node.kernel_spatial_idx]
 
@@ -192,7 +194,7 @@ class Convolution(Op):
                 float_spatial = Convolution.calc_convolution(input_spatial_shape, stride_spatial_shape,
                                                              pad_spatial_shape,
                                                              kernel_extent)
-                node['output_spatial_shape'] = int64_array(float_spatial)
+                node['output_spatial_shape'] = shape_array(float_spatial)
             elif node.type == 'Deconvolution':
                 # In case of given output_spatial_shape we calculate pads spatial
                 if node.has_valid('output_spatial_shape'):
@@ -210,19 +212,18 @@ class Convolution(Op):
 
                     float_spatial = Convolution.calc_deconvolution(node, input_spatial_shape, pad_spatial_shape,
                                                                    kernel_extent)
-                    node['output_spatial_shape'] = int64_array(float_spatial)
+                    node['output_spatial_shape'] = shape_array(float_spatial)
             elif node.type == 'DeformableConvolution':
                 # get the output spatial shape from the second input with offsets
                 node['output_spatial_shape'] = int64_array([node.in_node(1).shape[2:4]])
             else:
                 assert 'Unsupported layer type "{}"'.format(node.type)
 
-
         # For cases when group attribute wasn't set in extractor we should specify get_group attribute
         # this attribute should store lambda node: ... (check tf convolution extractor)
         if node.has_valid('get_group'):
             node['group'] = node.get_group(node)
-        output_shape = np.full_like(input_shape, -1, dtype=np.int64)
+        output_shape = shape_array([dynamic_dimension_value for _ in range(len(input_shape))])
         output_shape[node.batch_dims] = input_shape[node.batch_dims]  # pylint: disable=unsupported-assignment-operation
         output_shape[node.spatial_dims] = node.output_spatial_shape  # pylint: disable=unsupported-assignment-operation
 
@@ -233,8 +234,7 @@ class Convolution(Op):
         output_shape[node.channel_dims] = node.output  # pylint: disable=unsupported-assignment-operation
         node['output_shape'] = output_shape
 
-        for n in node.out_nodes():
-            node.out_node(n).shape = output_shape
+        node.out_port(0).data.set_shape(output_shape)
 
         # bin attribute is used for pre-processing, but it will be deleted in BlobNormalizer transformation
         # and the blobs (weights, biases) will be represented as inputs to the node

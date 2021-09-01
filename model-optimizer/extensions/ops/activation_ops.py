@@ -35,22 +35,22 @@ class Activation(Op):
 
 class Sigmoid(Activation):
     op = 'Sigmoid'
-    operation = staticmethod(lambda x: 1 / (1 + np.exp(-x)))
+    operation = staticmethod(lambda x: 1 / (1 + np.ma.exp(-x)))
 
 
 class Sin(Activation):
     op = 'Sin'
-    operation = staticmethod(lambda x: np.sin(x))
+    operation = staticmethod(lambda x: np.ma.sin(x))
 
 
 class Sinh(Activation):
     op = 'Sinh'
-    operation = staticmethod(lambda x: np.sinh(x))
+    operation = staticmethod(lambda x: np.ma.sinh(x))
 
 
 class Asin(Activation):
     op = 'Asin'
-    operation = staticmethod(lambda x: np.arcsin(x))
+    operation = staticmethod(lambda x: np.ma.arcsin(x))
 
 
 class Asinh(Activation):
@@ -61,44 +61,44 @@ class Asinh(Activation):
 
 class Cos(Activation):
     op = 'Cos'
-    operation = staticmethod(lambda x: np.cos(x))
+    operation = staticmethod(lambda x: np.ma.cos(x))
 
 
 class Cosh(Activation):
     op = 'Cosh'
-    operation = staticmethod(lambda x: np.cosh(x))
+    operation = staticmethod(lambda x: np.ma.cosh(x))
 
 
 class Acos(Activation):
     op = 'Acos'
-    operation = staticmethod(lambda x: np.arccos(x))
+    operation = staticmethod(lambda x: np.ma.arccos(x))
 
 
 class Acosh(Activation):
     op = 'Acosh'
     version = 'opset4'
-    operation = staticmethod(lambda x: np.arccosh(x))
+    operation = staticmethod(lambda x: np.ma.arccosh(x))
 
 
 class Tan(Activation):
     op = 'Tan'
-    operation = staticmethod(lambda x: np.tan(x))
+    operation = staticmethod(lambda x: np.ma.tan(x))
 
 
 class Tanh(Activation):
     op = 'Tanh'
-    operation = staticmethod(lambda x: np.tanh(x))
+    operation = staticmethod(lambda x: np.ma.tanh(x))
 
 
 class Atan(Activation):
     op = 'Atan'
-    operation = staticmethod(lambda x: np.arctan(x))
+    operation = staticmethod(lambda x: np.ma.arctan(x))
 
 
 class Atanh(Activation):
     op = 'Atanh'
     version = 'opset4'
-    operation = staticmethod(lambda x: np.arctanh(x))
+    operation = staticmethod(lambda x: np.ma.arctanh(x))
 
 
 class ReLU6(AttributedClamp):
@@ -110,12 +110,12 @@ class ReLU6(AttributedClamp):
 
 class Exp(Activation):
     op = 'Exp'
-    operation = staticmethod(lambda x: np.exp(x))
+    operation = staticmethod(lambda x: np.ma.exp(x))
 
 
 class ReLU(Activation):
     op = 'ReLU'
-    operation = staticmethod(lambda x: np.maximum(0, x))
+    operation = staticmethod(lambda x: np.ma.maximum(0, x))
 
 
 class Erf(Activation):
@@ -125,17 +125,17 @@ class Erf(Activation):
 
 class Floor(Activation):
     op = 'Floor'
-    operation = staticmethod(lambda x: np.floor(x))
+    operation = staticmethod(lambda x: np.ma.floor(x))
 
 
 class Ceiling(Activation):
     op = 'Ceiling'
-    operation = staticmethod(lambda x: np.ceil(x))
+    operation = staticmethod(lambda x: np.ma.ceil(x))
 
 
 class Abs(Activation):
     op = 'Abs'
-    operation = staticmethod(lambda x: np.abs(x))
+    operation = staticmethod(lambda x: np.ma.abs(x))
 
 
 class Sign(Activation):
@@ -156,7 +156,7 @@ class Elu(Activation):
         values = values.astype(float)
         for index, x in np.ndenumerate(values):
             if x < 0:
-                values[index] = alpha * (np.exp(x) - 1)
+                values[index] = alpha * (np.ma.exp(x) - 1)
         return values
 
     @classmethod
@@ -226,7 +226,7 @@ class LogicalNot(Activation):
         not_attrs.update(attrs)
         super().__init__(graph, not_attrs)
 
-    operation = staticmethod(lambda x: np.logical_not(x))
+    operation = staticmethod(lambda x: np.ma.logical_not(x))
 
     @staticmethod
     def type_infer(node: Node):
@@ -235,31 +235,31 @@ class LogicalNot(Activation):
 
 class Log(Activation):
     op = 'Log'
-    operation = staticmethod(lambda x: np.log(x))
+    operation = staticmethod(lambda x: np.ma.log(x))
 
 
 class SoftPlus(Activation):
     op = 'SoftPlus'
     version = 'opset4'
-    operation = staticmethod(lambda x: np.log(np.exp(x) + 1.0))
+    operation = staticmethod(lambda x: np.ma.log(np.ma.exp(x) + 1.0))
 
 
 class Mish(Activation):
     op = 'Mish'
     version = 'opset4'
-    operation = staticmethod(lambda x: x * np.tanh(np.log(np.exp(x) + 1.0)))
+    operation = staticmethod(lambda x: x * np.ma.tanh(np.ma.log(np.ma.exp(x) + 1.0)))
 
 
 class HSwish(Activation):
     op = 'HSwish'
     version = 'opset4'
-    operation = staticmethod(lambda x: x * np.minimum(np.maximum(x + 3.0, 0.0), 6.0) / 6.0)
+    operation = staticmethod(lambda x: x * np.ma.minimum(np.ma.maximum(x + 3.0, 0.0), 6.0) / 6.0)
 
 
 class HSigmoid(Activation):
     op = 'HSigmoid'
     version = 'opset5'
-    operation = staticmethod(lambda x: np.minimum(np.maximum(x + 3.0, 0.0), 6.0) / 6.0)
+    operation = staticmethod(lambda x: np.ma.minimum(np.ma.maximum(x + 3.0, 0.0), 6.0) / 6.0)
 
 
 class Swish(Op):

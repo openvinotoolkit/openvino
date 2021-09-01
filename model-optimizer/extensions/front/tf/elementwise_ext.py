@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from extensions.ops.elementwise import Add, Mul, Sub, Div, Maximum, Minimum, Pow, LogicalAnd, LogicalOr, Equal, \
-    GreaterEqual, Greater, Less, LessEqual, NotEqual, FloorMod, BiasAdd, SquaredDifference, Round
+    GreaterEqual, Greater, Less, LessEqual, NotEqual, FloorMod, BiasAdd, SquaredDifference, Round, Mod
 from mo.front.extractor import FrontExtractorOp
 from mo.front.tf.extractors.utils import tf_dtype_extractor
 from mo.ops.eltwise_n import EltwiseNAdd
@@ -67,6 +67,16 @@ class SubExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         Sub.update_node_stat(node, {'data_type': tf_dtype_extractor(node.pb.attr["T"].type)})
+        return cls.enabled
+
+
+class ModExtractor(FrontExtractorOp):
+    op = 'Mod'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Mod.update_node_stat(node, {'data_type': tf_dtype_extractor(node.pb.attr["T"].type)})
         return cls.enabled
 
 
