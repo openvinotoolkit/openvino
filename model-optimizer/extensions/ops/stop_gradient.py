@@ -13,14 +13,10 @@ class StopGradientOp(Op):
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'identity': True,
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': StopGradientOp.shape_infer
+            'infer': copy_shape_infer
         }, attrs)
-
-    @staticmethod
-    def shape_infer(node):
-        copy_shape_infer(node)
 

@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
 from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from mo.utils.graph import Node
 from mo.utils.ir_reader.extender import Extender
@@ -18,3 +18,5 @@ class Parameter_extender(Extender):
             op.shape = int64_array([])
         else:
             Extender.attr_to_list(op, 'shape')
+            if -1 in op.shape:
+                op.shape = shape_array([d if d != -1 else dynamic_dimension_value for d in op.shape])

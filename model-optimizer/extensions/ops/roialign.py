@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from mo.front.common.layout import get_features_dim, shape_for_layout
+from mo.front.common.partial_infer.utils import compatible_dims
 from mo.graph.graph import Graph
 from mo.ops.op import Op
 
@@ -56,9 +57,9 @@ class ROIAlign(Op):
         indices_shape = node.in_port(2).data.get_shape()
         assert input_shape is not None and rois_shape is not None and indices_shape is not None, \
             'The node "{}" input shape is None'.format(node_name)
-        assert rois_shape[0] == indices_shape[0], 'The number of batch indices does not correspond to number of ROIs ' \
-                                                  'for node "{}"'.format(node_name)
-        assert rois_shape[1] == 4, 'The size of ROI element must be 4 for node "{}"'.format(node_name)
+        assert compatible_dims(rois_shape[0], indices_shape[0]), 'The number of batch indices does not correspond ' \
+                                                                 'to number of ROIs for node "{}"'.format(node_name)
+        assert compatible_dims(rois_shape[1], 4), 'The size of ROI element must be 4 for node "{}"'.format(node_name)
         assert len(input_shape) == 4, 'The rank of port 0 input tensor of node "{}" must be 4.'.format(node_name)
 
         node.out_port(0).data.set_shape(

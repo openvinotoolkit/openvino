@@ -10,7 +10,7 @@ from extensions.middle.InsertLayoutPropagationTransposes import is_input_data_in
     is_output_data_in_correct_layout
 from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
 from extensions.middle.pass_separator import PostMiddleStart
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import get_node_with_permutation
 from mo.graph.port import Port
@@ -88,8 +88,7 @@ class ApplyPermutation(MiddleReplacementPattern):
                     all([attrs.get('input_permutation', False) for u, v, attrs in graph.out_edges(node.id, data=True)]):
                 continue
 
-            if len(
-                    node.in_nodes()) != 0:  # there are data nodes without input operation node inside the tensor iterator
+            if len(node.in_nodes()) != 0:  # there are data nodes without input operation node inside the TensorIterator
                 edge_attrs = graph.get_edge_data(node.in_node(0).id, node.id)[0]
                 if is_output_data_in_correct_layout(node.in_node(0), edge_attrs['out']):
                     log.debug('Do not permute data node attrs for node "{}" output port "{}"'.format(node.in_node(0).id,
@@ -99,7 +98,7 @@ class ApplyPermutation(MiddleReplacementPattern):
             # Apply permutation for shape and value if exists
             if len(node.permutation.perm) == 0:
                 continue
-            node.shape = np.array(node.shape)[node.permutation.perm]
+            node.shape = shape_array(node.shape)[node.permutation.perm]
             if node.has_valid('value'):
                 assert len(node.value.shape) == len(node.permutation.perm), \
                     'Node {} has shape {} and permutation {} that does not match. Their lengths should be equal' \

@@ -5,6 +5,7 @@ import logging as log
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import compatible_dims
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -71,7 +72,7 @@ class ConditionChecks(MiddleReplacementPattern):
                         ''.format(match['minimum_data'].soft_get('name'), match['Strided_slice_data'].value)
                         )
         else:
-            assert match['Strided_slice_data'].value == match['minimum_data'].value, \
+            assert compatible_dims(match['Strided_slice_data'].value, match['minimum_data'].value), \
                 'Values do not match: {} and {}'.format(match['Strided_slice_data'].value, match['minimum_data'].value)
 
         # Check that bound for Condition and Inputs/Outputs sizes match

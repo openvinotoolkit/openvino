@@ -5,7 +5,7 @@ from extensions.ops.elementwise import Add
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes, rename_node
+from mo.graph.graph import Graph, rename_nodes
 
 
 class FakeOutputResolver(BackReplacementPattern):

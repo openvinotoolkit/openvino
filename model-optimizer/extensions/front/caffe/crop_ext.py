@@ -15,7 +15,6 @@ class CropFrontExtractor(FrontExtractorOp):
         proto_layer = node.pb
         param = proto_layer.crop_param
         mapping_rule = {
-            'type': 'Crop',
             'axis': param.axis,
             'offset': param.offset,
             'dim': None,  # set in infer

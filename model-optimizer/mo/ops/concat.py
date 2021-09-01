@@ -11,8 +11,8 @@ class Concat(Op):
 
     def __init__(self, graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset1',
             'axis': 1,
             'infer': concat_infer,

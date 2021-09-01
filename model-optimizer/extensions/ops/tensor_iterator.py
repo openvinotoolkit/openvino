@@ -4,6 +4,7 @@
 from copy import copy, deepcopy
 
 from extensions.ops.parameter import Parameter
+from mo.front.common.partial_infer.utils import shape_array
 from mo.graph.graph import Node, dict_includes, Graph
 from mo.ops.const import Const
 from mo.ops.op import Op
@@ -51,7 +52,7 @@ class TensorIterator(Op):
             assert data_node.has_valid('shape'), \
                 'Data node should have `shape` attribute set, but it`s not for node {}'.format(data_node.id)
             shape = data_node['shape'].copy()
-            parameter_data_node = Parameter(body, {'shape': shape}).create_node_with_data()
+            parameter_data_node = Parameter(body, {'shape': shape_array(shape)}).create_node_with_data()
 
             body.create_edge(src_node=parameter_data_node, dst_node=operation_node,
                              out_port=0, in_port=in_port, edge_attrs=attrs)

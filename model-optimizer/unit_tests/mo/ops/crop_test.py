@@ -8,6 +8,7 @@ import numpy as np
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.ops.crop import Crop
+from mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
 
 
@@ -15,7 +16,7 @@ class TestCropPartialInfer(unittest.TestCase):
     @staticmethod
     def _create_graph_type1():
         nodes_attributes = {'crop_input': {'shape': None, 'value': None, 'kind': 'data'},
-                            'crop_node': {'type': 'Crop', 'kind': 'op'},
+                            'crop_node': {'op': 'Crop', 'kind': 'op'},
                             'crop_output': {'shape': None, 'value': None, 'kind': 'data'}
                             }
         return build_graph(nodes_attributes,
@@ -33,7 +34,7 @@ class TestCropPartialInfer(unittest.TestCase):
     @staticmethod
     def _create_graph_type2():
         nodes_attributes = {'crop_input': {'shape': None, 'value': None, 'kind': 'data'},
-                            'crop_node': {'type': 'Crop', 'kind': 'op'},
+                            'crop_node': {'op': 'Crop', 'kind': 'op'},
                             'crop_output': {'shape': None, 'value': None, 'kind': 'data'}
                             }
         return build_graph(nodes_attributes,
@@ -49,7 +50,7 @@ class TestCropPartialInfer(unittest.TestCase):
     def _create_graph_type3():
         nodes_attributes = {'crop_input': {'shape': None, 'value': None, 'kind': 'data'},
                             'crop_input2': {'shape': None, 'value': None, 'kind': 'data'},
-                            'crop_node': {'type': 'Crop', 'kind': 'op'},
+                            'crop_node': {'op': 'Crop', 'kind': 'op'},
                             'crop_output': {'shape': None, 'value': None, 'kind': 'data'}
                             }
         return build_graph(nodes_attributes,
@@ -80,8 +81,8 @@ class TestCropPartialInfer(unittest.TestCase):
         crop_node = Node(graph, 'crop_node')
         crop_node['axis'] = None
 
-        Crop.infer(crop_node)
-        self.assertIsNone(crop_node.out_node().shape)
+        with self.assertRaisesRegex(Error, "axis attribute is missing .*"):
+            Crop.infer(crop_node)
 
     def test_crop_type1_infer_neg2(self):
         graph = self._create_graph_type1()
@@ -89,8 +90,8 @@ class TestCropPartialInfer(unittest.TestCase):
         crop_node = Node(graph, 'crop_node')
         crop_node['crop_begin'] = int64_array([1, 2, 3])
 
-        Crop.infer(crop_node)
-        self.assertIsNone(crop_node.out_node().shape)
+        with self.assertRaisesRegex(Error, "number of crop_begin.*"):
+            Crop.infer(crop_node)
 
     def test_crop_type2_infer(self):
         graph = self._create_graph_type2()
@@ -110,8 +111,8 @@ class TestCropPartialInfer(unittest.TestCase):
         crop_node = Node(graph, 'crop_node')
         crop_node['dim'] = int64_array([1, 2, 3])
 
-        Crop.infer(crop_node)
-        self.assertIsNone(crop_node.out_node().shape)
+        with self.assertRaisesRegex(Error, "Number of axis.*"):
+            Crop.infer(crop_node)
 
     def test_crop_type2_infer_neg2(self):
         graph = self._create_graph_type2()
@@ -120,8 +121,8 @@ class TestCropPartialInfer(unittest.TestCase):
         crop_node['dim'] = None
         crop_node['crop_begin'] = None
 
-        Crop.infer(crop_node)
-        self.assertIsNone(crop_node.out_node().shape)
+        with self.assertRaisesRegex(Error, "Crop node crop_node should have either.*"):
+            Crop.infer(crop_node)
 
     def test_crop_type3_infer(self):
         graph = self._create_graph_type3()
@@ -142,8 +143,8 @@ class TestCropPartialInfer(unittest.TestCase):
         crop_input2 = Node(graph, 'crop_input2')
         crop_input2.shape = None
 
-        Crop.infer(crop_node)
-        self.assertIsNone(crop_node.out_node().shape)
+        with self.assertRaisesRegex(Error, "Not all input shapes were defined.*"):
+            Crop.infer(crop_node)
 
     def test_crop_type3_infer_neg2(self):
         graph = self._create_graph_type3()
@@ -151,8 +152,8 @@ class TestCropPartialInfer(unittest.TestCase):
         crop_node = Node(graph, 'crop_node')
         crop_node['axis'] = None
 
-        Crop.infer(crop_node)
-        self.assertIsNone(crop_node.out_node().shape)
+        with self.assertRaisesRegex(Error, "axis attribute is missing for .*"):
+            Crop.infer(crop_node)
 
     def test_crop_type3_infer_neg3(self):
         graph = self._create_graph_type3()
@@ -160,8 +161,8 @@ class TestCropPartialInfer(unittest.TestCase):
         crop_node = Node(graph, 'crop_node')
         crop_node['offset'] = None
 
-        Crop.infer(crop_node)
-        self.assertIsNone(crop_node.out_node().shape)
+        with self.assertRaisesRegex(Error, "offset attribute is missing.*"):
+            Crop.infer(crop_node)
 
     def test_crop_type3_infer_neg4(self):
         graph = self._create_graph_type3()
@@ -170,5 +171,5 @@ class TestCropPartialInfer(unittest.TestCase):
         crop_input2 = Node(graph, 'crop_input2')
         crop_input2.shape = int64_array([1, 4, 423, 563])
 
-        Crop.infer(crop_node)
-        self.assertIsNone(crop_node.out_node().shape)
+        with self.assertRaisesRegex(Error, "The crop for dimension is out of bounds.*"):
+            Crop.infer(crop_node)

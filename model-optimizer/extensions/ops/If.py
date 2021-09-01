@@ -4,7 +4,7 @@
 import logging as log
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.infer import partial_infer
 from mo.ops.op import Op
@@ -148,6 +148,7 @@ class If(Op):
         :param if_node: The If node to update output ports and shapes
         :return: None
         """
+        node_name = if_node.soft_get('name', if_node.id)
 
         then_outputs = [node for node in if_node.then_graph.get_op_nodes() if node.has('output_id')]
         else_outputs = [node for node in if_node.else_graph.get_op_nodes() if node.has('output_id')]
@@ -179,20 +180,45 @@ class If(Op):
         # outputs will have the same shapes as then_body results
         use_then_shape = else_contains_fake_outputs or not then_contains_fake_outputs
 
+        cond_value = if_node.in_port(0).data.get_value()
+
         for port_id in outputs_mapping:
             then_else_nodes = outputs_mapping[port_id]
             assert 'then_graph' in then_else_nodes.keys(), 'then_graph does not connect with If.out_port[{0}] ' \
-                                                           'in {1} node!'.format(port_id, if_node.name)
+                                                           'in {1} node!'.format(port_id, node_name)
             assert 'else_graph' in then_else_nodes.keys(), 'else_graph does not connect with If.out_port[{0}] ' \
-                                                           'in {1} node!'.format(port_id, if_node.name)
+                                                           'in {1} node!'.format(port_id, node_name)
 
             then_shape = then_else_nodes['then_graph'].in_port(0).data.get_shape()
+            then_value = then_else_nodes['then_graph'].in_port(0).data.get_value()
             else_shape = then_else_nodes['else_graph'].in_port(0).data.get_shape()
+            else_value = then_else_nodes['else_graph'].in_port(0).data.get_value()
 
-            if not (then_shape == else_shape).all():
-                log.debug("If node {0} has dynamic output [{1}] because output shape from then_graph is {2} and "
-                          "else_graph {3}".format(if_node.name, port_id, then_shape, else_shape))
-            if_node.out_port(port_id).data.set_shape(then_shape if use_then_shape else else_shape)
+            if is_fully_defined(cond_value):
+                if cond_value.item() is True:
+                    if then_value is not None:
+                        if_node.out_port(port_id).data.set_value(then_value)
+                    else:
+                        if_node.out_port(port_id).data.set_shape(then_shape)
+                else:
+                    if else_value is not None:
+                        if_node.out_port(port_id).data.set_value(else_value)
+                    else:
+                        if_node.out_port(port_id).data.set_shape(else_shape)
+            else:
+                if then_contains_fake_outputs ^ else_contains_fake_outputs:
+                    # if exactly one of the outputs is fake then use another one
+                    if_node.out_port(port_id).data.set_shape(then_shape if use_then_shape else else_shape)
+                else:
+                    # find "intersection" which is equal to the dimension value if corresponding dimensions are equal
+                    # and dynamic otherwise
+                    assert len(then_shape) == len(else_shape), 'Ranks of "then" and "else" output tensors are ' \
+                                                               'different for node {} for port {}'.format(node_name,
+                                                                                                          port_id)
+                    output_shape = [d1 if is_fully_defined(d1) and is_fully_defined(d2) and d1 == d2 else
+                                    dynamic_dimension_value for d1, d2 in zip(then_shape, else_shape)]
+                    if_node.out_port(port_id).data.set_shape(output_shape)
+
 
     @staticmethod
     def update_if_output_ports_type(if_node: Node):

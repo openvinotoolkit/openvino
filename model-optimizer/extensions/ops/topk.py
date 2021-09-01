@@ -15,8 +15,8 @@ class TopK(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset3',
             'infer': self.infer,
             'type_infer': self.type_infer,

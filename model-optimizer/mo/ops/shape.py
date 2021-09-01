@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import shape_array
 from mo.graph.graph import Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
@@ -58,7 +59,7 @@ class Shape(Op):
         if node.has_and_set('stop_value_propagation'):
             node.out_port(0).data.set_shape(input_shape.shape)
         else:
-            node.out_port(0).data.set_value(np.array(input_shape, dtype=node.output_type))
+            node.out_port(0).data.set_value(shape_array(np.array(input_shape, dtype=node.output_type)))
 
     @staticmethod
     def type_infer(node):

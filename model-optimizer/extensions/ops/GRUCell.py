@@ -55,17 +55,17 @@ class GRUCell(Op):
             'activation_alpha',
             'activation_beta',
             'clip',
-            ('linear_before_reset',  lambda node: bool_to_str(node, 'linear_before_reset')),
+            ('linear_before_reset', lambda node: bool_to_str(node, 'linear_before_reset')),
         ]
 
     @staticmethod
     def infer(node: Node):
         assert len(node.out_nodes()) in [1, 2]
 
-        hidden_shape = node.in_node(1).shape.copy()
+        hidden_shape = node.in_port(1).data.get_shape().copy()
 
         mark_input_bins(node, start_port=2)
-        node.out_node(0).shape = hidden_shape
+        node.out_port(0).data.set_shape(hidden_shape)
 
         hidden_size = hidden_shape[1]
         if node.has_valid('hidden_size'):

@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import unmask_shape
 from mo.graph.graph import Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op, PermuteAttrs
@@ -35,7 +36,7 @@ class Parameter(Op):
 
     def supported_attrs(self):
         return [
-            ('shape', lambda node: ','.join([str(i) for i in node.shape])),
+            ('shape', lambda node: ','.join([str(i) for i in unmask_shape(node.shape)])),
             ('element_type', lambda node: np_data_type_to_destination_type(node.data_type)),
         ]
 

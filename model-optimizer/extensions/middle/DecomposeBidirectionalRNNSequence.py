@@ -4,6 +4,7 @@
 import numpy as np
 
 from extensions.ops.split import Split
+from mo.front.common.partial_infer.utils import shape_array
 from mo.graph.graph import Node, Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat
@@ -49,7 +50,7 @@ class DecomposeBidirectionalRNNSequence(MiddleReplacementPattern):
             node.graph,
             name=node.name + '/SplittedBiLSTM/{}/'.format(direction),
             attrs={'value': np.take(node.value, [index], axis),
-                   'shape': np.array(np.take(node.value, [index], axis).shape, dtype=np.int64)}
+                   'shape': shape_array(np.take(node.value, [index], axis).shape)}
         )
 
     def split_data(self, data: Node):

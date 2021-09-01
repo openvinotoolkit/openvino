@@ -147,49 +147,49 @@ class LogicalElementwise(Elementwise):
 class Greater(LogicalElementwise):
     op = 'Greater'
     op_type = 'Greater'
-    operation = staticmethod(lambda a, b: a > b)
+    operation = staticmethod(lambda a, b: np.ma.greater(a, b))
 
 
 class GreaterEqual(LogicalElementwise):
     op = 'GreaterEqual'
     op_type = 'GreaterEqual'
-    operation = staticmethod(lambda a, b: a >= b)
+    operation = staticmethod(lambda a, b: np.ma.greater_equal(a, b))
 
 
 class Less(LogicalElementwise):
     op = 'Less'
     op_type = 'Less'
-    operation = staticmethod(lambda a, b: a < b)
+    operation = staticmethod(lambda a, b: np.ma.less(a, b))
 
 
 class LessEqual(LogicalElementwise):
     op = 'LessEqual'
     op_type = 'LessEqual'
-    operation = staticmethod(lambda a, b: a <= b)
+    operation = staticmethod(lambda a, b: np.ma.less_equal(a, b))
 
 
 class Equal(LogicalElementwise):
     op = 'Equal'
     op_type = 'Equal'
-    operation = staticmethod(lambda a, b: a == b)
+    operation = staticmethod(lambda a, b: np.ma.equal(a, b))
 
 
 class NotEqual(LogicalElementwise):
     op = 'NotEqual'
     op_type = 'NotEqual'
-    operation = staticmethod(lambda a, b: a != b)
+    operation = staticmethod(lambda a, b: np.ma.not_equal(a, b))
 
 
 class Maximum(Elementwise):
     op = 'Maximum'
     op_type = 'Maximum'
-    operation = staticmethod(lambda a, b: np.maximum(a, b))
+    operation = staticmethod(lambda a, b: np.ma.maximum(a, b))
 
 
 class Minimum(Elementwise):
     op = 'Minimum'
     op_type = 'Minimum'
-    operation = staticmethod(lambda a, b: np.minimum(a, b))
+    operation = staticmethod(lambda a, b: np.ma.minimum(a, b))
 
 
 class Round(UnaryElementwise):
@@ -218,36 +218,42 @@ class Round(UnaryElementwise):
                                                                                   node.soft_get('mode'))
             if node.mode == 'half_away_from_zero':
                 mask = (a >= 0)
-                out = np.empty_like(a)
-                out[mask] = np.floor(a[mask] + 0.5)
-                out[~mask] = np.ceil(a[~mask] - 0.5)
+                out = np.ma.empty_like(a)
+                out[mask] = np.ma.floor(a[mask] + 0.5)
+                out[~mask] = np.ma.ceil(a[~mask] - 0.5)
             else:
-                out = np.round(a)
+                out = np.ma.round(a)
             node.out_port(0).data.set_value(out)
 
 
 class LogicalOr(LogicalElementwise):
     op = 'LogicalOr'
     op_type = 'LogicalOr'
-    operation = staticmethod(lambda a, b: np.logical_or(a, b))
+    operation = staticmethod(lambda a, b: np.ma.logical_or(a, b))
 
 
 class LogicalXor(Elementwise):
     op = 'LogicalXor'
     op_type = 'LogicalXor'
-    operation = staticmethod(lambda a, b: np.logical_xor(a, b))
+    operation = staticmethod(lambda a, b: np.ma.logical_xor(a, b))
 
 
 class LogicalAnd(LogicalElementwise):
     op = 'LogicalAnd'
     op_type = 'LogicalAnd'
-    operation = staticmethod(lambda a, b: np.logical_and(a, b))
+    operation = staticmethod(lambda a, b: np.ma.logical_and(a, b))
 
 
 class FloorMod(Elementwise):
     op = 'FloorMod'
     op_type = 'FloorMod'
-    operation = staticmethod(lambda a, b: a % b)
+    operation = staticmethod(lambda a, b: np.ma.fmod(a, b))
+
+
+class Mod(Elementwise):
+    op = 'Mod'
+    op_type = 'Mod'
+    operation = staticmethod(lambda a, b: np.ma.mod(a, b))
 
 
 class Negative(UnaryElementwise):

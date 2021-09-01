@@ -7,8 +7,10 @@ import sys
 import unittest
 from unittest import mock
 
+import numpy as np
 from generator import generator, generate
 
+from mo.front.common.partial_infer.utils import shape_array, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.utils.ir_engine.ir_engine import IREngine
 
@@ -45,9 +47,10 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(flag, 'Comparing false, test compare function failed')
         log.info('Test for function compare passed')
 
-    def test_comare_negative(self):
+    def test_compare_negative(self):
         # Reference data for test:
-        reference_msg = 'Current node "2" with type Const and reference node "2" with type Input have different attr "type" : Const and Input'
+        reference_msg = 'Current node "2" with type "Const" and reference node "2" with type "Input" have different ' \
+                        'attr "type" : Const and Input'
         # Check function:
         flag, msg = self.IR.compare(self.IR_negative)
         self.assertFalse(flag, 'Comparing flag failed, test compare function failed')
@@ -64,11 +67,11 @@ class TestFunction(unittest.TestCase):
 
     def test_get_inputs(self):
         # Reference data for test:
-        ref_input_dict = {'data': [1, 10, 16]}
+        ref_input_dict = {'data': shape_array([1, 10, 16])}
         # Check function:
         inputs_dict = self.IR.get_inputs()
-        # is_equal = compare_dictionaries(ref_input_dict, inputs_dict)
-        self.assertTrue(ref_input_dict == inputs_dict, 'Test on function get_inputs failed')
+        self.assertTrue(strict_compare_tensors(ref_input_dict['data'], inputs_dict['data']),
+                        'Test on function get_inputs failed')
         log.info('Test for function get_inputs passed')
 
     def test_eq_function(self):

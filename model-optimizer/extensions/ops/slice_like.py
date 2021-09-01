@@ -26,6 +26,7 @@ class SliceLike(Op):
     @staticmethod
     def infer(node):
         input_shape = node.in_port(0).data.get_shape()
+        input_value = node.in_port(0).data.get_value()
         shape_like = node.in_port(1).data.get_shape()
 
         new_shape = np.copy(input_shape)
@@ -40,8 +41,8 @@ class SliceLike(Op):
             new_shape = np.copy(shape_like)
         node.out_port(0).data.set_shape(new_shape)
 
-        if node.in_port(0).get_connection().data.get_value() is not None:
-            out_value = np.copy(node.in_port(0).data.get_value())
+        if input_value is not None:
+            out_value = np.copy(input_value)
 
             slice_indexes = []
             for s in out_value.shape:

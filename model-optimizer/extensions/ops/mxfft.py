@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 
@@ -39,4 +38,4 @@ class MXFFT(Op):
             output_shape[-1] = output_shape[-1] // 2
         else:
             output_shape[-1] = output_shape[-1] * 2
-        node.out_port(0).data.set_shape(int64_array(output_shape))
+        node.out_port(0).data.set_shape(output_shape)

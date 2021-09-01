@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from mo.ops.op import Op
 
 
@@ -11,10 +9,10 @@ class ExperimentalDetectronPriorGridGenerator(Op):
 
     def __init__(self, graph, attrs):
         mandatory_props = dict(
-            type=__class__.op,
-            op=__class__.op,
+            type=self.op,
+            op=self.op,
             version='opset6',
-            infer=__class__.infer,
+            infer=self.infer,
         )
         super().__init__(graph, mandatory_props, attrs)
 
@@ -29,12 +27,12 @@ class ExperimentalDetectronPriorGridGenerator(Op):
 
     @staticmethod
     def infer(node):
-        input_shape = node.in_node(0).shape
+        input_shape = node.in_port(0).data.get_shape()
         priors_num = input_shape[0]
-        grid_h = node.in_node(1).shape[2]
-        grid_w = node.in_node(1).shape[3]
+        grid_h = node.in_port(1).data.get_shape()[2]
+        grid_w = node.in_port(1).data.get_shape()[3]
         if node.flatten:
-            out_shape = np.array([grid_h * grid_w * priors_num, 4], dtype=np.int64)
+            out_shape = [grid_h * grid_w * priors_num, 4]
         else:
-            out_shape = np.array([grid_h, grid_w, priors_num, 4], dtype=np.int64)
-        node.out_node(0).shape = out_shape
+            out_shape = [grid_h, grid_w, priors_num, 4]
+        node.out_port(0).data.set_shape(out_shape)

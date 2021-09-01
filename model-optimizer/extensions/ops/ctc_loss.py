@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, compatible_dims
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -73,11 +73,12 @@ class CTCLoss(Op):
         assert len(logits_shape) == 3 and len(logit_length_shape) == 1 and len(labels_shape) == 2\
             and len(label_length_shape) == 1 and len(blank_index_shape) == 0, \
             'Incorrect rank of some input tensor for {} node'.format(node_name)
-        assert logits_shape[0] == logit_length_shape[0] and logits_shape[0] == labels_shape[0]\
-            and logits_shape[0] == label_length_shape[0], \
+        assert compatible_dims(logits_shape[0], logit_length_shape[0]) and \
+               compatible_dims(logits_shape[0], labels_shape[0]) and \
+               compatible_dims(logits_shape[0], label_length_shape[0]), \
             'Batch dimensions of input tensors must be the same for {} node'.format(node_name)
-        assert logits_shape[1] == labels_shape[1], \
+        assert compatible_dims(logits_shape[1], labels_shape[1]), \
             'Time dimensions of input tensors must be the same for {} node'.format(node_name)
 
         batch_size = logits_shape[0]
-        node.out_port(0).data.set_shape(int64_array([batch_size]))
+        node.out_port(0).data.set_shape([batch_size])

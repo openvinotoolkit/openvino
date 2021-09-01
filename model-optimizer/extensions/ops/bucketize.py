@@ -15,8 +15,8 @@ class Bucketize(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'kind': 'op',
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset3',
 
             'type_infer': self.type_infer,
@@ -44,7 +44,8 @@ class Bucketize(Op):
             node.out_port(0).set_data_type(np.int32)
         else:
             assert node.output_type in [np.int64, np.int32], \
-                'Bucketize `output_type` attribute must be int32 or int64, `{}` found'.format(np.dtype(node.output_type).name)
+                'Bucketize `output_type` attribute must be int32 or int64, `{}` found' \
+                ''.format(np.dtype(node.output_type).name)
             node.out_port(0).set_data_type(node.output_type)
 
     @staticmethod
@@ -54,14 +55,11 @@ class Bucketize(Op):
             "Attribute \"with_right_bound\" is not defined"
         assert len(node.in_nodes()) == 2, \
             "Incorrect number of inputs for {} node".format(node.id)
-        if node.get_opset() == "extension":
-            output_type = np.int32
-        else:
+        if node.get_opset() != "extension":
             assert node.has_valid('output_type'), \
                 '`output_type` attribute is not set for Bucketize node `{}`'.format(node_name)
             assert node.output_type in [np.int64, np.int32], \
                 'Bucketize `output_type` attribute must be int32 or int64, `{}` found'.format(np.dtype(node.output_type).name)
-            output_type = node.output_type
 
         output_shape = node.in_port(0).data.get_shape()
         node.out_port(0).data.set_shape(output_shape)

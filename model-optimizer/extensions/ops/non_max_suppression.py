@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, dynamic_dimension_value
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
@@ -57,7 +57,8 @@ class NonMaxSuppression(Op):
         opset = node.get_opset()
         max_num_of_inputs = 6 if opset == 'opset5' else 5
         input_msg_fmt = 'NonMaxSuppression node {} from {} must have from 2 to {} inputs'
-        inputs_msg = input_msg_fmt.format(node.soft_get('name', node.id), opset, max_num_of_inputs)
+        node_name = node.soft_get('name', node.id)
+        inputs_msg = input_msg_fmt.format(node_name, opset, max_num_of_inputs)
         assert 2 <= num_of_inputs <= max_num_of_inputs, inputs_msg
 
         boxes_shape = node.in_port(0).data.get_shape()
@@ -78,22 +79,29 @@ class NonMaxSuppression(Op):
             log.info('Set default "max_output_boxes_per_class" for node {} to number of boxes'.format(node.name))
             max_output_boxes_per_class = boxes_shape[1]
 
+        # convert the np.array value to a scalar to avoid issue with ragged numpy array generation in the shape
+        # calculation formulas below
+        if isinstance(max_output_boxes_per_class, np.ndarray):
+            max_output_boxes_per_class = max_output_boxes_per_class.item()
+
         num_classes = scores_shape[1]
         num_input_boxes = boxes_shape[1]
-        assert scores_shape[2] == num_input_boxes, 'Number of boxes mismatch'
+        assert scores_shape[2] is dynamic_dimension or scores_shape[2] == num_input_boxes or scores_shape[2] is None \
+               or num_input_boxes is None, 'Number of boxes mismatch for operation {}'.format(node_name)
 
         if node.get_opset() in ['opset4', 'opset5']:
             max_number_of_boxes = min(num_input_boxes, max_output_boxes_per_class) * boxes_shape[0] * num_classes
         else:
             max_number_of_boxes = min(num_input_boxes, boxes_shape[0] * max_output_boxes_per_class * num_classes)
-        node.out_port(0).data.set_shape(int64_array([max_number_of_boxes, 3]))
+        node.out_port(0).data.set_shape(shape_array([max_number_of_boxes, 3]))
 
         if opset == 'opset5':
+            node.out_port(0).data.set_shape(shape_array([dynamic_dimension_value, 3]))
             num_of_outputs = len([port for port in node.out_ports().values() if not port.disconnected()])
             if num_of_outputs >= 2 and node.has_port('out', 1):
-                node.out_port(1).data.set_shape(int64_array([max_number_of_boxes, 3]))
+                node.out_port(1).data.set_shape(shape_array([dynamic_dimension_value, 3]))
             if num_of_outputs >= 3 and node.has_port('out', 2):
-                node.out_port(2).data.set_shape(int64_array(1))
+                node.out_port(2).data.set_shape(shape_array(1))
 
     @staticmethod
     def type_infer(node):
