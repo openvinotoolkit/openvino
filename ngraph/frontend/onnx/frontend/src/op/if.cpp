@@ -53,11 +53,7 @@ OutputVector if_op(const Node& node) {
 
     return if_node->outputs();
 }
-
 }  // namespace set_1
-
 }  // namespace op
-
 }  // namespace onnx_import
-
 }  // namespace ngraph

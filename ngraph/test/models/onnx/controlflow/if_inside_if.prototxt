@@ -10,7 +10,7 @@ graph {
     attribute {
       name: "then_branch"
       g {
-        name: "then_branch___"
+        name: "then_branch"
         node {
           input: "x"
           input: "y"
