@@ -96,7 +96,7 @@ def pytest_generate_tests(metafunc):
             if "marks" in test:
                 extra_args["marks"] = test["marks"]
             model["path"] = Path(expand_env_vars(model["path"]))
-            model_list.append(expand_env_vars(model))
+            model_list.append(model)
             test_id_list.append(model_path.split("/")[-1])
         ids = ids + ['-'.join(test_id_list)]
         params.append(pytest.param('-'.join(test_id_list), model_list), **extra_args)
