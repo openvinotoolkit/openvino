@@ -36,6 +36,6 @@ protected:
     void SetUp() override;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ComparisonTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj);
 };
 } // namespace LayerTestsDefinitions

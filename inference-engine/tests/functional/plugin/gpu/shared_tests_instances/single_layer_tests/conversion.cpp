@@ -4,12 +4,17 @@
 
 #include <vector>
 
-#include "single_layer_tests/convert_like.hpp"
+#include "single_layer_tests/conversion.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
+const std::vector<ngraph::helpers::ConversionTypes> conversionOpTypes = {
+    ngraph::helpers::ConversionTypes::CONVERT,
+    ngraph::helpers::ConversionTypes::CONVERT_LIKE,
+};
+
 const std::vector<std::vector<size_t>> inShape = {{1, 2, 3, 4}};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -19,15 +24,15 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::I8,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConvertLikeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConversionLayerTest,
                         ::testing::Combine(
+                                ::testing::ValuesIn(conversionOpTypes),
                                 ::testing::Values(inShape),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(inShape),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                        ConvertLikeLayerTest::getTestCaseName);
+                        ConversionLayerTest::getTestCaseName);
 
 }  // namespace

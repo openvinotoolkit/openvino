@@ -47,7 +47,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvertParams>& obj) {
         const auto& param = obj.param;
         std::ostringstream result;
-        result << "convertionType=" << conversionNames[param.conversionType] << "_";
+        result << "conversionType=" << conversionNames[param.conversionType] << "_";
         result << "shape=" << param.pshape << "_";
         result << "iType=" << param.inType << "_";
         result << "oType=" << param.outType;
