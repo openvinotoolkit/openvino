@@ -109,8 +109,8 @@ jobs:
   - script: dir $(REPO_DIR)\inference-engine\temp\ /s
     displayName: 'List temp SDKs'
 
-  - script: cp C:\Temp\profile.xml $(BUILD_DIR)\profile.xml
-    displayName: 'copy profile'
+  - script: cp $(REPO_DIR)\.ci\azure\profile.xml $(BUILD_DIR)\profile.xml
+    displayName: 'Copy IncrediBuild profile'
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
