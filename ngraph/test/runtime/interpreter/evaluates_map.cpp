@@ -3001,18 +3001,7 @@ namespace
         {
             element_type = node->get_input_element_type(0);
         }
-        for (size_t i = 1; i < node->outputs().size(); i++)
-        {
-            if ((ov::is_type<op::v5::NonMaxSuppression>(node) ||
-                 ov::is_type<op::v8::MulticlassNms>(node) ||
-                 ov::is_type<op::v8::MatrixNms>(node) ||
-                 ov::is_type<op::v6::ExperimentalDetectronDetectionOutput>(node) ||
-                 ov::is_type<op::v8::AdaptiveMaxPool>(node)) &&
-                 i == 1)
-            {
-                continue;
-            }
-        }
+
         switch (element_type)
         {
         case element::Type_t::boolean:
