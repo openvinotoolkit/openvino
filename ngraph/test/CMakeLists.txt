@@ -8,11 +8,11 @@ set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
-    message(STATUS "unit tests disabled")
+    message(STATUS "nGraph unit tests disabled")
     return()
 endif()
 
-message(STATUS "unit tests enabled")
+message(STATUS "nGraph unit tests enabled")
 
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
@@ -156,6 +156,7 @@ set(SRC
     type_prop/idft.cpp
     type_prop/interpolate.cpp
     type_prop/logical_and.cpp
+    type_prop/logical_not.cpp
     type_prop/logical_or.cpp
     type_prop/logical_xor.cpp
     type_prop/lrn.cpp
@@ -282,6 +283,7 @@ set(SRC
     visitors/op/log.cpp
     visitors/op/logical_and.cpp
     visitors/op/logical_or.cpp
+    visitors/op/logical_not.cpp
     visitors/op/logical_xor.cpp
     visitors/op/lrn.cpp
     visitors/op/lstm_cell.cpp
@@ -328,6 +330,7 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/scatter_elements_update.cpp
     visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
@@ -448,7 +451,6 @@ set(MULTI_TEST_SRC
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
-    backend/fused_op.in.cpp
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
@@ -460,7 +462,6 @@ set(MULTI_TEST_SRC
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
-    backend/logical_not.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
