@@ -8,6 +8,7 @@
 #include <stack>
 #include <utility>
 
+#include "ngraph/deprecated.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
@@ -17,7 +18,8 @@ namespace ngraph {
 ///
 ///
 template <typename V>
-class Evaluator {
+class NGRAPH_DEPRECATED("This class is deprecated and will be removed soon.") Evaluator {
+    NGRAPH_SUPPRESS_DEPRECATED_START
 public:
     /// \brief values we compute for outputs
     using value_map = std::map<RawNodeOutput, V>;
@@ -172,5 +174,6 @@ protected:
     op_handler_map m_handlers;
     op_handler m_default_handler;
     value_map& m_value_map;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 };
 }  // namespace ngraph
