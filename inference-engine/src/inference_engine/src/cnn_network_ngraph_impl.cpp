@@ -65,24 +65,21 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
             return false;
         }
     };
-    // query shape from ngraph::Parameter output shape and check there are no zeros in it
-    SizeVector dims;
-    if (output.get_partial_shape().is_static()) {
-        dims = output.get_shape();
-    }
-    for (const auto& dim : dims) {
-        if (!dim)
+    auto shape = output.get_partial_shape();
+    auto rank = shape.rank().is_static() ? shape.rank().get_length() : 0;
+    for (const auto& dim : shape) {
+        if (dim.is_static() && dim.get_length() == 0)
             IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
-        const auto layout = isCompatible(dims.size(), origLayout) ? origLayout : TensorDesc::getLayoutByDims(dims);
-        ptr->reshape(dims, layout);
+        const auto layout = isCompatible(rank, origLayout) ? origLayout : TensorDesc::getLayoutByRank(rank);
+        ptr->reshape(shape, layout);
     } else {
-        const auto layout = TensorDesc::getLayoutByDims(dims);
+        const auto layout = TensorDesc::getLayoutByRank(rank);
         const auto precision = details::convertPrecision(output.get_element_type());
-        ptr.reset(new Data(outName, {precision, dims, layout}));
+        ptr.reset(new Data(outName, precision, shape, layout));
     }
 }
 
@@ -180,12 +177,15 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     for (const auto& inputInfo : inputs) {
         InputInfo::Ptr info = std::make_shared<InputInfo>();
         const auto& name = inputInfo.second->getInputData()->getName();
-        DataPtr input = std::make_shared<Data>(name, inputInfo.second->getInputData()->getTensorDesc());
+        const auto& inData = inputInfo.second->getInputData();
+        DataPtr input =
+            std::make_shared<Data>(name, inData->getPrecision(), inData->getPartialShape(), inData->getLayout());
         _data[name] = input;
         info->setInputData(input);
         info->getPreProcess() = inputInfo.second->getPreProcess();
         info->setPrecision(inputInfo.second->getPrecision());
-        info->setLayout(inputInfo.second->getLayout());
+        if (!inData->isDynamic())
+            info->setLayout(inputInfo.second->getLayout());
         _inputData[name] = info;
     }
 }
@@ -296,9 +296,9 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
     });
 
     for (const auto& param : params) {
-        if (param->get_partial_shape().rank().is_dynamic())
+        if (param->get_output_partial_shape(0).rank().is_dynamic())
             continue;
-        auto pshape = param->get_partial_shape();
+        auto pshape = param->get_output_partial_shape(0);
         auto rank = pshape.rank().get_length();
         // WA: for speech recognition and scalar layouts (copy-past from CNNNetwork)
         if ((rank == 2 || rank > 3) && pshape[0].is_static()) {
@@ -312,7 +312,7 @@ void CNNNetworkNGraphImpl::reshape() {
     reshape({});
 }
 
-StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
                                          ResponseDesc* responseDesc) noexcept {
     if (inputShapes.empty())
         return OK;
@@ -326,7 +326,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector
         if (it == inputShapes.end()) {
             continue;
         }
-        if (param->get_partial_shape().is_dynamic() || param->get_shape() != it->second) {
+        if (param->get_output_partial_shape(0).is_dynamic() || param->get_output_partial_shape(0) != it->second) {
             needReshape = true;
             break;
         }
@@ -338,7 +338,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector
     // save original parameters shape
     std::map<std::string, ngraph::PartialShape> originalInputShapes;
     for (const auto& param : params) {
-        originalInputShapes[param->get_friendly_name()] = param->get_partial_shape();
+        originalInputShapes[param->get_friendly_name()] = param->get_output_partial_shape(0);
     }
 
     try {
@@ -357,6 +357,14 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector
     }
 
     return OK;
+}
+
+StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+                                         ResponseDesc* responseDesc) noexcept {
+    std::map<std::string, ngraph::PartialShape> shapes;
+    for (const auto& shape : inputShapes)
+        shapes[shape.first] = ngraph::PartialShape(shape.second);
+    return reshape(shapes, responseDesc);
 }
 
 void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
@@ -565,7 +573,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
             if (i)
                 ss << ", ";
             ss << "\"" << original_parameters[i]->get_friendly_name()
-               << "\": " << original_parameters[i]->get_partial_shape();
+               << "\": " << original_parameters[i]->get_output_partial_shape(0);
         }
 
         // ill-formed logic from the past setBatchSize (we keep it for backward-compatibility)
@@ -575,7 +583,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
                               [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
                                   return lhs->get_friendly_name() < rhs->get_friendly_name();
                               });
-        const auto first_parameter_pshape = first_parameter->get_partial_shape();
+        const auto first_parameter_pshape = first_parameter->get_output_partial_shape(0);
         if (first_parameter_pshape.is_dynamic())
             return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc)
                    << "Cannot set batch! Function contains parameter with partially defined shape!" << ss.str();
@@ -587,7 +595,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
 
         std::map<std::string, std::vector<size_t>> inShapes;
         for (const auto& parameter : original_parameters) {
-            const auto& pshape = parameter->get_partial_shape();
+            const auto& pshape = parameter->get_output_partial_shape(0);
             if (pshape.is_dynamic())
                 return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc)
                        << "Cannot set batch! Function contains parameter with partially defined shape!" << ss.str();

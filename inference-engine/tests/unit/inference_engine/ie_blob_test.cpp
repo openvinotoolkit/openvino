@@ -325,6 +325,23 @@ TEST_F(BlobTests, canCreateBlobOnExistedMemory) {
 }
 
 
+// SetShape
+TEST_F(BlobTests, canSetShape) {
+    auto b = InferenceEngine::make_shared_blob<float>(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, {1, 2, 3}, InferenceEngine::ANY));
+    b->allocate();
+
+    ASSERT_NO_THROW(b->setShape({4, 5, 6}));
+
+    auto newDims = b->getTensorDesc().getDims();
+    ASSERT_EQ(newDims.size(), 3);
+    ASSERT_EQ(newDims[0], 4);
+    ASSERT_EQ(newDims[1], 5);
+    ASSERT_EQ(newDims[2], 6);
+}
+
+
+
 TEST_F(BlobTests, canModifyDataInRangedFor) {
     InferenceEngine::SizeVector v = {1, 2, 3};
     InferenceEngine::TBlob<int> blob({ InferenceEngine::Precision::I32, v, InferenceEngine::CHW });

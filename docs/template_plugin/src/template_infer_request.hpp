@@ -40,6 +40,9 @@ public:
     void waitPipeline();
     void inferPostprocess();
 
+    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& userBlob) override;
+
 private:
     void allocateDeviceBuffers();
     void allocateBlobs();
@@ -52,8 +55,6 @@ private:
     std::array<std::chrono::duration<float, std::micro>, numOfStages> _durations;
 
     InferenceEngine::BlobMap _networkOutputBlobs;
-    ngraph::ParameterVector _parameters;
-    ngraph::ResultVector _results;
 
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>> _inputTensors;
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>> _outputTensors;

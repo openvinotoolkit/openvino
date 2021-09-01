@@ -185,6 +185,22 @@ public:
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
+     * @brief Run shape inference with new input shapes for the network
+     *
+     * @param partialShapes - map of pairs: name of corresponding data and its dimension.
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     * @return Status code of the operation
+     */
+    INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
+    virtual StatusCode reshape(const std::map<std::string, ngraph::PartialShape>& partialShapes,
+                               ResponseDesc* resp) noexcept {
+        (void)partialShapes;
+        (void)resp;
+        return NOT_IMPLEMENTED;
+    };
+
+    /**
+     * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
      * @brief Serialize network to IR and weights files.
      *
      * @param xmlPath Path to output IR file.

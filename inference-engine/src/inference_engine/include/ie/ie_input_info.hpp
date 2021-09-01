@@ -139,6 +139,17 @@ public:
     }
 
     /**
+     * @brief Returns the input shape. May have undefined dimensions.
+     * @return PartialShape object describing input shape.
+     */
+    ngraph::PartialShape getPartialShape() {
+        if (!_inputData) {
+            IE_THROW() << "Data is empty!";
+        }
+        return _inputData->getPartialShape();
+    }
+
+    /**
      * @brief Gets pre-process info for the input
      * @return A reference to the PreProcessInfo instance that contains pre-process info for this input
      */

@@ -266,7 +266,7 @@ void MyriadInferRequest::GetResult() {
                 "Can not find tensor descriptor by plugin for {} output", ieBlobName);
             const auto& dynOutputDesc = descFromPlugin->second;
 
-            if (ieBlob->getTensorDesc().getLayout() != dynOutputDesc.getLayout()) {
+            if (ieBlob->getTensorDesc().getDims() != dynOutputDesc.getDims()) {
                 ieBlob->deallocate();
                 ieBlob->getTensorDesc().reshape(dynOutputDesc.getDims(), dynOutputDesc.getLayout());
                 ieBlob->allocate();
