@@ -3,6 +3,7 @@
 //
 
 #include "ie_api_impl.hpp"
+
 #include <ngraph/partial_shape.hpp>
 
 #include "ie_iinfer_request.hpp"
@@ -207,7 +208,7 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string
     return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
-PyObject* InferenceEnginePython::getPartialShape(InferenceEngine::CDataPtr data){
+PyObject* InferenceEnginePython::getPartialShape(InferenceEngine::CDataPtr data) {
     const char* py_capsule_name = "ngraph_partial_shape";
     auto ngraph_pShape_ptr = std::make_shared<ngraph::PartialShape>(data->getPartialShape());
     auto* sp_copy = new std::shared_ptr<const ngraph::PartialShape>(ngraph_pShape_ptr);
@@ -308,15 +309,16 @@ size_t InferenceEnginePython::IENetwork::getBatch() {
     return actual->getBatchSize();
 }
 
-void InferenceEnginePython::IENetwork::reshape(const std::map <std::string, std::vector<std::vector<int64_t>>>& input_shapes) {
+void InferenceEnginePython::IENetwork::reshape(
+    const std::map<std::string, std::vector<std::vector<int64_t>>>& input_shapes) {
     std::map<std::string, ngraph::PartialShape> inputShapes;
-    for(auto const& input: input_shapes){
+    for (auto const& input : input_shapes) {
         using ngraph::Dimension;
         std::vector<Dimension> dims;
-        for(auto const& d: input.second) {
-            if(d.size() == 1)
+        for (auto const& d : input.second) {
+            if (d.size() == 1)
                 dims.push_back(Dimension(d[0]));
-            else if(d.size() == 2)
+            else if (d.size() == 2)
                 dims.push_back(Dimension(d[0], d[1]));
         }
         inputShapes[input.first] = ngraph::PartialShape(dims);
