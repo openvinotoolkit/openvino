@@ -67,6 +67,12 @@ template <element::Type_t IN_ET>
 std::vector<GatherTreeParams> generateGatherTreeParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<GatherTreeParams> gatherTreeParams {
+        GatherTreeParams(Shape{4, 1, 3},
+                         std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -1, -1},
+                         std::vector<T>{0, 0, 0, 0, 1, 1, 2, 1, 2, -1, -1, -1},
+                         std::vector<T>{3},
+                         std::vector<T>{10},
+                         std::vector<T>{2, 2, 2, 6, 5, 6, 7, 8, 9, 10, 10, 10}),
         GatherTreeParams(Shape{2, 2, 2},
                          std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8},
                          std::vector<T>{0, 0, 0, 0, 0, 0, 0, 0},
