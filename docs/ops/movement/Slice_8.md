@@ -146,36 +146,7 @@ Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to
 </layer>
 ```
 
-*Example 4: basic slicing, `step: [2]`*
-
-```xml
-<layer id="1" type="Slice" ...>
-    <input>
-        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
-          <dim>10</dim>
-        </port>
-        <port id="1">       <!-- start: [1] -->
-          <dim>1</dim>
-        </port>
-        <port id="2">       <!-- stop: [8] -->
-          <dim>1</dim>
-        </port>
-        <port id="3">       <!-- step: [2] -->
-          <dim>1</dim>
-        </port>
-        <port id="4">       <!-- axes: [0] -->
-          <dim>1</dim>
-        </port>
-    </input>
-    <output>
-        <port id="5">       <!-- output: [1, 3, 5, 7] -->
-            <dim>4</dim>
-        </port>
-    </output>
-</layer>
-```
-
-*Example 5: `start` and `stop` out of the dimension size, `step: [1]`*
+*Example 4: `start` and `stop` out of the dimension size, `step: [1]`*
 
 ```xml
 <layer id="1" type="Slice" ...>
@@ -204,7 +175,7 @@ Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to
 </layer>
 ```
 
-*Example 6: slicing backward all elements, `step: [-1]`, `stop: [-11]`*
+*Example 5: slicing backward all elements, `step: [-1]`, `stop: [-11]`*
 
 ```xml
 <layer id="1" type="Slice" ...>
@@ -233,7 +204,7 @@ Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to
 </layer>
 ```
 
-*Example 7: slicing backward, `step: [-1]`, `stop: [0]`*
+*Example 6: slicing backward, `step: [-1]`, `stop: [0]`*
 
 ```xml
 <layer id="1" type="Slice" ...>
@@ -262,7 +233,7 @@ Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to
 </layer>
 ```
 
-*Example 8: slicing backward, `step: [-1]`, `stop: [-10]`*
+*Example 7: slicing backward, `step: [-1]`, `stop: [-10]`*
 
 ```xml
 <layer id="1" type="Slice" ...>
@@ -291,7 +262,7 @@ Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to
 </layer>
 ```
 
-*Example 9: slicing backward, `step: [-2]`*
+*Example 8: slicing backward, `step: [-2]`*
 
 ```xml
 <layer id="1" type="Slice" ...>
@@ -320,7 +291,7 @@ Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to
 </layer>
 ```
 
-*Example 10: `start` and `stop` out of the dimension size, slicing backward*
+*Example 9: `start` and `stop` out of the dimension size, slicing backward*
 
 ```xml
 <layer id="1" type="Slice" ...>
@@ -349,7 +320,7 @@ Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to
 </layer>
 ```
 
-*Example 11: slicing 2D tensor, all axes specified*
+*Example 10: slicing 2D tensor, all axes specified*
 
 ```xml
 <layer id="1" type="Slice" ...>
@@ -380,7 +351,7 @@ Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to
 </layer>
 ```
 
-*Example 12: slicing 3D tensor, all axes specified*
+*Example 11: slicing 3D tensor, all axes specified*
 
 ```xml
 <layer id="1" type="Slice" ...>
@@ -413,7 +384,7 @@ Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to
 </layer>
 ```
 
-*Example 13: slicing 3D tensor, last axes default*
+*Example 12: slicing 3D tensor, last axes default*
 
 ```xml
 <layer id="1" type="Slice" ...>
