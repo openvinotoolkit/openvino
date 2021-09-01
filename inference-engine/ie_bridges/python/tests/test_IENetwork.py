@@ -183,6 +183,16 @@ def test_reshapePartial(shape, refShape):
     assert function.get_results()[0].get_output_partial_shape(0) == refShape
 
 
+def test_incorrect_reshape():
+    import ngraph as ng
+    function = create_ngraph_function([1, 3, 22, 22])
+    net = ng.function_to_cnn(function)
+    with pytest.raises(ValueError) as e:
+        net.reshape({"data": [(2, 4, 6), 3, 22, 22]})
+    assert "Incorrect PartialShape dimension definition '(2, 4, 6)' " \
+           "in shape '[(2, 4, 6), 3, 22, 22]', expected one or two values for a dimension! " in str(e.value)
+
+
 def test_net_from_buffer_valid():
     ie = IECore()
     with open(test_net_bin, 'rb') as f:
