@@ -308,7 +308,7 @@ size_t InferenceEnginePython::IENetwork::getBatch() {
     return actual->getBatchSize();
 }
 
-void InferenceEnginePython::IENetwork::reshape(const std::map <std::string, std::vector<std::vector<int64_t>>> &input_shapes) {
+void InferenceEnginePython::IENetwork::reshape(const std::map <std::string, std::vector<std::vector<int64_t>>>& input_shapes) {
     std::map<std::string, ngraph::PartialShape> inputShapes;
     for(auto const& input: input_shapes){
         using ngraph::Dimension;
