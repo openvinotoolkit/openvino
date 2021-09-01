@@ -471,7 +471,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
                     1,
                     ngraph::element::i8,
                     false,
-                    {"DEQUANTIZATION", "DISABLED_CONSTANT_FOLDING"}
+                    {"DISABLED_CONSTANT_FOLDING"}
                 },
                 {}
             },
