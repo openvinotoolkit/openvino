@@ -10,10 +10,8 @@
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
-namespace ov
-{
-class OPENVINO_API PartialLayout
-{
+namespace ov {
+class OPENVINO_API PartialLayout {
 public:
     /// \brief Constructs a static PartialLayout with no layout information.
     PartialLayout() = default;
@@ -29,10 +27,7 @@ public:
     ///   - "N..C" defines layout with dynamic rank where first two are NC, others are not
     ///   defined
     /// - only order of dimensions "adbc" (0312)
-    PartialLayout(const char* layoutStr)
-            : PartialLayout(std::string(layoutStr))
-    {
-    }
+    PartialLayout(const char* layoutStr) : PartialLayout(std::string(layoutStr)) {}
     PartialLayout(const std::string& layoutStr);
 
     /// \brief Checks if dimension with specified name is in layout
@@ -50,15 +45,19 @@ public:
     /// \return `true` if layout is SCALAR
     bool is_scalar() const;
 
-    bool is_empty() const { return _dimensionNames.empty(); }
-    std::size_t size() const { return _dimensionNames.size(); }
+    bool is_empty() const {
+        return _dimensionNames.empty();
+    }
+    std::size_t size() const {
+        return _dimensionNames.size();
+    }
+
 private:
     /// stores dimension names
     std::unordered_map<std::string, std::int64_t> _dimensionNames;
 };
 
-namespace layouts
-{
+namespace layouts {
 bool has_batch(const PartialLayout& layout);
 std::int64_t batch(const PartialLayout& layout);
 void set_batch(PartialLayout& layout, std::int64_t index);
@@ -78,24 +77,24 @@ void set_height(PartialLayout& layout, std::int64_t index);
 bool has_width(const PartialLayout& layout);
 std::int64_t width(const PartialLayout& layout);
 void set_width(PartialLayout& layout, std::int64_t index);
-} // namespace layouts
+}  // namespace layouts
 
 template <>
-class OPENVINO_API AttributeAdapter<PartialLayout> : public ValueAccessor<std::string>
-{
+class OPENVINO_API AttributeAdapter<PartialLayout> : public ValueAccessor<std::string> {
 public:
-    AttributeAdapter(PartialLayout& value)
-            : m_ref(value)
-    {
-    }
+    AttributeAdapter(PartialLayout& value) : m_ref(value) {}
 
     const std::string& get() override;
     void set(const std::string& value) override;
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<PartialLayout>", 0};
-    const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    operator PartialLayout&() { return m_ref; }
+    const DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+    operator PartialLayout&() {
+        return m_ref;
+    }
 
 protected:
     PartialLayout& m_ref;
 };
-} // namespace ngraph
+}  // namespace ov
