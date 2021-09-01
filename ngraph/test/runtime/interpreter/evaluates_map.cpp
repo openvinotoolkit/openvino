@@ -51,6 +51,7 @@
 #include <ngraph/runtime/reference/lrn.hpp>
 #include <ngraph/runtime/reference/lstm_cell.hpp>
 #include <ngraph/runtime/reference/matrix_nms.hpp>
+#include <ngraph/runtime/reference/max_pool.hpp>
 #include <ngraph/runtime/reference/mod.hpp>
 #include <ngraph/runtime/reference/multiclass_nms.hpp>
 #include <ngraph/runtime/reference/mvn.hpp>
@@ -2945,6 +2946,47 @@ namespace
         return true;
     }
 
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v8::MaxPool>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        if (op->get_index_element_type() == element::i32)
+        {
+            runtime::reference::max_pool(inputs[0]->get_data_ptr<const T>(),
+                                         outputs[0]->get_data_ptr<T>(),
+                                         outputs[1]->get_data_ptr<int32_t>(),
+                                         inputs[0]->get_shape(),
+                                         outputs[0]->get_shape(),
+                                         op->get_kernel(),
+                                         op->get_strides(),
+                                         op->get_dilations(),
+                                         op->get_pads_begin(),
+                                         op->get_pads_end(),
+                                         op->get_axis());
+        }
+        else if (op->get_index_element_type() == element::i64)
+        {
+            runtime::reference::max_pool(inputs[0]->get_data_ptr<const T>(),
+                                         outputs[0]->get_data_ptr<T>(),
+                                         outputs[1]->get_data_ptr<int64_t>(),
+                                         inputs[0]->get_shape(),
+                                         outputs[0]->get_shape(),
+                                         op->get_kernel(),
+                                         op->get_strides(),
+                                         op->get_dilations(),
+                                         op->get_pads_begin(),
+                                         op->get_pads_end(),
+                                         op->get_axis());
+        }
+        else
+        {
+            return false;
+        }
+        return true;
+    }
+
     template <typename T>
     bool evaluate_node(std::shared_ptr<Node> node,
                        const HostTensorVector& outputs,
@@ -2959,18 +3001,7 @@ namespace
         {
             element_type = node->get_input_element_type(0);
         }
-        for (size_t i = 1; i < node->outputs().size(); i++)
-        {
-            if ((ov::is_type<op::v5::NonMaxSuppression>(node) ||
-                 ov::is_type<op::v8::MulticlassNms>(node) ||
-                 ov::is_type<op::v8::MatrixNms>(node) ||
-                 ov::is_type<op::v6::ExperimentalDetectronDetectionOutput>(node) ||
-                 ov::is_type<op::v8::AdaptiveMaxPool>(node)) &&
-                 i == 1)
-            {
-                continue;
-            }
-        }
+
         switch (element_type)
         {
         case element::Type_t::boolean:
