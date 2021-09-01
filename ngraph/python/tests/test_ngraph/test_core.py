@@ -283,3 +283,4 @@ def test_discrete_type_info_init():
     assert child1 >= child0
     assert child1 >= child2
     assert child1 <= child2
+    assert child1 != child0
