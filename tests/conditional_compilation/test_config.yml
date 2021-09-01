@@ -32,42 +32,42 @@
 -
     - model:
         name: inception-resnet-v2-tf
-        type: OMZ
+        type: omz
         path: ${OMZ_MODELS_PATH}/inception-resnet-v2-tf
         precision: FP32
         framework: TensorFlow
 -
     - model:
         name: yolo-v3-tf
-        type: OMZ
+        type: omz
         path: ${OMZ_MODELS_PATH}/yolo-v3-tf
         precision: FP32
         framework: Keras
 -
     - model:
         name: octave-resnext-101-0.25
-        type: OMZ
+        type: omz
         path: ${OMZ_MODELS_PATH}/octave-resnext-101-0.25
         precision: FP32
         framework: MXNet
 -
     - model:
         name: fast-neural-style-mosaic-onnx
-        type: OMZ
+        type: omz
         path: ${OMZ_MODELS_PATH}/fast-neural-style-mosaic-onnx
         precision: FP32
         framework: ONNX
 -
     - model:
         name: efficientdet-d1-tf
-        type: OMZ
+        type: omz
         path: ${OMZ_MODELS_PATH}/efficientdet-d1-tf
         precision: FP32
         framework: TensorFlow
 -
     - model:
         name: densenet-201
-        type: OMZ
+        type: omz
         path: ${OMZ_MODELS_PATH}/densenet-201
         precision: FP32
         framework: Caffe
