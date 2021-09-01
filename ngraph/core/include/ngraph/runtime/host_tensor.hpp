@@ -11,6 +11,9 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
+namespace ov {
+class Node;
+}
 namespace ngraph {
 namespace op {
 namespace v0 {
@@ -24,7 +27,7 @@ public:
     HostTensor(const element::Type& element_type, const Shape& shape);
     HostTensor(const element::Type& element_type, const PartialShape& partial_shape);
     HostTensor();
-    explicit HostTensor(const Output<Node>&);
+    explicit HostTensor(const Output<ov::Node>&);
     explicit HostTensor(const std::shared_ptr<op::v0::Constant>& constant);
     virtual ~HostTensor() override;
 
