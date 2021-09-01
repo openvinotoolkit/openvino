@@ -354,7 +354,7 @@ Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to
 ```xml
 <layer id="1" type="Slice" ...>
     <input>
-        <port id="0">       <!-- data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+        <port id="0">       <!-- data: data: [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]] -->
           <dim>2</dim>
           <dim>5</dim>
         </port>
