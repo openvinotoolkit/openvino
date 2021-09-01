@@ -14,7 +14,6 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
@@ -135,7 +134,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         normalize->get_eps_mode());
     NetworkHelper::copyInfo(normalize, newNormalize);
 
-    auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+    auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 },
         std::vector<ngraph::element::Type>{normalize->get_output_element_type(0)},
         ngraph::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),
