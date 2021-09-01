@@ -314,7 +314,9 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
                     |
                  next_op
 
-        returns boolean value whatever we should continue propagating current ReverseChannels operation up or not
+        returns two objects:
+        first - boolean value whatever we should continue propagating current ReverseChannels operation up or not
+        second - list of ReverseChannels operations that were produced while propagating reverse_channels up
         """
         if node.is_in_port_connected(0):
             node_input_port_0 = node.in_port(0)
@@ -325,8 +327,8 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             node_input_port_0.get_connection().set_source(reverse_channels.out_port(0))
             src.connect(reverse_channels.in_port(0))
             node.out_port(0).get_connection().set_destination(reverse_channels_out_npde.in_port(0))
-            return True
-        return False
+            return True, [reverse_channels_out_npde]
+        return False, []
 
     @staticmethod
     def lift_up_through_eltwise(node: Node, reverse_channels: Node):
