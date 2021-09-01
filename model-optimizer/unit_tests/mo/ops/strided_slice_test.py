@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
+from collections.abc import Iterable
 
-import numpy.testing as npt
-
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.ops.strided_slice import StridedSlice
 from unit_tests.utils.graph import build_graph, valued_const_with_data, result, regular_op_with_empty_data, \
@@ -17,9 +16,9 @@ class TestStridedSliceInfer(unittest.TestCase):
     def run_test(self, inp, is_shape, ref_res, begin, end, strides,
                  begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask):
         if is_shape:
-            input_node = shaped_const_with_data('input', int64_array(inp))
+            input_node = shaped_const_with_data('input', shape_array(inp))
         else:
-            input_node = valued_const_with_data('input', int64_array(inp))
+            input_node = valued_const_with_data('input', shape_array(inp))
 
         nodes = {
             **input_node,
@@ -27,9 +26,9 @@ class TestStridedSliceInfer(unittest.TestCase):
                                          {'op': 'StridedSlice', 'begin_mask': begin_mask, 'end_mask': end_mask,
                                           'shrink_axis_mask': shrink_axis_mask, 'ellipsis_mask': ellipsis_mask,
                                           'new_axis_mask': new_axis_mask}),
-            **valued_const_with_data('begin', int64_array(begin)),
-            **valued_const_with_data('end', int64_array(end)),
-            **valued_const_with_data('strides', int64_array(strides)),
+            **valued_const_with_data('begin', shape_array(begin)),
+            **valued_const_with_data('end', shape_array(end)),
+            **valued_const_with_data('strides', shape_array(strides)),
             **result('res'),
         }
 
@@ -45,7 +44,10 @@ class TestStridedSliceInfer(unittest.TestCase):
         node = Node(graph, 'sslice')
         StridedSlice.infer(node)
         res = node.out_port(0).data.get_shape() if is_shape else node.out_port(0).data.get_value()
-        npt.assert_array_equal(res, ref_res)
+        if isinstance(ref_res, Iterable):
+            self.assertTrue(strict_compare_tensors(res, shape_array(ref_res)))
+        else:
+            self.assertEqual(res, ref_res)
 
     def test_slice_infer_value_1( self,  # out = inp[:4:1]
                                   inp=(1, 34, 34, 62), ref_res=(1, 34, 34, 62), is_shape=False,
@@ -274,6 +276,33 @@ class TestStridedSliceInfer(unittest.TestCase):
             inp=(1, 720, 1080, 3), ref_res=(1, 720, 10, 3), is_shape=True,
             begin=(0, 0, 0), end=(0, 10, 3), strides=(1, 1, 1), begin_mask=(0, 1, 1), end_mask=(0, 1, 1),
             shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(1,)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_slice_infer_dynamic_shape_1(
+            self,  # inp[0:3, 0:1, 0:5]
+            inp=(dynamic_dimension_value, 10, 10, 10), ref_res=(dynamic_dimension_value, 1, 5, 10), is_shape=True,
+            begin=(0, 0, 0), end=(3, 1, 5), strides=(1, 1, 1), begin_mask=(1, 1, 1), end_mask=(1, 1, 1),
+            shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_slice_infer_dynamic_shape_2(
+            self,  # inp[0:d, 0:1, 0:5]
+            inp=(10, 10, 10, 10), ref_res=(dynamic_dimension_value, 1, 5, 10), is_shape=True,
+            begin=(0, 0, 0), end=(dynamic_dimension_value, 1, 5), strides=(1, 1, 1), begin_mask=(1, 1, 1),
+            end_mask=(1, 1, 1), shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_slice_infer_dynamic_shape_3(
+            self,  # inp[1:34, 0, :, :d]
+            inp=(1, 35, 35, 3), ref_res=(1, 35, dynamic_dimension_value), is_shape=True,
+            begin=(0, 0, 0, 0), end=(1, 34, 0, dynamic_dimension_value), strides=(1, 1, 1, 1), begin_mask=(1, 1, 0, 0),
+            end_mask=(1, 0, 0, 1), shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 0, 0), ellipsis_mask=(0, 0, 0, 0)
     ):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
