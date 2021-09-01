@@ -15,6 +15,7 @@ using namespace std;
 runtime::AlignedBuffer::AlignedBuffer() : m_allocated_buffer(nullptr), m_aligned_buffer(nullptr), m_byte_size(0) {}
 
 runtime::AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(byte_size) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     m_byte_size = std::max<size_t>(1, byte_size);
     size_t allocation_size = m_byte_size + alignment;
     m_allocated_buffer = static_cast<char*>(ngraph_malloc(allocation_size));
@@ -24,6 +25,7 @@ runtime::AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_by
     if (mod != 0) {
         m_aligned_buffer += (alignment - mod);
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 runtime::AlignedBuffer::AlignedBuffer(AlignedBuffer&& other)
