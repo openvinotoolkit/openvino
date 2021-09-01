@@ -16,7 +16,6 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 #include "ngraph/opsets/opset6.hpp"
 
@@ -79,8 +78,7 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
         }
     }
 
-    const auto scalesConst = ov::as_type_ptr<opset1::Constant>(NetworkHelper::getConstantInput(mvn->get_input_node_shared_ptr(0)));
-    bool isScalarScales = NetworkHelper::isScalarLike(scalesConst);
+    bool isScalarScales = NetworkHelper::isScalarLike(dequantization.multiplyConstant);
 
     AxisSet reduction_axes;
     if (ov::is_type<op::MVN>(mvn)) {
@@ -128,12 +126,9 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
     }
 
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn);
-    auto scalesConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
-    if (scalesConst == nullptr) {
-        scalesConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
-    }
+    const auto scalesConst = dequantization.multiplyConstant;
 
-    auto newScalesConst = scalesConst;
+    auto newScalesConst = dequantization.multiplyConstant;
     const auto type = scalesConst->get_output_element_type(0);
     if (normalizeVariance) {
         switch (type) {
@@ -159,8 +154,8 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMVN, deqPrecision);
     NetworkHelper::copyInfo(mvn, newMVN);
 
-    auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
-        DequantizationMultiply(newMVN, newScalesConst),
+    auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        opset1::Multiply(newMVN, newScalesConst),
         mvn->get_output_element_type(0));
     ngraph::copy_runtime_info({ mvn, newMultiply }, newMultiply);
 
