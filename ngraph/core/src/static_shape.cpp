@@ -8,7 +8,7 @@
 using namespace std;
 
 std::ostream& ov::operator<<(std::ostream& s, const StaticShape& shape) {
-    s << "StaticShape{";
+    s << "{";
     s << ngraph::join(shape);
     s << "}";
     return s;
