@@ -65,9 +65,9 @@ void reord(const std::vector<float>& src_data,
 void split_points(const std::vector<int64_t>& ids, std::vector<int64_t>& rois_per_level, const int64_t levels_num) {
     rois_per_level.clear();
     rois_per_level.resize(levels_num, 0);
-    for (int64_t id : ids) {
-        assert(0 <= id && id < levels_num);
-        rois_per_level[id]++;
+    for (size_t i = 0; i < ids.size(); ++i) {
+        assert(0 <= ids[i] && ids[i] < levels_num);
+        rois_per_level[ids[i]]++;
     }
     for (int64_t i = 1; i < levels_num; ++i) {
         rois_per_level[i] += rois_per_level[i - 1];
