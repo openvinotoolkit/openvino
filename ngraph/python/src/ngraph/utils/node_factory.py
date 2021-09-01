@@ -84,9 +84,9 @@ class NodeFactory(object):
             if issubclass(type(argument), Output):
                 outputs.append(argument)
             else:
-                log.warning('Op arguments were passed as \'Node\', please avoid passing arguments in this manner, '
-                            'and pass \'Outputs\' instead, because accepting \'Nodes\' will be deprecated in a '
-                            'future release.')
+                log.warning("Op arguments were passed as Node, please avoid passing arguments in "
+                            "this manner, and pass Outputs instead, because accepting Nodes will "
+                            "be deprecated in a future release.")
                 outputs.extend(argument.outputs())
         return outputs
 
