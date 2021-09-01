@@ -50,8 +50,9 @@ add_custom_target(ie_libraries ALL
                   DEPENDS inference_engine_transformations inference_engine_legacy
                           inference_engine inference_engine_preproc
                           inference_engine_ir_v7_reader inference_engine_ir_reader
-                          inference_engine_lp_transformations inference_engine_snippets)
+                          inference_engine_lp_transformations inference_engine_snippets
+                          ir_frontend)
 
 if(NGRAPH_ONNX_FRONTEND_ENABLE)
-    add_dependencies(ie_libraries inference_engine_onnx_reader)
+    add_dependencies(ie_libraries onnx_ngraph_frontend)
 endif()
