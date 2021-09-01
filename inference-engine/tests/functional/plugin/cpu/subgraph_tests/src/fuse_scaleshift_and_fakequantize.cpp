@@ -5,7 +5,6 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 using namespace ngraph;
 using FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc;
@@ -58,10 +57,10 @@ protected:
         const auto param = std::make_shared<opset6::Parameter>(inputPrecision, inputShape);
         Shape constShape = Shape(inputShape.size(), 1);
         constShape[1] = scaleShift.second.size();
-        const auto subtract = std::make_shared<pass::low_precision::DequantizationSubtract>(
+        const auto subtract = std::make_shared<opset1::Subtract>(
                 param,
                 std::make_shared<opset6::Constant>(inputPrecision, constShape, scaleShift.second));
-        const auto multiply = std::make_shared<pass::low_precision::DequantizationMultiply>(
+        const auto multiply = std::make_shared<opset1::Multiply>(
                 param,
                 std::make_shared<opset6::Constant>(inputPrecision, constShape, scaleShift.first));
         Shape inConstShape = Shape(inputShape.size(), 1);

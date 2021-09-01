@@ -7,7 +7,6 @@
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
-class Function;
 namespace op {
 namespace v0 {
 /// \brief A function parameter.
@@ -30,7 +29,7 @@ public:
 
     void validate_and_infer_types() override;
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool is_relevant_to_shapes() const;
     void set_is_relevant_to_shapes(bool is_relevant);
@@ -60,11 +59,14 @@ protected:
 using v0::Parameter;
 }  // namespace op
 using ParameterVector = std::vector<std::shared_ptr<op::Parameter>>;
+}  // namespace ngraph
+
+namespace ov {
 
 template <>
-class NGRAPH_API AttributeAdapter<ParameterVector> : public VisitorAdapter {
+class NGRAPH_API AttributeAdapter<ngraph::ParameterVector> : public VisitorAdapter {
 public:
-    AttributeAdapter(ParameterVector& ref);
+    AttributeAdapter(ngraph::ParameterVector& ref);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -74,6 +76,7 @@ public:
     }
 
 protected:
-    ParameterVector& m_ref;
+    ngraph::ParameterVector& m_ref;
 };
-}  // namespace ngraph
+
+}  // namespace ov

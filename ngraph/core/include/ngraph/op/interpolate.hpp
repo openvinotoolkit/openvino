@@ -41,18 +41,16 @@ class NGRAPH_API Interpolate : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
     enum class InterpolateMode {
-        NGRAPH_ENUM_DEPRECATED(nearest, "Please use NEAREST instead"),
-        NGRAPH_ENUM_DEPRECATED(linear, "Please use LINEAR instead"),
-        NGRAPH_ENUM_DEPRECATED(cubic, "Please use CUBIC instead"),
-        NGRAPH_ENUM_DEPRECATED(area, "Please use AREA instead"),
-        NEAREST = nearest,
-        LINEAR = linear,
-        CUBIC = cubic,
-        AREA = area
+        NEAREST,
+        LINEAR,
+        CUBIC,
+        AREA,
+        nearest NGRAPH_ENUM_DEPRECATED("Please use NEAREST instead") = NEAREST,
+        linear NGRAPH_ENUM_DEPRECATED("Please use LINEAR instead") = LINEAR,
+        cubic NGRAPH_ENUM_DEPRECATED("Please use CUBIC instead") = CUBIC,
+        area NGRAPH_ENUM_DEPRECATED("Please use AREA instead") = AREA
     };
-    NGRAPH_SUPPRESS_DEPRECATED_END
 
     Interpolate() = default;
     /// \brief Constructs a Interpolate operation
@@ -85,14 +83,12 @@ public:
     ///
     /// sizes  - output shape for interpolated axes is calculated using input `sizes`
     /// scales - output shape for interpolated axes is calculated using input `scales`
-    NGRAPH_SUPPRESS_DEPRECATED_START
     enum class ShapeCalcMode {
-        NGRAPH_ENUM_DEPRECATED(sizes, "Please use SIZES instead"),
-        NGRAPH_ENUM_DEPRECATED(scales, "Please use SCALES instead"),
-        SIZES = sizes,
-        SCALES = scales
+        SIZES,
+        SCALES,
+        sizes NGRAPH_ENUM_DEPRECATED("Please use SIZES instead") = SIZES,
+        scales NGRAPH_ENUM_DEPRECATED("Please use SCALES instead") = SCALES
     };
-    NGRAPH_SUPPRESS_DEPRECATED_END
 
     /// \brief Interpolation mode
     ///
@@ -100,52 +96,46 @@ public:
     /// linear      - linear interpolation as in TensorFlow
     /// linear_onnx - linear interpolation as in ONNX
     /// cubic       - cubic interpolation
-    NGRAPH_SUPPRESS_DEPRECATED_START
     enum class InterpolateMode {
-        NGRAPH_ENUM_DEPRECATED(nearest, "Please use NEAREST instead"),
-        NGRAPH_ENUM_DEPRECATED(linear, "Please use LINEAR instead"),
-        NGRAPH_ENUM_DEPRECATED(linear_onnx, "Please use LINEAR_ONNX instead"),
-        NGRAPH_ENUM_DEPRECATED(cubic, "Please use CUBIC instead"),
-        NEAREST = nearest,
-        LINEAR = linear,
-        LINEAR_ONNX = linear_onnx,
-        CUBIC = cubic
+        NEAREST,
+        LINEAR,
+        LINEAR_ONNX,
+        CUBIC,
+        nearest NGRAPH_ENUM_DEPRECATED("Please use NEAREST instead") = NEAREST,
+        linear NGRAPH_ENUM_DEPRECATED("Please use LINEAR instead") = LINEAR,
+        linear_onnx NGRAPH_ENUM_DEPRECATED("Please use LINEAR_ONNX instead") = LINEAR_ONNX,
+        cubic NGRAPH_ENUM_DEPRECATED("Please use CUBIC instead") = CUBIC
     };
-    NGRAPH_SUPPRESS_DEPRECATED_END
 
     /// \brief Mode of the calculation of the source coordinate from resized one
     ///
     /// These modes are modes from ONNX runtime.
-    NGRAPH_SUPPRESS_DEPRECATED_START
     enum class CoordinateTransformMode {
-        NGRAPH_ENUM_DEPRECATED(half_pixel, "Please use HALF_PIXEL instead"),
-        NGRAPH_ENUM_DEPRECATED(pytorch_half_pixel, "Please use PYTORCH_HALF_PIXEL instead"),
-        NGRAPH_ENUM_DEPRECATED(asymmetric, "Please use ASYMMETRIC instead"),
-        NGRAPH_ENUM_DEPRECATED(tf_half_pixel_for_nn, "Please use TF_HALF_PIXEL_FOR_NN instead"),
-        NGRAPH_ENUM_DEPRECATED(align_corners, "Please use ALIGN_CORNERS instead"),
-        HALF_PIXEL = half_pixel,
-        PYTORCH_HALF_PIXEL = pytorch_half_pixel,
-        ASYMMETRIC = asymmetric,
-        TF_HALF_PIXEL_FOR_NN = tf_half_pixel_for_nn,
-        ALIGN_CORNERS = align_corners
+        HALF_PIXEL,
+        PYTORCH_HALF_PIXEL,
+        ASYMMETRIC,
+        TF_HALF_PIXEL_FOR_NN,
+        ALIGN_CORNERS,
+        half_pixel NGRAPH_ENUM_DEPRECATED("Please use HALF_PIXEL instead") = HALF_PIXEL,
+        pytorch_half_pixel NGRAPH_ENUM_DEPRECATED("Please use PYTORCH_HALF_PIXEL instead") = PYTORCH_HALF_PIXEL,
+        asymmetric NGRAPH_ENUM_DEPRECATED("Please use ASYMMETRIC instead") = ASYMMETRIC,
+        tf_half_pixel_for_nn NGRAPH_ENUM_DEPRECATED("Please use TF_HALF_PIXEL_FOR_NN instead") = TF_HALF_PIXEL_FOR_NN,
+        align_corners NGRAPH_ENUM_DEPRECATED("Please use ALIGN_CORNERS instead") = ALIGN_CORNERS
     };
-    NGRAPH_SUPPRESS_DEPRECATED_END
 
     /// \brief Round modes for the nearest interpolation.
-    NGRAPH_SUPPRESS_DEPRECATED_START
     enum class NearestMode {
-        NGRAPH_ENUM_DEPRECATED(round_prefer_floor, "Please use ROUND_PREFER_FLOOR instead"),
-        NGRAPH_ENUM_DEPRECATED(round_prefer_ceil, "Please use ROUND_PREFER_CEIL instead"),
-        NGRAPH_ENUM_DEPRECATED(floor, "Please use FLOOR instead"),
-        NGRAPH_ENUM_DEPRECATED(ceil, "Please use CEIL instead"),
-        NGRAPH_ENUM_DEPRECATED(simple, "Please use SIMPLE instead"),
-        ROUND_PREFER_FLOOR = round_prefer_floor,
-        ROUND_PREFER_CEIL = round_prefer_ceil,
-        FLOOR = floor,
-        CEIL = ceil,
-        SIMPLE = simple
+        ROUND_PREFER_FLOOR,
+        ROUND_PREFER_CEIL,
+        FLOOR,
+        CEIL,
+        SIMPLE,
+        round_prefer_floor NGRAPH_ENUM_DEPRECATED("Please use ROUND_PREFER_FLOOR instead") = ROUND_PREFER_FLOOR,
+        round_prefer_ceil NGRAPH_ENUM_DEPRECATED("Please use ROUND_PREFER_CEIL instead") = ROUND_PREFER_CEIL,
+        floor NGRAPH_ENUM_DEPRECATED("Please use FLOOR instead") = FLOOR,
+        ceil NGRAPH_ENUM_DEPRECATED("Please use CEIL instead") = CEIL,
+        simple NGRAPH_ENUM_DEPRECATED("Please use SIMPLE instead") = SIMPLE
     };
-    NGRAPH_SUPPRESS_DEPRECATED_END
 
     struct InterpolateAttrs {
         // specifies type of interpolation
@@ -293,30 +283,42 @@ using v0::InterpolateAttrs;
 NGRAPH_API
 std::ostream& operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type);
 
+//---------------------------------------- v4 --------------------------------------------------
+
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type);
+
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::CoordinateTransformMode& type);
+
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::NearestMode& type);
+
+NGRAPH_API
+std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::ShapeCalcMode& type);
+
+}  // namespace ngraph
+
+namespace ov {
+
 template <>
-class NGRAPH_API AttributeAdapter<op::v0::Interpolate::InterpolateMode>
-    : public EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v0::Interpolate::InterpolateMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v0::Interpolate::InterpolateMode> {
 public:
-    AttributeAdapter(op::v0::Interpolate::InterpolateMode& value)
-        : EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode>(value) {}
+    AttributeAdapter(ngraph::op::v0::Interpolate::InterpolateMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v0::Interpolate::InterpolateMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v0::Interpolate::InterpolateMode>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-
-//---------------------------------------- v4 --------------------------------------------------
-
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type);
-
 template <>
-class NGRAPH_API AttributeAdapter<op::v4::Interpolate::InterpolateMode>
-    : public EnumAttributeAdapterBase<op::v4::Interpolate::InterpolateMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v4::Interpolate::InterpolateMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::InterpolateMode> {
 public:
-    AttributeAdapter(op::v4::Interpolate::InterpolateMode& value)
-        : EnumAttributeAdapterBase<op::v4::Interpolate::InterpolateMode>(value) {}
+    AttributeAdapter(ngraph::op::v4::Interpolate::InterpolateMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::InterpolateMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::InterpolateMode>", 4};
     const DiscreteTypeInfo& get_type_info() const override {
@@ -324,15 +326,12 @@ public:
     }
 };
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::CoordinateTransformMode& type);
-
 template <>
-class NGRAPH_API AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>
-    : public EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v4::Interpolate::CoordinateTransformMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::CoordinateTransformMode> {
 public:
-    AttributeAdapter(op::v4::Interpolate::CoordinateTransformMode& value)
-        : EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode>(value) {}
+    AttributeAdapter(ngraph::op::v4::Interpolate::CoordinateTransformMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::CoordinateTransformMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>", 4};
     const DiscreteTypeInfo& get_type_info() const override {
@@ -340,15 +339,12 @@ public:
     }
 };
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::NearestMode& type);
-
 template <>
-class NGRAPH_API AttributeAdapter<op::v4::Interpolate::NearestMode>
-    : public EnumAttributeAdapterBase<op::v4::Interpolate::NearestMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v4::Interpolate::NearestMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::NearestMode> {
 public:
-    AttributeAdapter(op::v4::Interpolate::NearestMode& value)
-        : EnumAttributeAdapterBase<op::v4::Interpolate::NearestMode>(value) {}
+    AttributeAdapter(ngraph::op::v4::Interpolate::NearestMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::NearestMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::NearestMode>", 4};
     const DiscreteTypeInfo& get_type_info() const override {
@@ -356,19 +352,16 @@ public:
     }
 };
 
-NGRAPH_API
-std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::ShapeCalcMode& type);
-
 template <>
-class NGRAPH_API AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>
-    : public EnumAttributeAdapterBase<op::v4::Interpolate::ShapeCalcMode> {
+class NGRAPH_API AttributeAdapter<ngraph::op::v4::Interpolate::ShapeCalcMode>
+    : public EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::ShapeCalcMode> {
 public:
-    AttributeAdapter(op::v4::Interpolate::ShapeCalcMode& value)
-        : EnumAttributeAdapterBase<op::v4::Interpolate::ShapeCalcMode>(value) {}
+    AttributeAdapter(ngraph::op::v4::Interpolate::ShapeCalcMode& value)
+        : EnumAttributeAdapterBase<ngraph::op::v4::Interpolate::ShapeCalcMode>(value) {}
 
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>", 4};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
 };
-}  // namespace ngraph
+}  // namespace ov

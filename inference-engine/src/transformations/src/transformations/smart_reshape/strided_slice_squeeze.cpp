@@ -158,8 +158,8 @@ bool squeezes_perform_the_same(std::shared_ptr<ngraph::opset5::Squeeze> lhs, std
     const auto l_axes = std::dynamic_pointer_cast<ngraph::opset5::Constant>(lhs->get_input_node_shared_ptr(1));
     const auto r_axes = std::dynamic_pointer_cast<ngraph::opset5::Constant>(rhs->get_input_node_shared_ptr(1));
     if (l_axes && r_axes)
-        return normalize_axes(lhs->description(), l_axes->cast_vector<int64_t>(), rank) ==
-        normalize_axes(rhs->description(), r_axes->cast_vector<int64_t>(), rank);
+        return ngraph::normalize_axes(lhs->description(), l_axes->cast_vector<int64_t>(), rank) ==
+               ngraph::normalize_axes(rhs->description(), r_axes->cast_vector<int64_t>(), rank);
     return false;
 }
 
