@@ -11,7 +11,7 @@ from mo.graph.graph import Node, Graph, add_opoutput, dict_includes_compare_attr
 from mo.ops.const import Const
 from mo.utils.error import Error
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.utils.graph import build_graph
+from unit_tests.utils.graph import build_graph, build_graph_with_edge_attrs
 
 nodes = {
     '0': {'name': 'input1', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
@@ -427,6 +427,79 @@ class TestNewGraphAPIMiddle(unittest.TestCase):
 
         'const_1': {'type': 'Const', 'value': None, 'kind': 'op', 'op': 'Const'},
         'const_1_data': {'value': None, 'shape': None, 'kind': 'data'},
+    }
+
+    nodes_10_in_10_out = {
+        'in_0': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'in_0_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'in_1': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'in_1_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'in_2': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'in_2_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'in_3': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'in_3_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'in_4': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'in_4_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'in_5': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'in_5_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'in_6': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'in_6_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'in_7': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'in_7_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'in_8': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'in_8_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'in_9': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'in_9_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'in_10': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'in_10_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'op_concat': {'type': 'Concat', 'value': None, 'kind': 'op', 'op': 'Concat'},
+        'op_concat_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'op_split': {'type': 'Split', 'value': None, 'kind': 'op', 'op': 'Split'},
+
+        'out_0': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'op_split_0_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'out_1': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'op_split_1_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'out_2': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'op_split_2_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'out_3': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'op_split_3_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'out_4': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'op_split_4_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'out_5': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'op_split_5_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'out_6': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'op_split_6_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'out_7': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'op_split_7_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'out_8': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'op_split_8_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'out_9': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'op_split_9_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'out_10': {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'},
+        'op_split_10_data': {'value': None, 'shape': None, 'kind': 'data'},
     }
 
       ###########################################
@@ -1083,6 +1156,140 @@ class TestNewGraphAPIMiddle(unittest.TestCase):
             for idx in range(len(node.out_ports())):
                 self.assertEqual(node.out_port(idx), node.out_ports()[idx])
 
+    def test_node_in_ports_order_10_inputs(self):
+        graph = build_graph(self.nodes_10_in_10_out,
+                            [('in_0', 'in_0_data'),
+                             ('in_1', 'in_1_data'),
+                             ('in_2', 'in_2_data'),
+                             ('in_3', 'in_3_data'),
+                             ('in_4', 'in_4_data'),
+                             ('in_5', 'in_5_data'),
+                             ('in_6', 'in_6_data'),
+                             ('in_7', 'in_7_data'),
+                             ('in_8', 'in_8_data'),
+                             ('in_9', 'in_9_data'),
+                             ('in_10', 'in_10_data'),
+                             ('in_0_data', 'op_concat', {'in': 0}),
+                             ('in_1_data', 'op_concat', {'in': 1}),
+                             ('in_2_data', 'op_concat', {'in': 2}),
+                             ('in_3_data', 'op_concat', {'in': 3}),
+                             ('in_4_data', 'op_concat', {'in': 4}),
+                             ('in_5_data', 'op_concat', {'in': 5}),
+                             ('in_6_data', 'op_concat', {'in': 6}),
+                             ('in_7_data', 'op_concat', {'in': 7}),
+                             ('in_8_data', 'op_concat', {'in': 8}),
+                             ('in_9_data', 'op_concat', {'in': 9}),
+                             ('in_10_data', 'op_concat', {'in': 10}),
+                             ('op_concat', 'op_concat_data'),
+                             ('op_concat_data', 'op_split'),
+                             ('op_split', 'op_split_0_data', {'out': 0}),
+                             ('op_split', 'op_split_1_data', {'out': 1}),
+                             ('op_split', 'op_split_2_data', {'out': 2}),
+                             ('op_split', 'op_split_3_data', {'out': 3}),
+                             ('op_split', 'op_split_4_data', {'out': 4}),
+                             ('op_split', 'op_split_5_data', {'out': 5}),
+                             ('op_split', 'op_split_6_data', {'out': 6}),
+                             ('op_split', 'op_split_7_data', {'out': 7}),
+                             ('op_split', 'op_split_8_data', {'out': 8}),
+                             ('op_split', 'op_split_9_data', {'out': 9}),
+                             ('op_split', 'op_split_10_data', {'out': 10}),
+                             ('op_split_0_data', 'out_0'),
+                             ('op_split_1_data', 'out_1'),
+                             ('op_split_2_data', 'out_2'),
+                             ('op_split_3_data', 'out_3'),
+                             ('op_split_4_data', 'out_4'),
+                             ('op_split_5_data', 'out_5'),
+                             ('op_split_6_data', 'out_6'),
+                             ('op_split_7_data', 'out_7'),
+                             ('op_split_8_data', 'out_8'),
+                             ('op_split_9_data', 'out_9'),
+                             ('op_split_10_data', 'out_10'),
+                             ])
+
+        node_concat = Node(graph, 'op_concat')
+        node_split = Node(graph, 'op_split')
+
+        self.assertEqual(len(node_concat.in_ports()), len(node_concat.in_nodes()))
+
+        l1 = [node_concat.in_port(idx).get_source().node.name for idx in node_concat.in_ports()]
+        l2 = [node_concat.in_node(idx).in_node(0).name for idx in node_concat.in_nodes()]
+
+        self.assertEqual(l1, l2)
+
+        l1 = [node_split.out_port(idx).get_destination().node.name for idx in node_split.out_ports()]
+        l2 = [node_split.out_node(idx).out_node(0).name for idx in node_split.out_nodes()]
+
+        self.assertEqual(l1, l2)
+
+    def test_node_in_ports_order_10_inputs_control_flow(self):
+        graph = build_graph(self.nodes_10_in_10_out,
+                            [('in_0', 'in_0_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('in_1', 'in_1_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('in_2', 'in_2_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('in_3', 'in_3_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('in_4', 'in_4_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('in_5', 'in_5_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('in_6', 'in_6_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('in_7', 'in_7_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('in_8', 'in_8_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('in_9', 'in_9_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('in_10', 'in_10_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('in_0_data', 'op_concat', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ('in_1_data', 'op_concat', {'in': 'control_flow_1', 'control_flow_edge': True}),
+                             ('in_2_data', 'op_concat', {'in': 'control_flow_2', 'control_flow_edge': True}),
+                             ('in_3_data', 'op_concat', {'in': 'control_flow_3', 'control_flow_edge': True}),
+                             ('in_4_data', 'op_concat', {'in': 'control_flow_4', 'control_flow_edge': True}),
+                             ('in_5_data', 'op_concat', {'in': 'control_flow_5', 'control_flow_edge': True}),
+                             ('in_6_data', 'op_concat', {'in': 'control_flow_6', 'control_flow_edge': True}),
+                             ('in_7_data', 'op_concat', {'in': 'control_flow_7', 'control_flow_edge': True}),
+                             ('in_8_data', 'op_concat', {'in': 'control_flow_8', 'control_flow_edge': True}),
+                             ('in_9_data', 'op_concat', {'in': 'control_flow_9', 'control_flow_edge': True}),
+                             ('in_10_data', 'op_concat', {'in': 'control_flow_10', 'control_flow_edge': True}),
+                             ('op_concat', 'op_concat_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_concat_data', 'op_split', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_split', 'op_split_0_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_split', 'op_split_1_data', {'out': 'control_flow_1', 'control_flow_edge': True}),
+                             ('op_split', 'op_split_2_data', {'out': 'control_flow_2', 'control_flow_edge': True}),
+                             ('op_split', 'op_split_3_data', {'out': 'control_flow_3', 'control_flow_edge': True}),
+                             ('op_split', 'op_split_4_data', {'out': 'control_flow_4', 'control_flow_edge': True}),
+                             ('op_split', 'op_split_5_data', {'out': 'control_flow_5', 'control_flow_edge': True}),
+                             ('op_split', 'op_split_6_data', {'out': 'control_flow_6', 'control_flow_edge': True}),
+                             ('op_split', 'op_split_7_data', {'out': 'control_flow_7', 'control_flow_edge': True}),
+                             ('op_split', 'op_split_8_data', {'out': 'control_flow_8', 'control_flow_edge': True}),
+                             ('op_split', 'op_split_9_data', {'out': 'control_flow_9', 'control_flow_edge': True}),
+                             ('op_split', 'op_split_10_data', {'out': 'control_flow_10', 'control_flow_edge': True}),
+                             ('op_split_0_data', 'out_0', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_split_1_data', 'out_1', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_split_2_data', 'out_2', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_split_3_data', 'out_3', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_split_4_data', 'out_4', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_split_5_data', 'out_5', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_split_6_data', 'out_6', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_split_7_data', 'out_7', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_split_8_data', 'out_8', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_split_9_data', 'out_9', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ('op_split_10_data', 'out_10', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                             ])
+
+        node_concat = Node(graph, 'op_concat')
+        node_split = Node(graph, 'op_split')
+
+        self.assertEqual(len(node_concat.in_ports()), len(node_concat.in_nodes()))
+
+        l1 = [node_concat.in_port(idx, control_flow=True).get_source().node.name
+              for idx in node_concat.in_ports(control_flow=True)]
+        l2 = [node_concat.in_node(idx, control_flow=True).in_node(0, control_flow=True).name
+              for idx in node_concat.in_nodes(control_flow=True)]
+
+        self.assertEqual(l1, l2)
+
+        l1 = [node_split.out_port(idx, control_flow=True).get_destination().node.name
+              for idx in node_split.out_ports(control_flow=True)]
+        l2 = [node_split.out_node(idx, control_flow=True).out_node(0, control_flow=True).name for idx in
+              node_split.out_nodes(control_flow=True)]
+
+        self.assertEqual(l1, l2)
+
 
 class TestNewGraphAPIFront(unittest.TestCase):
     nodes = {
@@ -1670,3 +1877,7 @@ class TestGetSetAttributeBetweenNodes(unittest.TestCase):
         self.assertTrue(get_edge_attribute_between_nodes(a_node, f_node, 'Attr') == "new_value_3")
         self.assertTrue(get_edge_attribute_between_nodes(b_node, d_node, 'Attr') == "new_value_4")
         self.assertTrue(get_edge_attribute_between_nodes(b_node, f_node, 'Attr') == "new_value_5")
+
+
+class TestOD(unittest.TestCase):
+    pass
