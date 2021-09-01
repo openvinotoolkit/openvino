@@ -703,10 +703,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SplitConvolutionWithFq>();
         manager.register_pass<SplitConvolutionWithBias>();
         manager.register_pass<SplitConvolution>();
-        manager.register_pass<HandleTransposesAroundMatMul>();
         manager.register_pass<SwapInputMatMulWithFq>();
         manager.register_pass<SwapInputMatMulWithBias>();
-        manager.register_pass<SwapInputMatMul>();
+        manager.register_pass<SwapInputMatMulFirstInputConstant>();
+        manager.register_pass<SwapInputMatMulSecondInputConstant>();
+        manager.register_pass<HandleTransposesAroundMatMul>();
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
