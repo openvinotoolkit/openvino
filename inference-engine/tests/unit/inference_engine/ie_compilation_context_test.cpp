@@ -13,7 +13,6 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/variant.hpp"
 #include "ngraph/opsets/opset6.hpp"
-#include "transformations/rt_info/dequantization_attribute.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "cpp/ie_cnn_network.h"
@@ -217,18 +216,6 @@ TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriority) {
 
     ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}),
               NetworkCompilationContext::computeHash(net3, {}));
-}
-
-TEST(NetworkContext_CNNNetwork, HashWithDequantization) {
-    auto setDeqEmpty = [&](Node::RTMap& rtInfo) {
-        rtInfo[VariantWrapper<DequantizationAttr>::type_info.name] =
-                std::make_shared<VariantWrapper<DequantizationAttr>>(DequantizationAttr());
-    };
-    auto setDeq = [&](Node::RTMap& rtInfo, const std::string& name) {
-        rtInfo[VariantWrapper<DequantizationAttr>::type_info.name] =
-                std::make_shared<VariantWrapper<DequantizationAttr>>(DequantizationAttr(name));
-    };
-    checkCustomRt(setDeqEmpty, setDeq);
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithFusedNames) {

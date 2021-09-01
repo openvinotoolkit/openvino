@@ -16,7 +16,6 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 #include "ngraph/opsets/opset6.hpp"
 
@@ -155,8 +154,8 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMVN, deqPrecision);
     NetworkHelper::copyInfo(mvn, newMVN);
 
-    auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
-        DequantizationMultiply(newMVN, newScalesConst),
+    auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        opset1::Multiply(newMVN, newScalesConst),
         mvn->get_output_element_type(0));
     ngraph::copy_runtime_info({ mvn, newMultiply }, newMultiply);
 

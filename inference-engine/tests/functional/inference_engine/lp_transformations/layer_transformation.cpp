@@ -139,10 +139,6 @@ ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequa
 
     ngraph::builder::subgraph::DequantizationOperations::Multiply multiply;
     {
-        const bool addDequantizationAttribute = dequantization.multiply != nullptr ?
-            dequantization.multiply->get_rt_info().count("DEQUANTIZATION") != 0 :
-            true;
-
         const size_t constantIndex = dequantization.multiplyConstant && dequantization.multiply ?
             ngraph::pass::low_precision::NetworkHelper::getChildInputIndex(dequantization.multiplyConstant, dequantization.multiply) :
             0ul;
@@ -152,7 +148,7 @@ ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequa
                 dequantization.multiplyConstant->cast_vector<float>(),
                 dequantization.multiplyConstant->output(0).get_element_type(),
                 dequantization.multiplyConstant->output(0).get_shape(),
-                addDequantizationAttribute,
+                false,
                 constantIndex) :
             ngraph::builder::subgraph::DequantizationOperations::Multiply();
     }
