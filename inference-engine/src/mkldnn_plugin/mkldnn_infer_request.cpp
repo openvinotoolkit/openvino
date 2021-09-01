@@ -239,7 +239,6 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
         if (_inputs.find(name) == _inputs.end()) {
             if (_networkInputs.find(name) != _networkInputs.end()) {
                 InferenceEngine::TensorDesc desc = _networkInputs[name]->getTensorDesc();
-                InferenceEngine::Precision originPrecision = graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
                 bool isDynamic = _networkInputs[name]->getInputData()->isDynamic();
 
                 _inputs[name] = make_blob_with_precision(desc);
@@ -291,22 +290,26 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
                     const auto& expectedTensorDesc = isDynamic ? InferenceEngine::TensorDesc(desc.getPrecision(),
                                                                           InferenceEngine::TensorDesc::getLayoutByRank(desc.getShape().getRank()))
                                                                 : MemoryDescUtils::convertToTensorDesc(desc);
-                    if (expectedTensorDesc.getPrecision() != data->getTensorDesc().getPrecision()) {
+                    const auto &tensorDesc = data->getTensorDesc();
+                    if (expectedTensorDesc.getPrecision() != tensorDesc.getPrecision()) {
                         IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << " but expect blobs with different precision: "
-                                                    << data->getTensorDesc().getPrecision() << " for input and " << expectedTensorDesc.getPrecision()
+                                                    << tensorDesc.getPrecision() << " for input and " << expectedTensorDesc.getPrecision()
                                                     << " for output.";
                     }
 
-                    if (expectedTensorDesc.getDims() != data->getTensorDesc().getDims()) {
+                    if (expectedTensorDesc.getDims() != tensorDesc.getDims()) {
                         IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << " but expect blobs with different shapes.";
                     }
 
-                    if (data->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY && expectedTensorDesc.getLayout() != InferenceEngine::Layout::ANY) {
-                        if (data->getTensorDesc().getLayout() != expectedTensorDesc.getLayout())
-                            IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << " but expect blobs"
-                                                        << " with different layouts.";
+                    if (tensorDesc.getLayout() != InferenceEngine::Layout::ANY && expectedTensorDesc.getLayout() != InferenceEngine::Layout::ANY) {
+                        if (tensorDesc.getLayout() != expectedTensorDesc.getLayout() && !(tensorDesc.getLayout() == InferenceEngine::Layout::BLOCKED &&
+                            InferenceEngine::TensorDesc(tensorDesc.getPrecision(), tensorDesc.getDims(), tensorDesc.getBlockingDesc()).getLayout() ==
+                                expectedTensorDesc.getLayout())) {
+                                IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << " but expect blobs" <<
+                                                               " with different layouts.";
+                        }
 
-                        if (expectedTensorDesc.getBlockingDesc() != data->getTensorDesc().getBlockingDesc())
+                        if (expectedTensorDesc.getBlockingDesc() != tensorDesc.getBlockingDesc())
                             IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name
                                                         << " but expect blobs with different blocking descriptors.";
                     }
@@ -351,11 +354,12 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
     InferenceEngine::DataPtr foundOutput;
     size_t dataSize = data->size();
     findInputAndOutputBlobByName(name, foundInput, foundOutput);
+    const auto &blobDesc = data->getTensorDesc();
 
     if (foundInput) {
-        if (foundInput->getPrecision() != data->getTensorDesc().getPrecision()) {
+        if (foundInput->getPrecision() != blobDesc.getPrecision()) {
             IE_THROW(ParameterMismatch) << "Failed to set input blob with precision: "
-                               << data->getTensorDesc().getPrecision() << ", if CNNNetwork input blob precision is: " << foundInput->getPrecision();
+                               << blobDesc.getPrecision() << ", if CNNNetwork input blob precision is: " << foundInput->getPrecision();
         }
 
         const bool preProcRequired = preProcessingRequired(foundInput, data);
@@ -383,20 +387,21 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                                    << dataSize << "!=" << inputSize << ").";
             }
 
-            if (!isDynamic && foundInput->getTensorDesc().getDims() != data->getTensorDesc().getDims()) {
+            if (!isDynamic && foundInput->getTensorDesc().getDims() != blobDesc.getDims()) {
                 IE_THROW(ParameterMismatch) << "Failed to set input blob. Dimensions mismatch.";
             }
 
-            if (data->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY && foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY) {
-                if (data->getTensorDesc().getLayout() != foundInput->getLayout())
+            if (blobDesc.getLayout() != InferenceEngine::Layout::ANY && foundInput->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY) {
+                if (isDynamic && InferenceEngine::TensorDesc(foundInput->getPrecision(), blobDesc.getDims(), foundInput->getLayout()).getBlockingDesc() !=
+                        blobDesc.getBlockingDesc())
                     IE_THROW(ParameterMismatch) << "Failed to set input blob. Layouts mismatch.";
 
-                if (!isDynamic && foundInput->getTensorDesc().getBlockingDesc() != data->getTensorDesc().getBlockingDesc())
+                if (!isDynamic && foundInput->getTensorDesc().getBlockingDesc() != blobDesc.getBlockingDesc())
                     IE_THROW(ParameterMismatch) << "Failed to set input blob. Blocking descriptor mismatch.";
             }
 
             const auto &actualDesc = graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc();
-            if (actualDesc.isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(data->getTensorDesc())) &&
+            if (actualDesc.isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(blobDesc)) &&
                 graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
                 externalPtr[name] = data->buffer();
             } else if (externalPtr.find(name) != externalPtr.end()) {
@@ -410,9 +415,9 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
             IE_THROW(NotImplemented)
                                << "cannot set compound blob: supported only for input pre-processing";
         }
-        if (foundOutput->getPrecision() != data->getTensorDesc().getPrecision()) {
+        if (foundOutput->getPrecision() != blobDesc.getPrecision()) {
             IE_THROW(ParameterMismatch) << "Failed to set output blob with precision: "
-                               << data->getTensorDesc().getPrecision() << ", if CNNNetwork output blob precision is: " << foundOutput->getPrecision();
+                               << blobDesc.getPrecision() << ", if CNNNetwork output blob precision is: " << foundOutput->getPrecision();
         }
         size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
             ? InferenceEngine::details::product(foundOutput->getDims())
@@ -423,20 +428,21 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
             IE_THROW() << "Output blob size is not equal network output size ("
                                << dataSize << "!=" << outputSize << ").";
         }
-        if (!isDynamic && foundOutput->getTensorDesc().getDims() != data->getTensorDesc().getDims()) {
+        if (!isDynamic && foundOutput->getTensorDesc().getDims() != blobDesc.getDims()) {
             IE_THROW(ParameterMismatch) << "Failed to set output Blob. Dimensions mismatch.";
         }
 
-        if (data->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY && foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY) {
-            if (data->getTensorDesc().getLayout() != foundOutput->getLayout())
-                IE_THROW(ParameterMismatch) << "Failed to set output blob. Layouts mismatch.";
+        if (blobDesc.getLayout() != InferenceEngine::Layout::ANY && foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::ANY) {
+            if (isDynamic && InferenceEngine::TensorDesc(foundOutput->getPrecision(), blobDesc.getDims(), foundOutput->getLayout()).getBlockingDesc() !=
+                    blobDesc.getBlockingDesc())
+                IE_THROW(ParameterMismatch) << "Failed to set input blob. Layouts mismatch.";
 
-            if (!isDynamic && foundOutput->getTensorDesc().getBlockingDesc() != data->getTensorDesc().getBlockingDesc())
+            if (!isDynamic && foundOutput->getTensorDesc().getBlockingDesc() != blobDesc.getBlockingDesc())
                 IE_THROW(ParameterMismatch) << "Failed to set output blob. Blocking descriptor mismatch.";
         }
 
         const auto &desc = graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
-        if (!isDynamic && data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(desc) && !graph->getProperty().batchLimit) {
+        if (!isDynamic && blobDesc == MemoryDescUtils::convertToTensorDesc(desc) && !graph->getProperty().batchLimit) {
             externalPtr[name] = data->buffer();
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);

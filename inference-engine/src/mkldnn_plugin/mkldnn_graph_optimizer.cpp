@@ -133,9 +133,9 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     FuseEltwiseAndSimple(graph);
     graph.RemoveDroppedNodes();
 
-    // OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "reshapeRnnSeq");
-    // reshapeRnnSeq(graph);
-    // graph.RemoveDroppedNodes();
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "reshapeRnnSeq");
+    reshapeRnnSeq(graph);
+    graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveDroppedEdges");
     graph.RemoveDroppedEdges();
@@ -1820,42 +1820,42 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
     }
 }
 
-// void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
-//     auto& graphNodes = graph.GetNodes();
+void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
 
-//     auto isSutableParentNode = [](MKLDNNNodePtr node) {
-//         if (node->type != RNNSeq)
-//             return false;
-//         auto rnnNode = std::dynamic_pointer_cast<MKLDNNRNN>(node);
-//         return rnnNode && !rnnNode->hasNativeOrder() && node->outputShapes[0].getRank() == 4 && node->outputShapes[0].getDims()[1] == 1;
-//     };
+    auto isSutableParentNode = [](MKLDNNNodePtr node) {
+        if (node->type != RNNSeq)
+            return false;
+        auto rnnNode = std::dynamic_pointer_cast<MKLDNNRNN>(node);
+        return rnnNode && !rnnNode->hasNativeOrder() && node->outputShapes[0].getRank() == 4 && node->outputShapes[0].getDims()[1] == 1;
+    };
 
-//     for (int i = 0; i < graphNodes.size(); i++) {
-//         auto& parentNode = graphNodes[i];
-//         if (!isSutableParentNode(parentNode)) {
-//             continue;
-//         }
+    for (int i = 0; i < graphNodes.size(); i++) {
+        auto& parentNode = graphNodes[i];
+        if (!isSutableParentNode(parentNode)) {
+            continue;
+        }
 
-//         auto childrenEdges = parentNode->getChildEdgesAtPort(0);
-//         auto newRnnOutDims = parentNode->outputShapes[0].getDims();
-//         newRnnOutDims.erase(newRnnOutDims.begin() + 1);
-//         parentNode->outputShapes[0] = Shape{newRnnOutDims};
+        auto childrenEdges = parentNode->getChildEdgesAtPort(0);
+        auto newRnnOutDims = parentNode->outputShapes[0].getDims();
+        newRnnOutDims.erase(newRnnOutDims.begin() + 1);
+        parentNode->outputShapes[0] = Shape{newRnnOutDims};
 
-//         for (size_t i = 0; i < childrenEdges.size(); i++) {
-//             auto edge = childrenEdges[i];
-//             auto childNode = edge->getChild();
+        for (size_t i = 0; i < childrenEdges.size(); i++) {
+            auto edge = childrenEdges[i];
+            auto childNode = edge->getChild();
 
-//             const MKLDNNNodePtr newReshape = std::make_shared<MKLDNNReshapeNode>(
-//                     parentNode->getName() + "_abc_a1bc_" + std::to_string(i),
-//                     parentNode->outputShapes[0],
-//                     childNode->inputShapes[edge->getOutputNum()],
-//                     parentNode->getOriginalOutputPrecisionAtPort(0),
-//                     graph.getEngine(), graph.weightsCache);
+            const MKLDNNNodePtr newReshape = std::make_shared<MKLDNNReshapeNode>(
+                    parentNode->getName() + "_abc_a1bc_" + std::to_string(i),
+                    parentNode->outputShapes[0],
+                    childNode->inputShapes[edge->getOutputNum()],
+                    parentNode->getOriginalOutputPrecisionAtPort(0),
+                    graph.getEngine(), graph.weightsCache);
 
-//             graph.InsertNode(parentNode, childNode, newReshape, edge->getInputNum(), edge->getOutputNum(), false);
+            graph.InsertNode(parentNode, childNode, newReshape, edge->getInputNum(), edge->getOutputNum(), false);
 
-//             edge->drop();
-//             graph.RemoveEdge(edge);
-//         }
-//     }
-// }
+            edge->drop();
+            graph.RemoveEdge(edge);
+        }
+    }
+}

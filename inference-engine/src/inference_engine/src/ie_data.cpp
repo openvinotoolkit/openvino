@@ -110,6 +110,15 @@ bool Data::isInitialized() const {
 
 void Data::setDims(const SizeVector& a_dims) {
     tensorDesc.setDims(a_dims);
+    pShape = ngraph::PartialShape(a_dims);
+}
+
+bool Data::isDynamic() const {
+    return tensorDesc.getDims().empty() && tensorDesc.getLayout() != SCALAR && pShape.is_dynamic();
+}
+
+const ngraph::PartialShape& Data::getPartialShape() const {
+    return pShape;
 }
 
 void Data::setLayout(Layout layout) {
@@ -118,6 +127,11 @@ void Data::setLayout(Layout layout) {
 
 void Data::reshape(const SizeVector& a_dims, Layout a_layout) {
     tensorDesc.reshape(a_dims, a_layout);
+    pShape = ngraph::PartialShape(a_dims);
+}
+
+void Data::reshape(const std::initializer_list<size_t>& dims, Layout layout) {
+    reshape(SizeVector(dims), layout);
 }
 
 void Data::reshape(const ngraph::PartialShape& dims, Layout layout) {
@@ -144,6 +158,7 @@ Data& Data::operator=(const Data& data) {
         name = data.name;
         userObject = data.userObject;
         tensorDesc = data.tensorDesc;
+        pShape = data.pShape;
 
         _impl->creatorLayer = data._impl->creatorLayer;
         _impl->inputTo = data._impl->inputTo;
@@ -173,6 +188,11 @@ void Data::setPrecision(const Precision& precision) {
 }
 
 const SizeVector& Data::getDims() const {
+    if (isDynamic())
+        IE_THROW() << "Cannot return dims for Data with dynamic shapes!";
+    if (tensorDesc.getDims().empty() && tensorDesc.getLayout() != SCALAR) {
+        tensorDesc.setDims(pShape.to_shape());
+    }
     return tensorDesc.getDims();
 }
 

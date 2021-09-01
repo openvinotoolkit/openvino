@@ -70,13 +70,15 @@ TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
     }
 
     CNNNetwork cnnNetwork(ngraph);
-    ASSERT_EQ(Layout::SCALAR, cnnNetwork.getInputsInfo()["A"]->getLayout());
+    ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
+    ASSERT_TRUE(cnnNetwork.getInputsInfo()["A"]->getInputData()->isDynamic());
 
     ICNNNetwork::InputShapes new_shape;
     new_shape["A"] = ngraph::Shape{1, 3, 22, 22};
     cnnNetwork.reshape(new_shape);
 
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
+    ASSERT_FALSE(cnnNetwork.getInputsInfo()["A"]->getInputData()->isDynamic());
 }
 
 TEST_F(NGraphReshapeTests, ReshapeBatchReLU) {

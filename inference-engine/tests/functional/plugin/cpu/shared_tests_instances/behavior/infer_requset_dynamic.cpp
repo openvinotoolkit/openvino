@@ -6,17 +6,17 @@
 
 #include "behavior/infer_request_dynamic.hpp"
 
-// using namespace BehaviorTestsDefinitions;
+using namespace BehaviorTestsDefinitions;
 
-// namespace {
+namespace {
 
-// const std::vector<InferenceEngine::Precision> netPrecisions = {
-//     InferenceEngine::Precision::FP32
-// };
+const std::vector<InferenceEngine::Precision> netPrecisions = {
+    InferenceEngine::Precision::FP32
+};
 
-// const std::vector<std::map<std::string, std::string>> configs = {
-//     {}
-// };
+const std::vector<std::map<std::string, std::string>> configs = {
+    {}
+};
 
 std::shared_ptr<ngraph::Function> getFunction1() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
@@ -75,5 +75,4 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests_2, InferRequestDynamicTests,
                                 ::testing::ValuesIn(configs)),
                         InferRequestDynamicTests::getTestCaseName);
 
-// }  // namespace
-
+}  // namespace
