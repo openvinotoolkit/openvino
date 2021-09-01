@@ -13,4 +13,5 @@ namespace util {
 using ov::op::util::NmsBase;
 }  // namespace util
 }  // namespace op
+using ov::operator<<;
 }  // namespace ngraph
