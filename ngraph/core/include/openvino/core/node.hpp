@@ -24,7 +24,6 @@
 #include "ngraph/op/util/op_annotations.hpp"
 #include "ngraph/op/util/variable.hpp"
 #include "ngraph/op/util/variable_value.hpp"
-#include "openvino/core/strides.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/input.hpp"
@@ -33,6 +32,7 @@
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/strides.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/variant.hpp"
 

@@ -37,13 +37,11 @@ OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const Strides& strides);
 
 template <>
-class OPENVINO_API AttributeAdapter<ov::Strides>
-    : public IndirectVectorValueAccessor<ov::Strides, std::vector<int64_t>>
+class OPENVINO_API AttributeAdapter<ov::Strides> : public IndirectVectorValueAccessor<ov::Strides, std::vector<int64_t>>
 
 {
 public:
-    AttributeAdapter(ov::Strides& value)
-        : IndirectVectorValueAccessor<ov::Strides, std::vector<int64_t>>(value) {}
+    AttributeAdapter(ov::Strides& value) : IndirectVectorValueAccessor<ov::Strides, std::vector<int64_t>>(value) {}
     static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Strides>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
