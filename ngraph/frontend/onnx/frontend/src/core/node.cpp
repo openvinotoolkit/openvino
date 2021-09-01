@@ -26,8 +26,7 @@ public:
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())} {
         for (const auto& attribute : m_attributes) {
             if (attribute.is_graph())
-                m_subgraphs.insert(
-                    {attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(m_graph))});
+                m_subgraphs.insert({attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(m_graph))});
         }
         m_has_subgraphs = m_subgraphs.size() > 0;
     }
