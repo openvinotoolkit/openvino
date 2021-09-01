@@ -44,11 +44,12 @@ if(NOT ENABLE_DOCKER)
     endforeach()
 endif()
 
-set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check")
-set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation")
-set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation")
-set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation")
-set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation")
+set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check dir.")
+set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation dir.")
+set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation dir.")
+set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation dir.")
+set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation dir.")
+set(OPENVINO_NOTEBOOKS_DIR "" CACHE PATH "Path to openvino notebooks dir.")
 
 function(build_docs)
     find_package(Doxygen REQUIRED dot)
@@ -84,6 +85,7 @@ function(build_docs)
     
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
+    set(PYNGRAPH_REF_SCRIPT "${DOXYGEN_DIR}/pyngraph_ref.py")
     set(DOXY_LOG_SCRIPT "${DOXYGEN_DIR}/log.py")
     set(PYX_FILTER "${DOXYGEN_DIR}/pyx_filter.py")
     set(PREPARE_XML_SCRIPT "${DOXYGEN_DIR}/prepare_xml.py")
@@ -116,6 +118,15 @@ function(build_docs)
     configure_file(${DOXYREST_CONFIG_IN} ${DOXYREST_CONFIG_OUT} @ONLY)
     configure_file(${SPHINX_CONF_IN} ${SPHINX_CONF_OUT} @ONLY)
 
+    if(EXISTS "${NGRAPH_PYTHON_BUILD_ENABLE}")
+        # pyngraph dirs
+        set(PYNGRAPH_API_OUTPUT "${DOCS_BUILD_DIR}/pyngraph")
+        set(OPENVINO_BIN_DIR "${OpenVINO_MAIN_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/")
+        set(PYNGRAPH_DIR "${OPENVINO_BIN_DIR}/python_api/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+        list(APPEND commands 
+            COMMAND ${PYTHON_EXECUTABLE} ${PYNGRAPH_REF_SCRIPT} ${OPENVINO_BIN_DIR} ${PYNGRAPH_DIR} ${PYNGRAPH_API_OUTPUT})
+    endif()
+
     # Doxygen config
     set(DOXYFILE_SOURCE "${DOXYGEN_DIR}/Doxyfile.config")
     set(DOXYFILE_BUILD "${DOCS_BUILD_DIR}/Doxyfile.config")
@@ -128,6 +139,17 @@ function(build_docs)
         --exclude_dir=${OpenVINO_MAIN_SOURCE_DIR}/out)
 
     # include additional repositories
+
+    # openvino notebooks dir
+    if(EXISTS "${OPENVINO_NOTEBOOKS_DIR}")
+        set(OPENVINO_NOTEBOOKS_DIR_OUT "${RST_OUTPUT}/openvino_notebooks")
+        list(APPEND commands
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${OPENVINO_NOTEBOOKS_DIR_OUT}
+        )
+        list(APPEND commands
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${OPENVINO_NOTEBOOKS_DIR} ${OPENVINO_NOTEBOOKS_DIR_OUT}
+        )
+    endif()
 
     # omz doc files
     if(EXISTS "${OMZ_DOCS_DIR}")
@@ -166,6 +188,7 @@ function(build_docs)
     endif()
 
     add_custom_target(doxygen_xml
+                      DEPENDS _pyngraph
                       COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generate doxygen XML output"

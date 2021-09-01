@@ -29,8 +29,11 @@ The scheme below illustrates the typical workflow for deploying a trained deep l
 
 .. list-table::
 
-   * - .. youtube:: e6R13V8nbak
-          :width: 560px
+   * - .. raw:: html
+
+           <iframe height="620" width="100%"
+           src="https://www.youtube.com/embed/e6R13V8nbak">
+           </iframe>
    * - **Inference Engine Concept**. Duration: 3:43
      
 @endsphinxdirective

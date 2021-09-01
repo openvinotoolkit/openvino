@@ -430,9 +430,11 @@ The Model Optimizer provides explanatory messages if it is unable to run to comp
 
 @sphinxdirective
 
-.. youtube:: QW6532LtiTc
-   :width: 560px
-   :height: 315px
+.. raw:: html
+
+    <iframe width="560" height="315"
+    src="https://www.youtube.com/embed/QW6532LtiTc">
+    </iframe>
 
 @endsphinxdirective
 

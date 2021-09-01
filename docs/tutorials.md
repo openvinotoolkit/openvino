@@ -1,230 +1,27 @@
 # Tutorials {#tutorials}
 
-
 @sphinxdirective
 
-.. tab:: Using configuration scripts
-
-   .. tab:: Linux
-
-      .. tab:: All frameworks
-      
-         .. tab:: Install globally
-
-            .. code-block:: sh
-
-               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
-               ./install_prerequisites.sh
-         
-         .. tab:: Install to virtualenv
-
-            .. code-block:: sh
-
-               cd $INSTALL_DIR$/deployment_tools/model_optimizer/install_prerequisites
-               virtualenv --system-site-packages -p python3 ./venv
-               source ./venv/bin/activate  # sh, bash, ksh, or zsh
-               ./install_prerequisites.shs
-
-      .. tab:: Caffe
-      
-         .. tab:: Install globally
-
-            .. code-block:: sh
-
-               cd $INSTALL_DIR$/deployment_tools/model_optimizer/install_prerequisitess
-               install_prerequisites_caffe.sh
-         
-         .. tab:: Install to virtualenv
-
-            .. code-block:: sh
-
-               cd <INSTALL_DIR>/deployment_tools/model_optimizer/install_prerequisites
-               install_prerequisites_caffe.shs
-
-      .. tab:: Tensorflow 1.x
-      
-         .. tab:: Install globally
-
-            test
-         
-         .. tab:: Install to virtualenv
-
-            test
-
-      .. tab:: Tensorflow 2.x
-      
-         .. tab:: Install globally
-
-            test
-         
-         .. tab:: Install to virtualenv
-
-            test
-
-      .. tab:: MXNet
-      
-         .. tab:: Install globally
-
-            test
-         
-         .. tab:: Install to virtualenv
-
-            test
-
-      .. tab:: ONNX
-      
-         .. tab:: Install globally
-
-            test
-         
-         .. tab:: Install to virtualenv
-
-            test
-
-      .. tab:: Kaldi
-      
-         .. tab:: Install globally
-
-            test
-         
-         .. tab:: Install to virtualenv
-
-            test
-
-   .. tab:: Windows
-
-      .. tab:: All frameworks
-      
-         .. tab:: Install globally
-
-            test
-         
-         .. tab:: Install to virtualenv
-
-            test
-
-      .. tab:: Caffe
-      
-         .. tab:: Install globally
-
-            test
-         
-         .. tab:: Install to virtualenv
-
-            test
-
-      .. tab:: Tensorflow 1.x
-      
-         .. tab:: Install globally
-
-            test
-         
-         .. tab:: Install to virtualenv
-
-            test
-
-      .. tab:: Tensorflow 2.x
-      
-         .. tab:: Install globally
-
-            test
-         
-         .. tab:: Install to virtualenv
-
-            tests
-
-      .. tab:: MXNet
-      
-         .. tab:: Install globally
-
-            test
-         
-         .. tab:: Install to virtualenv
-
-            test
-
-      .. tab:: ONNX
-      
-         .. tab:: Install globally
-
-            test
-         
-         .. tab:: Install to virtualenv
-
-            test
-
-      .. tab:: Kaldi
-      
-         .. tab:: Install globally
-
-            test
-         
-         .. tab:: Install to virtualenv
-
-            test
-
-
-.. tab:: Using manual configuration process
-
-   .. tab:: Linux
-
-      .. tab:: All frameworks
-      
-         test
-
-      .. tab:: Caffe
-      
-         test
-
-      .. tab:: Tensorflow 1.x
-      
-         test
-
-      .. tab:: Tensorflow 2.x
-      
-         test
-
-      .. tab:: MXNet
-      
-         test
-
-      .. tab:: ONNX
-      
-         test
-
-      .. tab:: Kaldi
-      
-         test
-
-
-   .. tab:: Windows
-
-      .. tab:: All frameworks
-      
-         test
-
-      .. tab:: Caffe
-      
-         test
-
-      .. tab:: Tensorflow 1.x
-      
-         test
-
-      .. tab:: Tensorflow 2.x
-      
-         test
-
-      .. tab:: MXNet
-      
-         test
-
-      .. tab:: ONNX
-      
-         test
-
-      .. tab:: Kaldi
-      
-         test
-
+.. toctree::
+   :maxdepth: 1
+   :caption: Notebooks
+
+   openvino_notebooks/notebooks/001-hello-world/001-hello-world
+   openvino_notebooks/notebooks/002-openvino-api/002-openvino-api
+   openvino_notebooks/notebooks/003-hello-segmentation003-hello-segmentation
+   openvino_notebooks/notebooks/004-hello-detection/004-hello-detection
+   openvino_notebooks/notebooks/101-tensorflow-to-openvino/101-tensorflow-to-openvino
+   openvino_notebooks/notebooks/102-pytorch-onnx-to-openvino/102-pytorch-onnx-to-openvino
+   openvino_notebooks/notebooks/103-paddle-onnx-to-openvino/103-paddle-onnx-to-openvino-classification
+   openvino_notebooks/notebooks/104-model-tools/104-model-tools
+   openvino_notebooks/notebooks/105-language-quantize-bert/105-language-quantize-bert
+   openvino_notebooks/notebooks/201-vision-monodepth/201-vision-monodepth
+   openvino_notebooks/notebooks/202-vision-superresolution/202-vision-superresolution-image
+   openvino_notebooks/notebooks/202-vision-superresolution/202-vision-superresolution-video
+   openvino_notebooks/notebooks/205-vision-background-removal/205-vision-background-removal
+   openvino_notebooks/notebooks/206-vision-paddlegan-anime/206-vision-paddlegan-anime
+   openvino_notebooks/notebooks/207-vision-paddlegan-superresolution/207-vision-paddlegan-superresolution
+   openvino_notebooks/notebooks/301-tensorflow-training-openvino/301-tensorflow-training-openvino
+   openvino_notebooks/notebooks/301-tensorflow-training-openvino/301-tensorflow-training-openvino-pot
+   openvino_notebooks/notebooks/utils/notebook_utils
 @endsphinxdirective

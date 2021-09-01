@@ -41,9 +41,13 @@ extensions = [
     'sphinx_copybutton',
     'doxyrest',
     'cpplexer',
-    'sphinxcontrib.youtube'
+    'nbsphinx'
 ]
 
+nbsphinx_allow_errors = True
+nbsphinx_execute = 'never'
+
+nbsphinx_allow_errors = True
 html_logo = '_static/logo.svg'
 
 # Add any paths that contain templates here, relative to this directory.
@@ -68,6 +72,19 @@ html_theme_options = {
     "navigation_depth": 5,
     "use_edit_page_button": True,
     "github_url": "https://github.com/ntyukaev/openvino",
+}
+
+html_context = {
+    'current_version': 'latest',
+    'current_language': 'English',
+    'languages': (('English', '/en/latest'), ('Chinese', '/cn/latest')),
+    'versions': (('latest', '/latest'), ('2022.1', '/2022.1'), ('2021.4', '/2021.4'),
+                ('2021.3', '/2021.3'), ('2021.2', '/2021.2'), ('2021.1', '/2021.1'),
+                 ('2020.4', '/2020.4'), ('2020.3', '/2020.3'), ('2020.2', '/2020.1'),
+                  ('2020.1', '/2020.1'), ('2019_R3.1', '/2019_R3.1'), ('2019_R3', '/2019_R3'),
+                   ('2019_R2', '/2019_R2'), ('2019_R1.1', '/2019_R1.1'),  ('2019_R1.01', '/2019_R1.01'),
+                    ('2019_R1', '/2019_R1'), ('2018_R5', '/2018_R5'),),
+    'download_docs_url': '/archives/2022.1.zip'
 }
 
 repositories = {

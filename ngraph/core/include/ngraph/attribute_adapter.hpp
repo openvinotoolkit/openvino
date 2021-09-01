@@ -2,12 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-/**
- *  @defgroup ngraph_cpp_api nGraph C++ API
- *  @ingroup api_ref
- *  nGraph C++ API
- */
-
 #pragma once
 
 #include <string>
@@ -31,7 +25,6 @@ namespace ngraph
     ///
     /// All ValueAccessors must be derived from ValueAccessor<void> so that an AttributeVisitor
     /// only needs to implement a subset of the on_adapter methods
-    /// \ingroup ngraph_cpp_api.
     template <>
     class NGRAPH_API ValueAccessor<void>
     {
@@ -51,7 +44,6 @@ namespace ngraph
     /// vector<int8_t> attribute. Destruction moves the value back to the attribute if it was
     /// changed.
     /// \tparam VAT The adapter value type; may be wider than the value being accessed.
-    /// \ingroup ngraph_cpp_api.
     template <typename VAT>
     class ValueAccessor : public ValueAccessor<void>
     {
@@ -164,7 +156,6 @@ namespace ngraph
 
     /// \brief An AttributeAdapter "captures" an attribute as an AT& and makes it available as a
     /// ValueAccessor<VAT>.
-    /// \ingroup ngraph_cpp_api.
     template <typename AT>
     class AttributeAdapter
     {
@@ -172,7 +163,6 @@ namespace ngraph
 
     /// \brief Access an enum via a string
     /// \tparam AT The attribute type enum class
-    /// \ingroup ngraph_cpp_api.
     template <typename AT>
     class EnumAttributeAdapterBase : public ValueAccessor<std::string>
     {
@@ -211,7 +201,6 @@ namespace ngraph
     };
 
     /// \brief Access a double as a double
-    /// \ingroup ngraph_cpp_api.
     template <>
     class NGRAPH_API AttributeAdapter<double> : public DirectValueAccessor<double>
     {

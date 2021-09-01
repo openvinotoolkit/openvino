@@ -50,18 +50,28 @@ To learn about all Model Optimizer parameters and conversion technics, see the [
 
 .. list-table::
 
-   * - .. youtube:: Kl1ptVb7aI8
-          :width: 220px
+   * - .. raw:: html
 
-     - .. youtube:: BBt1rseDcy0
-          :width: 220px
+           <iframe width="220"
+           src="https://www.youtube.com/embed/Kl1ptVb7aI8">
+           </iframe>
+    
+     - .. raw:: html
 
-     - .. youtube:: RF8ypHyiKrY
-          :width: 220px
+           <iframe width="220"
+           src="https://www.youtube.com/embed/BBt1rseDcy0">
+           </iframe>
+
+     - .. raw:: html
+
+           <iframe width="220"
+           src="https://www.youtube.com/embed/RF8ypHyiKrY">
+           </iframe>
 
    * - **Model Optimizer Concept.**
      - **Model Optimizer Basic Operation.**
      - **Choosing the Right Precision.**
+
    * - Duration: 3:56
      - Duration: 2:57
      - Duration: 4:18
