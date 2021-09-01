@@ -46,6 +46,7 @@ pass::Manager::~Manager() {}
 pass::Manager::Manager(std::shared_ptr<ngraph::pass::PassConfig> pass_config) : m_pass_config(std::move(pass_config)) {}
 
 void pass::Manager::run_passes(shared_ptr<Function> func) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::Manager::run_passes");
 
     static bool profile_enabled = getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
@@ -67,7 +68,6 @@ void pass::Manager::run_passes(shared_ptr<Function> func) {
 
         pass_timer.start();
 
-        NGRAPH_SUPPRESS_DEPRECATED_START
         if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass)) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
@@ -106,7 +106,6 @@ void pass::Manager::run_passes(shared_ptr<Function> func) {
                 function_changed |= node_pass->run_on_node(n);
             }
         }
-        NGRAPH_SUPPRESS_DEPRECATED_END
 
         if (m_visualize) {
             // visualizations and serializations will be named after the outermost function
@@ -131,4 +130,5 @@ void pass::Manager::run_passes(shared_ptr<Function> func) {
     if (profile_enabled) {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

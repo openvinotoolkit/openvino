@@ -21,8 +21,10 @@ enum class Type {
     MAX,
 };
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 NGRAPH_API
 std::ostream& operator<<(std::ostream& out, const Type& obj);
+NGRAPH_SUPPRESS_DEPRECATED_END
 }  // namespace reduction
 
 }  // namespace ngraph
