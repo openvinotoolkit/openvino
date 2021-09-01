@@ -238,7 +238,7 @@ std::shared_ptr<ngraph::Function> PrecisionPropagationFunction::getReferenceWith
                 shape,
                 std::vector<float>(ngraph::shape_size(shape), 128.f));
 
-            auto subtract = std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationSubtract>>(
+            auto subtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
                 std::vector<element::Type>{element::f32, element::f32},
                 std::vector<element::Type>{ element::f32 },
                 ngraph::op::TemporaryReplaceOutputType(result2, element::f32).get(),

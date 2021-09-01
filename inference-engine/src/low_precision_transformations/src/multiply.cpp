@@ -15,7 +15,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/common/ie_lpt_exception.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -95,10 +94,6 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
         NetworkHelper::copyInfo(multiplyParent.get_node_shared_ptr(), newMultiply);
         NetworkHelper::copyInfo(multiply, newMultiply);
-
-        if (!FakeQuantizeDequantization::checkElementwise(newMultiply)) {
-            NetworkHelper::cleanRunTimeInfo(newMultiply);
-        }
     } else {
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
 
@@ -135,7 +130,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         std::shared_ptr<Node> newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         OutputVector inputs{ {}, {} };
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
-        inputs[fullPathIndex] = std::make_shared<DequantizationMultiply>(
+        inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
             dequantizationFullPath.subtract == nullptr ?
                 (dequantizationFullPath.convert == nullptr ?
                     dequantizationFullPath.data : dequantizationFullPath.convert) :

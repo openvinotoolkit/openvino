@@ -300,7 +300,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
             std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get())) :
-        std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(
+        std::make_shared<ngraph::op::TypeRelaxed<opset1::Subtract>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),

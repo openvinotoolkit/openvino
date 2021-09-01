@@ -13,7 +13,6 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -100,7 +99,6 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolutionBackpropData);
     {
         if (dequantization.subtract != nullptr) {
-            NetworkHelper::cleanRunTimeInfo(dequantization.subtract->shared_from_this());
             NetworkHelper::optimizeSubtract(dequantization.subtract);
         }
 
@@ -117,7 +115,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
             std::vector<element::Type>{deqPrecision, deqPrecision},
             std::vector<element::Type>{deqPrecision});
 
-        const auto newMultiplyAfter = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+        const auto newMultiplyAfter = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{ deqPrecision, deqPrecision },
             std::vector<element::Type>{ dequantization.multiply->get_output_element_type(0) },
             ngraph::op::TemporaryReplaceOutputType(relaxedConvolutionBackpropData, deqPrecision).get(),
@@ -155,7 +153,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 
             auto inputs = convolutionBackpropData->input_values();
             inputs[1] = multiplyFromWeights->input_value(0);
-            auto newMultiplyAfter = std::make_shared<DequantizationMultiply>(
+            auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
                 convolutionBackpropData->copy_with_new_inputs(inputs),
                 foldConvert(
                     fold_reshape<opset1::Reshape>(

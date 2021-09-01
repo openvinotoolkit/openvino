@@ -7,7 +7,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "lpt_ngraph_functions/common/builders.hpp"
@@ -63,13 +62,9 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::get(
     const BranchNodes branchNodes1 = getBranch(actualValues.branch1);
     const BranchNodes branchNodes2 = getBranch(actualValues.branch2);
 
-    auto multiplyOriginal = actualValues.isDequantization ?
-        DequantizationMultiply(
-            ngraph::op::TemporaryReplaceOutputType(branchNodes1.dequantization, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(branchNodes2.dequantization, element::f32).get()) :
-        ngraph::opset1::Multiply(
-            ngraph::op::TemporaryReplaceOutputType(branchNodes1.dequantization, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(branchNodes2.dequantization, element::f32).get());
+    auto multiplyOriginal = opset1::Multiply(
+        ngraph::op::TemporaryReplaceOutputType(branchNodes1.dequantization, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(branchNodes2.dequantization, element::f32).get());
 
     const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
         multiplyOriginal,

@@ -8,7 +8,6 @@
 #include "low_precision/convolution.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/fuse_convert.hpp"
-#include "low_precision/subtract_multiply_to_multiply_add.hpp"
 
 using namespace ::testing;
 using namespace ngraph::pass::low_precision;

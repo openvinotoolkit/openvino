@@ -70,15 +70,9 @@ public:
         ngraph::Output<ngraph::Node> last = input;
         if (!mul_const.skip) {
             last = std::make_shared<ngraph::opset1::Multiply>(last, create_constant(mul_const.shape, mul_const.value));
-            if (is_dequantization) {
-                ngraph::builder::subgraph::addDequantizationAttribute(last.get_node_shared_ptr());
-            }
         }
         if (!add_const.skip) {
             last = std::make_shared<ngraph::opset1::Add>(last, create_constant(add_const.shape, add_const.value));
-            if (is_dequantization) {
-                ngraph::builder::subgraph::addDequantizationAttribute(last.get_node_shared_ptr());
-            }
         }
         last = std::make_shared<ngraph::opset1::Relu>(last);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{last.get_node_shared_ptr()}, ngraph::ParameterVector{input});
