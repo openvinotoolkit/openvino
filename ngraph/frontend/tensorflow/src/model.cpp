@@ -75,12 +75,10 @@ ngraph::PartialShape InputModelTensorflow::get_partial_shape(Place::Ptr place) c
     return result_shape;
 }
 
-
 std::vector<std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder>> InputModelTensorflow::get_ops() {
     // TODO: call that ONLY if model modified
     return determine_cut_nodes();
 }
-
 
 void InputModelTensorflow::determine_outputs() {
     std::set<std::string> all_names;
