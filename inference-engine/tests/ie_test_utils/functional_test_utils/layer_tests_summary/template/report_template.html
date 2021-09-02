@@ -23,10 +23,6 @@
         <h2>Operations coverage summary: {{report_tag}} {{ timestamp }}</h2>
         <div class="legend">
             <div>
-                <span class="border colorRed">Acosh-4</span><span>Not verified Ngraph references</span>
-            </div>
-
-            <div>
                 <span class="table-primary border"></span><span>Collected statistic info</span>
             </div>
             <div>
@@ -127,8 +123,7 @@
         <tbody id="data">
             {% for op in ordered_ops -%}
             <tr>
-                <th scope="row" {% if op not in verified_operations -%} class="colorRed" {% endif -%} name="{{ op }}">{{
-                    op }}</th>
+                <th scope="row" name="{{ op }}">{{ op }}</th>
 
                 {% for d in devices -%}
                 {% if op in results[d] -%}
