@@ -8,18 +8,18 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
-#include <shared_test_classes/single_layer/convolution_backprop_data.hpp>
+#include <shared_test_classes/single_layer/convolution_backprop.hpp>
 
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
-using LayerTestsDefinitions::convBackpropDataSpecificParams;
-using LayerTestsDefinitions::convBackpropDataLayerTestParamsSet;
+using LayerTestsDefinitions::convBackpropSpecificParams;
+using LayerTestsDefinitions::convBackpropLayerTestParamsSet;
 
 typedef std::tuple<
-    convBackpropDataLayerTestParamsSet,
+    convBackpropLayerTestParamsSet,
     CPUSpecificParams,
     fusingSpecificParams,
     std::map<std::string, std::string> > deconvLayerCPUTestParamsSet;
@@ -28,14 +28,14 @@ class DeconvolutionLayerCPUTest : public testing::WithParamInterface<deconvLayer
     virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<deconvLayerCPUTestParamsSet> obj) {
-        convBackpropDataLayerTestParamsSet basicParamsSet;
+        convBackpropLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::map<std::string, std::string> additionalConfig;
         std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = obj.param;
 
         std::ostringstream result;
-        result << LayerTestsDefinitions::ConvolutionBackpropDataLayerTest::getTestCaseName(testing::TestParamInfo<convBackpropDataLayerTestParamsSet>(
+        result << LayerTestsDefinitions::ConvolutionBackpropLayerTest::getTestCaseName(testing::TestParamInfo<convBackpropLayerTestParamsSet>(
             basicParamsSet, 0));
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -52,7 +52,7 @@ public:
     }
 protected:
     void SetUp() override {
-        convBackpropDataLayerTestParamsSet basicParamsSet;
+        convBackpropLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::map<std::string, std::string> additionalConfig;
@@ -63,7 +63,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
-        convBackpropDataSpecificParams convParams;
+        convBackpropSpecificParams convParams;
         std::vector<size_t> inputShape;
         std::vector<size_t> outputShape;
         auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
