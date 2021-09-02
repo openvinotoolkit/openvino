@@ -295,12 +295,11 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
         'Subtract': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Pow': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Convert': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
-
-        'Pad': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through(node, rc),
+        'Pad': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_pad(node, rc),
     }
 
     @staticmethod
-    def lift_up_through(node: Node, reverse_channels: Node):
+    def lift_up_through_pad(node: Node, reverse_channels: Node):
         r"""
         BEFORE                       AFTER
 
@@ -320,14 +319,14 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
         """
         if node.is_in_port_connected(0):
             node_input_port_0 = node.in_port(0)
-            reverse_channels_out_npde = reverse_channels.out_port(0).get_connection().get_destination().node
+            reverse_channels_out_node = reverse_channels.out_port(0).get_connection().get_destination().node
             reverse_channels.out_port(0).disconnect()
 
             src = node_input_port_0.get_connection().get_source()
             node_input_port_0.get_connection().set_source(reverse_channels.out_port(0))
             src.connect(reverse_channels.in_port(0))
-            node.out_port(0).get_connection().set_destination(reverse_channels_out_npde.in_port(0))
-            return True, [reverse_channels_out_npde]
+            node.out_port(0).get_connection().set_destination(reverse_channels_out_node.in_port(0))
+            return True, [reverse_channels_out_node]
         return False, []
 
     @staticmethod
