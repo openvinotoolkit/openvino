@@ -13,19 +13,20 @@ class Reverse(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            # 'type': __class__.op, # Internal MO primitive
+            'type': None,
             'axis': None,
-            'op': __class__.op,
+            'op': self.op,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': __class__.infer,
+            'infer': self.infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
     @staticmethod
     def infer(node):
-        input_data_shape = node.in_node(0).shape
-        assert input_data_shape is not None
+        input_shape = node.in_port(0).data.get_shape()
+        input_value = node.in_port(0).data.get_value()
+        assert input_shape is not None
         if not node.has_valid('axis'):
             assert 1 in node.in_nodes()
             assert node.in_node(1).has_valid('value')
@@ -37,7 +38,7 @@ class Reverse(Op):
         assert node.has_valid('axis')
 
         assert len(node.out_nodes()) == 1
-        node.out_node().shape = input_data_shape.copy()
-        if node.in_node().value is not None:
-            node.out_node().value = np.flip(node.in_node().value, node['axis'])
-            assert np.array_equal(int64_array(node.out_node().value.shape), input_data_shape)
+        if input_value is not None:
+            node.out_port(0).data.set_value(np.flip(input_value, node.axis))
+        else:
+            node.out_port(0).data.set_shape(input_shape)

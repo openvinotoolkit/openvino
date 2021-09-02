@@ -7,7 +7,7 @@ import numpy as np
 from generator import generate, generator
 
 from extensions.ops.ReduceOps import reduce_infer
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors, is_fully_defined
 from mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, result, connect, valued_const_with_data
 
@@ -54,3 +54,36 @@ class ReduceLpTest(unittest.TestCase):
         reduce_node.op = reduce_node.type = 'ReduceL' + str(p)
         reduce_infer(reduce_node)
         self.assertTrue(np.array_equal(reduce_node.out_port(0).data.get_value(), reduced))
+
+    @generate(*[
+        ([3, 2, 2], [0], True, 1),
+        ([3, 2, 2], [2], False, 2),
+        ([3, 2, 2], [0, 2], False, 2),
+    ])
+    def test_reduce_dynamic(self, shape, axes, keepdims, p):
+        false_mask = np.zeros(shape)
+        false_mask[0][1][1] = True
+        data = np.ma.masked_array(np.ones(shape), mask=false_mask)
+        assert not is_fully_defined(data)
+        reduced_tensor = np.sum(data, axis=tuple(axes), keepdims=keepdims)
+        # create an array of all masked elements which is the expected result of the reduce of the tensor with dynamic
+        # values
+        fully_undefined = np.ma.masked_array(reduced_tensor, mask=np.ones(reduced_tensor.shape))
+        axis = int64_array(axes)
+        p = int64_array(p)
+        graph = build_graph(nodes_attributes,
+                            [*connect('data', '0:reduce_lp'),
+                             *connect('axis', '1:reduce_lp'),
+                             *connect('reduce_lp', '0:identity'),
+                             ('identity', 'identity_d', {'out': 0}),
+                             ('identity_d', 'output')
+                             ],
+                            {'data_d': {'value': data, 'shape': data.shape},
+                             'axis_d': {'value': axis, 'shape': axis.shape},
+                             'reduce_lp': {'keep_dims': keepdims}},
+                            nodes_with_edges_only=True)
+
+        reduce_node = Node(graph, 'reduce_lp')
+        reduce_node.op = reduce_node.type = 'ReduceL' + str(p)
+        reduce_infer(reduce_node)
+        self.assertTrue(strict_compare_tensors(reduce_node.out_port(0).data.get_value(), fully_undefined))
