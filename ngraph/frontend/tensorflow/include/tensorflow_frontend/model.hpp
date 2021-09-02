@@ -45,6 +45,10 @@ public:
 public:
     InputModelTensorflow(const std::string& _path);
     InputModelTensorflow(const std::vector<std::istream*>& streams);
+    InputModelTensorflow(std::shared_ptr<::tensorflow::GraphDef> _graph_def,
+                         std::vector<ngraph::PartialShape> _input_shapes = {});
+    InputModelTensorflow(const std::vector<std::shared_ptr<::tensorflow::NodeDef>>& _nodes_def,
+                         std::vector<ngraph::PartialShape> _input_shapes = {});
 
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override;

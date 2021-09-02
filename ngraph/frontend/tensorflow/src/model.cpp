@@ -43,8 +43,20 @@ InputModelTensorflow::InputModelTensorflow(const std::string& _path) : path(_pat
     initial_traverse_graph();
 }
 
-std::vector<Place::Ptr> InputModelTensorflow::get_inputs() const {
-    return m_inputs;
+InputModelTensorflow::InputModelTensorflow(std::shared_ptr<::tensorflow::GraphDef> _graph_def,
+                                           std::vector<ngraph::PartialShape> _input_shapes)
+    : input_shapes(_input_shapes) {
+    graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(_graph_def.get());
+
+    initial_traverse_graph();
+}
+
+InputModelTensorflow::InputModelTensorflow(const std::vector<std::shared_ptr<::tensorflow::NodeDef>>& _nodes_def,
+                                           std::vector<ngraph::PartialShape> _input_shapes)
+    : input_shapes(_input_shapes) {
+    graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(_nodes_def);
+
+    initial_traverse_graph();
 }
 
 std::vector<Place::Ptr> InputModelTensorflow::get_outputs() const {
