@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ie_api.h>
+IE_SUPPRESS_DEPRECATED_START
+
 #include "shared_test_classes/single_layer/convert_like.hpp"
 
 namespace LayerTestsDefinitions {
@@ -36,3 +39,5 @@ void ConvertLikeLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "ConvertLike");
 }
 }  // namespace LayerTestsDefinitions
+
+IE_SUPPRESS_DEPRECATED_END

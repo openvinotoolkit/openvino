@@ -489,13 +489,9 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
                 return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
             };
             // GNA input is always quantized to int16, so number of levels can't be greater than max uint16
-            size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max()));
-            float scaleInput = (levels - 1) / (inputRange.second[0] - inputRange.first[0]);
-            auto minAbsVal = std::min(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
-            auto maxAbsVal = std::max(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
-            if (fp32eq(minAbsVal, 0.0f) && !fp32eq(maxAbsVal, 0.0f)) {
-                scaleInput = (fqLayer.getLevels() - 1) / (2 * maxAbsVal);
-            }
+            // todo: should be solved in POT (issue 63330)
+            size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max() + 1));
+            auto scaleInput = frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
 
             IE_ASSERT(config.inputScaleFactors.size() > inputIdx);
             IE_ASSERT(inputsDesc->inputScaleFactors.size() > inputIdx);
@@ -750,11 +746,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
         const auto& pass_config = manager.get_pass_config();
-        pass_config->set_callback<ngraph::pass::UnrollTensorIterator>(
-                [](const std::shared_ptr<const ngraph::Node> &node) -> bool {
-                    // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
-                    return node->get_rt_info().count("UNROLL_TI") == 0;
-            });
         pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
         pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
         pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();
@@ -798,10 +789,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision) {
         auto passes = make_shared<PassManager>(PassManagerSettings{runBeforeCopy, lowPrecision}, network);
         passes->registerPass<RemoveConstPass>();
-        passes->registerPass<UnrollTIPass>();
-        passes->registerPass<RemoveConstPass>();
-        if (!isNgraphPassesUsed)
+        if (!isNgraphPassesUsed) {
+            passes->registerPass<UnrollTIPass>();
+            passes->registerPass<RemoveConstPass>();
             passes->registerPass<UnrollLSTMCellPass>();
+        }
+
         passes->registerPass<RemoveSingleInputConcatPass>();
 
         // fake quantisation aware passes
