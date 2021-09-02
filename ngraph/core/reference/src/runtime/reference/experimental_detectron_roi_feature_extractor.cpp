@@ -184,7 +184,7 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
                     pc.w2 = w2;
                     pc.w3 = w3;
                     pc.w4 = w4;
-                    pre_calc[pre_calc_index] = pc;
+                    pre_calc.at(pre_calc_index) = pc;
 
                     pre_calc_index += 1;
                 }
