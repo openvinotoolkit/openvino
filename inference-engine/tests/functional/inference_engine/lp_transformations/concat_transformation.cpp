@@ -230,16 +230,18 @@ TEST_P(ConcatTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
-    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
-    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
-        "PrecisionsAttribute are not the same";
-
     ConcatTransformationTestValues testValues = std::get<2>(GetParam());
-    if (testValues.checkIntervalsAlignmentAttributes) {
-        auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
-        operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-        ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) <<
-            "IntervalsAlignmentAttribute are not the same";
+    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    if (testValues.axis == 1) {
+        ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
+            "PrecisionsAttribute are not the same";
+
+        if (testValues.checkIntervalsAlignmentAttributes) {
+            auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
+            operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
+            ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) <<
+                "IntervalsAlignmentAttribute are not the same";
+        }
     }
 }
 

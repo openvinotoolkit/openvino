@@ -4,7 +4,7 @@
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error
@@ -18,7 +18,7 @@ class Gather(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
-            'version': 'opset7',
+            'version': 'opset8',
             'batch_dims': 0,
             'infer': self.infer,
             'force_precision_in_ports': {1: 'int32', 2: 'int64'},
@@ -31,7 +31,7 @@ class Gather(Op):
 
     def backend_attrs(self):
         version = self.get_opset()
-        if version == 'opset7':
+        if version in ['opset7', 'opset8']:
             return ['batch_dims']
         elif version == 'opset1':
             return []
@@ -67,7 +67,7 @@ class Gather(Op):
         axis = axis + len(data_shape) if axis < 0 else axis
         batch_dims = batch_dims + len(indices_shape) if batch_dims < 0 else batch_dims
 
-        assert np.array_equal(data_shape[:batch_dims], indices_shape[:batch_dims]), \
+        assert np.ma.allequal(data_shape[:batch_dims], indices_shape[:batch_dims]), \
             'data and indices inputs must have equal first dimensions until batch_dims'
 
         assert batch_dims <= axis, \
@@ -75,23 +75,24 @@ class Gather(Op):
 
         # we import PermuteInputs locally because it uses Gather inside and we have recursive imports
         from mo.graph.perm_inputs import PermuteInputs
-        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
+        PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'axis')
 
         batch_dims_range = indices_shape[:batch_dims]
         out_shape = np.concatenate((data_shape[:axis], indices_shape[batch_dims:], data_shape[axis + 1:]))
 
         data_value = node.in_port(0).data.get_value()
         indices_value = node.in_port(1).data.get_value()
-        if data_value is not None and indices_value is not None:
+        if data_value is not None and indices_value is not None and is_fully_defined(indices_value):
             if batch_dims == 0:
-                node.out_port(0).data.set_value(np.take(data_value, indices_value, axis))
+                node.out_port(0).data.set_value(np.ma.take(data_value, indices_value, axis))
             else:
                 out_value = np.empty(out_shape)
                 for batch_idx in np.ndindex(tuple(batch_dims_range)):
-                    out_value[batch_idx] = np.take(data_value[batch_idx], indices_value[batch_idx], axis - batch_dims)
+                    out_value[batch_idx] = np.ma.take(data_value[batch_idx], indices_value[batch_idx],
+                                                      axis - batch_dims)
                 node.out_port(0).data.set_value(out_value)
         else:
-            node.out_port(0).data.set_shape(int64_array(out_shape))
+            node.out_port(0).data.set_shape(out_shape)
 
 
 class AttributedGather(Op):

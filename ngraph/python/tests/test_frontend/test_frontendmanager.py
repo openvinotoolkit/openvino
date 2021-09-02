@@ -53,6 +53,16 @@ def test_load():
 
 
 @mock_needed
+def test_load_by_model():
+    fe = fem.load_by_model(model_path="abc.test_mock_py_mdl")
+    assert fe is not None
+    assert fe.get_name() == "mock_py"
+    stat = get_fe_stat(fe)
+    assert stat.get_name == 1
+    assert stat.supported == 1
+
+
+@mock_needed
 def test_convert_model():
     fe = fem.load_by_framework(framework="mock_py")
     assert fe is not None
@@ -88,6 +98,16 @@ def test_decode_and_normalize():
     stat = get_fe_stat(fe)
     assert stat.normalize == 1
     assert stat.decode == 1
+
+
+@mock_needed
+def test_get_name():
+    fe = fem.load_by_framework(framework="mock_py")
+    assert fe is not None
+    name = fe.get_name()
+    assert name == "mock_py"
+    stat = get_fe_stat(fe)
+    assert stat.get_name == 1
 
 
 # --------InputModel tests-----------------

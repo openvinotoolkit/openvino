@@ -2,24 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_common.h"
-
 #include "cpp/ie_executable_network.hpp"
+
 #include "cpp/exception2status.hpp"
-#include "ie_executable_network_base.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iremote_context.hpp"
+#include "ie_common.h"
+#include "ie_executable_network_base.hpp"
 
 namespace InferenceEngine {
 
-#define EXEC_NET_CALL_STATEMENT(...)                                                               \
-    if (_impl == nullptr) IE_THROW(NotAllocated) << "ExecutableNetwork was not initialized.";      \
-    try {                                                                                          \
-        __VA_ARGS__;                                                                               \
-    } catch(...) {details::Rethrow();}
+#define EXEC_NET_CALL_STATEMENT(...)                                        \
+    if (_impl == nullptr)                                                   \
+        IE_THROW(NotAllocated) << "ExecutableNetwork was not initialized."; \
+    try {                                                                   \
+        __VA_ARGS__;                                                        \
+    } catch (...) {                                                         \
+        details::Rethrow();                                                 \
+    }
 
-ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader&      so,
-                                     const IExecutableNetworkInternal::Ptr&  impl)
-    : _so(so), _impl(impl) {
+ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader& so, const IExecutableNetworkInternal::Ptr& impl)
+    : _so(so),
+      _impl(impl) {
     IE_ASSERT(_impl != nullptr);
 }
 
@@ -34,8 +38,10 @@ ConstInputsDataMap ExecutableNetwork::GetInputsInfo() const {
 }
 
 void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
-    if (_impl == nullptr) IE_THROW() << "ExecutableNetwork was not initialized.";
-    if (newActual == nullptr) IE_THROW() << "ExecutableNetwork wrapper used for reset was not initialized.";
+    if (_impl == nullptr)
+        IE_THROW() << "ExecutableNetwork was not initialized.";
+    if (newActual == nullptr)
+        IE_THROW() << "ExecutableNetwork wrapper used for reset was not initialized.";
     auto newBase = std::dynamic_pointer_cast<ExecutableNetworkBase>(newActual);
     IE_ASSERT(newBase != nullptr);
     auto newImpl = newBase->GetImpl();
@@ -49,10 +55,10 @@ ExecutableNetwork::operator IExecutableNetwork::Ptr() {
 
 std::vector<VariableState> ExecutableNetwork::QueryState() {
     std::vector<VariableState> controller;
-    EXEC_NET_CALL_STATEMENT(
-        for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(VariableState{ _so, state });
-        });
+    EXEC_NET_CALL_STATEMENT(for (auto&& state
+                                 : _impl->QueryState()) {
+        controller.emplace_back(VariableState{_so, state});
+    });
     return controller;
 }
 
@@ -73,7 +79,7 @@ void ExecutableNetwork::Export(std::ostream& networkModel) {
 }
 
 CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo());
+    EXEC_NET_CALL_STATEMENT(return CNNNetwork{_impl->GetExecGraphInfo()});
 }
 
 void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config) {

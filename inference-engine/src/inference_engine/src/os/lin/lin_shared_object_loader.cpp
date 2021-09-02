@@ -3,11 +3,12 @@
 //
 
 #include <dlfcn.h>
+
 #include <iostream>
 
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
-#include <iostream>
+#include "shared_object.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -25,8 +26,7 @@ public:
     }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-    explicit Impl(const wchar_t* pluginName) : Impl(FileUtils::wStringtoMBCSstringChar(pluginName).c_str()) {
-    }
+    explicit Impl(const wchar_t* pluginName) : Impl(FileUtils::wStringtoMBCSstringChar(pluginName).c_str()) {}
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
 
     ~Impl() {
@@ -46,8 +46,7 @@ public:
 
         procAddr = dlsym(shared_object, symbolName);
         if (procAddr == nullptr)
-            IE_THROW(NotFound)
-                << "dlSym cannot locate method '" << symbolName << "': " << dlerror();
+            IE_THROW(NotFound) << "dlSym cannot locate method '" << symbolName << "': " << dlerror();
         return procAddr;
     }
 };
@@ -58,7 +57,7 @@ SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
 }
 #endif
 
-SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
+SharedObjectLoader::SharedObjectLoader(const char* pluginName) {
     _impl.reset(new Impl(pluginName));
 }
 
@@ -73,3 +72,33 @@ void* SharedObjectLoader::get_symbol(const char* symbolName) const {
 
 }  // namespace details
 }  // namespace InferenceEngine
+
+namespace ov {
+namespace runtime {
+SharedObject::SharedObject(const char* path) {
+    shared_object = dlopen(path, RTLD_NOW);
+
+    if (shared_object == nullptr)
+        IE_THROW() << "Cannot load library '" << path << "': " << dlerror();
+}
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+SharedObject::SharedObject(const wchar_t* path) : SharedObject(FileUtils::wStringtoMBCSstringChar(path).c_str()) {}
+#endif  // ENABLE_UNICODE_PATH_SUPPORT
+
+SharedObject::~SharedObject() {
+    if (0 != dlclose(shared_object)) {
+        std::cerr << "dlclose failed: " << dlerror() << std::endl;
+    }
+}
+
+void* SharedObject::get_symbol(const char* symbolName) const {
+    void* procAddr = nullptr;
+
+    procAddr = dlsym(shared_object, symbolName);
+    if (procAddr == nullptr)
+        IE_THROW(NotFound) << "dlSym cannot locate method '" << symbolName << "': " << dlerror();
+    return procAddr;
+}
+}  // namespace runtime
+}  // namespace ov

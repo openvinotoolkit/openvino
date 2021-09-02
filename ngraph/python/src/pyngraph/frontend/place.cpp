@@ -13,10 +13,8 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Place(py::module m)
-{
-    py::class_<ngraph::frontend::Place, std::shared_ptr<ngraph::frontend::Place>> place(
-        m, "Place", py::dynamic_attr());
+void regclass_pyngraph_Place(py::module m) {
+    py::class_<ngraph::frontend::Place, std::shared_ptr<ngraph::frontend::Place>> place(m, "Place", py::dynamic_attr());
     place.doc() = "ngraph.impl.Place wraps ngraph::frontend::Place";
 
     place.def("is_input",
@@ -92,12 +90,9 @@ void regclass_pyngraph_Place(py::module m)
     place.def(
         "get_consuming_operations",
         [](const ngraph::frontend::Place& self, py::object outputPortIndex) {
-            if (outputPortIndex == py::none())
-            {
+            if (outputPortIndex == py::none()) {
                 return self.get_consuming_operations();
-            }
-            else
-            {
+            } else {
                 return self.get_consuming_operations(py::cast<int>(outputPortIndex));
             }
         },
@@ -121,12 +116,9 @@ void regclass_pyngraph_Place(py::module m)
     place.def(
         "get_target_tensor",
         [](const ngraph::frontend::Place& self, py::object outputPortIndex) {
-            if (outputPortIndex == py::none())
-            {
+            if (outputPortIndex == py::none()) {
                 return self.get_target_tensor();
-            }
-            else
-            {
+            } else {
                 return self.get_target_tensor(py::cast<int>(outputPortIndex));
             }
         },
@@ -150,12 +142,9 @@ void regclass_pyngraph_Place(py::module m)
     place.def(
         "get_producing_operation",
         [](const ngraph::frontend::Place& self, py::object inputPortIndex) {
-            if (inputPortIndex == py::none())
-            {
+            if (inputPortIndex == py::none()) {
                 return self.get_producing_operation();
-            }
-            else
-            {
+            } else {
                 return self.get_producing_operation(py::cast<int>(inputPortIndex));
             }
         },
@@ -189,27 +178,17 @@ void regclass_pyngraph_Place(py::module m)
     place.def(
         "get_input_port",
         [](const ngraph::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
-            if (inputName == py::none())
-            {
-                if (inputPortIndex == py::none())
-                {
+            if (inputName == py::none()) {
+                if (inputPortIndex == py::none()) {
                     return self.get_input_port();
-                }
-                else
-                {
+                } else {
                     return self.get_input_port(py::cast<int>(inputPortIndex));
                 }
-            }
-            else
-            {
-                if (inputPortIndex == py::none())
-                {
+            } else {
+                if (inputPortIndex == py::none()) {
                     return self.get_input_port(py::cast<std::string>(inputName));
-                }
-                else
-                {
-                    return self.get_input_port(py::cast<std::string>(inputName),
-                                               py::cast<int>(inputPortIndex));
+                } else {
+                    return self.get_input_port(py::cast<std::string>(inputName), py::cast<int>(inputPortIndex));
                 }
             }
         },
@@ -235,27 +214,17 @@ void regclass_pyngraph_Place(py::module m)
     place.def(
         "get_output_port",
         [](const ngraph::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
-            if (outputName == py::none())
-            {
-                if (outputPortIndex == py::none())
-                {
+            if (outputName == py::none()) {
+                if (outputPortIndex == py::none()) {
                     return self.get_output_port();
-                }
-                else
-                {
+                } else {
                     return self.get_output_port(py::cast<int>(outputPortIndex));
                 }
-            }
-            else
-            {
-                if (outputPortIndex == py::none())
-                {
+            } else {
+                if (outputPortIndex == py::none()) {
                     return self.get_output_port(py::cast<std::string>(outputName));
-                }
-                else
-                {
-                    return self.get_output_port(py::cast<std::string>(outputName),
-                                                py::cast<int>(outputPortIndex));
+                } else {
+                    return self.get_output_port(py::cast<std::string>(outputName), py::cast<int>(outputPortIndex));
                 }
             }
         },
@@ -292,12 +261,9 @@ void regclass_pyngraph_Place(py::module m)
     place.def(
         "get_source_tensor",
         [](const ngraph::frontend::Place& self, py::object inputPortIndex) {
-            if (inputPortIndex == py::none())
-            {
+            if (inputPortIndex == py::none()) {
                 return self.get_source_tensor();
-            }
-            else
-            {
+            } else {
                 return self.get_source_tensor(py::cast<int>(inputPortIndex));
             }
         },

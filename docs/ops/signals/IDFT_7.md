@@ -2,7 +2,7 @@
 
 **Versioned name**: *IDFT-7*
 
-**Category**: Signal processing
+**Category**: *Signal processing*
 
 **Short description**: *IDFT* operation performs the inverse discrete Fourier transformation of input tensor by specified dimensions.
 

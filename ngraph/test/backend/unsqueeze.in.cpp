@@ -14,11 +14,9 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, unsqueeze)
-{
+NGRAPH_TEST(${BACKEND_NAME}, unsqueeze) {
     auto data_node = make_shared<op::Parameter>(element::f32, Shape{4, 2});
-    auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 2});
+    auto axes_node = make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 2});
     auto squeeze = make_shared<op::v0::Unsqueeze>(data_node, axes_node);
 
     auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});
@@ -30,11 +28,9 @@ NGRAPH_TEST(${BACKEND_NAME}, unsqueeze)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, unsqueeze_negative_axis)
-{
+NGRAPH_TEST(${BACKEND_NAME}, unsqueeze_negative_axis) {
     auto data_node = make_shared<op::Parameter>(element::f32, Shape{4, 2});
-    auto axes_node =
-        make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, -1});
+    auto axes_node = make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, -1});
     auto squeeze = make_shared<op::v0::Unsqueeze>(data_node, axes_node);
 
     auto function = make_shared<Function>(NodeVector{squeeze}, ParameterVector{data_node});

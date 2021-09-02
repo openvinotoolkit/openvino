@@ -21,7 +21,6 @@
         "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_transformations.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_preproc.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_ir_reader.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_onnx_reader.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_c_api.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/AutoPlugin.dll",
         "deployment_tools/inference_engine/lib/intel64/Release/HeteroPlugin.dll",
@@ -61,9 +60,7 @@
         "deployment_tools/inference_engine/bin/intel64/Release/usb-ma2x8x.mvcmd",
         "deployment_tools/inference_engine/bin/intel64/Release/pcie-ma2x8x.elf",
         "deployment_tools/inference_engine/bin/intel64/Release/myriadPlugin.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_legacy.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/myriad_compile.exe",
-        "deployment_tools/inference_engine/bin/intel64/Release/myriad_perfcheck.exe"
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_legacy.dll"
       ]
     },
     "gna": {

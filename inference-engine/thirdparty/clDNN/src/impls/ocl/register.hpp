@@ -18,6 +18,7 @@
 #include "cldnn/primitives/custom_gpu_primitive.hpp"
 #include "cldnn/primitives/deconvolution.hpp"
 #include "cldnn/primitives/depth_to_space.hpp"
+#include "cldnn/primitives/detection_output.hpp"
 #include "cldnn/primitives/eltwise.hpp"
 #include "cldnn/primitives/fully_connected.hpp"
 #include "cldnn/primitives/gather.hpp"
@@ -30,6 +31,7 @@
 #include "cldnn/primitives/max_unpooling.hpp"
 #include "cldnn/primitives/mutable_data.hpp"
 #include "cldnn/primitives/mvn.hpp"
+#include "cldnn/primitives/non_max_suppression.hpp"
 #include "cldnn/primitives/normalize.hpp"
 #include "cldnn/primitives/one_hot.hpp"
 #include "cldnn/primitives/permute.hpp"
@@ -90,6 +92,7 @@ REGISTER_OCL(deconvolution);
 REGISTER_OCL(deformable_conv);
 REGISTER_OCL(deformable_interp);
 REGISTER_OCL(depth_to_space);
+REGISTER_OCL(detection_output);
 REGISTER_OCL(eltwise);
 REGISTER_OCL(embed);
 REGISTER_OCL(fully_connected);
@@ -103,6 +106,7 @@ REGISTER_OCL(lstm_elt);
 REGISTER_OCL(max_unpooling);
 REGISTER_OCL(mutable_data);
 REGISTER_OCL(mvn);
+REGISTER_OCL(non_max_suppression);
 REGISTER_OCL(normalize);
 REGISTER_OCL(one_hot);
 REGISTER_OCL(permute);

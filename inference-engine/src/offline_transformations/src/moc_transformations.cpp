@@ -5,8 +5,10 @@
 #include <memory>
 
 #include "moc_transformations.hpp"
+#include "disable_shapeof_constant_folding.hpp"
 
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/common_optimizations/gelu_fusion.hpp>
 #include <transformations/common_optimizations/softplus_fusion.hpp>
@@ -24,6 +26,7 @@
 #include <transformations/common_optimizations/dilated_convolution_converter.hpp>
 #include <transformations/common_optimizations/binarize_weights.hpp>
 #include <transformations/common_optimizations/conv_to_binary_conv.hpp>
+#include <transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp>
 #include <transformations/common_optimizations/eliminate_unsqueeze_gather.hpp>
 #include <transformations/common_optimizations/split_squeeze_concat_fusion.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
@@ -32,6 +35,9 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/conv_mul_fusion.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
+#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/common_optimizations/leaky_relu_fusion.hpp>
+#include <transformations/common_optimizations/normalize_l2_fusion.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -48,9 +54,15 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
+            element::TypeVector{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
+    manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
+    // workaround until dynamism in NMS is not supported
+    manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>();
 
     auto transpose_sinking = manager.register_pass<ngraph::pass::GraphRewrite>();
     transpose_sinking->add_matcher<ngraph::pass::TransposeSinking>();
@@ -72,11 +84,13 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     common_fusions->add_matcher<ngraph::pass::SwishFusion>();
     common_fusions->add_matcher<ngraph::pass::HSwishFusion>();
     common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
+    common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
     common_fusions->add_matcher<ngraph::pass::ClampFusion>();
     common_fusions->add_matcher<ngraph::pass::PadFusion>();
     common_fusions->add_matcher<ngraph::pass::MVNFusion>();
     common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
     common_fusions->add_matcher<ngraph::pass::GeluFusion>();
+    common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();

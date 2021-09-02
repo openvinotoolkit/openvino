@@ -71,11 +71,28 @@ public:
 };
 
 Data::Data(const std::string& name, Precision _precision, Layout layout)
-    : name(name), userObject({0}), tensorDesc(_precision, layout) {
+    : name(name),
+      userObject({0}),
+      tensorDesc(_precision, layout) {
     _impl = std::make_shared<Impl>();
 }
 
-Data::Data(const std::string& name, const TensorDesc& desc): name(name), userObject({0}), tensorDesc(desc) {
+Data::Data(const std::string& name, const TensorDesc& desc)
+    : name(name),
+      userObject({0}),
+      tensorDesc(desc),
+      pShape(desc.getDims()) {
+    _impl = std::make_shared<Impl>();
+}
+
+Data::Data(const std::string& name, Precision _precision, const ngraph::PartialShape& shape, Layout layout)
+    : name(name),
+      userObject({0}),
+      tensorDesc(_precision, layout),
+      pShape(shape) {
+    if (pShape.is_static()) {
+        tensorDesc.reshape(pShape.to_shape(), tensorDesc.getLayout());
+    }
     _impl = std::make_shared<Impl>();
 }
 
@@ -93,6 +110,15 @@ bool Data::isInitialized() const {
 
 void Data::setDims(const SizeVector& a_dims) {
     tensorDesc.setDims(a_dims);
+    pShape = ngraph::PartialShape(a_dims);
+}
+
+bool Data::isDynamic() const {
+    return tensorDesc.getDims().empty() && tensorDesc.getLayout() != SCALAR && pShape.is_dynamic();
+}
+
+const ngraph::PartialShape& Data::getPartialShape() const {
+    return pShape;
 }
 
 void Data::setLayout(Layout layout) {
@@ -101,20 +127,38 @@ void Data::setLayout(Layout layout) {
 
 void Data::reshape(const SizeVector& a_dims, Layout a_layout) {
     tensorDesc.reshape(a_dims, a_layout);
+    pShape = ngraph::PartialShape(a_dims);
 }
 
-Data::Data(const Data& data) :
-    name(data.name), userObject(data.userObject), tensorDesc(data.tensorDesc) {
+void Data::reshape(const std::initializer_list<size_t>& dims, Layout layout) {
+    reshape(SizeVector(dims), layout);
+}
+
+void Data::reshape(const ngraph::PartialShape& dims, Layout layout) {
+    if (dims.is_static()) {
+        reshape(SizeVector(dims.to_shape()), layout);
+    } else {
+        tensorDesc = TensorDesc(tensorDesc.getPrecision(), layout);
+        pShape = dims;
+    }
+}
+
+Data::Data(const Data& data)
+    : name(data.name),
+      userObject(data.userObject),
+      tensorDesc(data.tensorDesc),
+      pShape(data.pShape) {
     _impl = std::make_shared<Impl>();
     _impl->creatorLayer = data._impl->creatorLayer;
     _impl->inputTo = data._impl->inputTo;
 }
 
-Data & Data::operator = (const Data& data) {
+Data& Data::operator=(const Data& data) {
     if (this != &data) {
         name = data.name;
         userObject = data.userObject;
         tensorDesc = data.tensorDesc;
+        pShape = data.pShape;
 
         _impl->creatorLayer = data._impl->creatorLayer;
         _impl->inputTo = data._impl->inputTo;
@@ -144,6 +188,11 @@ void Data::setPrecision(const Precision& precision) {
 }
 
 const SizeVector& Data::getDims() const {
+    if (isDynamic())
+        IE_THROW() << "Cannot return dims for Data with dynamic shapes!";
+    if (tensorDesc.getDims().empty() && tensorDesc.getLayout() != SCALAR) {
+        tensorDesc.setDims(pShape.to_shape());
+    }
     return tensorDesc.getDims();
 }
 
@@ -151,15 +200,15 @@ const SizeVector& Data::getDims() const {
 
 namespace InferenceEngine {
 
-INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr & data) {
+INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr& data) {
     return data->_impl->creatorLayer;
 }
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr & data) {
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr& data) {
     return data->_impl->inputTo;
 }
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data * data) {
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data* data) {
     return data->_impl->inputTo;
 }
 
