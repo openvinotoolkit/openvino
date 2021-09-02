@@ -32,28 +32,24 @@ class TestCalculateShape(unittest.TestCase):
     min_size = 600
     max_size = 1024
 
-    @generate(*[(100, 300, 341, 1024, False),
-                (100, 600, 171, 1024, False),
-                (100, 3000, 34, 1024, False),
-                (300, 300, 600, 600, False),
-                (300, 400, 600, 800, False),
-                (300, 600, 512, 1024, False),
-                (1000, 2500, 410, 1024, False),
-                (1800, 2000, 600, 667, False),
-                (300, 100, 1024, 341, False),
-                (600, 100, 1024, 171, False),
-                (3000, 100, 1024, 34, False),
-                (400, 300, 800, 600, False),
-                (600, 300, 1024, 512, False),
-                (2500, 1000, 1024, 410, False),
-                (2000, 1800, 667, 600, False),
-                (300, 300, 1024, 1024, True),
-                (900, 300, 1024, 1024, True),
-                (1300, 900, 1024, 1024, True),
-                (1025, 1025, 1024, 1024, True),
+    @generate(*[(100, 300, 341, 1024),
+                (100, 600, 171, 1024),
+                (100, 3000, 34, 1024),
+                (300, 300, 600, 600),
+                (300, 400, 600, 800),
+                (300, 600, 512, 1024),
+                (1000, 2500, 410, 1024),
+                (1800, 2000, 600, 667),
+                (300, 100, 1024, 341),
+                (600, 100, 1024, 171),
+                (3000, 100, 1024, 34),
+                (400, 300, 800, 600),
+                (600, 300, 1024, 512),
+                (2500, 1000, 1024, 410),
+                (2000, 1800, 667, 600),
                 ])
-    def test_calculate_shape(self, h, w, th, tw, pad):
-        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(h, w, self.min_size, self.max_size, pad), (th, tw))
+    def test_calculate_shape(self, h, w, th, tw):
+        self.assertTupleEqual(calculate_shape_keeping_aspect_ratio(h, w, self.min_size, self.max_size), (th, tw))
 
 
 class TestCalculatePlaceholderSpatialShape(unittest.TestCase):

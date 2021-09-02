@@ -370,8 +370,7 @@ def swap_weights_xy(graph: Graph, nodes: list):
                 insert_weights_swap_xy_sub_graph(graph, m.in_port(1).get_connection())
 
 
-def calculate_shape_keeping_aspect_ratio(height: int, width: int, min_size: int, max_size: int,
-                                         pad_to_max_dimension: bool = False):
+def calculate_shape_keeping_aspect_ratio(height: int, width: int, min_size: int, max_size: int):
     """
     The function changes spatial sizes of the image keeping aspect ratio to satisfy provided requirements.
     The behavior of this function is equivalent to the output shape calculation of the pre-processor block of TensorFlow
@@ -381,11 +380,8 @@ def calculate_shape_keeping_aspect_ratio(height: int, width: int, min_size: int,
     :param width: input width.
     :param min_size: size limit.
     :param max_size: size limit.
-    :param pad_to_max_dimension: pad the input image to the maximum value specified
     :return: the tuple with scaled image height, width.
     """
-    if pad_to_max_dimension:
-        return max_size, max_size
     ratio_min = min_size / min(height, width)
     ratio_max = max_size / max(height, width)
     ratio = min(ratio_min, ratio_max)
@@ -402,7 +398,9 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
            prints warning. If the '--input_shape' is not defined then use values from the pipeline configuration file.
         b. If the keep aspect ratio resizer is used then scale the size passed via '--input_shape' using the provided
            limits. If the '--input_shape' is not defined then use shape as (min_dimension_size, min_dimension_size)
-           defined in the pipeline configuration file.
+           defined in the pipeline configuration file. If the "pad_to_max_dimension" attribute is set to true then the
+           output shape will always be (max_dimension_size, max_dimension_size).
+
     :param graph: graph with the topology.
     :param match: the object containing matching sub-graph and custom attributes from the sub-graph replacement file.
     :param pipeline_config: the object contain information from the pipeline configuration file.
@@ -411,7 +409,6 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
     height = None
     width = None
     user_shapes = graph.graph['user_shapes']
-    silent = graph.graph['cmd_params'].silent
 
     if match and ('preprocessed_image_height' in match.custom_replacement_desc.custom_attributes or
                   'preprocessed_image_width' in match.custom_replacement_desc.custom_attributes):
@@ -447,37 +444,41 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
     # the parameters below are set if keep_aspect_ratio_resizer is used
     resizer_min_dimension = pipeline_config.get_param('resizer_min_dimension')
     resizer_max_dimension = pipeline_config.get_param('resizer_max_dimension')
+    pad_to_max_dimension = pipeline_config.get_param('pad_to_max_dimension')
     if resizer_min_dimension and resizer_max_dimension:
-        log.debug('The model resizes image using keep aspect ratio with minimum size {}, maximum size {}.'.format(
-            resizer_min_dimension, resizer_max_dimension))
-        pad_to_max_dimension = pipeline_config.get_param('pad_to_max_dimension')
-        log.error('[ WARNING ] Model Optimizer removes pre-processing block of the model which resizes image keeping '
-                  'aspect ratio. The Inference Engine does not support dynamic image size so the Intermediate '
-                  'Representation file is generated with the input image size of a fixed size.',
-                  extra={'is_warning': True})
-        if user_defined_height and user_defined_width:
-            scaled_height, scaled_width = calculate_shape_keeping_aspect_ratio(user_defined_height,
-                                                                               user_defined_width,
-                                                                               resizer_min_dimension,
-                                                                               resizer_max_dimension,
-                                                                               pad_to_max_dimension)
-            if scaled_height != user_defined_height or scaled_width != user_defined_width:
-                log.error('The model resizes the input image keeping aspect ratio with min dimension {}, max '
-                          'dimension {}. The provided input height {}, width {} is transformed to height {}, width '
-                          '{}.'.format(resizer_min_dimension, resizer_max_dimension, user_defined_height,
-                                       user_defined_width, scaled_height, scaled_width), extra={'is_warning': True})
-            height = scaled_height
-            width = scaled_width
+        log.debug('The model resizes image using keep aspect ratio with minimum size {}, maximum size {}, pad {}.'
+                  ''.format(resizer_min_dimension, resizer_max_dimension, pad_to_max_dimension))
+        if pad_to_max_dimension:
+            if user_defined_height and user_defined_width:
+                log.error('The model contains pre-processing block which resizes image keeping aspect ratio with a '
+                          'padding to max dimension. The only valid model input image spatial shape after '
+                          'pre-processing is ({}, {}). Ignoring the user provided input shapes.'
+                          ''.format(resizer_max_dimension, resizer_max_dimension), extra={'is_warning': True})
+            height = width = resizer_max_dimension
         else:
-            if pad_to_max_dimension:
-                height = width = resizer_max_dimension
+            log.error('Model Optimizer removes pre-processing block of the model which resizes image keeping aspect '
+                      'ratio. Inference Engine does not support dynamic image size so the Intermediate Representation '
+                      'file is generated with the input image size of a fixed size.', extra={'is_warning': True})
+            if user_defined_height and user_defined_width:
+                scaled_height, scaled_width = calculate_shape_keeping_aspect_ratio(user_defined_height,
+                                                                                   user_defined_width,
+                                                                                   resizer_min_dimension,
+                                                                                   resizer_max_dimension)
+                if scaled_height != user_defined_height or scaled_width != user_defined_width:
+                    log.error('The model resizes the input image keeping aspect ratio with min dimension {}, max '
+                              'dimension {}. The provided input height {}, width {} is transformed to height {}, width '
+                              '{}.'.format(resizer_min_dimension, resizer_max_dimension, user_defined_height,
+                                           user_defined_width, scaled_height, scaled_width), extra={'is_warning': True})
+                height = scaled_height
+                width = scaled_width
             else:
                 height = width = resizer_min_dimension
-            log.error('Specify the "--input_shape" command line parameter to override the default shape which is equal '
-                      'to ({}, {}).'.format(height, width), extra={'is_warning': True})
+                log.error('Specify the "--input_shape" command line parameter to override the default shape which is '
+                          'equal to ({}, {}).'.format(height, width), extra={'is_warning': True})
 
     if height is None or width is None:
-        raise Error('Failed to determine the placeholder shape.')
+        raise Error('Failed to determine the placeholder shape. Unsupported image resizer from the pipeline.config was '
+                    'used to create the model.')
     return height, width
 
 
@@ -766,8 +767,15 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         return [ObjectDetectionAPITransformationsStart]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
+        argv = graph.graph['cmd_params']
+        if argv.tensorflow_object_detection_api_pipeline_config is None:
+            raise Error(missing_param_error)
+
+        pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
+        pad_to_max_dimension = pipeline_config.get_param('pad_to_max_dimension')
+
         # update the model Parameter node shape based on MO command line parameters and values in the pipeline.config
-        update_parameter_shape(graph, None)
+        _, parameter_node = update_parameter_shape(graph, None)
 
         # NOTE: this transformation can be implemented as a "scope" or "points" transformation since we need to match
         # some sub-graph between specific nodes
@@ -806,6 +814,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         else:
             pre_processing_ops, trailing = get_preprocessing_ops(graph, start_node.id, end_node.id)
 
+        mean_scale_kept = True
         if len(pre_processing_ops):
             # if the pre-processing is applied before the resize then reverse them to be in the topological order
             if not trailing:
@@ -833,14 +842,31 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
                     source_port.disconnect()
                     end_node.out_port(0).get_connection().set_source(source_port)
                 else:  # case 1
-                    # change output of the end_node to be produced with the last preprocessing op
-                    end_node.out_port(0).get_connection().set_source(pre_processing_ops[-1][0].out_port(0))
-                    start_node.in_port(0).disconnect()
+                    # if padding is specified then need to remove mean/scale as well. Refer to the transformation
+                    # comments for more details
+                    if pad_to_max_dimension:
+                        # change output of the end_node to be produced with the node producing data for the first
+                        # preprocessing op
+                        mean_scale_kept = False
+                        first_pre_processing_node = pre_processing_ops[0][0]
+                        consumer_port = first_pre_processing_node.in_port(int(not pre_processing_ops[0][1]))
+                        end_node.out_port(0).get_connection().set_source(consumer_port.get_connection().get_source())
+                    else:
+                        # change output of the end_node to be produced with the last preprocessing op
+                        end_node.out_port(0).get_connection().set_source(pre_processing_ops[-1][0].out_port(0))
+                        start_node.in_port(0).disconnect()
         else:  # simply remove the nodes in between start_node and end_node (including them). Case 3 and 6
             end_node.out_port(0).get_connection().set_source(start_node.in_port(0).get_source())
 
-        log.error('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling'
-                  '(if applicable) are kept.', extra={'is_warning': True})
+        if mean_scale_kept:
+            log.error('The pre-processing block has been removed. Only nodes performing mean value subtraction and '
+                      'scaling (if applicable) are kept. It is necessary to resize an input image using the same '
+                      'algorithm as in the original model before feeding it to the Inference Engine.',
+                      extra={'is_warning': True})
+        else:
+            log.error('The Preprocessor block has been removed including mean value subtraction and scaling (if '
+                      'applicable). It is necessary to resize, scale and pad an input image using the same algorithm '
+                      'as in the original model before feeding it to the Inference Engine.', extra={'is_warning': True})
 
 
 class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFileSubGraph):
@@ -1035,8 +1061,9 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         output_op = Result(graph, dict(name='do_OutputOp'))
         output_op.create_node([detection_output_node])
 
-        print('The graph output nodes have been replaced with a single layer of type "DetectionOutput". Refer to the '
-              'operation set specification documentation for more information about the operation.')
+        log.error('The graph output nodes have been replaced with a single layer of type "DetectionOutput". Refer to '
+                  'the operation set specification documentation for more information about the operation.',
+                  extra={'is_warning': True})
 
         return {'detection_output_node': detection_output_node}
 
@@ -1543,6 +1570,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         detection_output_node = detection_output_op.create_node(
             [reshape_loc_node, reshape_conf_node, priors_node],
             dict(name=detection_output_op.attrs['type'],
+                 background_label_id=0 if has_background_class else -1,
                  num_classes=num_classes,
                  confidence_threshold=_value_or_raise(match, pipeline_config, 'postprocessing_score_threshold'),
                  top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_detections_per_class'),
