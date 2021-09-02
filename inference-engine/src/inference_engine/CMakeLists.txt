@@ -259,11 +259,6 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
                 DESTINATION runtime/3rdparty/tbb
                 COMPONENT tbb)
     endif()
-    # if(EXISTS "${TBB}/doc")
-    #     install(DIRECTORY "${TBB}/doc"
-    #             DESTINATION runtime/3rdparty/tbb
-    #             COMPONENT tbb)
-    # endif()
     install(FILES "${TBB}/LICENSE"
             DESTINATION runtime/3rdparty/tbb
             COMPONENT tbb)

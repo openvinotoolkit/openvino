@@ -92,8 +92,8 @@ To deploy the Inference Engine components from the development machine to the ta
    ```
    * For Windows, use an archiver your prefer.  
    
-   The package is unpacked to the destination directory and the following subdirectories are created:
-      * `bin` — Snapshot of the `bin` directory from the OpenVINO installation directory.
+   The package is unpacked to the destination directory and the following files and subdirectories are created:
+      * `setupvars.sh` — copy of `setupvars.sh`
       * `runtime` — Contains the OpenVINO runtime binary files.
       * `install_dependencies` — Snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
       * `<user_data>` — The directory with the user data (IRs, datasets, etc.) you specified while configuring the package.
