@@ -173,5 +173,6 @@ std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> InputModelTensorflow::
             }
         }
     }
+    std::reverse(new_ops.begin(), new_ops.end());
     return new_ops;
 }
