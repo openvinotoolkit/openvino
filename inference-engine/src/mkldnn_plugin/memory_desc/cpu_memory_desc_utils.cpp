@@ -46,6 +46,8 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
 }
 
 CpuBlockedMemoryDesc MemoryDescUtils::convertToCpuBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
+    if (desc.getLayout() == InferenceEngine::Layout::ANY)
+        IE_THROW() << "Cannot convert InferenceEngine::TensorDesc with ANY layout to CpuBlockedMemoryDesc";
     const auto &blkDesc = desc.getBlockingDesc();
     return CpuBlockedMemoryDesc(desc.getPrecision(), Shape(desc.getDims()), blkDesc.getBlockDims(), blkDesc.getOrder(), blkDesc.getOffsetPadding(),
                                 blkDesc.getOffsetPaddingToData(), blkDesc.getStrides());
@@ -53,6 +55,8 @@ CpuBlockedMemoryDesc MemoryDescUtils::convertToCpuBlockedMemoryDesc(const Infere
 
 DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
     const auto &blkDesc = desc.getBlockingDesc();
+    if (desc.getLayout() == InferenceEngine::Layout::ANY)
+        IE_THROW() << "Cannot convert InferenceEngine::TensorDesc with ANY layout to DnnlBlockedMemoryDesc";
     return DnnlBlockedMemoryDesc(desc.getPrecision(), Shape(desc.getDims()), blkDesc.getBlockDims(), blkDesc.getOrder(), blkDesc.getOffsetPadding(),
                                  blkDesc.getOffsetPaddingToData(), blkDesc.getStrides());
 }

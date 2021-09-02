@@ -401,7 +401,8 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
             }
 
             const auto &actualDesc = graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc();
-            if (actualDesc.isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(blobDesc)) &&
+            if (blobDesc.getLayout() != InferenceEngine::Layout::ANY &&
+                actualDesc.isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(blobDesc)) &&
                 graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
                 externalPtr[name] = data->buffer();
             } else if (externalPtr.find(name) != externalPtr.end()) {
