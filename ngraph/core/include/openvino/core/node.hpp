@@ -50,12 +50,14 @@ class Result;
 }  // namespace v0
 }  // namespace op
 
-namespace pattern {
-class Matcher;
-}  // namespace pattern
 }  // namespace ngraph
 
 namespace ov {
+namespace pass {
+namespace pattern {
+class Matcher;
+}  // namespace pattern
+}  // namespace pass
 using HostTensor = ngraph::runtime::HostTensor;
 using HostTensorPtr = std::shared_ptr<HostTensor>;
 using HostTensorVector = std::vector<HostTensorPtr>;
@@ -487,11 +489,11 @@ public:
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    virtual bool match_value(ngraph::pattern::Matcher* matcher,
+    virtual bool match_value(ov::pass::pattern::Matcher* matcher,
                              const Output<Node>& pattern_value,
                              const Output<Node>& graph_value);
 
-    virtual bool match_node(ngraph::pattern::Matcher* matcher, const Output<Node>& graph_value);
+    virtual bool match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value);
 
 private:
     descriptor::Input& get_input_descriptor(size_t position);

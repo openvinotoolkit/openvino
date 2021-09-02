@@ -13,7 +13,8 @@
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
-namespace ngraph {
+namespace ov {
+namespace pass {
 namespace pattern {
 MatcherState::MatcherState(Matcher* matcher)
     : m_matcher(matcher),
@@ -88,7 +89,7 @@ bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unuse
     NGRAPH_SUPPRESS_DEPRECATED_START
     if (exclusions.empty()) {
         NodeVector label_exclusions;
-        for (auto entry : m_pattern_map) {
+        for (const auto& entry : m_pattern_map) {
             // leaf label
             if (entry.first->get_input_size() == 0) {
                 label_exclusions.push_back(entry.second.get_node_shared_ptr());
@@ -108,7 +109,7 @@ bool Matcher::match_value(const ngraph::Output<Node>& pattern_value, const ngrap
     // This env var allows one to specify node name patterns to abort pattern matching
     // at particular nodes. The upshot is that one can quickly zero in on an offending
     // fusion by disabling individual fusions or optimizations that use Matcher.
-    static const std::string node_skip_cregex = getenv_string("NGRAPH_FAIL_MATCH_AT");
+    static const std::string node_skip_cregex = ngraph::getenv_string("NGRAPH_FAIL_MATCH_AT");
     if (!node_skip_cregex.empty()) {
         static const std::regex node_skip_regex(node_skip_cregex);
         if (std::regex_match(graph_node->get_name(), node_skip_regex)) {
@@ -201,7 +202,7 @@ void Matcher::clear_state() {
 namespace {
 std::set<std::shared_ptr<Node>> as_node_set(const std::set<std::shared_ptr<op::Label>>& label_set) {
     std::set<std::shared_ptr<Node>> result;
-    for (auto label : label_set) {
+    for (const auto& label : label_set) {
         result.insert(label);
     }
     return result;
@@ -230,7 +231,7 @@ bool RecurrentMatcher::match(Output<Node> graph) {
         graph = m.get_pattern_value_map()[m_recurrent_pattern];
 
         // copy bound nodes for the current pattern graph into a global matches map
-        for (auto cur_match : m.get_pattern_value_map()) {
+        for (const auto& cur_match : m.get_pattern_value_map()) {
             m_matches[cur_match.first].push_back(cur_match.second);
         }
 
@@ -238,7 +239,7 @@ bool RecurrentMatcher::match(Output<Node> graph) {
         // from the current match. Only bound nodes whose labels are in
         // correlated_patterns are pre-populated. Skip other labels are
         // unbounded by default
-        for (auto cor_pat : m_correlated_patterns) {
+        for (const auto& cor_pat : m_correlated_patterns) {
             previous_matches[cor_pat] = m.get_pattern_value_map()[cor_pat];
         }
         m = m_repeat;
@@ -251,4 +252,5 @@ bool RecurrentMatcher::match(Output<Node> graph) {
     return matched;
 }
 }  // namespace pattern
-}  // namespace ngraph
+}  // namespace pass
+}  // namespace ov

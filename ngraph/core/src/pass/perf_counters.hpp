@@ -7,7 +7,7 @@
 #include <ngraph/node.hpp>
 #include <unordered_map>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 class PerfCounters {
     PerfCounters(PerfCounters const&) = delete;
@@ -27,4 +27,4 @@ private:
     counters_map m_counters;
 };
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

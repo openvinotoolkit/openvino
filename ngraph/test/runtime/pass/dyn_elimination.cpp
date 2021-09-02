@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "dyn_elimination.hpp"
+
 #include <numeric>
 
-#include "dyn_elimination.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/range.hpp"
@@ -19,9 +20,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-pass::DynElimination::DynElimination()
-    : GraphRewrite()
-{
+pass::DynElimination::DynElimination() : GraphRewrite() {
     construct_range();
 }
 
@@ -29,28 +28,22 @@ template <typename T>
 std::shared_ptr<op::Constant> make_range_replacement(const element::Type& et,
                                                      const Shape& shape,
                                                      const std::shared_ptr<op::Constant>& start_arg,
-                                                     const std::shared_ptr<op::Constant>& step_arg)
-{
+                                                     const std::shared_ptr<op::Constant>& step_arg) {
     std::vector<T> elements(shape_size(shape));
     std::vector<T> start_vec = start_arg->get_vector<T>();
     std::vector<T> step_vec = step_arg->get_vector<T>();
 
     NGRAPH_CHECK(start_vec.size() == 1 && step_vec.size() == 1);
 
-    runtime::reference::range<T>(
-        start_vec.data(), step_vec.data(), shape_size(shape), elements.data());
+    runtime::reference::range<T>(start_vec.data(), step_vec.data(), shape_size(shape), elements.data());
 
     return make_shared<op::Constant>(et, shape, elements);
 }
 
-void pass::DynElimination::construct_range()
-{
-    auto start_arg_label =
-        make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
-    auto stop_arg_label =
-        make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
-    auto step_arg_label =
-        make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
+void pass::DynElimination::construct_range() {
+    auto start_arg_label = make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
+    auto stop_arg_label = make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
+    auto step_arg_label = make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<op::Constant>());
 
     auto range_pat = make_shared<op::Range>(start_arg_label, stop_arg_label, step_arg_label);
 
@@ -70,12 +63,11 @@ void pass::DynElimination::construct_range()
         std::shared_ptr<op::Constant> replacement;
 
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic error "-Wswitch"
-#pragma GCC diagnostic error "-Wswitch-enum"
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic error "-Wswitch"
+#    pragma GCC diagnostic error "-Wswitch-enum"
 #endif
-        switch (et)
-        {
+        switch (et) {
         case element::Type_t::bf16:
             replacement = make_range_replacement<bfloat16>(et, shape, start_arg, step_arg);
             break;
@@ -122,7 +114,7 @@ void pass::DynElimination::construct_range()
             break;
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#pragma GCC diagnostic pop
+#    pragma GCC diagnostic pop
 #endif
 
         replace_node(range_node, replacement);

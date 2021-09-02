@@ -7,7 +7,8 @@
 #include <algorithm>
 #include <regex>
 
-namespace ngraph {
+namespace ov {
+namespace pass {
 namespace pattern {
 namespace op {
 // The symbols are required to be in cpp file to workaround RTTI issue on Android LLVM
@@ -101,4 +102,5 @@ std::function<bool(Output<Node>)> type_matches_any(const std::vector<element::Ty
     };
 }
 }  // namespace pattern
-}  // namespace ngraph
+}  // namespace pass
+}  // namespace ov
