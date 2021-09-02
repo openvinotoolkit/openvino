@@ -40,6 +40,7 @@ from _pyngraph import Input
 from _pyngraph import Output
 from _pyngraph import Node
 from _pyngraph import Type
+from _pyngraph import PartialLayout
 from _pyngraph import PartialShape
 from _pyngraph import Shape
 from _pyngraph import Strides

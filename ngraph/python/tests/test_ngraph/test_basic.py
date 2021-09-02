@@ -10,6 +10,7 @@ from _pyngraph import VariantInt, VariantString
 
 import ngraph as ng
 from ngraph.exceptions import UserInputError
+from ngraph import PartialLayout
 from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
@@ -432,3 +433,23 @@ def test_node_version():
 
     assert node.get_version() == 1
     assert node.version == 1
+
+
+def test_partial_layout():
+    l = PartialLayout('NCHW')
+    assert l.channels == 1
+    assert l.size == 4
+
+    l = PartialLayout('N??C')
+    assert l.channels == 3
+    assert not l.is_empty
+
+    l = PartialLayout()
+    assert l.channels is None
+    assert l.is_empty
+    assert l.size == 0
+
+    l = PartialLayout('HW')
+    assert l.channels is None
+    assert not l.is_empty
+    assert l.size == 2

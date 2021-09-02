@@ -25,6 +25,7 @@
 #include "pyngraph/ops/parameter.hpp"
 #include "pyngraph/ops/result.hpp"
 #include "pyngraph/ops/util/regmodule_pyngraph_op_util.hpp"
+#include "pyngraph/partial_layout.hpp"
 #include "pyngraph/partial_shape.hpp"
 #include "pyngraph/passes/regmodule_pyngraph_passes.hpp"
 #include "pyngraph/rt_map.hpp"
@@ -42,6 +43,7 @@ PYBIND11_MODULE(_pyngraph, m) {
     regmodule_pyngraph_types(m);
     regclass_pyngraph_Dimension(m);  // Dimension must be registered before PartialShape
     regclass_pyngraph_Shape(m);
+    regclass_pyngraph_PartialLayout(m);
     regclass_pyngraph_PartialShape(m);
     regclass_pyngraph_Node(m);
     regclass_pyngraph_Place(m);

@@ -58,25 +58,25 @@ private:
 };
 
 namespace layouts {
-bool has_batch(const PartialLayout& layout);
-std::int64_t batch(const PartialLayout& layout);
-void set_batch(PartialLayout& layout, std::int64_t index);
+OPENVINO_API bool has_batch(const PartialLayout& layout);
+OPENVINO_API std::int64_t batch(const PartialLayout& layout);
+OPENVINO_API void set_batch(PartialLayout& layout, std::int64_t index);
 
-bool has_channels(const PartialLayout& layout);
-std::int64_t channels(const PartialLayout& layout);
-void set_channels(PartialLayout& layout, std::int64_t index);
+OPENVINO_API bool has_channels(const PartialLayout& layout);
+OPENVINO_API std::int64_t channels(const PartialLayout& layout);
+OPENVINO_API void set_channels(PartialLayout& layout, std::int64_t index);
 
-bool has_depth(const PartialLayout& layout);
-std::int64_t depth(const PartialLayout& layout);
-void set_depth(PartialLayout& layout, std::int64_t index);
+OPENVINO_API bool has_depth(const PartialLayout& layout);
+OPENVINO_API std::int64_t depth(const PartialLayout& layout);
+OPENVINO_API void set_depth(PartialLayout& layout, std::int64_t index);
 
-bool has_height(const PartialLayout& layout);
-std::int64_t height(const PartialLayout& layout);
-void set_height(PartialLayout& layout, std::int64_t index);
+OPENVINO_API bool has_height(const PartialLayout& layout);
+OPENVINO_API std::int64_t height(const PartialLayout& layout);
+OPENVINO_API void set_height(PartialLayout& layout, std::int64_t index);
 
-bool has_width(const PartialLayout& layout);
-std::int64_t width(const PartialLayout& layout);
-void set_width(PartialLayout& layout, std::int64_t index);
+OPENVINO_API bool has_width(const PartialLayout& layout);
+OPENVINO_API std::int64_t width(const PartialLayout& layout);
+OPENVINO_API void set_width(PartialLayout& layout, std::int64_t index);
 }  // namespace layouts
 
 template <>
