@@ -26,6 +26,8 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
 
     order.resize(ndims);
     std::iota(order.begin(), order.end(), 0);
+
+    initBlockedParams();
 }
 
 /**
@@ -181,6 +183,8 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     }
 
     this->order = order;
+
+    initBlockedParams();
 }
 
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format) :
@@ -204,88 +208,8 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape, mkldnn::memory:
 
     order.swap(perm);
     order.insert(order.end(), inner_idxs.begin(), inner_idxs.end());
-}
 
-const VectorDims& DnnlBlockedMemoryDesc::getBlockDims() const {
-    if (blockedDims.empty()) {
-        const auto dims = desc.dims();
-
-        const auto &blk_desc = desc.data.format_desc.blocking;
-
-        const size_t outer_ndims = dims.size();
-        const size_t inner_ndims = blk_desc.inner_nblks;
-        const size_t total_ndims = outer_ndims + inner_ndims;
-
-        // total inner block size. in case of 4i16o4i will be {16, 16, 1, 1}
-        VectorDims total_block_per_dim(outer_ndims, 1);
-        for (int i = 0; i < inner_ndims; i++) {
-            total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
-        }
-        // blocked dims
-        // [dims via new_outer_order with auto pad] U [inner_blk_dims]
-        VectorDims outer_block_dims = MKLDNNExtensionUtils::convertToVectorDims(dims);
-        for (size_t i = 0; i < outer_block_dims.size(); i++) {
-            if (outer_block_dims[i] != Shape::UNDEFINED_DIM) {
-                outer_block_dims[i] = div_up(outer_block_dims[i], total_block_per_dim[i]);
-            }
-        }
-
-        // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
-        VectorDims outer_order(outer_ndims);
-        std::copy(order.begin(), order.begin() + outer_ndims, outer_order.begin());
-
-        blockedDims.resize(total_ndims, 0);
-        std::copy(blk_desc.inner_blks, blk_desc.inner_blks + blk_desc.inner_nblks,
-                  blockedDims.end() - blk_desc.inner_nblks);
-        std::transform(outer_order.begin(), outer_order.end(), blockedDims.begin(),
-                       [&] (size_t i) { return outer_block_dims[i]; });
-    }
-    return blockedDims;
-}
-
-const VectorDims& DnnlBlockedMemoryDesc::getStrides() const {
-    if (strides.empty()) {
-        const auto dims = desc.dims();
-
-        const auto &blk_desc = desc.data.format_desc.blocking;
-
-        const size_t outer_ndims = dims.size();
-        const size_t inner_ndims = blk_desc.inner_nblks;
-        const size_t total_ndims = outer_ndims + inner_ndims;
-
-        // strides of inner dims. In case of 4i16o4i will be {64, 4, 1}
-        VectorDims inner_strides(inner_ndims, 1);
-        for (size_t i = 1; i < blk_desc.inner_nblks; i++) {
-            inner_strides[blk_desc.inner_nblks - 1 - i] = inner_strides[blk_desc.inner_nblks - i] * blk_desc.inner_blks[blk_desc.inner_nblks - i];
-        }
-
-        // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
-        VectorDims outer_order(outer_ndims);
-        std::copy(order.begin(), order.begin() + outer_ndims, outer_order.begin());
-
-        // blocked strides
-        // [outer_strides via new_outer_order] U [inner_strides]
-        strides.resize(total_ndims, 0);
-        std::copy(inner_strides.rbegin(), inner_strides.rend(), strides.rbegin());
-        std::transform(outer_order.begin(), outer_order.end(), strides.begin(),
-                       [&](size_t i) { return blk_desc.strides[i] == DNNL_RUNTIME_DIM_VAL ? Shape::UNDEFINED_DIM : blk_desc.strides[i]; });
-    }
-    return strides;
-}
-
-const VectorDims& DnnlBlockedMemoryDesc::getOrder() const {
-    return order;
-}
-
-const VectorDims& DnnlBlockedMemoryDesc::getOffsetPaddingToData() const {
-    if (offsetPaddingToData.empty()) {
-        offsetPaddingToData = VectorDims(std::begin(desc.data.padded_offsets), std::begin(desc.data.padded_offsets) + getOrder().size());
-    }
-    return offsetPaddingToData;
-}
-
-size_t DnnlBlockedMemoryDesc::getOffsetPadding() const {
-    return MKLDNNExtensionUtils::convertToDim(desc.data.offset0);
+    initBlockedParams();
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
@@ -380,6 +304,8 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const mkldnn::memory::desc& mdesc) 
     std::copy(outer_order.begin(), outer_order.end(), blk_order.begin());
     std::copy(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, blk_order.begin() + dims.size());
     order.swap(blk_order);
+
+    initBlockedParams();
 }
 
 bool DnnlBlockedMemoryDesc::hasLayoutType(LayoutType layoutType) const {
@@ -802,4 +728,69 @@ bool DnnlBlockedMemoryDesc::blocksExtended() const {
             return true;
     }
     return false;
+}
+
+void DnnlBlockedMemoryDesc::initBlockDims() {
+    const auto dims = desc.dims();
+
+    const auto &blk_desc = desc.data.format_desc.blocking;
+
+    const size_t outer_ndims = dims.size();
+    const size_t inner_ndims = blk_desc.inner_nblks;
+    const size_t total_ndims = outer_ndims + inner_ndims;
+
+    // total inner block size. in case of 4i16o4i will be {16, 16, 1, 1}
+    VectorDims total_block_per_dim(outer_ndims, 1);
+    for (int i = 0; i < inner_ndims; i++) {
+        total_block_per_dim[blk_desc.inner_idxs[i]] *= blk_desc.inner_blks[i];
+    }
+    // blocked dims
+    // [dims via new_outer_order with auto pad] U [inner_blk_dims]
+    VectorDims outer_block_dims = MKLDNNExtensionUtils::convertToVectorDims(dims);
+    for (size_t i = 0; i < outer_block_dims.size(); i++) {
+        if (outer_block_dims[i] != Shape::UNDEFINED_DIM) {
+            outer_block_dims[i] = div_up(outer_block_dims[i], total_block_per_dim[i]);
+        }
+    }
+
+    // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
+    VectorDims outer_order(outer_ndims);
+    std::copy(order.begin(), order.begin() + outer_ndims, outer_order.begin());
+
+    blockedDims.resize(total_ndims, 0);
+    std::copy(blk_desc.inner_blks, blk_desc.inner_blks + blk_desc.inner_nblks,
+              blockedDims.end() - blk_desc.inner_nblks);
+    std::transform(outer_order.begin(), outer_order.end(), blockedDims.begin(),
+                   [&] (size_t i) { return outer_block_dims[i]; });
+}
+
+void DnnlBlockedMemoryDesc::initStrides() {
+    const auto dims = desc.dims();
+
+    const auto &blk_desc = desc.data.format_desc.blocking;
+
+    const size_t outer_ndims = dims.size();
+    const size_t inner_ndims = blk_desc.inner_nblks;
+    const size_t total_ndims = outer_ndims + inner_ndims;
+
+    // strides of inner dims. In case of 4i16o4i will be {64, 4, 1}
+    VectorDims inner_strides(inner_ndims, 1);
+    for (size_t i = 1; i < blk_desc.inner_nblks; i++) {
+        inner_strides[blk_desc.inner_nblks - 1 - i] = inner_strides[blk_desc.inner_nblks - i] * blk_desc.inner_blks[blk_desc.inner_nblks - i];
+    }
+
+    // order of outer dims. In case of IOhw_ will be {1, 0, 2, 3}
+    VectorDims outer_order(outer_ndims);
+    std::copy(order.begin(), order.begin() + outer_ndims, outer_order.begin());
+
+    // blocked strides
+    // [outer_strides via new_outer_order] U [inner_strides]
+    strides.resize(total_ndims, 0);
+    std::copy(inner_strides.rbegin(), inner_strides.rend(), strides.rbegin());
+    std::transform(outer_order.begin(), outer_order.end(), strides.begin(),
+                   [&](size_t i) { return blk_desc.strides[i] == DNNL_RUNTIME_DIM_VAL ? Shape::UNDEFINED_DIM : blk_desc.strides[i]; });
+}
+
+void DnnlBlockedMemoryDesc::initOffsetPadding() {
+    offsetPaddingToData = VectorDims(std::begin(desc.data.padded_offsets), std::begin(desc.data.padded_offsets) + getOrder().size());
 }

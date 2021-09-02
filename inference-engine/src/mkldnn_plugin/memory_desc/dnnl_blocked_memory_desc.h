@@ -25,15 +25,25 @@ public:
     bool isCompatible(const DnnlBlockedMemoryDesc& rhs) const;
     bool isCompatible(const CpuBlockedMemoryDesc& rhs) const;
 
-    const VectorDims& getBlockDims() const override;
+    const VectorDims& getBlockDims() const override {
+        return blockedDims;
+    }
 
-    const VectorDims& getOrder() const override;
+    const VectorDims& getOrder() const override {
+        return order;
+    }
 
-    const VectorDims& getOffsetPaddingToData() const override;
+    const VectorDims& getOffsetPaddingToData() const override {
+        return offsetPaddingToData;
+    }
 
-    size_t getOffsetPadding() const override;
+    size_t getOffsetPadding() const override {
+        return MKLDNNExtensionUtils::convertToDim(desc.data.offset0);
+    }
 
-    const VectorDims& getStrides() const override;
+    const VectorDims& getStrides() const override {
+        return strides;
+    }
 
     bool hasLayoutType(LayoutType layoutType) const override;
 
@@ -59,6 +69,18 @@ private:
     bool isPlainFormat() const;
     bool isBlockedCFormat(size_t blk_size = UNREACHABLE_DIM) const;
     bool isTailCFormat() const;
+
+    // WA: we need to initialize blocked params into ctor to avoid bugs when we calculate these params in throughput mode
+    // TODO [DS]: should be reimplemented to avoid useless calculation
+    void initBlockedParams() {
+        initBlockDims();
+        initStrides();
+        initOffsetPadding();
+    }
+
+    void initBlockDims();
+    void initStrides();
+    void initOffsetPadding();
 
     /**
      * Try to define original format tag use on creation
