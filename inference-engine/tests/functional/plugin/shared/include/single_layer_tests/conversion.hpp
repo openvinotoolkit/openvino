@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer/convert_like.hpp"
+#include "shared_test_classes/single_layer/conversion.hpp"
 
 namespace LayerTestsDefinitions {
-
-TEST_P(ConvertLikeLayerTest, CompareWithRefs) {
+TEST_P(ConversionLayerTest, CompareWithRefs) {
     Run();
 };
-
 }  // namespace LayerTestsDefinitions
