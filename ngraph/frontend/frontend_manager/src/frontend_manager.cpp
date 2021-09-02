@@ -375,8 +375,6 @@ std::vector<Place::Ptr> Place::get_consuming_operations(const std::string& outpu
 
 constexpr VariantTypeInfo VariantWrapper<std::istream*>::type_info;
 
-constexpr VariantTypeInfo VariantWrapper<std::istringstream*>::type_info;
-
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 constexpr VariantTypeInfo VariantWrapper<std::wstring>::type_info;
 #endif
