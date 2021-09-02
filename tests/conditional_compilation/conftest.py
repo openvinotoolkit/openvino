@@ -192,19 +192,37 @@ def save_session_info(pytestconfig, artifacts):
     write_session_info(path=artifacts / SESSION_INFO_FILE, data=pytestconfig.session_info)
 
 
+@pytest.fixture(scope="session")
+def omz_path(request):
+    """Fixture function for command-line option."""
+    omz_path = request.config.getoption("omz_repo", skip=True)
+    validate_path_arg(omz_path, is_dir=True)
+
+    return omz_path
+
+
+@pytest.fixture(scope="session")
+def omz_cache_dir(request):
+    """Fixture function for command-line option."""
+    omz_cache_dir = request.config.getoption("omz_cache_dir", skip=True)
+    validate_path_arg(omz_cache_dir, is_dir=True)
+
+    return omz_cache_dir
+
+
 @pytest.fixture(scope="function")
-def prepared_models(openvino_ref, models, request):
+def prepared_models(openvino_ref, models, omz_path, omz_cache_dir):
     """
     Process models: prepare Open Model Zoo models, skip non-OMZ models.
     """
     for model in models:
         if model.get("type") == "omz":
-            model["path"] = prepare_omz_model(openvino_ref, model, request)
+            model["path"] = prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir)
     models = [model["path"] for model in models]
     return models
 
 
-def prepare_omz_model(openvino_ref, model, request):
+def prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir):
     """
     Download and convert Open Model Zoo model to Intermediate Representation,
     get path to model XML.
@@ -213,15 +231,13 @@ def prepare_omz_model(openvino_ref, model, request):
     omz_log = logging.getLogger("prepare_omz_model")
 
     python_executable = sys.executable
-    omz_path = request.config.getoption("omz_repo")
-    cache_dir = request.config.getoption("omz_cache_dir")
     downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
 
     cmd = f'{python_executable} {downloader_path} --name {model["name"]}' \
           f' --precisions={model["precision"]}' \
           f' --num_attempts {OMZ_NUM_ATTEMPTS}' \
           f' --output_dir {omz_path / "_omz_repo"}' \
-          f' --cache_dir {cache_dir}'
+          f' --cache_dir {omz_cache_dir}'
 
     cmd_exec(cmd, log=omz_log)
 
