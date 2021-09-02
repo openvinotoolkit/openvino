@@ -6,7 +6,6 @@ import logging as log
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 
@@ -36,7 +35,7 @@ def arg_ops_infer(node: Node):
     if node.has_valid('axis'):
         axis = get_canonical_axis_index(shape, node.axis)
         node.axis = axis
-        out_shape = int64_array(shape)
+        out_shape = shape.copy()
         out_shape[axis] = node.top_k
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
     else:
