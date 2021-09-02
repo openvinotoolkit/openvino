@@ -59,6 +59,10 @@ InputModelTensorflow::InputModelTensorflow(const std::vector<std::shared_ptr<::t
     initial_traverse_graph();
 }
 
+std::vector<Place::Ptr> InputModelTensorflow::get_inputs() const {
+    return m_inputs;
+}
+
 std::vector<Place::Ptr> InputModelTensorflow::get_outputs() const {
     return m_outputs;
 }
