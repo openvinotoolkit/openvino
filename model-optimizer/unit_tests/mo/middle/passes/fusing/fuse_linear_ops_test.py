@@ -852,19 +852,8 @@ class FuseMulTests(unittest.TestCase):
         conv_in_data_name = conv_node.in_node(1)['name']
         const_node = Node(graph, 'const_conv_1_w')
         const_out_data_name = const_node.out_node(0)['name']
-        mul_node = Node(graph, 'mul_1')
-        conv_in_data = conv_node.in_node(1)
 
-        # Check that transformation doesn't produce identical data node names,
-        # as this may lead to appearing of Const ops with identical names.
         self.assertFalse(conv_in_data_name == const_out_data_name)
-
-        # Attributes that are required for fusing are kept on data nodes.
-        # These checks are needed to ensure that _fuse_mul doesn't remove any of these attributes.
-        self.assertTrue(conv_in_data['output_channel_dim'] == 3)
-        self.assertTrue(conv_in_data['input_channel_dim'] == 2)
-        self.assertTrue(conv_in_data['dims_number'] == 4)
-        self.assertTrue(mul_node['can_be_fused'] is True)
 
 
 # Unit tests for fuse_linear_ops
