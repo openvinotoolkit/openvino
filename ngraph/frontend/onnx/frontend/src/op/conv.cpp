@@ -13,6 +13,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "onnx_import/core/null_node.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 
@@ -20,7 +21,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-namespace {
+namespace detail {
 std::shared_ptr<ngraph::op::Op> make_ng_convolution(const Output<ngraph::Node>& data,
                                                     const Output<ngraph::Node>& filters,
                                                     const ngraph::Strides& strides,
@@ -57,14 +58,13 @@ std::shared_ptr<ngraph::Node> add_bias(const Output<ngraph::Node>& ng_conv, cons
     return {
         std::make_shared<default_opset::Add>(ng_conv, reshape::reshape_channel_shaped_node_to_nchw(bias, conv_rank))};
 }
-}  // namespace
 
-OutputVector conv(const Node& node) {
+OutputVector conv(const Node& node,
+                  Output<ngraph::Node> data,
+                  Output<ngraph::Node> filters,
+                  Output<ngraph::Node> bias) {
     // in the current implementation we assume that the data input rank is static
     // and only the 'batch' dimension can be dynamic
-    const OutputVector& inputs = node.get_ng_inputs();
-    const auto data = inputs.at(0);
-    const auto filters = inputs.at(1);
     const auto groups = node.get_attribute_value<int64_t>("group", 1);
 
     NGRAPH_CHECK(data.get_partial_shape().rank().is_static(), "The input data tensor's rank has to be known (static)");
@@ -80,10 +80,9 @@ OutputVector conv(const Node& node) {
         make_ng_convolution(data, filters, strides, dilations, padding_below, padding_above, groups, auto_pad_type);
 
     // no bias param
-    if (inputs.size() < 3) {
+    if (ngraph::op::is_null(bias)) {
         return {conv_node};
     } else {
-        const auto& bias = inputs.at(2);
         const auto& bias_ps = bias.get_partial_shape();
 
         NGRAPH_CHECK(bias_ps.rank().is_static() && bias_ps.rank().get_length() == 1,
@@ -92,7 +91,11 @@ OutputVector conv(const Node& node) {
         return {add_bias(conv_node, bias)};
     }
 }
-
+}  // namespace detail
+OutputVector conv(const Node& node) {
+    const OutputVector& inputs = node.get_ng_inputs();
+    return detail::conv(node, inputs[0], inputs[1], inputs.size() < 3 ? std::make_shared<NullNode>() : inputs[2]);
+}
 }  // namespace set_1
 
 }  // namespace op

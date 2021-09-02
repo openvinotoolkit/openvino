@@ -25,8 +25,6 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "MaxUnpool")
-xfail_issue_33535 = xfail_test(reason="nGraph does not support the following ONNX operations:"
-                                      "DynamicQuantizeLinear")
 xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "Scan")
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
@@ -72,8 +70,6 @@ xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5
 xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger"
                                       "and QLinearMatMul"
                                       "Input0 scale and input0 zero point shape must be same and 1")
-xfail_issue_38723 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "QLinearConv")
 xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>':"
                                       "tf_crop_and_resize - this type of coordinate transformation mode"
                                       "is not supported. Choose one of the following modes:"
@@ -100,8 +96,6 @@ xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero
 xfail_issue_44958 = xfail_test(reason="Expected: Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no element")
 xfail_issue_44968 = xfail_test(reason="Expected: Unsupported dynamic op: Squeeze")
-xfail_issue_44976 = xfail_test(reason="Expected: RuntimeError: Quantize layer with name:"
-                                      "FakeQuantize_xxx has non const input on 1 port")
 xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if uint data type is used")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
