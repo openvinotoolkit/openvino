@@ -37,13 +37,8 @@ std::shared_ptr<ngraph::Node> get_reshape_before(const ngraph::Output<ngraph::No
 }
 
 std::shared_ptr<ngraph::Node> get_reshape_after(const ngraph::Output<ngraph::Node>& data) {
-    auto shape_of = std::make_shared<ngraph::opset1::ShapeOf>(data);
-
-    auto gather = std::make_shared<ngraph::opset1::Gather>(shape_of,
-        ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 0, 1, 3 }),
-        ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 0 }));
-
-    return std::make_shared<ngraph::opset1::Reshape>(data, gather, true);
+    auto constant = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 0, 0, -1 });
+    return std::make_shared<ngraph::opset1::Reshape>(data, constant, true);
 }
 
 TEST(TransformationTests, Reshape1DAvgPoolTest1) {

@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <vector>
+#include <numeric>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
@@ -15,6 +16,42 @@
 #include "transformations/utils/utils.hpp"
 
 namespace Reshape1DOps {
+std::shared_ptr<ngraph::Node> add_reshape_before(const ngraph::Output<ngraph::Node>& data) {
+    auto shape_of = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(data);
+    auto rank = data.get_partial_shape().rank().get_length();
+
+    std::vector<std::int32_t> gather_values_first(rank - 1);
+    std::iota(gather_values_first.begin(), gather_values_first.end(), 0);
+    auto gather_indices_first = ngraph::opset1::Constant::create(
+        ngraph::element::i64,
+        ngraph::Shape{ gather_values_first.size() },
+        gather_values_first);
+
+    auto gather_axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 0 });
+    auto gather_first = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(shape_of, gather_indices_first, gather_axis);
+
+    std::int32_t last_dimension_idx = rank - 1;
+    std::vector<std::int32_t> gather_values_last{ last_dimension_idx };
+    auto gather_indices_last = ngraph::opset1::Constant::create(
+        ngraph::element::i64,
+        ngraph::Shape{ gather_values_last.size() },
+        gather_values_last);
+    auto gather_last = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(shape_of, gather_indices_last, gather_axis);
+
+    auto unsqueezed_dimension = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+
+    ngraph::NodeVector concatInputs = { gather_first, unsqueezed_dimension, gather_last };
+    auto concat = ngraph::op::util::make_try_fold<ngraph::opset1::Concat>(concatInputs, 0);
+    auto reshape = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(data, concat, true);
+    return reshape;
+}
+
+std::shared_ptr<ngraph::Node> add_reshape_after(const ngraph::Output<ngraph::Node>& data) {
+    auto reshape_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 3 }, { 0, 0, -1 });
+    auto reshape = std::make_shared<ngraph::opset1::Reshape>(data, reshape_const, true);
+    return reshape;
+}
+
 template <class BaseOp>
 std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data, std::shared_ptr<BaseOp> node, ngraph::NodeVector &new_ops) {
     auto new_strides = node->get_strides();
@@ -27,11 +64,7 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
     new_pads_begin.insert(new_pads_begin.begin(), 0);
     new_pad_end.insert(new_pad_end.begin(), 0);
 
-    ngraph::Shape new_weights_shape(node->input_value(1).get_shape());
-    new_weights_shape.insert(new_weights_shape.begin() + new_weights_shape.size() - 1, 1);
-    auto reshape_const = ngraph::opset1::Constant::create(ngraph::element::i64, { new_weights_shape.size() }, new_weights_shape);
-    auto weights = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(node->input_value(1), reshape_const, true);
-
+    auto weights = add_reshape_before(node->input_value(1));
     new_ops.push_back(weights);
 
     if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(node)) {
@@ -99,50 +132,19 @@ std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data,
                                              node->get_auto_pad());
 }
 
-std::shared_ptr<ngraph::Node> add_reshape_before(const ngraph::Output<ngraph::Node>& data) {
-    auto shape_of = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(data);
-
-    std::vector<std::int32_t> gather_values_first{ 0, 1 };
-    auto gather_indices_first = ngraph::opset1::Constant::create(
-        ngraph::element::i64,
-        ngraph::Shape{ gather_values_first.size() },
-        gather_values_first);
-
-    auto gather_axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 0 });
-    auto gather_first = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(shape_of, gather_indices_first, gather_axis);
-
-    std::vector<std::int32_t> gather_values_last{ 2 };
-    auto gather_indices_last = ngraph::opset1::Constant::create(
-        ngraph::element::i64,
-        ngraph::Shape{ gather_values_last.size() },
-        gather_values_last);
-    auto gather_last = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(shape_of, gather_indices_last, gather_axis);
-
-    auto unsqueezed_dimension = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
-
-    ngraph::NodeVector concatInputs = { gather_first, unsqueezed_dimension, gather_last };
-    auto concat = ngraph::op::util::make_try_fold<ngraph::opset1::Concat>(concatInputs, 0);
-    auto reshape = std::make_shared<ngraph::opset1::Reshape>(data, concat, true);
-    return reshape;
-}
-
-std::shared_ptr<ngraph::Node> add_reshape_after(const ngraph::Output<ngraph::Node>& data) {
-    auto shape_of = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(data);
-
-    std::vector<std::int32_t> gather_values{ 0, 1, 3 };
-    auto gather_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ gather_values.size() }, gather_values);
-    auto gather_axis = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 0 });
-    auto gather = ngraph::op::util::make_try_fold<ngraph::opset1::Gather>(shape_of, gather_const, gather_axis);
-    auto reshape = std::make_shared<ngraph::opset1::Reshape>(data, gather, true);
-    return reshape;
-}
-
 ngraph::matcher_pass_callback get_callback() {
     return [](ngraph::pattern::Matcher& m) {
         auto node = m.get_match_root();
-        auto input_rank = node->input(0).get_partial_shape().rank();
+        auto input_rank = node->get_input_partial_shape(0).rank();
         if (input_rank.is_dynamic() || input_rank.get_length() != 3) {
             return false;
+        }
+
+        if (ngraph::is_type<ngraph::opset1::Convolution>(node) || ngraph::is_type<ngraph::opset1::GroupConvolution>(node)) {
+            auto weights_rank = node->get_input_partial_shape(1);
+            if (weights_rank.is_dynamic()) {
+                return false;
+            }
         }
 
         ngraph::NodeVector new_ops;
@@ -172,10 +174,12 @@ ngraph::matcher_pass_callback get_callback() {
         std::shared_ptr<ngraph::Node> reshaped_add = nullptr;
         ngraph::NodeVector bias_ops;
         if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) || std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node)) {
-            ngraph::Shape expected_shape = ngraph::Shape(input_rank.get_length(), 1);
-            expected_shape[1] = node->get_output_partial_shape(0)[1].get_length();
             const auto dst_nodes = node->get_output_target_inputs(0);
-            if (dst_nodes.size() == 1) {
+            auto channel = node->get_output_partial_shape(0)[1];
+            if (dst_nodes.size() == 1 && channel.is_static()) {
+                ngraph::Shape expected_shape = ngraph::Shape(input_rank.get_length(), 1);
+                expected_shape[1] = channel.get_length();
+
                 add_to_replace = dst_nodes.begin()->get_node()->shared_from_this();
                 if (std::dynamic_pointer_cast<ngraph::opset1::Add>(add_to_replace) &&
                     std::dynamic_pointer_cast<ngraph::opset1::Constant>(add_to_replace->get_input_node_shared_ptr(1)) &&
