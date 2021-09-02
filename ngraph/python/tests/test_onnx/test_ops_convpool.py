@@ -369,7 +369,7 @@ def test_pool_max(ndarray_1x1x4x4):
     x = ndarray_1x1x4x4
     y = np.array([[16, 18], [24, 26]], dtype=np.float32).reshape([1, 1, 2, 2])
 
-    ng_results = run_node(node, [x])
+    ng_results = run_node(node, [x], opset_version=7)
     assert np.array_equal(ng_results, [y])
 
 
