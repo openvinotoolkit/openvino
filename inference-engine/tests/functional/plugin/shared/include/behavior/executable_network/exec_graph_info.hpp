@@ -20,10 +20,20 @@ TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorr
     ASSERT_ANY_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, incorrectConfig));
 }
 
+TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCreateInferRequest) {
+    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    ASSERT_NO_THROW(auto req = execNet.CreateInferRequest());
+}
+
 TEST_P(ExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {
     execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     InferenceEngine::CNNNetwork execGraph = execNet.GetExecGraphInfo();
     ASSERT_NE(execGraph.getFunction(), nullptr);
+}
+
+TEST_P(ExecutableNetworkBaseTest, checkGetMetric) {
+    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    ASSERT_NO_THROW(execNet.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
 }
 
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
