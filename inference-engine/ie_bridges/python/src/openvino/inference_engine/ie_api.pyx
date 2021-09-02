@@ -1489,8 +1489,8 @@ cdef class IENetwork:
             for v in shape:
                 if isinstance(v, list) or isinstance(v, tuple):
                     if len(v) < 1 or len(v) > 2:
-                        raise ValueError(f"Incorrect PartialShape dimension definition \'{v}\' "
-                                         f"in shape \'{shape}\', expected one or two values for a dimension! ")
+                        raise ValueError(f"Incorrect PartialShape dimension definition '{v}' "
+                                         f"in shape '{shape}', expected one or two values for a dimension! ")
                     for d in v:
                         dim.push_back(d)
                 else:
