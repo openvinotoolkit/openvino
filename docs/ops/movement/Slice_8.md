@@ -7,14 +7,15 @@
 **Short description**: *Slice* operation extracts a slice of the input tensor.
 
 **Detailed Description**: *Slice* operation selects a region of values from the `data` tensor.
-Selected values start at indexes provided in the `start` input and end
+Selected values start at indexes provided in the `start` input (inclusively) and end
 at indexes provides in `stop` input (exclusively).
 
-Input `step` allows subsampling of `data`, selecting evey *n*-th element,
+The `step` input allows subsampling of `data`, selecting every *n*-th element,
 where `n` is equal to `step` element for corresponding axis.
 Negative `step` value indicates slicing backwards, so the sequence along the corresponding axis is reversed in the output tensor.
+To select all values contiguously set `step` to `1` for each axis.
 
-Optional `axes` input allows specifying slice indexes only on selected axes.
+The optional `axes` input allows specifying slice indexes only on selected axes.
 Other axes will not be affected and will be output in full.
 
 The rules follow python language slicing `data[start:stop:step]`.
@@ -42,9 +43,9 @@ The rules follow python language slicing `data[start:stop:step]`.
   Value cannot be `0`, negative value indicates slicing backwards. **Required.**
 
 * **5**: `axes` - 1D tensor of type *T_AXIS*.
-  Optional 1D tensor indicating to which dimensions apply the values in `start` and `stop`.
+  Optional 1D tensor indicating which dimensions the values in `start` and `stop` apply to.
   Negative value means counting dimensions from the end. The range is `[-r, r - 1]`, where `r` is the rank of the `data` input tensor.
-  Values are required to be unique. If a particular axis is unspecified, it is considered as a whole dimension.
+  Values are required to be unique. If a particular axis is unspecified, it will be output in full and not sliced.
   Default value: `[0, 1, 2, ..., start.shape[0] - 1]`. **Optional.**
 
 Number of elements in `start`, `stop`, `step`, and `axes` inputs are required to be equal.
