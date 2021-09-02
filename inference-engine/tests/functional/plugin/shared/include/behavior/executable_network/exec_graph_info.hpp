@@ -17,8 +17,7 @@ TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
 
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
     std::map<std::string, std::string> incorrectConfig = {{ "abc", "def" }};
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, incorrectConfig);
-//    ASSERT_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, incorrectConfig), InferenceEngine::Exception);
+    ASSERT_ANY_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, incorrectConfig));
 }
 
 TEST_P(ExecutableNetworkBaseTest, checkGetExecGraphInfoIsNotNullptr) {

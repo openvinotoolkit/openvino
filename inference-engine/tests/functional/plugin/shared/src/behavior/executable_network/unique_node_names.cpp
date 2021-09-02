@@ -2,25 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <tuple>
-#include <vector>
-#include <unordered_set>
-#include <string>
-#include <functional>
-
-#include <ie_core.hpp>
-#include <ngraph/function.hpp>
 #include <exec_graph_info.hpp>
-#include <ngraph/variant.hpp>
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-
-#include "execution_graph_tests/unique_node_names.hpp"
+#include "behavior/executable_network/unique_node_names.hpp"
 
 namespace ExecutionGraphTests {
 
@@ -39,6 +22,8 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
 }
 
 void ExecGraphUniqueNodeNames::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
     std::tie(netPrecision, inputShape, targetDevice) = this->GetParam();
@@ -53,11 +38,10 @@ void ExecGraphUniqueNodeNames::SetUp() {
 }
 
 void ExecGraphUniqueNodeNames::TearDown() {
+    fnPtr.reset();
 }
 
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     InferenceEngine::CNNNetwork cnnNet(fnPtr);
 
     auto ie = PluginCache::get().ie();
@@ -65,8 +49,6 @@ TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
 
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
 
-    int numReorders = 0;
-    int expectedReorders = 2;
     std::unordered_set<std::string> names;
 
     auto function = execGraphInfo.getFunction();
@@ -80,18 +62,7 @@ TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
         const auto & rtInfo = op->get_rt_info();
         auto it = rtInfo.find(ExecGraphInfoSerialization::LAYER_TYPE);
         ASSERT_NE(rtInfo.end(), it);
-        auto opType = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-        ASSERT_NE(nullptr, opType);
-
-        if (opType->get() == "Reorder") {
-            numReorders++;
-        }
     }
-
-    if (targetDevice != "GPU" )
-        ASSERT_TRUE(numReorders == expectedReorders) << "Expected reorders: " << expectedReorders << ", actual reorders: " << numReorders;
-
-    fnPtr.reset();
 };
 
 }  // namespace ExecutionGraphTests

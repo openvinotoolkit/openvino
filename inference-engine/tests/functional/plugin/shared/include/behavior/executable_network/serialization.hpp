@@ -26,7 +26,6 @@ private:
     // compare_docs() helper
     std::pair<bool, std::string> compare_nodes(const pugi::xml_node &node1,
                                                const pugi::xml_node &node2);
-    std::string getTimestamp();
 
 protected:
     // checks if two exec graph xml's are equivalent:

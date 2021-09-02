@@ -3,7 +3,7 @@
 //
 
 #include <common_test_utils/test_constants.hpp>
-#include "execution_graph_tests/exec_graph_serialization.hpp"
+#include "behavior/executable_network/serialization.hpp"
 
 namespace {
 

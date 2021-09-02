@@ -9,6 +9,7 @@ namespace ExecutionGraphTests {
 class ExecGraphKeepAssignNode : public testing::TestWithParam<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
+    void SetUp() override;
 };
 
 }  // namespace ExecutionGraphTests

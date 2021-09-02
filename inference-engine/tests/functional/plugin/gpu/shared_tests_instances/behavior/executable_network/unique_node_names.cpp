@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "execution_graph_tests/unique_node_names.hpp"
+#include "behavior/executable_network/unique_node_names.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ExecutionGraphTests;
