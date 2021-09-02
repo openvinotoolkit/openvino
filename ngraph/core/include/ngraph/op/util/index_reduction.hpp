@@ -10,28 +10,12 @@
 #include <utility>
 
 #include "ngraph/op/op.hpp"
+#include "openvino/op/util/index_reduction.hpp"
 
 namespace ngraph {
 namespace op {
 namespace util {
-class NGRAPH_API IndexReduction : public Op {
-protected:
-    IndexReduction();
-
-    IndexReduction(const Output<Node>& arg, uint64_t axis, const element::Type& index_element_type);
-
-public:
-    uint64_t get_reduction_axis() const;
-    void set_reduction_axis(uint64_t value);
-    element::Type get_index_element_type() const;
-    void set_index_element_type(const element::Type& index_element_type);
-    void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
-protected:
-    uint64_t m_axis{0};
-    element::Type m_index_element_type;
-};
+using ov::op::util::IndexReduction;
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph

@@ -16,43 +16,42 @@
 #include "ngraph/op/tanh.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-static shared_ptr<Node> sigmoid(const shared_ptr<Node>& arg, float /* alpha */, float /* beta */) {
-    return make_shared<op::Sigmoid>(arg);
+static shared_ptr<ov::Node> sigmoid(const shared_ptr<ov::Node>& arg, float /* alpha */, float /* beta */) {
+    return make_shared<ngraph::op::Sigmoid>(arg);
 }
 
-static shared_ptr<Node> tanh(const shared_ptr<Node>& arg, float /* alpha */, float /* beta */) {
-    return make_shared<op::Tanh>(arg);
+static shared_ptr<ov::Node> tanh(const shared_ptr<ov::Node>& arg, float /* alpha */, float /* beta */) {
+    return make_shared<ngraph::op::Tanh>(arg);
 }
 
-static shared_ptr<Node> relu(const shared_ptr<Node>& arg, float /* alpha */, float /* beta */) {
-    return make_shared<op::Relu>(arg);
+static shared_ptr<ov::Node> relu(const shared_ptr<ov::Node>& arg, float /* alpha */, float /* beta */) {
+    return make_shared<ngraph::op::Relu>(arg);
 }
 
-static shared_ptr<Node> hardsigmoid(const shared_ptr<Node>& arg, float alpha, float beta) {
-    const auto alpha_node = op::Constant::create<float>(arg->get_element_type(), Shape{}, {alpha});
-    const auto beta_node = op::Constant::create<float>(arg->get_element_type(), Shape{}, {beta});
+static shared_ptr<ov::Node> hardsigmoid(const shared_ptr<ov::Node>& arg, float alpha, float beta) {
+    const auto alpha_node = ngraph::op::Constant::create<float>(arg->get_element_type(), ngraph::Shape{}, {alpha});
+    const auto beta_node = ngraph::op::Constant::create<float>(arg->get_element_type(), ngraph::Shape{}, {beta});
 
-    return make_shared<op::HardSigmoid>(arg, alpha_node, beta_node);
+    return make_shared<ngraph::op::HardSigmoid>(arg, alpha_node, beta_node);
 }
 
-op::util::ActivationFunction::ActivationFunction(ActivationFunctionType f, float alpha, float beta)
+ov::op::util::ActivationFunction::ActivationFunction(ActivationFunctionType f, float alpha, float beta)
     : m_function{f},
       m_alpha{alpha},
       m_beta{beta} {}
 
-op::util::ActivationFunction::ActivationFunction(ActivationFunctionType f, float alpha)
+ov::op::util::ActivationFunction::ActivationFunction(ActivationFunctionType f, float alpha)
     : ActivationFunction(f, alpha, nanf("")) {}
 
-op::util::ActivationFunction::ActivationFunction(ActivationFunctionType f)
+ov::op::util::ActivationFunction::ActivationFunction(ActivationFunctionType f)
     : ActivationFunction(f, nanf(""), nanf("")) {}
 
-shared_ptr<Node> op::util::ActivationFunction::operator()(const shared_ptr<Node>& arg) const {
+shared_ptr<ov::Node> ov::op::util::ActivationFunction::operator()(const shared_ptr<Node>& arg) const {
     return m_function(arg, m_alpha, m_beta);
 }
 
-op::util::ActivationFunction op::util::get_activation_func_by_name(const string& func_name) {
+ov::op::util::ActivationFunction ov::op::util::get_activation_func_by_name(const string& func_name) {
     using ActivationFunctionMap = unordered_map<string, op::util::ActivationFunction>;
 
     static ActivationFunctionMap func_map{

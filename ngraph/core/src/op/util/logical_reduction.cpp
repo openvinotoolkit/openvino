@@ -9,16 +9,17 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 NGRAPH_RTTI_DEFINITION(op::util::LogicalReduction, "LogicalReduction", 1);
 
-op::util::LogicalReduction::LogicalReduction() {}
+op::util::LogicalReduction::LogicalReduction() = default;
 
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const AxisSet& reduction_axes)
     : ReductionBase(
           arg,
-          op::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())->output(0)) {
+          ngraph::op::Constant::create(element::i64, ngraph::Shape{reduction_axes.size()}, reduction_axes.to_vector())
+              ->output(0)) {
     add_provenance_group_member(input_value(1).get_node_shared_ptr());
 }
 
@@ -26,7 +27,7 @@ op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const Outp
     : ReductionBase(arg, reduction_axes) {}
 
 bool op::util::LogicalReduction::reduction_axes_constant() const {
-    return has_and_set_equal_bounds(input_value(1));
+    return ngraph::has_and_set_equal_bounds(input_value(1));
 }
 
 const AxisSet op::util::LogicalReduction::get_reduction_axes() const {
@@ -39,7 +40,8 @@ const AxisSet op::util::LogicalReduction::get_reduction_axes() const {
 
 void op::util::LogicalReduction::set_reduction_axes(const AxisSet& reduction_axes) {
     this->input(1).replace_source_output(
-        op::Constant::create(element::i64, Shape{reduction_axes.size()}, reduction_axes.to_vector())->output(0));
+        ngraph::op::Constant::create(element::i64, ngraph::Shape{reduction_axes.size()}, reduction_axes.to_vector())
+            ->output(0));
 }
 
 void op::util::LogicalReduction::validate_and_infer_types() {

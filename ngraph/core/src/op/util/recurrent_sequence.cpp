@@ -5,9 +5,8 @@
 #include "ngraph/op/util/recurrent_sequence.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-void op::util::validate_seq_input_rank_dimension(const std::vector<ngraph::PartialShape>& input) {
+void ngraph::op::util::validate_seq_input_rank_dimension(const std::vector<ngraph::PartialShape>& input) {
     enum { X, initial_hidden_state, sequence_lengths, W, R, B };
 
     // Verify static ranks for all inputs

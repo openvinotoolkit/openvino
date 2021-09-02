@@ -335,17 +335,17 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
 
 namespace ov {
 template <>
-EnumNames<op::LSTMWeightsFormat>& EnumNames<op::LSTMWeightsFormat>::get() {
-    static auto enum_names = EnumNames<op::LSTMWeightsFormat>("op::LSTMWeightsFormat",
-                                                              {{"fico", op::LSTMWeightsFormat::FICO},
-                                                               {"icof", op::LSTMWeightsFormat::ICOF},
-                                                               {"ifco", op::LSTMWeightsFormat::IFCO},
-                                                               {"ifoc", op::LSTMWeightsFormat::IFOC},
-                                                               {"iofc", op::LSTMWeightsFormat::IOFC}});
+EnumNames<ngraph::op::LSTMWeightsFormat>& EnumNames<ngraph::op::LSTMWeightsFormat>::get() {
+    static auto enum_names = EnumNames<ngraph::op::LSTMWeightsFormat>("op::LSTMWeightsFormat",
+                                                                      {{"fico", ngraph::op::LSTMWeightsFormat::FICO},
+                                                                       {"icof", ngraph::op::LSTMWeightsFormat::ICOF},
+                                                                       {"ifco", ngraph::op::LSTMWeightsFormat::IFCO},
+                                                                       {"ifoc", ngraph::op::LSTMWeightsFormat::IFOC},
+                                                                       {"iofc", ngraph::op::LSTMWeightsFormat::IOFC}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::LSTMWeightsFormat>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::LSTMWeightsFormat>::type_info;
 
 }  // namespace ov
 

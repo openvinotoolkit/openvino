@@ -119,15 +119,15 @@ bool op::v1::BinaryConvolution::visit_attributes(AttributeVisitor& visitor) {
 
 namespace ov {
 template <>
-NGRAPH_API EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>&
-EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>::get() {
-    static auto enum_names = EnumNames<op::v1::BinaryConvolution::BinaryConvolutionMode>(
+NGRAPH_API EnumNames<ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode>&
+EnumNames<ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode>(
         "op::v1::BinaryConvolution::BinaryConvolutionMode",
-        {{"xnor-popcount", op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT}});
+        {{"xnor-popcount", ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v1::BinaryConvolution::BinaryConvolutionMode>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode>::type_info;
 }  // namespace ov
 
 std::ostream& operator<<(std::ostream& s, const op::v1::BinaryConvolution::BinaryConvolutionMode& type) {

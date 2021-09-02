@@ -75,17 +75,18 @@ std::ostream& ngraph::operator<<(std::ostream& s, const op::v0::Interpolate::Int
 
 namespace ov {
 template <>
-EnumNames<op::v0::Interpolate::InterpolateMode>& EnumNames<op::v0::Interpolate::InterpolateMode>::get() {
-    static auto enum_names =
-        EnumNames<op::v0::Interpolate::InterpolateMode>("op::v0::Interpolate::InterpolateMode",
-                                                        {{"nearest", op::v0::Interpolate::InterpolateMode::NEAREST},
-                                                         {"linear", op::v0::Interpolate::InterpolateMode::LINEAR},
-                                                         {"cubic", op::v0::Interpolate::InterpolateMode::CUBIC},
-                                                         {"area", op::v0::Interpolate::InterpolateMode::AREA}});
+EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>&
+EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>(
+        "op::v0::Interpolate::InterpolateMode",
+        {{"nearest", ngraph::op::v0::Interpolate::InterpolateMode::NEAREST},
+         {"linear", ngraph::op::v0::Interpolate::InterpolateMode::LINEAR},
+         {"cubic", ngraph::op::v0::Interpolate::InterpolateMode::CUBIC},
+         {"area", ngraph::op::v0::Interpolate::InterpolateMode::AREA}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v0::Interpolate::InterpolateMode>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v0::Interpolate::InterpolateMode>::type_info;
 
 }  // namespace ov
 
@@ -498,54 +499,58 @@ std::ostream& ngraph::operator<<(std::ostream& s, const op::v4::Interpolate::Nea
 
 namespace ov {
 template <>
-NGRAPH_API EnumNames<op::v4::Interpolate::InterpolateMode>& EnumNames<op::v4::Interpolate::InterpolateMode>::get() {
-    static auto enum_names = EnumNames<op::v4::Interpolate::InterpolateMode>(
+NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::InterpolateMode>&
+EnumNames<ngraph::op::v4::Interpolate::InterpolateMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v4::Interpolate::InterpolateMode>(
         "op::v4::Interpolate::InterpolateMode",
-        {{"nearest", op::v4::Interpolate::InterpolateMode::NEAREST},
-         {"linear", op::v4::Interpolate::InterpolateMode::LINEAR},
-         {"linear_onnx", op::v4::Interpolate::InterpolateMode::LINEAR_ONNX},
-         {"cubic", op::v4::Interpolate::InterpolateMode::CUBIC}});
+        {{"nearest", ngraph::op::v4::Interpolate::InterpolateMode::NEAREST},
+         {"linear", ngraph::op::v4::Interpolate::InterpolateMode::LINEAR},
+         {"linear_onnx", ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX},
+         {"cubic", ngraph::op::v4::Interpolate::InterpolateMode::CUBIC}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::InterpolateMode>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v4::Interpolate::InterpolateMode>::type_info;
 
 template <>
-NGRAPH_API EnumNames<op::v4::Interpolate::ShapeCalcMode>& EnumNames<op::v4::Interpolate::ShapeCalcMode>::get() {
-    static auto enum_names = EnumNames<op::v4::Interpolate::ShapeCalcMode>(
+NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>&
+EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>(
         "op::v4::Interpolate::ShapeCalcMode",
-        {{"sizes", op::v4::Interpolate::ShapeCalcMode::SIZES}, {"scales", op::v4::Interpolate::ShapeCalcMode::SCALES}});
+        {{"sizes", ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES},
+         {"scales", ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v4::Interpolate::ShapeCalcMode>::type_info;
 
 template <>
-NGRAPH_API EnumNames<op::v4::Interpolate::CoordinateTransformMode>&
-EnumNames<op::v4::Interpolate::CoordinateTransformMode>::get() {
-    static auto enum_names = EnumNames<op::v4::Interpolate::CoordinateTransformMode>(
+NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::CoordinateTransformMode>&
+EnumNames<ngraph::op::v4::Interpolate::CoordinateTransformMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v4::Interpolate::CoordinateTransformMode>(
         "op::v4::Interpolate::CoordinateTransformMode",
-        {{"half_pixel", op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL},
-         {"pytorch_half_pixel", op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL},
-         {"asymmetric", op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC},
-         {"tf_half_pixel_for_nn", op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN},
-         {"align_corners", op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS}});
+        {{"half_pixel", ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL},
+         {"pytorch_half_pixel", ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL},
+         {"asymmetric", ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC},
+         {"tf_half_pixel_for_nn", ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN},
+         {"align_corners", ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v4::Interpolate::CoordinateTransformMode>::type_info;
 
 template <>
-NGRAPH_API EnumNames<op::v4::Interpolate::NearestMode>& EnumNames<op::v4::Interpolate::NearestMode>::get() {
-    static auto enum_names = EnumNames<op::v4::Interpolate::NearestMode>(
+NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::NearestMode>&
+EnumNames<ngraph::op::v4::Interpolate::NearestMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v4::Interpolate::NearestMode>(
         "op::v4::Interpolate::NearestMode",
-        {{"round_prefer_floor", op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR},
-         {"round_prefer_ceil", op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL},
-         {"floor", op::v4::Interpolate::NearestMode::FLOOR},
-         {"ceil", op::v4::Interpolate::NearestMode::CEIL},
-         {"simple", op::v4::Interpolate::NearestMode::SIMPLE}});
+        {{"round_prefer_floor", ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR},
+         {"round_prefer_ceil", ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL},
+         {"floor", ngraph::op::v4::Interpolate::NearestMode::FLOOR},
+         {"ceil", ngraph::op::v4::Interpolate::NearestMode::CEIL},
+         {"simple", ngraph::op::v4::Interpolate::NearestMode::SIMPLE}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::NearestMode>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v4::Interpolate::NearestMode>::type_info;
 }  // namespace ov

@@ -10,32 +10,31 @@
 #include "ngraph/attribute_visitor.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-op::util::IndexReduction::IndexReduction() {}
+ov::op::util::IndexReduction::IndexReduction() = default;
 
-op::util::IndexReduction::IndexReduction(const Output<Node>& arg,
-                                         uint64_t axis,
-                                         const element::Type& index_element_type)
+ov::op::util::IndexReduction::IndexReduction(const Output<Node>& arg,
+                                             uint64_t axis,
+                                             const element::Type& index_element_type)
     : Op({arg}) {
     set_reduction_axis(axis);
     set_index_element_type(index_element_type);
 }
 
-uint64_t op::util::IndexReduction::get_reduction_axis() const {
+uint64_t ov::op::util::IndexReduction::get_reduction_axis() const {
     return m_axis;
 }
-void op::util::IndexReduction::set_reduction_axis(uint64_t value) {
+void ov::op::util::IndexReduction::set_reduction_axis(uint64_t value) {
     m_axis = value;
 }
-element::Type op::util::IndexReduction::get_index_element_type() const {
+ov::element::Type ov::op::util::IndexReduction::get_index_element_type() const {
     return m_index_element_type;
 }
-void op::util::IndexReduction::set_index_element_type(const element::Type& index_element_type) {
+void ov::op::util::IndexReduction::set_index_element_type(const element::Type& index_element_type) {
     m_index_element_type = index_element_type;
 }
 
-void op::util::IndexReduction::validate_and_infer_types() {
+void ov::op::util::IndexReduction::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_IndexReduction_validate_and_infer_types);
     // TODO(amprocte): Should reject if size of reduction axis is zero.
     const PartialShape& arg_shape = get_input_partial_shape(0);
@@ -80,7 +79,7 @@ void op::util::IndexReduction::validate_and_infer_types() {
     set_output_type(0, m_index_element_type, output_shape);
 }
 
-bool op::util::IndexReduction::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::IndexReduction::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(util_IndexReduction_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("index_element_type", m_index_element_type);

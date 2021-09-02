@@ -7,15 +7,13 @@
 #include "itt.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
-using namespace ngraph;
+NGRAPH_RTTI_DEFINITION(ov::op::util::UnaryElementwiseArithmetic, "UnaryElementwiseArithmetic", 0);
 
-NGRAPH_RTTI_DEFINITION(op::util::UnaryElementwiseArithmetic, "UnaryElementwiseArithmetic", 0);
+ov::op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic() : Op() {}
 
-op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic() : Op() {}
+ov::op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic(const Output<Node>& arg) : Op({arg}) {}
 
-op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic(const Output<Node>& arg) : Op({arg}) {}
-
-void op::util::UnaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic() {
+void ov::op::util::UnaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic() {
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
@@ -29,12 +27,12 @@ void op::util::UnaryElementwiseArithmetic::validate_and_infer_elementwise_arithm
     set_output_type(0, args_et, args_pshape);
 }
 
-void op::util::UnaryElementwiseArithmetic::validate_and_infer_types() {
+void ov::op::util::UnaryElementwiseArithmetic::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_UnaryElementwiseArithmetic_validate_and_infer_types);
     validate_and_infer_elementwise_arithmetic();
 }
 
-bool op::util::UnaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::UnaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(util_UnaryElementwiseArithmetic_visit_attributes);
     return true;
 }

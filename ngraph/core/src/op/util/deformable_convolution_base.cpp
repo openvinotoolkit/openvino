@@ -12,18 +12,17 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::util::DeformableConvolutionBase, "DeformableConvolutionBase", 0);
+NGRAPH_RTTI_DEFINITION(ov::op::util::DeformableConvolutionBase, "DeformableConvolutionBase", 0);
 
-op::util::DeformableConvolutionBase::DeformableConvolutionBase(const OutputVector& arguments,
-                                                               const Strides& strides,
-                                                               const CoordinateDiff& pads_begin,
-                                                               const CoordinateDiff& pads_end,
-                                                               const Strides& dilations,
-                                                               const PadType& auto_pad,
-                                                               const int64_t group,
-                                                               const int64_t deformable_group)
+ov::op::util::DeformableConvolutionBase::DeformableConvolutionBase(const OutputVector& arguments,
+                                                                   const Strides& strides,
+                                                                   const CoordinateDiff& pads_begin,
+                                                                   const CoordinateDiff& pads_end,
+                                                                   const Strides& dilations,
+                                                                   const PadType& auto_pad,
+                                                                   const int64_t group,
+                                                                   const int64_t deformable_group)
     : Op(arguments),
       m_strides(strides),
       m_dilations(dilations),
@@ -33,7 +32,7 @@ op::util::DeformableConvolutionBase::DeformableConvolutionBase(const OutputVecto
       m_group(group),
       m_deformable_group(deformable_group) {}
 
-bool op::util::DeformableConvolutionBase::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::DeformableConvolutionBase::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(util_DeformableConvolutionBase_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
@@ -45,7 +44,7 @@ bool op::util::DeformableConvolutionBase::visit_attributes(AttributeVisitor& vis
     return true;
 }
 
-void op::util::DeformableConvolutionBase::validate_and_infer_types() {
+void ov::op::util::DeformableConvolutionBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_DeformableConvolutionBase_validate_and_infer_types);
     const PartialShape& data_batch_pshape = get_input_partial_shape(0);
     const PartialShape& offsets_pshape = get_input_partial_shape(1);
@@ -159,15 +158,15 @@ void op::util::DeformableConvolutionBase::validate_and_infer_types() {
         }
         return new_shape;
     }(m_group);
-    PartialShape result_shape = validate_and_infer_convolution_forward_output_shape(this,
-                                                                                    result_ps_rank,
-                                                                                    data_batch_pshape,
-                                                                                    new_filters_pshape,
-                                                                                    m_auto_pad,
-                                                                                    m_strides,
-                                                                                    m_dilations,
-                                                                                    m_pads_begin,
-                                                                                    m_pads_end);
+    PartialShape result_shape = ngraph::validate_and_infer_convolution_forward_output_shape(this,
+                                                                                            result_ps_rank,
+                                                                                            data_batch_pshape,
+                                                                                            new_filters_pshape,
+                                                                                            m_auto_pad,
+                                                                                            m_strides,
+                                                                                            m_dilations,
+                                                                                            m_pads_begin,
+                                                                                            m_pads_end);
 
     if (result_shape.rank().is_static() && offsets_pshape.rank().is_static()) {
         PartialShape result_spatial_shape = [&result_shape]() {

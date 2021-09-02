@@ -119,13 +119,13 @@ std::ostream& ngraph::operator<<(std::ostream& s, const op::v5::Round::RoundMode
 
 namespace ov {
 template <>
-EnumNames<op::v5::Round::RoundMode>& EnumNames<op::v5::Round::RoundMode>::get() {
-    static auto enum_names =
-        EnumNames<op::v5::Round::RoundMode>("op::v5::Round::RoundMode",
-                                            {{"half_to_even", op::v5::Round::RoundMode::HALF_TO_EVEN},
-                                             {"half_away_from_zero", op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO}});
+EnumNames<ngraph::op::v5::Round::RoundMode>& EnumNames<ngraph::op::v5::Round::RoundMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v5::Round::RoundMode>(
+        "op::v5::Round::RoundMode",
+        {{"half_to_even", ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN},
+         {"half_away_from_zero", ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v5::Round::RoundMode>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v5::Round::RoundMode>::type_info;
 }  // namespace ov
