@@ -41,6 +41,7 @@ struct fused_primitive_desc {
     std::vector<primitive_id> fused_deps;
     activation_func activation;
     activation_additional_params activation_params;
+    layout input_layout = layout(data_types::f32, format::bfyx, tensor());
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
 };
 
