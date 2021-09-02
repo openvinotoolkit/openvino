@@ -118,27 +118,27 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
                     T x = xx;
                     T y = yy;
                     // deal with: inverse elements are out of feature map boundary
-                    std::cout << "                       Before if:\n";
-                    std::cout << "                        ph: " << ph << "\n"
-                              << "                        pw: " << pw << "\n"
-                              << "                        iy: " << iy << "\n"
-                              << "                        ix: " << ix << "\n"
-                              << "                        yy: " << yy << "\n"
-                              << "                        xx: " << xx << "\n"
-                              << "                        y:  " << y << "\n"
-                              << "                        x:  " << x << "\n";
+//                     std::cout << "                       Before if:\n";
+//                     std::cout << "                        ph: " << ph << "\n"
+//                               << "                        pw: " << pw << "\n"
+//                               << "                        iy: " << iy << "\n"
+//                               << "                        ix: " << ix << "\n"
+//                               << "                        yy: " << yy << "\n"
+//                               << "                        xx: " << xx << "\n"
+//                               << "                        y:  " << y << "\n"
+//                               << "                        x:  " << x << "\n";
                     if (y < static_cast<T>(-1.0f) || y > static_cast<T>(height) || x < static_cast<T>(-1.0f) || x > static_cast<T>(width)) {
-                        // empty
-                        PreCalc<T> pc;
-                        pc.pos1 = 0;
-                        pc.pos2 = 0;
-                        pc.pos3 = 0;
-                        pc.pos4 = 0;
-                        pc.w1 = static_cast<T>(0.0f);
-                        pc.w2 = static_cast<T>(0.0f);
-                        pc.w3 = static_cast<T>(0.0f);
-                        pc.w4 = static_cast<T>(0.0f);
-                        pre_calc.at(pre_calc_index) = pc;
+//                         // empty
+//                         PreCalc<T> pc;
+//                         pc.pos1 = 0;
+//                         pc.pos2 = 0;
+//                         pc.pos3 = 0;
+//                         pc.pos4 = 0;
+//                         pc.w1 = static_cast<T>(0.0f);
+//                         pc.w2 = static_cast<T>(0.0f);
+//                         pc.w3 = static_cast<T>(0.0f);
+//                         pc.w4 = static_cast<T>(0.0f);
+//                         pre_calc.at(pre_calc_index) = pc;
                         pre_calc_index += 1;
                         continue;
                     }
