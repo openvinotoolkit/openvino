@@ -50,7 +50,7 @@ bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const
 }
 
 MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache), permuteKernel_(nullptr) {
+        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -129,19 +129,6 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
 
     detectionsCount.resize(imgNum * classesNum);
     numPriorsActual.resize(imgNum);
-}
-
-void MKLDNNDetectionOutputNode::createPrimitive() {
-    if (!isSparsityWorthwhile && !withAddBoxPred) {
-        PermuteParams params;
-        params.src_block_dims = {static_cast<size_t>(imgNum), static_cast<size_t>(priorsNum), static_cast<size_t>(classesNum)};
-        params.dst_block_dims = {static_cast<size_t>(imgNum), static_cast<size_t>(classesNum), static_cast<size_t>(priorsNum)};
-        params.order = {0, 2, 1};
-        params.src_block_order = {0, 1, 2};
-        params.dst_block_order = {0, 1, 2};
-        params.data_size = sizeof(float);
-        permuteKernel_ = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
-    }
 }
 
 void MKLDNNDetectionOutputNode::initSupportedPrimitiveDescriptors() {
@@ -375,16 +362,11 @@ inline void MKLDNNDetectionOutputNode::confReorderDense(const float *confData, c
         return;
     }
     // withAddBoxPred is false
-    if (permuteKernel_) {
-        auto srcData = reinterpret_cast<const uint8_t*>(confData);
-        auto dstData = reinterpret_cast<uint8_t*>(reorderedConfData);
-        permuteKernel_->execute(srcData, dstData);
-        return;
-    }
     parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
+        int offset = n * priorsNum * classesNum;
         for (int p = 0; p < priorsNum; ++p) {
-            reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] =
-            confData[n * priorsNum * classesNum + p * classesNum + c];
+            reorderedConfData[offset + c * priorsNum + p] =
+            confData[offset + p * classesNum + c];
         }
     });
 }
