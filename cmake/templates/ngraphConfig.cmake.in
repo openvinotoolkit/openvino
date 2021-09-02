@@ -37,30 +37,28 @@
 
 @PACKAGE_INIT@
 
-function(set_imported_global target)
-    get_target_property(IS_IMPORTED_GLOBAL ${target} IMPORTED_GLOBAL)
-    if (NOT IS_IMPORTED_GLOBAL)
-        set_target_properties(${target} PROPERTIES IMPORTED_GLOBAL TRUE)
-    endif()
-endfunction()
-
 if(NOT TARGET ngraph)
     include("${CMAKE_CURRENT_LIST_DIR}/ngraphTargets.cmake")
-    set_imported_global(ngraph::ngraph)
-    set_imported_global(ngraph::frontend_manager)
 endif()
 
 set(ngraph_ngraph_FOUND ON)
 set(NGRAPH_LIBRARIES ngraph::ngraph)
 
 set(ngraph_onnx_ngraph_frontend_FOUND @NGRAPH_ONNX_FRONTEND_ENABLE@)
-if (ngraph_onnx_ngraph_frontend_FOUND AND NOT TARGET onnx_ngraph_frontend AND NOT TARGET ngraph::onnx_importer)
-    set_imported_global(ngraph::onnx_ngraph_frontend)
-    add_library(ngraph::onnx_importer ALIAS ngraph::onnx_ngraph_frontend)
+
+# ngraph::onnx_importer target and variables are deprecated
+set(ngraph_onnx_importer_FOUND @NGRAPH_ONNX_FRONTEND_ENABLE@)
+if(ngraph_onnx_importer_FOUND)
+    set(ONNX_IMPORTER_LIBRARIES ngraph::onnx_ngraph_frontend)
+    if(NOT TARGET ngraph::onnx_importer)
+        add_library(ngraph::onnx_importer INTERFACE IMPORTED)
+        set_target_properties(ngraph::onnx_importer PROPERTIES
+            INTERFACE_LINK_LIBRARIES ngraph::onnx_ngraph_frontend
+        )
+    endif()
 endif()
+
 set(ngraph_paddlepaddle_frontend_FOUND @NGRAPH_PDPD_FRONTEND_ENABLE@)
-if(ngraph_paddlepaddle_frontend_FOUND AND NOT TARGET paddlepaddle_ngraph_frontend)
-    set_imported_global(ngraph::paddlepaddle_ngraph_frontend)
-endif()
+set(ir_frontend_FOUND @IR_FRONTEND_ENABLE@)
 
 check_required_components(ngraph)

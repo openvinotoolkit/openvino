@@ -4,7 +4,7 @@
 
 **Name**: *ShuffleChannels*
 
-**Category**: Data movement
+**Category**: *Data movement*
 
 **Short description**: *ShuffleChannels* permutes data in the channel dimension of the input tensor.
 

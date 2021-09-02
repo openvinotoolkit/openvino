@@ -19,10 +19,6 @@
 #include "ngraph/node.hpp"
 
 namespace ngraph {
-namespace descriptor {
-class Input;
-class Output;
-}  // namespace descriptor
 
 namespace op {
 namespace v0 {
@@ -460,3 +456,6 @@ bool replace_output_update_name(Output<Node> node, const Output<Node>& node_inpu
 NGRAPH_API
 bool replace_node_update_name(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement);
 }  // namespace ngraph
+
+using ngraph::replace_node;
+using ngraph::replace_output_update_name;
