@@ -220,7 +220,7 @@ def configure(self, install_cfg):
         if sys.platform != 'win32' and comp_data.get('rpath'):
             file_types = ['.so'] if sys.platform == 'linux' else ['.dylib', '.so']
             for path in filter(lambda p: any(item in file_types for item in p.suffixes), Path(install_dir).glob('*')):
-                set_rpath(comp_data['rpath'], os.path.realpath(path))        
+                set_rpath(comp_data['rpath'], os.path.realpath(path))
 
 
 class PrepareLibs(build_clib):
