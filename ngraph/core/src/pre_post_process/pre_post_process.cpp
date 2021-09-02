@@ -80,10 +80,32 @@ struct PreProcessScale : public PreProcessActionBase {
     }
 };
 
+struct PreProcessMean : public PreProcessActionBase {
+    PreProcessMean(const std::vector<float>& values) : m_values(values) {}
+    std::vector<float> m_values;
+    std::shared_ptr<ngraph::Node> apply(std::shared_ptr<ngraph::Node> node, InTensorData& state) override {
+        ngraph::Shape shape;
+        if (m_values.size() == 1) {
+            shape = ngraph::Shape{1};
+        } else {
+            NGRAPH_CHECK(layouts::has_channels(state.m_layout), "Can't apply mean for unknown channels layout");
+            auto channels_idx = layouts::channels(state.m_layout);
+            std::vector<std::size_t> v(state.m_layout.size(), 1);
+            v[channels_idx] = m_values.size();
+            shape = ngraph::Shape(v);
+        }
+        auto constant = ngraph::op::v0::Constant::create(ngraph::element::f32, shape, m_values);
+        constant->set_friendly_name(node->get_friendly_name() + "/mean/Mean_Const");
+
+        auto new_op = std::make_shared<ngraph::op::v1::Subtract>(node, constant);
+        new_op->set_friendly_name(node->get_friendly_name() + "/mean/Subtract");
+        return new_op;
+    }
+};
+
 class PrePostProcessorInternalData {
 public:
-    PrePostProcessorInternalData(const std::shared_ptr<Function>& function) : m_function(function) {}
-    std::shared_ptr<Function> m_function = nullptr;
+    PrePostProcessorInternalData() = default;
     std::vector<InContextImpl> in_contexts;
     InContextImpl& last_in() {
         return in_contexts.back();
@@ -106,20 +128,20 @@ InContext PrePostProcessorBase::in(int port_index) {
     return InContext(std::move(m_impl));
 }
 
-InContext PrePostProcessorBase::in(std::string tensor_name) {
-    m_impl->in_contexts.push_back(InContextImpl(std::move(tensor_name)));
-    return InContext(std::move(m_impl));
-}
+//InContext PrePostProcessorBase::in(std::string tensor_name) {
+//    m_impl->in_contexts.push_back(InContextImpl(std::move(tensor_name)));
+//    return InContext(std::move(m_impl));
+//}
 
 OutProcessor PrePostProcessorBase::out() {
     return OutProcessor(std::move(m_impl));
 }
 
-std::shared_ptr<Function> PrePostProcessorBase::build() {
+std::shared_ptr<Function> PrePostProcessorBase::build(const std::shared_ptr<Function>& function) {
     // TODO: maybe wrap this logic with 'FunctionPass'???
     for (auto in_context : m_impl->in_contexts) {
         if (in_context.is_default()) {
-            auto param = m_impl->m_function->get_parameters().front();
+            auto param = function->get_parameters().front();
             auto consumers = param->output(0).get_target_inputs();
             // TODO: use back propagation to identify preprocessing input shape/type/layout
             auto new_param_type = param->get_element_type();
@@ -129,9 +151,12 @@ std::shared_ptr<Function> PrePostProcessorBase::build() {
                 new_param_type = in_context.m_tensor_data.m_type;
             } else {
                 // Look for pre_process data
-                for (auto action : in_context.m_preprocess_data.m_actions) {
+                auto& actions = in_context.m_preprocess_data.m_actions;
+                for (auto& action: actions) {
                     if (std::dynamic_pointer_cast<PreProcessConvertElementType>(action)) {
-                        throw ngraph::ngraph_error("Can't convert element type from unknown type");
+                        throw ngraph::ngraph_error(
+                                "Can't insert 'convert_element_type' for unknown source tensor type."
+                                " Please specify source type using tensor().set_element_type(...)");
                     }
                 }
                 in_context.m_tensor_data.m_type = param->get_element_type();
@@ -145,6 +170,7 @@ std::shared_ptr<Function> PrePostProcessorBase::build() {
                 }
             }
             auto new_param = std::make_shared<ngraph::op::v0::Parameter>(new_param_type, new_param_shape);
+//            new_param->get_output_tensor(0).set_names()
             // Old param will be removed, so friendly name can be reused
             new_param->set_friendly_name(param->get_friendly_name());
             std::shared_ptr<ngraph::Node> node = new_param;
@@ -157,11 +183,14 @@ std::shared_ptr<Function> PrePostProcessorBase::build() {
             }
 
             // 3. Apply 'network()' data
-            // Add type conversion if needed
+            // Check final type
             if (state.m_type != param->get_element_type()) {
-                std::cout << "Need add convert element type " << state.m_type << " to " << param->get_element_type()
-                          << "\n";
-                node = std::make_shared<ngraph::op::v0::Convert>(node, param->get_element_type());
+                throw ngraph::ngraph_error(
+                        std::string("Element type after preprocessing {") +
+                        state.m_type.c_type_string() +
+                                std::string("} doesn't match with network element type {") +
+                                                    param->get_element_type().c_type_string() +
+                                                    "}. Please add 'convert_element_type' explicitly");
             }
             // TODO: add layout/shape conversion if needed
 
@@ -170,15 +199,15 @@ std::shared_ptr<Function> PrePostProcessorBase::build() {
             for (auto consumer : consumers) {
                 consumer.replace_source_output(node);
             }
-            m_impl->m_function->replace_parameter(0, new_param);
+            function->replace_parameter(0, new_param);
         }
     }
-    // TODO: shall we call validate_nodes_and_infer_types?
-    return m_impl->m_function;
+    function->validate_nodes_and_infer_types();
+    return function;
 }
 
-PrePostProcessor::PrePostProcessor(const std::shared_ptr<Function>& function)
-    : PrePostProcessorBase(std::unique_ptr<PrePostProcessorInternalData>(new PrePostProcessorInternalData(function))) {}
+PrePostProcessor::PrePostProcessor()
+    : PrePostProcessorBase(std::unique_ptr<PrePostProcessorInternalData>(new PrePostProcessorInternalData())) {}
 
 InContext::InContext(std::unique_ptr<PrePostProcessorInternalData>&& impl) : PrePostProcessorBase(std::move(impl)) {}
 InContext::InContext(InContext&&) = default;
@@ -200,13 +229,11 @@ InTensorContext::InTensorContext(std::unique_ptr<PrePostProcessorInternalData>&&
 InTensorContext::InTensorContext(InTensorContext&&) = default;
 
 InTensorContext& InTensorContext::set_element_type(ov::element::Type type) {
-    std::cout << "\nSet Element type: " << type;
     m_impl->last_in().m_tensor_data.m_type = type;
     return *this;
 }
 
 InTensorContext& InTensorContext::set_layout(const PartialLayout& layout) {
-    std::cout << "\nTensor: Set layout: " << layouts::has_channels(layout);
     m_impl->last_in().m_tensor_data.m_layout = layout;
     return *this;
 }
@@ -226,19 +253,27 @@ PreProcessContext::PreProcessContext(PreProcessContext&&) = default;
 PreProcessContext& PreProcessContext::scale(float value) {
     m_impl->last_in().m_preprocess_data.m_actions.push_back(
         std::make_shared<PreProcessScale>(std::vector<float>{value}));
-    std::cout << "\nAdd scale: " << value;
     return *this;
 }
 
 PreProcessContext& PreProcessContext::scale(const std::vector<float>& values) {
     m_impl->last_in().m_preprocess_data.m_actions.push_back(std::make_shared<PreProcessScale>(values));
-    std::cout << "\nAdd scale vector: " << values.size();
+    return *this;
+}
+
+PreProcessContext& PreProcessContext::mean(float value) {
+    m_impl->last_in().m_preprocess_data.m_actions.push_back(
+            std::make_shared<PreProcessMean>(std::vector<float>{value}));
+    return *this;
+}
+
+PreProcessContext& PreProcessContext::mean(const std::vector<float>& values) {
+    m_impl->last_in().m_preprocess_data.m_actions.push_back(std::make_shared<PreProcessMean>(values));
     return *this;
 }
 
 PreProcessContext& PreProcessContext::convert_element_type(ov::element::Type type) {
     m_impl->last_in().m_preprocess_data.m_actions.push_back(std::make_shared<PreProcessConvertElementType>(type));
-    std::cout << "\nconvert_element_type: " << type;
     return *this;
 }
 
@@ -251,11 +286,6 @@ InNetworkContext::InNetworkContext(std::unique_ptr<PrePostProcessorInternalData>
 InNetworkContext::InNetworkContext(InNetworkContext&&) = default;
 
 InNetworkContext& InNetworkContext::set_layout(const PartialLayout& layout) {
-    if (layouts::has_channels(layout)) {
-        std::cout << "Network: set layout: " << layouts::channels(layout);
-    } else {
-        std::cout << "Network: set layout2: " << layouts::has_channels(layout);
-    }
     m_impl->last_in().m_network_data.m_layout = layout;
     return *this;
 }

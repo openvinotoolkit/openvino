@@ -25,15 +25,15 @@ public:
     virtual ~PrePostProcessorBase();
     InContext in();
     InContext in(int port_index);
-    InContext in(std::string tensor_name);
+    // InContext in(std::string tensor_name);
     OutProcessor out();
-    std::shared_ptr<Function> build();
+    std::shared_ptr<Function> build(const std::shared_ptr<Function>& function);
 };
 
 /// \brief TBD
 class OPENVINO_API PrePostProcessor : public PrePostProcessorBase {
 public:
-    PrePostProcessor(const std::shared_ptr<Function>& function);
+    PrePostProcessor();
 };
 
 class InTensorContext;
@@ -68,6 +68,8 @@ public:
     PreProcessContext& convert_element_type(ov::element::Type type);
     PreProcessContext& scale(float value);
     PreProcessContext& scale(const std::vector<float>& values);
+    PreProcessContext& mean(float value);
+    PreProcessContext& mean(const std::vector<float>& values);
     InNetworkContext network();
 };
 
