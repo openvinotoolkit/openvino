@@ -205,8 +205,6 @@ def omz_path(request):
 def omz_cache_dir(request):
     """Fixture function for command-line option."""
     omz_cache_dir = request.config.getoption("omz_cache_dir", skip=True)
-    if omz_cache_dir:
-        validate_path_arg(omz_cache_dir, is_dir=True)
 
     return omz_cache_dir
 
