@@ -40,7 +40,7 @@ public:
     // TODO: map from PlaceTensorflow, not from name string
     std::map<std::string, ngraph::PartialShape> partialShapes;
 
-    std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> get_ops() const;
+    std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> get_op_places() const;
 
 public:
     InputModelTensorflow(const std::string& _path);

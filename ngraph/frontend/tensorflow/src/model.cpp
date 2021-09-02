@@ -88,7 +88,7 @@ ngraph::PartialShape InputModelTensorflow::get_partial_shape(Place::Ptr place) c
     return result_shape;
 }
 
-std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> InputModelTensorflow::get_ops() const {
+std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> InputModelTensorflow::get_op_places() const {
     // TODO: call that ONLY if model modified
     return determine_cut_nodes();
 }
@@ -168,8 +168,10 @@ std::vector<std::shared_ptr<ngraph::frontend::OpPlaceTF>> InputModelTensorflow::
             if (op_it != m_ops.end() && !visited.count(input_name)) {
                 visited.insert(input_name);
                 new_ops.push_back(op_it->second);
-                // TODO: check that op is not input or frozen
-                q.push(op_it->second->get_desc().get());
+                // TODO: check that op is frozen
+                if (!op_it->second->is_input()) {
+                    q.push(op_it->second->get_desc().get());
+                }
             }
         }
     }

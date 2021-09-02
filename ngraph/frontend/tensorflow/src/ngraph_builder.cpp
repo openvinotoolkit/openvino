@@ -2723,7 +2723,7 @@ void Builder::TranslateGraph(
     ngraph::ParameterVector params;
     ngraph::ResultVector results;
 
-    const auto& ops = tf_model->get_ops();
+    const auto& ops = tf_model->get_op_places();
     const auto& inputs = tf_model->partialShapes;
     const auto& indexed_shapes = tf_model->input_shapes;
 
