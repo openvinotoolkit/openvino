@@ -16,7 +16,7 @@ Install OpenVINO™ toolkit and Model Optimizer, Accuracy Checker, and Post-trai
 
 1. Define the OpenVINO™ install directory:
 ```
-export OV=/opt/intel/openvino_2021/
+export OV=/opt/intel/openvino_2022/
 ```
 2. Install the Model Optimizer prerequisites:
 ```
@@ -25,7 +25,7 @@ sudo ./install_prerequisites.sh
 ```
 3. Install the Accuracy Checker requirements:
 ```
-cd $OV/extras/open_model_zoo/tools/accuracy_checker
+cd $OV/tools/accuracy_checker
 sudo python3 setup.py install
 ```
 4. Install the Post-training Optimization Tool:
@@ -46,7 +46,7 @@ mkdir ~/POT
 cd ~/POT
 ```
 ```
-python3 $OV/tools/model_downloader/downloader.py --name mobilenet-v2-pytorch -o .
+python3 $OV/extras/open_model_zoo/tools/downloader/downloader.py --name mobilenet-v2-pytorch -o .
 ```
 
 ## 3. Prepare Model for Inference
@@ -61,13 +61,13 @@ python3 -mpip install --user -r ./requirements-pytorch.in
 
 You can find the parameters for Mobilnet v2 conversion here:
 ```
-vi /opt/intel/openvino_2021/extras/open_model_zoo/models/public/mobilenet-v2-pytorch/model.yml
+vi /opt/intel/openvino_2022/extras/open_model_zoo/models/public/mobilenet-v2-pytorch/model.yml
 ```
 
 Convert the model from PyTorch to ONNX*:
 ```
 cd ~/POT/public/mobilenet-v2-pytorch
-python3 /opt/intel/openvino_2021/extras/open_model_zoo/tools/downloader/pytorch_to_onnx.py  \
+python3 /opt/intel/openvino_2022/extras/open_model_zoo/tools/downloader/pytorch_to_onnx.py  \
     --model-name=MobileNetV2 \
     --model-path=.  \
     --weights=mobilenet-v2.pth \
@@ -100,11 +100,11 @@ mv mobilenet-v2.bin ~/POT/model.bin
 
 Edit the configuration files:
 ```
-sudo vi $OV/extras/open_model_zoo/tools/accuracy_checker/dataset_definitions.yml
+sudo vi $OV/tools/accuracy_checker/dataset_definitions.yml
 (edit imagenet_1000_classes)
 ```
 ```
-export DEFINITIONS_FILE=/opt/intel/openvino_2021/extras/open_model_zoo/tools/accuracy_checker/dataset_definitions.yml
+export DEFINITIONS_FILE=/opt/intel/openvino_2022/tools/accuracy_checker/dataset_definitions.yml
 ```
 
 Copy the JSON file to my directory and edit:
@@ -119,7 +119,7 @@ vi mobilenetV2_pytorch_int8.json
 Copy the YML file to my directory and edit:
 
 ```
-cp /opt/intel/openvino_2021/extras/open_model_zoo/tools/accuracy_checker/configs/mobilenet-v2.yml ~/POT
+cp /opt/intel/openvino_2022/tools/accuracy_checker/configs/mobilenet-v2.yml ~/POT
 ```
 ```
 vi mobilenet-v2.yml
