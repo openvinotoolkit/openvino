@@ -13,30 +13,46 @@ NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ReshapePRelu, "ReshapePRelu", 0);
 
 MKLDNNPlugin::ReshapePRelu::ReshapePRelu() {
     auto input = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
-    auto slope_constant = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    auto prelu = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>({ input, slope_constant });
+    auto slope = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
+    auto prelu = ngraph::pattern::wrap_type<ngraph::opset1::PRelu>({ input, slope });
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
         auto prelu = std::dynamic_pointer_cast<ngraph::opset1::PRelu>(m.get_match_root());
 
-        const auto slope_shape = prelu->input_value(1).get_shape();
         const auto prelu_pshape = prelu->input_value(0).get_partial_shape();
         const auto prelu_rank = prelu_pshape.rank();
-        if (!prelu || prelu_rank.is_dynamic() || prelu_rank.get_length() == 1 || ngraph::shape_size(slope_shape) == 1 || slope_shape.size() != 1) {
+        const auto slope_pshape = prelu->input_value(1).get_partial_shape();
+        const auto slope_rank = slope_pshape.rank();
+        if (!prelu || prelu_rank.is_dynamic() || slope_rank.is_dynamic() || prelu_rank.get_length() == 1 || slope_rank.get_length() != 1) {
             return false;
         }
 
-        const auto slope_dim = slope_shape[0];
         const auto channel_dim_idx = 1;
-        if (!prelu_pshape[channel_dim_idx].is_dynamic() && slope_dim != prelu_pshape[channel_dim_idx].get_length()) {
-            return false;
+        if (slope_pshape.is_static()) {
+            const auto slope_shape = slope_pshape.to_shape();
+            if (!prelu_pshape[channel_dim_idx].is_dynamic() && slope_shape[0] != prelu_pshape[channel_dim_idx].get_length()) {
+                return false;
+            }
         }
 
-        ngraph::Shape new_slope_shape(prelu_rank.get_length(), 1);
-        new_slope_shape[channel_dim_idx] = slope_dim;
+        ngraph::NodeVector nodes_to_concatenate;
 
-        auto reshape_constant = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ new_slope_shape.size() }, new_slope_shape);
-        auto new_slope = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(prelu->input_value(1), reshape_constant, true);
+        std::vector<std::int64_t> slope_shape_first{ 1 };
+        auto slope_shape_first_const = ngraph::opset1::Constant::create(ngraph::element::i64, { slope_shape_first.size() }, slope_shape_first);
+        nodes_to_concatenate.emplace_back(slope_shape_first_const);
+
+        auto shapeOf = ngraph::op::util::make_try_fold<ngraph::opset1::ShapeOf>(prelu->input_value(1));
+        nodes_to_concatenate.emplace_back(shapeOf);
+
+        if (prelu_rank.get_length() > 2) {
+            std::vector<std::int64_t> slope_shape_last(prelu_rank.get_length() - 2, 1);
+            auto slope_shape_last_const = ngraph::opset1::Constant::create(ngraph::element::i64, { slope_shape_last.size() }, slope_shape_last);
+            nodes_to_concatenate.emplace_back(slope_shape_last_const);
+        }
+
+        auto concat = ngraph::op::util::make_try_fold<ngraph::opset1::Concat>(nodes_to_concatenate, 0);
+        auto new_slope = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(prelu->input_value(1), concat, true);
+
         auto new_prelu = prelu->clone_with_new_inputs({ prelu->input_value(0), new_slope });
         new_prelu->set_friendly_name(prelu->get_friendly_name());
 

@@ -192,3 +192,61 @@ TEST(TransformationTests, ReshapePReluTest7) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(TransformationTests, ReshapePReluTest8) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 4, 3 });
+        auto slope = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { -2.f, -1.f, -2.f });
+        auto prelu = std::make_shared<ngraph::opset1::PRelu>(input, slope);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ReshapePRelu>();
+        m.run_passes(f);
+    }
+
+    {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 4, 3 });
+        auto slope = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{ 1, 3 }, { -2.f, -1.f, -2.f });
+        auto prelu = std::make_shared<ngraph::opset1::PRelu>(input, slope);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input });
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, ReshapePReluTest9) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(4));
+        auto slope = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+        auto prelu = std::make_shared<ngraph::opset1::PRelu>(input, slope);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input, slope });
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ReshapePRelu>();
+        m.run_passes(f);
+    }
+
+    {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(4));
+        auto slope = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+
+        auto shape_of = std::make_shared<ngraph::opset1::ShapeOf>(slope);
+        auto const_first = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 1 }, { 1 });
+        auto const_last = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { 1, 1 });
+        auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ const_first, shape_of, const_last }, 0);
+        auto reshape = std::make_shared<ngraph::opset1::Reshape>(slope, concat, true);
+        auto prelu = std::make_shared<ngraph::opset1::PRelu>(input, reshape);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ prelu }, ngraph::ParameterVector{ input, slope });
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
