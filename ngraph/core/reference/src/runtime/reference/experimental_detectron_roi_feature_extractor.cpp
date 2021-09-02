@@ -112,30 +112,39 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
                                  (static_cast<T>(iy) + static_cast<T>(0.5f)) * bin_size_h /
                                      static_cast<T>(roi_bin_grid_h);
                     const T xx = roi_start_w + static_cast<T>(pw) * bin_size_w +
-                                 static_cast<T>(static_cast<T>(ix) + static_cast<T>(0.5f)) * bin_size_w /
+                                 (static_cast<T>(ix) + static_cast<T>(0.5f)) * bin_size_w /
                                      static_cast<T>(roi_bin_grid_w);
 
                     T x = xx;
                     T y = yy;
                     // deal with: inverse elements are out of feature map boundary
-                    if (y < -1.0 || y > height || x < -1.0 || x > width) {
+                    std::cout << "                       Before if:\n";
+                    std::cout << "                        ph: " << ph << "\n"
+                              << "                        pw: " << pw << "\n"
+                              << "                        iy: " << iy << "\n"
+                              << "                        ix: " << ix << "\n"
+                              << "                        yy: " << yy << "\n"
+                              << "                        xx: " << xx << "\n"
+                              << "                        y:  " << y << "\n"
+                              << "                        x:  " << x << "\n";
+                    if (y < static_cast<T>(-1.0f) || y > static_cast<T>(height) || x < static_cast<T>(-1.0f) || x > static_cast<T>(width)) {
                         // empty
                         PreCalc<T> pc;
                         pc.pos1 = 0;
                         pc.pos2 = 0;
                         pc.pos3 = 0;
                         pc.pos4 = 0;
-                        pc.w1 = 0;
-                        pc.w2 = 0;
-                        pc.w3 = 0;
-                        pc.w4 = 0;
+                        pc.w1 = static_cast<T>(0.0f);
+                        pc.w2 = static_cast<T>(0.0f);
+                        pc.w3 = static_cast<T>(0.0f);
+                        pc.w4 = static_cast<T>(0.0f);
                         pre_calc.at(pre_calc_index) = pc;
                         pre_calc_index += 1;
                         continue;
                     }
 
-                    y = std::max(y, static_cast<T>(0.0));
-                    x = std::max(x, static_cast<T>(0.0));
+                    y = std::max(y, static_cast<T>(0.0f));
+                    x = std::max(x, static_cast<T>(0.0f));
 
                     int64_t y_low = static_cast<int64_t>(y);
                     int64_t x_low = static_cast<int64_t>(x);
