@@ -25,7 +25,7 @@
 #include "ngraph/slice_plan.hpp"
 //#include <ngraph/pass/transpose_sinking.h>
 #include <ngraph/pass/constant_folding.hpp>
-#include <tensorflow_frontend/frontend.hpp>
+#include <tensorflow_frontend/place.hpp>
 
 #include "default_opset.h"
 #include "graph.hpp"
@@ -2710,10 +2710,8 @@ static std::map<const string, const function<ngraph::OutputVector(const NodeCont
 };
 
 void Builder::TranslateGraph(
-    const std::map<std::string, ngraph::PartialShape>& inputs,
-    const std::vector<ngraph::PartialShape>& indexed_shapes,
+    std::shared_ptr<ngraph::frontend::InputModelTensorflow> tf_model,
     const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
-    ngraph::frontend::tensorflow::GraphIterator& op_iter,
     const std::string name,
     std::shared_ptr<ngraph::Function>& ng_function) {
     //
@@ -2725,23 +2723,27 @@ void Builder::TranslateGraph(
     ngraph::ParameterVector params;
     ngraph::ResultVector results;
 
+    const auto& ops = tf_model->get_op_places();
+    const auto& inputs = tf_model->partialShapes;
+    const auto& indexed_shapes = tf_model->input_shapes;
+
     //
     // Now create the nGraph ops from TensorFlow ops.
     //
-    for (; !op_iter.is_end(); op_iter.next()) {
+    for (auto& op_place : ops) {
+        auto op = op_place->get_desc();
+        auto op_name = op_place->get_names()[0];
 #if 0
     // TODO: Investigate why do we need it
       if (n->IsSink() || n->IsSource()) {
       continue;
     }
 #endif
-
-        auto op = op_iter.get();
         if (op->IsControlFlow()) {
             throw errors::Unimplemented("Encountered a control flow op in the nGraph bridge: " + op->DebugString());
         }
 
-        NGRAPH_VLOG(2) << "Constructing op " << op->name() << " which is " << op->type_string() << "\n";
+        NGRAPH_VLOG(2) << "Constructing op " << op_name << " which is " << op->type_string() << "\n";
 
         // const function<Status(const TFNodeDecoder*, const std::vector<const
         // ngraph::frontend::tensorflow::detail::TensorWrapper*>&,
@@ -2755,10 +2757,10 @@ void Builder::TranslateGraph(
             // -----------------------------
             // Catch-all for unsupported ops
             // -----------------------------
-            NGRAPH_VLOG(3) << "No translation handler registered for op: " << op->name() << " (" << op->type_string()
+            NGRAPH_VLOG(3) << "No translation handler registered for op: " << op_name << " (" << op->type_string()
                            << ")";
             NGRAPH_VLOG(3) << op->DebugString();
-            throw errors::InvalidArgument("No translation handler registered for op: " + op->name() + " (" +
+            throw errors::InvalidArgument("No translation handler registered for op: " + op_name + " (" +
                                           op->type_string() + ")\n" + op->DebugString());
         }
 
@@ -2784,7 +2786,7 @@ void Builder::TranslateGraph(
             auto outputs = (*op_fun)(node_context);
 
             // Post-processing: register outputs to the map and detect the edge ops
-            auto& node_record = ng_op_map[op->name()];
+            auto& node_record = ng_op_map[op_name];
             for (auto output : outputs) {
                 if (auto result = std::dynamic_pointer_cast<opset::Result>(output.get_node_shared_ptr())) {
                     results.push_back(result);
@@ -2797,14 +2799,14 @@ void Builder::TranslateGraph(
                 }
             }
         } catch (const Status& e) {
-            throw errors::Internal("Unhandled exception in op handler: " + op->name() + " (" + op->type_string() +
-                                   ")\n" + op->DebugString() + "\nDetails: " + e.message);
+            throw errors::Internal("Unhandled exception in op handler: " + op_name + " (" + op->type_string() + ")\n" +
+                                   op->DebugString() + "\nDetails: " + e.message);
         } catch (const std::exception& e) {
-            throw errors::Internal("Unhandled exception in op handler: " + op->name() + " (" + op->type_string() +
-                                   ")\n" + op->DebugString() + "\n" + "what(): " + e.what());
+            throw errors::Internal("Unhandled exception in op handler: " + op_name + " (" + op->type_string() + ")\n" +
+                                   op->DebugString() + "\n" + "what(): " + e.what());
         } catch (...) {
-            throw errors::Internal("Unhandled exception in op handler: " + op->name() + " (" + op->type_string() +
-                                   ")\n" + op->DebugString());
+            throw errors::Internal("Unhandled exception in op handler: " + op_name + " (" + op->type_string() + ")\n" +
+                                   op->DebugString());
         }
     }
 
@@ -2838,38 +2840,3 @@ void Builder::TranslateGraph(
 
 }  // namespace ngraph_bridge
 }  // namespace tensorflow
-
-using namespace google;
-
-using namespace ngraph::frontend;
-
-using ::tensorflow::GraphDef;
-
-std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert(InputModel::Ptr model) const {
-    try {
-        auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTensorflow>(model);
-        std::cout << "[ INFO ] FrontEndTensorflow::convert invoked\n";
-
-        std::shared_ptr<ngraph::Function> f;
-        ::tensorflow::ngraph_bridge::Builder::TranslateGraph(model_tf->partialShapes,
-                                                             model_tf->input_shapes,
-                                                             {},
-                                                             *model_tf->graph_impl,
-                                                             "here_should_be_a_graph_name",
-                                                             f);
-        std::cout << "[ STATUS ] TranslateGraph was called successfuly.\n";
-        std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
-        std::cout << "[ STATUS ] Running Transpose Sinking transformation\n";
-
-        ngraph::pass::Manager manager;
-        // manager.register_pass<ngraph::pass::TransposeSinking>();
-        manager.register_pass<ngraph::pass::ConstantFolding>();
-        manager.run_passes(f);
-
-        std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;
-        return f;
-    } catch (::tensorflow::Status status) {
-        std::cerr << "[ ERROR ] Exception happens during TF model conversion: " << status << "\n";
-        throw;
-    }
-}

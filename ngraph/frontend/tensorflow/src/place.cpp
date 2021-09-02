@@ -5,6 +5,7 @@
 #include <frontend_manager/frontend_exceptions.hpp>
 #include <tensorflow_frontend/place.hpp>
 
+#include "node_context_impl.hpp"
 #include "op_def.pb.h"
 #include "tensor.pb.h"
 #include "types.pb.h"
@@ -12,17 +13,17 @@
 using namespace ngraph;
 using namespace frontend;
 
-std::map<tensorflow::DataType, ngraph::element::Type> TYPE_MAP{
-    {tensorflow::DataType::DT_BOOL, ngraph::element::boolean},
-    {tensorflow::DataType::DT_INT16, ngraph::element::i16},
-    {tensorflow::DataType::DT_INT32, ngraph::element::i32},
-    {tensorflow::DataType::DT_INT64, ngraph::element::i64},
-    {tensorflow::DataType::DT_HALF, ngraph::element::f16},
-    {tensorflow::DataType::DT_FLOAT, ngraph::element::f32},
-    {tensorflow::DataType::DT_DOUBLE, ngraph::element::f64},
-    {tensorflow::DataType::DT_UINT8, ngraph::element::u8},
-    {tensorflow::DataType::DT_INT8, ngraph::element::i8},
-    {tensorflow::DataType::DT_BFLOAT16, ngraph::element::bf16}};
+std::map<::tensorflow::DataType, ngraph::element::Type> TYPE_MAP{
+    {::tensorflow::DataType::DT_BOOL, ngraph::element::boolean},
+    {::tensorflow::DataType::DT_INT16, ngraph::element::i16},
+    {::tensorflow::DataType::DT_INT32, ngraph::element::i32},
+    {::tensorflow::DataType::DT_INT64, ngraph::element::i64},
+    {::tensorflow::DataType::DT_HALF, ngraph::element::f16},
+    {::tensorflow::DataType::DT_FLOAT, ngraph::element::f32},
+    {::tensorflow::DataType::DT_DOUBLE, ngraph::element::f64},
+    {::tensorflow::DataType::DT_UINT8, ngraph::element::u8},
+    {::tensorflow::DataType::DT_INT8, ngraph::element::i8},
+    {::tensorflow::DataType::DT_BFLOAT16, ngraph::element::bf16}};
 
 bool PlaceTF::is_input() const {
     const auto& model_ins = m_input_model.get_inputs();
@@ -42,13 +43,14 @@ bool PlaceTF::is_output() const {
 }
 
 OpPlaceTF::OpPlaceTF(const InputModel& input_model,
-                     const tensorflow::OpDef& op_def,
+                     std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> op_def,
                      const std::vector<std::string>& names)
     : PlaceTF(input_model, names),
       m_op_def(op_def) {}
 
-OpPlaceTF::OpPlaceTF(const InputModel& input_model, const tensorflow::OpDef& op_def)
-    : OpPlaceTF(input_model, op_def, {}) {}
+OpPlaceTF::OpPlaceTF(const InputModel& input_model,
+                     std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> op_def)
+    : OpPlaceTF(input_model, op_def, {op_def->name()}) {}
 
 const std::map<std::string, std::vector<std::shared_ptr<OutPortPlaceTF>>>& OpPlaceTF::get_output_ports() const {
     return m_output_ports;
@@ -70,7 +72,7 @@ std::shared_ptr<InPortPlaceTF> OpPlaceTF::get_input_port_tf(const std::string& i
     return m_input_ports.at(inputName)[inputPortIndex];
 }
 
-const tensorflow::OpDef& OpPlaceTF::get_desc() const {
+std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> OpPlaceTF::get_desc() const {
     return m_op_def;
 }
 
@@ -210,7 +212,7 @@ Place::Ptr OpPlaceTF::get_target_tensor(int outputPortIndex) const {
 
 TensorPlaceTF::TensorPlaceTF(const InputModel& input_model,
                              const std::vector<std::string>& names,
-                             const tensorflow::TensorProto& tensor)
+                             const ::tensorflow::TensorProto& tensor)
     : PlaceTF(input_model, names),
       m_tensor(tensor) {
     m_type = TYPE_MAP[tensor.dtype()];
@@ -251,7 +253,7 @@ void TensorPlaceTF::add_consuming_port(const std::shared_ptr<InPortPlaceTF>& in_
     m_consuming_ports.push_back(in_port);
 }
 
-const tensorflow::TensorProto& TensorPlaceTF::get_desc() const {
+const ::tensorflow::TensorProto& TensorPlaceTF::get_desc() const {
     return m_tensor;
 }
 

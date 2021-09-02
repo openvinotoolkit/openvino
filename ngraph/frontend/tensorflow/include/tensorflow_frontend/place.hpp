@@ -16,6 +16,12 @@ namespace frontend {
 class TensorPlaceTF;
 class OpPlaceTF;
 
+namespace tensorflow {
+namespace detail {
+class TFNodeDecoder;
+}  // namespace detail
+}  // namespace tensorflow
+
 class PlaceTF : public Place {
 public:
     PlaceTF(const InputModel& input_model, const std::vector<std::string>& names)
@@ -92,9 +98,12 @@ private:
 
 class OpPlaceTF : public PlaceTF {
 public:
-    OpPlaceTF(const InputModel& input_model, const tensorflow::OpDef& op_def, const std::vector<std::string>& names);
+    OpPlaceTF(const InputModel& input_model,
+              std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> op_def,
+              const std::vector<std::string>& names);
 
-    OpPlaceTF(const InputModel& input_model, const tensorflow::OpDef& op_def);
+    OpPlaceTF(const InputModel& input_model,
+              std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> op_def);
 
     void add_in_port(const std::shared_ptr<InPortPlaceTF>& input, const std::string& name);
     void add_out_port(const std::shared_ptr<OutPortPlaceTF>& output, const std::string& name);
@@ -104,7 +113,7 @@ public:
     const std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>>& get_input_ports() const;
     std::shared_ptr<OutPortPlaceTF> get_output_port_tf(const std::string& outputName, int outputPortIndex) const;
     std::shared_ptr<InPortPlaceTF> get_input_port_tf(const std::string& inputName, int inputPortIndex) const;
-    const tensorflow::OpDef& get_desc() const;
+    std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> get_desc() const;
 
     // External API methods
     std::vector<Place::Ptr> get_consuming_ports() const override;
@@ -140,7 +149,7 @@ public:
     Ptr get_target_tensor(const std::string& outputName, int outputPortIndex) const override;
 
 private:
-    const tensorflow::OpDef& m_op_def;
+    std::shared_ptr<ngraph::frontend::tensorflow::detail::TFNodeDecoder> m_op_def;
     std::map<std::string, std::vector<std::shared_ptr<InPortPlaceTF>>> m_input_ports;
     std::map<std::string, std::vector<std::shared_ptr<OutPortPlaceTF>>> m_output_ports;
 };
@@ -149,7 +158,7 @@ class TensorPlaceTF : public PlaceTF {
 public:
     TensorPlaceTF(const InputModel& input_model,
                   const std::vector<std::string>& names,
-                  const tensorflow::TensorProto& tensor);
+                  const ::tensorflow::TensorProto& tensor);
 
     void add_producing_port(const std::shared_ptr<OutPortPlaceTF>& out_port);
     void add_consuming_port(const std::shared_ptr<InPortPlaceTF>& in_port);
@@ -167,7 +176,7 @@ public:
     void set_element_type(const element::Type& type) {
         m_type = type;
     }
-    const tensorflow::TensorProto& get_desc() const;
+    const ::tensorflow::TensorProto& get_desc() const;
 
     // External usage
     Ptr get_producing_operation() const override;
@@ -177,7 +186,7 @@ public:
     bool is_equal_data(Ptr another) const override;
 
 private:
-    const tensorflow::TensorProto& m_tensor;
+    const ::tensorflow::TensorProto& m_tensor;
     PartialShape m_pshape;
     element::Type m_type;
 
