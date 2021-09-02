@@ -4,7 +4,7 @@
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, shape_delete, is_fully_defined
 from mo.graph.graph import Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
@@ -17,26 +17,27 @@ class Squeeze(Op):
 
     def __init__(self, graph, attrs: dict):
         super().__init__(graph, {
-            'op': __class__.op,
-            'type': __class__.op,
+            'op': self.op,
+            'type': self.op,
             'version': 'opset1',
             'squeeze_dims': None,
             'reinterp_shape': True,
             'keep_at_least_1d': 0,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': __class__.infer,
+            'infer': self.infer,
         }, attrs)
 
     @staticmethod
     def infer(node: Node):
         real_squeeze_dims = int64_array([])
-        input_shape = node.in_node().shape
+        input_shape = node.in_port(0).data.get_shape()
+        node_name = node.soft_get('name', node.id)
         if input_shape is None:
-            return
+            raise Error('Input shape is not defined for node {}'.format(node_name))
 
         output_shape = input_shape.copy()
-        assert len(node.in_nodes()) == 2, 'The Squeeze node {} must have 2 inputs'.format(node.soft_get('name'))
+        assert len(node.in_nodes()) == 2, 'The Squeeze node {} must have 2 inputs'.format(node_name)
 
         # TODO remove the following 'if' statement when IE start support 0D tensors
         squeeze_dims = node.in_port(1).data.get_value()
@@ -44,19 +45,20 @@ class Squeeze(Op):
             squeeze_dims = squeeze_dims.reshape([1])
 
         for dim in squeeze_dims:
-            if output_shape[dim] == 1:
-                real_squeeze_dims = np.append(real_squeeze_dims, get_canonical_axis_index(output_shape, dim))
+            if output_shape[dim] == 1 or output_shape[dim] is dynamic_dimension:
+                real_squeeze_dims = np.ma.append(real_squeeze_dims, get_canonical_axis_index(output_shape, dim))
             else:
-                raise Error('Trying to squeeze dimension not equal to 1 for node "{}"'.format(node.soft_get('name')))
+                raise Error('Trying to squeeze dimension not equal to 1 for node "{}"'.format(node_name))
 
         # if squeeze_dims empty then all 1s should be removed (tf specification of Squeeze op)
         if squeeze_dims.size == 0:
             for i in range(output_shape.size):
                 if output_shape[i] == 1:
-                    real_squeeze_dims = np.append(real_squeeze_dims, get_canonical_axis_index(output_shape, i))
+                    real_squeeze_dims = np.ma.append(real_squeeze_dims, get_canonical_axis_index(output_shape, i))
 
-        output_shape = np.delete(output_shape, real_squeeze_dims)
-        node.out_node().shape = output_shape
+        assert is_fully_defined(real_squeeze_dims), 'Squeeze dimension(s) is not defined for op "{}"'.format(node_name)
+        output_shape = shape_delete(output_shape, real_squeeze_dims)
+        node.out_port(0).data.set_shape(output_shape)
 
         # make dimensions positive to correctly translate from NHWC to NCHW layout
         if node.in_port(1).get_source().node.op == 'Const':

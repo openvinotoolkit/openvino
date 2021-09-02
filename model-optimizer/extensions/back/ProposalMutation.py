@@ -17,7 +17,7 @@ from mo.ops.strided_slice import StridedSlice
 
 class ProposalMutation(BackReplacementPattern):
     enabled = True
-    force_clean_up = True
+    force_shape_inference = True
 
     def run_before(self):
         return [ReshapeMutation, StridedSliceMasksNormalizer]
