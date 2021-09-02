@@ -85,7 +85,7 @@ class NodeFactory(object):
                 outputs.append(argument)
             else:
                 log.warning("Op arguments were passed as Node, please avoid passing arguments in "
-                            "this manner, and pass Outputs instead, because accepting Nodes will "
+                            "this manner, and pass Output(s) instead, because accepting Nodes will "
                             "be deprecated in a future release.")
                 outputs.extend(argument.outputs())
         return outputs
