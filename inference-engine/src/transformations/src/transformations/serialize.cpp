@@ -325,7 +325,7 @@ public:
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
             }
-        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<op::FrameworkNodeAttrs>>(&adapter)) {
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
             const auto & attrs = a->get();
 
             // Update type and version attributes
@@ -623,7 +623,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
         auto & op = f_ops[id];
         auto & clone_op = f_clone_ops[id];
 
-        if (auto op_subgraph = std::dynamic_pointer_cast<op::util::SubGraphOp>(op)) {
+        if (auto op_subgraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op)) {
             resolve_dynamic_shapes(*op_subgraph->get_function());
         }
 

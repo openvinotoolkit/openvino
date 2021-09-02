@@ -72,18 +72,18 @@ bool op::v0::MVN::visit_attributes(AttributeVisitor& visitor) {
 
 namespace ov {
 template <>
-NGRAPH_API EnumNames<op::MVNEpsMode>& EnumNames<op::MVNEpsMode>::get() {
-    static auto enum_names = EnumNames<op::MVNEpsMode>(
+NGRAPH_API EnumNames<ngraph::op::MVNEpsMode>& EnumNames<ngraph::op::MVNEpsMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::MVNEpsMode>(
         "op::MVNEpsMode",
-        {{"OUTSIDE_SQRT", op::MVNEpsMode::OUTSIDE_SQRT}, {"INSIDE_SQRT", op::MVNEpsMode::INSIDE_SQRT}});
+        {{"OUTSIDE_SQRT", ngraph::op::MVNEpsMode::OUTSIDE_SQRT}, {"INSIDE_SQRT", ngraph::op::MVNEpsMode::INSIDE_SQRT}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::MVNEpsMode>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::MVNEpsMode>::type_info;
 
 }  // namespace ov
 
-std::ostream& op::operator<<(std::ostream& s, const op::MVNEpsMode& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::MVNEpsMode& type) {
     return s << as_string(type);
 }
 

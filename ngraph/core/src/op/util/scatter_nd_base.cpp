@@ -9,26 +9,25 @@
 #include "ngraph/shape.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-constexpr NodeTypeInfo op::util::ScatterNDBase::type_info;
-constexpr int op::util::ScatterNDBase::INPUTS;
-constexpr int op::util::ScatterNDBase::INDICES;
-constexpr int op::util::ScatterNDBase::UPDATES;
+constexpr ov::NodeTypeInfo ov::op::util::ScatterNDBase::type_info;
+constexpr int ov::op::util::ScatterNDBase::INPUTS;
+constexpr int ov::op::util::ScatterNDBase::INDICES;
+constexpr int ov::op::util::ScatterNDBase::UPDATES;
 
-op::util::ScatterNDBase::ScatterNDBase(const Output<Node>& data,
-                                       const Output<Node>& indices,
-                                       const Output<Node>& updates)
+ov::op::util::ScatterNDBase::ScatterNDBase(const Output<Node>& data,
+                                           const Output<Node>& indices,
+                                           const Output<Node>& updates)
     : Op({data, indices, updates}) {
     constructor_validate_and_infer_types();
 }
 
-bool op::util::ScatterNDBase::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::ScatterNDBase::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(util_ScatterNDBase_visit_attributes);
     return true;
 }
 
-void op::util::ScatterNDBase::validate_and_infer_types() {
+void ov::op::util::ScatterNDBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_ScatterNDBase_validate_and_infer_types);
     element::Type inputs_et = get_input_element_type(INPUTS);
     element::Type indices_et = get_input_element_type(INDICES);

@@ -70,14 +70,15 @@ std::ostream& ngraph::operator<<(std::ostream& s, const op::v8::MatrixNms::Decay
 
 namespace ov {
 template <>
-NGRAPH_API EnumNames<op::v8::MatrixNms::DecayFunction>& EnumNames<op::v8::MatrixNms::DecayFunction>::get() {
-    static auto enum_names =
-        EnumNames<op::v8::MatrixNms::DecayFunction>("op::v8::MatrixNms::DecayFunction",
-                                                    {{"gaussian", op::v8::MatrixNms::DecayFunction::GAUSSIAN},
-                                                     {"linear", op::v8::MatrixNms::DecayFunction::LINEAR}});
+NGRAPH_API EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>&
+EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v8::MatrixNms::DecayFunction>(
+        "op::v8::MatrixNms::DecayFunction",
+        {{"gaussian", ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN},
+         {"linear", ngraph::op::v8::MatrixNms::DecayFunction::LINEAR}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v8::MatrixNms::DecayFunction>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v8::MatrixNms::DecayFunction>::type_info;
 
 }  // namespace ov

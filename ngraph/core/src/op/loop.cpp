@@ -307,5 +307,5 @@ op::v5::Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
 }
 
 namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<op::v5::Loop::SpecialBodyPorts>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>::type_info;
 }

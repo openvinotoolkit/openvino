@@ -122,13 +122,14 @@ std::ostream& ngraph::operator<<(std::ostream& s, const op::v0::SpaceToDepth::Sp
 
 namespace ov {
 template <>
-NGRAPH_API EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>& EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>::get() {
-    static auto enum_names = EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>(
+NGRAPH_API EnumNames<ngraph::op::v0::SpaceToDepth::SpaceToDepthMode>&
+EnumNames<ngraph::op::v0::SpaceToDepth::SpaceToDepthMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v0::SpaceToDepth::SpaceToDepthMode>(
         "op::v0::SpaceToDepth::SpaceToDepthMode",
-        {{"blocks_first", op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST},
-         {"depth_first", op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST}});
+        {{"blocks_first", ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST},
+         {"depth_first", ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v0::SpaceToDepth::SpaceToDepthMode>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v0::SpaceToDepth::SpaceToDepthMode>::type_info;
 }  // namespace ov
