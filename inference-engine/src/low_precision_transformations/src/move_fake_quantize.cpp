@@ -21,7 +21,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MoveFakeQuantize, "MoveFakeQuantize", 0);
 
 MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(params) {
-    auto concat = ngraph::pattern::wrap_type<opset1::Concat>();
+    auto concat = ngraph::pattern::wrap_type<opset1::Concat>(pattern::consumers_count(1));
     auto operation = ngraph::pattern::wrap_type<opset1::Relu>({ concat });
     auto input_low = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
     auto input_high = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
