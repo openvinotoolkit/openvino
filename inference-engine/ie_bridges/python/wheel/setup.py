@@ -28,8 +28,8 @@ WHEEL_LIBS_INSTALL_DIR = os.path.join('openvino', 'libs')
 WHEEL_LIBS_PACKAGE = 'openvino.libs'
 PYTHON_VERSION = f'python{sys.version_info.major}.{sys.version_info.minor}'
 
-LIBS_DIR= 'bin' if platform.system() == 'Windows' else 'lib'
-CONFIG= 'Release' if platform.system() == 'Windows' else ''
+LIBS_DIR = 'bin' if platform.system() == 'Windows' else 'lib'
+CONFIG = 'Release' if platform.system() == 'Windows' else ''
 
 machine = platform.machine()
 if machine == 'x86_64' or machine == 'AMD64':
@@ -182,7 +182,7 @@ class CustomBuild(build):
         # if setup.py is directly called use CMake to build product
         if CMAKE_BUILD_DIR == '.':
             # set path to the root of OpenVINO CMakeList file
-            openvino_root_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
+            openvino_root_dir = Path(__file__).resolve().parents[4]
             self.announce(f'Configuring cmake project: {openvino_root_dir}', level=3)
             self.spawn(['cmake', '-H' + str(openvino_root_dir), '-B' + self.build_temp,
                         '-DCMAKE_BUILD_TYPE={type}'.format(type=self.config),
@@ -221,15 +221,17 @@ def configure(self, install_cfg):
             file_types = ['.so'] if sys.platform == 'linux' else ['.dylib', '.so']
             for path in filter(lambda p: any(item in file_types for item in p.suffixes), Path(install_dir).glob('*')):
                 set_rpath(comp_data['rpath'], os.path.realpath(path))        
-        
+
+
 class PrepareLibs(build_clib):
     """Prepare prebuilt libraries"""
 
     def run(self):
         configure(self, PY_INSTALL_CFG)
 
+
 class InstallLibs(install_lib):
-    """Prepare prebuilt libraries"""
+    """Install prebuilt libraries"""
 
     def run(self):
         configure(self, LIB_INSTALL_CFG)
@@ -398,7 +400,7 @@ def find_prebuilt_extensions(search_dirs):
             package_names.append(path.name.split('.', 1)[0])
             name = '.'.join(package_names)
             extensions.append(PrebuiltExtension(name, sources=[str(path)]))
-    if not extensions: 
+    if not extensions:
         extensions.append(PrebuiltExtension('openvino', sources=[str('setup.py')]))
     return extensions
 
