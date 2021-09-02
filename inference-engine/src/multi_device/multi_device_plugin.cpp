@@ -345,8 +345,9 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
     }
 
     std::vector<DeviceInformation> CPU;
-    std::vector<DeviceInformation> dGPU;
     std::vector<DeviceInformation> iGPU;
+    std::vector<DeviceInformation> dGPU_DG1;
+    std::vector<DeviceInformation> dGPU_DG2;
     std::vector<DeviceInformation> MYRIAD;
     std::vector<DeviceInformation> VPUX;
 
@@ -368,19 +369,32 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
             if (gpuFullDeviceName.find("iGPU") != std::string::npos) {
                 iGPU.push_back(item);
             } else if (gpuFullDeviceName.find("dGPU") != std::string::npos) {
-                dGPU.push_back(item);
+                // Fixme:  FULL_DEVICE_NAME : Intel(R) Graphics [0x4f87] (dGPU) for DG2 now
+                if (gpuFullDeviceName.find("0x4f87") != std::string::npos) {
+                    dGPU_DG2.push_back(item);
+                } else if (gpuFullDeviceName.find("Intel(R) Iris(R) Xe MAX Graphics") != std::string::npos) {
+                    dGPU_DG1.push_back(item);
+                }
             }
             continue;
         }
     }
 
-    if (CPU.empty() && dGPU.empty() && iGPU.empty() && MYRIAD.empty() && VPUX.empty()) {
+    if (CPU.empty() && dGPU_DG2.empty() && dGPU_DG1.empty() && iGPU.empty() && MYRIAD.empty() && VPUX.empty()) {
         IE_THROW(NotFound) << "No available device found";
     }
 
-    // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
-    if (!dGPU.empty()) {
-        for (auto&& item : dGPU) {
+    // Priority of selecting device: dGPU DG2 > dGPU DG1 > VPUX > iGPU > MYRIAD > CPU
+    if (!dGPU_DG2.empty()) {
+        for (auto&& item : dGPU_DG2) {
+            std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+            auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
+            if (supportNetwork != capability.end()) {
+                return item;
+            }
+        }
+    } else if (!dGPU_DG1.empty()) {
+        for (auto&& item : dGPU_DG1) {
             std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
             auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
             if (supportNetwork != capability.end()) {
@@ -415,8 +429,15 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
 
     // If network is FP32 but there is no device support FP32, offload FP32 network to device support FP16.
     if (networkPrecision == "FP32") {
-        if (!dGPU.empty()) {
-            for (auto&& item : dGPU) {
+        if (!dGPU_DG2.empty()) {
+            for (auto&& item : dGPU_DG2) {
+                std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
+                if (supportNetwork != capability.end()) {
+                    return item;
+                }
+        } else if (!dGPU_DG1.empty()) {
+            for (auto&& item : dGPU_DG1) {
                 std::vector<std::string> capability = GetCore()->GetMetric(item.deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
                 auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
                 if (supportNetwork != capability.end()) {
