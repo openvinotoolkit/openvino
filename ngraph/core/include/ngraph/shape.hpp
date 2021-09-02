@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdio>
+#include <numeric>
 #include <vector>
 
 #include "ngraph/attribute_adapter.hpp"
