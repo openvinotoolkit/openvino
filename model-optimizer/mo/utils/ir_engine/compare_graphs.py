@@ -9,8 +9,50 @@ import numpy as np
 from mo.graph.graph import Graph, Node
 
 
-def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref=None, check_op_attrs=False):
+def compare_node(node_ref, node, ref_attr_value, attr_value, attr, errors_list: list):
     from mo.utils.ir_engine.ir_engine import IREngine
+
+    def err_format_string():
+        return 'Current node "{}" with type "{}" and reference node "{}" with type "{}" have different attr "{}" : ' \
+               '{} and {}'.format(node.id, node.soft_get('type', None), node_ref.id, node_ref.soft_get('type', None),
+                                  attr, attr_value, ref_attr_value)
+
+    if type(ref_attr_value) in [np.ndarray, list]:
+        if not np.array_equal(attr_value, ref_attr_value):
+            errors_list.append(err_format_string())
+    elif isinstance(ref_attr_value, tuple):
+        if len(ref_attr_value) != len(attr_value):
+            errors_list.append(err_format_string())
+        else:
+            for ref_item, item in zip(ref_attr_value, attr_value):
+                compare_node(node_ref, node, ref_item, item, attr, errors_list)
+    elif isinstance(ref_attr_value, dict):
+        ref_keys = sorted(list(ref_attr_value.keys()))
+        keys = sorted(list(attr_value.keys()))
+        if ref_keys != keys:
+            errors_list.append(err_format_string())
+        else:
+            for key in keys:
+                compare_node(node_ref, node, ref_attr_value[key], attr_value[key], key, errors_list)
+    elif isinstance(attr_value, Number):
+        eps = 5e-2 if node.has('precision') and node['precision'] == 'FP16' else 1e-4
+        if abs(attr_value - ref_attr_value) > eps:
+            errors_list.append(err_format_string())
+    elif isinstance(attr_value, IREngine):
+        resp, err_log = attr_value.compare(ref_attr_value)
+        if not resp:
+            errors_list.extend(err_log)
+    elif isinstance(attr_value, np.ma.masked_array):
+        if not np.ma.allequal(attr_value, ref_attr_value):
+            errors_list.append(err_format_string())
+    elif isinstance(attr_value, np.ndarray):
+        if not np.array_equal(attr_value, ref_attr_value):
+            errors_list.append(err_format_string())
+    elif attr_value != ref_attr_value:
+        errors_list.append(err_format_string())
+
+
+def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref=None, check_op_attrs=False):
     stderr = []
     if last_node_ref is None:
         last_node_ref = last_node
@@ -65,41 +107,23 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
                 cur_node_type = node.type if node.has_valid("type") else None
                 ref_node_type = node_ref.type if node_ref.has_valid("type") else None
                 for attr in graph_ref.node[node_ref.id]:
-                    if graph_ref.node[node_ref.id][attr] is None or attr in ['name', 'id', '_in_ports', '_out_ports',
-                                                                             'infer', 'IE', 'biases', 'weights', 'custom', 'offset', 'ir_data_attrs']:
+                    if graph_ref.node[node_ref.id][attr] is None or attr in \
+                            ['name', 'id', '_in_ports', '_out_ports', 'infer', 'IE', 'biases', 'weights', 'custom',
+                             'offset', 'ir_data_attrs']:
                         continue
                     if attr not in graph.node[node.id]:
-                        stderr.append('Current node "{}" with type {} has missing attribute {}'.format(node.id, cur_node_type, attr))
+                        stderr.append('Current node "{}" with type {} has missing attribute {}'
+                                      ''.format(node.id, cur_node_type, attr))
                         continue
 
                     if attr == 'value':
                         if not values_are_equal(node.value, node_ref.value):
-                            stderr.append('Current node "{}" with type {} and reference node "{}" with type have different values '
-                                          '\n{} \nand \n{}'.format(node.id, cur_node_type, node_ref.id, ref_node_type, node.value, node_ref.value))
+                            stderr.append('Current node "{}" with type {} and reference node "{}" with type have '
+                                          'different values \n{} \nand \n{}'.format(
+                                node.id, cur_node_type, node_ref.id, ref_node_type, node.value, node_ref.value))
                         continue
-
-                    def err_format_string():
-                        return 'Current node "{}" with type {} and reference node "{}" with type {} have different attr "{}" : ' \
-                                '{} and {}'.format(node.id, cur_node_type, node_ref.id, ref_node_type, attr,
-                                                   graph.node[node.id][attr],
-                                                   graph_ref.node[node_ref.id][attr])
-
-                    if type(graph_ref.node[node_ref.id][attr]) in [np.ndarray, list]:
-                        if not np.array_equal(graph.node[node.id][attr], graph_ref.node[node_ref.id][attr]):
-                            stderr.append(err_format_string())
-                    elif isinstance(graph.node[node.id][attr], Number):
-                        eps = 5e-2 if node.has('precision') and node['precision'] == 'FP16' else 1e-4
-                        if abs(graph.node[node.id][attr] - graph_ref.node[node_ref.id][attr]) > eps:
-                            stderr.append(err_format_string())
-                    elif isinstance(graph.node[node.id][attr], IREngine):
-                        resp, err_log = graph.node[node.id][attr].compare(graph_ref.node[node_ref.id][attr])
-                        if not resp:
-                            stderr.extend(err_log)
-                    elif isinstance(graph.node[node.id][attr], np.ndarray):
-                        if not np.array_equal(graph.node[node.id][attr], graph_ref.node[node_ref.id][attr]):
-                            stderr.append(err_format_string())
-                    elif graph.node[node.id][attr] != graph_ref.node[node_ref.id][attr]:
-                        stderr.append(err_format_string())
+                    compare_node(node_ref, node, graph_ref.node[node_ref.id][attr], graph.node[node.id][attr], attr,
+                                 stderr)
         else:
             if node_ref.has_valid('shape') and not node.has_valid('shape'):
                 stderr.append('{} has None shape'.format(node.id))
