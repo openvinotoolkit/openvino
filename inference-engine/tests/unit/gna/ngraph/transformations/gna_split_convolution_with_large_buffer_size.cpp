@@ -78,7 +78,7 @@ protected:
 class CreateBaseDecorator : public CreateGraphDecorator {
 public:
     // always the first decorator => no prev_builder
-    CreateBaseDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{1, 64, 4096, 4096}) :
+    CreateBaseDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{1, 64, 1, 4096}) :
                         CreateGraphDecorator(nullptr),
                         input_data_shape_(input_data_shape) {}
 protected:
