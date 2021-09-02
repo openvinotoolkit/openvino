@@ -4,6 +4,11 @@
 
 #pragma once
 
+#include <cstdio>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+
 #include <map>
 #include <fstream>
 
@@ -61,9 +66,31 @@ public:
 
     static ExternalNetworkMode getMode() { return mode; }
 
-    static void setModelsPath(std::string &val) { modelsPath = val.c_str(); }
+    static void setModelsPath(std::string &val) {
+        modelsPath = val.c_str();
+    }
 
     static void setMode(ExternalNetworkMode val) { mode = val; }
+
+    static std::string generateHashName(std::string value) {
+        auto command = "python sha256hash.py " + value;
+        auto hash = executeCommand(command);
+        hash.resize(hash.length() - 1);
+        return hash;
+    }
+
+    static std::string executeCommand(std::string cmd) {
+        std::array<char, 128> buffer;
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+        if (!pipe) {
+            throw std::runtime_error("popen() failed!");
+        }
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            result += buffer.data();
+        }
+        return result;
+    }
 };
 
 }  // namespace LayerTestsUtils

@@ -12,6 +12,9 @@ using namespace LayerTestsUtils;
 #endif
 
 #define path_delimiter "/"
+#ifdef _WIN32
+#define path_delimiter "\\"
+#endif
 
 ExternalNetworkTool *ExternalNetworkTool::p_instance = nullptr;
 ExternalNetworkMode ExternalNetworkTool::mode = ExternalNetworkMode::DISABLED;
@@ -37,12 +40,14 @@ ExternalNetworkTool &ExternalNetworkTool::getInstance() {
 void ExternalNetworkTool::dumpNetworkToFile(const std::shared_ptr<ngraph::Function>& network,
                                             std::string network_name) const {
     auto exportPathString = std::string(modelsPath);
+    auto hashed_network_name = "network_" + generateHashName(network_name);
+
     std::string out_xml_path = exportPathString
                                 + (exportPathString.empty() ? "" : path_delimiter)
-                                + network_name + ".xml";
+                                + hashed_network_name + ".xml";
     std::string out_bin_path = exportPathString
                                 + (exportPathString.empty() ? "" : path_delimiter)
-                                + network_name + ".bin";
+                                + hashed_network_name + ".bin";
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
@@ -53,12 +58,14 @@ void ExternalNetworkTool::dumpNetworkToFile(const std::shared_ptr<ngraph::Functi
 InferenceEngine::CNNNetwork ExternalNetworkTool::loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
                                                                      std::string network_name) const {
     auto importPathString = std::string(modelsPath);
+    auto hashed_network_name = "network_" + generateHashName(network_name);
+
     std::string out_xml_path = importPathString
                                 + (importPathString.empty() ? "" : path_delimiter)
-                                + network_name + ".xml";
+                                + hashed_network_name + ".xml";
     std::string out_bin_path = importPathString
                                 + (importPathString.empty() ? "" : path_delimiter)
-                                + network_name + ".bin";
+                                + hashed_network_name + ".bin";
 
     auto network = core->ReadNetwork(out_xml_path, out_bin_path);
     printf("Network loaded from %s\n", out_xml_path.c_str());
