@@ -29,8 +29,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*_oLT=1.*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
-        // TODO: Issue: 25533
-        R"(.*ConvertLikeLayerTest.*)",
+        // TODO: Issue: 63469
+        R"(.*ConversionLayerTest.*ConvertLike.*)",
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
@@ -88,6 +88,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Auto.*Behavior.*ExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         // azure is failing after #6199
         R"(.*/NmsLayerTest.*)",
+        // TODO: 56520 Accuracy mismatch
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)"
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*checkGetExecGraphInfo.*)",
