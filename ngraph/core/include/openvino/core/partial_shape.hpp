@@ -292,7 +292,12 @@ public:
     const_reverse_iterator crend() const noexcept {
         return m_dimensions.crend();
     }
-
+    /// \brief push element to the end of the partial shape
+    void push_back(const Dimension& val) {
+        m_dimensions.push_back(val);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
     /// \brief Resizes dimensions container to contain count elements
     void resize(size_t count) {
         m_dimensions.resize(count);
@@ -326,12 +331,6 @@ public:
     /// \brief Requests that the dimensions vector capacity be enough to contain n elements
     void reserve(size_t n) {
         m_dimensions.reserve(n);
-    }
-    /// \brief push element to the end of partial shape
-    void push_back(const Dimension& val) {
-        m_dimensions.push_back(val);
-        m_rank_is_static = true;
-        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
     }
 
 private:

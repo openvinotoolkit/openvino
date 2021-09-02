@@ -162,9 +162,19 @@ std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_node
 }
 
 std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(const ngraph::Output<ngraph::Node>& shape_source,
-                                                                                   const std::vector<size_t>& indices) {
-    const auto & shape_node = make_try_fold<v3::ShapeOf>(shape_source);
+    const std::vector<size_t>& indices) {
+    const auto& shape_node = make_try_fold<v3::ShapeOf>(shape_source);
     return node_to_get_shape_value_of_indices_from_shape_node(shape_node, indices);
+}
+
+bool shapes_equal_except_dynamic_expected_batch(const ngraph::PartialShape& expected, const ngraph::PartialShape& actual) {
+    if (expected[0].is_static()) {
+        return actual == expected;
+    } else {
+        auto actual_with_dynamic_batch = actual;
+        actual_with_dynamic_batch[0] = expected[0];
+        return actual_with_dynamic_batch == expected;
+    }
 }
 
 }  // namespace util
