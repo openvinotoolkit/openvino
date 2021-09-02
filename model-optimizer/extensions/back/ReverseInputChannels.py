@@ -114,7 +114,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
         returns boolean value whatever we should continue propagating current ReverseChannels operation down or not
         """
         # detaching reverse_channels node from the graph
-        if reverse_channels.is_in_port_connected(0) and reverse_channels.is_out_port_connected(0)\
+        if reverse_channels.is_in_port_connected(0) and reverse_channels.is_out_port_connected(0) \
                 and node.is_out_port_connected(0):
             reverse_channels.out_port(0).get_connection().set_source(
                 reverse_channels.in_port(0).get_connection().get_source())
@@ -137,7 +137,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
         ReverseChannels    weights   previous_op   ReverseChannels
                      \     /                 \     /
                       Conv                    Conv
-            
+
         For grouped convolution:
         BEFORE                          AFTER
 
@@ -326,7 +326,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             node_input_port_0.get_connection().set_source(reverse_channels.out_port(0))
             src.connect(reverse_channels.in_port(0))
             node.out_port(0).get_connection().set_destination(reverse_channels_out_node.in_port(0))
-            return True, [reverse_channels_out_node]
+            return True, [reverse_channels]
         return False, []
 
     @staticmethod
