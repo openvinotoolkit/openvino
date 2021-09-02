@@ -205,7 +205,8 @@ def omz_path(request):
 def omz_cache_dir(request):
     """Fixture function for command-line option."""
     omz_cache_dir = request.config.getoption("omz_cache_dir", skip=True)
-    validate_path_arg(omz_cache_dir, is_dir=True)
+    if omz_cache_dir:
+        validate_path_arg(omz_cache_dir, is_dir=True)
 
     return omz_cache_dir
 
@@ -236,8 +237,10 @@ def prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir):
     cmd = f'{python_executable} {downloader_path} --name {model["name"]}' \
           f' --precisions={model["precision"]}' \
           f' --num_attempts {OMZ_NUM_ATTEMPTS}' \
-          f' --output_dir {omz_path / "_omz_repo"}' \
-          f' --cache_dir {omz_cache_dir}'
+          f' --output_dir {omz_path / "_omz_repo"}'
+
+    if omz_cache_dir:
+        cmd += f' --cache_dir {omz_cache_dir}'
 
     cmd_exec(cmd, log=omz_log)
 
