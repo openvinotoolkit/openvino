@@ -118,6 +118,15 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
                     T x = xx;
                     T y = yy;
                     // deal with: inverse elements are out of feature map boundary
+                    std::cout << "                       Before if:\n";
+                    std::cout << "                        ph: " << ph << "\n"
+                              << "                        pw: " << pw << "\n"
+                              << "                        iy: " << iy << "\n"
+                              << "                        ix: " << ix << "\n"
+                              << "                        yy: " << yy << "\n"
+                              << "                        xx: " << xx << "\n"
+                              << "                        y:  " << y << "\n"
+                              << "                        x:  " << x << "\n";
                     if (y < static_cast<T>(-1.0f) || y > static_cast<T>(height) || x < static_cast<T>(-1.0f) || x > static_cast<T>(width)) {
                         // empty
                         PreCalc<T> pc;
