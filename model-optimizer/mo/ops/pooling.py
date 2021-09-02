@@ -3,7 +3,8 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, float_array
+from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, float_array, shape_array, \
+    dynamic_dimension_value, dynamic_dimension
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
@@ -128,7 +129,10 @@ class Pooling(Op):
                 raise Error("Data after padding has dimension less than window size. " +
                             "Possible reason of error is incorrectly specified model input shape(s).")
 
-            output_spatial_shape = int64_array(rounding(float_array(padded_spatial_shape) / stride_spatial)) + 1
+            output_spatial_shape = shape_array([dynamic_dimension_value for _ in range(len(padded_spatial_shape))])
+            for idx in range(len(padded_spatial_shape)):
+                if padded_spatial_shape[idx] is not dynamic_dimension and stride_spatial[idx] is not dynamic_dimension:
+                    output_spatial_shape[idx] = int(rounding(padded_spatial_shape[idx] / stride_spatial[idx])) + 1
 
             original_pads = np.array([i[1] for i in node.pad_spatial_shape])
 
@@ -141,7 +145,7 @@ class Pooling(Op):
 
         output_shape = input_shape.copy()
         output_shape[node.spatial_dims] = node.output_spatial_shape
-        node.out_node().shape = output_shape
+        node.out_port(0).data.set_shape(output_shape)
 
         # Add permute_attrs
         PermuteAttrs.create_permute_attrs(node, attrs=[('pad', 'input:0'),
