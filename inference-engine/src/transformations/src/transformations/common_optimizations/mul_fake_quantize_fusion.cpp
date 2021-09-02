@@ -84,21 +84,6 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
                     op::Constant::create(element::u64, Shape{const_shape.size()}, const_shape), false);
         }
 
-        bool all_negative = std::all_of(mul_const_value.begin(), mul_const_value.end(), [] (float f) -> bool { return f < 0.0f; });
-        bool any_negative = std::any_of(mul_const_value.begin(), mul_const_value.end(), [] (float f) -> bool { return f < 0.0f; });
-        if (any_negative && !all_negative) {
-            auto fq_outputs = fq->get_users();
-            // Convolution and GroupConvolution LP transformations require output low/high to have the same values
-            bool fq_output_is_conv = std::any_of(fq_outputs.begin(), fq_outputs.end(),
-                                                 [] (const std::shared_ptr<Node>& node) -> bool {
-                                                     return is_type<opset5::Convolution>(node) ||
-                                                            is_type<opset5::GroupConvolution>(node);
-                                                 });
-            if (fq_output_is_conv) {
-                return false;
-            }
-        }
-
         auto input_low_div = std::make_shared<opset5::Divide>(fq->input_value(1), new_const);
         std::shared_ptr<Node> new_input_low = get_constant_from_source(input_low_div);
         if (!new_input_low)
@@ -108,55 +93,10 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         if (!new_input_high)
             new_input_high = input_high_div;
 
-        auto mul = pattern_value_map.at(mul_pattern).get_node_shared_ptr();
-        std::shared_ptr<Node> new_fq;
-        if (all_negative) {
-            new_fq = register_new_node<opset5::FakeQuantize>(input, new_input_low, new_input_high,
-                    fq->input_value(4), fq->input_value(3), fq->get_levels());
-            copy_runtime_info({mul, fq}, {new_const, new_input_low, new_input_high, new_fq});
-        } else if (any_negative) {
-            const auto& output_low = fq->input_value(3);
-            const auto& output_high = fq->input_value(4);
-            // get the mask of the values from mul_const that are less than zero
-            std::vector<float> less_than_zero;
-            const_shape_size = shape_size(const_shape);
-            less_than_zero.reserve(const_shape_size);
-            // and greater or equal to zero
-            std::vector<float> greater_eq_zero;
-            greater_eq_zero.reserve(const_shape_size);
-            for (size_t i = 0; i < const_shape_size; i++) {
-                less_than_zero.push_back(mul_const_value[i] < 0);
-                greater_eq_zero.push_back(mul_const_value[i] >= 0);
-            }
-            auto less_const = op::Constant::create(output_low.get_element_type(), const_shape, less_than_zero);
-            auto greater_eq_const = op::Constant::create(output_low.get_element_type(), const_shape, greater_eq_zero);
-            // new_output_low is defined as follows:
-            //   output_low[i],  when mul_const[i] >= 0
-            //   output_high[i], when mul_const[i] < 0
-            auto output_low_tmp = std::make_shared<opset5::Add>(
-                    std::make_shared<opset5::Multiply>(greater_eq_const, output_low),
-                    std::make_shared<opset5::Multiply>(less_const, output_high));
-            std::shared_ptr<Node> new_output_low = get_constant_from_source(output_low_tmp);
-            if (!new_output_low)
-                new_output_low = output_low_tmp;
-
-            // new_output_high is defined as follows:
-            //   output_high[i], when mul_const[i] >= 0
-            //   output_low[i],  when mul_const[i] < 0
-            auto output_high_tmp = std::make_shared<opset5::Add>(
-                    std::make_shared<opset5::Multiply>(greater_eq_const, output_high),
-                    std::make_shared<opset5::Multiply>(less_const, output_low));
-            std::shared_ptr<Node> new_output_high = get_constant_from_source(output_high_tmp);
-            if (!new_output_high)
-                new_output_high = output_high_tmp;
-            new_fq = register_new_node<opset5::FakeQuantize>(input, new_input_low,
-                    new_input_high, new_output_low, new_output_high, fq->get_levels());
-        } else {
-            new_fq = register_new_node<opset5::FakeQuantize>(input, new_input_low, new_input_high,
-                    fq->input_value(3), fq->input_value(4), fq->get_levels());
-        }
-
-        copy_runtime_info({mul, fq}, {new_const, new_input_low, new_input_high, new_fq});
+        auto new_fq = register_new_node<opset5::FakeQuantize>(input, new_input_low, new_input_high,
+                fq->input_value(3), fq->input_value(4), fq->get_levels());
+        copy_runtime_info({pattern_value_map.at(mul_pattern).get_node_shared_ptr(), fq},
+                          {new_const, new_input_low, new_input_high, new_fq});
         new_fq->set_friendly_name(fq->get_friendly_name());
         replace_node(fq, new_fq);
         return true;
