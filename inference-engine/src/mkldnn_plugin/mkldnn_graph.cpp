@@ -399,7 +399,7 @@ void MKLDNNGraph::ExtractConstantNodes() {
     }
 }
 
-void MKLDNNGraph::ExecuteConstantNodesOnly() {
+void MKLDNNGraph::ExecuteConstantNodesOnly() const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExecuteConstantNodesOnly");
     mkldnn::stream stream(eng);
 
@@ -432,15 +432,13 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() {
             auto sharedOutputs = acquireSharedOutputs(node);
 
             if (std::get<0>(sharedOutputs) || std::get<1>(sharedOutputs)) {
-                DUMP(node);
-                node->execute(stream);
+                ExecuteNode(node, stream);
 
                 for (auto & output : std::get<2>(sharedOutputs))
                     output->valid(true);
             }
         } else {
-            DUMP(node);
-            node->execute(stream);
+            ExecuteNode(node, stream);
         }
     }
 }
@@ -812,6 +810,16 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
     }
 }
 
+inline void MKLDNNGraph::ExecuteNode(const MKLDNNNodePtr& node, const mkldnn::stream& stream) const {
+    DUMP(node, infer_count);
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
+
+    if (node->isDynamicNode())
+        node->executeDynamic(stream);
+    else
+        node->execute(stream);
+}
+
 void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
     if (!IsReady()) {
         IE_THROW() << "Wrong state. Topology is not ready.";
@@ -821,19 +829,10 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
     for (const auto& node : mutableGraphNodes) {
         PERF(config.collectPerfCounters, node);
-        if (request != nullptr)
+        if (request)
             request->ThrowIfCanceled();
 
-        DUMP(node, infer_count);
-
-        OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
-        if (node->isDynamicNode()) {
-            node->executeDynamic(stream);
-        } else {
-            node->execute(stream);
-        }
-
-        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(node));
+        ExecuteNode(node, stream);
     }
 
     if (infer_count != -1) infer_count++;
