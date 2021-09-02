@@ -12,11 +12,11 @@ class LSTM(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': 'RNNSequence',  # should be never emitted to IR; for debugging purposes
-            'op': __class__.op,
+            'op': self.op,
             'blobs_wrb': False,  # input blobs have three separate components W, R and B like in ONNX/LSTM
             'has_num_directions': False,  # if True, output shape has 4 dimensions; 3D otherwise
             'direction': 'forward',
-            'infer': __class__.infer,
+            'infer': self.infer,
             'multiplier': 4,
             'gate_order': None,
             'normalized': False,
