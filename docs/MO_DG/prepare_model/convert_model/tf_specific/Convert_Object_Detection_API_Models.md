@@ -3,11 +3,9 @@
 > **NOTES**:
 > * Starting with the 2022.1 release, the Model Optimizer can convert the TensorFlow\* Object Detection API Faster and Mask RCNNs topologies differently. By default, the Model Optimizer adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the pre-processing applied to the input image (refer to the [Proposal](../../../../ops/detection/Proposal_4.md) operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model Optimizer can generate IR for such models and insert operation [DetectionOutput](../../../../ops/detection/DetectionOutput_1.md) instead of `Proposal`. The `DetectionOutput` operation does not require additional model input "image_info" and moreover, for some models the produced inference results are closer to the original TensorFlow\* model. In order to trigger new behaviour the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
 > * Starting with the 2021.1 release, the Model Optimizer converts the TensorFlow\* Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the Inference Engine using dedicated reshape API. Refer to [Using Shape Inference](../../../../IE_DG/ShapeInference.md) for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
-> * To generate IRs for SSD topologies, the Model Optimizer creates a number of `PriorBoxClustered` layers instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the Inference Engine using dedicated Inference Engine API. The reshaping is supported for all SSD topologies except FPNs which contain hardcoded shapes for some operations preventing from changing topology input shape.  
+> * To generate IRs for TF 1 SSD topologies, the Model Optimizer creates a number of `PriorBoxClustered` operations instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the Inference Engine using dedicated Inference Engine API. The reshaping is supported for all SSD topologies except FPNs which contain hardcoded shapes for some operations preventing from changing topology input shape.
 
 ## How to Convert a Model
-
-With 2018 R3 release, the Model Optimizer introduces a new approach to convert models created using the TensorFlow\* Object Detection API. Compared with the previous approach, the new process produces inference results with higher accuracy and does not require modifying any configuration files and providing intricate command line parameters.
 
 You can download TensorFlow\* Object Detection API models from the <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md">TensorFlow 1 Detection Model Zoo</a> or <a href="https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2_detection_zoo.md">TensorFlow 2 Detection Model Zoo</a>.
 
@@ -57,6 +55,23 @@ For example, if you downloaded the [pre-trained SSD InceptionV2 topology](http:/
 <INSTALL_DIR>/deployment_tools/model_optimizer/mo_tf.py --input_model=/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --transformations_config <INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/ssd_v2_support.json --tensorflow_object_detection_api_pipeline_config /tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config --reverse_input_channels
 ```
 
+## Important Notes About Feeding Input Images to the Samples
+
+Inference Engine comes with a number of samples to infer Object Detection API models including:
+
+* [Object Detection for SSD Sample](../../../../../inference-engine/samples/object_detection_sample_ssd/README.md) --- for RFCN, SSD and Faster R-CNNs
+* [Mask R-CNN Sample for TensorFlow* Object Detection API Models](@ref omz_demos_mask_rcnn_demo_cpp) --- for Mask R-CNNs
+
+There are several important notes about feeding input images to the samples:
+
+1. Inference Engine samples stretch input image to the size of the input operation without preserving aspect ratio. This behavior is usually correct for most topologies (including SSDs), but incorrect for other models like Faster R-CNN, Mask R-CNN and R-FCN. These models usually use keeps aspect ratio resizer. The type of pre-processing is defined in the pipeline configuration file in the section `image_resizer`. If keeping aspect ratio is used, then it is necessary to resize image before passing it to the sample and optionally pad the resized image with 0s (if the attribute "pad_to_max_dimension" in the pipeline.config is equal to "true").
+
+2. TensorFlow\* implementation of image resize may be different from the one implemented in the sample. Even reading input image from compressed format (like `.jpg`) could give different results in the sample and TensorFlow\*. So, if it is necessary to compare accuracy between the TensorFlow\* and the Inference Engine it is recommended to pass pre-resized input image in a non-compressed format (like `.bmp`).
+
+3. If you want to infer the model with the Inference Engine samples, convert the model specifying the `--reverse_input_channels` command line parameter. The samples load images in BGR channels order, while TensorFlow* models were trained with images in RGB order. When the `--reverse_input_channels` command line parameter is specified, the Model Optimizer performs first convolution or other channel dependent operation weights modification so the output will be like the image is passed with RGB channels order.
+
+4. Read carefully messaged printed by the Model Optimizer during a model conversion. They contain important instructions on how to prepare input data before running the inference and how to interpret the output.
+
 ## Custom Input Shape <a name="tf_od_custom_input_shape"></a>
 Model Optimizer handles the command line parameter `--input_shape` for TensorFlow\* Object Detection API models in a special way depending on the image resizer type defined in the `pipeline.config` file. TensorFlow\* Object Detection API generates different `Preprocessor` sub-graph based on the image resizer type. Model Optimizer supports two types of image resizer:
 * `fixed_shape_resizer` --- *Stretches* input image to the specific height and width. The `pipeline.config` snippet below shows a `fixed_shape_resizer` sample definition:
@@ -77,19 +92,20 @@ image_resizer {
   }
 }
 ```
+If an additional parameter "pad_to_max_dimension" is equal to "true" then the resized image will be padded with 0s to the square image of size "max_dimension".
 
 ### Fixed Shape Resizer Replacement
-* If the `--input_shape` command line parameter is not specified, the Model Optimizer generates an input layer with the height and width as defined in the `pipeline.config`.
+* If the `--input_shape` command line parameter is not specified, the Model Optimizer generates an input operation with the height and width as defined in the `pipeline.config`.
 
-* If the `--input_shape [1, H, W, 3]` command line parameter is specified, the Model Optimizer sets the input layer height to `H` and width to `W` and convert the model. However, the conversion may fail because of the following reasons:
-  * The model is not reshape-able, meaning that it's not possible to change the size of the model input image. For example, SSD FPN models have `Reshape` operations with hard-coded output shapes, but the input size to these `Reshape` instances depends on the input image size. In this case, the Model Optimizer shows an error during the shape inference phase. Run the Model Optimizer with `--log_level DEBUG` to see the inferred layers output shapes to see the mismatch.
+* If the `--input_shape [1, H, W, 3]` command line parameter is specified, the Model Optimizer sets the input operation height to `H` and width to `W` and convert the model. However, the conversion may fail because of the following reasons:
+  * The model is not reshape-able, meaning that it's not possible to change the size of the model input image. For example, SSD FPN models have `Reshape` operations with hard-coded output shapes, but the input size to these `Reshape` instances depends on the input image size. In this case, the Model Optimizer shows an error during the shape inference phase. Run the Model Optimizer with `--log_level DEBUG` to see the inferred operations output shapes to see the mismatch.
   * Custom input shape is too small. For example, if you specify `--input_shape [1,100,100,3]` to convert a SSD Inception V2 model, one of convolution or pooling nodes decreases input tensor spatial dimensions to non-positive values. In this case, the Model Optimizer shows error message like this: '[ ERROR ]  Shape [  1  -1  -1 256] is not fully defined for output X of "node_name".'
 
 
 ### Keep Aspect Ratio Resizer Replacement
-* If the `--input_shape` command line parameter is not specified, the Model Optimizer generates an input layer with both height and width equal to the value of parameter `min_dimension` in the `keep_aspect_ratio_resizer`.
+* If the `--input_shape` command line parameter is not specified, the Model Optimizer generates an input operation with both height and width equal to the value of parameter `min_dimension` in the `keep_aspect_ratio_resizer`.
 
-* If the `--input_shape [1, H, W, 3]` command line parameter is specified, the Model Optimizer scales the specified input image height `H` and width `W` to satisfy the `min_dimension` and `max_dimension` constraints defined in the `keep_aspect_ratio_resizer`. The following function calculates the input layer height and width:
+* If the `--input_shape [1, H, W, 3]` command line parameter is specified, the Model Optimizer scales the specified input image height `H` and width `W` to satisfy the `min_dimension` and `max_dimension` constraints defined in the `keep_aspect_ratio_resizer`. The following function calculates the input operation height and width:
 
 ```python
 def calculate_shape_keeping_aspect_ratio(H: int, W: int, min_dimension: int, max_dimension: int):
@@ -98,139 +114,22 @@ def calculate_shape_keeping_aspect_ratio(H: int, W: int, min_dimension: int, max
     ratio = min(ratio_min, ratio_max)
     return int(round(H * ratio)), int(round(W * ratio))
 ```
+The `--input_shape` command line parameter should be specified only if the "pad_to_max_dimension" does not exist of is set to "false" in the `keep_aspect_ratio_resizer`.
 
-Models with `keep_aspect_ratio_resizer` were trained to recognize object in real aspect ratio, in contrast with most of the classification topologies trained to recognize objects stretched vertically and horizontally as well. By default, the Model Optimizer converts topologies with `keep_aspect_ratio_resizer` to consume a square input image. If the non-square image is provided as input, it is stretched without keeping aspect ratio that results to objects detection quality decrease.
+Models with `keep_aspect_ratio_resizer` were trained to recognize object in real aspect ratio, in contrast with most of the classification topologies trained to recognize objects stretched vertically and horizontally as well. By default, the Model Optimizer converts topologies with `keep_aspect_ratio_resizer` to consume a square input image. If the non-square image is provided as input, it is stretched without keeping aspect ratio that results to object detection quality decrease.
 
 > **NOTE**: It is highly recommended specifying the `--input_shape` command line parameter for the models with `keep_aspect_ratio_resizer` if the input image dimensions are known in advance.
-
-## Important Notes About Feeding Input Images to the Samples
-
-Inference Engine comes with a number of samples that use Object Detection API models including:
-
-* [Object Detection for SSD Sample](../../../../../inference-engine/samples/object_detection_sample_ssd/README.md) --- for RFCN, SSD and Faster R-CNNs
-* [Mask R-CNN Sample for TensorFlow* Object Detection API Models](@ref omz_demos_mask_rcnn_demo_cpp) --- for Mask R-CNNs
-
-There are a number of important notes about feeding input images to the samples:
-
-1. Inference Engine samples stretch input image to the size of the input layer without preserving aspect ratio. This behavior is usually correct for most topologies (including SSDs), but incorrect for the following Faster R-CNN topologies: Inception ResNet, Inception V2, ResNet50 and ResNet101. Images pre-processing for these topologies keeps aspect ratio. Also all Mask R-CNN and R-FCN topologies require keeping aspect ratio. The type of pre-processing is defined in the pipeline configuration file in the section `image_resizer`. If keeping aspect ratio is required, then it is necessary to resize image before passing it to the sample.
-
-2. TensorFlow\* implementation of image resize may be different from the one implemented in the sample. Even reading input image from compressed format (like `.jpg`) could give different results in the sample and TensorFlow\*. So, if it is necessary to compare accuracy between the TensorFlow\* and the Inference Engine it is recommended to pass pre-scaled input image in a non-compressed format (like `.bmp`).
-
-3. If you want to infer the model with the Inference Engine samples, convert the model specifying the `--reverse_input_channels` command line parameter. The samples load images in BGR channels order, while TensorFlow* models were trained with images in RGB order. When the `--reverse_input_channels` command line parameter is specified, the Model Optimizer performs first convolution or other channel dependent operation weights modification so the output will be like the image is passed with RGB channels order.
-
 
 ## Detailed Explanations of Model Conversion Process
 
 This section is intended for users who want to understand how the Model Optimizer performs Object Detection API models conversion in details. The knowledge given in this section is also useful for users having complex models that are not converted with the Model Optimizer out of the box. It is highly recommended to read [Sub-Graph Replacement in Model Optimizer](../../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md) chapter first to understand sub-graph replacement concepts which are used here.
 
-Implementation of the sub-graph replacers for Object Detection API models is located in the file `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/ObjectDetectionAPI.py`.
-
 It is also important to open the model in the [TensorBoard](https://www.tensorflow.org/guide/summaries_and_tensorboard) to see the topology structure. Model Optimizer can create an event file that can be then fed to the TensorBoard* tool. Run the Model Optimizer with providing two command line parameters:
 * `--input_model <path_to_frozen.pb>` --- Path to the frozen model
 * `--tensorboard_logdir` --- Path to the directory where TensorBoard looks for the event files.
 
-### SSD (Single Shot Multibox Detector) Topologies
+Implementation of the transformations for Object Detection API models is located in the file `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/ObjectDetectionAPI.py`. Refer to the code in this file to understand the details of the conversion process.
 
-The SSD topologies are the simplest ones among Object Detection API topologies, so they will be analyzed first. The sub-graph replacement configuration file `ssd_v2_support.json`, which should be used to convert these models, contains three sub-graph replacements: `ObjectDetectionAPIPreprocessorReplacement`, `ObjectDetectionAPISSDPostprocessorReplacement` and `ObjectDetectionAPIOutputReplacement`. Their implementation is described below.
-
-#### Preprocessor Block
-
-All Object Detection API topologies contain `Preprocessor` block of nodes (aka ["scope"](https://www.tensorflow.org/guide/graph_viz)) that performs two tasks:
-
-* Scales image to the size required by the topology.
-* Applies mean and scale values if needed.
-
-Model Optimizer cannot convert the part of the `Preprocessor` block performing scaling because the TensorFlow implementation uses `while`- loops which the Inference Engine does not support. Another reason is that the Inference Engine samples scale input images to the size of the input layer from the Intermediate Representation (IR) automatically. Given that it is necessary to cut-off the scaling part of the `Preprocessor` block and leave only operations applying mean and scale values. This task is solved using the Model Optimizer [sub-graph replacer mechanism](../../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md).
-
-The `Preprocessor` block has two outputs: the tensor with pre-processed image(s) data and a tensor with pre-processed image(s) size(s). While converting the model, Model Optimizer keeps only the nodes producing the first tensor. The second tensor is a constant which can be obtained from the `pipeline.config` file to be used in other replacers.
-
-The implementation of the `Preprocessor` block sub-graph replacer is the following (file `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/ObjectDetectionAPI.py`):
-
-```python
-class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSubGraph):
-    """
-    The class replaces the "Preprocessor" block resizing input image and applying mean/scale values. Only nodes related
-    to applying mean/scaling values are kept.
-    """
-    replacement_id = 'ObjectDetectionAPIPreprocessorReplacement'
-
-    def run_before(self):
-        return [Pack, Sub]
-
-    def nodes_to_remove(self, graph: Graph, match: SubgraphMatch):
-        new_nodes_to_remove = match.matched_nodes_names()
-        # do not remove nodes that perform input image scaling and mean value subtraction
-        for node_to_keep in ('Preprocessor/sub', 'Preprocessor/sub/y', 'Preprocessor/mul', 'Preprocessor/mul/x'):
-            if node_to_keep in new_nodes_to_remove:
-                new_nodes_to_remove.remove(node_to_keep)
-        return new_nodes_to_remove
-
-    def generate_sub_graph(self, graph: Graph, match: SubgraphMatch):
-        argv = graph.graph['cmd_params']
-        layout = graph.graph['layout']
-        if argv.tensorflow_object_detection_api_pipeline_config is None:
-            raise Error(missing_param_error)
-        pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
-
-        sub_node = match.output_node(0)[0]
-        if not sub_node.has('op') or sub_node.op != 'Sub':
-            raise Error('The output op of the Preprocessor sub-graph is not of type "Sub". Looks like the topology is '
-                        'not created with TensorFlow Object Detection API.')
-
-        mul_node = None
-        if sub_node.in_node(0).has('op') and sub_node.in_node(0).op == 'Mul':
-            log.info('There is image scaling node in the Preprocessor block.')
-            mul_node = sub_node.in_node(0)
-
-        initial_input_node_name = 'image_tensor'
-        if initial_input_node_name not in graph.nodes():
-            raise Error('Input node "{}" of the graph is not found. Do not run the Model Optimizer with '
-                        '"--input" command line parameter.'.format(initial_input_node_name))
-        placeholder_node = Node(graph, initial_input_node_name)
-
-        # set default value of the batch size to 1 if user didn't specify batch size and input shape
-        batch_dim = get_batch_dim(layout, 4)
-        if argv.batch is None and placeholder_node.shape[batch_dim] == -1:
-            placeholder_node.shape[batch_dim] = 1
-        if placeholder_node.shape[batch_dim] > 1:
-            print("[ WARNING ] The batch size more than 1 is supported for SSD topologies only.")
-        height, width = calculate_placeholder_spatial_shape(graph, match, pipeline_config)
-        placeholder_node.shape[get_height_dim(layout, 4)] = height
-        placeholder_node.shape[get_width_dim(layout, 4)] = width
-
-        # save the pre-processed image spatial sizes to be used in the other replacers
-        graph.graph['preprocessed_image_height'] = placeholder_node.shape[get_height_dim(layout, 4)]
-        graph.graph['preprocessed_image_width'] = placeholder_node.shape[get_width_dim(layout, 4)]
-
-        to_float_node = placeholder_node.out_node(0)
-        if not to_float_node.has('op') or to_float_node.op != 'Cast':
-            raise Error('The output of the node "{}" is not Cast operation. Cannot apply replacer.'.format(
-                initial_input_node_name))
-
-        # connect to_float_node directly with node performing scale on mean value subtraction
-        if mul_node is None:
-            create_edge(to_float_node, sub_node, 0, 0)
-        else:
-            create_edge(to_float_node, mul_node, 0, 1)
-
-        print('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if'
-              ' applicable) are kept.')
-        return {}
-```
-The `run_before` function defines a list of replacers which current replacer should be run before. In this case it is `Pack` and `Sub`. The `Sub` operation is not supported by Inference Engine plugins so Model Optimizer replaces it with a combination of the `Eltwise` layer (element-wise sum) and the `ScaleShift` layer. But the `Preprocessor` replacer expects to see `Sub` node, so it should be called before the `Sub` is replaced.
-
-The `nodes_to_remove` function returns list of nodes that should be removed after the replacement happens. In this case it removes all nodes matched in the `Preprocessor` scope except the `Sub` and `Mul` nodes performing mean value subtraction and scaling.
-
-The `generate_sub_graph` function performs the following actions:
-
-*  Lines 20-24: Reads the `pipeline.config` configuration file to get the model hyper-parameters and other attributes.
-*  Lines 25-29: Checks that the output node of the `Preprocessor` scope is of type `Sub`.
-*  Lines 31-34: Checks that the input of the `Sub` node is of type `Mul`. This information is needed to correctly connect the input node of the topology later.
-*  Lines 36-50: Finds the topology input (placeholder) node and sets its weight and height according to the image resizer defined in the `pipeline.config` file and the `--input_shape` provided by the user. The batch size is set to 1 by default, but it will be overridden if you specify a batch size using command-line option `-b`. Refer to the [Custom Input Shape](#tf_od_custom_input_shape) on how the Model Optimizer calculates input layer height and width.
-*  Lines 52-54: Saves the placeholder shape in the `graph` object for other sub-graph replacements.
-*  Lines 56-59: Checks that the placeholder node follows the 'Cast' node which converts model input data from UINT8 to FP32.
-*  Lines 61-65: Creates edge from the placeholder node to the `Mul` (if present) or `Sub` node to a correct input port (0 for `Sub` and 1 for `Mul`).
-*  Line 69: The replacer returns a dictionary with nodes mapping that is used by other sub-graph replacement functions. In this case, it is not needed, so the empty dictionary is returned.
 
 #### Postprocessor Block
 

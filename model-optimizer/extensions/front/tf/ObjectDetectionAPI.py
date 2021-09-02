@@ -1,6 +1,22 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+"""
+The file contains necessary transformations to convert models created with a TensorFlow Object Detection framework from
+the https://github.com/tensorflow/models/blob/master/research/object_detection/ repository. There is a dedicated
+OpenVINO document describing overall procedure of conversion these models with the Model Optimizer:
+https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html
+
+Conversion of most of the TD OD API models requires execution of several transformations defined in this file. The list
+of transformation to be executed for a particular model type (meta-architecture) is defined in the transformation
+configuration JSON file located in the "extensions/front/tf/" directory. A file should be specified using the
+"--transformations_config" command line parameter. An additional parameter
+"--tensorflow_object_detection_api_pipeline_config" should be specified with the path to the pipeline.config used for
+the model training.
+
+Refer to the code comments of a particular transformation for the explanation of its purpose and low-level
+implementation details.
+"""
 import logging as log
 from math import sqrt
 
@@ -29,7 +45,7 @@ from extensions.ops.psroipooling import PSROIPoolingOp
 from extensions.ops.split import Split
 from extensions.ops.transpose import Transpose
 from mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.extractor import output_user_data_repack, add_output_ops
 from mo.front.subgraph_matcher import SubgraphMatch
@@ -357,14 +373,15 @@ def swap_weights_xy(graph: Graph, nodes: list):
 def calculate_shape_keeping_aspect_ratio(height: int, width: int, min_size: int, max_size: int,
                                          pad_to_max_dimension: bool = False):
     """
-    The function scales spatial sizes of the image keeping aspect ratio to satisfy provided requirements.
-    The behavior of this function is equivalent to the output shape calculation of the Preprocessor block of TensorFlow
+    The function changes spatial sizes of the image keeping aspect ratio to satisfy provided requirements.
+    The behavior of this function is equivalent to the output shape calculation of the pre-processor block of TensorFlow
     Object Detection API models with keep aspect ratio resizer.
+
     :param height: input height.
     :param width: input width.
     :param min_size: size limit.
     :param max_size: size limit.
-    :param pad_to_max_dimension: scale the input image size to the maximum value specified
+    :param pad_to_max_dimension: pad the input image to the maximum value specified
     :return: the tuple with scaled image height, width.
     """
     if pad_to_max_dimension:
@@ -394,6 +411,7 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
     height = None
     width = None
     user_shapes = graph.graph['user_shapes']
+    silent = graph.graph['cmd_params'].silent
 
     if match and ('preprocessed_image_height' in match.custom_replacement_desc.custom_attributes or
                   'preprocessed_image_width' in match.custom_replacement_desc.custom_attributes):
@@ -410,19 +428,11 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
             user_defined_height = user_defined_shape[1]
             user_defined_width = user_defined_shape[2]
 
+    # the parameters below are set if the fixed_shape_resizer is used
     resizer_height = pipeline_config.get_param('resizer_image_height')
     resizer_width = pipeline_config.get_param('resizer_image_width')
     if resizer_height and resizer_width:
         log.debug('The model resizes image to a fixed shape: ({}, {})'.format(resizer_height, resizer_width))
-
-    resizer_min_dimension = pipeline_config.get_param('resizer_min_dimension')
-    resizer_max_dimension = pipeline_config.get_param('resizer_max_dimension')
-    if resizer_min_dimension and resizer_max_dimension:
-        log.debug('The model resizes image using keep aspect ratio with minimum size {}, maximum size {}.'.format(
-            resizer_min_dimension, resizer_max_dimension))
-
-    # if the model is created with an input image resizer to a fixed shape
-    if resizer_width and resizer_height:
         if user_defined_height and user_defined_width:
             if user_defined_width != resizer_width or user_defined_width != resizer_width:
                 log.error('The model expects that the input image is resized to a fixed shape ({}, {}), but the shape '
@@ -434,12 +444,17 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
             height = resizer_height
             width = resizer_width
 
-    # if the model is created with an input image resizer keeping aspect ratio
+    # the parameters below are set if keep_aspect_ratio_resizer is used
+    resizer_min_dimension = pipeline_config.get_param('resizer_min_dimension')
+    resizer_max_dimension = pipeline_config.get_param('resizer_max_dimension')
     if resizer_min_dimension and resizer_max_dimension:
+        log.debug('The model resizes image using keep aspect ratio with minimum size {}, maximum size {}.'.format(
+            resizer_min_dimension, resizer_max_dimension))
         pad_to_max_dimension = pipeline_config.get_param('pad_to_max_dimension')
-        print('[ WARNING ] Model Optimizer removes pre-processing block of the model which resizes image keeping '
-              'aspect ratio. The Inference Engine does not support dynamic image size so the Intermediate '
-              'Representation file is generated with the input image size of a fixed size.')
+        log.error('[ WARNING ] Model Optimizer removes pre-processing block of the model which resizes image keeping '
+                  'aspect ratio. The Inference Engine does not support dynamic image size so the Intermediate '
+                  'Representation file is generated with the input image size of a fixed size.',
+                  extra={'is_warning': True})
         if user_defined_height and user_defined_width:
             scaled_height, scaled_width = calculate_shape_keeping_aspect_ratio(user_defined_height,
                                                                                user_defined_width,
@@ -458,8 +473,8 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
                 height = width = resizer_max_dimension
             else:
                 height = width = resizer_min_dimension
-            print('Specify the "--input_shape" command line parameter to override the default shape which is equal to '
-                  '({}, {}).'.format(height, width))
+            log.error('Specify the "--input_shape" command line parameter to override the default shape which is equal '
+                      'to ({}, {}).'.format(height, width), extra={'is_warning': True})
 
     if height is None or width is None:
         raise Error('Failed to determine the placeholder shape.')
@@ -471,8 +486,8 @@ def update_parameter_shape(graph: Graph, match: [SubgraphMatch, None]):
     Updates the shape of the model Parameter node based on the user provided input shape or values provided in the
     pipeline.config configuration file used for model training.
     :param graph: model graph
-    :param match: Match object with information abouot matched sub-graph
-    :return: tupe with input node names and Parameter Node
+    :param match: Match object with information about matched sub-graph
+    :return: tuple with input node names and Parameter Node
     """
     argv = graph.graph['cmd_params']
     if argv.tensorflow_object_detection_api_pipeline_config is None:
@@ -491,26 +506,26 @@ def update_parameter_shape(graph: Graph, match: [SubgraphMatch, None]):
     # set default value of the batch size to 1 if user didn't specify batch size and input shape
     layout = graph.graph['layout']
     batch_dim = get_batch_dim(layout, 4)
-    if argv.batch is None and parameter_node.shape[batch_dim] == -1:
+    if argv.batch is None and parameter_node.shape[batch_dim] is dynamic_dimension:
         parameter_node.shape[batch_dim] = 1
     height, width = calculate_placeholder_spatial_shape(graph, match, pipeline_config)
     parameter_node.shape[get_height_dim(layout, 4)] = height
     parameter_node.shape[get_width_dim(layout, 4)] = width
-
-    # save the pre-processed image spatial sizes to be used in the other replacers
-    graph.graph['preprocessed_image_height'] = parameter_node.shape[get_height_dim(layout, 4)]
-    graph.graph['preprocessed_image_width'] = parameter_node.shape[get_width_dim(layout, 4)]
     return initial_input_node_name, parameter_node
 
 
 class ObjectDetectionAPITransformationsStart(FrontReplacementPattern):
     """
     This is a anchor transformation which is used to distinguish TF OD API models related transformations.
+    All transformations have a dependency to be executed after this transformation (or some other TF OD API
+    transformation which is executed after this one).
+    Some transformation which swap convolution weights using the "swap_weights_xy" function relies on the fact that the
+    "FakeQuantWithMinMaxVars" operations are decomposed into "FakeQuantize"s.
     """
     enabled = True
 
     def run_after(self):
-        return [CropAndResizeReplacement, FakeQuantWithMinMaxVarsToQuantize]
+        return [FakeQuantWithMinMaxVarsToQuantize]
 
     def find_and_replace_pattern(self, graph: Graph):
         pass
@@ -518,7 +533,18 @@ class ObjectDetectionAPITransformationsStart(FrontReplacementPattern):
 
 class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
     """
-    This is a anchor transformation which is used to distinguish TF OD API models related transformations.
+    This is a anchor transformation which is used to separate TF OD API models related transformations.
+    All transformations have a dependency to be executed before this transformation (or some other TF OD API
+    transformation which is executed before this one).
+    1. This anchor transformation is executed before some other standard MO transformations which may break the model
+    conversion. For example, PadTFToPad replaces PadTF operation nodes with the Pad operation nodes and re-uses an
+    input node defining the pad value. The scope pattern matcher will remove the node defining the pad value and the
+    newly created Pad operation become invalid.
+    2. Another common issue that some transformations should be executed after TF OD API transformations is that these
+    transformations replace some nodes with new nodes but different "id" attribute. Since the pattern matcher is based
+    on node "id" (not "name") attribute the matching will be broken.
+    3. Some TF OD API transformations mark TF CropAndResize nodes with specific flag which is then handled in the
+    CropAndResizeReplacement transformation that is why latter one should be executed after this transformation.
     """
     enabled = True
     # cleanup the graph after applying of TF OD API transformations to remove a lot of unconnected nodes to avoid issues
@@ -526,12 +552,8 @@ class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
     force_clean_up = True
 
     def run_before(self):
-        # PadTFToPad inserts Transpose ops for Pad ops inside the sub-graph corresponding to DetectionOutput.
-        # But the inputs corresponding to padding values is re-used as inputs for newly created Pad node. This input
-        # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
-        # results in TransposeOrderNormalizer transformation failure.
-        return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, TFSliceToSliceReplacer,
-                MapFNOutputConcatenation, MapFNInputSlicing]
+        return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, TFSliceToSliceReplacer, MapFNInputSlicing,
+                MapFNOutputConcatenation, CropAndResizeReplacement]
 
     def find_and_replace_pattern(self, graph: Graph):
         pass
@@ -591,10 +613,43 @@ def get_preprocessing_ops(graph: Graph, start_node_id_suffix: str, end_node_id_s
     return preprocessing_nodes, trailing
 
 
+""" 
+Object Detection API models contain the sub-graph that performs some (possibly not all) of the following tasks (possibly
+in different order):
+* Resizes image according to the constraints defined in the pipeline.config file.
+* Applies mean and scale values.
+* Pads the resized image to the size specified in the pipeline.config file.
+This sub-graph is called "Preprocessor" in TF1 OD API models and early versions of the TF2 OD API models. Starting from
+version 2.4 the block is called "map". The sub-graph has one output with the pre-processed input image and optionally
+has a second output which contains either the original image size or the resized image size (before padding). When the
+second output exists it is used to map predicted bounding boxes of the resized image to the original image coordinates.
+
+Model Optimizer removes nodes performing image resize and padding, but keeps nodes applying mean and scale values. 
+Historically, Model Optimizer didn't support converting TF sub-graphs into TensorIterator/Loop from TF 1 models so this
+was the only option to convert the model and avoid dynamism which occurs when keep_aspect_ratio resizer is used. And the
+user should resize the image the same way as it is implemented in the model before feeding the data to the Inference
+Engine.
+
+TODO: If the "keep_aspect_ratio" resizer with "pad_to_max_dimension" parameter equal to "true" is used and mean/scale
+operations are applied before the resize like this:
+
+input_tensor -> mean/scale -> resize -> pad -> ... 
+
+then it is not allowed to remove the resize and padding operations and pre-process the input data before feeding the
+model like this:
+
+resized_padded_input_data -> mean/scale -> ...
+
+because the output results will be different because mean/scale operations will be applied for padding area as well. So
+the only option in this case is to remove mean/scale operations from the model as well and expect that user perform them
+as well before feeding the model.
+"""
+
+
 class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSubGraph):
     """
-    The class replaces the "Preprocessor" block resizing input image and applying mean/scale values. Only nodes related
-    to applying mean/scaling values are kept.
+    The transformation is triggered for the pre-processing block resizing input image and applying mean/scale values in
+    the TF1 OD API models.
     """
     replacement_id = 'ObjectDetectionAPIPreprocessorReplacement'
     run_not_recursively = True
@@ -632,18 +687,23 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
 
     def generate_sub_graph(self, graph: Graph, match: SubgraphMatch):
         sub_node = match.output_node(0)[0]
+        # sanity check whether this is really TF OD API model. The Sub operation always exists in TF1 OD API models
+        # pre-processing sub-graph
         if sub_node.soft_get('op') != 'Sub':
             raise Error('The output op of the Preprocessor sub-graph is not of type "Sub". Looks like the topology is '
                         'not created with TensorFlow Object Detection API.')
 
+        # identify the node performing scale (if it exists)
         mul_node = None
         if sub_node.in_port(0).get_source().node.soft_get('op') == 'Mul':
             log.info('There is image scaling node in the Preprocessor block.')
             mul_node = sub_node.in_port(0).get_source().node
 
+        # update the model Parameter node shape based on MO command line parameters and values in the pipeline.config
         initial_input_node_name, placeholder_node = update_parameter_shape(graph, match)
 
         to_float_node = placeholder_node.out_port(0).get_destination().node
+        # one more sanity check
         if to_float_node.soft_get('op') != 'Cast':
             raise Error('The output of the node "{}" is not Cast operation. Cannot apply transformation.'.format(
                 initial_input_node_name))
@@ -663,15 +723,20 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
             else:
                 to_float_node.out_port(0).connect(mul_node.in_port(1))
 
-        print('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if'
-              ' applicable) are kept.')
+        log.error('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling '
+                  '(if applicable) are kept.', extra={'is_warning': True})
+        # the pre-processing sub-graph is connected with the main graph, so there is no need to return new nodes mapping
+        # dictionary
         return {}
 
 
 class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileGeneral):
     """
-    The class replaces the "Preprocessor" block resizing input image and applying mean/scale values. Only nodes related
-    to applying mean/scaling values are kept. The transformation is used for TensorFlow 2.X models.
+    The transformation is triggered for the pre-processing block resizing input image and applying mean/scale values in
+    the TF2 OD API model. Only nodes related to applying mean/scaling values are kept.
+    If the mean/scale values are applied before the resize and the pre-processing includes padding then mean/scale
+    values are removed as well. Refer to the comments section before the ObjectDetectionAPIPreprocessorReplacement
+    transformation.
 
     There are 6 possible cases:
     1. ... -> Scale -> Start -> Resize -> End -> ...
@@ -689,7 +754,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
     - "Resize" - the Resize sub-graph being removed
 
     The transformation creates a new sub-graph of pre-processing nodes if in the original model it is inside the Loop,
-    or keeps the existing one if they are in the main graph originally.
+    or keeps the existing one if they are in the main graph already.
     """
     replacement_id = 'ObjectDetectionAPIPreprocessor2Replacement'
     run_not_recursively = True
@@ -701,8 +766,11 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         return [ObjectDetectionAPITransformationsStart]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
+        # update the model Parameter node shape based on MO command line parameters and values in the pipeline.config
         update_parameter_shape(graph, None)
 
+        # NOTE: this transformation can be implemented as a "scope" or "points" transformation since we need to match
+        # some sub-graph between specific nodes
         start_nodes = replacement_descriptions['start_nodes']
         end_nodes = replacement_descriptions['end_nodes']
 
@@ -723,7 +791,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         # If the pre-processing block contains Loop operation then mean and scale value should be obtained from it using
         # some pre-defined marker nodes existing for all pre-processing blocks.
         # If there is no Loop then pre-processing nodes are in the main graph and they should be obtained from it
-        loop_nodes_ids = [node_id for node_id in sub_graph_node_ids if graph.node[node_id].get('op') == 'Loop']
+        loop_nodes_ids = [node_id for node_id in sub_graph_node_ids if graph.nodes[node_id].get('op') == 'Loop']
         if len(loop_nodes_ids):
             assert len(loop_nodes_ids) == 1, 'There should be exactly one Loop node in the pre-processor block.'
             pre_processing_in_loop = True
@@ -771,8 +839,8 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         else:  # simply remove the nodes in between start_node and end_node (including them). Case 3 and 6
             end_node.out_port(0).get_connection().set_source(start_node.in_port(0).get_source())
 
-        print('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if'
-              ' applicable) are kept.')
+        log.error('The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling'
+                  '(if applicable) are kept.', extra={'is_warning': True})
 
 
 class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFileSubGraph):
