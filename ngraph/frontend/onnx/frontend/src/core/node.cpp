@@ -235,7 +235,7 @@ bool Node::has_subgraphs() const {
     return m_pimpl->has_subgraphs();
 }
 
-std::unordered_map<std::string, std::shared_ptr<Subgraph>> Node::get_subgraphs() const {
+const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& Node::get_subgraphs() const {
     return m_pimpl->get_subgraphs();
 }
 
