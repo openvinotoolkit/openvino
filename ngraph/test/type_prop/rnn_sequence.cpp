@@ -52,8 +52,7 @@ TEST(type_prop, rnn_sequence_invalid_input) {
     const size_t hidden_size = 128;
 
     auto X = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
-    auto H_t =
-        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+    auto H_t = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
     const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
 
     auto W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, input_size});
@@ -73,8 +72,8 @@ TEST(type_prop, rnn_sequence_invalid_input) {
     }
 
     // Invalid R tensor shape.
-    W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions,  hidden_size, input_size});
-    R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions,  hidden_size, 1});
+    W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, input_size});
+    R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, 1});
     try {
         const auto rnn_sequence =
             make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
@@ -84,15 +83,14 @@ TEST(type_prop, rnn_sequence_invalid_input) {
     }
 
     // Invalid H_t tensor shape.
-    R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions,  hidden_size, hidden_size});
+    R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, hidden_size});
     H_t = make_shared<opset5::Parameter>(element::f32, Shape{4, num_directions, hidden_size});
     try {
         const auto rnn_sequence =
             make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
         FAIL() << "RNNSequence node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter batch_size not matched in RNNSequence."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter batch_size not matched in RNNSequence."));
     }
 
     // Invalid B tensor shape.
@@ -103,8 +101,7 @@ TEST(type_prop, rnn_sequence_invalid_input) {
             make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
         FAIL() << "RNNSequence node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter hidden_size mistmatched in B inpu"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter hidden_size mistmatched in B inpu"));
     }
 
     // Invalid direction.
@@ -114,8 +111,7 @@ TEST(type_prop, rnn_sequence_invalid_input) {
             make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
         FAIL() << "RNNSequence node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter num_directions not matched in RNNSequence."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter num_directions not matched in RNNSequence."));
     }
 
     // Invalid direction.
@@ -126,10 +122,8 @@ TEST(type_prop, rnn_sequence_invalid_input) {
             make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
         FAIL() << "RNNSequence node was created with invalid data.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter num_directions not match direction in RNNSequence."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter num_directions not match direction in RNNSequence."));
     }
-
 }
 
 TEST(type_prop, rnn_sequence_dynamic_inputs) {
@@ -150,12 +144,12 @@ TEST(type_prop, rnn_sequence_dynamic_inputs) {
 
     const auto direction = op::RecurrentSequenceDirection::REVERSE;
 
-    const auto sequence =
-        make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, 128, direction);
+    const auto sequence = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, 128, direction);
 
     EXPECT_EQ(sequence->outputs().size(), 2);
     EXPECT_EQ(sequence->get_output_element_type(0), element::f32);
-    EXPECT_EQ(sequence->get_output_partial_shape(0), (PartialShape{batch_size, num_directions, seq_length, hidden_size}));
+    EXPECT_EQ(sequence->get_output_partial_shape(0),
+              (PartialShape{batch_size, num_directions, seq_length, hidden_size}));
     EXPECT_EQ(sequence->get_output_element_type(1), element::f32);
     EXPECT_EQ(sequence->get_output_partial_shape(1), (PartialShape{batch_size, num_directions, hidden_size}));
 }
@@ -178,12 +172,12 @@ TEST(type_prop, rnn_sequence_dynamic_batch_size) {
 
     const auto direction = op::RecurrentSequenceDirection::FORWARD;
 
-    const auto sequence =
-        make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
+    const auto sequence = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
 
     EXPECT_EQ(sequence->outputs().size(), 2);
     EXPECT_EQ(sequence->get_output_element_type(0), element::f32);
-    EXPECT_EQ(sequence->get_output_partial_shape(0), (PartialShape{batch_size, num_directions, seq_length, hidden_size}));
+    EXPECT_EQ(sequence->get_output_partial_shape(0),
+              (PartialShape{batch_size, num_directions, seq_length, hidden_size}));
     EXPECT_EQ(sequence->get_output_element_type(1), element::f32);
     EXPECT_EQ(sequence->get_output_partial_shape(1), (PartialShape{batch_size, num_directions, hidden_size}));
 }
@@ -206,12 +200,12 @@ TEST(type_prop, rnn_sequence_dynamic_input_size) {
 
     const auto direction = op::RecurrentSequenceDirection::FORWARD;
 
-    const auto sequence =
-        make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
+    const auto sequence = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
 
     EXPECT_EQ(sequence->outputs().size(), 2);
     EXPECT_EQ(sequence->get_output_element_type(0), element::f32);
-    EXPECT_EQ(sequence->get_output_partial_shape(0), (PartialShape{batch_size, num_directions, seq_length, hidden_size}));
+    EXPECT_EQ(sequence->get_output_partial_shape(0),
+              (PartialShape{batch_size, num_directions, seq_length, hidden_size}));
     EXPECT_EQ(sequence->get_output_element_type(1), element::f32);
     EXPECT_EQ(sequence->get_output_partial_shape(1), (PartialShape{batch_size, num_directions, hidden_size}));
 }
@@ -222,7 +216,6 @@ TEST(type_prop, rnn_sequence_dynamic_hidden_size) {
     const size_t seq_length = 6;
     const size_t input_size = 4;
     const auto hidden_size = Dimension::dynamic();
-
 
     const auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, seq_length, input_size});
     const auto H_t =
@@ -235,12 +228,12 @@ TEST(type_prop, rnn_sequence_dynamic_hidden_size) {
 
     const auto direction = op::RecurrentSequenceDirection::FORWARD;
 
-    const auto sequence =
-        make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, 128, direction);
+    const auto sequence = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, 128, direction);
 
     EXPECT_EQ(sequence->outputs().size(), 2);
     EXPECT_EQ(sequence->get_output_element_type(0), element::f32);
-    EXPECT_EQ(sequence->get_output_partial_shape(0), (PartialShape{batch_size, num_directions, seq_length, hidden_size}));
+    EXPECT_EQ(sequence->get_output_partial_shape(0),
+              (PartialShape{batch_size, num_directions, seq_length, hidden_size}));
     EXPECT_EQ(sequence->get_output_element_type(1), element::f32);
     EXPECT_EQ(sequence->get_output_partial_shape(1), (PartialShape{batch_size, num_directions, hidden_size}));
 }
@@ -253,8 +246,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
     const size_t hidden_size = 128;
 
     auto X = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
-    auto H_t =
-        make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+    auto H_t = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
     const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
 
     auto W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, input_size});
@@ -265,34 +257,37 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_rank0) {
 
     // Invalid rank0 for X tensor.
     X = make_shared<opset5::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction), ngraph::CheckFailure)
+    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
+                 ngraph::CheckFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for H_t tensor.
     X = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
     H_t = make_shared<opset5::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction), ngraph::CheckFailure)
+    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
+                 ngraph::CheckFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for W tensor.
     H_t = make_shared<opset5::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
     W = make_shared<opset5::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction), ngraph::CheckFailure)
+    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
+                 ngraph::CheckFailure)
         << "RNNSequence node was created with invalid data.";
 
     // Invalid rank0 for R tensor.
     W = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, input_size});
     R = make_shared<opset5::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction), ngraph::CheckFailure)
+    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
+                 ngraph::CheckFailure)
         << "RNNSequence node was created with invalid data.";
-
 
     // Invalid rank0 for B tensor.
     R = make_shared<opset5::Parameter>(element::f32, Shape{num_directions, hidden_size, hidden_size});
     B = make_shared<opset5::Parameter>(element::f32, PartialShape{});
-    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction), ngraph::CheckFailure)
+    ASSERT_THROW(make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction),
+                 ngraph::CheckFailure)
         << "RNNSequence node was created with invalid data.";
-
 }
 
 TEST(type_prop, rnn_sequence_dynamic_invalid_input_dynamic_rank) {
@@ -303,8 +298,7 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_dynamic_rank) {
     const size_t hidden_size = 128;
 
     auto X = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, seq_length, input_size});
-    auto H_t =
-        make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, num_directions, hidden_size});
+    auto H_t = make_shared<opset5::Parameter>(element::f32, PartialShape{batch_size, num_directions, hidden_size});
     const auto sequence_lengths = make_shared<op::Parameter>(element::i32, PartialShape{batch_size});
 
     auto W = make_shared<opset5::Parameter>(element::f32, PartialShape{num_directions, hidden_size, input_size});
@@ -315,9 +309,9 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_dynamic_rank) {
 
     auto check_dynamic_rnn = [](const shared_ptr<opset5::RNNSequence>& rnn) -> bool {
         return rnn->output(0).get_partial_shape() == PartialShape::dynamic() &&
-            rnn->output(0).get_element_type() == rnn->input(0).get_element_type() &&
-            rnn->output(1).get_partial_shape() == PartialShape::dynamic() &&
-            rnn->output(1).get_element_type() == rnn->input(0).get_element_type() ;
+               rnn->output(0).get_element_type() == rnn->input(0).get_element_type() &&
+               rnn->output(1).get_partial_shape() == PartialShape::dynamic() &&
+               rnn->output(1).get_element_type() == rnn->input(0).get_element_type();
     };
 
     X = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
@@ -343,5 +337,4 @@ TEST(type_prop, rnn_sequence_dynamic_invalid_input_dynamic_rank) {
     B = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto rnn_b = make_shared<opset5::RNNSequence>(X, H_t, sequence_lengths, W, R, B, hidden_size, direction);
     EXPECT_EQ(check_dynamic_rnn(rnn_b), true);
-
 }
