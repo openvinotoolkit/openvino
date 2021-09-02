@@ -412,42 +412,51 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
         }
 
 #if 0
-        for (const auto &op : specialized_ngraph_function->get_ordered_ops()) {
-            cout << "[ " <<  op->description() << " ] " << op->get_friendly_name() << endl;
-            cout << "    Inputs: ";
-            for (const auto &in : op->inputs()) {
-                cout << "[" << in.get_element_type().get_type_name() << "]";
-                if (in.get_partial_shape().is_dynamic()) {
-                    cout << "dyn_shape";
-                } else {
-                    cout << "{";
-                    bool first = true;
-                    for (auto i : in.get_shape()) {
-                        if (!first) cout << ",";
-                        cout << i;
+        bool obfuscate = true; // set to false to get exact dimensions
+        std::map<std::string, std::map<std::string, size_t>> signatures;
+        for (const auto& op : _ngraph_function->get_ordered_ops()) {
+            const auto& type_name = string(op->get_type_info().name) + "_" + to_string(op->get_type_info().version);
+
+            std::stringstream shape_representation;
+            for (const auto& input : op->input_values()) {
+                bool first = true;
+                for (const auto& dimension : input.get_partial_shape()) {
+                    if (!first) {
+                        shape_representation << ",";
+                    } else {
+                        shape_representation << "{";
                         first = false;
                     }
-                    cout << "} ";
+                    if (obfuscate)
+                        shape_representation << (dimension.is_dynamic() ? "D" : "S");
+                    else
+                        shape_representation << dimension;
                 }
+                shape_representation << "} ";
             }
-            cout << endl << "    Outputs: ";
-            for (const auto &in : op->outputs()) {
-                cout << "[" << in.get_element_type().get_type_name() << "]";
-                if (in.get_partial_shape().is_dynamic()) {
-                    cout << "dyn_shape";
-                } else {
-                    cout << "{";
-                    bool first = true;
-                    for (auto i : in.get_shape()) {
-                        if (!first) cout << ",";
-                        cout << i;
+            shape_representation << "-> ";
+            for (const auto& output: op->outputs())  {
+                bool first = true;
+                for (const auto& dimension : output.get_partial_shape()) {
+                    if (!first) {
+                        shape_representation << ",";
+                    } else {
+                        shape_representation << "{";
                         first = false;
                     }
-                    cout << "} ";
+                    if (obfuscate)
+                        shape_representation << (dimension.is_dynamic() ? "D" : "S");
+                    else
+                        shape_representation << dimension;
                 }
+                shape_representation << "} ";
             }
-            cout << endl;
+            signatures[type_name][shape_representation.str()]++;
         }
+
+        for (const auto& item : signatures)
+            for (const auto& shape_to_count : item.second)
+                std::cout << item.first << " " << shape_to_count.second << "x " << shape_to_count.first << std::endl;
 #endif
         std::unordered_set<std::string> opName;
         for (const auto& result : specialized_ngraph_function->get_results()) {
