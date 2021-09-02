@@ -43,20 +43,20 @@ const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordina
 };
 
 const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
-        ngraph::op::v4::Interpolate::ShapeCalcMode::sizes,
-        ngraph::op::v4::Interpolate::ShapeCalcMode::scales,
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
-        ngraph::op::v4::Interpolate::NearestMode::simple,
-        ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
-        ngraph::op::v4::Interpolate::NearestMode::floor,
-        ngraph::op::v4::Interpolate::NearestMode::ceil,
-        ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil,
+        ngraph::op::v4::Interpolate::NearestMode::SIMPLE,
+        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
+        ngraph::op::v4::Interpolate::NearestMode::FLOOR,
+        ngraph::op::v4::Interpolate::NearestMode::CEIL,
+        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestMode = {
-        ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
+        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
 };
 
 const std::vector<std::vector<size_t>> pads = {
@@ -108,7 +108,7 @@ const auto interpolateCasesNearesMode = ::testing::Combine(
         ::testing::ValuesIn(defaultAxes),
         ::testing::ValuesIn(defaultScales));
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -121,7 +121,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesNearesMode,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

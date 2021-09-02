@@ -6,14 +6,14 @@ include_guard(GLOBAL)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "420b300d193f7fcfe7e3f9bbec6c247d65b784a500b5cd2effb7cb1ec6e1b209"
-    "bfe3caf270b168b9de18ef88f04bde3907d7d12a679f1fa7cc580423c35db637")
+    "54a732b5fb17a0124652bc5113fa628c718a5af40621bca309471cb5ffd9271b"
+    "5750b2831c77ef54b8e243d3840c5ed1c9509681d55aee7e369d558cef628735")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1688)
+set(FIRMWARE_PACKAGE_VERSION 1717)
 set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 
 #
@@ -81,8 +81,16 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
         VERBATIM)
 
     install(FILES ${${var_name}}
-        DESTINATION ${IE_CPACK_RUNTIME_PATH}
-        COMPONENT myriad)
+            DESTINATION ${IE_CPACK_RUNTIME_PATH}
+            COMPONENT myriad)
+
+    if(ENABLE_MYRIAD AND ENABLE_BEH_TESTS)
+        # for MyriadBehaviorTests
+        install(FILES ${${var_name}}
+                DESTINATION tests
+                COMPONENT tests
+                EXCLUDE_FROM_ALL)
+    endif()
 endforeach()
 
 add_custom_target(vpu_copy_firmware

@@ -48,5 +48,5 @@ const auto test_Clamp_unsigned = ::testing::Combine(
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestsClamp_signed, ClampLayerTest, test_Clamp_signed, ClampLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_TestsClamp_unsigned, ClampLayerTest, test_Clamp_unsigned, ClampLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsClamp_signed, ClampLayerTest, test_Clamp_signed, ClampLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsClamp_unsigned, ClampLayerTest, test_Clamp_unsigned, ClampLayerTest::getTestCaseName);

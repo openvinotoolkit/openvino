@@ -124,7 +124,7 @@ def main():
         if os.path.exists(str(omz_path)):
             shutil.rmtree(str(omz_path))
         cmd = 'git clone --single-branch --branch develop' \
-              ' https://github.com/opencv/open_model_zoo {omz_path}'.format(omz_path=omz_path)
+              ' https://github.com/openvinotoolkit/open_model_zoo {omz_path}'.format(omz_path=omz_path)
         run_in_subprocess(cmd)
 
     # prepare virtual environment and install requirements

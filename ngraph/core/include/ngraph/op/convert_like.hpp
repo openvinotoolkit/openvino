@@ -6,37 +6,31 @@
 
 #include "ngraph/op/op.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        namespace v1
-        {
-            /// \brief Elementwise type conversion operation.
-            class NGRAPH_API ConvertLike : public Op
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"ConvertLike", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                /// \brief Constructs a conversion operation.
-                ConvertLike() = default;
-                /// \brief Constructs a conversion operation.
-                /// \param data  Node that produces the input tensor.
-                /// \param like  Node which provides the target type information for the conversion.
-                ConvertLike(const Output<Node>& data, const Output<Node>& like);
+namespace ngraph {
+namespace op {
+namespace v1 {
+/// \brief Elementwise type conversion operation.
+class NGRAPH_API ConvertLike : public Op {
+public:
+    NGRAPH_RTTI_DECLARATION;
 
-                void validate_and_infer_types() override;
-                bool visit_attributes(AttributeVisitor& visitor) override;
+    /// \brief Constructs a conversion operation.
+    ConvertLike() = default;
+    /// \brief Constructs a conversion operation.
+    /// \param data  Node that produces the input tensor.
+    /// \param like  Node which provides the target type information for the conversion.
+    ConvertLike(const Output<Node>& data, const Output<Node>& like);
 
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
+    void validate_and_infer_types() override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
-                bool constant_fold(OutputVector& output_values,
-                                   const OutputVector& input_values) override;
-            };
+    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-        } // namespace v1
+    bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
+};
 
-    } // namespace op
+}  // namespace v1
 
-} // namespace ngraph
+}  // namespace op
+
+}  // namespace ngraph

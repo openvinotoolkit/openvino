@@ -2,23 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/average_unpooling.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <api/reorder.hpp>
-#include <api/data.hpp>
-#include <api/mutable_data.hpp>
-#include <api/pooling.hpp>
-#include "test_utils/float16.h"
+#include "test_utils.h"
+
+#include <cldnn/primitives/average_unpooling.hpp>
+#include <cldnn/primitives/reorder.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/mutable_data.hpp>
+#include <cldnn/primitives/pooling.hpp>
+#include <cldnn/primitives/input_layout.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 TEST(average_unpooling_gpu, basic_in2x2x2x1) {
     //  Input  : 2x2x2x1
@@ -40,9 +34,9 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1) {
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 1 } });
 
     set_values(input, {
         2.5f, -4.5f,
@@ -52,7 +46,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1) {
     });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }));
 
     network network(engine, topology);
@@ -62,8 +56,8 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("average_unpooling").get_memory();
-    auto output_ptr = output.pointer<float>();
-    auto output_layout = output.get_layout();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    auto output_layout = output->get_layout();
 
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(output_layout.size.spatial[1], 2);
@@ -107,9 +101,9 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
     //  f1: b0:  1.5     1.5    0.5  b1:   1.75   1.75   1
     //  f1: b0:  1.5     1.5    0.5  b1:   1.75   1.75   1
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
 
     set_values(input, {
         1.f, 2.f, -10.f,
@@ -123,9 +117,9 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
     });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(pooling("pooling", "input", pooling_mode::average_no_padding, { 1, 1, 2, 2 }, { 1, 1, 2, 2 }));
-    topology.add(average_unpooling("average_unpooling", "pooling", input.get_layout().size, { 1, 1, 2, 2 }, { 1, 1, 2, 2 }));
+    topology.add(average_unpooling("average_unpooling", "pooling", input->get_layout().size, { 1, 1, 2, 2 }, { 1, 1, 2, 2 }));
 
     network network(engine, topology);
 
@@ -134,8 +128,8 @@ TEST(average_unpooling_gpu, basic_in2x2x3x2_with_average_pooling_unpooling) {
     auto outputs = network.execute();
 
     auto output = outputs.at("average_unpooling").get_memory();
-    auto output_ptr = output.pointer<float>();
-    auto output_layout = output.get_layout();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    auto output_layout = output->get_layout();
 
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(output_layout.size.spatial[1], 2);
@@ -179,9 +173,9 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
     //  f0: b0:  0.625   -0.5  -1.125   b1:   0  -1.6875  -1.6875
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 1 } });
 
     set_values(input, {
         2.5f, -4.5f,
@@ -191,7 +185,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
     });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, padding({ 0, 0, 1, 1 }, 0)));
 
     network network(engine, topology);
@@ -201,8 +195,8 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
     auto outputs = network.execute();
 
     auto output = outputs.at("average_unpooling").get_memory();
-    auto output_ptr = output.pointer<float>();
-    auto output_layout = output.get_layout();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    auto output_layout = output->get_layout();
 
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(output_layout.size.spatial[1], 2);
@@ -260,9 +254,9 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
     //  f1: b0:  1.5     2.5    1       b1:   1.75   2.9375   1.1875
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f16, format::bfyx,{ 2, 2, 2, 1 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx,{ 2, 2, 2, 1 } });
 
     set_values(input, {
         FLOAT16(2.5f), FLOAT16(-4.5f),
@@ -272,7 +266,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
     });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }));
 
     network network(engine, topology);
@@ -282,8 +276,8 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_fp16) {
     auto outputs = network.execute();
 
     auto output = outputs.at("average_unpooling").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
-    auto output_layout = output.get_layout();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    auto output_layout = output->get_layout();
 
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(output_layout.size.spatial[1], 2);

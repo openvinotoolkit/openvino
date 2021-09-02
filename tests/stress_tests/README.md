@@ -12,8 +12,8 @@ when executing continuously.
 - StressUnitTests executing various Inference Engine use cases in parallel
 threads and processes.
 
-Each test refers to configuration files located in `<test dir>\local_configs`
-folder. The configuration files are installed along with tests on build time.
+Each test refers to configuration files located in `<test dir>\.automation`
+folder. 
 
 ## Getting Started
 
@@ -87,4 +87,4 @@ grep -rh ./MemCheckTests-logs -e ".*<model " | sed -e "s/.*<model /<model /" | s
 
 [VDP-shared-folders]: https://wiki.ith.intel.com/display/DLSDK/VDP+shared+folders
 [gtest-parallel]: https://github.com/google/gtest-parallel
-[open_model_zoo]: https://github.com/opencv/open_model_zoo
+[open_model_zoo]: https://github.com/openvinotoolkit/open_model_zoo

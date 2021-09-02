@@ -5,6 +5,11 @@
 #include "common_test_utils/common_utils.hpp"
 #include <legacy/details/ie_cnn_network_iterator.hpp>
 
+::std::ostream& ngraph::operator << (::std::ostream & os, const Function&) {
+    throw std::runtime_error("should not be called");
+    return os;
+}
+
 namespace CommonTestUtils {
 
 IE_SUPPRESS_DEPRECATED_START

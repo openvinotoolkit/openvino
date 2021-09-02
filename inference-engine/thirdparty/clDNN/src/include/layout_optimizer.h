@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "memory_impl.h"
-#include "engine_impl.h"
-#include "meta_utils.h"
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/engine.hpp"
+#include "cldnn/runtime/utils.hpp"
 
 #include "data_inst.h"
 #include "reorder_inst.h"
@@ -17,6 +17,7 @@
 #include "binary_convolution_inst.h"
 #include "lstm_gemm_inst.h"
 #include "generic_layer.hpp"
+#include "non_max_suppression_inst.h"
 #include "region_yolo_inst.h"
 
 #include "kernel_selector_common.h"
@@ -109,7 +110,7 @@ private:
     // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
     bool _output_size_handling_enabled;
 
-    std::map<primitive_id, format::type> _format_forcing;
+    std::map<primitive_id, std::pair<format::type, impl_types>> _forcing_map;
     static const std::vector<std::pair<format::type, bool>> optimized_formats;  // pair of format type and allowed weak restriction
     size_t _total_conv;
     std::map<std::pair<format::type, bool>, size_t> _optimized_conv_count;
@@ -168,6 +169,7 @@ public:
     explicit layout_optimizer(bool output_size_handling_enabled = true);
 
     format get_preferred_format(program_node& node);
+    impl_types get_preferred_impl_type(program_node& node);
 
     bool is_format_supported(program_node& node, format::type fmt);
 

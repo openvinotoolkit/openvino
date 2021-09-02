@@ -21,7 +21,7 @@ struct gemm_params : public base_params {
     bool transpose_input1;
     QuantizationType quantization = QuantizationType::NONE;
 
-    virtual ParamsKey GetParamsKey() const {
+    ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();
         k.EnableQuantization(quantization);
         return k;

@@ -67,7 +67,8 @@ def metadata_from_manifest(manifest):
         'commit_sha': repo_trigger['revision'],
         'commit_date': repo_trigger['commit_time'],
         'repo_url': repo_trigger['url'],
-        'target_branch': repo_trigger['target_branch'],
+        'branch': repo_trigger['branch'],
+        'target_branch': repo_trigger['target_branch'] if repo_trigger["target_branch"] else repo_trigger["branch"],
         'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
         f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
     }

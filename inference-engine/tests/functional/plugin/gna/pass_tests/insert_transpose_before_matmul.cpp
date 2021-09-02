@@ -51,7 +51,7 @@ public:
         return result.str();
     }
 
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const {
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
         InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
         blob->allocate();
 
@@ -120,7 +120,7 @@ const std::vector<size_t> inputShape = {
 
 const std::vector<bool> firstInputConst = {false, true};
 
-INSTANTIATE_TEST_CASE_P(smoke_InsertTransposeBeforeMatmulTest, InsertTransposeBeforeMatmul,
+INSTANTIATE_TEST_SUITE_P(smoke_InsertTransposeBeforeMatmulTest, InsertTransposeBeforeMatmul,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),

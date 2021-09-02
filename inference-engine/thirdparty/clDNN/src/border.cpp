@@ -4,7 +4,7 @@
 
 #include "border_inst.h"
 
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
 #include <string>
@@ -84,7 +84,7 @@ std::string border_inst::to_string(border_node const& node) {
     return primitive_description.str();
 }
 
-border_inst::typed_primitive_inst(network_impl& network, border_node const& node) : parent(network, node) {
+border_inst::typed_primitive_inst(network& network, border_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
 
     const auto input_format = input_layout.format;

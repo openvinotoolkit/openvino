@@ -21,38 +21,38 @@ const std::vector<std::vector<size_t>> inShapes = {
 };
 
 const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
-        ngraph::op::v4::Interpolate::InterpolateMode::linear,
-        ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
-        ngraph::op::v4::Interpolate::InterpolateMode::cubic,
+        ngraph::op::v4::Interpolate::InterpolateMode::LINEAR,
+        ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX,
+        ngraph::op::v4::Interpolate::InterpolateMode::CUBIC,
 };
 
 const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearestMode = {
-        ngraph::op::v4::Interpolate::InterpolateMode::nearest,
+        ngraph::op::v4::Interpolate::InterpolateMode::NEAREST,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
-        ngraph::op::v4::Interpolate::ShapeCalcMode::sizes,
-        ngraph::op::v4::Interpolate::ShapeCalcMode::scales,
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
-        ngraph::op::v4::Interpolate::NearestMode::simple,
-        ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
-        ngraph::op::v4::Interpolate::NearestMode::floor,
-        ngraph::op::v4::Interpolate::NearestMode::ceil,
-        ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil,
+        ngraph::op::v4::Interpolate::NearestMode::SIMPLE,
+        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
+        ngraph::op::v4::Interpolate::NearestMode::FLOOR,
+        ngraph::op::v4::Interpolate::NearestMode::CEIL,
+        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestMode = {
-        ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
+        ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR,
 };
 
 const std::vector<std::vector<size_t>> pads = {
@@ -108,7 +108,7 @@ const auto interpolateCases = ::testing::Combine(
         ::testing::ValuesIn(defaultAxes),
         ::testing::ValuesIn(defaultScales));
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -121,7 +121,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
         interpolateCases,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -166,7 +166,7 @@ const auto interpolateCasesTail = ::testing::Combine(
         ::testing::ValuesIn(defaultAxes),
         ::testing::ValuesIn(defaultScalesTailTest));
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic_Down_Sample_Tail, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic_Down_Sample_Tail, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearestTail,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -179,7 +179,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic_Down_Sample_Tail, InterpolateLay
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest_Down_Sample_Tail, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Nearest_Down_Sample_Tail, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesTail,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

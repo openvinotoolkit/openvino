@@ -36,7 +36,7 @@ void runtime::ie::IETensor::write(const void* src, size_t bytes)
     {
         m_data = AlignedBuffer(bytes);
     }
-    NGRAPH_CHECK(m_data.size() <= bytes,
+    NGRAPH_CHECK(bytes <= m_data.size(),
                  "Buffer over-write. The buffer size: ",
                  m_data.size(),
                  " is lower than the number of bytes to write: ",

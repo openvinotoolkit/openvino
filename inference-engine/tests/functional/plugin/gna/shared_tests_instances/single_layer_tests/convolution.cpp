@@ -147,7 +147,7 @@ const auto conv2DParams_AutoPadValid_MapTo1d = ::testing::Combine(
 );
 
 // TODO: padding isn't currently supported in GNA
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Height1, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Height1, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding_Height1,
                                 ::testing::ValuesIn(netPrecisions),
@@ -159,7 +159,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Height1, Co
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Width1, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Width1, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding_Width1,
                                 ::testing::ValuesIn(netPrecisions),
@@ -171,7 +171,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_ExplicitPadding_Width1, Con
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_Height1, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Height1, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid_Height1,
                                 ::testing::ValuesIn(netPrecisions),
@@ -183,7 +183,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_Height1, ConvolutionLay
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_Width1, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_Width1, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid_Width1,
                                 ::testing::ValuesIn(netPrecisions),
@@ -195,7 +195,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_Width1, ConvolutionLaye
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_MapTo1d, ConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_MapTo1d, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid_MapTo1d,
                                 ::testing::ValuesIn(netPrecisions),
@@ -207,7 +207,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_MapTo1d, ConvolutionLay
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_Kernels2D, GnaConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D, GnaConvolutionLayerTest,
     ::testing::Combine(
         conv2DParams_Kernels2D,
         ::testing::ValuesIn(netPrecisions),

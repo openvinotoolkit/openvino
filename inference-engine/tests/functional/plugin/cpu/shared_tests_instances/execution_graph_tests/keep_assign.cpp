@@ -9,7 +9,7 @@ using namespace ExecutionGraphTests;
 
 namespace {
 
-INSTANTIATE_TEST_CASE_P(smoke_KeepAssign, ExecGraphKeepAssignNode,
+INSTANTIATE_TEST_SUITE_P(smoke_KeepAssign, ExecGraphKeepAssignNode,
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ExecGraphKeepAssignNode::getTestCaseName);
 

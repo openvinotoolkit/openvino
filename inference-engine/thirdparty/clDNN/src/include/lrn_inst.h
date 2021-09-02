@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/lrn.hpp"
+#include "cldnn/primitives/lrn.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {
@@ -21,7 +22,7 @@ public:
     static std::string to_string(lrn_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, lrn_node const& node);
+    typed_primitive_inst(network& network, lrn_node const& node);
 };
 
 using lrn_inst = typed_primitive_inst<lrn>;

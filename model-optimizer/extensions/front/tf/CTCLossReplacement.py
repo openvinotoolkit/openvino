@@ -27,7 +27,7 @@ class CTCLossReplacement(FrontReplacementSubgraph):
         return dict(
             nodes=[
                 ('transpose', dict(op='Transpose')),
-                ('ctc_greedy_decoder', dict(op='CTCGreedyDecoderSeqLen')),
+                ('ctc_greedy_decoder', dict(op='CTCGreedyDecoderSeqLen', output_sparse_format=True)),
                 ('cast', dict(op='Cast')),
                 ('sparse_to_dense', dict(op='SparseToDense')),
                 ('const', dict(op='Const')),

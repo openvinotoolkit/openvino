@@ -325,10 +325,11 @@ def manifest_metadata(request):
                 "repo_url": {"type": "string"},
                 "commit_sha": {"type": "string"},
                 "commit_date": {"type": "string"},
+                "branch": {"type": "string"},
                 "target_branch": {"type": "string"},
                 "version": {"type": "string"}
             },
-            "required": ["product_type", "repo_url", "commit_sha", "commit_date", "target_branch", "version"],
+            "required": ["product_type", "repo_url", "commit_sha", "commit_date", "branch", "target_branch", "version"],
             "additionalProperties": false
         }
         """

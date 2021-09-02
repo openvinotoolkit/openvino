@@ -26,8 +26,7 @@ if(COMMAND ie_faster_build)
 endif()
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(${TARGET_NAME} PUBLIC ${BUILDER_INCLUDE_DIR}
-                                          PRIVATE ${NGRAPH_INCLUDE_PATH})
+target_include_directories(${TARGET_NAME} PUBLIC ${BUILDER_INCLUDE_DIR} ${NGRAPH_INCLUDE_PATH})
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 

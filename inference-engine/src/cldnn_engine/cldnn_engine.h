@@ -7,7 +7,7 @@
 #include <map>
 #include <string>
 #include <memory>
-#include <api/engine.hpp>
+#include <cldnn/runtime/engine.hpp>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cldnn_remote_context.h"
@@ -22,7 +22,7 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
     std::shared_ptr<impl> _impl;
 
     // key: device_id, value: cldnn device
-    std::map<std::string, cldnn::device> device_map;
+    std::map<std::string, cldnn::device::ptr> device_map;
     std::mutex engine_mutex;
 
     mutable CLDNNRemoteCLContext::Ptr m_defaultContext;
@@ -40,7 +40,7 @@ public:
                                                                         const std::map<std::string, std::string> &config) override;
 
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                        const InferenceEngine::RemoteContext::Ptr& context,
+                                                                        const std::shared_ptr<InferenceEngine::IRemoteContext> &context,
                                                                         const std::map<std::string, std::string> &config) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
@@ -49,8 +49,8 @@ public:
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
 
-    InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& params) override;
-    InferenceEngine::RemoteContext::Ptr GetDefaultContext(const InferenceEngine::ParamMap& params) override;
+    std::shared_ptr<InferenceEngine::IRemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override;
+    std::shared_ptr<InferenceEngine::IRemoteContext> GetDefaultContext(const InferenceEngine::ParamMap& params) override;
 };
 
 };  // namespace CLDNNPlugin

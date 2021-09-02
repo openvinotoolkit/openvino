@@ -22,7 +22,7 @@ namespace {
                                                              InferenceEngine::Precision::FP16,
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_reshape_permute_reshape, ReshapePermuteReshape,
+    INSTANTIATE_TEST_SUITE_P(smoke_reshape_permute_reshape, ReshapePermuteReshape,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inputs),
                                     ::testing::ValuesIn(netPrecisions),

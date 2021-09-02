@@ -27,6 +27,11 @@ namespace cnpy {
         {
             num_vals = 1;
             for(size_t i = 0;i < shape.size();i++) num_vals *= shape[i];
+            if (word_size &&
+                num_vals > std::vector<char>().max_size() / word_size)
+                throw std::length_error("NpyArray of " + std::to_string(num_vals) +
+                                        "*" + std::to_string(word_size) +
+                                        " elements is too big.");
             data_holder = std::shared_ptr<std::vector<char>>(
                 new std::vector<char>(num_vals * word_size));
         }

@@ -91,5 +91,4 @@ static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::La
 };
 
 GNAPluginNS::LayerType LayerTypeFromStr(const std::string &str);
-bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
 }  // namespace GNAPluginNS

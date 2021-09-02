@@ -48,7 +48,7 @@ const auto convParams = ::testing::Combine(
 
 const std::vector<bool> permute = {false, true};
 
-INSTANTIATE_TEST_CASE_P(smoke_FqConvFqAffineTest, FqConvFqAffineTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FqConvFqAffineTest, FqConvFqAffineTest,
                         ::testing::Combine(
                                 fqParams,
                                 convParams,

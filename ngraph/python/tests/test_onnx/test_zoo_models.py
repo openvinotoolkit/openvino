@@ -1,11 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import tests
 from operator import itemgetter
 from pathlib import Path
-import os
 from typing import Sequence, Any
 import numpy as np
 
@@ -20,12 +18,12 @@ from tests import (
     xfail_issue_38084,
     xfail_issue_39669,
     xfail_issue_38726,
-    xfail_issue_40686,
     xfail_issue_37973,
     xfail_issue_47430,
     xfail_issue_47495,
     xfail_issue_48145,
     xfail_issue_48190,
+    xfail_issue_58676,
     xfail_issue_onnx_models_140)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
@@ -134,7 +132,7 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
         zoo_models.append(model)
 
 if len(zoo_models) > 0:
-    sorted(zoo_models, key=itemgetter("model_name"))
+    zoo_models = sorted(zoo_models, key=itemgetter("model_name"))
 
     # Set backend device name to be used instead of hardcoded by ONNX BackendTest class ones.
     OpenVinoOnnxBackend.backend_name = tests.BACKEND_NAME
@@ -180,8 +178,8 @@ if len(zoo_models) > 0:
             (xfail_issue_37973, "test_MSFT_opset11_tf_inception_v2_model_cpu"),
             (xfail_issue_37973, "test_MSFT_opset10_tf_inception_v2_model_cpu"),
 
-            (xfail_issue_40686, "test_MSFT_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
-            (xfail_issue_40686, "test_MSFT_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
+            (xfail_issue_58676, "test_MSFT_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
+            (xfail_issue_58676, "test_MSFT_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
 
             (xfail_issue_38084, "test_MSFT_opset10_mask_rcnn_mask_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_38084, "test_MSFT_opset10_faster_rcnn_faster_rcnn_R_50_FPN_1x_cpu"),

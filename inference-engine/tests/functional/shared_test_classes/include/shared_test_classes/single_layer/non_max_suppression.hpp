@@ -10,6 +10,16 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 
+namespace testing {
+namespace internal {
+
+template <> inline void
+PrintTo(const ::ngraph::op::v5::NonMaxSuppression::BoxEncodingType& value,
+    ::std::ostream* os) { }
+
+}
+}
+
 namespace LayerTestsDefinitions {
 
 using InputShapeParams = std::tuple<size_t,  // Number of batches
@@ -43,7 +53,12 @@ protected:
     void SetUp() override;
 
 private:
+    void CompareBuffer(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                       const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
+    void CompareBBoxes(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                       const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
     size_t numOfSelectedBoxes;
+    InputShapeParams inShapeParams;
 };
 
 }  // namespace LayerTestsDefinitions

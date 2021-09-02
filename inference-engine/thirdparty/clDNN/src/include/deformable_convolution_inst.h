@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/convolution.hpp"
+#include "cldnn/primitives/convolution.hpp"
 #include "primitive_inst.h"
 
 #include <memory>
@@ -17,7 +17,7 @@ struct typed_program_node<deformable_conv> : public typed_program_node_base<defo
     using parent = typed_program_node_base<deformable_conv>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
             : parent(prim, prog),
               split(this->get_primitive()->split()),
               depthwise_sep_opt(false),
@@ -73,25 +73,25 @@ public:
     static std::string to_string(deformable_conv_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, deformable_conv_node const& node);
+    typed_primitive_inst(network& network, deformable_conv_node const& node);
 
-    memory_impl& weights_memory(size_t index) const {
+    memory::ptr weights_memory(size_t index) const {
         if (node.get_groups() == 1) {
             if (static_cast<int32_t>(index) >= node.get_split())
                 throw std::range_error("weights offset too big");
-            return dep_memory(1 + index);
+            return dep_memory_ptr(1 + index);
         } else {  // all weights are in one buffer
-            return dep_memory(1);
+            return dep_memory_ptr(1);
         }
     }
 
-    memory_impl& bias_memory(size_t index) const {
+    memory::ptr bias_memory(size_t index) const {
         if (node.get_groups() == 1) {
             if (static_cast<int32_t>(index) >= node.get_split())
                 throw std::range_error("bias offset too big");
-            return dep_memory(1 + node.get_split());
+            return dep_memory_ptr(1 + node.get_split());
         } else {  // all bias are in one buffer
-            return dep_memory(2);
+            return dep_memory_ptr(2);
         }
     }
 
@@ -105,7 +105,7 @@ struct typed_program_node<deformable_interp> : public typed_program_node_base<de
     using parent = typed_program_node_base<deformable_interp>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
             : parent(prim, prog),
               split(1),
               depthwise_sep_opt(false),
@@ -152,9 +152,9 @@ public:
     static std::string to_string(deformable_interp_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, deformable_interp_node const& node);
+    typed_primitive_inst(network& network, deformable_interp_node const& node);
 
-    memory_impl& trans_memory() const { return dep_memory(1); }
+    memory& trans_memory() const { return dep_memory(1); }
 };
 
 using deformable_interp_inst = typed_primitive_inst<deformable_interp>;

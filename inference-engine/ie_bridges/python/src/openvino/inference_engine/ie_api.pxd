@@ -47,7 +47,6 @@ cdef class IENetwork:
 
 cdef class ExecutableNetwork:
     cdef unique_ptr[C.IEExecNetwork] impl
-    cdef C.IECore ie_core_impl
     cpdef wait(self, num_requests = ?, timeout = ?)
     cpdef get_idle_request_id(self)
     cdef public:

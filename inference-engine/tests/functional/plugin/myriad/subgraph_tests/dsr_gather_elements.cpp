@@ -49,7 +49,7 @@ TEST_P(DSR_GatherElements, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicGatherElements, DSR_GatherElements,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicGatherElements, DSR_GatherElements,
     testing::Combine(
         testing::ValuesIn(dataTypeVector),
         testing::ValuesIn(idxTypeVector),

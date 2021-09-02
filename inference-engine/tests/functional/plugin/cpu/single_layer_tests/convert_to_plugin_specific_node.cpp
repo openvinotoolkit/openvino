@@ -104,7 +104,7 @@ const auto testParamsEltwise = ::testing::Combine(::testing::ValuesIn(nonConstIS
                                                   ::testing::ValuesIn(port),
                                                   ::testing::Values(0));
 
-INSTANTIATE_TEST_CASE_P(smoke_CheckEltwise, ConvertToPluginSpecificNode, testParamsEltwise, ConvertToPluginSpecificNode::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CheckEltwise, ConvertToPluginSpecificNode, testParamsEltwise, ConvertToPluginSpecificNode::getTestCaseName);
 
 const auto testParamsPower = ::testing::Combine(::testing::ValuesIn(nonConstIS),
                                                 ::testing::ValuesIn(constIS),
@@ -113,7 +113,7 @@ const auto testParamsPower = ::testing::Combine(::testing::ValuesIn(nonConstIS),
                                                 ::testing::Values(1),
                                                 ::testing::Values(0));
 
-INSTANTIATE_TEST_CASE_P(smoke_CheckPower, ConvertToPluginSpecificNode, testParamsPower, ConvertToPluginSpecificNode::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CheckPower, ConvertToPluginSpecificNode, testParamsPower, ConvertToPluginSpecificNode::getTestCaseName);
 
 } // namespace
 

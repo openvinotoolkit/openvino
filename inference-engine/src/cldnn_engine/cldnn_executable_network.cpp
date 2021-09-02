@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <list>
-#include <set>
-#include <unordered_set>
 
 #include "ie_metric_helpers.hpp"
-#include <api/cldnn.hpp>
-#include <api/data.hpp>
+#include <chrono>
+#include <cmath>
+#include <algorithm>
+
+#include "ie_metric_helpers.hpp"
 #include <chrono>
 #include <cmath>
 #include <algorithm>
@@ -27,13 +27,12 @@
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
-
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
 
-CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteContext::Ptr context, Config config) :
+CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::shared_ptr<IRemoteContext> context, Config config) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]()->InferenceEngine::ITaskExecutor::Ptr {
         if (config.throughput_streams > 1) {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
@@ -96,7 +95,7 @@ IInferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequest() {
     return CreateAsyncInferRequestFromSync<CLDNNAsyncInferRequest>();
 }
 
-InferenceEngine::CNNNetwork CLDNNExecNetwork::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> CLDNNExecNetwork::GetExecGraphInfo() {
     if (m_graphs.empty())
         IE_THROW(NetworkNotLoaded);
 
@@ -136,7 +135,7 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
     }
 }
 
-RemoteContext::Ptr CLDNNExecNetwork::GetContext() const {
+std::shared_ptr<IRemoteContext> CLDNNExecNetwork::GetContext() const {
     return m_context;
 }
 

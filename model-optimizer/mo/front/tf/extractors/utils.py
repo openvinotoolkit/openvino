@@ -5,13 +5,14 @@ import logging as log
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 from mo.front.tf.common import tf_data_type_decode
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
 
 def tf_tensor_shape(pb):
-    return np.array([dim.size for dim in pb.dim], dtype=np.int64)
+    return shape_array([dim.size if dim.size >= 0 else dynamic_dimension_value for dim in pb.dim])
 
 
 def tf_int_list(pb):
@@ -70,8 +71,18 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
                 log.error(decode_err_msg, extra={'is_warning': True})
                 value = np.array(type_helper[1](pb_tensor))
 
-    if len(shape) == 0 or shape.prod() == 0:
-        if len(value) == 1:
+    # Ignore an empty value, if len(shape) > 1
+    # For example, value = [] and shape = [1, 1, 0]
+    # This is needed to reshape this value later and to return reshaped value = [[[]]]
+    # Otherwise there can be failures during partial inference, because we are storing an empty value with incorrect
+    # shape
+    if len(shape) == 0 or (len(shape) == 1 and shape.prod() == 0):
+        try:
+            value_length = len(value)
+        except TypeError:
+            # case, when value is a scalar
+            value_length = 0
+        if value_length == 1:
             # return scalar if shape is [] otherwise broadcast according to shape
             try:
                 return np.array(value[0], dtype=type_helper[0])

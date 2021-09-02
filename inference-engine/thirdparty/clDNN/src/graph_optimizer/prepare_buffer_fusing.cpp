@@ -4,8 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/eltwise.hpp"
-#include "api/pooling.hpp"
+#include "pooling_inst.h"
 #include "fused_conv_eltwise_inst.h"
 #include "primitive_inst.h"
 #include "activation_inst.h"
@@ -241,7 +240,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 }  // namespace
 
 // ToDo remove friendship relation from  program_node
-void prepare_buffer_fusing::run(program_impl& p) {
+void prepare_buffer_fusing::run(program& p) {
     bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
     /*
     We need to take care of proper ordering by types.
@@ -284,7 +283,7 @@ void prepare_buffer_fusing::run(program_impl& p) {
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
-                if (node.get_dependency(0).is_type<lstm_elt>()) {
+                if (p.is_loop_body() && node.get_dependency(0).is_type<lstm_elt>()) {
                     return;
                 }
                 // optimization is available for cropping across depth(features) only
