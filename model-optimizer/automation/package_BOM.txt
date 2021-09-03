@@ -170,7 +170,10 @@ extensions/front/mxnet/activation.py
 extensions/front/mxnet/adaptive_avg_pooling_ext.py
 extensions/front/mxnet/add_input_data_to_prior_boxes.py
 extensions/front/mxnet/arange_ext.py
+extensions/front/mxnet/arange_like_ext.py
+extensions/front/mxnet/arange_like_replacer.py
 extensions/front/mxnet/arange_replacer.py
+extensions/front/mxnet/batch_dot_ext.py
 extensions/front/mxnet/block_grad_ext.py
 extensions/front/mxnet/box_nms_ext.py
 extensions/front/mxnet/cast_ext.py
@@ -185,6 +188,7 @@ extensions/front/mxnet/custom.py
 extensions/front/mxnet/custom_rpn_proposal.py
 extensions/front/mxnet/deformable_conv_ext.py
 extensions/front/mxnet/deformable_psroi_pooling_ext.py
+extensions/front/mxnet/div_sqrt_dim.py
 extensions/front/mxnet/dropout_ext.py
 extensions/front/mxnet/einsum_ext.py
 extensions/front/mxnet/elementwise_ext.py
@@ -198,6 +202,7 @@ extensions/front/mxnet/gather.py
 extensions/front/mxnet/gather_ext.py
 extensions/front/mxnet/gluoncv_ssd_anchors.py
 extensions/front/mxnet/instance_norm_ext.py
+extensions/front/mxnet/layer_norm_ext.py
 extensions/front/mxnet/leaky_relu.py
 extensions/front/mxnet/lrn_ext.py
 extensions/front/mxnet/max_ext.py
@@ -656,6 +661,7 @@ extensions/middle/UselessSplitEraser.py
 extensions/ops/__init__.py
 extensions/ops/activation_ops.py
 extensions/ops/adaptive_avg_pooling.py
+extensions/ops/arange_like.py
 extensions/ops/argmax.py
 extensions/ops/argmin.py
 extensions/ops/assert_op.py
@@ -681,6 +687,7 @@ extensions/ops/dequantize_linear.py
 extensions/ops/DetectionOutput.py
 extensions/ops/detectionoutput_onnx.py
 extensions/ops/dft.py
+extensions/ops/div_sqrt_dim.py
 extensions/ops/einsum.py
 extensions/ops/elementwise.py
 extensions/ops/embedding_bag.py
@@ -703,6 +710,7 @@ extensions/ops/If.py
 extensions/ops/instance_normalization.py
 extensions/ops/interp.py
 extensions/ops/interpolate.py
+extensions/ops/layer_norm.py
 extensions/ops/LookupTableInsert.py
 extensions/ops/loop.py
 extensions/ops/LSTM.py
