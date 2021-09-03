@@ -49,3 +49,26 @@ def test_node_factory_topk():
     assert node.get_type_name() == "TopK"
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [2, 3]
+
+def test_node_factory_empty_topk():
+    factory = _NodeFactory("opset1")
+    node = factory.create("TopK")
+
+    assert node.get_type_name() == "TopK"
+
+def test_node_factory_empty_topk_with_args_and_attrs():
+    dtype = np.int32
+    data = ng.parameter([2, 10], dtype=dtype, name="A")
+    k = ng.constant(3, dtype=dtype, name="B")
+    factory = _NodeFactory("opset1")
+    arguments = NodeFactory._arguments_as_outputs([data, k])
+    node = factory.create("TopK")
+    node._set_arguments(arguments)
+    node._set_attribute("axis", 1)
+    node._set_attribute("mode", "max")
+    node._set_attribute("sort", "value")
+    node._validate()
+
+    assert node.get_type_name() == "TopK"
+    assert node.get_output_size() == 2
+    assert list(node.get_output_shape(0)) == [2, 3]

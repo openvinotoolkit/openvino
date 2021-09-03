@@ -24,7 +24,7 @@ class NodeFactory(object):
     def create(
         self,
         op_type_name: str,
-        arguments: List[Union[Node, Output]],
+        arguments: Optional[List[Union[Node, Output]]] = None,
         attributes: Optional[Dict[str, Any]] = None,
     ) -> Node:
         """Create node object from provided description.
@@ -39,6 +39,13 @@ class NodeFactory(object):
         """
         if attributes is None:
             attributes = {}
+
+        if attributes is None and arguments is None:
+            node = self.factory.create(op_type_name)
+            node._attr_cache = {}
+            node._attr_cache_valid = False
+
+            return node
 
         arguments = self._arguments_as_outputs(arguments)
         node = self.factory.create(op_type_name, arguments, attributes)

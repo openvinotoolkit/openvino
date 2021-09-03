@@ -276,4 +276,10 @@ void regclass_pyngraph_Node(py::module m) {
         util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
         self->visit_attributes(dict_deserializer);
     });
+    node.def("_set_arguments", [](const std::shared_ptr<ngraph::Node>& self, const ngraph::OutputVector& arguments) {
+        return self->set_arguments(arguments);
+    });
+    node.def("_validate", [](const std::shared_ptr<ngraph::Node>& self) {
+        return self->constructor_validate_and_infer_types();
+    });
 }
