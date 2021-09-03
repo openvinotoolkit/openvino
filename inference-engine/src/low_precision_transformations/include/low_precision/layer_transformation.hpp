@@ -115,7 +115,7 @@ public:
             case element::u8:
                 return 255.f;
             case element::u16:
-                return 32767.f;
+                return 65535.f;
             case element::u32:
                 return 4294967296.f;
             case element::i4:

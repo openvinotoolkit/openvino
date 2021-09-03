@@ -21,7 +21,6 @@
 #include <ie_system_conf.h>
 #include <nodes/list.hpp>
 #include <ie_ngraph_utils.hpp>
-#include "transformations/serialize.hpp"
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
