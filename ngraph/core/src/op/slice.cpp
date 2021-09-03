@@ -112,15 +112,15 @@ void op::v8::Slice::validate_and_infer_types() {
         const std::vector<int64_t> starts = start_const->cast_vector<int64_t>();
         const std::vector<int64_t> stops = stop_const->cast_vector<int64_t>();
         const std::vector<int64_t> steps = step_const->cast_vector<int64_t>();
+        const std::vector<int64_t> axes = axes_const->cast_vector<int64_t>();
 
-        std::vector<int64_t> axis_vector = axes_const->cast_vector<int64_t>();
+        for (size_t i = 0; i < data_shape.rank().get_length(); ++i) {
+            // Dynamic data_shape rank was handled on the begining
+            const auto norm_axis = ngraph::normalize_axis(this, axes[i], data_shape.rank());
 
-        for (auto axis : axis_vector) {
-            const auto norm_axis = ngraph::normalize_axis(this, axis, data_shape.rank());
-
-            auto start = starts[norm_axis];
-            auto stop = stops[norm_axis];
-            auto step = steps[norm_axis];
+            auto start = starts[i];
+            auto stop = stops[i];
+            auto step = steps[i];
 
             const auto& axis_dim = data_shape[norm_axis];
             if (axis_dim.is_dynamic()) {
@@ -149,7 +149,10 @@ void op::v8::Slice::validate_and_infer_types() {
             stop = std::max(int64_t(-1), std::min(stop, axis_dim_length));       // exclusive
 
             const auto elements_in_range = std::ceil(std::fabs(stop - start) / fabs(step));
-            output_shape[axis] = elements_in_range;
+            output_shape[norm_axis] = elements_in_range;
+        
+    
+    
         }
     }
 
