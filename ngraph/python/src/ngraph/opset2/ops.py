@@ -1,6 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+
+## @defgroup ngraph_python_opset2 nGraph Python Opset2
+# nGraph Python Opset2
+# @ingroup ngraph_python_opsets
+
+
 """Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
@@ -45,6 +51,7 @@ _get_node_factory_opset2 = partial(_get_node_factory, "opset2")
 # -------------------------------------------- ops ------------------------------------------------
 
 
+## @ingroup ngraph_python_opset2
 @nameable_op
 def batch_to_space(
     data: NodeInput,
@@ -69,6 +76,7 @@ def batch_to_space(
     )
 
 
+## @ingroup ngraph_python_opset2
 @unary_op
 def gelu(node: NodeInput, name: Optional[str] = None) -> Node:
     r"""Perform Gaussian Error Linear Unit operation element-wise on data from input node.
@@ -86,6 +94,7 @@ def gelu(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset2().create("Gelu", [node])
 
 
+## @ingroup ngraph_python_opset2
 @nameable_op
 def mvn(
     data: Node,
@@ -115,6 +124,7 @@ def mvn(
     )
 
 
+## @ingroup ngraph_python_opset2
 @nameable_op
 def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> Node:
     """Return a node which produces the ReorgYolo operation.
@@ -127,6 +137,7 @@ def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> No
     return _get_node_factory_opset2().create("ReorgYolo", [input], {"stride": stride})
 
 
+## @ingroup ngraph_python_opset2
 @nameable_op
 def roi_pooling(
     input: NodeInput,
@@ -153,6 +164,7 @@ def roi_pooling(
     )
 
 
+## @ingroup ngraph_python_opset2
 @nameable_op
 def space_to_batch(
     data: NodeInput,

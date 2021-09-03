@@ -1,6 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+
+## @defgroup ngraph_python_opset3 nGraph Python Opset3
+# nGraph Python Opset3
+# @ingroup ngraph_python_opsets
+
+
 """Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
@@ -45,6 +51,7 @@ _get_node_factory_opset3 = partial(_get_node_factory, "opset3")
 # -------------------------------------------- ops ------------------------------------------------
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
@@ -61,6 +68,7 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     )
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def broadcast(
     data: NodeInput,
@@ -88,6 +96,7 @@ def broadcast(
     )
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def bucketize(
     data: Node,
@@ -113,6 +122,7 @@ def bucketize(
     )
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def cum_sum(
     arg: NodeInput,
@@ -134,6 +144,7 @@ def cum_sum(
     )
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def embedding_bag_offsets_sum(
     emb_table: Node,
@@ -163,6 +174,7 @@ def embedding_bag_offsets_sum(
     return _get_node_factory_opset3().create("EmbeddingBagOffsetsSum", inputs, {})
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def embedding_bag_packed_sum(
     emb_table: NodeInput,
@@ -188,6 +200,7 @@ def embedding_bag_packed_sum(
     return _get_node_factory_opset3().create("EmbeddingBagPackedSum", inputs, {})
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def embedding_segments_sum(
     emb_table: Node,
@@ -226,6 +239,7 @@ def embedding_segments_sum(
     return _get_node_factory_opset3().create("EmbeddingSegmentsSum", inputs, {})
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def extract_image_patches(
     image: NodeInput,
@@ -252,6 +266,7 @@ def extract_image_patches(
     )
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def gru_cell(
     X: NodeInput,
@@ -317,6 +332,7 @@ def gru_cell(
     return _get_node_factory_opset3().create("GRUCell", input_nodes, attributes)
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def non_max_suppression(
     boxes: NodeInput,
@@ -360,6 +376,7 @@ def non_max_suppression(
     return _get_node_factory_opset3().create("NonMaxSuppression", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = None,) -> Node:
     """Return the indices of the elements that are non-zero.
@@ -376,6 +393,7 @@ def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
     )
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
@@ -392,6 +410,7 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     )
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def rnn_cell(
     X: NodeInput,
@@ -450,6 +469,7 @@ def rnn_cell(
     return _get_node_factory_opset3().create("RNNCell", input_nodes, attributes)
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def roi_align(
     data: NodeInput,
@@ -488,6 +508,7 @@ def roi_align(
     return _get_node_factory_opset3().create("ROIAlign", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def scatter_elements_update(
     data: NodeInput,
@@ -519,6 +540,7 @@ def scatter_elements_update(
     )
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def scatter_update(
     data: Node, indices: NodeInput, updates: NodeInput, axis: NodeInput, name: Optional[str] = None
@@ -539,6 +561,7 @@ def scatter_update(
     )
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = None) -> Node:
     """Return a node which produces a tensor containing the shape of its input data.
@@ -554,6 +577,7 @@ def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
     )
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = None) -> Node:
     """Perform permutation on data in the channel dimension of the input tensor.
@@ -607,6 +631,7 @@ def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = No
     )
 
 
+## @ingroup ngraph_python_opset3
 @nameable_op
 def topk(
     data: NodeInput,

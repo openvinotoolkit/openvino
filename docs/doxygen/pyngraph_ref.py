@@ -61,6 +61,11 @@ def generate_stub_for_c_module(module_name: str,
                 type_str = 'Any'
             variables.append('%s: %s' % (name, type_str))
     output = []
+    output.append('\n')
+    output.append('## @defgroup ngraph_python_pyngraph pyngraph')
+    output.append('# pyngraph module')
+    output.append('# @ingroup ngraph_python_api')
+    output.append('\n')
     for line in sorted(set(imports)):
         output.append(line)
     for line in variables:
@@ -153,10 +158,12 @@ def generate_c_type_stub(module: ModuleType,
         )
     else:
         bases_str = ''
+    
+    doxygen_group = '\n## @ingroup ngraph_python_pyngraph\n'
     if not methods and not variables and not properties:
-        output.append('class %s%s: ...' % (class_name, bases_str))
+        output.append(doxygen_group + 'class %s%s: ...' % (class_name, bases_str))
     else:
-        output.append('class %s%s:' % (class_name, bases_str))
+        output.append(doxygen_group + 'class %s%s:' % (class_name, bases_str))
         for variable in variables:
             output.append('    %s' % variable)
         for method in methods:

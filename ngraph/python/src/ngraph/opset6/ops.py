@@ -1,6 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+
+## @defgroup ngraph_python_opset6 nGraph Python Opset6
+# nGraph Python Opset6
+# @ingroup ngraph_python_opsets
+
+
 """Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
@@ -45,6 +51,7 @@ _get_node_factory_opset6 = partial(_get_node_factory, "opset6")
 # -------------------------------------------- ops ------------------------------------------------
 
 
+## @ingroup ngraph_python_opset6
 @nameable_op
 def ctc_greedy_decoder_seq_len(
         data: NodeInput,
@@ -77,6 +84,7 @@ def ctc_greedy_decoder_seq_len(
     return _get_node_factory_opset6().create("CTCGreedyDecoderSeqLen", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset6
 @nameable_op
 def gather_elements(
     data: NodeInput,
@@ -100,6 +108,7 @@ def gather_elements(
     return _get_node_factory_opset6().create("GatherElements", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset6
 @nameable_op
 def mvn(
     data: Node,
@@ -131,6 +140,7 @@ def mvn(
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset6
 @nameable_op
 def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
@@ -147,6 +157,7 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     )
 
 
+## @ingroup ngraph_python_opset6
 @nameable_op
 def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.

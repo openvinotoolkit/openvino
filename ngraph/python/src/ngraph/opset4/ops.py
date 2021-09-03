@@ -1,6 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+
+## @defgroup ngraph_python_opset4 nGraph Python Opset4
+# nGraph Python Opset4
+# @ingroup ngraph_python_opsets
+
+
 """Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
@@ -45,6 +51,7 @@ _get_node_factory_opset4 = partial(_get_node_factory, "opset4")
 # -------------------------------------------- ops ------------------------------------------------
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def ctc_loss(
     logits: NodeInput,
@@ -83,6 +90,7 @@ def ctc_loss(
     return _get_node_factory_opset4().create("CTCLoss", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def non_max_suppression(
     boxes: NodeInput,
@@ -126,6 +134,7 @@ def non_max_suppression(
     return _get_node_factory_opset4().create("NonMaxSuppression", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def softplus(data: NodeInput, name: Optional[str] = None) -> Node:
     """Apply SoftPlus operation on each element of input tensor.
@@ -136,6 +145,7 @@ def softplus(data: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset4().create("SoftPlus", as_nodes(data), {})
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
     """Return a node which performs Mish.
@@ -146,6 +156,7 @@ def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
     return _get_node_factory_opset4().create("Mish", as_nodes(data), {})
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def hswish(data: NodeInput, name: Optional[str] = None,) -> Node:
     """Return a node which performs HSwish (hard version of Swish).
@@ -156,6 +167,7 @@ def hswish(data: NodeInput, name: Optional[str] = None,) -> Node:
     return _get_node_factory_opset4().create("HSwish", as_nodes(data), {})
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def swish(
     data: NodeInput,
@@ -172,6 +184,7 @@ def swish(
     return _get_node_factory_opset4().create("Swish", as_nodes(data, beta), {})
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply hyperbolic inverse cosine function on the input node element-wise.
@@ -183,6 +196,7 @@ def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset4().create("Acosh", [node])
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply hyperbolic inverse sinus function on the input node element-wise.
@@ -194,6 +208,7 @@ def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset4().create("Asinh", [node])
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def atanh(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply hyperbolic inverse tangent function on the input node element-wise.
@@ -205,6 +220,7 @@ def atanh(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset4().create("Atanh", [node])
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def proposal(
         class_probs: Node,
@@ -324,6 +340,7 @@ def proposal(
     )
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def reduce_l1(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
@@ -341,6 +358,7 @@ def reduce_l1(
     )
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def reduce_l2(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
@@ -358,6 +376,7 @@ def reduce_l2(
     )
 
 
+## @ingroup ngraph_python_opset4
 @nameable_op
 def lstm_cell(
     X: NodeInput,

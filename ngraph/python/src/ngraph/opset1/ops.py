@@ -2,6 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
+
+
+## @defgroup ngraph_python_opset1 nGraph Python Opset1
+# nGraph Python Opset1
+# @ingroup ngraph_python_opsets
+
+
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
@@ -45,6 +52,7 @@ _get_node_factory_opset1 = partial(_get_node_factory, "opset1")
 # -------------------------------------------- ops ------------------------------------------------
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def absolute(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies f(x) = abs(x) to the input node element-wise.
@@ -56,6 +64,7 @@ def absolute(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Abs", [node])
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def acos(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply inverse cosine function on the input node element-wise.
@@ -67,6 +76,7 @@ def acos(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Acos", [node])
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def add(
     left_node: NodeInput,
@@ -80,6 +90,7 @@ def add(
     )
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def asin(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply inverse sine function on the input node element-wise.
@@ -91,6 +102,7 @@ def asin(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Asin", [node])
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def atan(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply inverse tangent function on the input node element-wise.
@@ -102,6 +114,7 @@ def atan(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Atan", [node])
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def avg_pool(
     data_batch: NodeInput,
@@ -147,6 +160,7 @@ def avg_pool(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def batch_norm_inference(
     data: NodeInput,
@@ -173,6 +187,7 @@ def batch_norm_inference(
     return _get_node_factory_opset1().create("BatchNormInference", inputs, {"epsilon": epsilon})
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def binary_convolution(
     data: NodeInput,
@@ -215,6 +230,7 @@ def binary_convolution(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def broadcast(
     data: NodeInput,
@@ -242,6 +258,7 @@ def broadcast(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def ctc_greedy_decoder(
     data: NodeInput,
@@ -263,6 +280,7 @@ def ctc_greedy_decoder(
     )
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def ceiling(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies ceiling to the input node element-wise.
@@ -274,6 +292,7 @@ def ceiling(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Ceiling", [node])
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def clamp(
     data: NodeInput, min_value: ScalarData, max_value: ScalarData, name: Optional[str] = None
@@ -307,6 +326,7 @@ def clamp(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def concat(nodes: List[NodeInput], axis: int, name: Optional[str] = None) -> Node:
     """Concatenate input nodes into single new node along specified axis.
@@ -319,6 +339,7 @@ def concat(nodes: List[NodeInput], axis: int, name: Optional[str] = None) -> Nod
     return _get_node_factory_opset1().create("Concat", as_nodes(*nodes), {"axis": axis})
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def constant(value: NumericData, dtype: NumericType = None, name: Optional[str] = None) -> Constant:
     """Create a Constant node from provided value.
@@ -331,6 +352,7 @@ def constant(value: NumericData, dtype: NumericType = None, name: Optional[str] 
     return make_constant_node(value, dtype)
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def convert(
     data: NodeInput, destination_type: Union[str, NumericType], name: Optional[str] = None
@@ -349,6 +371,7 @@ def convert(
     )
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def convert_like(data: NodeInput, like: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which casts data node values to the type of another node.
@@ -361,6 +384,7 @@ def convert_like(data: NodeInput, like: NodeInput, name: Optional[str] = None) -
     return _get_node_factory_opset1().create("ConvertLike", [data, like])
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def convolution(
     data: NodeInput,
@@ -397,6 +421,7 @@ def convolution(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def convolution_backprop_data(
     data: NodeInput,
@@ -454,6 +479,7 @@ def convolution_backprop_data(
     )
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def cos(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply cosine function on the input node element-wise.
@@ -465,6 +491,7 @@ def cos(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Cos", [node])
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def cosh(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply hyperbolic cosine function on the input node element-wise.
@@ -476,6 +503,7 @@ def cosh(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Cosh", [node])
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def deformable_convolution(
     data: NodeInput,
@@ -520,6 +548,7 @@ def deformable_convolution(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def deformable_psroi_pooling(
     feature_maps: NodeInput,
@@ -574,6 +603,7 @@ def deformable_psroi_pooling(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def depth_to_space(node: Node, mode: str, block_size: int = 1, name: str = None) -> Node:
     """Rearranges input tensor from depth into blocks of spatial data.
@@ -603,6 +633,7 @@ def depth_to_space(node: Node, mode: str, block_size: int = 1, name: str = None)
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def detection_output(
     box_logits: Node,
@@ -765,6 +796,7 @@ def detection_output(
     return _get_node_factory_opset1().create("DetectionOutput", inputs, attrs)
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def divide(
     left_node: NodeInput,
@@ -785,6 +817,7 @@ def divide(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def elu(data: NodeInput, alpha: NumericType, name: Optional[str] = None) -> Node:
     """Perform Exponential Linear Unit operation element-wise on data from input node.
@@ -802,6 +835,7 @@ def elu(data: NodeInput, alpha: NumericType, name: Optional[str] = None) -> Node
     return _get_node_factory_opset1().create("Elu", [as_node(data)], {"alpha": alpha})
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def equal(
     left_node: NodeInput,
@@ -823,6 +857,7 @@ def equal(
     )
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def erf(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which calculates Gauss error function element-wise with given tensor.
@@ -834,6 +869,7 @@ def erf(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Erf", [node])
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def exp(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies exponential function to the input node element-wise.
@@ -845,6 +881,7 @@ def exp(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Exp", [node])
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def fake_quantize(
     data: NodeInput,
@@ -893,6 +930,7 @@ def fake_quantize(
     )
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def floor(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies floor to the input node element-wise.
@@ -904,6 +942,7 @@ def floor(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Floor", [node])
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def floor_mod(
     left_node: NodeInput,
@@ -924,6 +963,7 @@ def floor_mod(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def gather(
     data: NodeInput, indices: NodeInput, axis: NodeInput, name: Optional[str] = None
@@ -940,6 +980,7 @@ def gather(
     return _get_node_factory_opset1().create("Gather", node_inputs)
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def gather_tree(
     step_ids: NodeInput,
@@ -978,6 +1019,7 @@ def gather_tree(
     return _get_node_factory_opset1().create("GatherTree", node_inputs)
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def greater(
     left_node: NodeInput,
@@ -999,6 +1041,7 @@ def greater(
     )
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def greater_equal(
     left_node: NodeInput,
@@ -1021,6 +1064,7 @@ def greater_equal(
     )
 
 
+## @ingroup ngraph_python_opset1
 def grn(data: Node, bias: float, name: Optional[str] = None) -> Node:
     r"""Perform Global Response Normalization with L2 norm (across channels only).
 
@@ -1036,6 +1080,7 @@ def grn(data: Node, bias: float, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("GRN", [data], {"bias": bias})
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def group_convolution(
     data: NodeInput,
@@ -1081,6 +1126,7 @@ def group_convolution(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def group_convolution_backprop_data(
     data: NodeInput,
@@ -1146,6 +1192,7 @@ def group_convolution_backprop_data(
     return _get_node_factory_opset1().create("GroupConvolutionBackpropData", args, attributes)
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def hard_sigmoid(data: Node, alpha: NodeInput, beta: NodeInput, name: Optional[str] = None) -> Node:
     """Perform Hard Sigmoid operation element-wise on data from input node.
@@ -1165,6 +1212,7 @@ def hard_sigmoid(data: Node, alpha: NodeInput, beta: NodeInput, name: Optional[s
     return _get_node_factory_opset1().create("HardSigmoid", [data, as_node(alpha), as_node(beta)])
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def interpolate(
     image: Node, output_shape: NodeInput, attrs: dict, name: Optional[str] = None
@@ -1240,6 +1288,7 @@ def interpolate(
     return _get_node_factory_opset1().create("Interpolate", [image, as_node(output_shape)], attrs)
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def less(
     left_node: NodeInput,
@@ -1261,6 +1310,7 @@ def less(
     )
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def less_equal(
     left_node: NodeInput,
@@ -1283,6 +1333,7 @@ def less_equal(
     )
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def log(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies natural logarithm to the input node element-wise.
@@ -1294,6 +1345,7 @@ def log(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Log", [node])
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def logical_and(
     left_node: NodeInput,
@@ -1315,6 +1367,7 @@ def logical_and(
     )
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def logical_not(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies element-wise logical negation to the input node.
@@ -1326,6 +1379,7 @@ def logical_not(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("LogicalNot", [node])
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def logical_or(
     left_node: NodeInput,
@@ -1347,6 +1401,7 @@ def logical_or(
     )
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def logical_xor(
     left_node: NodeInput,
@@ -1368,6 +1423,7 @@ def logical_xor(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def lrn(
     data: NodeInput,
@@ -1392,6 +1448,7 @@ def lrn(
     return _get_node_factory_opset1().create("LRN", as_nodes(data, axes), attributes)
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def lstm_cell(
     X: NodeInput,
@@ -1456,6 +1513,7 @@ def lstm_cell(
     return _get_node_factory_opset1().create("LSTMCell", node_inputs, attributes)
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def lstm_sequence(
     X: NodeInput,
@@ -1535,6 +1593,7 @@ def lstm_sequence(
     return _get_node_factory_opset1().create("LSTMSequence", node_inputs, attributes)
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def matmul(
     data_a: NodeInput,
@@ -1557,6 +1616,7 @@ def matmul(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def max_pool(
     data: NodeInput,
@@ -1600,6 +1660,7 @@ def max_pool(
     )
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def maximum(
     left_node: NodeInput,
@@ -1613,6 +1674,7 @@ def maximum(
     )
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def minimum(
     left_node: NodeInput,
@@ -1626,6 +1688,7 @@ def minimum(
     )
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def mod(
     left_node: NodeInput,
@@ -1646,6 +1709,7 @@ def mod(
     )
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def multiply(
     left_node: NodeInput,
@@ -1659,12 +1723,14 @@ def multiply(
     )
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def negative(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies f(x) = -x to the input node elementwise."""
     return _get_node_factory_opset1().create("Negative", [node])
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def non_max_suppression(
     boxes: NodeInput,
@@ -1705,6 +1771,7 @@ def non_max_suppression(
     return _get_node_factory_opset1().create("NonMaxSuppression", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def normalize_l2(
     data: NodeInput, axes: NodeInput, eps: float, eps_mode: str, name: Optional[str] = None
@@ -1722,6 +1789,7 @@ def normalize_l2(
     )
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def not_equal(
     left_node: NodeInput,
@@ -1743,6 +1811,7 @@ def not_equal(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def one_hot(
     indices: NodeInput,
@@ -1770,6 +1839,7 @@ def one_hot(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def pad(
     arg: NodeInput,
@@ -1797,6 +1867,7 @@ def pad(
     return _get_node_factory_opset1().create("Pad", input_nodes, {"pad_mode": pad_mode})
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def parameter(
     shape: TensorShape, dtype: NumericType = np.float32, name: Optional[str] = None
@@ -1806,6 +1877,7 @@ def parameter(
     return Parameter(element_type, PartialShape(shape))
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def power(
     left_node: NodeInput,
@@ -1827,6 +1899,7 @@ def power(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def prelu(data: NodeInput, slope: NodeInput, name: Optional[str] = None) -> Node:
     """Perform Parametrized Relu operation element-wise on data from input node.
@@ -1848,6 +1921,7 @@ def prelu(data: NodeInput, slope: NodeInput, name: Optional[str] = None) -> Node
     return _get_node_factory_opset1().create("PRelu", as_nodes(data, slope))
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def prior_box_clustered(
     output_size: Node, image_size: NodeInput, attrs: dict, name: Optional[str] = None
@@ -1933,6 +2007,7 @@ def prior_box_clustered(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def prior_box(
     layer_shape: Node, image_shape: NodeInput, attrs: dict, name: Optional[str] = None
@@ -2047,6 +2122,7 @@ def prior_box(
     return _get_node_factory_opset1().create("PriorBox", [layer_shape, as_node(image_shape)], attrs)
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def proposal(
     class_probs: Node,
@@ -2182,6 +2258,7 @@ def proposal(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def psroi_pooling(
     input: NodeInput,
@@ -2221,6 +2298,7 @@ def psroi_pooling(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def range(start: Node, stop: NodeInput, step: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which produces the Range operation.
@@ -2234,6 +2312,7 @@ def range(start: Node, stop: NodeInput, step: NodeInput, name: Optional[str] = N
     return _get_node_factory_opset1().create("Range", as_nodes(start, stop, step))
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def relu(node: NodeInput, name: Optional[str] = None) -> Node:
     """Perform rectified linear unit operation on input node element-wise.
@@ -2245,6 +2324,7 @@ def relu(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Relu", [node])
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def reduce_logical_and(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
@@ -2262,6 +2342,7 @@ def reduce_logical_and(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def reduce_logical_or(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
@@ -2279,6 +2360,7 @@ def reduce_logical_or(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def reduce_max(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
@@ -2295,6 +2377,7 @@ def reduce_max(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def reduce_mean(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
@@ -2312,6 +2395,7 @@ def reduce_mean(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def reduce_min(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
@@ -2328,6 +2412,7 @@ def reduce_min(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def reduce_prod(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
@@ -2345,6 +2430,7 @@ def reduce_prod(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def reduce_sum(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
@@ -2362,6 +2448,7 @@ def reduce_sum(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def region_yolo(
     input: Node,
@@ -2408,6 +2495,7 @@ def region_yolo(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def reshape(
     node: NodeInput, output_shape: NodeInput, special_zero: bool, name: Optional[str] = None
@@ -2439,6 +2527,7 @@ def result(data: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Result", [data])
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def reverse_sequence(
     input: NodeInput,
@@ -2462,6 +2551,7 @@ def reverse_sequence(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def select(
     cond: NodeInput,
@@ -2489,6 +2579,7 @@ def select(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def selu(
     data: NodeInput, alpha: NodeInput, lambda_value: NodeInput, name: Optional[str] = None
@@ -2504,6 +2595,7 @@ def selu(
     return _get_node_factory_opset1().create("Selu", as_nodes(data, alpha, lambda_value))
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def shape_of(data: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which produces a tensor containing the shape of its input data.
@@ -2514,6 +2606,7 @@ def shape_of(data: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("ShapeOf", [as_node(data)])
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def sigmoid(data: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which applies the sigmoid function element-wise.
@@ -2524,6 +2617,7 @@ def sigmoid(data: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Sigmoid", [data])
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def sign(node: NodeInput, name: Optional[str] = None) -> Node:
     """Perform element-wise sign operation.
@@ -2536,6 +2630,7 @@ def sign(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Sign", [node])
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def sin(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply sine function on the input node element-wise.
@@ -2547,6 +2642,7 @@ def sin(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Sin", [node])
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def sinh(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply hyperbolic sine function on the input node element-wise.
@@ -2558,6 +2654,7 @@ def sinh(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Sinh", [node])
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     """Apply softmax operation on each element of input tensor.
@@ -2569,6 +2666,7 @@ def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Softmax", [as_node(data)], {"axis": axis})
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def space_to_depth(data: Node, mode: str, block_size: int = 1, name: str = None) -> Node:
     """Perform SpaceToDepth operation on the input tensor.
@@ -2592,6 +2690,7 @@ def space_to_depth(data: Node, mode: str, block_size: int = 1, name: str = None)
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def split(data: NodeInput, axis: NodeInput, num_splits: int, name: Optional[str] = None) -> Node:
     """Return a node which splits the input tensor into same-length slices.
@@ -2608,6 +2707,7 @@ def split(data: NodeInput, axis: NodeInput, num_splits: int, name: Optional[str]
     )
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def sqrt(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies square root to the input node element-wise.
@@ -2619,6 +2719,7 @@ def sqrt(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Sqrt", [node])
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def squared_difference(
     x1: NodeInput, x2: NodeInput, auto_broadcast: str = "NUMPY", name: Optional[str] = None
@@ -2639,6 +2740,7 @@ def squared_difference(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def squeeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> Node:
     """Perform squeeze operation on input tensor.
@@ -2664,6 +2766,7 @@ def squeeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> Nod
     return _get_node_factory_opset1().create("Squeeze", as_nodes(data, axes))
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def strided_slice(
     data: NodeInput,
@@ -2711,6 +2814,7 @@ def strided_slice(
     )
 
 
+## @ingroup ngraph_python_opset1
 @binary_op
 def subtract(
     left_node: NodeInput,
@@ -2732,6 +2836,7 @@ def subtract(
     )
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def tan(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply tangent function on the input node element-wise.
@@ -2743,6 +2848,7 @@ def tan(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Tan", [node])
 
 
+## @ingroup ngraph_python_opset1
 @unary_op
 def tanh(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies hyperbolic tangent to the input node element-wise.
@@ -2754,6 +2860,7 @@ def tanh(node: NodeInput, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset1().create("Tanh", [node])
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def tensor_iterator(
     inputs: List[Node],
@@ -2797,6 +2904,7 @@ def tensor_iterator(
     return _get_node_factory_opset1().create("TensorIterator", as_nodes(*inputs), attributes)
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def tile(data: NodeInput, repeats: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which dynamically repeats(replicates) the input data tensor.
@@ -2808,6 +2916,7 @@ def tile(data: NodeInput, repeats: NodeInput, name: Optional[str] = None) -> Nod
     return _get_node_factory_opset1().create("Tile", as_nodes(data, repeats))
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def topk(
     data: NodeInput,
@@ -2833,6 +2942,7 @@ def topk(
     )
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def transpose(data: NodeInput, input_order: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which transposes the data in the input tensor.
@@ -2844,6 +2954,7 @@ def transpose(data: NodeInput, input_order: NodeInput, name: Optional[str] = Non
     return _get_node_factory_opset1().create("Transpose", as_nodes(data, input_order))
 
 
+## @ingroup ngraph_python_opset1
 def unsqueeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> Node:
     """Perform unsqueeze operation on input tensor.
 
@@ -2862,6 +2973,7 @@ def unsqueeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> N
     return _get_node_factory_opset1().create("Unsqueeze", as_nodes(data, axes))
 
 
+## @ingroup ngraph_python_opset1
 @nameable_op
 def variadic_split(
     data: NodeInput, axis: NodeInput, split_lengths: NodeInput, name: Optional[str] = None

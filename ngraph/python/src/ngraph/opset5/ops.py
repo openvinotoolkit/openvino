@@ -1,6 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+
+## @defgroup ngraph_python_opset5 nGraph Python Opset5
+# nGraph Python Opset5
+# @ingroup ngraph_python_opsets
+
+
 """Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
@@ -45,6 +51,7 @@ _get_node_factory_opset5 = partial(_get_node_factory, "opset5")
 # -------------------------------------------- ops ------------------------------------------------
 
 
+## @ingroup ngraph_python_opset5
 @nameable_op
 def batch_norm_inference(
     data: NodeInput,
@@ -71,6 +78,7 @@ def batch_norm_inference(
     return _get_node_factory_opset5().create("BatchNormInference", inputs, {"epsilon": epsilon})
 
 
+## @ingroup ngraph_python_opset5
 @nameable_op
 def gather_nd(
     data: NodeInput,
@@ -94,6 +102,7 @@ def gather_nd(
     return _get_node_factory_opset5().create("GatherND", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset5
 @nameable_op
 def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     """Apply LogSoftmax operation on each element of input tensor.
@@ -105,6 +114,7 @@ def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     return _get_node_factory_opset5().create("LogSoftmax", [as_node(data)], {"axis": axis})
 
 
+## @ingroup ngraph_python_opset5
 @nameable_op
 def non_max_suppression(
     boxes: NodeInput,
@@ -157,6 +167,7 @@ def non_max_suppression(
     return _get_node_factory_opset5().create("NonMaxSuppression", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset5
 @nameable_op
 def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = None) -> Node:
     """Apply Round operation on each element of input tensor.
@@ -171,6 +182,7 @@ def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = Non
     return _get_node_factory_opset5().create("Round", as_nodes(data), {"mode": mode.upper()})
 
 
+## @ingroup ngraph_python_opset5
 @nameable_op
 def lstm_sequence(
         X: NodeInput,
@@ -235,6 +247,7 @@ def lstm_sequence(
     return _get_node_factory_opset5().create("LSTMSequence", node_inputs, attributes)
 
 
+## @ingroup ngraph_python_opset5
 def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
     """Return a node which performs HSigmoid.
 
@@ -244,6 +257,7 @@ def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
     return _get_node_factory_opset5().create("HSigmoid", as_nodes(data), {})
 
 
+## @ingroup ngraph_python_opset5
 @nameable_op
 def gru_sequence(
         X: NodeInput,
@@ -308,6 +322,7 @@ def gru_sequence(
     return _get_node_factory_opset5().create("GRUSequence", node_inputs, attributes)
 
 
+## @ingroup ngraph_python_opset5
 @nameable_op
 def rnn_sequence(
         X: NodeInput,
@@ -368,6 +383,7 @@ def rnn_sequence(
     return _get_node_factory_opset5().create("RNNSequence", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset5
 @nameable_op
 def loop(
     trip_count: NodeInput,

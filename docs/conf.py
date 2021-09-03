@@ -40,14 +40,9 @@ extensions = [
     'sphinx_inline_tabs',
     'sphinx_copybutton',
     'doxyrest',
-    'cpplexer',
-    'nbsphinx'
+    'cpplexer'
 ]
 
-nbsphinx_allow_errors = True
-nbsphinx_execute = 'never'
-
-nbsphinx_allow_errors = True
 html_logo = '_static/logo.svg'
 
 # Add any paths that contain templates here, relative to this directory.

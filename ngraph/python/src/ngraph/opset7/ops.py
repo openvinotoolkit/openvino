@@ -1,6 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+
+## @defgroup ngraph_python_opset7 nGraph Python Opset7
+# nGraph Python Opset7
+# @ingroup ngraph_python_opsets
+
+
 """Factory functions for all ngraph ops."""
 from functools import partial
 from typing import Callable, Iterable, List, Optional, Set, Union
@@ -45,6 +51,7 @@ _get_node_factory_opset7 = partial(_get_node_factory, "opset7")
 # -------------------------------------------- ops ------------------------------------------------
 
 
+## @ingroup ngraph_python_opset7
 @nameable_op
 def einsum(
         inputs: List[Node],
@@ -63,6 +70,7 @@ def einsum(
     return _get_node_factory_opset7().create("Einsum", as_nodes(*inputs), attributes)
 
 
+## @ingroup ngraph_python_opset7
 @nameable_op
 def gelu(
         data: Node,
@@ -85,6 +93,7 @@ def gelu(
     return _get_node_factory_opset7().create("Gelu", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset7
 @nameable_op
 def roll(
         data: NodeInput,
@@ -103,6 +112,7 @@ def roll(
     return _get_node_factory_opset7().create("Roll", inputs)
 
 
+## @ingroup ngraph_python_opset7
 @nameable_op
 def gather(
         data: NodeInput,
@@ -125,6 +135,7 @@ def gather(
     return _get_node_factory_opset7().create("Gather", inputs, attributes)
 
 
+## @ingroup ngraph_python_opset7
 def dft(
         data: NodeInput,
         axes: NodeInput,
@@ -145,6 +156,7 @@ def dft(
     return _get_node_factory_opset7().create("DFT", inputs)
 
 
+## @ingroup ngraph_python_opset7
 @nameable_op
 def idft(
         data: NodeInput,

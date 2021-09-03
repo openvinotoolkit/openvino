@@ -118,7 +118,7 @@ function(build_docs)
     configure_file(${DOXYREST_CONFIG_IN} ${DOXYREST_CONFIG_OUT} @ONLY)
     configure_file(${SPHINX_CONF_IN} ${SPHINX_CONF_OUT} @ONLY)
 
-    if(EXISTS "${NGRAPH_PYTHON_BUILD_ENABLE}")
+    if(NGRAPH_PYTHON_BUILD_ENABLE)
         # pyngraph dirs
         set(PYNGRAPH_API_OUTPUT "${DOCS_BUILD_DIR}/pyngraph")
         set(OPENVINO_BIN_DIR "${OpenVINO_MAIN_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/")
@@ -156,9 +156,9 @@ function(build_docs)
         get_filename_component(OMZ_DOCS_DIR "${OMZ_DOCS_DIR}" ABSOLUTE)
         list(APPEND commands
         COMMAND ${PYTHON_EXECUTABLE} ${OMZ_DOCS_DIR}/ci/prepare-documentation.py ${OMZ_DOCS_DIR}/omz)
-        list(APPEND commands COMMAND ${DOXY_MD_FILTER}
-            --input_dir="${OMZ_DOCS_DIR}/omz"
-            --output_dir="${DOCS_BUILD_DIR}/omz")
+        list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
+            --input_dir=${OMZ_DOCS_DIR}/omz
+            --output_dir=${DOCS_BUILD_DIR}/omz)
     endif()
 
     # workbench doc files
@@ -166,8 +166,8 @@ function(build_docs)
         get_filename_component(WORKBENCH_DOCS_DIR "${WORKBENCH_DOCS_DIR}" ABSOLUTE)
 
         list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
-            --input_dir="${WORKBENCH_DOCS_DIR}"
-            --output_dir="${DOCS_BUILD_DIR}/workbench")
+            --input_dir=${WORKBENCH_DOCS_DIR}
+            --output_dir=${DOCS_BUILD_DIR}/workbench)
     endif()
 
     # pot doc files
@@ -175,15 +175,15 @@ function(build_docs)
         get_filename_component(POT_DOCS_DIR "${POT_DOCS_DIR}" ABSOLUTE)
 
         list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
-        --input_dir="${POT_DOCS_DIR}"
-        --output_dir="${DOCS_BUILD_DIR}/pot")
+        --input_dir=${POT_DOCS_DIR}
+        --output_dir=${DOCS_BUILD_DIR}/pot)
     endif()
 
     # gst doc files
     if(EXISTS "${GST_DOCS_DIR}")
         get_filename_component(GST_DOCS_DIR "${GST_DOCS_DIR}" ABSOLUTE)
         list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
-        --input_dir="${GST_DOCS_DIR}"
+        --input_dir=${GST_DOCS_DIR}
         --output_dir=${DOCS_BUILD_DIR}/gst)
     endif()
 
