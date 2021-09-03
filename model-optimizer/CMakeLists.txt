@@ -51,6 +51,6 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/unit_tests
         EXCLUDE_FROM_ALL)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/automation
-        DESTINATION deployment_tools/model_optimizer
+        DESTINATION tools/model_optimizer
         COMPONENT tests
         EXCLUDE_FROM_ALL)
