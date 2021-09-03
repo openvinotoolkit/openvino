@@ -14,7 +14,7 @@
 using namespace ngraph;
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(op::v1::LogicalNot, "LogicalNot", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::LogicalNot, "LogicalNot", 1);
 
 op::v1::LogicalNot::LogicalNot(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
