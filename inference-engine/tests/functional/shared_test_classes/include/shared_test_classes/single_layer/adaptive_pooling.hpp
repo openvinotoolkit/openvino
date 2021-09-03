@@ -17,7 +17,7 @@ using adapoolParams = std::tuple<
 class AdaPoolLayerTest : public testing::WithParamInterface<adapoolParams>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<adapoolParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<adapoolParams>& obj);
 
 protected:
     void SetUp() override;
