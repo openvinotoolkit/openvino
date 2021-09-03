@@ -3,17 +3,15 @@
 //
 
 #include <gtest/gtest.h>
-
 #include <ie_core.hpp>
-#include <legacy/net_pass.h>
-#include "common_test_utils/common_utils.hpp"
+#include "ngraph/ops.hpp"
 
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 
 class LocaleTests : public ::testing::Test {
-    std::string originalLocale;
+std::string originalLocale;
 std::string _model = R"V0G0N(
 <net name="model" version="10">
 	<layers>
@@ -231,17 +229,23 @@ protected:
         blob->allocate();
         auto net = core.ReadNetwork(model, blob);
 
-        auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(net);
+        auto funcs = net.getFunction();
 
-        if (!isLSTM) {
-            auto roialign_layer = CommonTestUtils::getLayerByName(InferenceEngine::CNNNetwork(convertedNetwork), "output");
-            ASSERT_EQ(roialign_layer->GetParamAsString("pooled_h"), "7");
-            ASSERT_EQ(roialign_layer->GetParamAsString("pooled_w"), "7");
-            ASSERT_EQ(roialign_layer->GetParamAsString("sampling_ratio"), "2");
-            ASSERT_EQ(roialign_layer->GetParamAsFloat("spatial_scale"), 0.25f);
-        } else {
-            auto lstmcell_layer = CommonTestUtils::getLayerByName(InferenceEngine::CNNNetwork(convertedNetwork), "LSTMCell");
-            ASSERT_EQ(lstmcell_layer->GetParamAsFloat("clip"), 0.0f);
+        for (const auto & op : funcs->get_ops()) {
+            if (!isLSTM){
+                if (op->get_friendly_name() == "output") {
+                    const auto roi = std::dynamic_pointer_cast<ngraph::op::v3::ROIAlign>(op);
+                    ASSERT_EQ(roi->get_pooled_h(), 7);
+                    ASSERT_EQ(roi->get_pooled_w(), 7);
+                    ASSERT_EQ(roi->get_sampling_ratio(), 2);
+                    ASSERT_EQ(roi->get_spatial_scale(), 0.25f);
+                }
+            } else {
+                if (op->get_friendly_name() == "LSTMCell") {
+                    const auto lstm_seq = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(op);
+                    ASSERT_EQ(lstm_seq->get_clip(), 0.0f);
+                }
+            }
         }
     }
 };
