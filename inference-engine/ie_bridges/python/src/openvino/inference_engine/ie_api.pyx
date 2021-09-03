@@ -304,7 +304,7 @@ cdef class IECore:
         return versions
 
     ## Reads a network from Intermediate Representation (IR) or ONNX formats and creates an `IENetwork`.
-    #  @param model: A `.xml`, `.onnx`or `.prototxt` model file or string with IR.
+    #  @param model: A `.xml` or `.onnx` model file or string with IR.
     #  @param weights: A `.bin` file of the IR. Depending on `init_from_buffer` value, can be a string path or
     #                  bytes with file content.
     #  @param init_from_buffer: Defines the way of how `model` and `weights` attributes are interpreted.

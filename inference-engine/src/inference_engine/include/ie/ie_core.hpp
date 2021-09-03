@@ -59,7 +59,7 @@ public:
      * For IR format (*.bin):
      *  * if path is empty, will try to read bin file with the same name as xml and
      *  * if bin file with the same name was not found, will load IR without weights.
-     * For ONNX format (*.onnx or *.prototxt):
+     * For ONNX format (*.onnx):
      *  * binPath parameter is not used.
      * @return CNNNetwork
      */
@@ -73,7 +73,7 @@ public:
      * For IR format (*.bin):
      *  * if path is empty, will try to read bin file with the same name as xml and
      *  * if bin file with the same name was not found, will load IR without weights.
-     * For ONNX format (*.onnx or *.prototxt):
+     * For ONNX format (*.onnx):
      *  * binPath parameter is not used.
      * @return CNNNetwork
      */
