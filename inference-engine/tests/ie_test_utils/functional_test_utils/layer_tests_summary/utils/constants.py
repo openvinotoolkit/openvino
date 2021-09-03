@@ -78,6 +78,7 @@ VERIFIED_OP_REFERENCES = [
     'NonMaxSuppression-5',
     'NonZero-3',
     'NormalizeL2-1',
+    'NotEqual-1'
     'PriorBox-1',
     'PriorBoxClustered-1',
     'Proposal-1',
