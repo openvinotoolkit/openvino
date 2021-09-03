@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/or.hpp"
-
 #include "itt.hpp"
+#include "ngraph/op/or.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/or.hpp"
 #include "ngraph/validation_util.hpp"
