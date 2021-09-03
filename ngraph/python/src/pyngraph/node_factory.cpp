@@ -18,8 +18,8 @@
 
 #include "dict_attribute_visitor.hpp"
 #include "ngraph/check.hpp"
-#include "ngraph/log.hpp"
 #include "ngraph/except.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/util/variable.hpp"
@@ -65,7 +65,6 @@ public:
         return op_node;
     }
 
-
 private:
     const ngraph::OpSet& get_opset(std::string opset_ver) {
         std::locale loc;
@@ -97,7 +96,6 @@ private:
     std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> m_variables;
 };
 }  // namespace
-
 
 void regclass_pyngraph_NodeFactory(py::module m) {
     py::class_<NodeFactory> node_factory(m, "NodeFactory");
