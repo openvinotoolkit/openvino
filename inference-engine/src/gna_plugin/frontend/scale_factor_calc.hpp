@@ -19,6 +19,7 @@
 #include "gna_slope_scale.h"
 #include "runtime/pwl.h"
 #include "gna_data_types.hpp"
+#include "round_float_define.hpp"
 
 namespace GNAPluginNS {
 namespace frontend {
@@ -36,13 +37,24 @@ struct ScaleFactorUpdateResult {
 };
 
 /**
+* @brief Calculates a scale factor from FakeQuantize statistics according to the formula:
+* scale factor = max representable value / max absolute input value
+* @param levels Number of integer quants
+* @param minValue Minimum value to be quantized
+* @param maxValue Maximum value to be quantized
+*/
+inline float CalculateScaleFactorFromStats(size_t levels, float minValue, float maxValue) {
+    return maxValue == minValue ? 1.0f : (levels - 1) / (maxValue - minValue);
+}
+
+/**
  * @brief Compares two float values and returns if they are equal
  * @param p1 First float value
  * @param p2 Second float value
  * @return Returns true if two float values are equal
  */
-static bool fp32eq(float p1, float p2) {
-    return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+static bool fp32eq(float p1, float p2, float accuracy = 0.00001f) {
+    return (std::abs(p1 - p2) <= accuracy * std::min(std::abs(p1), std::abs(p2)));
 }
 
 /**
@@ -73,14 +85,14 @@ static float selectBestOutputScaleFactors(float inScale, std::vector<float> outS
         auto sd = 0.0;
         for (size_t j = 0; j < slopes.size(); ++j) {
             auto s = gna_slope(slopes[j], inScale, outScale);
-            auto slope = static_cast<uint32_t>(s.slope * s.slope_scale);
-            if (slope < static_cast<uint32_t>(std::numeric_limits<int16_t>::min()) && slope > static_cast<uint32_t>(std::numeric_limits<int16_t>::max())) {
+            auto slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
+            if (slope < std::numeric_limits<int16_t>::min() || slope > std::numeric_limits<int16_t>::max()) {
                 sd += std::numeric_limits<int8_t>::max();
                 continue;
             }
 
             auto testSlope = static_cast<double>(slope) / s.slope_scale * inScale / outScale;
-            if (fp32eq(testSlope, slopes[j])) {
+            if (fp32eq(testSlope, slopes[j], 1.0E-6)) {
                 return outScale;
             }
 
@@ -371,7 +383,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             auto maxOutValue = quantizedParams->_dst_quant.GetMaxValues().front();
             auto absMax = std::max(std::abs(minOutValue), std::abs(maxOutValue));
 
-            result = (quantizedParams->_dst_quant.GetLevels() - 1) / (maxOutValue - minOutValue);
+            result = CalculateScaleFactorFromStats(quantizedParams->_dst_quant.GetLevels(), minOutValue, maxOutValue);
             if (std::isinf(result) || fp32eq(absMax, 0.0f)) {
                 result = max_activation_scale_factor;
             }
@@ -451,7 +463,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             if (CNNNetHasPrevLayer(cnnLayer) && quant->_dst_quant.IsStatsSet() && !quant->_dst_quant.IsScaleSet()) {
                 auto minOutValue = quant->_dst_quant.GetMinValues().front();
                 auto maxOutValue = quant->_dst_quant.GetMaxValues().front();
-                auto scale = (quant->_dst_quant.GetLevels() - 1) / (maxOutValue - minOutValue);
+                auto scale = CalculateScaleFactorFromStats(quant->_dst_quant.GetLevels(), minOutValue, maxOutValue);
                 quant->_dst_quant.SetScale(scale);
                 quant->_src_quant = quant->_dst_quant;
             }
@@ -1025,7 +1037,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
 
                 quantDataForConCatInput->_dst_quant.SetScale(newScaleFactor);
             } else if (restarLayerInfo.isConst() || restarLayerInfo.isMemory()) {
-                gnalog() << "... warning " <<  restartedLayer->type << " layer will be requantized\n";
+                gnalog() << "... warning " << restartedLayer->type << " layer will be requantized\n";
                 quantDataForConCatInput->_src_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
                 quantDataForConCatInput->_dst_quant.SetScale(sourceQuantParams->_dst_quant.GetScale());
             } else {
@@ -1067,8 +1079,8 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
         quant->_src_quant = quantDataForInputLayer->_dst_quant;
         if (quant->_weights_quant.IsStatsSet() && !quant->_weights_quant.IsScaleSet()) {
             auto getScale = [&quant](size_t i) {
-                auto valuesDiff = quant->_weights_quant.GetMaxValues(false)[i] - quant->_weights_quant.GetMinValues(false)[i];
-                return valuesDiff == 0 ? 1.0f : (quant->_weights_quant.GetLevels() - 1) / valuesDiff;
+                return CalculateScaleFactorFromStats(quant->_weights_quant.GetLevels(),
+                    quant->_weights_quant.GetMinValues(false)[i], quant->_weights_quant.GetMaxValues(false)[i]);
             };
 
             float min_channel_scale = getScale(0);
@@ -1221,9 +1233,8 @@ public:
         quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
         if (quantData->_src_quant.IsStatsSet()) {
             auto getScale = [&quantParams0](size_t i) {
-                return (quantParams0->_dst_quant.GetLevels() - 1) /
-                       (quantParams0->_dst_quant.GetMaxValues(false)[i] -
-                        quantParams0->_dst_quant.GetMinValues(false)[i]);
+                return CalculateScaleFactorFromStats(quantParams0->_dst_quant.GetLevels(),
+                    quantParams0->_dst_quant.GetMinValues(false)[i], quantParams0->_dst_quant.GetMaxValues(false)[i]);
             };
             float min_channel_scale = getScale(0);
             quantParams0->_dst_quant.SetScale(min_channel_scale);

@@ -7,26 +7,27 @@
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
-namespace ngraph
-{
-    namespace onnx_import
-    {
-        namespace op
-        {
-            namespace set_1
-            {
-                OutputVector quantize_linear(const Node& node);
+namespace ngraph {
+namespace onnx_import {
+namespace op {
+namespace detail {
+std::shared_ptr<ngraph::Node> make_fake_quantize(const Output<ngraph::Node>& y_scale,
+                                                 const Output<ngraph::Node>& y_zero_point,
+                                                 const Output<ngraph::Node>& data);
+}
+namespace set_1 {
+OutputVector quantize_linear(const Node& node);
 
-            } // namespace set_1
+}  // namespace set_1
 
-            namespace set_13
-            {
-                OutputVector quantize_linear(const Node& node);
+namespace set_13 {
 
-            } // namespace set_13
+OutputVector quantize_linear(const Node& node);
 
-        } // namespace op
+}  // namespace set_13
 
-    } // namespace onnx_import
+}  // namespace op
 
-} // namespace ngraph
+}  // namespace onnx_import
+
+}  // namespace ngraph

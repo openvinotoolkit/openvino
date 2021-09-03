@@ -139,11 +139,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(output)};
     ngraph::ParameterVector parameters;
     if (constInput == -1) {
-        parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1), as_type_ptr<ngraph::opset1::Parameter>(input2) };
+        parameters = { ov::as_type_ptr<ngraph::opset1::Parameter>(input1), ov::as_type_ptr<ngraph::opset1::Parameter>(input2) };
     } else if (constInput == 0) {
-        parameters = { as_type_ptr<ngraph::opset1::Parameter>(input2) };
+        parameters = { ov::as_type_ptr<ngraph::opset1::Parameter>(input2) };
     } else if (constInput == 1) {
-        parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1) };
+        parameters = { ov::as_type_ptr<ngraph::opset1::Parameter>(input1) };
     } else {
         throw std::runtime_error("Unexpected constant input index");
     }
@@ -226,7 +226,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
 
     auto dequantizationStructure1 = dequantization1;
     dequantizationStructure1.multiply.outPrecision = dequantizationAfter.empty() ? precision : element::f32;
-    const auto dequantizationOp1 = is_type<ngraph::opset1::Constant>(parent1) ? parent1 : makeDequantization(parent1, dequantizationStructure1);
+    const auto dequantizationOp1 = ov::is_type<ngraph::opset1::Constant>(parent1) ? parent1 : makeDequantization(parent1, dequantizationStructure1);
 
     std::shared_ptr<ngraph::Node> input2;
     if (constInputIndex == 1) {
@@ -292,7 +292,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
 
     auto dequantizationStructure2 = dequantization2;
     dequantizationStructure2.multiply.outPrecision = dequantizationAfter.empty() ? precision : element::f32;
-    const auto dequantizationOp2 = is_type<ngraph::opset1::Constant>(parent) ? parent : makeDequantization(parent, dequantizationStructure2);
+    const auto dequantizationOp2 = ov::is_type<ngraph::opset1::Constant>(parent) ? parent : makeDequantization(parent, dequantizationStructure2);
 
     const std::shared_ptr<Node> add = operationType == "Add" ?
         std::dynamic_pointer_cast<Node>(std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Add>>(
@@ -300,7 +300,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
             std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get())) :
-        std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(
+        std::make_shared<ngraph::op::TypeRelaxed<opset1::Subtract>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(dequantizationOp1, element::f32).get(),
@@ -325,11 +325,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
 
     ngraph::ParameterVector parameters;
     if (constInputIndex == -1) {
-        parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1), as_type_ptr<ngraph::opset1::Parameter>(input2) };
+        parameters = { ov::as_type_ptr<ngraph::opset1::Parameter>(input1), ov::as_type_ptr<ngraph::opset1::Parameter>(input2) };
     } else if (constInputIndex == 0) {
-        parameters = { as_type_ptr<ngraph::opset1::Parameter>(input2) };
+        parameters = { ov::as_type_ptr<ngraph::opset1::Parameter>(input2) };
     } else if (constInputIndex == 1) {
-        parameters = { as_type_ptr<ngraph::opset1::Parameter>(input1) };
+        parameters = { ov::as_type_ptr<ngraph::opset1::Parameter>(input1) };
     } else {
         throw std::runtime_error("Unexpected constant input index");
     }

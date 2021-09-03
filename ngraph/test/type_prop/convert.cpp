@@ -9,8 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, convert_deduce)
-{
+TEST(type_prop, convert_deduce) {
     // Deduce type
     auto param = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4});
     auto c = make_shared<op::Convert>(param, element::i32);

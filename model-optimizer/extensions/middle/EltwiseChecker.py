@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import shape_insert
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import get_tensor_in_port, get_value_in_port
 from mo.middle.replacement import MiddleReplacementPattern
@@ -57,7 +58,7 @@ class EltwiseChecker(MiddleReplacementPattern):
             self.set_flags_to_false(node, ['can_be_scaleshift'])
             return
 
-        broadcasted_value_shape = np.insert(value_shape, 0, [1] * (len(tensor_shape) - len(value_shape)))
+        broadcasted_value_shape = shape_insert(value_shape, 0, [1] * (len(tensor_shape) - len(value_shape)))
 
         feature_dim = min(1, tensor_shape.size - 1) if node.graph.graph['layout'] == 'NCHW' else -1
         if feature_channel is not None:

@@ -3,13 +3,17 @@
 //
 
 #include "mkldnn_graph_dumper.h"
+
+#include "utils/debug_capabilities.h"
 #include <ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
 #include "ie_common.h"
 #include "mkldnn_debug.h"
 #include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
-#include "utils/debug_capabilities.h"
+#include <ngraph/pass/manager.hpp>
+#include <transformations/serialize.hpp>
+
 #include <vector>
 #include <string>
 #include <memory>
@@ -109,7 +113,7 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
 }  // namespace
 
-InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
+std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
     std::map<MKLDNNNodePtr, std::shared_ptr<ngraph::Node> > node2layer;
 
     ngraph::ResultVector results;
@@ -200,9 +204,7 @@ InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph
         holder->add_control_dependency(node);
     }
 
-    auto function = std::make_shared<ngraph::Function>(results, params, graph._name);
-    InferenceEngine::CNNNetwork net(function);
-    return net;
+    return std::make_shared<ngraph::Function>(results, params, graph._name);
 }
 
 #ifdef CPU_DEBUG_CAPS
@@ -224,7 +226,12 @@ void serializeToXML(const MKLDNNGraph &graph, const std::string& path) {
     if (path.empty())
         return;
 
-    graph.dump().serialize(path);
+    std::string binPath;
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::Serialize>(path,
+                                                   binPath,
+                                                   ngraph::pass::Serialize::Version::IR_V10);
+    manager.run_passes(graph.dump());
 }
 
 void serializeToCout(const MKLDNNGraph &graph) {

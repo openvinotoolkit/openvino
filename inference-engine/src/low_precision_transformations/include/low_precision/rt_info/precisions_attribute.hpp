@@ -34,11 +34,14 @@ public:
     static const std::vector<ngraph::element::Type> defaultPrecisions;
     PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions = defaultPrecisions);
 };
+} // namespace ngraph
 
-extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<std::shared_ptr<PrecisionsAttribute>>;
+namespace ov {
+
+extern template class LP_TRANSFORMATIONS_API ngraph::VariantImpl<std::shared_ptr<ngraph::PrecisionsAttribute>>;
 
 template<>
-class LP_TRANSFORMATIONS_API VariantWrapper<std::shared_ptr<PrecisionsAttribute>> : public VariantImpl<std::shared_ptr<PrecisionsAttribute>> {
+class LP_TRANSFORMATIONS_API VariantWrapper<std::shared_ptr<ngraph::PrecisionsAttribute>> : public VariantImpl<std::shared_ptr<ngraph::PrecisionsAttribute>> {
 public:
     static constexpr VariantTypeInfo type_info{ "LowPrecision::Precisions", 0 };
 
@@ -50,15 +53,16 @@ public:
 
     std::shared_ptr<Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
 
-    std::shared_ptr<PrecisionsAttribute> get() { return this->m_value; }
+    std::shared_ptr<ngraph::PrecisionsAttribute> get() { return this->m_value; }
 
     // create attribute instance for node
-    static std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>> create(
+    static std::shared_ptr<VariantWrapper<std::shared_ptr<ngraph::PrecisionsAttribute>>> create(
         const std::shared_ptr<ngraph::Node>& node,
         const AttributeParameters& params);
     // merge attribute instances which can be got from different sources: node, input port or output port
-    void merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>>& attributes);
+    void merge(std::vector<std::shared_ptr<VariantWrapper<std::shared_ptr<ngraph::PrecisionsAttribute>>>>& attributes);
     // vizualize shared attributes details in VizualizeTree pass
     std::string to_string() override;
 };
-} // namespace ngraph
+
+}  // namespace ov

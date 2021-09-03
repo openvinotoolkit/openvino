@@ -8,11 +8,11 @@ set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
-    message(STATUS "unit tests disabled")
+    message(STATUS "nGraph unit tests disabled")
     return()
 endif()
 
-message(STATUS "unit tests enabled")
+message(STATUS "nGraph unit tests enabled")
 
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
@@ -62,10 +62,6 @@ set(SRC
     op_eval/memory.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
-    op_eval/reduce_max.cpp
-    op_eval/reduce_min.cpp
-    op_eval/reduce_prod.cpp
-    op_eval/reduce_sum.cpp
     op_eval/roi_align.cpp
     op_eval/roi_pooling.cpp
     op_eval/round.cpp
@@ -95,6 +91,7 @@ set(SRC
     type_prop/asinh.cpp
     type_prop/assign.cpp
     type_prop/atan.cpp
+    type_prop/atanh.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
@@ -114,6 +111,7 @@ set(SRC
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
+    type_prop/cum_sum.cpp
     type_prop/deformable_convolution.cpp
     type_prop/deformable_convolution_opset8.cpp
     type_prop/deformable_psroi_pooling.cpp
@@ -142,6 +140,7 @@ set(SRC
     type_prop/gather_elements.cpp
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
+    type_prop/gelu.cpp
     type_prop/grn.cpp
     type_prop/group_convolution.cpp
     type_prop/group_convolution_backprop_data.cpp
@@ -153,7 +152,9 @@ set(SRC
     type_prop/idft.cpp
     type_prop/interpolate.cpp
     type_prop/logical_and.cpp
+    type_prop/logical_not.cpp
     type_prop/logical_or.cpp
+    type_prop/logical_xor.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
@@ -241,6 +242,7 @@ set(SRC
     visitors/op/add.cpp
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
+    visitors/op/atanh.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
     visitors/op/broadcast.cpp
@@ -251,6 +253,7 @@ set(SRC
     visitors/op/convolution_backprop.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp
+    visitors/op/ctc_loss.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_convolution.cpp
     visitors/op/deformable_psroi_pooling.cpp
@@ -276,6 +279,7 @@ set(SRC
     visitors/op/log.cpp
     visitors/op/logical_and.cpp
     visitors/op/logical_or.cpp
+    visitors/op/logical_not.cpp
     visitors/op/logical_xor.cpp
     visitors/op/lrn.cpp
     visitors/op/lstm_cell.cpp
@@ -322,6 +326,7 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/scatter_elements_update.cpp
     visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
@@ -403,7 +408,6 @@ set(MULTI_TEST_SRC
     backend/asin.in.cpp
     backend/asinh.in.cpp
     backend/atan.in.cpp
-    backend/atanh.in.cpp
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
@@ -423,7 +427,6 @@ set(MULTI_TEST_SRC
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
-    backend/cum_sum.in.cpp
     backend/deformable_psroi_pooling.in.cpp
     backend/detection_output.in.cpp
     backend/dft.in.cpp
@@ -444,7 +447,6 @@ set(MULTI_TEST_SRC
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
-    backend/fused_op.in.cpp
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
@@ -456,8 +458,6 @@ set(MULTI_TEST_SRC
     backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/log_softmax.in.cpp
-    backend/logical_not.in.cpp
-    backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
@@ -486,19 +486,11 @@ set(MULTI_TEST_SRC
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/recurrent_cells.in.cpp
-    backend/reduce_l1.in.cpp
-    backend/reduce_l2.in.cpp
-    backend/reduce_max.in.cpp
-    backend/reduce_mean.in.cpp
-    backend/reduce_min.in.cpp
-    backend/reduce_prod.in.cpp
-    backend/reduce_sum.in.cpp
     backend/region_yolo.in.cpp
     backend/relu.in.cpp
     backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp
     backend/result.in.cpp
-    backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
     backend/round.in.cpp
@@ -559,9 +551,16 @@ endif()
 
 # SOURCE FOR FRONTEND TESTING
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
-set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
-add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
+foreach(src IN LISTS SRC MULTI_TEST_SRC)
+    if(IS_ABSOLUTE "${src}")
+        list(APPEND full_src_names ${src})
+    else()
+        list(APPEND full_src_names "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+    endif()
+endforeach()
+add_clang_format_target(unit-test_clang FOR_SOURCES ${full_src_names})
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
