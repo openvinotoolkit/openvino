@@ -148,27 +148,37 @@ void run_philox(uint64_t key, uint64_t counter, uint64_t n, size_t n_rounds, std
 }
 
 // Implementation of RandomUniform that uses Philox algorithm as inner random unsigned integer generator.
-void random_uniform(const uint64_t* out_shape,
+std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                     const char* min_val,
                     const char* max_val,
                     char* out,
                     const Shape& out_shape_shape,
                     const ngraph::element::Type& elem_type,
                     uint64_t seed,
-                    uint64_t seed2) {
+                    uint64_t seed2,
+                    std::pair<uint64_t, uint64_t> prev_state) {
     if (seed == 0 && seed2 == 0) {
         std::srand(std::time(nullptr));
         seed = std::rand();
     }
+    uint64_t n_state = prev_state.first;
+    uint64_t counter_state = prev_state.second;
+
+    // Init Philox key and counters
     uint64_t key = seed;
-    uint64_t counter = seed2;
-    uint64_t n = 0;
+    uint64_t counter = counter_state > 0 ? counter_state : seed2;
+    uint64_t n = n_state;
+
+    // Calculate total element count for generation
     size_t shape_count = shape_size(out_shape_shape);
     size_t elem_count = 1;
-    const size_t philox_output_size = 4;
     for (size_t i = 0; i < shape_count; i++) {
         elem_count *= out_shape[i];
     }
+
+    // Philox algorithm returns 4 elements of RNG sequence per each invocation
+    const size_t philox_output_size = 4;
+
     // Each run of Philox algorithm generates 4 uint32 values.
     // If output_type is int32, f32, bf16, or f16 each value is converted to
     // corresponding type so we have 4 result values. For f64 and i64 we use
@@ -278,6 +288,14 @@ void random_uniform(const uint64_t* out_shape,
         if (++n == 0)
             ++counter;
     }
+
+    // Calculate counter values for next RandomUniform run
+    uint64_t skip_count = elem_count * skip_const;
+    n_state += skip_count;
+    if (n_state < skip_count)
+        counter_state++;
+
+    return {n_state, counter_state};
 }
 
 }  // namespace reference
