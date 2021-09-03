@@ -116,7 +116,7 @@ Options:
                         Optional. Weight bits for quantization: 8 or 16
                         (default 16).
   -sf SCALE_FACTOR, --scale_factor SCALE_FACTOR
-                        Optional. User-specified input scale factor for
+                        Optional. The user-specified input scale factor for
                         quantization.
   -wg EXPORT_GNA_MODEL, --export_gna_model EXPORT_GNA_MODEL
                         Optional. Write GNA model to file using path/filename
