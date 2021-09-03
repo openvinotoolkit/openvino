@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::ReduceSum, "ReduceSum", 1, util::ArithmeticReductionKeepDims);
+OPENVINO_RTTI_DEFINITION(op::v1::ReduceSum, "ReduceSum", 1, util::ArithmeticReductionKeepDims);
 
 op::v1::ReduceSum::ReduceSum(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
