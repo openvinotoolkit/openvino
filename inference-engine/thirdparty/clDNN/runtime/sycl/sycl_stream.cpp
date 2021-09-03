@@ -57,7 +57,6 @@ event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
     }
 
     try {
-
         auto event = _command_queue.submit([&](cl::sycl::handler &cgh) {
             cgh.depends_on(dep_events);
             using args_t = argument_desc::Types;
@@ -270,7 +269,6 @@ event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
         std::cerr << "EXEC FAILS: " << e.what() << std::endl;
         throw;
     }
-
 }
 
 void sycl_stream::enqueue_barrier() {
@@ -303,14 +301,6 @@ event::ptr sycl_stream::create_user_event(bool set) {
 
 event::ptr sycl_stream::create_base_event() {
     return std::make_shared<sycl_event>(_engine.get_sycl_context());
-}
-
-void sycl_stream::reset_events() {
-    // throw std::runtime_error("stream method is not implemented");
-}
-
-void sycl_stream::release_events_pool() {
-    throw std::runtime_error("stream method is not implemented");
 }
 
 void sycl_stream::flush() const { }

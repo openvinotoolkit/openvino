@@ -23,6 +23,10 @@ bool sycl_event::is_set_impl() {
     return _event.get_info<cl::sycl::info::event::command_execution_status>() == cl::sycl::info::event_command_status::complete;
 }
 
+void sycl_event::set_impl() {
+    wait_impl();
+}
+
 bool sycl_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
     return true;
 }

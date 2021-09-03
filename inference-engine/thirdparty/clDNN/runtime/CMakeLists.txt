@@ -7,29 +7,13 @@
 set(CLDNN_BUILD__PROJ             "cldnn_runtime")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
 
-if((CMAKE_C_COMPILER_ID MATCHES "^Clang$") OR (CMAKE_CXX_COMPILER_ID MATCHES "^Clang$"))
-  intel_config_flag_apply_settings(
-      CompilerOptions
-      CMAKE_CXX_FLAGS
-      ALL_PATTERN ""
-      SET_RAW
-        -stdlib=libc++
-    )
-endif()
-# ========================================= Source/Header files ========================================
 if (CLDNN_WITH_SYCL)
   # TODO: Setup proper compilation flags. Common ones doesn't work as some of them are not recognized by dpc++ compiler
   set(CMAKE_CXX_FLAGS "-fsycl")
   set(CMAKE_CXX_COMPILER ${SYCL_COMPILER})
-  intel_config_flag_apply_settings(
-    CompilerOptions
-    CMAKE_CXX_FLAGS
-    ALL_PATTERN ""
-    SET_RAW
-      -stdlib=libstdc++
-  )
 endif()
 
+# ========================================= Source/Header files ========================================
 set(__CLDNN_Directory__main           "${CMAKE_CURRENT_SOURCE_DIR}")
 set(__CLDNN_Label__main                "")
 file(GLOB __CLDNN_Sources__main

@@ -51,8 +51,6 @@ memory::ptr sycl_engine::allocate_memory(const layout& layout, allocation_type t
         throw std::runtime_error("exceeded max size of memory object allocation");
     }
 
-    _memory_pool->add_memory_used(layout.bytes_count());
-
     if (layout.format.is_image_2d()) {
         throw std::runtime_error("Unsupported alloc type");
         // return std::make_shared<sycl::gpu_image2d>(this, layout);

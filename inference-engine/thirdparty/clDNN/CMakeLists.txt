@@ -8,6 +8,7 @@ set(CLDNN__PROJ_NAME "clDNN")
 # Default languages: C, C++.
 project("${CLDNN__PROJ_NAME}")
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 if (GPU_BACKEND STREQUAL "SYCL")
   find_package(SYCL REQUIRED)
   set(CLDNN_WITH_SYCL ON CACHE BOOL "SYCL engine is enabled/disabled" FORCE)

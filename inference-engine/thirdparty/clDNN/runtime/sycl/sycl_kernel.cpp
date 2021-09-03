@@ -12,12 +12,9 @@
 namespace cldnn {
 namespace sycl {
 
-
 sycl_kernel::sycl_kernel(cl::sycl::kernel compiled_kernel, const std::string& kernel_id)
     : _compiled_kernel(compiled_kernel)
-    , _kernel_id(kernel_id) {
-
-}
+    , _kernel_id(kernel_id) {}
 
 }  // namespace sycl
 }  // namespace cldnn

@@ -55,6 +55,25 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern) {
     return std::make_shared<sycl_event>(casted_stream.get_sycl_engine().get_sycl_context(), out_event);
 }
 
+event::ptr gpu_buffer::copy_from(stream& stream, const memory& other) {
+    auto& cl_stream = downcast<sycl_stream>(stream);
+    auto& mem_inst = downcast<const gpu_buffer>(other);
+    auto ev = stream.create_base_event();
+    // cl::Event ev_ocl = std::dynamic_pointer_cast<ocl_event>(ev)->get();
+    // cl_stream.get_cl_queue().enqueueCopyBuffer(mem_inst.get_buffer(), get_buffer(), 0, 0, other.size(), nullptr, &ev_ocl);
+
+    return ev;
+}
+
+event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr) {
+    auto& cl_stream = downcast<sycl_stream>(stream);
+    auto ev = stream.create_base_event();
+    // cl::Event ev_ocl = std::dynamic_pointer_cast<ocl_event>(ev)->get();
+    // cl_stream.get_cl_queue().enqueueWriteBuffer(_buffer, false, 0, size(), host_ptr, nullptr, &ev_ocl);
+
+    return ev;
+}
+
 shared_mem_params gpu_buffer::get_internal_params() const {
     // auto cl_engine = dynamic_cast<const sycl_engine*>(_engine);
     return {};

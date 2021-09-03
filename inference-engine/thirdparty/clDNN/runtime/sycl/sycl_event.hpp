@@ -17,14 +17,13 @@ namespace sycl {
 struct sycl_event : public event {
 public:
     sycl_event(const cl::sycl::context& /* ctx */, cl::sycl::event const& ev, uint64_t queue_stamp = 0)
-        :  _event(ev), _queue_stamp(queue_stamp) { _attached = true; }
+        :  _event(ev), _queue_stamp(queue_stamp) { }
 
     sycl_event(const cl::sycl::context& /* ctx */) {}
 
     void attach_ocl_event(const cl::sycl::event& ev, const uint64_t q_stamp) {
         _event = ev;
         _queue_stamp = q_stamp;
-        _attached = true;
         _set = false;
     }
 
@@ -35,6 +34,7 @@ public:
 private:
     void wait_impl() override;
     bool is_set_impl() override;
+    void set_impl() override;
     bool add_event_handler_impl(event_handler, void*) override { return false; }
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
 

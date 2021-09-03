@@ -45,6 +45,9 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
         return _buffer;
     }
 
+    event::ptr copy_from(stream& /* stream */, const memory& /* other */) override;
+    event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */) override;
+
 protected:
     buffer_type _buffer;
 };

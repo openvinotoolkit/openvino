@@ -36,7 +36,6 @@ public:
 
     ~sycl_stream() = default;
 
-    void sync_events(std::vector<event::ptr> const& deps, bool is_output_event = false) override;
     void release_pending_memory();
     void flush() const override;
     void finish() const override;
@@ -53,13 +52,13 @@ public:
     event::ptr group_events(std::vector<event::ptr> const& deps) override;
     void wait_for_events(const std::vector<event::ptr>& events) override;
     void enqueue_barrier() override;
-    void reset_events() override;
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
-    void release_events_pool() override;
-    const sycl_engine& get_sycl_engine() const { return _engine; };
+    const sycl_engine& get_sycl_engine() const { return _engine; }
 
 private:
+    void sync_events(std::vector<event::ptr> const& deps, bool is_output_event = false);
+
     const sycl_engine& _engine;
     // queue is mutable as finish() method in sycl is not marked as const for some reason
     mutable cl::sycl::queue _command_queue;

@@ -43,6 +43,7 @@ public:
     stream& get_program_stream() const override;
 
     static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration);
+
 private:
     std::vector<std::string> _extensions;
     std::unique_ptr<stream> _program_stream;
