@@ -217,8 +217,10 @@ bool evaluate_maxpool(const HostTensorPtr& data,
     switch (indices->get_element_type()) {
     case element::Type_t::i32: {
         switch (data->get_element_type()) {
+            EVAL_MAX_POOL_8(i8, i32);
             EVAL_MAX_POOL_8(i32, i32);
             EVAL_MAX_POOL_8(i64, i32);
+            EVAL_MAX_POOL_8(u8, i32);
             EVAL_MAX_POOL_8(u32, i32);
             EVAL_MAX_POOL_8(u64, i32);
             EVAL_MAX_POOL_8(f16, i32);
@@ -230,8 +232,10 @@ bool evaluate_maxpool(const HostTensorPtr& data,
     } break;
     case element::Type_t::i64: {
         switch (data->get_element_type()) {
+            EVAL_MAX_POOL_8(i8, i64);
             EVAL_MAX_POOL_8(i32, i64);
             EVAL_MAX_POOL_8(i64, i64);
+            EVAL_MAX_POOL_8(u8, i64);
             EVAL_MAX_POOL_8(u32, i64);
             EVAL_MAX_POOL_8(u64, i64);
             EVAL_MAX_POOL_8(f16, i64);
