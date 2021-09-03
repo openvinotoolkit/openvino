@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ResultLayerTest::getTestCaseName(testing::TestParamInfo<ResultTestParamSet> obj) {
+std::string ResultLayerTest::getTestCaseName(const testing::TestParamInfo<ResultTestParamSet>& obj) {
     std::vector<size_t> inputShape;
     InferenceEngine::Precision inputPrecision;
     std::string targetDevice;
