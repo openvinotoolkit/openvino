@@ -20,7 +20,6 @@ from distutils.file_util import copy_file
 from distutils import log
 from setuptools import setup, find_namespace_packages, Extension
 from setuptools.command.build_ext import build_ext
-from setuptools.command.install_lib import install_lib
 from setuptools.command.build_clib import build_clib
 from decouple import config
 
@@ -193,8 +192,9 @@ class CustomBuild(build):
             self.spawn(['cmake', '--build', self.build_temp,
                         '--config', self.config, '-j', str(self.jobs)])
             CMAKE_BUILD_DIR = self.build_temp
+            self.run_command('build_clib')
+
         build.run(self)
-        self.run_command('build_clib')
         # Copy extra package_data content filtered by find_packages
         dst = Path(self.build_lib)
         src = Path(get_package_dir(PY_INSTALL_CFG))
@@ -207,36 +207,30 @@ class CustomBuild(build):
             copyfile(path, dst / path_rel)
 
 
-def configure(self, install_cfg):
-    """Collect prebuilt libraries. Install them to the temp directories, set rpath."""
-    for comp, comp_data in install_cfg.items():
-        install_prefix = comp_data.get('prefix')
-        install_dir = comp_data.get('install_dir')
-        if install_dir and not os.path.isabs(install_dir):
-            install_dir = os.path.join(install_prefix, install_dir)
-            self.announce(f'Installing {comp}', level=3)
-            self.spawn(['cmake', '--install', CMAKE_BUILD_DIR, '--prefix', install_prefix, '--component', comp_data.get('name')])
-        # set rpath if applicable
-        if sys.platform != 'win32' and comp_data.get('rpath'):
-            file_types = ['.so'] if sys.platform == 'linux' else ['.dylib', '.so']
-            for path in filter(lambda p: any(item in file_types for item in p.suffixes), Path(install_dir).glob('*')):
-                set_rpath(comp_data['rpath'], os.path.realpath(path))
-
-
 class PrepareLibs(build_clib):
     """Prepare prebuilt libraries"""
 
     def run(self):
-        configure(self, PY_INSTALL_CFG)
-
-
-class InstallLibs(install_lib):
-    """Install prebuilt libraries"""
-
-    def run(self):
-        configure(self, LIB_INSTALL_CFG)
+        self.configure(LIB_INSTALL_CFG)
+        self.configure(PY_INSTALL_CFG)
         self.generate_package(get_dir_list(LIB_INSTALL_CFG))
-        install_lib.run(self)
+
+
+    def configure(self, install_cfg):
+        """Collect prebuilt libraries. Install them to the temp directories, set rpath."""
+        for comp, comp_data in install_cfg.items():
+            install_prefix = comp_data.get('prefix')
+            install_dir = comp_data.get('install_dir')
+            if install_dir and not os.path.isabs(install_dir):
+                install_dir = os.path.join(install_prefix, install_dir)
+                self.announce(f'Installing {comp}', level=3)
+                self.spawn(['cmake', '--install', CMAKE_BUILD_DIR, '--prefix', install_prefix, '--component', comp_data.get('name')])
+            # set rpath if applicable
+            if sys.platform != 'win32' and comp_data.get('rpath'):
+                file_types = ['.so'] if sys.platform == 'linux' else ['.dylib', '.so']
+                for path in filter(lambda p: any(item in file_types for item in p.suffixes), Path(install_dir).glob('*')):
+                    set_rpath(comp_data['rpath'], os.path.realpath(path))
+
 
     def generate_package(self, src_dirs):
         """
@@ -293,7 +287,6 @@ class CustomInstall(install):
     def run(self):
         self.run_command('build')
         self.run_command('build_clib')
-        self.run_command('install_lib')
         install.run(self)
 
 
@@ -392,6 +385,8 @@ def find_prebuilt_extensions(search_dirs):
         ext_pattern = '**/*.so'
     for base_dir in search_dirs:
         for path in Path(base_dir).glob(ext_pattern):
+            if path.match('openvino/libs/*'):
+                continue
             relpath = path.relative_to(base_dir)
             if relpath.parent != '.':
                 package_names = str(relpath.parent).split(os.path.sep)
@@ -476,7 +471,6 @@ setup(
         'build': CustomBuild,
         'install': CustomInstall,
         'build_clib': PrepareLibs,
-        'install_lib': InstallLibs,
         'build_ext': CopyExt,
         'clean': CustomClean,
     },
