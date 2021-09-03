@@ -13,9 +13,8 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::AssignBase, "AssignBase", 0);
-NGRAPH_RTTI_DEFINITION(op::v3::Assign, "Assign", 3, op::Sink);
-NGRAPH_RTTI_DEFINITION(op::v6::Assign, "Assign", 6, op::Sink);
+OPENVINO_RTTI_DEFINITION(ov::op::v3::Assign, "Assign", 3, op::Sink);
+OPENVINO_RTTI_DEFINITION(ov::op::v6::Assign, "Assign", 6, op::Sink);
 
 op::v3::Assign::Assign(const Output<Node>& new_value, const std::string& variable_id)
     : AssignBase({new_value}),
