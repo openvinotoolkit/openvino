@@ -42,7 +42,7 @@ using MulticlassNmsParams = std::tuple<InputShapeParams,                        
 
 class MulticlassNmsLayerTest : public testing::WithParamInterface<MulticlassNmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MulticlassNmsParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MulticlassNmsParams>& obj);
     void GenerateInputs() override;
     void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
                  const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override;

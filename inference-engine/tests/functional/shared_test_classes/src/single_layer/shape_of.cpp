@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string ShapeOfLayerTest::getTestCaseName(testing::TestParamInfo<shapeOfParams> obj) {
+    std::string ShapeOfLayerTest::getTestCaseName(const testing::TestParamInfo<shapeOfParams>& obj) {
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision inputPrecision;
         std::string targetDevice;

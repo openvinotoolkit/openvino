@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTestParams> obj) {
+std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<EltwiseTestParams>& obj) {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;

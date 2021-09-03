@@ -26,7 +26,7 @@ using ResultTestParamSet = typename std::tuple<
 class ResultLayerTest : public testing::WithParamInterface<ResultTestParamSet>,
                          virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ResultTestParamSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ResultTestParamSet>& obj);
 
 protected:
     void SetUp() override;

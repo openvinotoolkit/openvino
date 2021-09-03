@@ -33,7 +33,7 @@ class LrnLayerTest
         : public testing::WithParamInterface<lrnLayerTestParamsSet>,
           virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<lrnLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<lrnLayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string SoftMaxLayerTest::getTestCaseName(testing::TestParamInfo<softMaxLayerTestParams> obj) {
+std::string SoftMaxLayerTest::getTestCaseName(const testing::TestParamInfo<softMaxLayerTestParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;

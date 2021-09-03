@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string DFTLayerTest::getTestCaseName(testing::TestParamInfo<DFTParams> obj) {
+std::string DFTLayerTest::getTestCaseName(const testing::TestParamInfo<DFTParams>& obj) {
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;
     std::vector<int64_t> axes;

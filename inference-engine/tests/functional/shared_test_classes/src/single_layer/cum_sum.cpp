@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string CumSumLayerTest::getTestCaseName(testing::TestParamInfo<cumSumParams> obj) {
+std::string CumSumLayerTest::getTestCaseName(const testing::TestParamInfo<cumSumParams>& obj) {
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;
     int64_t axis;

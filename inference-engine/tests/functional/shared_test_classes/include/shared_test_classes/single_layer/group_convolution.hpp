@@ -36,7 +36,7 @@ typedef std::tuple<
 class GroupConvolutionLayerTest : public testing::WithParamInterface<groupConvLayerTestParamsSet>,
                                   virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<groupConvLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<groupConvLayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

@@ -7,7 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string DetectionOutputLayerTest::getTestCaseName(testing::TestParamInfo<DetectionOutputParams> obj) {
+std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj) {
     DetectionOutputAttributes commonAttrs;
     ParamsWhichSizeDepends specificAttrs;
     ngraph::op::DetectionOutputAttrs attrs;
@@ -153,4 +153,3 @@ void DetectionOutputLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
 }
 }  // namespace LayerTestsDefinitions
-

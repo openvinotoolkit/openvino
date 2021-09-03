@@ -38,7 +38,7 @@ using binaryConvolutionTestParamsSet = std::tuple<
 class BinaryConvolutionLayerTest : public testing::WithParamInterface<binaryConvolutionTestParamsSet>,
                                    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<binaryConvolutionTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<binaryConvolutionTestParamsSet>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:

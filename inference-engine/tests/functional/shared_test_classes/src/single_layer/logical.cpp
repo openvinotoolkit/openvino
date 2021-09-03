@@ -8,7 +8,7 @@
 using namespace LayerTestsDefinitions::LogicalParams;
 
 namespace LayerTestsDefinitions {
-std::string LogicalLayerTest::getTestCaseName(testing::TestParamInfo<LogicalTestParams> obj) {
+std::string LogicalLayerTest::getTestCaseName(const testing::TestParamInfo<LogicalTestParams>& obj) {
     InputShapesTuple inputShapes;
     ngraph::helpers::LogicalTypes comparisonOpType;
     ngraph::helpers::InputLayerType secondInputType;

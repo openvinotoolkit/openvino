@@ -59,7 +59,7 @@ using DetectionOutputParams = std::tuple<
 
 class DetectionOutputLayerTest : public testing::WithParamInterface<DetectionOutputParams>, virtual public LayerTestsUtils::LayerTestsCommon {
   public:
-    static std::string getTestCaseName(testing::TestParamInfo<DetectionOutputParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj);
     ngraph::op::DetectionOutputAttrs attrs;
     std::vector<InferenceEngine::SizeVector> inShapes;
     void GenerateInputs() override;

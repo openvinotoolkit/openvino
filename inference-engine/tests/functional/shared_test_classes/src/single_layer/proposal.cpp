@@ -51,7 +51,7 @@ std::string ProposalLayerTest::SerializeProposalSpecificParams(proposalSpecificP
     return result.str();
 }
 
-std::string ProposalLayerTest::getTestCaseName(testing::TestParamInfo<proposalLayerTestParamsSet> obj) {
+std::string ProposalLayerTest::getTestCaseName(const testing::TestParamInfo<proposalLayerTestParamsSet>& obj) {
     proposalSpecificParams proposalParams;
     std::string targetDevice;
     std::tie(proposalParams, targetDevice) = obj.param;

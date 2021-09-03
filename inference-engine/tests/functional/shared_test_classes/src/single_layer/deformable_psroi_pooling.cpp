@@ -7,7 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string DeformablePSROIPoolingLayerTest::getTestCaseName(testing::TestParamInfo<deformablePSROILayerTestParams> obj) {
+    std::string DeformablePSROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<deformablePSROILayerTestParams>& obj) {
         std::vector<size_t> dataShape;
         std::vector<size_t> roisShape;
         std::vector<size_t> offsetsShape;

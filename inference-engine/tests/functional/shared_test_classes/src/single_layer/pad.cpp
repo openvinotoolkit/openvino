@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string PadLayerTest::getTestCaseName(testing::TestParamInfo<padLayerTestParamsSet> obj) {
+std::string PadLayerTest::getTestCaseName(const testing::TestParamInfo<padLayerTestParamsSet>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout;

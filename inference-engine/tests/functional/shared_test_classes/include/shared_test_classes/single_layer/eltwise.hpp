@@ -35,6 +35,6 @@ protected:
     void SetUp() override;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EltwiseTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<EltwiseTestParams>& obj);
 };
 } // namespace LayerTestsDefinitions
