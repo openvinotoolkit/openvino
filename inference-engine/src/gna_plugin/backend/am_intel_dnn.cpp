@@ -23,6 +23,7 @@
 #include "dnn.hpp"
 #include "am_intel_dnn.hpp"
 #include "dnn_types.h"
+#include "gna/gna_config.hpp"
 #include "gna_types.h"
 #include "gna_limitations.hpp"
 #include "layers/gna_convolution_layer.hpp"
@@ -247,6 +248,16 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional2DComponentPrivate(intel
     ptr_biases = &comp.op.conv2D.ptr_biases;
     ptr_inputs = &comp.ptr_inputs;
     ptr_outputs = &comp.ptr_outputs;
+}
+
+bool GNAPluginNS::backend::AMIntelDNN::isOperationCnnLegacySpecific(const Gna2Operation& op) {
+    // GNA compile target GNA_TARGET_3_0 does not support pooling window < pooling stride
+    return op.Type == Gna2OperationTypeConvolution &&
+        op.NumberOfParameters > std::max(PoolStrideParamIdx, PoolWinParamIdx) &&
+        op.Parameters[PoolStrideParamIdx] != nullptr &&
+        op.Parameters[PoolWinParamIdx] != nullptr &&
+        static_cast<Gna2Shape*>(op.Parameters[PoolStrideParamIdx])->NumberOfDimensions == 1 &&
+        static_cast<Gna2Shape*>(op.Parameters[PoolStrideParamIdx])->Dimensions[0] > static_cast<Gna2Shape*>(op.Parameters[PoolWinParamIdx])->Dimensions[0];
 }
 #endif
 
@@ -1677,7 +1688,12 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                             const auto fltStride = fltStrideShape->Dimensions[0];
                             const auto outFromConv = outputFromConv(inVecCnt, nFltSize, fltStride);
                             //  FLAT input matrix, pooled outputs per filter
-                            if (gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
+
+                            auto effectiveCompileTarget = gnaCompileTarget;
+                            if (isOperationCnnLegacySpecific(*gnaOperation)) {
+                                effectiveCompileTarget = InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
+                            }
+                            if (effectiveCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
                                 outputTensor.Shape.Dimensions[1] = outputFromPooling(outFromConv, poolWindow->Dimensions[0], poolStride->Dimensions[0]);
                             } else {
                                 outputTensor.Shape.Dimensions[1] = outputFromPoolingLegacy(outFromConv, poolStride->Dimensions[0]);

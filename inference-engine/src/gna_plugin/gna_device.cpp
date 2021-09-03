@@ -24,6 +24,7 @@
 #include "gna-api.h"
 #endif
 
+#include "backend/am_intel_dnn.hpp"
 #include "gna/gna_config.hpp"
 #include "gna_plugin_log.hpp"
 
@@ -115,13 +116,26 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
     return reqId;
 }
 
+void enforceLegacyCnn(Gna2Operation& operation) {
+    snprintf(
+        const_cast<char*>(operation.Operands[1]->Layout),
+        sizeof(operation.Operands[1]->Layout) / sizeof(char),
+        "GNA1");
+}
+
 void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
         if (gnaModel.Operations[i].Type == Gna2OperationTypeConvolution) {
-            snprintf(
-                const_cast<char*>(gnaModel.Operations[i].Operands[1]->Layout),
-                sizeof(gnaModel.Operations[i].Operands[1]->Layout) / sizeof(char),
-                "GNA1");
+            enforceLegacyCnn(gnaModel.Operations[i]);
+        }
+    }
+}
+
+void GNADeviceHelper::enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel) {
+    for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
+        auto& op = gnaModel.Operations[i];
+        if (GNAPluginNS::backend::AMIntelDNN::isOperationCnnLegacySpecific(op)) {
+            enforceLegacyCnn(op);
         }
     }
 }
@@ -132,6 +146,7 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     if (enforceLegacyCnnNeeded()) {
         enforceLegacyCnns(gnaModel);
     }
+    enforceLegacyCnnsWhenNeeded(gnaModel);
 #if GNA_LIB_VER == 2 && defined MODEL_DUMP
     std::string path =
 #ifdef _WIN32
@@ -580,4 +595,15 @@ void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::
     info.realTime_uSec = instrumentationTotal[1];
 #endif
     retPerfCounters["1.2 Stall scoring time in HW"] = info;
+}
+
+std::string GNADeviceHelper::getEffectiveGnaCompileTarget() const {
+#if GNA_LIB_VER == 1
+    return InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
+#else
+    if (getTargetDevice(false) == Gna2DeviceVersion3_0) {
+        return InferenceEngine::GNAConfigParams::GNA_TARGET_3_0;
+    }
+    return InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
+#endif
 }
