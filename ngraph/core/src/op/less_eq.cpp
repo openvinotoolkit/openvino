@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/less_eq.hpp"
+#include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -67,6 +68,7 @@ bool evaluate_less_equal(const HostTensorPtr& arg0,
 
 bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_LessEqual_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
     return less_equalop::evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
