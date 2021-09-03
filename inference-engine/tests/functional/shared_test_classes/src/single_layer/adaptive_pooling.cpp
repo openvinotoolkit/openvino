@@ -12,7 +12,7 @@ using namespace FuncTestUtils::PrecisionUtils;
 
 namespace LayerTestsDefinitions {
 
-std::string AdaPoolLayerTest::getTestCaseName(testing::TestParamInfo<adapoolParams> obj) {
+std::string AdaPoolLayerTest::getTestCaseName(const testing::TestParamInfo<adapoolParams>& obj) {
     std::vector<size_t> inputShape;
     std::vector<int> pooledSpatialShape;
 

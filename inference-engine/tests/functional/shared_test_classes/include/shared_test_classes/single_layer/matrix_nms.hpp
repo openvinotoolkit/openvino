@@ -40,7 +40,7 @@ using NmsParams = std::tuple<InputShapeParams,                                  
 
 class MatrixNmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<NmsParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<NmsParams>& obj);
     void GenerateInputs() override;
     void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                  const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs)
