@@ -76,11 +76,6 @@ jobs:
     submodules: recursive
     path: openvino_contrib
 
-  - checkout: testdata
-    clean: true
-    lfs: true
-    path: testdata
-
   - script: |
       set -e
       $(REPO_DIR)/install_build_dependencies.sh
@@ -107,6 +102,12 @@ jobs:
       git clone https://github.com/google/gtest-parallel.git
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
+
+    # Should be after 'Install dependencies' because Git lfs is not installed
+  - checkout: testdata
+    clean: true
+    lfs: true
+    path: testdata
 
   - task: CMake@1
     inputs:
