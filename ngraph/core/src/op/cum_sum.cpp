@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::CumSum, "CumSum", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::CumSum, "CumSum", 0);
 
 op::v0::CumSum::CumSum(const Output<Node>& arg, const Output<Node>& axis, const bool exclusive, const bool reverse)
     : Op({arg, axis}),
@@ -23,7 +23,7 @@ op::v0::CumSum::CumSum(const Output<Node>& arg, const Output<Node>& axis, const 
 }
 
 op::v0::CumSum::CumSum(const Output<Node>& arg, const bool exclusive, const bool reverse)
-    : Op({arg, op::Constant::create(element::i32, Shape{}, {0})}),
+    : Op({arg, op::v0::Constant::create(element::i32, Shape{}, {0})}),
       m_exclusive(exclusive),
       m_reverse(reverse) {
     constructor_validate_and_infer_types();
