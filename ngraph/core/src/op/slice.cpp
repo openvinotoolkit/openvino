@@ -23,6 +23,14 @@ NGRAPH_RTTI_DEFINITION(op::v8::Slice, "Slice", 8);
 op::v8::Slice::Slice(const Output<Node>& data,
                      const Output<Node>& start,
                      const Output<Node>& stop,
+                     const Output<Node>& step)
+    : Op({data, start, stop, step}) {
+    constructor_validate_and_infer_types();
+}
+
+op::v8::Slice::Slice(const Output<Node>& data,
+                     const Output<Node>& start,
+                     const Output<Node>& stop,
                      const Output<Node>& step,
                      const Output<Node>& axes)
     : Op({data, start, stop, step, axes}) {
@@ -51,13 +59,6 @@ std::shared_ptr<Node> calculate_default_axes(const Output<Node>& start) {
 }
 }  // namespace
 
-op::v8::Slice::Slice(const Output<Node>& data,
-                     const Output<Node>& start,
-                     const Output<Node>& stop,
-                     const Output<Node>& step)
-    : Op({data, start, stop, step, calculate_default_axes(start)}) {
-    constructor_validate_and_infer_types();
-}
 
 bool op::v8::Slice::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_Slice_visit_attributes);
@@ -88,12 +89,6 @@ void op::v8::Slice::validate_and_infer_types() {
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
-
-    if (get_input_size() < 5) {
-        set_argument(4, calculate_default_axes(get_input_node_ptr(1)->output(0)));
-    }
-
-    set_input_is_relevant_to_shape(4);
 
     const auto start_const = get_constant_from_source(input_value(1));
     const auto stop_const = get_constant_from_source(input_value(2));
