@@ -34,6 +34,10 @@ public:
         return std::vector<VectorDims>();
     }
 
+    bool isPrepareParamsNeeded() const override {
+        return false;
+    }
+
 private:
     void cloneBlobIfRequired();
 

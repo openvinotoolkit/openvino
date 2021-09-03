@@ -23,10 +23,10 @@ struct jit_eltwise_params {
     InferenceEngine::Precision src_prc[MAX_ELTWISE_INPUTS];
     InferenceEngine::Precision dst_prc;
 
-    std::vector<size_t> dims;
-    std::vector<size_t> src_offsets[MAX_ELTWISE_INPUTS];
-    std::vector<size_t> dst_offsets;
-    std::vector<size_t> oc_offsets;
+    VectorDims dims;
+    VectorDims src_offsets[MAX_ELTWISE_INPUTS];
+    VectorDims dst_offsets;
+    VectorDims oc_offsets;
 
     size_t src_size[MAX_ELTWISE_INPUTS];
     size_t dst_size;
@@ -71,7 +71,6 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
     void initOptimalPrimitiveDescriptor() override;
-    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
@@ -88,31 +87,55 @@ public:
     bool isWithBroadcast();
     bool isSpecialConvolutionAddFusing() const { return specialConvolutionAddFusing; }
 
+    void createPrimitive() override;
+
+    bool isPrepareParamsNeeded() const override;
+    void prepareParams() override;
+
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
+    struct EltwisePrim {
+        virtual void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) = 0;
+        virtual const jit_eltwise_params& getJep() const = 0;
+        virtual ~EltwisePrim() = default;
+    };
+    using primPtr = std::shared_ptr<EltwisePrim>;
+    primPtr pPrim = nullptr;
+
+    struct EltwiseJitPrim : public EltwisePrim {
+        EltwiseJitPrim(const jit_eltwise_params &_jep, MKLDNNEltwiseNode& node);
+        void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
+        const jit_eltwise_params& getJep() const override;
+
+        std::shared_ptr<jit_uni_eltwise_kernel> pKernel;
+    };
+
+    struct EltwiseRefPrim : public EltwisePrim {
+        EltwiseRefPrim(const jit_eltwise_params &_jep) : jep(_jep) {}
+        void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
+        const jit_eltwise_params& getJep() const override { return jep; }
+
+        jit_eltwise_params jep;
+    };
+
     mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
 
-    std::shared_ptr<jit_uni_eltwise_kernel> eltwise_kernel = nullptr;
-    jit_eltwise_params jep = {};
-    jit_eltwise_call_args_ptrs args_ptrs = {};
-
-    int optimalTensorRank = 6;
+    const int optimalTensorRank = 6;
     bool canUseOptimizedImpl = false;
     bool isDynBatchEnabled = false;
     bool specialConvolutionAddFusing = false;
     size_t batchDimIdx = 0;
-    size_t tensorRank = 0;
     size_t fullWorkAmount = 0;
     size_t schedulerWorkAmount = 0;
     size_t inputNum = 0;
-    std::vector<std::vector<size_t>> dims_in = {};
-    std::vector<std::vector<size_t>> offsets_in = {};
-    std::vector<size_t> dims_out = {};
-    std::vector<size_t> offsets_out = {};
     std::vector<ptrdiff_t> start_offset_in = {};
     ptrdiff_t start_offset_out = 0;
-    std::vector<size_t> offsets_oc = {};
+
+    // blocked dims for which kernel compiled and params prepared
+    std::vector<VectorDims> currentInBlkDims = {};
 
     float alpha = 0;
     float beta = 0;
@@ -125,12 +148,14 @@ private:
 
     static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> initializers;
 
-    inline void executeOptimized6D();
-    inline void executeOptimizedGeneric();
-    inline void executeReference();
+    void executeOptimized6D(const std::shared_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
+                            const VectorDims &dims_out) const;
+    void executeOptimizedGeneric(const std::shared_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
+                                 const VectorDims &dims_out) const;
+    void executeReference(const jit_eltwise_params &jep, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) const;
 
-    void offset_out_calc(std::vector<size_t>& offset, std::vector<size_t>& dims);
-    void offset_in_calc(std::vector<size_t>& offset, std::vector<size_t>& dims_in, std::vector<size_t>& dims_out);
+    void offset_out_calc(VectorDims& offset, VectorDims& dims);
+    void offset_in_calc(VectorDims& offset, VectorDims& dims_in, VectorDims& dims_out);
 
     size_t getOpInputsNum() const;
 };
