@@ -50,13 +50,13 @@ You can compare the pseudo-codes for the regular and async-based approaches:
 
 @snippet snippets/dldt_optimization_guide8.cpp part8
 
-![Intel&reg; VTune&trade; screenshot](img/vtune_regular.png)
+![Intel&reg; VTune&trade; screenshot](../img/vtune_regular.png)
 
 -	In the "true" async mode, the `NEXT` request is populated in the main (application) thread, while the `CURRENT` request is processed:<br>
 
 @snippet snippets/dldt_optimization_guide9.cpp part9
 
-![Intel&reg; VTune&trade; screenshot](img/vtune_async.png)
+![Intel&reg; VTune&trade; screenshot](../img/vtune_async.png)
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
 
@@ -152,10 +152,10 @@ In fact, the OpenVINO does support the "throughput" mode for the CPU, which allo
 
 Internally, the execution resources are split/pinned into execution "streams".
 This feature usually provides much better performance for the networks than batching. This is especially true for the many-core server machines:
-![](img/cpu_streams_explained_1.png)
+![](../img/cpu_streams_explained_1.png)
 
 Compared with the batching, the parallelism is somewhat transposed (i.e. performed over inputs, and much less within CNN ops):
-![](img/cpu_streams_explained.png)
+![](../img/cpu_streams_explained.png)
 
 Try the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample and play with number of streams running in parallel. The rule of thumb is tying up to a number of CPU cores on your machine.
 For example, on an 8-core CPU, compare the `-nstreams 1` (which is a legacy, latency-oriented scenario) to the 2, 4, and 8 streams.
@@ -306,7 +306,7 @@ After enabling the configuration key, the heterogeneous plugin generates two fil
 
 You can use GraphViz\* utility or `.dot` converters (for example, to `.png` or `.pdf`), like xdot\*, available on Linux\* OS with `sudo apt-get install xdot`. Below is an example of the output trimmed to the two last layers (one executed on the FPGA and another on the CPU):
 
-![](img/output_trimmed.png)
+![](../img/output_trimmed.png)
 
 You can also use performance data (in the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md), it is an option `-pc`) to get performance data on each subgraph. Again, refer to the [HETERO plugin documentation](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_HETERO.html#analyzing_heterogeneous_execution) and to <a href="#performance-counters">Internal Inference Performance Counters</a> for a general counters information.
 
