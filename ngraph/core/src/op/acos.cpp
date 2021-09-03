@@ -18,30 +18,27 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/acos.hpp"
 
-using namespace std;
-using namespace ngraph;
+NGRAPH_RTTI_DEFINITION(ov::op::v0::Acos, "Acos", 0);
 
-constexpr NodeTypeInfo op::Acos::type_info;
-
-op::Acos::Acos(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
+ov::op::v0::Acos::Acos(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::Acos::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::op::v0::Acos::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_Acos_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<Acos>(new_args.at(0));
+    return std::make_shared<Acos>(new_args.at(0));
 }
 
 namespace acosop {
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::acos<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+template <ov::element::Type_t ET>
+inline bool evaluate(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out, const size_t count) {
+    using T = typename ov::element_type_traits<ET>::value_type;
+    ngraph::runtime::reference::acos<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 
-bool evaluate_acos(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
+bool evaluate_acos(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out, const size_t count) {
     bool rc = true;
     out->set_unary(arg0);
 
@@ -61,12 +58,12 @@ bool evaluate_acos(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 }
 }  // namespace acosop
 
-bool op::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v0::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Acos_evaluate);
     return acosop::evaluate_acos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
-bool op::Acos::has_evaluate() const {
+bool ov::op::v0::Acos::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Acos_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
