@@ -8,7 +8,7 @@ Before exploring optimization techniques, let us first define what performance i
 
 Performance means how fast the model is in deployment. Two key metrics are used to measure performance: latency and throughput. 
 
-![](img/Latency_Throughput.png)
+![](../img/Latency_Throughput.png)
 
 Latency measures inference time (ms) required to process a single input.  
 
@@ -40,7 +40,7 @@ deployment step, that includes tuning inference parameters and optimizing model 
 
 More detailed flow: 
 
-![](img/development_deployment.png)
+![](../img/development_deployment.png)
 
 To understand when to use what development optimization tool follow this diagram: 
 

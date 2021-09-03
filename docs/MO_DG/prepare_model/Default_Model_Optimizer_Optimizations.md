@@ -2,7 +2,7 @@
 
 As described in the [Model Optimizer Guide](../MO_DG/prepare_model/Prepare_Trained_Model.md), there are a number of device-agnostic optimizations the tool performs.  For example, certain primitives like linear operations (BatchNorm and ScaleShift), are automatically fused into convolutions. Generally, these layers should not be manifested in the resulting IR:
 
-![](img/resnet_269.png)
+![](../img/resnet_269.png)
 
 The picture above shows Caffe\* Resnet269\* topology. The left model is the original model, and the one on the right (after conversion) is the resulting model that the Model Optimizer produces, with BatchNorm and ScaleShift layers  fused into the convolution weights rather than constituting separate layers.
 
