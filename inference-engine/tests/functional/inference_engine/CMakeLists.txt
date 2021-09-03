@@ -26,7 +26,6 @@ set(DEPENDENCIES
     inference_engine_ir_reader
     inference_engine_ir_v7_reader
     HeteroPlugin
-    AutoPlugin
     MultiDevicePlugin
     template_extension
     lptNgraphFunctions
