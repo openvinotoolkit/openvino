@@ -90,7 +90,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*/NmsLayerTest.*)",
         // TODO: 56520 Accuracy mismatch
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
-        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)"
+        R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*(Auto|Multi).*Behavior.*ExecutableNetworkBaseTest.*checkGetExecGraphInfo.*)",
