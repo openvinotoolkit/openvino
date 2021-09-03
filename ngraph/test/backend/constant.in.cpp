@@ -146,26 +146,6 @@ NGRAPH_TEST(${BACKEND_NAME}, tensor_constant_int64) {
     EXPECT_EQ((vector<int64_t>{0x4000000000000001, 0x4000000000000002}), read_vector<int64_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, constant_equality_bool) {
-    Shape shape{4};
-    // auto A = make_shared<op::Parameter>(element::boolean, shape);
-    // auto B = make_shared<op::Parameter>(element::boolean, shape);
-    // auto f = make_shared<Function>(make_shared<op::v1::Equal>(A, B), ParameterVector{A, B});
-
-    auto A = op::Constant::create(element::boolean, shape, {true, false, true, false});
-    auto B = op::Constant::create(element::boolean, shape, {true, true, true, true});
-    auto f = make_shared<Function>(make_shared<op::v1::Equal>(A, B), ParameterVector{});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto result = backend->create_tensor(element::boolean, shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {});
-    EXPECT_EQ((vector<char>{true, false, true, false}), read_vector<char>(result));
-}
-
 namespace {
 std::vector<uint8_t> read_raw_data(std::shared_ptr<ngraph::runtime::Tensor> tv) {
     const size_t mem_size = tv->get_size_in_bytes();

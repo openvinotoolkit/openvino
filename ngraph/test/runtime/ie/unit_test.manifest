@@ -282,11 +282,6 @@ zero_sized_acos
 zero_sized_atan
 zero_sized_add
 zero_sized_divide
-zero_sized_eq
-zero_sized_greater
-zero_sized_greatereq
-zero_sized_less
-zero_sized_lesseq
 zero_sized_maximum
 zero_sized_minimum
 zero_sized_multiply

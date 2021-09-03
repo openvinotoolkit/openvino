@@ -195,26 +195,6 @@ NGRAPH_TEST(${BACKEND_NAME}, zero_sized_divide) {
     make_binary_empty_test<op::v1::Divide>("${BACKEND_NAME}");
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, zero_sized_eq) {
-    make_binary_empty_test<op::v1::Equal>("${BACKEND_NAME}", true);
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, zero_sized_greater) {
-    make_binary_empty_test<op::v1::Greater>("${BACKEND_NAME}", true);
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, zero_sized_greatereq) {
-    make_binary_empty_test<op::v1::GreaterEqual>("${BACKEND_NAME}", true);
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, zero_sized_less) {
-    make_binary_empty_test<op::v1::Less>("${BACKEND_NAME}", true);
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, zero_sized_lesseq) {
-    make_binary_empty_test<op::v1::LessEqual>("${BACKEND_NAME}", true);
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_maximum) {
     make_binary_empty_test<op::v1::Maximum>("${BACKEND_NAME}");
 }
