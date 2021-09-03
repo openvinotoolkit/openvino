@@ -15,7 +15,7 @@ NGRAPH_TEST(onnx, check_ir_version_support) {
     // It appears you've changed the ONNX library version used by nGraph. Please update the value
     // tested below to make sure it equals the current IR_VERSION enum value defined in ONNX headers
     //
-    // You should also check the onnx_reader/onnx_model_validator.cpp file and make sure that
+    // You should also check the onnx_common/src/onnx_model_validator.cpp file and make sure that
     // the details::onnx::is_correct_onnx_field() handles any new fields added in the new release
     // of the ONNX library. Make sure to update the "Field" enum and the function mentioned above.
     //

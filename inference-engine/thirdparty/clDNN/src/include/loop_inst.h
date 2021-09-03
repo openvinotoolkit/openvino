@@ -381,39 +381,39 @@ public:
         size_t total_bytes;
 
         backedge_memory_mapping(
-            std::shared_ptr<primitive_inst> from_primitive, std::shared_ptr<primitive_inst> to_primitive,
-            std::vector<memory::ptr> from_mems, memory::ptr initial_mem, cldnn::stream& stream, backedge_type type = CONCAT_OUTPUT):
-            from_primitive(from_primitive),
-            to_primitive(to_primitive),
-            from_mems(from_mems),
-            initial_mem(initial_mem),
-            stream(stream),
-            type(type),
+            std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
+            std::vector<memory::ptr> _from_mems, memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = CONCAT_OUTPUT):
+            from_primitive(_from_primitive),
+            to_primitive(_to_primitive),
+            from_mems(_from_mems),
+            initial_mem(_initial_mem),
+            stream(_stream),
+            type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
                 validate_backedge_memory();
             }
 
         backedge_memory_mapping(
-            std::shared_ptr<primitive_inst> from_primitive, std::shared_ptr<primitive_inst> to_primitive,
-            memory::ptr from_mem, memory::ptr initial_mem, cldnn::stream& stream, backedge_type type = SINGLE_SHARED):
-            from_primitive(from_primitive),
-            to_primitive(to_primitive),
-            from_mems{from_mem},
-            initial_mem(initial_mem),
-            stream(stream),
-            type(type),
+            std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
+            memory::ptr _from_mem, memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = SINGLE_SHARED):
+            from_primitive(_from_primitive),
+            to_primitive(_to_primitive),
+            from_mems{_from_mem},
+            initial_mem(_initial_mem),
+            stream(_stream),
+            type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
                 validate_backedge_memory();
             }
 
         backedge_memory_mapping(
-            std::shared_ptr<primitive_inst> from_primitive, std::shared_ptr<primitive_inst> to_primitive,
-            memory::ptr initial_mem, cldnn::stream& stream, backedge_type type = SINGLE):
-            from_primitive(from_primitive),
-            to_primitive(to_primitive),
-            initial_mem(initial_mem),
-            stream(stream),
-            type(type),
+            std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
+            memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = SINGLE):
+            from_primitive(_from_primitive),
+            to_primitive(_to_primitive),
+            initial_mem(_initial_mem),
+            stream(_stream),
+            type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
                 validate_backedge_memory();
             }

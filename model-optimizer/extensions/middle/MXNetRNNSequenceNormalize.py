@@ -4,7 +4,7 @@
 import numpy as np
 
 from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_insert
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
@@ -184,14 +184,12 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
         mxnet_shape = lstm.out_node(0).shape.copy()
 
         if lstm.batch_dim == 0:
-            mo_shape = np.array([input.shape[lstm.batch_dim], input.shape[lstm.sequence_dim], lstm.hidden_size],
-                             dtype=np.int64)
+            mo_shape = int64_array([input.shape[lstm.batch_dim], input.shape[lstm.sequence_dim], lstm.hidden_size])
         else:
-            mo_shape = np.array([input.shape[lstm.sequence_dim], input.shape[lstm.batch_dim], lstm.hidden_size],
-                                dtype=np.int64)
+            mo_shape = int64_array([input.shape[lstm.sequence_dim], input.shape[lstm.batch_dim], lstm.hidden_size])
 
         if lstm.has_num_directions:
-            mo_shape = np.insert(mo_shape, 1, np.int64(num_directions))
+            mo_shape = shape_insert(mo_shape, 1, np.int64(num_directions))
 
         lstm_name = lstm.soft_get('name', lstm.id)
 

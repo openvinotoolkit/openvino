@@ -116,19 +116,20 @@ bool ngraph::op::v0::SpaceToDepth::has_evaluate() const {
     return !get_input_partial_shape(0).is_dynamic();
 }
 
-namespace ngraph {
+std::ostream& ngraph::operator<<(std::ostream& s, const op::v0::SpaceToDepth::SpaceToDepthMode& type) {
+    return s << as_string(type);
+}
+
+namespace ov {
 template <>
-NGRAPH_API EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>& EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>::get() {
-    static auto enum_names = EnumNames<op::v0::SpaceToDepth::SpaceToDepthMode>(
+NGRAPH_API EnumNames<ngraph::op::v0::SpaceToDepth::SpaceToDepthMode>&
+EnumNames<ngraph::op::v0::SpaceToDepth::SpaceToDepthMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v0::SpaceToDepth::SpaceToDepthMode>(
         "op::v0::SpaceToDepth::SpaceToDepthMode",
-        {{"blocks_first", op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST},
-         {"depth_first", op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST}});
+        {{"blocks_first", ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST},
+         {"depth_first", ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v0::SpaceToDepth::SpaceToDepthMode>::type_info;
-
-std::ostream& operator<<(std::ostream& s, const op::v0::SpaceToDepth::SpaceToDepthMode& type) {
-    return s << as_string(type);
-}
-}  // namespace ngraph
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v0::SpaceToDepth::SpaceToDepthMode>::type_info;
+}  // namespace ov
