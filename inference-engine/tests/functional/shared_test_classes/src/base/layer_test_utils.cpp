@@ -47,10 +47,13 @@ void LayerTestsCommon::Run() {
 
     try {
         LoadNetwork();
-        GenerateInputs();
-        Infer();
-        Validate();
-        s.updateOPsStats(function, PassRate::Statuses::PASSED);
+        for (auto&& tss : targetStaticShapes) {
+            setTargetStaticShape(tss);
+            GenerateInputs();
+            Infer();
+            Validate();
+            s.updateOPsStats(function, PassRate::Statuses::PASSED);
+        }
     }
     catch (const std::runtime_error &re) {
         s.updateOPsStats(function, PassRate::Statuses::FAILED);
@@ -90,8 +93,10 @@ void LayerTestsCommon::Serialize() {
     CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
-InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo& info) const {
+    return FuncTestUtils::createAndFillBlob(
+            InferenceEngine::TensorDesc(info.getPrecision(), targetStaticShape,
+                                        const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
 }
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
@@ -311,6 +316,14 @@ void LayerTestsCommon::ConfigureNetwork() {
             out.second->setPrecision(outPrc);
         }
     }
+
+    std::map<std::string, ngraph::PartialShape> shapes;
+    auto isdm = cnnNetwork.getInputsInfo();
+    for (auto&& idm : isdm) {
+        shapes[idm.first] = isdm[idm.first]->getInputData()->getPartialShape();
+        shapes[idm.first] = std::vector<ngraph::Dimension>(inputDynamicShape);
+    }
+    cnnNetwork.reshape(shapes);
 }
 
 void LayerTestsCommon::LoadNetwork() {
@@ -511,6 +524,10 @@ std::shared_ptr<ngraph::Function> LayerTestsCommon::GetFunction() {
 
 std::map<std::string, std::string> &LayerTestsCommon::GetConfiguration() {
     return configuration;
+}
+
+void LayerTestsCommon::setTargetStaticShape(ngraph::Shape& desiredTargetStaticShape) {
+    targetStaticShape = desiredTargetStaticShape;
 }
 
 }  // namespace LayerTestsUtils

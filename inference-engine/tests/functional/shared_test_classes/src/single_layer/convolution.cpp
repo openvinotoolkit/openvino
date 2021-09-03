@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <utility>
+
 #include "shared_test_classes/single_layer/convolution.hpp"
+#include "functional_test_utils/partial_shape_utils.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -11,9 +14,10 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
-    InferenceEngine::SizeVector inputShapes;
+    std::vector<std::pair<size_t, size_t>> inputShape;
+    std::vector<InferenceEngine::SizeVector> targetShapes;
     std::string targetDevice;
-    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) =
+    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, targetDevice) =
         obj.param;
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
@@ -22,7 +26,8 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
     result << "K" << CommonTestUtils::vec2str(kernel) << "_";
     result << "S" << CommonTestUtils::vec2str(stride) << "_";
     result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
@@ -41,23 +46,29 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
 
 void ConvolutionLayerTest::SetUp() {
     convSpecificParams convParams;
-    std::vector<size_t> inputShape;
-    auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) =
+    std::vector<std::pair<size_t, size_t>> inputShape;
+    std::vector<InferenceEngine::SizeVector> targetShapes;
+    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, targetDevice) =
         this->GetParam();
-    ngraph::op::PadType padType;
-    InferenceEngine::SizeVector kernel, stride, dilation;
-    std::vector<ptrdiff_t> padBegin, padEnd;
-    size_t convOutChannels;
+    for (auto&& targetShape : targetShapes) {
+        targetStaticShapes.emplace_back(targetShape);
+    }
+    inputDynamicShape = FuncTestUtils::PartialShapeUtils::vec2partialshape(inputShape, targetStaticShapes[0]);
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+
+    setTargetStaticShape(targetStaticShapes[0]);
+    makeConvolutionFunction();
+}
+
+void ConvolutionLayerTest::makeConvolutionFunction() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     std::vector<float> filter_weights;
     if (targetDevice == CommonTestUtils::DEVICE_GNA) {
         auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
-        filter_weights = CommonTestUtils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size,
+        filter_weights = CommonTestUtils::generate_float_numbers(convOutChannels * targetStaticShape[1] * filter_size,
                                                                  -0.5f, 0.5f);
     }
     auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(
@@ -66,4 +77,5 @@ void ConvolutionLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
     function = std::make_shared<ngraph::Function>(results, params, "convolution");
 }
+
 }  // namespace LayerTestsDefinitions
