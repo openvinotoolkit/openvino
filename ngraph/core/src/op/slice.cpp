@@ -39,23 +39,22 @@ op::v8::Slice::Slice(const Output<Node>& data,
 
 namespace {
 
-std::shared_ptr<Node> calculate_default_axes(const Output<Node>& start) {
+std::shared_ptr<ngraph::op::v0::Constant> get_default_const_axes(const Output<Node>& start) {
     const auto start_pshape = start.get_partial_shape();
-
     // Static case
     if (start_pshape.rank().is_static() && start_pshape.rank().get_length() == 1 && start_pshape[0].is_static()) {
         size_t axes_length = start_pshape[0].get_length();
         std::vector<int64_t> axes(axes_length);
         std::iota(axes.begin(), axes.end(), 0);
-        return op::Constant::create(element::i64, Shape{axes_length}, axes);
+        return op::v0::Constant::create(element::i64, Shape{axes_length}, axes);
     }
+    else return nullptr; // Dynamic case, if start is parameter without const values, we can't calculate output dims anyway;
 
-    // Dynamic case
-    const auto axes_start_val = op::Constant::create(element::i64, {}, {0});
-    const auto axes_end_val = std::make_shared<op::v0::Squeeze>(std::make_shared<op::v3::ShapeOf>(start));
-    const auto axes_step_val = op::Constant::create(element::i64, {}, {1});
-
-    return std::make_shared<op::v4::Range>(axes_start_val, axes_end_val, axes_step_val, element::i64);
+    // // Dynamic case // not needed, if start is dynamic we can't calculate output dims anyway
+    // const auto axes_start_val = op::Constant::create(element::i64, {}, {0});
+    // const auto axes_end_val = std::make_shared<op::v0::Squeeze>(std::make_shared<op::v3::ShapeOf>(start));
+    // const auto axes_step_val = op::Constant::create(element::i64, {}, {1});
+    // return std::make_shared<op::v4::Range>(axes_start_val, axes_end_val, axes_step_val, element::i64);
 }
 }  // namespace
 
@@ -93,7 +92,14 @@ void op::v8::Slice::validate_and_infer_types() {
     const auto start_const = get_constant_from_source(input_value(1));
     const auto stop_const = get_constant_from_source(input_value(2));
     const auto step_const = get_constant_from_source(input_value(3));
-    const auto axes_const = get_constant_from_source(input_value(4));
+
+    std::shared_ptr<ngraph::op::v0::Constant> axes_const;
+    if (get_input_size() > 4) {
+        set_input_is_relevant_to_shape(4);
+        axes_const = get_constant_from_source(input_value(4));
+    } else {
+        axes_const = get_default_const_axes(input_value(1));
+    }
 
     if (start_const && stop_const && step_const && axes_const) {
         const std::vector<int64_t> starts = start_const->cast_vector<int64_t>();
