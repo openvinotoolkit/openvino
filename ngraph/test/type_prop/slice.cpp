@@ -8,7 +8,6 @@
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
 
-using namespace std;
 using namespace ngraph;
 
 namespace {
@@ -20,17 +19,17 @@ std::shared_ptr<Node> make_slice_op_const_inputs(const std::vector<std::vector<T
     const auto& stop_val = args[1];
     const auto& step_val = args[2];
 
-    const auto data = make_shared<op::Parameter>(et, data_shape);
-    const auto start = make_shared<op::Constant>(et, Shape{start_val.size()}, start_val);
-    const auto stop = make_shared<op::Constant>(et, Shape{stop_val.size()}, stop_val);
-    const auto step = make_shared<op::Constant>(et, Shape{step_val.size()}, step_val);
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Constant>(et, Shape{start_val.size()}, start_val);
+    const auto stop = std::make_shared<op::v0::Constant>(et, Shape{stop_val.size()}, stop_val);
+    const auto step = std::make_shared<op::v0::Constant>(et, Shape{step_val.size()}, step_val);
 
     if (args.size() > 3) {
         const auto& axes_val = args[3];
-        const auto axes = make_shared<op::Constant>(et, Shape{axes_val.size()}, axes_val);
-        return make_shared<op::v8::Slice>(data, start, stop, step, axes);
+        const auto axes = std::make_shared<op::v0::Constant>(et, Shape{axes_val.size()}, axes_val);
+        return std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
     }
-    return make_shared<op::v8::Slice>(data, start, stop, step);
+    return std::make_shared<op::v8::Slice>(data, start, stop, step);
 }
 
 template <typename T>
@@ -41,17 +40,17 @@ std::shared_ptr<Node> make_slice_op_param_inputs(const std::vector<PartialShape>
     const auto& stop_shape = args[1];
     const auto& step_shape = args[2];
 
-    const auto data = make_shared<op::Parameter>(et, data_shape);
-    const auto start = make_shared<op::Parameter>(et, start_shape);
-    const auto stop = make_shared<op::Parameter>(et, stop_shape);
-    const auto step = make_shared<op::Parameter>(et, step_shape);
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, start_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, stop_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, step_shape);
 
     if (args.size() > 3) {
         const auto& axes_shape = args[3];
-        const auto axes = make_shared<op::Parameter>(et, axes_shape);
-        return make_shared<op::v8::Slice>(data, start, stop, step, axes);
+        const auto axes = std::make_shared<op::Parameter>(et, axes_shape);
+        return std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
     }
-    return make_shared<op::v8::Slice>(data, start, stop, step);
+    return std::make_shared<op::v8::Slice>(data, start, stop, step);
 }
 }  // namespace
 
@@ -137,12 +136,12 @@ TEST(type_prop, slice_v8_basic_param_inputs_default_axes) {
 
     element::Type_t et = element::i32;
 
-    const auto data = make_shared<op::Parameter>(et, data_shape);
-    const auto start = make_shared<op::Parameter>(et, start_shape);
-    const auto stop = make_shared<op::Parameter>(et, stop_shape);
-    const auto step = make_shared<op::Parameter>(et, step_shape);
+    const auto data = std::make_shared<op::v0::Parameter>(et, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(et, start_shape);
+    const auto stop = std::make_shared<op::v0::Parameter>(et, stop_shape);
+    const auto step = std::make_shared<op::v0::Parameter>(et, step_shape);
 
-    const auto op = make_shared<op::v8::Slice>(data, start, stop, step);
+    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step);
 
     EXPECT_EQ(op->get_element_type(), et);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);

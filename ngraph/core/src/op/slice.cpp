@@ -10,9 +10,6 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/range.hpp"
-#include "ngraph/op/shape_of.hpp"
-#include "ngraph/op/squeeze.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -47,8 +44,9 @@ std::shared_ptr<ngraph::op::v0::Constant> get_default_const_axes(const Output<No
         std::vector<int64_t> axes(axes_length);
         std::iota(axes.begin(), axes.end(), 0);
         return op::v0::Constant::create(element::i64, Shape{axes_length}, axes);
-    }
-    else return nullptr; // Dynamic case, if start is parameter without const values, we can't calculate output dims anyway;
+    } else
+        return nullptr;  // Dynamic case, if start is parameter without const values, we can't calculate output dims
+                         // anyway;
 
     // // Dynamic case // not needed, if start is dynamic we can't calculate output dims anyway
     // const auto axes_start_val = op::Constant::create(element::i64, {}, {0});
@@ -57,7 +55,6 @@ std::shared_ptr<ngraph::op::v0::Constant> get_default_const_axes(const Output<No
     // return std::make_shared<op::v4::Range>(axes_start_val, axes_end_val, axes_step_val, element::i64);
 }
 }  // namespace
-
 
 bool op::v8::Slice::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_Slice_visit_attributes);
@@ -151,18 +148,19 @@ void op::v8::Slice::validate_and_infer_types() {
             const auto elements_in_range = std::ceil(std::fabs(stop - start) / fabs(step));
             output_shape[norm_axis] = elements_in_range;
         }
-    }
-    else {
-        // If we know only axes values, we should update lower_bound to 0 value,
-        // for specified dimensions.
+    } else {
         if (axes_const) {
+            // If we know only axes values, we should update lower_bound to 0 value,
+            // for the specified dims by the axes. For unspecified dims, bounds as in data_shape.
             for (const auto& axis : axes_const->cast_vector<int64_t>()) {
                 if (axis < data_shape.rank().get_length()) {
                     output_shape[axis] = Dimension(0, data_shape[axis].get_max_length());
                 }
                 // TODO: else throw, or check the values in advance
             }
-        } else { // If axes values are also unknown, then all of the output dimensions can have 0 value
+        } else {
+            // Otherwise axes values are also unknown,
+            // then all of the output dims can be 0, so lower_bound = 0.
             for (size_t i = 0; i < data_shape.rank().get_length(); ++i) {
                 output_shape[i] = Dimension(0, data_shape[i].get_max_length());
             }
