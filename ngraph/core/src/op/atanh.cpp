@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v3::Atanh, "Atanh", 0, util::UnaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(ov::op::v3::Atanh, "Atanh", 0, util::UnaryElementwiseArithmetic);
 
 op::v3::Atanh::Atanh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
