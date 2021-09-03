@@ -15,7 +15,7 @@ using namespace std;
 using namespace ngraph;
 
 // *** Convolution OP SET 1 ***
-NGRAPH_RTTI_DEFINITION(op::v1::Convolution, "Convolution", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::Convolution, "Convolution", 1);
 
 op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
@@ -185,7 +185,7 @@ const PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const {
 
 void op::v1::ConvolutionBackpropData::set_output_shape(const Shape& shape) {
     this->input(2).replace_source_output(
-        op::Constant::create(this->get_input_element_type(2), Shape{shape.size()}, shape)->output(0));
+        op::v0::Constant::create(this->get_input_element_type(2), Shape{shape.size()}, shape)->output(0));
 }
 
 void op::v1::ConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
@@ -208,7 +208,7 @@ void op::v1::ConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
             int64_t val = strides[i] * (input_data_shape[i].get_length() - 1) +
                           dilations[i] * (filters_shape[i].get_length() - 1) + 1 - pads_begin[i] - pads_end[i] +
                           output_padding[i];
-            output_spatial_shape.push_back(val);
+            output_spatial_shape.emplace_back(val);
         } else {
             output_spatial_shape.push_back(Dimension::dynamic());
         }

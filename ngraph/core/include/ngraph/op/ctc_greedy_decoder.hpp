@@ -5,33 +5,12 @@
 #pragma once
 
 #include "ngraph/op/op.hpp"
+#include "openvino/op/ctc_greedy_decoder.hpp"
 
 namespace ngraph {
 namespace op {
 namespace v0 {
-class NGRAPH_API CTCGreedyDecoder : public Op {
-public:
-    NGRAPH_RTTI_DECLARATION;
-
-    CTCGreedyDecoder() = default;
-    /// \brief Constructs a CTCGreedyDecoder operation
-    ///
-    /// \param input              Logits on which greedy decoding is performed
-    /// \param seq_len            Sequence lengths
-    /// \param ctc_merge_repeated Whether to merge repeated labels
-    CTCGreedyDecoder(const Output<Node>& input, const Output<Node>& seq_len, const bool ctc_merge_repeated);
-
-    void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    bool get_ctc_merge_repeated() const {
-        return m_ctc_merge_repeated;
-    }
-
-private:
-    bool m_ctc_merge_repeated;
-};
+using ov::op::v0::CTCGreedyDecoder;
 }  // namespace v0
 using v0::CTCGreedyDecoder;
 }  // namespace op
