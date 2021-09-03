@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/and.hpp"
-
 #include "itt.hpp"
+#include "ngraph/op/and.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/and.hpp"
 #include "ngraph/validation_util.hpp"
@@ -12,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::LogicalAnd, "LogicalAnd", 1, util::BinaryElementwiseLogical);
+OPENVINO_RTTI_DEFINITION(ov::op::v1::LogicalAnd, "LogicalAnd", 1, util::BinaryElementwiseLogical);
 
 op::v1::LogicalAnd::LogicalAnd(const Output<Node>& arg0,
                                const Output<Node>& arg1,
