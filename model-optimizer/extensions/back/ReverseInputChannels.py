@@ -307,7 +307,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
                                           \
         previous_op  previous_op       ReverseChannels  previous_op
                  \     /                           \     /
-                   Node                             Node
+                   Pad                              Pad
                     |                                |
               ReverseChannels                      next_op
                     |
