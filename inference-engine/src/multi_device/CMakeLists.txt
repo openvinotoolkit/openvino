@@ -15,7 +15,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "AUTO"
               PSEUDO_PLUGIN
-              DEFAULT_CONFIG "MULTI_WORK_MODE_AS_AUTO:")
+              DEFAULT_CONFIG "MULTI_WORK_MODE_AS_AUTO:YES")
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine ngraph inference_engine_transformations)
 

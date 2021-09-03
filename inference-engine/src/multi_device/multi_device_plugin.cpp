@@ -209,7 +209,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
     auto workMode = fullConfig.find(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
-    bool workModeAuto = workMode != fullConfig.end();
+    bool workModeAuto = workMode != fullConfig.end() && workMode->second == InferenceEngine::PluginConfigParams::YES;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
 
     // not found device priorities for -d AUTO use case
