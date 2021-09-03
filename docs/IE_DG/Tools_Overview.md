@@ -10,7 +10,7 @@ The OpenVINO™ toolkit installation includes the following tools:
 |[Post-Training Optimization Tool](@ref pot_README)                           | `<INSTALL_DIR>/deployment_tools/tools/post_training_optimization_toolkit`|
 |[Model Downloader](@ref omz_tools_downloader)                         | `<INSTALL_DIR>/deployment_tools/tools/model_downloader`| 
 |[Cross Check Tool](../../tools/cross_check_tool/README.md)  | `<INSTALL_DIR>/deployment_tools/tools/cross_check_tool`|
-|[Compile Tool](../../inference-engine/tools/compile_tool/README.md)          | `<INSTALL_DIR>/deployment_tools/inference_engine/lib/intel64/`|
+|[Compile Tool](../../tools/compile_tool/README.md)          | `<INSTALL_DIR>/deployment_tools/inference_engine/lib/intel64/`|
 
 
 ## See Also

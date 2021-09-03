@@ -18,6 +18,14 @@ endif()
 
 # Python tools
 
+# install deployment_manager
+
+ie_cpack_add_component(deployment_manager REQUIRED)
+install(DIRECTORY deployment_manager/
+        DESTINATION deployment_tools/tools/deployment_manager
+        COMPONENT deployment_manager
+        USE_SOURCE_PERMISSIONS)
+
 if(ENABLE_PYTHON)
     find_package(PythonInterp 3 REQUIRED)
     set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
