@@ -125,7 +125,7 @@ Options:
                         Optional. Enables performance report (specify -a to
                         ensure arch accurate results).
   -a {CORE,ATOM}, --arch {CORE,ATOM}
-                        Optional. Specify a architecture. CORE, ATOM with
+                        Optional. Specify architecture. CORE, ATOM with the
                         combination of -pc.
   -iname INPUT_LAYERS, --input_layers INPUT_LAYERS
                         Optional. Layer names for input blobs. The names are
