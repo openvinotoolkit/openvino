@@ -286,8 +286,8 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
     // U32
     {
         LayerTransformation::createParamsU8I8(),
-        { 4294967296, {}, { 0.f }, { 4.294967295f }, { 0.f }, { 4.294967295f } },
-        { 4294967296, {}, { 0.f }, { 4.294967295f }, { 0.f }, { 4294967295.f } },
+        { static_cast<size_t>(4294967296), {}, { 0.f }, { 4.294967295f }, { 0.f }, { 4.294967295f } },
+        { static_cast<size_t>(4294967296), {}, { 0.f }, { 4.294967295f }, { 0.f }, { 4294967295.f } },
         ngraph::element::u32,
         {
             { ngraph::element::f32, { {ngraph::element::f32}, {}, { 0.000000001f }} },
@@ -297,8 +297,8 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
     // I32
     {
         LayerTransformation::createParamsU8I8(),
-        { 4294967296, {}, { -2.147483648f }, { 2.147483647f }, { -2.147483648f }, { 2.147483647f } },
-        { 4294967296, {}, { -2.147483648f }, { 2.147483647f }, { -2147483648.f }, { 2147483647.f } },
+        { static_cast<size_t>(4294967296), {}, { -2.147483648f }, { 2.147483647f }, { -2.147483648f }, { 2.147483647f } },
+        { static_cast<size_t>(4294967296), {}, { -2.147483648f }, { 2.147483647f }, { -2147483648.f }, { 2147483647.f } },
         ngraph::element::i32,
         {
             { ngraph::element::f32, { {ngraph::element::f32}, {}, { 0.000000001f }} },
