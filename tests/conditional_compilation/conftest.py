@@ -68,6 +68,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--omz_repo",
         type=Path,
+        default=Path("../_open_model_zoo").resolve(),
         help="Path to Open Model Zoo repository root directory",
     )
     parser.addoption(
@@ -196,7 +197,12 @@ def save_session_info(pytestconfig, artifacts):
 def omz_path(request):
     """Fixture function for command-line option."""
     omz_path = request.config.getoption("omz_repo", skip=True)
-    validate_path_arg(omz_path, is_dir=True)
+    if omz_path:
+        try:
+            validate_path_arg(omz_path, is_dir=True)
+        except ValueError:
+            log.warning(f'The Open Model Zoo repository root directory'
+                        f' "{omz_path}" does not exist.')
 
     return omz_path
 
@@ -209,7 +215,8 @@ def omz_cache_dir(request):
         try:
             validate_path_arg(omz_cache_dir, is_dir=True)
         except ValueError:
-            log.warning(f'The Open Model Zoo cache directory "{omz_cache_dir}" does not exist and will be created.')
+            log.warning(f'The Open Model Zoo cache directory'
+                        f' "{omz_cache_dir}" does not exist.')
 
     return omz_cache_dir
 
