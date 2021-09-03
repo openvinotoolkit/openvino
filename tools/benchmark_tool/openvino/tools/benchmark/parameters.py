@@ -35,7 +35,7 @@ def parse_args():
                       help='Optional. '
                            'Path to a folder with images and/or binaries or to specific image or binary file.')
     args.add_argument('-m', '--path_to_model', type=str, required=True,
-                      help='Required. Path to an .xml/.onnx/.prototxt file with a trained model or '
+                      help='Required. Path to an .xml/.onnx file with a trained model or '
                            'to a .blob file with a trained compiled model.')
     args.add_argument('-d', '--target_device', type=str, required=False, default='CPU',
                       help='Optional. Specify a target device to infer on (the list of available devices is shown below). '
