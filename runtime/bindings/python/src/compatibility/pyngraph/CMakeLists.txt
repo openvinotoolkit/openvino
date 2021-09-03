@@ -11,8 +11,6 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(ngraph REQUIRED)
 endif()
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pybind11 EXCLUDE_FROM_ALL)
-
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 message(STATUS "Python version=${PYTHON_VERSION}")
@@ -53,11 +51,11 @@ endif()
 
 # create target
 
-file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
+file(GLOB_RECURSE SOURCES *.cpp)
 
 pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
-target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_include_directories(_${PROJECT_NAME} PRIVATE "../")
 
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::frontend_manager)
 
@@ -66,7 +64,7 @@ if (TARGET ngraph::onnx_ngraph_frontend)
 endif()
 
 if(NGRAPH_UNIT_TEST_ENABLE)
-    add_subdirectory(tests/mock/mock_py_ngraph_frontend)
+    add_subdirectory(../../tests/mock/mock_py_ngraph_frontend)
     add_dependencies(_${PROJECT_NAME} mock_py_ngraph_frontend)
     set_target_properties(mock_py_ngraph_frontend PROPERTIES
             LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
@@ -74,7 +72,7 @@ if(NGRAPH_UNIT_TEST_ENABLE)
             COMPILE_PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
             PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN})
 
-    add_subdirectory(tests/mock/pyngraph_fe_mock_api)
+    add_subdirectory(../../tests/mock/pyngraph_fe_mock_api)
     add_dependencies(_${PROJECT_NAME} pybind_mock_frontend)
 endif()
 
@@ -82,7 +80,7 @@ endif()
 if(OpenVINO_SOURCE_DIR)
     add_custom_command(TARGET _${PROJECT_NAME}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/ngraph ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngraph
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../ngraph ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngraph
     )
 endif()
 
@@ -99,12 +97,12 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
             DESTINATION python/${PYTHON_VERSION}
             COMPONENT pyngraph_${PYTHON_VERSION})
 
-    install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/src/ngraph
+    install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../ngraph
             DESTINATION python/${PYTHON_VERSION}
             COMPONENT pyngraph_${PYTHON_VERSION}
             USE_SOURCE_PERMISSIONS)
 
-    install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/tests
+    install(DIRECTORY ../../tests
             DESTINATION tests/${PROJECT_NAME}
             COMPONENT tests EXCLUDE_FROM_ALL)
 
