@@ -13,17 +13,6 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-template <typename T>
-void less_eq(const T* arg0,
-             const T* arg1,
-             char* out,
-             size_t count)  // TODO: using char for bool, is this right?
-{
-    for (size_t i = 0; i < count; i++) {
-        out[i] = arg0[i] <= arg1[i];
-    }
-}
-
 template <typename T, typename U>
 void less_eq(const T* arg0,
              const T* arg1,
