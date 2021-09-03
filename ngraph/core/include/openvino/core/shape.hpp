@@ -12,14 +12,10 @@
 #include "openvino/core/rank.hpp"
 #include "openvino/core/static_shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 struct AutoBroadcastSpec;
 }
-
-}  // namespace ngraph
-
-namespace ov {
 
 /// \brief Class representing a shape that may be partially or totally dynamic.
 ///

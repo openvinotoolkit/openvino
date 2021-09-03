@@ -6,8 +6,6 @@
 
 #include "ngraph/util.hpp"
 
-using namespace std;
-
 std::ostream& ov::operator<<(std::ostream& s, const ov::Strides& strides) {
     s << "Strides{";
     s << ngraph::join(strides);
