@@ -94,7 +94,7 @@ def get_output_layer_list(net: Union[IENetwork, ExecutableNetwork],
                 log.error('Incorrect value for -oname/--output_layers option, please specify a port for output layer.')
                 sys.exit(-4)
         else:
-            return [blob_name for blob_name, port in output_name_port]
+            return [blob_name for blob_name, _ in output_name_port]
     else:
         return [list(net.outputs.keys())[-1]]
 
