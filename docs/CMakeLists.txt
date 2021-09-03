@@ -29,6 +29,7 @@ if(NOT ENABLE_DOCKER)
         add_subdirectory(onnx_custom_op)
     endif()
     add_subdirectory(template_extension)
+    add_subdirectory(migration_ov_2_0)
 
     set(all_docs_targets
         ie_docs_snippets
