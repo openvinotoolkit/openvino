@@ -54,7 +54,7 @@ bool evaluate_add(const HostTensorPtr& arg0,
 
 // ------------------------------- v1 ------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Add, "Add", 1, util::BinaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(ov::op::v1::Add, "Add", 1, util::BinaryElementwiseArithmetic);
 
 op::v1::Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {

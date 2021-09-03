@@ -120,6 +120,9 @@ public:
         m_axis = axis;
     }
 
+    bool has_evaluate() const override;
+    bool evaluate(const HostTensorVector&, const HostTensorVector&) const override;
+
 private:
     Strides m_dilations;
     element::Type m_index_element_type{element::i64};
