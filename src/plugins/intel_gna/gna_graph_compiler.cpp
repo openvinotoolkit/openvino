@@ -444,10 +444,12 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
             return LayerInfo(l).isScaleShift();
         });
     }
-
+    // CNN layer which originates from unaligned concat does not need the rotation for inputs
+    const auto suppressInputRotation = LayerInfo(layer).isConvolutionFromUnalignedConcatFilter();
     // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know how kaldi will handle that
     if (!dnn->do_rotate_input) {
-        if (inputs->getLayout() != Layout::NHWC && LayerInfo(connectedInputLayer).isInput()) {
+        if (inputs->getLayout() != Layout::NHWC && LayerInfo(connectedInputLayer).isInput() &&
+            !suppressInputRotation) {
             //  Kaldi features are opposite orientation
             dnn->do_rotate_input = true;
             dnn->num_rotate_rows = effectiveStride;
@@ -939,6 +941,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
     if (concatLayer == nullptr) {
         return;
     }
+    LayerInfo concatInfo(layer);
     if (concatLayer->insData.size() < 2) {
         THROW_GNA_EXCEPTION << "Concat layer has unsupported number of incoming layers.";
     }
@@ -1010,12 +1013,20 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         if (layerInfo.isInput()) {
             connectInput(layer, &concatLayerInfo.gna_ptr, inputLayer.tensorSize, inputLayer.offset, idx, false);
             concatLayerInfo.input_allocated = true;
-        } else if (layerInfo.isMemory()) {
+        } else if (layerInfo.isMemory() && !concatInfo.isConcatOrdering()) {
             connectInput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size, inputLayer.offset, idx, false);
             concatLayerInfo.input_allocated = true;
         }
         ++idx;
     }
+}
+
+void GNAGraphCompiler::PadPrimitive(InferenceEngine::CNNLayerPtr layer) {
+    auto padLayer = dynamic_cast<InferenceEngine::PadLayer*> (layer.get());
+    if (padLayer == nullptr) {
+        return;
+    }
+    pad_connection.emplace(padLayer->name, GNAPadLayer{});
 }
 
 void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
@@ -1024,6 +1035,8 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
     if (cropLayer == nullptr) {
         return;
     }
+
+    const auto cropFromUnalignedConcat = LayerInfo(cropLayer).isCropFromUnalignedConcat();
 
     IE_ASSERT(!layer->insData.empty());
     auto inputs = layer->insData.begin()->lock();
@@ -1061,7 +1074,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         cropOutputSize *= cropLayer->dim[n];
     }
 
-    if (!LayerInfo(cropLayer).isCropAffined()) {
+    if (!LayerInfo(cropLayer).isCropAffined() || cropFromUnalignedConcat) {
         // leave crop as it is
         GNAPluginNS::GNACropLayer cropLayerInfoItem(layer);
         std::string& id = layer->name;
@@ -1074,7 +1087,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         }
 
         // calculate index idx for connectInput last parameter
-        connectInput(layer, &cropLayerInfo->second.gna_ptr, cropOutputSize + cropOffset, cropOffset, 0);
+        connectInput(layer, &cropLayerInfo->second.gna_ptr, cropOutputSize + cropOffset, cropOffset);
 
         // cases for certain output layers
         for (auto&& outLayer : getInputTo(layer->outData.front())) {
@@ -2142,6 +2155,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"Concat"}, CREATE(ConcatPrimitive)},
         {{"Reshape"}, SKIP},  // TODO: handled not in GNA but rather in GNA plugin
         {{"Squeeze"}, SKIP},  // TODO: handled not in GNA but rather in GNA plugin
+        {{"Pad"}, CREATE(PadPrimitive)},
         {{"Crop"}, CREATE(CropPrimitive)},
         {{CopyLayerName}, CREATE(CopyPrimitive)},
         {{DelayedCopyLayerName}, CREATE(CopyPrimitive)},
@@ -2158,6 +2172,47 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
     }
 }
 
+// Function returns one of the two StridedSlices which follows
+// Concat layer which served as "ordering concat" inserted by TransformConcatForGna
+// additionally returns the offset
+// layer - the node which is input to "ordering concat" it may be indirect when some non functional layers beetwen
+// offset - offset of the layer wrt concat
+// concat - "ordering concat" layer wchich is consumer of the layer
+static InferenceEngine::CNNLayerPtr FindSSAfterCO(InferenceEngine::CNNLayerPtr layer,
+                                           InferenceEngine::CNNLayerPtr concat,
+                                           size_t& offset) {
+    std::string cropAfterConcatBeginName, cropAfterConcatEndName;
+    auto concatConsumers = getInputTo(concat->outData.front());
+    for (auto&& cc : concatConsumers) {
+        auto& ss = *dynamic_cast<CropLayer*>(cc.second.get());
+        gnalog() << "Concat: " << concat->name << " Consumer: " << cc.first << ", " << cc.second->name << ", " << cc.second->type << "\n";
+        for (auto&& o : ss.offset) gnalog() << o << "_";
+        if (LayerInfo(ss).isCropBeforeSubgraph()) {
+            gnalog() << "isCropBeforeSubgraph " << "\n";
+            cropAfterConcatBeginName = cc.first;
+        } else if (LayerInfo(ss).isCropAfterSubgraph()) {
+            gnalog() << "isCropAfterSubgraph " << "\n";
+            cropAfterConcatEndName = cc.first;
+        }
+    }
+    offset = 0;
+    std::string affectedLayerName;
+    for (int concatInputIndex = 0; concatInputIndex < concat->insData.size(); ++concatInputIndex) {
+        auto concatParents = CNNNetGetPrevLayersSkip(concat, [](CNNLayerPtr l) {return !LayerInfo(l).isNonFunctional(); }, concatInputIndex);
+        IE_ASSERT(concatParents.size() == 1);
+        auto concatParent = concatParents.front().first;
+        if (concatParent == layer) {
+            if (offset == 0) {
+                return concatConsumers[cropAfterConcatBeginName];
+            } else {
+                return concatConsumers[cropAfterConcatEndName];
+            }
+        }
+        offset += ov::shape_size(concatParent->outData.front()->getDims());
+    }
+    THROW_GNA_EXCEPTION << "Can not find Crop after ordering concat\n";
+}
+
 void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
                                     void *ptr,
                                     size_t num_data_bytes_out) {
@@ -2169,6 +2224,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
         return output_offset;
     };
 
+    auto layerInfo = LayerInfo(layer);
     gnalog() << "Connecting output " << layer->name << " ...\n";
     // in case of Memory Layer it's input allocated in meminput layer
     if (layer->outData.size() == 1) {
@@ -2251,6 +2307,35 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
         }
 
         if (concat) {
+            if (LayerInfo(concat).isConcatOrdering()) {
+                const size_t precision = gnaFlags->sw_fp32 ? 4 : 2;
+                gnalog() << "Concat ordering detected: " << concat->name << "\n";
+                size_t special_offset = 0;
+                auto ss = FindSSAfterCO(layer, concat, special_offset);
+
+                if (LayerInfo(ss).isCropBeforeSubgraph()) {
+                    gnamem->reserve_ptr(layer, ptr, num_data_bytes_out, 64);
+                    return;
+                }
+                auto newConcat = CNNNetGetNextLayerSkipCertain(ss, 0, 0, [](CNNLayerPtr) {return false; }).first;
+
+                auto concatLayerInfo = concat_connection.find(newConcat->name);
+                if (concatLayerInfo == concat_connection.end()) {
+                    THROW_GNA_EXCEPTION << "Cannot find corresponding concat connection for layer: " << newConcat->name;
+                }
+                auto& concatLayerInfoItem = concatLayerInfo->second;
+                special_offset -= dynamic_cast<CropLayer*>(ss.get())->offset[1];
+                special_offset *= precision;
+                auto ssAsInputToConcat = concatLayerInfoItem.GetInput(ss->name);
+                special_offset += (ssAsInputToConcat.offset);
+                if (layerInfo.isCropFromUnalignedConcat()) {
+                    auto cropLayer = dynamic_cast<InferenceEngine::CropLayer*> (layer.get());
+                    special_offset -= cropLayer->offset[1] * precision;
+                }
+                gnamem->bind_ptr(layer, ptr, &concatLayerInfoItem.gna_ptr, special_offset);
+                return;
+            }
+
             // concat father might be non functional - in that case lets skip it
             auto concatFatherActual =
                 LayerInfo(concatFather).isNonFunctional() ?
@@ -2299,7 +2384,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
                                                           GNAPluginNS::GnaInputs &inputs,
                                                           ConcatConnection& concat_connection) {
                             size_t concatInputIdx = 0;
-                            for (auto &&inputLayer : clayer.concatInputLayers) {
+                            for (auto&& inputLayer : clayer.concatInputLayers) {
                                 // skipping non functional and reshape layer, as in that case input might be not connected to anything
                                 auto realConcatInputs = CNNNetGetPrevLayersSkip(clayer.getConcat(), [](CNNLayerPtr l) {
                                     return !LayerInfo(l).isNonFunctional() && !LayerInfo(l).isSplit();
@@ -2323,13 +2408,55 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
                     concatLayerInfo->second.output_allocation_flag = true;
                 }
                 // output offset precalculated to serve GNAAlignment requirements
-                auto output_offset = it->offset;
-                if (layer->params.find("output_offset") != layer->params.end()) {
-                    output_offset = layer->GetParamAsInt("output_offset");
-                }
+                auto output_offset = layer->GetParamAsInt("output_offset", it->offset);
                 gnamem->bind_ptr(layer, ptr, &concatLayerInfoItem.gna_ptr, output_offset);
             }
             return;
+        }
+        auto isNonFunctional = [](CNNLayerPtr l) {
+            return LayerInfo(l).isNonFunctional();
+        };
+
+        if (layerInfo.isIdentity() && CNNNetHasNextLayerSkipCertain(layer, 0, 0, isNonFunctional)) {
+            auto cropFromUnalignedConcat = CNNNetGetNextLayerSkipCertain(layer, 0, 0, isNonFunctional);
+            auto cropFromUnalignedConcatInfo = LayerInfo(cropFromUnalignedConcat.first);
+            if (cropFromUnalignedConcatInfo.isCropFromUnalignedConcat() &&
+                CNNNetHasNextLayerSkipCertain(cropFromUnalignedConcat.first, 0, 0, isNonFunctional)) {
+                const auto cropLayer =
+                    dynamic_cast<InferenceEngine::CropLayer*>(cropFromUnalignedConcat.first.get());
+                auto concatOrdering =
+                    CNNNetGetNextLayerSkipCertain(cropFromUnalignedConcat.first, 0, 0, isNonFunctional);
+                auto concatOrderingInfo = LayerInfo(concatOrdering.first);
+                if (concatOrderingInfo.isConcatOrdering()) {
+                    // Handle a pattern from TransformConcatForGna:
+                    // Identity -> Crop -> Ordering Concat -> Crop -> Final Concat
+                    size_t totalOffset = 0;
+                    size_t additionalOffset = 0;
+                    auto cropAfterConcatOrdering =
+                        FindSSAfterCO(cropFromUnalignedConcat.first, concatOrdering.first, additionalOffset);
+                    auto newConcat = CNNNetGetNextLayerSkipCertain(cropAfterConcatOrdering, 0, 0, isNonFunctional);
+                    const auto newConcatIdx = newConcat.second[0];
+                    additionalOffset -= ov::shape_size(concatOrdering.first->insData[0].lock()->getDims());
+
+                    for (int inIdx = 0; inIdx < newConcatIdx; inIdx++) {
+                        totalOffset += ov::shape_size(newConcat.first->insData[inIdx].lock()->getDims());
+                    }
+                    totalOffset += additionalOffset;
+                    totalOffset = DownAlignTo(totalOffset, GNAPluginNS::GNALimitations::gnaTensorDataAlignmentElements);
+
+                    const auto precSize = layer->outData.front()->getPrecision().size();
+                    const auto numberOfElements = cropLayer->dim[1] + cropLayer->offset[1];
+                    const auto effectiveOffset = totalOffset * precSize;
+                    const auto effectiveSize = numberOfElements * precSize;
+
+                    auto concatConnection = concat_connection.find(newConcat.first->name);
+                    if (concatConnection == concat_connection.end()) {
+                        THROW_GNA_LAYER_EXCEPTION(newConcat.first) << "Concat connection not found\n";
+                    }
+                    gnamem->bind_ptr(layer, ptr, &concatConnection->second.gna_ptr, effectiveOffset, effectiveSize);
+                    return;
+                }
+            }
         }
     }
 
@@ -2337,6 +2464,36 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
         [](CNNLayerPtr l) { return LayerInfo(l).isNonFunctional(); }).first;
     // Check that layer will be an output
     gnamem->reserve_ptr((LayerInfo(layer).isOutput() || !nextLayer) ? nullptr : layer, ptr, ALIGN64(num_data_bytes_out), 64);
+}
+
+GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInputSplit(InferenceEngine::CNNLayerPtr splittingLayer,
+    void* ptr,
+    const InferenceEngine::CNNLayerPtr splitConsumerLayer,
+    const int splitConsumerLayerInputIndex,
+    const int offset) {
+    auto& splitName = splittingLayer->name;
+    auto& splitType = splittingLayer->type;
+
+    // we look for this split layer pointer in pre calculated map
+    auto splitLayerInfo = split_connection.find(splitName);
+
+    if (splitLayerInfo != split_connection.end()) {
+        auto& splitLayerInfoItem = splitLayerInfo->second;
+        // find this input in vector sum all outputs in primitive
+        auto it = std::find_if(splitLayerInfoItem.splitOutputLayers.begin(),
+            splitLayerInfoItem.splitOutputLayers.end(),
+            [&splitConsumerLayerInputIndex, &splitConsumerLayer](GNAPluginNS::GNASplitLayer::SplitConnectedLayerInfo& item) {
+                return item.connectedTo == splitConsumerLayer && item.insDataIdx == splitConsumerLayerInputIndex;
+            });
+
+        if (it != splitLayerInfoItem.splitOutputLayers.end()) {
+            gnalog() << "Connecting " << splitName << " input \n";
+            auto res = connectInput(splittingLayer, ptr, splitLayerInfoItem.reserved_size, it->offset + offset, 0);
+            gnalog() << "Connected \n";
+            return res;
+        }
+    }
+    THROW_GNA_EXCEPTION << splitType << " layer: " << splitName << " is not included in extra map";
 }
 
 GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
@@ -2443,6 +2600,9 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             }
         }
         THROW_GNA_EXCEPTION << prevLayer->type << " layer: " << splitName << " is not included in extra map";
+    } else if (layerInfoObj.isConcatOrdering() && LayerInfo(layer).isCropBeforeSubgraph()) {
+        constexpr auto concatOrderingInputIndex = 0;
+        return connectInput(prevLayer, ptr, num_data_bytes_in, offset, concatOrderingInputIndex);
     } else if (layerInfoObj.isConcat()) {
         auto concatLayerInfo = concat_connection.find(
                 prevLayer->name);
@@ -2460,6 +2620,46 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             auto & cropLayerInfoItem = cropLayerInfo->second;
             gnamem->bind_ptr(layer, ptr, &cropLayerInfoItem.gna_ptr, offset);
             return CNNNetPrevLayer(prevLayer);
+        }
+    } else if (layerInfoObj.isPad()) {
+        auto beforePad = CNNNetPrevLayerSkipCertain(prevLayer, 0, [](CNNLayerPtr l) {
+            return LayerInfo(l).isNonFunctional();
+            });
+
+        // const auto padAligned = prevLayer->params.count("PadAligned") > 0;
+        auto beforePadInfo = LayerInfo(beforePad);
+        if (/*padAligned && */!beforePadInfo.isCropFromUnalignedConcat()) {
+            if (beforePadInfo.isConst()) {
+                auto constInputToPad = const_connections.find(beforePad->name);
+                if (constInputToPad != const_connections.end()) {
+                    gnamem->bind_ptr(layer, ptr, &constInputToPad->second, offset);
+                    return beforePad;
+                }
+            } else if (auto prevDnnLayer = dnnComponents.findComponent(beforePad)) {
+                gnamem->bind_ptr(layer, ptr, &prevDnnLayer->ptr_outputs, offset);
+                return beforePad;
+            } else if (beforePadInfo.isSplit() || beforePadInfo.isSlice()) {
+                return connectInputSplit(beforePad, ptr, prevLayer, 0, offset);
+            } else if (beforePadInfo.isInput()) {
+                return connectInput(prevLayer, ptr, num_data_bytes_in, offset);
+            } else if (beforePadInfo.isCropBeforeSubgraph()) {
+                auto orderingConcat = CNNNetPrevLayerSkipCertain(beforePad, 0, [](CNNLayerPtr l) {
+                    return LayerInfo(l).isNonFunctional();
+                    });
+                auto orderingConcatInfo = LayerInfo(orderingConcat);
+                if (orderingConcatInfo.isConcatOrdering()) {
+                    return connectInput(orderingConcat, ptr, num_data_bytes_in, offset);
+                }
+            }
+            THROW_GNA_EXCEPTION << "Pad aligned layer must follow Input, Const, Split or generic dnnComponent, other cases not implemented yet";
+        } else {
+            auto cropLayerInfo = crop_connection.find(
+                beforePad->name);
+            if (cropLayerInfo != crop_connection.end()) {
+                auto& cropLayerInfoItem = cropLayerInfo->second;
+                gnamem->bind_ptr(layer, ptr, &cropLayerInfoItem.gna_ptr, offset);
+                return beforePad;
+            }
         }
     }
     auto prevDnnLayer = dnnComponents.findComponent(prevLayer);

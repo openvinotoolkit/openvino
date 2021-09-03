@@ -27,3 +27,13 @@
  * Used for calculating memory sizes of GNA data arrays
  */
 #define ALIGN64(number) ALIGN(number, 64)
+
+template <typename T, typename N>
+T DownAlignTo(T val, N to) {
+    return val - (val % to);
+}
+
+template <typename T, typename N>
+T UpAlignTo(T val, N to) {
+    return (val + to - 1) / to * to;
+}

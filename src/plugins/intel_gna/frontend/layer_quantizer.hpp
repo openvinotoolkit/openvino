@@ -333,6 +333,11 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         num_columns = wl->_weights->size() / num_rows;
     }
 
+    // Unaligned concat inserted matmul with changed input layout
+    if (!isDiagonal && iIdx == 3 && wl->insData[0].lock().get()->getDims()[2] * num_columns == wl->_weights->size() / num_rows &&
+        oIdx == 1 && wl->outData[0]->getDims()[0] == 1) {
+        num_columns = wl->_weights->size() / num_rows;
+    }
     if (isDiagonal) {
         std::swap(num_rows, num_columns);
     }

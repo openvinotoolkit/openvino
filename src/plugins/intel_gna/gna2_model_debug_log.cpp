@@ -335,11 +335,11 @@ void DumpPwl(std::ostream& dumpFile, const Gna2Tensor& activation) {
         double a = static_cast<double>(segments[k].Slope) / factor;
         double b = static_cast<double>(segments[k].yBase) - ((static_cast<double>(B) * segments[k].Slope) / factor);
 
-        dumpFile << "\t\tBase value for input (B) : " << B << "\n";
-        dumpFile << "\t\tBase value for output (b) : " << segments[k].yBase << "\n";
-        dumpFile << "\t\tSegment slope (S): " << segments[k].Slope << "\n";
-        dumpFile << "\t\tShift (scale) : " << scale << "\n";
-        dumpFile << "\t\ty = ax + b:   a = " << a << ", b = " << b;
+        dumpFile << "\t\tBase input (B) : " << B << ", ";
+        dumpFile << "Base output (b) : " << segments[k].yBase << ", ";
+        dumpFile << "Slope (S): " << segments[k].Slope << ", ";
+        dumpFile << "Shift (scale) : " << scale << ", ";
+        dumpFile << "y = (" << a << ")x + (" << b << ")";
         if (segments[k].Slope != 0) {
             double x0 = static_cast<double>(B) - ((static_cast<double>(segments[k].yBase) * factor) / segments[k].Slope);
             dumpFile << ", x0 = " << x0;
@@ -369,7 +369,7 @@ void DumpCharArray(std::ostream& dumpFile, const char *carray,  size_t count) {
 
 } // namespace
 
-void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGNA, bool dumpData) {
+void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGNA, bool dumpData, const void* memoryBegin) {
     std::stringstream dumpFileName;
     uint32_t opsNo = gnaModel.NumberOfOperations;
     std::time_t currTime = std::time(nullptr);
@@ -377,7 +377,7 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
     dumpFileName << dumpFolderNameGNA << "Gna2ModelDebugDump_" << opsNo << "_layer_" << std::put_time(std::localtime(&currTime), "%Y%m%d%H%M%S");
 
     std::ofstream dumpFile(dumpFileName.str() + ".txt", std::ios::out);
-
+    dumpFile << "Memory begin: " << memoryBegin << "\n";
     dumpFile << "Layers (operations) count: " << opsNo << "\n";
 
     for (size_t i = 0; i < opsNo; i++) {
@@ -395,9 +395,11 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
                 continue;
             }
             const auto& operand = *operation.Operands[j];
+            const auto offsetFromBegin = static_cast<uint8_t*>(operand.Data) - static_cast<const uint8_t*>(memoryBegin);
             dumpFile << "\tOperand " << j << " (" << GetOperandName(operation.Type, j) << ")"
                 << " type: " << GetOperandType(operand.Type) <<
                 " shape: " << GetSimpleString(operand.Shape) <<
+                " offset: " << offsetFromBegin <<
                 " data: " << operand.Data <<
                 " layout: ";
 

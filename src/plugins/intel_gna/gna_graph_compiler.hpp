@@ -41,6 +41,7 @@ private:
 
     SplitConnection  split_connection;
     CropConnection   crop_connection;
+    PadConnection    pad_connection;
 
     intel_dnn_component_t * find_first_unused_input(InferenceEngine::CNNLayerPtr current);
 
@@ -96,6 +97,12 @@ public:
                                                 int idx = 0,
                                                 bool connectTo = true);
 
+    GNAPluginNS::ConnectionDetails connectInputSplit(InferenceEngine::CNNLayerPtr splittingLayer,
+        void* ptr,
+        const InferenceEngine::CNNLayerPtr splitConsumerLayer,
+        const int splitConsumerLayerInputIndex,
+        const int offset);
+
     /**
      * Fill in the Affine layer weights
     * @param layer - affine layer pointer
@@ -125,6 +132,7 @@ public:
     void FakeQuantizePrimitive(InferenceEngine::CNNLayerPtr);
     void CopyPrimitive(InferenceEngine::CNNLayerPtr);
     void GemmPrimitive(InferenceEngine::CNNLayerPtr);
+    void PadPrimitive(InferenceEngine::CNNLayerPtr);
 
     void finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerPtr,
         uint32_t in_batch, uint32_t in_channels, uint32_t in_width,

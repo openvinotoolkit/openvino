@@ -10,6 +10,8 @@
 
 #include "gna_plugin_log.hpp"
 
+#include "ie_common.h"
+
 namespace GNAPluginNS {
 namespace memory {
 
@@ -70,8 +72,34 @@ inline const char* rTypeToStr(uint8_t type) {
 struct MemRequest {
     rRegion  _region;
     uint8_t   _type;
+
     void *_ptr_out;
     const void *_ptr_in = nullptr;
+
+    bool IsPtrOutSet() const {
+        return _ptr_out != nullptr;
+    }
+    bool IsPtrInSet() const {
+        return _ptr_in != nullptr;
+    }
+    uint8_t* GetPtrOutValue() const {
+        IE_ASSERT(_ptr_out != nullptr);
+        return reinterpret_cast<uint8_t*>(*reinterpret_cast<void**>(_ptr_out));
+    }
+    void SetPtrOutValue(void * valueIn) {
+        IE_ASSERT(_ptr_out != nullptr);
+        *reinterpret_cast<void**>(_ptr_out) = valueIn;
+    }
+    bool IsInPtrEqualToOutPtrOf(const MemRequest& reference) const {
+        return _ptr_in == reference._ptr_out;
+    }
+    const void * GetInPtr() const {
+        IE_ASSERT(_ptr_in != nullptr);
+        return _ptr_in;
+    }
+    void* GetOutPtr() const {
+        return _ptr_out;
+    }
     std::function<void(void * data, size_t size)> _initializer;
     // holds arbitrary value
     std::vector<uint8_t> _data;

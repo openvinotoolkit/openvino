@@ -761,8 +761,8 @@ void InsertIdentityLayerPass::run() {
             auto nextLayer = CNNNetCheckNextLayerSkipCertain(l, 0, 0, true, [](CNNLayerPtr layer) { return false; }).first;
             CNNNetworkInsertLayer(l, nextLayer, identityLayer);
         }
-
-        for (auto && prev : getCandidatesForIdentityInsertion(l, getPassManager())) {
+        auto candidates = getCandidatesForIdentityInsertion(l, getPassManager());
+        for (auto && prev : candidates) {
             // Do an upstream search until Functional layer is found
             auto original_prev_layer = prev;
             auto true_layer = l;
@@ -898,9 +898,10 @@ void InsertCopyLayerPass::run() {
 
     for (auto & l : *pLayers) {
         if (LayerInfo(l).isNonFunctional()) continue;
-
+        if (LayerInfo(l).isCropAfterSubgraph()) continue;
         // Crop -> Concat, Input -> Split -> Concat and Concat -> Memory cases
-        if ((LayerInfo(l).isCrop() && !LayerInfo(l).isCropAffined()) || LayerInfo(l).isConcat() || LayerInfo(l).isSplit()) {
+        if ((LayerInfo(l).isCrop() && !LayerInfo(l).isCropAffined() && !LayerInfo(l).isCropFromUnalignedConcat()) ||
+            LayerInfo(l).isConcat() || LayerInfo(l).isSplit()) {
             std::vector<FuncChildrenInfo> copy_insertion_tuples;
             std::vector<FuncChildrenInfo> delayed_copy_insertion_tuples;
             for (auto output : l->outData) {
@@ -1719,6 +1720,29 @@ void UnrollTIPass::run() {
     }
 }
 
+class GnaConstTransformer : public ConstTransformer {
+public:
+    template<typename T>
+    GnaConstTransformer(T i) : ConstTransformer(i) {}
+
+protected:
+    const std::map<std::string, bool> getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) override {
+        auto map = ConstTransformer::getConstLayers(sortedLayers);
+
+        for (auto&& layer : sortedLayers) {
+            auto constLayer = map.find(layer->name);
+            if (constLayer == map.end()) {
+                continue;
+            }
+            if (LayerInfo(layer).isPad() ||
+                LayerInfo(layer).isSimple2DCropOnLastAxisAndOffsetDim(0, 0, false)) {
+                map.erase(layer->name);
+            }
+        }
+        return map;
+    }
+};
+
 void RemoveConstPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "RemoveConstPass");
     auto network = getPassManager()->getNetwork();
@@ -1729,7 +1753,7 @@ void RemoveConstPass::run() {
     if (!implNetwork) {
         THROW_GNA_EXCEPTION << "Remove const layers pass can only work on cnnnetworkimpl type";
     }
-    ConstTransformer transformer(implNetwork);
+    GnaConstTransformer transformer(implNetwork);
     transformer.fullTrim();
 }
 
@@ -2386,11 +2410,11 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
         }
     }
 }
-
+// #define ENABLE_V7_SERIALIZE
 int PassManager::run(int index) {
 #if defined PLOT || defined ENABLE_V7_SERIALIZE
-    auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
-        std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName();
+    auto dumpCnnNetworkPass = [&index, this] (std::shared_ptr<Pass> pass, const std::string& suffix) {
+        std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName() + "_" + suffix;
 #ifdef PLOT
         std::ofstream out(name + ".dot");
         saveGraphToDot(network, out, [](const CNNLayerPtr layer,
@@ -2402,7 +2426,7 @@ int PassManager::run(int index) {
 #endif
     };
 #else
-    auto dumpNetworkAfterPass = [] (std::shared_ptr<Pass> ) {};
+    auto dumpCnnNetworkPass = [] (std::shared_ptr<Pass>, const std::string&) {};
 #endif
 
     for (auto && pass : passes) {
@@ -2412,8 +2436,9 @@ int PassManager::run(int index) {
         auto layers = CNNNetSortTopologically(network);
         pass->attach(layers);
         gnalog() << "PASS: " << ++index << "/" << passes.size() << ":" << pass->getName() << "\n";
+        dumpCnnNetworkPass(pass, "in");
         pass->run();
-        dumpNetworkAfterPass(pass);
+        dumpCnnNetworkPass(pass, "out");
     }
     return index;
 }

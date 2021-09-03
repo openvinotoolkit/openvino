@@ -501,7 +501,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
         // TODO: current approach set input scale factor for true input layer(s) equals to provided factor,
         auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer);
 
-        if (InferenceEngine::details::CaselessEq<std::string>()(cnnLayer->type, "Memory")) {
+        if (layerInfo.isMemory()) {
             if (CNNNetHasPrevLayer(cnnLayer) && quant->_dst_quant.IsStatsSet() && !quant->_dst_quant.IsScaleSet()) {
                 auto minOutValue = quant->_dst_quant.GetMinValues().front();
                 auto maxOutValue = quant->_dst_quant.GetMaxValues().front();
@@ -559,6 +559,22 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
                             });
 
                         if (restartedLayer == nullptr) {
+                            // If any input of memory layer is not quantizable
+                            // Then apply the scale factor on the memory layer counterpart
+                            // and restart quantization of the network starting from the model parameter
+                            // This is needed to enable some tests including
+                            // smoke_concat_multi_input/ConcatMultiInput.CompareWithRefMemory/IS=(1.8)(1.8)_netPRC=FP32_targetDevice=GNA
+                            auto layers = CNNNetGetAllInputLayers(input.get());
+                            for (auto&& l : layers) {
+                                if (LayerInfo(l).isInput()) {
+                                    quantSibling->_src_quant.SetScale(inputQuant->_dst_quant.GetScale());
+                                    quantSibling->_dst_quant.SetScale(inputQuant->_dst_quant.GetScale());
+                                    quant->_src_quant.SetScale(inputQuant->_dst_quant.GetScale());
+                                    quant->_dst_quant.SetScale(inputQuant->_dst_quant.GetScale());
+                                    result = ScaleFactorUpdateResult(l.get());
+                                    return true;
+                                }
+                            }
                             THROW_GNA_EXCEPTION << "cannot requantize input to " << cnnLayer->name;
                         }
 
@@ -592,7 +608,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             return true;
         }
 
-        if (cnnLayer->type == "Const") {
+        if (layerInfo.isConst()) {
             if (quant->_dst_quant.IsScaleSet()) {
                 quant->_src_quant = quant->_dst_quant;
                 return true;
@@ -652,10 +668,11 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             return true;
         }
 
+        auto cnnPrevLayer = CNNNetPrevLayer(cnnLayer);
         // by default layer is pass thru its scale factor
-        auto inputQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(CNNNetPrevLayer(cnnLayer));
+        auto inputQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(cnnPrevLayer);
         if (!inputQuant) {
-            THROW_GNA_EXCEPTION << "layer: " << CNNNetPrevLayer(cnnLayer)->name << "not quantized";
+            THROW_GNA_EXCEPTION << "layer: " << cnnPrevLayer->name << "not quantized";
         }
 
         if (layerInfo.isPower() && !layerInfo.isActivation()) {
@@ -895,13 +912,19 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*, QUANT_DESC> {
 
         auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concatLayer);
         std::vector<InferenceEngine::CNNLayerPtr> inputLayers;
+
         for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
             auto notChangeScaleFactors = [](InferenceEngine::CNNLayerPtr layer) {
-                return LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isSplit() || LayerInfo(layer).isCopy();
+                const auto li = LayerInfo(layer);
+                return li.isNonFunctional() || li.isSplit() || li.isCopy() || (li.isCrop() && !li.isCropAffined());
             };
             auto prev_layer = CNNNetPrevLayerSkipCertain(concatLayer, input_idx, notChangeScaleFactors);
             inputLayers.push_back(prev_layer);
         }
+        // Have to preserve the original ordering to use it later
+        // Othrewise some tests are failing, e.g.,
+        // Hang in smoke_concat_multi_input/ConcatMultiInput.CompareWithRefMemory/IS=(1.8)(1.8)_netPRC=FP32_targetDevice=GNA
+        auto orderedInputLayers = inputLayers;
 
         // if all inputs have same quant value - trivial propagation
         auto in0 = inputLayers.front();
@@ -987,19 +1010,19 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*, QUANT_DESC> {
             auto scaleFactor = quantParams->_dst_quant.GetScale();
             sourceQuantParams = quantParams;
 
-            for (auto it = inputLayers.begin(); it != inputLayers.end(); ++it) {
+            for (auto it = orderedInputLayers.begin(); it != orderedInputLayers.end(); ++it) {
                 auto quantParamsIn = InferenceEngine::getInjectedData<QuantizedLayerParams>(*it);
                 if (fp32eq(quantParamsIn->_dst_quant.GetScale(), scaleFactor)) {
                     continue;
                 }
 
                 if (fakeQuantize) {
-                    concatIdxToUpdate.insert(std::distance(inputLayers.begin(), it));
+                    concatIdxToUpdate.insert(std::distance(orderedInputLayers.begin(), it));
                     quantParamsIn->_dst_quant.SetScale(quantParams->_dst_quant.GetScale());
                 } else {
                     // possible case when some of the concat inputs are free to select scale ex: const->concat<-affine
                     if (!fp32eq(quantParamsIn->_dst_quant.GetScale(), 1.0f) && !LayerInfo(*it).isActivation()) {
-                        concatIdxToUpdate.insert(std::distance(inputLayers.begin(), it));
+                        concatIdxToUpdate.insert(std::distance(orderedInputLayers.begin(), it));
                     }
 
                     quantParamsIn->_dst_quant.SetScale(quantParams->_dst_quant.GetScale());

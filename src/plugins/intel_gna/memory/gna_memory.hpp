@@ -4,19 +4,20 @@
 
 #pragma once
 
-#include "gna_mem_requests.hpp"
 #include <ie_memcpy.h>
-#include "gna_mem_requests_queue.hpp"
 #include <cstdint>
 #include <memory>
 #include <vector>
 #include <list>
 #include <algorithm>
 #include <functional>
+
 #include <iostream>
 #include "gna_lib_ver_selector.hpp"
 #include "memory_solver.hpp"
 #include "gna_plugin_log.hpp"
+#include "gna_mem_requests.hpp"
+#include "gna_mem_requests_queue.hpp"
 
 #ifdef GNA_HEAP_PROFILER
 #include <iomanip>
@@ -131,7 +132,7 @@ class GNAMemory : public GNAMemRequestsQueue {
                 // std::cout << "  [binded=" << rTypeToStr(re._type) << ", ptr=" << re._ptr_out <<"]\n";
                 visitor(reference, re);
                 // primitive loop check
-                if (re._ptr_in == re._ptr_out) continue;
+                if (re.IsInPtrEqualToOutPtrOf(re)) continue;
                 // TODO: no circular dependency checking, only tree-style dependency with loops supported
                 iterate_binded(re, visitor);
             }

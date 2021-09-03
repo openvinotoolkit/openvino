@@ -23,7 +23,6 @@ public:
      * gna memory of this size is reserved for split
      */
     size_t reserved_size = 0;
-    bool output_allocation_flag = false;
     /**
      * gna memory of this offset from gna_ptr
      */

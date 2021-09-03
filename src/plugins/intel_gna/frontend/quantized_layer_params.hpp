@@ -66,6 +66,15 @@ public:
         SetMinValues(src.GetMinValues(false), false);
         SetMaxValues(src.GetMaxValues(false), false);
     }
+    void Reset() {
+        scale = 1.0f;
+        scale_set = false;
+        levels = 0;
+        input_min_values.clear();
+        input_max_values.clear();
+        output_min_values.clear();
+        output_max_values.clear();
+    }
 
 private:
     float scale = 1.0f;

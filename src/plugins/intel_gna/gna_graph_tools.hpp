@@ -169,8 +169,9 @@ inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>>  CNNNetCheckNex
     auto outLayer = getInputTo(layer->outData[oidx]).begin();
     std::advance(outLayer, iidx);
 
-    int new_oidx = shouldSkip(outLayer->second) ? 0 : oidx;
-    int new_iidx = shouldSkip(outLayer->second) ? 0 : iidx;
+    const int new_oidx = shouldSkip(outLayer->second) ? 0 : oidx;
+    const int new_iidx = shouldSkip(outLayer->second) ? 0 : iidx;
+    auto outDataFinal = layer->outData[new_oidx];
 
     while (shouldSkip(outLayer->second)) {
         if (outLayer->second->outData.size() <= new_oidx) {
@@ -183,11 +184,11 @@ inline std::pair<InferenceEngine::CNNLayerPtr, std::vector<int>>  CNNNetCheckNex
             THROW_GNA_LAYER_EXCEPTION(outLayer->second) << " no next output layer for outdata: " << new_oidx << " and inputTo index: " << new_iidx;
         }
 
-        layer = outLayer->second;
-        outLayer = getInputTo(layer->outData[new_oidx]).begin();
+        outDataFinal = outLayer->second->outData[new_oidx];
+        outLayer = getInputTo(outDataFinal).begin();
     }
 
-    auto insDataIdx = CNNLayerFindInsDataIdxes(layer->outData[new_oidx], outLayer->second);
+    auto insDataIdx = CNNLayerFindInsDataIdxes(outDataFinal, outLayer->second);
     return { outLayer->second, insDataIdx };
 }
 

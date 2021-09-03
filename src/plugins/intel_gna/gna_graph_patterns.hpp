@@ -203,7 +203,7 @@ inline InferenceEngine::CNNLayerPtr FindPermutationAfterConvolutionInKaldiModel(
 inline bool MustBeConvertedFromNCHWToNHWC(const std::vector<InferenceEngine::CNNLayerPtr> &layers) {
     for (auto& l : layers) {
         if (!LayerInfo(l).isConvolution()) continue;
-
+        if (LayerInfo(l).isConvolutionFromUnalignedConcatFilter()) continue;
         InferenceEngine::CNNLayerPtr next;
         std::tie(std::ignore, next) = FindPermutationsAroundConvolutionInNHWCModel(l);
         if (next != nullptr) return false;

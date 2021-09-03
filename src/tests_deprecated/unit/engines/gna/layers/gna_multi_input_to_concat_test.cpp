@@ -96,7 +96,8 @@ TEST_P(GNAMultiInputToConcatTest, InputsToConcat) {
         auto test_object = assert_that().onInferNgraphModel(std::get<1>(model_with_io_names))
                 .inNotCompactMode()
                 .gna()
-                .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+                .withGNAConfig("GNA_SCALE_FACTOR_0", 1.0f)
+                .withGNAConfig("GNA_SCALE_FACTOR_1", 1.0f)
                 .withGNAConfig(GNA_CONFIG_KEY(PRECISION), "I16")
                 .propagate_forward()
                 .called();

@@ -75,4 +75,3 @@ if (!(expr)) { \
 #define THROW_GNA_EXCEPTION IE_THROW() << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
 #define THROW_GNA_LAYER_EXCEPTION(layer) THROW_GNA_EXCEPTION << LAYER_NAME(layer)
 #define LAYER_NAME(layer) (layer)->type << " layer : \"" << (layer)->name << "\" "
-

@@ -112,6 +112,13 @@ class ModelQuantizer {
     }
 
  private :
+    static void logInfiniteLoop(const std::vector<std::string>& infLoop, const std::string& infLoopName)  {
+        gnalog() << infLoopName << ":\n";
+        for (const auto& s : infLoop) {
+            gnalog() << "\t " << s << '\n';
+        }
+    }
+
     void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr> & net) const {
         ScaleFactorCalculator<T> sf(net);
 
@@ -160,20 +167,14 @@ class ModelQuantizer {
                         std::distance(infiniteLoopHistory.rbegin(),
                             std::find_if_not(infiniteLoopHistory.rbegin(), infiniteLoopHistory.rend(),
                                 [&infiniteLoopHistory](const std::string& str) { return str == infiniteLoopHistory.back(); })) > 3)) {
-                    gnalog() << "infiniteLoopPattern:\n";
-                    for (const auto& s : infiniteLoopPattern) {
-                        gnalog() << "\t " << s << '\n';
-                    }
+                    logInfiniteLoop(infiniteLoopPattern, "infiniteLoopPattern");
                     infiniteLoopPattern.clear();
                     int patternLength = (infiniteLoopHistory.size() - i) / 2;
                     gnalog() << "patternLength: " << patternLength << '\n';
                     for (int j = 0; j < patternLength; j++) {
                         infiniteLoopPattern.emplace_back(infiniteLoopHistory[infiniteLoopHistory.size() - patternLength + j]);
                     }
-                    gnalog() << "infiniteLoopHistory:\n";
-                    for (const auto& s : infiniteLoopHistory) {
-                        gnalog() << "\t " << s << '\n';
-                    }
+                    logInfiniteLoop(infiniteLoopHistory, "infiniteLoopHistory");
                     infiniteLoopHistory.clear();
                     gnalog() << "infinite loop detected\n";
                     break;
@@ -185,13 +186,16 @@ class ModelQuantizer {
             if (infiniteLoopHistory.empty()) {
                 infiniteLoopCount++;
             } else {
-                if (infiniteLoopCount > 0 &&
-                    (infiniteLoopHistory.size()%infiniteLoopPattern.size() == 0 || sf.allLayersProcessed()) &&
-                    !std::equal(infiniteLoopHistory.begin() + (infiniteLoopHistory.size() - infiniteLoopPattern.size()),
-                        infiniteLoopHistory.end(), infiniteLoopPattern.begin())) {
-                    infiniteLoopCount = 0;
-                    infiniteLoopPattern.clear();
-                    gnalog() << "infinite loop fixed\n";
+                if (infiniteLoopCount > 0 && (infiniteLoopHistory.size() % infiniteLoopPattern.size() == 0 || sf.allLayersProcessed())) {
+                    if (infiniteLoopHistory.size() < infiniteLoopPattern.size() ||
+                        // TODO: analyse why infiniteLoopHistory.size() < infiniteLoopPattern.size() happen in the following test:
+                        // smoke_InsertCopy/InsertCopyBeforeSelfConcatTest.CompareWithRefs/
+                        // IS=(1.16)_IN=2_CN=1_axis=1_netPRC=FP32_inPRC=UNSPECIFIED_outPRC=UNSPECIFIED_inL=ANY_outL=ANY_trgDev=GNA
+                        !std::equal(infiniteLoopPattern.rbegin(), infiniteLoopPattern.rend(), infiniteLoopHistory.rbegin())) {
+                        infiniteLoopCount = 0;
+                        infiniteLoopPattern.clear();
+                        gnalog() << "infinite loop fixed\n";
+                    }
                 }
             }
 

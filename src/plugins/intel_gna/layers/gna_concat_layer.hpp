@@ -10,6 +10,9 @@
 #include <legacy/ie_layers.h>
 
 namespace GNAPluginNS {
+
+constexpr int orderingConcatAxis = 1;
+
 class GNAConcatLayer {
     InferenceEngine::CNNLayerPtr concatLayer;
 
@@ -45,5 +48,27 @@ public:
     };
 
     std::vector<ConcatConnectedLayerInfo> concatInputLayers;
+
+    ConcatConnectedLayerInfo& GetInput(const std::string& name) {
+        auto it = std::find_if(concatInputLayers.begin(),
+            concatInputLayers.end(),
+            [&name](GNAPluginNS::GNAConcatLayer::ConcatConnectedLayerInfo& item) {
+                return item.name == name;
+            });
+        if (it != concatInputLayers.end()) {
+            return *it;
+        }
+        THROW_GNA_LAYER_EXCEPTION(concatLayer) << "Can not find concat input connection for " << name << " layer\n";
+    }
+};
+
+class GNAPadLayer {
+public:
+    explicit GNAPadLayer() = default;
+
+    /**
+    * pointer to gna memory request
+    */
+    void* gna_ptr = nullptr;
 };
 }  // namespace GNAPluginNS

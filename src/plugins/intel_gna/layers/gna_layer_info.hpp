@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <functional>
+#include <iostream>
 #include <string>
 #include <memory>
 #include <vector>
@@ -14,6 +16,8 @@
 #include "gna_permute.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "gna_copy_layer.hpp"
+#include "gna_concat_layer.hpp"
+#include "gna_graph_tools.hpp"
 
 
 namespace GNAPluginNS {
@@ -168,6 +172,21 @@ class LayerInfo {
     bool isConvolution() const noexcept {
         return isOfType("convolution");
     }
+    bool isConvolutionFromUnalignedConcatFilter() const noexcept {
+        if (!isConvolution()) {
+            return false;
+        }
+        auto nextSkipPattern = [](InferenceEngine::CNNLayerPtr l) {
+            auto li = LayerInfo(l);
+            return li.isNonFunctional() || li.isIdentity();
+        };
+        auto next = InferenceEngine::CNNNetCheckNextLayerSkipCertain(layer, 0, 0, true, nextSkipPattern);
+        auto nextInfo = LayerInfo(next.first);
+        if (nextInfo.isConcatOrdering() && next.second.size() == 1 && next.second[0] == 2) {
+            return true;
+        }
+        return false;
+    }
     bool isPower() const noexcept {
         return isOfType("power");
     }
@@ -259,6 +278,58 @@ class LayerInfo {
     bool isConcat() const noexcept {
         return isOfType("concat");
     }
+    // Returns true for ConcatLayer which has at least 2 inputs, a single output,
+    // each input's tensor dimensions are 2D i.e., [1 X], where X =! 0
+    // and concatenation axis is the last one i.e. axis == 1
+    bool inSimple2DConcatOnLastAxis() const noexcept {
+        if (!isOfType("concat")) {
+            return false;
+        }
+        auto concat = dynamic_cast<const InferenceEngine::ConcatLayer*>(layer);
+        if (concat == nullptr) {
+            return false;
+        }
+        if (concat->_axis != 1) {
+            return false;
+        }
+        const auto inputSize = concat->insData.size();
+        if (inputSize < 2) {
+            return false;
+        }
+        for (auto&& i : concat->insData) {
+            auto dp = i.lock();
+            auto dims = dp->getDims();
+            if (dims.size() != 2 || dims[0] != 1 || dims[1] == 0) {
+                return false;
+            }
+        }
+        if (concat->outData.size() != 1) {
+            return false;
+        }
+        return true;
+    }
+    bool isConcatOrdering() const noexcept {
+        if (!inSimple2DConcatOnLastAxis()) {
+            return false;
+        }
+        auto outputData = layer->outData.front();
+        auto concatConsumers = getInputTo(outputData);
+        if (concatConsumers.size() != 2) {
+            return false;
+        }
+        auto numOfCropAfterSubgraph = 0;
+        auto isCropBeforeSubgraph = 0;
+        const auto totalSize = ov::shape_size(outputData->getDims());
+        const auto firstSize = ov::shape_size(layer->insData.front().lock()->getDims());
+        for (auto&& consumer : concatConsumers) {
+            numOfCropAfterSubgraph += LayerInfo(consumer.second).isSimple2DCropOnLastAxisAndOffsetDim(firstSize, totalSize - firstSize);
+            isCropBeforeSubgraph += LayerInfo(consumer.second).isSimple2DCropOnLastAxisAndOffsetDim(0, firstSize);
+        }
+        if (numOfCropAfterSubgraph != 1 || isCropBeforeSubgraph != 1) {
+            return false;
+        }
+        return true;
+    }
     bool isFakeQuantize() const noexcept {
         return isOfType("FakeQuantize");
     }
@@ -327,14 +398,136 @@ class LayerInfo {
     bool isCrop() const noexcept {
         return isOfType("crop");
     }
+    bool isSimple2DCropOnLastAxisAndOffsetDim(const size_t refOffset, const size_t refDim, const bool checkDim = true) const noexcept {
+        return isSimple2DCropOnLastAxisAndOffsetDim(
+            [refOffset](size_t offset) {
+                return offset == refOffset;
+            },
+            [refDim, checkDim](size_t dim) {
+                return !checkDim || dim == refDim;
+            });
+    }
+    bool isSimple2DCropOnLastAxisAndOffsetDim(const std::function<bool(size_t)>& isOffsetValid,
+                                              const std::function<bool(size_t)>& isDimValid) const noexcept {
+        auto cropLayer = dynamic_cast<InferenceEngine::CropLayer*>(layer);
+        if (cropLayer == nullptr) {
+            return false;
+        }
+        if (cropLayer->insData.size() == 0) {
+            return false;
+        }
+        auto input = cropLayer->insData.front().lock();
+        auto offsets = cropLayer->offset;
+        auto dims = cropLayer->dim;
+        if (dims.size() != 2 || offsets.size() != 2) {
+            return false;
+        }
+        if (offsets[0] != 0 || !isOffsetValid(offsets[1]) || dims[0] != 1 || !isDimValid(dims[1])) {
+            return false;
+        }
+        return true;
+    }
+    bool isCropBeforeSubgraph() const noexcept {
+        IS_VALID();
+        if (layer->outData.size() != 1) {
+            return false;
+        }
+        const auto shapeSize = ov::shape_size(layer->outData.front()->getDims());
+        if (!isSimple2DCropOnLastAxisAndOffsetDim(0, shapeSize)) {
+            return false;
+        }
+        auto parent = getCreatorLayer(layer->insData.front().lock()).lock();
+        if (!LayerInfo(parent).inSimple2DConcatOnLastAxis()) {
+            return false;
+        }
+        const auto dims = parent->insData.front().lock()->getDims();
+        const auto firstConcatInputSize = ov::shape_size(dims);
+        if (firstConcatInputSize != shapeSize) {
+            return false;
+        }
+        return true;
+    }
+    bool isCropAfterSubgraph() const noexcept {
+        auto cropLayer = dynamic_cast<InferenceEngine::CropLayer*> (layer);
+        if (cropLayer == nullptr || layer->insData.size() == 0) {
+            return false;
+        }
+        auto parent = getCreatorLayer(layer->insData.front().lock()).lock();
+        if (!LayerInfo(parent).inSimple2DConcatOnLastAxis()) {
+            return false;
+        }
+        if (layer->outData.size() != 1) {
+            return false;
+        }
+        const auto dims = parent->insData.front().lock()->getDims();
+        const auto firstConcatInputSize = ov::shape_size(dims);
+
+        const auto parentDims = parent->outData.front()->getDims();
+        const auto totalParentConcatSize = ov::shape_size(parentDims);
+        const auto restConcatSize = totalParentConcatSize - firstConcatInputSize;
+        if (!isSimple2DCropOnLastAxisAndOffsetDim(firstConcatInputSize, restConcatSize)) {
+            return false;
+        }
+        return true;
+    }
+    bool isPad() const noexcept {
+        return isOfType("pad");
+    }
+    bool isCropFromUnalignedConcat() const noexcept {
+        auto cropLayer = dynamic_cast<InferenceEngine::CropLayer*>(layer);
+        if (cropLayer == nullptr) {
+            return false;
+        }
+
+        int32_t coIn = -1;
+        bool concatOrdering = false;
+        bool cropBeforeSubgraph = false;
+
+        // if crop comes from unaligned concat pass then
+        // no substitution of this Crop with affine layer occurs
+        auto nextSkipPattern = [](InferenceEngine::CNNLayerPtr l) {
+            auto li = LayerInfo(l);
+            return li.isNonFunctional() || li.isPad() || li.isFullyConnected() || li.isConvolution() || li.isCrop() || li.isIdentity();
+        };
+        auto next = InferenceEngine::CNNNetCheckNextLayerSkipCertain(layer, 0, 0, true, nextSkipPattern);
+        auto nextInfo = LayerInfo(next.first);
+        if (nextInfo.isConcatOrdering() && next.second.size() == 1) {
+            concatOrdering = true;
+            coIn = next.second[0];
+        }
+        try {
+            auto prevSkipPattern = [](InferenceEngine::CNNLayerPtr l) {
+                auto li = LayerInfo(l);
+                return li.isNonFunctional() || li.isPad() || li.isFullyConnected() || li.isConvolution();
+            };
+            auto prev = InferenceEngine::CNNNetPrevLayerSkipCertain(layer, 0, prevSkipPattern);
+            auto prevInfo = LayerInfo(prev);
+            if (prevInfo.isCropBeforeSubgraph()) {
+                cropBeforeSubgraph = true;
+            }
+        } catch (InferenceEngine::Exception& e) {
+        }
+        const auto simpleCropWithNonZeroOffses = isSimple2DCropOnLastAxisAndOffsetDim(
+            [](size_t offset) {
+                return offset != 0;
+            },
+            [](size_t) {
+                return true;
+            });
+        const auto detected = simpleCropWithNonZeroOffses && ((concatOrdering && coIn > 0) || cropBeforeSubgraph);
+        return detected;
+    }
     bool isCropAffined() const noexcept {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
+            // if crop comes from unaligned concat pass then
+            // no substitution of this Crop with affine layer occurs
+            const auto cropFromUnalignedConcat = isCropFromUnalignedConcat();
             // currently crop layer only supports 2 bytes in int16 and int8 mode.
             // In fp32 mode this is not necessary but is useful for testing
             auto bytesPerCropElement = 2;
             size_t cropOffset = cropLayer->offset.back() * bytesPerCropElement;
-            return (ALIGN64(cropOffset) != cropOffset);
+            return !isCropAfterSubgraph() && !isCropBeforeSubgraph() && !cropFromUnalignedConcat && (ALIGN64(cropOffset) != cropOffset);
         }
         return false;
     }

@@ -24,7 +24,7 @@
 #include "gna_plugin_log.hpp"
 #include "layers/gna_convolution_layer.hpp"
 
-//#define MODEL_DUMP
+// #define MODEL_DUMP
 
 std::mutex GNADeviceHelper::acrossPluginsSync{};
 
@@ -127,7 +127,7 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
 #else
         "./";
 #endif
-    DumpGna2Model(gnaModel, path, false);
+    DumpGna2Model(gnaModel, path, false, dumpXNNROPtr);
 #endif
     const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelId);
 

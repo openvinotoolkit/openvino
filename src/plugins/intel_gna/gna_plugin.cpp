@@ -64,6 +64,7 @@
 #include "transformations/reorder_activation_and_pooling.hpp"
 #include "transformations/swap_input_matmul_gna.hpp"
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
+#include "transformations/convert_unaligned_concat_to_cnn.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/decompose_2d_convolution.hpp"
@@ -658,13 +659,17 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     bool isNgraphPassesUsed = false;
     bool fake_quantized = false;
+    bool tensor_iterator = false;
+    bool unaligned_concat_converted = false;
 
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
+
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
+        tensor_iterator = ngraph::op::util::has_op_with_type<ngraph::opset7::TensorIterator>(graph);
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
         manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
@@ -702,6 +707,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<SubstituteSoftsign>();
+        std::shared_ptr<TransformConcatForGna> unaligned_concat_pass;
+        if (!fake_quantized && !tensor_iterator) {
+            unaligned_concat_pass = manager.register_pass<TransformConcatForGna>();
+        }
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -734,6 +743,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
         isNgraphPassesUsed = true;
+        unaligned_concat_converted = unaligned_concat_pass && unaligned_concat_pass->unalignedConcatIntoGnaGraphConverted();
     }
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
@@ -798,8 +808,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<InsertCopyLayerPass>();
 
         passes->registerPass<FlattenTrivialConcatPass>();
-        passes->registerPass<InsertConcatAligningFilterPass>();
-        passes->registerPass<ReorderConcatInputsPass>();
+        if (!isNgraphPassesUsed || fake_quantized || tensor_iterator) {
+            passes->registerPass<InsertConcatAligningFilterPass>();
+            passes->registerPass<ReorderConcatInputsPass>();
+        }
         passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
@@ -985,7 +997,14 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         gnamem->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
     }
 
-    gnamem->commit(gnaFlags->compact_mode);
+    // TODO: Remove when issue causing failure in subset of tests from:
+    // smoke_Decompose2DConvStridesDilations/Decompose2DConvTest.CompareWithRefs including:
+    //    M=0_IS=(1.8.8.32)_K(1.2)_S(2.1)_PB(1.1)_PE(3.1)_D=(1.1)_O=4_AP=valid_B=(1.4.1.1)_B=(1.1.1.4)_MPP=(1.2)_MPS=(1.1)_netPRC=FP32
+    //    targetDevice=GNA__configItem=GNA_DEVICE_MODE_GNA_SW_FP32_configItem=GNA_EXEC_TARGET_GNA_TARGET_2_0_configItem=GNA_SCALE_FACTOR_0_1
+    // is resolved
+    const auto disableCompactMode = gnaFlags->sw_fp32 && unaligned_concat_converted;
+
+    gnamem->commit(gnaFlags->compact_mode && !disableCompactMode);
 
     dnn->Init(gnamem->getBasePtr(),
              gnamem->getTotalBytes(),
