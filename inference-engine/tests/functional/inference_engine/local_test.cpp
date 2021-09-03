@@ -11,8 +11,8 @@ using namespace std;
 using namespace InferenceEngine;
 
 class LocaleTests : public ::testing::Test {
-std::string originalLocale;
-std::string _model = R"V0G0N(
+    std::string originalLocale;
+    std::string _model = R"V0G0N(
 <net name="model" version="10">
 	<layers>
 		<layer id="0" name="input" type="Parameter" version="opset1">
@@ -89,7 +89,7 @@ std::string _model = R"V0G0N(
 </net>
 )V0G0N";
 
-std::string _model_LSTM = R"V0G0N(
+    std::string _model_LSTM = R"V0G0N(
  <net name="LSTMCell" version="10">
     <layers>
         <layer id="0" name="in0" type="Parameter" version="opset1">
@@ -232,7 +232,7 @@ protected:
         auto funcs = net.getFunction();
 
         for (const auto & op : funcs->get_ops()) {
-            if (!isLSTM){
+            if (!isLSTM) {
                 if (op->get_friendly_name() == "output") {
                     const auto roi = std::dynamic_pointer_cast<ngraph::op::v3::ROIAlign>(op);
                     ASSERT_EQ(roi->get_pooled_h(), 7);
