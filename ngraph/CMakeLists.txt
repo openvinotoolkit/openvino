@@ -30,7 +30,3 @@ add_subdirectory(core)
 
 add_subdirectory(frontend)
 add_subdirectory(test)
-
-if(ENABLE_PYTHON)
-    add_subdirectory(python)
-endif()

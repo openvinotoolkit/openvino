@@ -93,6 +93,7 @@ add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 add_subdirectory(tools)
 add_subdirectory(scripts)
+add_subdirectory(runtime)
 
 #
 # CPack
