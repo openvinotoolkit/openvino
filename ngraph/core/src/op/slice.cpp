@@ -150,13 +150,25 @@ void op::v8::Slice::validate_and_infer_types() {
 
             const auto elements_in_range = std::ceil(std::fabs(stop - start) / fabs(step));
             output_shape[norm_axis] = elements_in_range;
-        
-    
-    
+        }
+    }
+    else {
+        // If we know only axes values, we should update lower_bound to 0 value,
+        // for specified dimensions.
+        if (axes_const) {
+            for (const auto& axis : axes_const->cast_vector<int64_t>()) {
+                if (axis < data_shape.rank().get_length()) {
+                    output_shape[axis] = Dimension(0, data_shape[axis].get_max_length());
+                }
+                // TODO: else throw, or check the values in advance
+            }
+        } else { // If axes values are also unknown, then all of the output dimensions can have 0 value
+            for (size_t i = 0; i < data_shape.rank().get_length(); ++i) {
+                output_shape[i] = Dimension(0, data_shape[i].get_max_length());
+            }
         }
     }
 
-    // TODO: Dynamic case
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
