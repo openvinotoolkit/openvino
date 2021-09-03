@@ -713,6 +713,7 @@ enum class QuantizedDataType {
  * @return scale factor
  */
 inline float getScaleFactor(InferenceEngine::CNNLayerPtr layer, QuantizedDataType data_type) {
+    IE_ASSERT(layer != nullptr);
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
     float scale_factor;
     if (!quantized) {
