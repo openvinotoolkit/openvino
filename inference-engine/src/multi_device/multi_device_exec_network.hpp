@@ -16,10 +16,12 @@
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include <ie_parallel.hpp>
 #include <threading/ie_itask_executor.hpp>
+#include <threading/ie_executor_manager.hpp>
 
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 # include <tbb/concurrent_queue.h>
 #endif
+
 
 namespace MultiDevicePlugin {
 
@@ -27,6 +29,7 @@ class MultiDeviceInferencePlugin;
 
 using DeviceName = std::string;
 using NetworkFuture = std::future<InferenceEngine::SoExecutableNetworkInternal>;
+using NetworkPromise = std::promise<InferenceEngine::SoExecutableNetworkInternal>;
 
 struct DeviceInformation {
     DeviceName deviceName;
@@ -143,15 +146,15 @@ public:
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
     DeviceMap<std::vector<WorkerInferRequest>>                  _workerRequests;
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
-    bool                                                        _needPerfCounters = false;
+    mutable bool                                                _needPerfCounters = false;
     std::atomic_size_t                                          _numRequestsCreated = {0};
 
 private:
-    void SetActualNetworkReadyStatus();
     void GenerateWorkers(const std::string& device, const InferenceEngine::SoExecutableNetworkInternal& executableNetwork);
-    void WaitForActualDevice() const;
-    bool TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork);
-
+    bool IsActualNetworkReady() const;
+    void WaitActualNetworkReady() const;
+    void WaitFirstNetworkReady();
+    void SetPerfCounts() const;
     static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
                                 NotBusyWorkerRequests& idleWorkerRequests,
                                 const DeviceName& preferred_device);
@@ -161,11 +164,15 @@ private:
     InferenceEngine::SoExecutableNetworkInternal                        _networkFirstReady;
     mutable InferenceEngine::SoExecutableNetworkInternal                _networkActualNeeded;
     NetworkFuture                                                       _cpuFuture;
+    NetworkPromise                                                      _cpuPromise;
     mutable NetworkFuture                                               _acceleratorFuture;
-    mutable std::atomic<bool>                                           _alreadyActualNetwork = {false};
+    mutable NetworkPromise                                              _acceleratorPromise;
+    mutable bool                                                        _alreadyActualNetwork = {false};
     bool                                                                _workModeIsAUTO { false };
     DeviceInformation                                                   _cpuDevice;
     DeviceInformation                                                   _acceleratorDevice;
+    mutable std::once_flag                                              _oc;
+    InferenceEngine::IStreamsExecutor::Ptr                              _executor;
 };
 
 }  // namespace MultiDevicePlugin
