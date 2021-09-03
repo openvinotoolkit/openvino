@@ -55,10 +55,10 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
             const size_t transposeOutRank = transposeOutputPShape.rank().get_length();
             if (constantShape.size() != transposeOutRank) {
                 const auto unsqueezeConst = opset1::Constant::create(element::i32, Shape{ 1 }, std::vector<size_t>{ 0 });
-                const auto deqConstantWithBatch = fold<opset1::Unsqueeze>(dequantizationConstant, unsqueezeConst);
-                return fold<opset1::Transpose>(deqConstantWithBatch, transposeConstant);
+                const auto deqConstantWithBatch = fold<opset1::Unsqueeze>(dequantizationConstant->output(0), unsqueezeConst->output(0));
+                return fold<opset1::Transpose>(deqConstantWithBatch->output(0), transposeConstant->output(0));
             } else {
-                return fold<opset1::Transpose>(dequantizationConstant, transposeConstant);
+                return fold<opset1::Transpose>(dequantizationConstant->output(0), transposeConstant->output(0));
             }
     };
 

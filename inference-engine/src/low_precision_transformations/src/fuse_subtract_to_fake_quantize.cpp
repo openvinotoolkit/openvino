@@ -45,19 +45,19 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
     }
 
     const auto subtractConstant = subtract->get_input_node_shared_ptr(1);
+    if (!ov::is_type<opset1::Constant>(subtractConstant)) {
+        return false;
+    }
 
-    auto outputLowConst_f32 = foldConvert(fakeQuantize->get_input_node_shared_ptr(3), deqPrecision);
-    auto outputHighConst_f32 = foldConvert(fakeQuantize->get_input_node_shared_ptr(4), deqPrecision);
+    auto outputLowConst_f32 = foldConvert(fakeQuantize->input_value(3), deqPrecision);
+    auto outputHighConst_f32 = foldConvert(fakeQuantize->input_value(4), deqPrecision);
 
     const auto value = subtractConstant->get_output_element_type(0) == element::f32 ?
         subtractConstant :
-        foldConvert(subtractConstant, deqPrecision);
+        foldConvert(subtractConstant->output(0), deqPrecision);
 
-    outputLowConst_f32 = fold<opset1::Subtract>(outputLowConst_f32, value);
-    outputHighConst_f32 = fold<opset1::Subtract>(outputHighConst_f32, value);
-
-    const auto fakeQuantizeParent = fakeQuantize->get_input_node_shared_ptr(0);
-    const size_t parentIndex = NetworkHelper::getParentOutputIndex(fakeQuantizeParent, fakeQuantize);
+    outputLowConst_f32 = fold<opset1::Subtract>(outputLowConst_f32->output(0), value);
+    outputHighConst_f32 = fold<opset1::Subtract>(outputHighConst_f32->output(0), value);
 
     const auto inputLow = foldConvert(fakeQuantize->input_value(1), deqPrecision);
     const auto inputHigh = foldConvert(fakeQuantize->input_value(2), deqPrecision);
@@ -68,11 +68,11 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
 
     auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
         opset1::FakeQuantize(
-            fakeQuantizeParent->output(parentIndex),
-            inputLow,
-            inputHigh,
-            outputLowConst_f32,
-            outputHighConst_f32,
+            fakeQuantize->input_value(0),
+            inputLow->output(0),
+            inputHigh->output(0),
+            outputLowConst_f32->output(0),
+            outputHighConst_f32->output(0),
             fakeQuantize->get_levels()),
         subtract->get_output_element_type(0));
 

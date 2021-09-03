@@ -93,7 +93,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
                 Shape{ newOperationConstantBroadcastedShape.size() },
                 newOperationConstantBroadcastedShape);
 
-            return fold<opset1::Broadcast>(constant, targetShapeConstant);
+            return fold<opset1::Broadcast>(constant->output(0), targetShapeConstant->output(0));
         };
 
         const std::shared_ptr<Node> broadcastedConstant = getBCastedConst(originalConstant, dimensionsToBroadcast);
@@ -106,8 +106,8 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
             newReshapeConstValues);
 
         const std::shared_ptr<Node> resultConstant = fold<opset1::Reshape>(
-            broadcastedConstant,
-            newReshapeConstant,
+            broadcastedConstant->output(0),
+            newReshapeConstant->output(0),
             reshape->get_special_zero());
 
         replace_node(originalConstant, resultConstant);

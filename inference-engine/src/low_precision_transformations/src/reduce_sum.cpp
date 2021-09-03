@@ -69,7 +69,7 @@ void ReduceSumTransformation::changeDequantizationValues(
 
         // (a1 - s) + (a2 - s) + ... + (an - s) = (a1 + a2 + ... + an) - n * s
         const auto reductionSizeConstant = opset1::Constant::create(deqPrecision, Shape{}, { static_cast<float>(reductionSize) });
-        const auto result = fold<opset1::Multiply>(dequantization.subtractConstant, reductionSizeConstant);
+        const auto result = fold<opset1::Multiply>(dequantization.subtractConstant->output(0), reductionSizeConstant->output(0));
 
         replace_node(dequantization.subtractConstant, result);
         dequantization.subtractConstant = ov::as_type_ptr<opset1::Constant>(result);

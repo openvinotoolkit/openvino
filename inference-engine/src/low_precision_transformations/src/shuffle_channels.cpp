@@ -57,7 +57,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ng
                 return normalizedConst;
             } else {
                 const auto group = shuffleChannels->get_group();
-                const auto shuffledConst = fold<ngraph::opset1::ShuffleChannels>(normalizedConst, normalizedAxis, group);
+                const auto shuffledConst = fold<ngraph::opset1::ShuffleChannels>(normalizedConst->output(0), normalizedAxis, group);
                 return ov::as_type_ptr<opset1::Constant>(shuffledConst);
             }
         }

@@ -75,8 +75,8 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
                 auto multiplyResult = dequantization.multiplyConstant == nullptr ?
                     node->get_input_node_ptr(3)->shared_from_this() :
                     fold<opset1::Multiply>(
-                        foldConvert(node->get_input_node_ptr(3)->shared_from_this(), params.deqPrecision),
-                        dequantization.multiplyConstant);
+                        foldConvert(node->input_value(3), params.deqPrecision),
+                        dequantization.multiplyConstant->output(0));
 
                 auto multiplyResultConstant = ov::as_type_ptr<opset1::Constant>(multiplyResult);
                 auto intervals = multiplyResultConstant->cast_vector<float>();
@@ -87,8 +87,8 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
                 auto multiplyResult = dequantization.multiplyConstant == nullptr ?
                     node->get_input_node_ptr(4)->shared_from_this() :
                     fold<opset1::Multiply>(
-                        foldConvert(node->get_input_node_ptr(4)->shared_from_this(), params.deqPrecision),
-                        dequantization.multiplyConstant);
+                        foldConvert(node->input_value(4), params.deqPrecision),
+                        dequantization.multiplyConstant->output(0));
 
                 auto multiplyResultConstant = ov::as_type_ptr<opset1::Constant>(multiplyResult);
                 auto intervals = multiplyResultConstant->cast_vector<float>();

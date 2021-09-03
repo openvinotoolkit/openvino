@@ -103,13 +103,13 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
         // broadcasted sub const to form [1, ..., 1, Y]
         const auto broadcastedConst = fold<opset1::Broadcast>(
-            dequantization1.subtractConstant,
+            dequantization1.subtractConstant->output(0),
             opset1::Constant::create(ngraph::element::i32, { broadcastShape.size() }, broadcastShape));
 
         // multiply by weights: [1, ..., 1, Y] x [Y, Z] => [1, ..., 1, Z]
         const auto newSubConst = NetworkHelper::toScalarIfPossible(fold<opset1::MatMul>(
-            broadcastedConst,
-            foldConvert(newMatMul->get_input_node_shared_ptr(1), newMatMul->get_element_type()),
+            broadcastedConst->output(0),
+            foldConvert(newMatMul->input_value(1), newMatMul->get_element_type()),
             newMatMul->get_transpose_a(),
             newMatMul->get_transpose_b()));
 
@@ -131,7 +131,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         std::swap(*(transposeConstant.end() - 1), *(transposeConstant.end() - 2));
 
         auto order = opset1::Constant::create(element::u32, Shape{ transposeConstant.size() }, transposeConstant);
-        std::shared_ptr<Node> transposedConstant = fold<opset1::Transpose>(node, order);
+        std::shared_ptr<Node> transposedConstant = fold<opset1::Transpose>(node->output(0), order);
         return transposedConstant;
     };
 
@@ -150,20 +150,20 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
             std::iota(unsqueezeConstantShape.begin(), unsqueezeConstantShape.end(), 0ul);
 
             mulConst2 = fold<opset1::Unsqueeze>(
-                mulConst2,
+                mulConst2->output(0),
                 op::Constant::create(element::i32, Shape{ unsqueezeConstantShape.size() }, unsqueezeConstantShape));
         }
     }
 
     const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<opset1::Multiply>(
-            mulConst1,
-            foldConvert(mulConst2, element::f32)));
+            mulConst1->output(0),
+            foldConvert(mulConst2->output(0), element::f32)));
 
     const auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
         std::vector<element::Type>{ deqPrecision, deqPrecision },
         std::vector<element::Type>{ dequantization1.multiply->get_output_element_type(0) },
-        ngraph::op::TemporaryReplaceOutputType(parent, deqPrecision).get(),
-        ngraph::op::TemporaryReplaceOutputType(newMulConst, deqPrecision).get());
+        ngraph::op::TemporaryReplaceOutputType(parent->output(0), deqPrecision).get(),
+        ngraph::op::TemporaryReplaceOutputType(newMulConst->output(0), deqPrecision).get());
 
     newMultiply->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationMultiply");
 

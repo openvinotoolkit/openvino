@@ -77,10 +77,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             return false;
         }
 
-        auto multiplyParent = multiply->get_input_source_output(multiplyBranch.first);
-        auto constParent = multiply->get_input_source_output(multiplyBranch.first == 0 ? 1 : 0);
-        auto multiplyParentParent = multiplyParent.get_node_shared_ptr()->get_input_source_output(multiplyBranch.second);
-        auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->get_input_source_output(multiplyBranch.second == 0 ? 1 : 0);
+        auto multiplyParent = multiply->input_value(multiplyBranch.first);
+        auto constParent = multiply->input_value(multiplyBranch.first == 0 ? 1 : 0);
+        auto multiplyParentParent = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second);
+        auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second == 0 ? 1 : 0);
 
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 },
@@ -88,8 +88,8 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             ngraph::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(
                 fold<opset1::Multiply>(
-                    foldConvert(multiplyParentConst, element::f32),
-                    foldConvert(constParent, element::f32)),
+                    foldConvert(multiplyParentConst, element::f32)->output(0),
+                    foldConvert(constParent, element::f32)->output(0)),
                 element::f32).get());
 
         NetworkHelper::copyInfo(multiplyParent.get_node_shared_ptr(), newMultiply);
@@ -127,15 +127,15 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         // before: Y = (SC1 * (X1 - SH1)) * (SC2 * X2)
         // after : Y = (SC1' * (X1 - SH1)) * (X2) , where :
         //         SC1' = SC1 * SC2
-        std::shared_ptr<Node> newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
+        auto newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath->output(0), multiplyValuesFullPath->output(0));
         OutputVector inputs{ {}, {} };
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
         inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
             dequantizationFullPath.subtract == nullptr ?
                 (dequantizationFullPath.convert == nullptr ?
-                    dequantizationFullPath.data : dequantizationFullPath.convert) :
-                dequantizationFullPath.subtract,
-            newMultiplyValuesFullPath);
+                    dequantizationFullPath.data : dequantizationFullPath.convert->output(0)) :
+                dequantizationFullPath.subtract->output(0),
+            newMultiplyValuesFullPath->output(0));
 
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},
