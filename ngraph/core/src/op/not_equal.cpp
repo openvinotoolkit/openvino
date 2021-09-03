@@ -84,9 +84,3 @@ bool op::v1::NotEqual::has_evaluate() const {
     }
     return false;
 }
-
-bool op::v1::NotEqual::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_NotEqual_visit_attributes);
-    BinaryElementwiseComparison::visit_attributes(visitor);
-    return true;
-}
