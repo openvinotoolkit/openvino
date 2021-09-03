@@ -24,11 +24,14 @@ Interval::value_type clip_add(Interval::value_type a, Interval::value_type b) {
     if (a == Interval::s_max || b == Interval::s_max) {
         return Interval::s_max;
     }
-    Interval::value_type res = a + b;
-    if (res < a || res < b) {
+
+    // check overflow without undefined behavior: a + b <= max
+    const static auto max = std::numeric_limits<Interval::value_type>::max();
+    if (b > (max - a)) {
         return Interval::s_max;
     }
-    return res;
+
+    return a + b;
 }
 Interval::value_type clip_minus(Interval::value_type a, Interval::value_type b) {
     if (a <= b) {
