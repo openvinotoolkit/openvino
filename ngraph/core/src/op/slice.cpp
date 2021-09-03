@@ -70,6 +70,13 @@ void op::v8::Slice::validate_and_infer_types() {
     const PartialShape& data_shape = get_input_partial_shape(0);
     PartialShape output_shape(data_shape);
 
+    // If data_shape.rank() is dynamic we can't calulate output shape
+    // even with const start/stop/step/axes we don't know how many axes should be copied
+    // as "unspefified" in the final output shape, so the output shape rank is also dynamic.
+    if (data_shape.rank().is_dynamic()) {
+        set_output_type(0, get_input_element_type(0), output_shape);
+    }
+
     const auto& start_rank = get_input_partial_shape(1).rank();
     const auto& stop_rank = get_input_partial_shape(2).rank();
     const auto& step_rank = get_input_partial_shape(3).rank();
