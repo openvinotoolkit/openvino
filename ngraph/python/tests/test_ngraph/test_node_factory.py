@@ -50,11 +50,13 @@ def test_node_factory_topk():
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [2, 3]
 
+
 def test_node_factory_empty_topk():
     factory = _NodeFactory("opset1")
     node = factory.create("TopK")
 
     assert node.get_type_name() == "TopK"
+
 
 def test_node_factory_empty_topk_with_args_and_attrs():
     dtype = np.int32
