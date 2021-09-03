@@ -20,11 +20,7 @@
 
 #include "ngraph/check.hpp"
 #include "ngraph/deprecated.hpp"
-#include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
-#include "ngraph/op/util/variable.hpp"
-#include "ngraph/op/util/variable_value.hpp"
-#include "ngraph/strides.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/input.hpp"
@@ -33,8 +29,12 @@
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/strides.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/variant.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/op/util/variable_value.hpp"
 
 namespace ngraph {
 
@@ -43,7 +43,6 @@ class HostTensor;
 }  // namespace runtime
 
 namespace op {
-struct AutoBroadcastSpec;
 
 namespace v0 {
 class Result;
@@ -53,6 +52,9 @@ class Result;
 }  // namespace ngraph
 
 namespace ov {
+namespace op {
+struct AutoBroadcastSpec;
+}
 namespace pass {
 namespace pattern {
 class Matcher;
@@ -196,7 +198,7 @@ public:
         return false;
     }
     /// \returns the autobroadcasr spec
-    virtual const ngraph::op::AutoBroadcastSpec& get_autob() const;
+    virtual const ov::op::AutoBroadcastSpec& get_autob() const;
 
     /// \brief Allows to get information about availability of evaluate method for the current
     /// operation

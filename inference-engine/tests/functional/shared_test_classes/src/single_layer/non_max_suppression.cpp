@@ -11,7 +11,7 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
 
-std::string NmsLayerTest::getTestCaseName(testing::TestParamInfo<NmsParams> obj) {
+std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams>& obj) {
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
     int32_t maxOutBoxesPerClass;
@@ -162,7 +162,7 @@ public:
 };
 
 /*
- * 1: selected_indices - tensor of type T_IND and shape [number of selected boxes, 3] containing information about selected boxes as triplets 
+ * 1: selected_indices - tensor of type T_IND and shape [number of selected boxes, 3] containing information about selected boxes as triplets
  *    [batch_index, class_index, box_index].
  * 2: selected_scores - tensor of type T_THRESHOLDS and shape [number of selected boxes, 3] containing information about scores for each selected box as triplets
  *    [batch_index, class_index, box_score].
