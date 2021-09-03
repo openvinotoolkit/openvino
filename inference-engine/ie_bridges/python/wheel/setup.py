@@ -12,7 +12,6 @@ import multiprocessing
 from fnmatch import fnmatchcase
 from pathlib import Path
 from shutil import copyfile, rmtree
-from distutils.command.install import install
 from distutils.command.build import build
 from distutils.command.clean import clean
 from distutils.errors import DistutilsSetupError
@@ -21,6 +20,7 @@ from distutils import log
 from setuptools import setup, find_namespace_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
+from setuptools.command.install import install
 from decouple import config
 
 WHEEL_LIBS_INSTALL_DIR = os.path.join('openvino', 'libs')
@@ -192,7 +192,7 @@ class CustomBuild(build):
             self.spawn(['cmake', '--build', self.build_temp,
                         '--config', self.config, '-j', str(self.jobs)])
             CMAKE_BUILD_DIR = self.build_temp
-            self.run_command('build_clib')
+        self.run_command('build_clib')
 
         build.run(self)
         # Copy extra package_data content filtered by find_packages
@@ -284,7 +284,6 @@ class CustomInstall(install):
 
     def run(self):
         self.run_command('build')
-        self.run_command('build_clib')
         install.run(self)
 
 
