@@ -58,6 +58,7 @@ def test_initialized(device):
     assert exec_net.outputs['fc_out'].initialized, "Incorrect value for initialized property for layer 'fc_out"
 
 
+@pytest.mark.template_plugin
 def test_is_dynamic():
     import ngraph as ng
     function = create_ngraph_function([-1, 3, 20, 20])

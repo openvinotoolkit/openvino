@@ -43,6 +43,13 @@ def device():
     return os.environ.get("TEST_DEVICE") if os.environ.get("TEST_DEVICE") else "CPU"
 
 
+def pytest_configure(config):
+    # register an additional marker
+    config.addinivalue_line(
+        "markers", "template_plugin"
+    )
+
+
 def create_ngraph_function(inputShape):
     inputShape = ng.impl.PartialShape(inputShape)
     param = ng.parameter(inputShape, dtype=np.float32, name="data")

@@ -567,6 +567,7 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
 
 
+@pytest.mark.template_plugin
 @pytest.mark.parametrize("shape, p_shape, ref_shape", [
     ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
     ([1, 4, 20, 20], [(0,5), 4, 20, 20], [3, 4, 20, 20]),
@@ -590,6 +591,7 @@ def test_infer_dynamic_network_with_set_shape(shape, p_shape, ref_shape):
     assert request.output_blobs['out'].tensor_desc.dims == ref_shape
 
 
+@pytest.mark.template_plugin
 @pytest.mark.parametrize("shape, p_shape, ref_shape", [
     ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
     ([1, 4, 20, 20], [(0,5), 4, 20, 20], [3, 4, 20, 20]),
@@ -612,6 +614,7 @@ def test_infer_dynamic_network_without_set_shape(shape, p_shape, ref_shape):
     assert request.output_blobs['out'].tensor_desc.dims == ref_shape
 
 
+@pytest.mark.template_plugin
 @pytest.mark.parametrize("shape, p_shape, ref_shape", [
     ([1, 4, 20, 20], [-1, 4, 20, 20], [5, 4, 20, 20]),
     ([1, 4, 20, 20], [(0,5), 4, 20, 20], [3, 4, 20, 20]),
@@ -638,6 +641,7 @@ def test_infer_dynamic_network_with_set_blob(shape, p_shape, ref_shape):
     assert request.output_blobs["out"].tensor_desc.dims == ref_shape
 
 
+@pytest.mark.template_plugin
 def test_infer_dynamic_network_twice():
     shape, p_shape = [1, 4, 20, 20], [(0,5), 4, 20, 20]
     ref_shape1, ref_shape2 = [2, 4, 20, 20], [3, 4, 20, 20]
@@ -656,6 +660,7 @@ def test_infer_dynamic_network_twice():
     assert request.output_blobs['out'].tensor_desc.dims == ref_shape2
 
 
+@pytest.mark.template_plugin
 def test_infer_dynamic_network_with_set_blob_twice():
     shape, p_shape = [1, 4, 20, 20], [(0,5), 4, 20, 20]
     ref_shape1, ref_shape2 = [2, 4, 20, 20], [3, 4, 20, 20]
@@ -682,6 +687,7 @@ def test_infer_dynamic_network_with_set_blob_twice():
     assert request.output_blobs['out'].tensor_desc.dims == ref_shape2
 
 
+@pytest.mark.template_plugin
 @pytest.mark.parametrize("shapes", [
     ([3, 4, 20, 20], [3, 4, 20, 20], [3, 4, 20, 20]),
     ([3, 4, 20, 20], [3, 6, 20, 20], [3, 8, 20, 20]),
@@ -701,6 +707,7 @@ def test_async_infer_dynamic_network_3_requests(shapes):
         assert request.output_blobs['out'].tensor_desc.dims == shapes[i]
 
 
+@pytest.mark.template_plugin
 def test_set_blob_with_incorrect_name():
     function = create_ngraph_function([4, 4, 20, 20])
     net = ng.function_to_cnn(function)
@@ -715,6 +722,7 @@ def test_set_blob_with_incorrect_name():
     assert f"Failed to find input or output with name: 'incorrect_name'" in str(e.value)
 
 
+@pytest.mark.template_plugin
 def test_set_blob_with_incorrect_size():
     function = create_ngraph_function([4, 4, 20, 20])
     net = ng.function_to_cnn(function)
@@ -732,6 +740,7 @@ def test_set_blob_with_incorrect_size():
     assert f"Output blob size is not equal network output size" in str(e.value)
 
 
+@pytest.mark.template_plugin
 def test_set_blob_after_async_infer():
     function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
     net = ng.function_to_cnn(function)

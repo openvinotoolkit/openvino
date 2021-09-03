@@ -280,6 +280,7 @@ def test_tensor_names():
     assert net.get_ov_name_for_tensor("input") == "in1"
 
 
+@pytest.mark.template_plugin
 def test_create_two_exec_net():
     function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
     net = ng.function_to_cnn(function)

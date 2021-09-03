@@ -135,6 +135,7 @@ def test_set_shape():
     assert blob.buffer.shape == (1, 4, 128, 128)
 
 
+@pytest.mark.template_plugin
 def test_blob_set_shape_after_async_infer():
     import ngraph as ng
     function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
