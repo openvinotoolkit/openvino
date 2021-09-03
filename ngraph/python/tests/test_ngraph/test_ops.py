@@ -555,8 +555,21 @@ def test_max_pool():
     dilations = [1] * len(window_shape)
     pads_begin = [0] * len(window_shape)
     pads_end = [0] * len(window_shape)
+    rounding_type = "floor"
+    auto_pad = "explicit"
+    idx_elem_type = "i32"
 
-    model = ng.max_pool(A, strides, dilations, pads_begin, pads_end, window_shape)
+    model = ng.max_pool(
+        A,
+        strides,
+        dilations,
+        pads_begin,
+        pads_end,
+        window_shape,
+        rounding_type,
+        auto_pad,
+        idx_elem_type,
+    )
     function = Function([model], parameter_list, "test")
 
     runtime = get_runtime()
@@ -571,7 +584,17 @@ def test_max_pool():
     pads_begin = [0] * len(window_shape)
     pads_end = [0] * len(window_shape)
 
-    model = ng.max_pool(A, strides, dilations, pads_begin, pads_end, window_shape)
+    model = ng.max_pool(
+        A,
+        strides,
+        dilations,
+        pads_begin,
+        pads_end,
+        window_shape,
+        rounding_type,
+        auto_pad,
+        idx_elem_type,
+    )
     function = Function([model], parameter_list, "test")
 
     size = 4
@@ -595,7 +618,17 @@ def test_max_pool():
     pads_begin = [0, 0]
     pads_end = [0, 0]
 
-    model = ng.max_pool(A, strides, dilations, pads_begin, pads_end, window_shape)
+    model = ng.max_pool(
+        A,
+        strides,
+        dilations,
+        pads_begin,
+        pads_end,
+        window_shape,
+        rounding_type,
+        auto_pad,
+        idx_elem_type,
+    )
     function = Function([model], parameter_list, "test")
 
     computation = runtime.computation(function, *parameter_list)
@@ -610,7 +643,17 @@ def test_max_pool():
     pads_begin = [0, 0]
     pads_end = [0, 0]
 
-    model = ng.max_pool(A, strides, dilations, pads_begin, pads_end, window_shape)
+    model = ng.max_pool(
+        A,
+        strides,
+        dilations,
+        pads_begin,
+        pads_end,
+        window_shape,
+        rounding_type,
+        auto_pad,
+        idx_elem_type,
+    )
     function = Function([model], parameter_list, "test")
     computation = runtime.computation(function, *parameter_list)
     result = computation(input_arr)[0]
