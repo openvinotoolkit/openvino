@@ -244,6 +244,7 @@ protected:
                 if (op->get_friendly_name() == "LSTMCell") {
                     const auto lstm_seq = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(op);
                     ASSERT_EQ(lstm_seq->get_clip(), 0.0f);
+                    ASSERT_EQ(lstm_seq->get_hidden_size(), 256);
                 }
             }
         }
