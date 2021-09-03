@@ -280,6 +280,7 @@ def test_load_network_release_gil(device):
         f"More than 0 GIL locks occured! Latency: {message_queue.get()})"
 
 
+@pytest.mark.template_extension
 def test_add_extension():
     model = bytes(b"""<net name="Network" version="10">
     <layers>
