@@ -215,7 +215,6 @@ class PrepareLibs(build_clib):
         self.configure(PY_INSTALL_CFG)
         self.generate_package(get_dir_list(LIB_INSTALL_CFG))
 
-
     def configure(self, install_cfg):
         """Collect prebuilt libraries. Install them to the temp directories, set rpath."""
         for comp, comp_data in install_cfg.items():
@@ -230,7 +229,6 @@ class PrepareLibs(build_clib):
                 file_types = ['.so'] if sys.platform == 'linux' else ['.dylib', '.so']
                 for path in filter(lambda p: any(item in file_types for item in p.suffixes), Path(install_dir).glob('*')):
                     set_rpath(comp_data['rpath'], os.path.realpath(path))
-
 
     def generate_package(self, src_dirs):
         """
