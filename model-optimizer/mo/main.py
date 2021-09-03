@@ -119,7 +119,6 @@ def load_moc_frontends(argv: argparse.Namespace) -> (Optional[FrontEnd], List[st
     # Set which frontend to use by default, values should be 'new' or 'legacy'
     frontend_defaults = {
         'onnx': 'legacy',
-        'paddle': 'new'
     }
     # Disable MOC frontend if default is set to legacy and no user override
     if frontend_defaults[moc_front_end.get_name()] == 'legacy' and not use_new_frontend:
@@ -203,11 +202,13 @@ def prepare_ir(argv: argparse.Namespace):
     if argv.legacy_ir_generation and len(argv.transform) != 0:
         raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
 
-    # For C++ frontends there is no specific python installation requirements, thus check only generic ones
-    if not moc_front_end:
+    # For C++ frontends there are no specific Python installation requirements, check only generic ones
+    if moc_front_end:
+        ret_code = check_requirements()
+    else:
         ret_code = check_requirements(framework=argv.framework)
-        if ret_code:
-            raise Error('check_requirements exit with return code {}'.format(ret_code))
+    if ret_code:
+        raise Error('check_requirements exited with return code {}'.format(ret_code))
 
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
