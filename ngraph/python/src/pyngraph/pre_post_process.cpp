@@ -15,5 +15,4 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_PrePostProcessor(py::module m) {
-}
+void regclass_pyngraph_PrePostProcessor(py::module m) {}

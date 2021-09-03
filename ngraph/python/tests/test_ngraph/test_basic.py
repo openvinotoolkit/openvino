@@ -436,20 +436,20 @@ def test_node_version():
 
 
 def test_partial_layout():
-    l = PartialLayout('NCHW')
-    assert l.channels == 1
-    assert l.size == 4
+    layout = PartialLayout("NCHW")
+    assert layout.channels == 1
+    assert layout.size == 4
 
-    l = PartialLayout('N??C')
-    assert l.channels == 3
-    assert not l.is_empty
+    layout = PartialLayout("N??C")
+    assert layout.channels == 3
+    assert not layout.is_empty
 
-    l = PartialLayout()
-    assert l.channels is None
-    assert l.is_empty
-    assert l.size == 0
+    layout = PartialLayout()
+    assert layout.channels is None
+    assert layout.is_empty
+    assert layout.size == 0
 
-    l = PartialLayout('HW')
-    assert l.channels is None
-    assert not l.is_empty
-    assert l.size == 2
+    layout = PartialLayout("HW")
+    assert layout.channels is None
+    assert not layout.is_empty
+    assert layout.size == 2

@@ -53,6 +53,7 @@ public:
     }
 
     std::vector<int64_t> permutation(const PartialLayout& layout) const;
+
 private:
     /// stores dimension names
     std::unordered_map<std::string, std::int64_t> _dimensionNames;
