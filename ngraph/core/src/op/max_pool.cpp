@@ -198,20 +198,20 @@ bool evaluate_maxpool(const HostTensorPtr& data,
                       const Shape& pads_begin,
                       const Shape& pads_end,
                       const int64_t axis) {
-#define EVAL_MAX_POOL_8(data_et, index_et)          \
-    NGRAPH_TYPE_CASE2(maxpool_v8::evaluate_maxpool, \
-                      data_et,                      \
-                      index_et,                     \
-                      data,                         \
-                      values,                       \
-                      indices,                      \
-                      out_shape,                    \
-                      kernel,                       \
-                      strides,                      \
-                      dilations,                    \
-                      pads_begin,                   \
-                      pads_end,                     \
-                      axis)
+#define EVAL_MAX_POOL_8(data_et, index_et)            \
+    NGRAPH_2_TYPES_CASE(maxpool_v8::evaluate_maxpool, \
+                        data_et,                      \
+                        index_et,                     \
+                        data,                         \
+                        values,                       \
+                        indices,                      \
+                        out_shape,                    \
+                        kernel,                       \
+                        strides,                      \
+                        dilations,                    \
+                        pads_begin,                   \
+                        pads_end,                     \
+                        axis)
 
     bool rc = true;
     switch (indices->get_element_type()) {
@@ -332,11 +332,7 @@ bool op::v8::MaxPool::has_evaluate() const {
 
 bool op::v8::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v8_MaxPool_evaluate);
-    return evaluate_maxpool(outputs, inputs);
-}
 
-bool op::v8::MaxPool::evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v8_MaxPool_evaluate_maxpool);
     const auto arg_shape = inputs[0]->get_partial_shape();
     auto pads_begin_s = get_pads_begin();
     auto pads_end_s = get_pads_end();

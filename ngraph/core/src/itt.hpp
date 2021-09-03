@@ -49,7 +49,7 @@ OV_ITT_DOMAIN(SIMPLE_ngraph_pass);
         }                                                       \
     } break
 
-#define NGRAPH_TYPE_CASE2(region, a, b, ...)                                    \
+#define NGRAPH_2_TYPES_CASE(region, a, b, ...)                                  \
     case element::Type_t::a: {                                                  \
         OV_SCOPE(ngraph_op, OV_PP_CAT4(region, _, a, b)) {                      \
             rc = evaluate<element::Type_t::a, element::Type_t::b>(__VA_ARGS__); \

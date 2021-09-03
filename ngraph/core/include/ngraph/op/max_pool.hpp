@@ -127,8 +127,6 @@ private:
     Strides m_dilations;
     element::Type m_index_element_type{element::i64};
     int64_t m_axis{0};
-
-    bool evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 };
 }  // namespace v8
 }  // namespace op
