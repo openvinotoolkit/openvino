@@ -940,6 +940,8 @@ cdef class ExecutableNetwork:
                     infer_request.impl = &(deref(self.impl).infer_requests[i])
                 infer_request._inputs_list = list(self.input_info.keys())
                 infer_request._outputs_list = list(self.outputs.keys())
+                for input_name in infer_request._inputs_list:
+                    infer_request._inputs_is_dynamic[input_name] = self.input_info[input_name].input_data.is_dynamic
                 self._infer_requests.append(infer_request)
 
         if len(self._infer_requests) != c_infer_requests_size:
@@ -1076,6 +1078,7 @@ cdef class InferRequest:
         self._py_callback_used = False
         self._py_callback_called = threading.Event()
         self._py_data = None
+        self._inputs_is_dynamic = {}
 
     cdef void user_callback(self, int status) with gil:
         if self._py_callback:
@@ -1336,8 +1339,9 @@ cdef class InferRequest:
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():
             assert k in self._inputs_list, f"No input with name {k} found in network"
-            v = expand_dims_to_corresponding_layout(v, self.input_blobs[k].tensor_desc.layout)
-            self.input_blobs[k].set_shape(v.shape)
+            if self._inputs_is_dynamic[k]:
+                v = expand_dims_to_corresponding_layout(v, self.input_blobs[k].tensor_desc.layout)
+                self.input_blobs[k].set_shape(v.shape)
             if self.input_blobs[k].tensor_desc.precision == "FP16":
                 self.input_blobs[k].buffer[:] = v.view(dtype=np.int16)
             else:
