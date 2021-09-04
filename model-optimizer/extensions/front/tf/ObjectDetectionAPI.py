@@ -1741,6 +1741,14 @@ class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral)
 
 
 class ObjectDetectionAPIPSROIPoolingReplacement(FrontReplacementFromConfigFileSubGraph):
+    """
+    RFCN models contains a unique block ("SecondStageBoxPredictor") performing bounding boxes predictions which is
+    called Position Sensitive ROI Pooling (PSROIPooling). The combination of "CropAndResize operations located in the
+    "while" loop forms a single PSROIPooling operation with bilinear interpolation. The transformation matches two
+    "while" loops with PSROIPooling layers applied to the tensors with box coordinates and classes predictions. The
+    sub-graph being replaced also contains a Reduce operation performing mean calculation over the spatial dimensions,
+    so the transformation adds this operation as well.
+    """
     replacement_id = 'ObjectDetectionAPIPSROIPoolingReplacement'
     run_not_recursively = True
 
@@ -1774,6 +1782,7 @@ class ObjectDetectionAPIPSROIPoolingReplacement(FrontReplacementFromConfigFileSu
             raise Error('Different "crop_height" and "crop_width" parameters from the pipeline config are not '
                         'supported: {} vs {}'.format(crop_height, crop_width))
 
+        # if there is a node which produces flattened swapped output from the Proposal operation then use it
         if 'reshape_swap_proposals_2d' in graph.nodes():
             reshape_swap_proposals_node = Node(graph, 'reshape_swap_proposals_2d')
         else:
@@ -1785,7 +1794,7 @@ class ObjectDetectionAPIPSROIPoolingReplacement(FrontReplacementFromConfigFileSu
 
         psroipooling_node = PSROIPoolingOp(graph, {'name': input_node.soft_get('name') + '/PSROIPooling',
                                                    'output_dim': psroipooling_output_dim,
-                                                   'group_size': crop_width / num_spatial_bins_width,
+                                                   'group_size': crop_width // num_spatial_bins_width,
                                                    'spatial_bins_x': num_spatial_bins_width,
                                                    'spatial_bins_y': num_spatial_bins_height,
                                                    'mode': 'bilinear',
