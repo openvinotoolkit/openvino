@@ -90,6 +90,12 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         }
         fq->set_friendly_name("fakeQuantizeAfter");
         parent = fq;
+        if (!convert3.empty()) {
+            parent = std::make_shared<opset1::Convert>(parent, convert3.outPrecision);
+        }
+        if (!dequantization1.empty()) {
+            parent = makeDequantization(parent, dequantization3);
+        }
     }
     parent->set_friendly_name("output");
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
