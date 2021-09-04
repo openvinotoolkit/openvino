@@ -1110,6 +1110,16 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
 
 
 class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFromConfigFileSubGraph):
+    """
+    There are two TensorFlow CropAndResize (corresponding to Inference Engine ROIPooling with bilinear interpolation
+    mode) operations in the Mask-RCNN model. The second CropAndResize gets bounding boxes coordinates as input from the
+    part of the model which is replaced with the DetectionOutput operation using the transformation
+    ObjectDetectionAPIDetectionOutputReplacement. DetectionOutput operation produces tensor with 7-element tuples
+    [batch_id, class_id, confidence, x_1, y_1, x_2, y_2]. The ROIPooling operation expects input defining bounding boxes
+    with the following format [batch_id, x_1, y_1, x_2, y_2]. The ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement
+    transformation inserts ROIPooling operation instead of the CropAndResize and crops slices of data from the
+    DetectionOutput operation and concatenates them to produce a tensor with correct content.
+    """
     replacement_id = 'ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement'
     run_not_recursively = True
 
@@ -1127,57 +1137,47 @@ class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFrom
         if argv.tensorflow_object_detection_api_pipeline_config is None:
             raise Error(missing_param_error)
         pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
+
+        # the output spatial dimensions of the ROIPooling operation are defined in the pipeline.config
         roi_pool_size = _value_or_raise(match, pipeline_config, 'initial_crop_size')
 
+        # find the DetectionOutput operation by name to get tensor with information about bounding boxes from it
         detection_output_nodes_ids = [node_id for node_id, attrs in graph.nodes(data=True)
                                       if 'name' in attrs and attrs['name'] == 'detection_output']
         if len(detection_output_nodes_ids) != 1:
-            raise Error("Found the following nodes '{}' with 'detection_output' but there should be exactly 1.".
+            raise Error("Found the following nodes '{}' with name 'detection_output' but there should be exactly 1.".
                         format(detection_output_nodes_ids))
-        detection_output_node = Node(graph, detection_output_nodes_ids[0])
-        output_nodes = [port.node for port in detection_output_node.out_port(0).get_destinations() if port.node.soft_get('type') == 'Result']
-        if len(output_nodes) == 1:
-            graph.remove_node(output_nodes[0].id)
+        detection_output = Node(graph, detection_output_nodes_ids[0])
+        do_outputs = [port.node for port in detection_output.out_port(0).get_destinations() if port.node.op == 'Result']
+        if len(do_outputs) == 1:
+            graph.remove_node(do_outputs[0].id)
 
-        # add reshape of Detection Output so it can be an output of the topology
-        reshape_detection_output_2d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 7]),
-                                                                            dict(name='reshape_do_2d'),
-                                                                            detection_output_node)
-        mark_as_correct_data_layout(reshape_detection_output_2d_node)
+        # add reshape of Detection Output so it can be an output of the topology.
+        # this looks like some legacy not relevant constraint anymore
+        flatten_do = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 7]), dict(name='reshape_do_2d'),
+                                                      detection_output)
+        mark_as_correct_data_layout(flatten_do)
 
-        # adds special node of type "Output" that is a marker for the output nodes of the topology
-        output_op = Result(graph, dict(name='do_reshaped_OutputOp'))
-        output_node = output_op.create_node([reshape_detection_output_2d_node])
+        # adds "Result" node so this output is returned by IE by default for the backward compatibility
+        do_result = Result(graph, dict(name='do_reshaped_OutputOp')).create_node([flatten_do])
 
         # add attribute 'output_sort_order' so it will be used as a key to sort output nodes before generation of IR
-        output_node.in_edge()['data_attrs'].append('output_sort_order')
-        output_node.in_edge()['output_sort_order'] = [('detection_boxes', 0)]
+        do_result.in_edge()['data_attrs'].append('output_sort_order')
+        do_result.in_edge()['output_sort_order'] = [('detection_boxes', 0)]
 
-        # creates two Crop operations which get input from the DetectionOutput layer, cuts of slices of data with class
-        # ids and probabilities and produce a tensor with batch ids and bounding boxes only (as it is expected by the
-        # ROIPooling layer)
-        crop_batch_op = Crop(graph, dict(axis=int64_array([3]), offset=int64_array([0]), dim=int64_array([1]),
-                                         nchw_layout=True))
-        crop_batch_node = crop_batch_op.create_node([detection_output_node], dict(name='crop_do_batch_ids'))
+        # creates two Crop operations which get input from the DetectionOutput, cuts off slices of data with class ids
+        # and probabilities and produces a tensor with batch ids and bounding boxes only (as it is expected by the
+        # ROIPooling operation)
+        batch_ids = Crop(graph, dict(axis=int64_array([1]), offset=int64_array([0]), dim=int64_array([1]))).create_node(
+            [flatten_do], dict(name='crop_do_batch_ids'))
+        coords = Crop(graph, dict(axis=int64_array([1]), offset=int64_array([3]), dim=int64_array([4]))).create_node(
+            [flatten_do], dict(name='crop_do_coords'))
+        batch_and_coords = Concat(graph, dict(axis=1)).create_node([batch_ids, coords], dict(name='batch_and_coords'))
 
-        crop_coordinates_op = Crop(graph, dict(axis=int64_array([3]), offset=int64_array([3]), dim=int64_array([4]),
-                                               nchw_layout=True))
-        crop_coordinates_node = crop_coordinates_op.create_node([detection_output_node], dict(name='crop_do_coords'))
-
-        concat_op = Concat(graph, dict(axis=3))
-        concat_node = concat_op.create_node([crop_batch_node, crop_coordinates_node], dict(name='batch_and_coords',
-                                                                                           nchw_layout=True))
-
-        # reshape bounding boxes as required by ROIPooling
-        reshape_do_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 5]),
-                                                           dict(name='reshape_do'), concat_node)
-        mark_as_correct_data_layout(reshape_do_node)
-
-        roi_pooling_op = ROIPooling(graph, dict(method="bilinear", spatial_scale=1, pooled_h=roi_pool_size,
-                                                pooled_w=roi_pool_size))
-        roi_pooling_node = roi_pooling_op.create_node([match.single_input_node(0)[0].in_node(), reshape_do_node],
-                                                      dict(name='ROI_pooling_2'))
-        return {'roi_pooling_node': roi_pooling_node}
+        roi_pooling = ROIPooling(graph, dict(method="bilinear", spatial_scale=1, pooled_h=roi_pool_size,
+                                             pooled_w=roi_pool_size)).create_node(
+            [match.single_input_node(0)[0].in_node(), batch_and_coords], dict(name='ROI_pooling_2'))
+        return {'roi_pooling_node': roi_pooling}
 
 
 class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFileGeneral):
