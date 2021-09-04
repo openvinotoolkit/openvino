@@ -1182,8 +1182,15 @@ class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFrom
 
 class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFileGeneral):
     """
-    This replacer is used to convert Mask R-CNN topologies only.
-    Adds activation with sigmoid function to the end of the network producing masks tensors.
+    The transformation is used to convert Mask R-CNN topologies only.
+
+    The post-processing part of Mask-RCNN models is to select masks from the output tensor which correspond to bounding
+    boxes with probability exceeding specific threshold. The final step of the post-processing is to apply Sigmoid
+    activation function to the tensor with selected masks so the values become in range [0, 1]. The post-processing part
+    of the model is not supported so it is removed using the transformation ObjectDetectionAPIOutputReplacement.
+    This transformation adds back the activation function to the end of the network producing masks tensors. So the
+    post-processing with selecting masks corresponding to bounding boxes with high probabilities should be implemented
+    in the application.
     """
     replacement_id = 'ObjectDetectionAPIMaskRCNNSigmoidReplacement'
     run_not_recursively = True
@@ -1195,6 +1202,8 @@ class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFil
         return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement]
 
     def transform_graph(self, graph: Graph, replacement_descriptions):
+        # there could be multiple Result nodes in the graph. We identify the one containing masks data using the node
+        # name prefix
         masks_node_prefix_name = replacement_descriptions.get('masks_node_prefix_name', 'SecondStageBoxPredictor')
         op_outputs = graph.get_op_nodes(op='Result')
         for op_output in op_outputs:
@@ -1203,10 +1212,11 @@ class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFil
                 sigmoid_node = Sigmoid(graph, dict(name='masks')).create_node()
                 op_output.in_port(0).get_connection().insert_node(sigmoid_node)
 
-        print('The predicted masks are produced by the "masks" layer for each bounding box generated with a '
-              '"detection_output" operation.\n Refer to operation specification in the documentation for information '
-              'about the DetectionOutput operation output data interpretation.\n'
-              'The model can be inferred using the dedicated demo "mask_rcnn_demo" from the OpenVINO Open Model Zoo.')
+        log.error('The predicted masks are produced by the "masks" layer for each bounding box generated with a '
+                  '"detection_output" operation.\n Refer to operation specification in the documentation for the '
+                  'information about the DetectionOutput operation output data interpretation.\nThe model can be '
+                  'inferred using the dedicated demo "mask_rcnn_demo" from the OpenVINO Open Model Zoo.',
+                  extra={'is_warning': True})
 
 
 class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGraph):
@@ -1694,7 +1704,7 @@ class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral)
     This replacer is used to cut-off the network by specified nodes for models generated with Object Detection API.
     The custom attribute for the replacer contains one value for key "outputs". This string is a comma separated list
     of outputs alternatives. Each output alternative is a '|' separated list of node name which could be outputs. The
-    first node from each alternative that exits in the graph is chosen. Others are ignored.
+    first node from each alternative group that exits in the graph is chosen. Others are ignored.
     For example, if the "outputs" is equal to the following string:
 
         "Reshape_16,SecondStageBoxPredictor_1/Conv_3/BiasAdd|SecondStageBoxPredictor_1/Conv_1/BiasAdd"

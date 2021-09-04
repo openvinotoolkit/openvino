@@ -133,9 +133,6 @@ Implementation of the transformations for Object Detection API models is located
 ### Faster R-CNN Topologies
 The Faster R-CNN models contain several building blocks similar to building blocks from SSD models so it is highly recommended to read the section about converting them first. Detailed information about Faster R-CNN topologies is provided [in the abstract](https://arxiv.org/abs/1506.01497).
 
-#### Preprocessor Block
-Faster R-CNN topologies contain similar `Preprocessor` block as SSD topologies. The same `ObjectDetectionAPIPreprocessorReplacement` sub-graph replacer is used to cut it off.
-
 #### Proposal Layer
 The `Proposal` layer is implemented with dozens of primitive operations in TensorFlow, meanwhile, it is a single layer in the Inference Engine. The `ObjectDetectionAPIProposalReplacement` sub-graph replacer identifies nodes corresponding to the layer and replaces them with required new nodes.
 
@@ -491,52 +488,6 @@ The differences in conversion are the following:
 *  The X and Y coordinates in the tensor with bounding boxes locations adjustments should be swapped. For some topologies it could be done by updating preceding convolution weights, but if there is no preceding convolutional node, the Model Optimizer inserts convolution node with specific kernel and weights that performs coordinates swap during topology inference.
 *  Added marker node of type `OpOutput` that is used by the Model Optimizer to determine output nodes of the topology. It is used in the dead nodes elimination pass.
 
-#### Cutting Off Part of the Topology
-
-There is an ability to cut-off part of the topology using the `--output` command line parameter. Detailed information on why it could be useful is provided in the [Cutting Off Parts of a Model ](../Cutting_Model.md). The Faster R-CNN models are cut at the end using the sub-graph replacer `ObjectDetectionAPIOutputReplacement`.
-
-```python
-class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral):
-    """
-    This replacer is used to cut-off the network by specified nodes for models generated with Object Detection API.
-    The custom attribute for the replacer contains one value for key "outputs". This string is a comma separated list
-    of outputs alternatives. Each output alternative is a '|' separated list of node name which could be outputs. The
-    first node from each alternative that exits in the graph is chosen. Others are ignored.
-    For example, if the "outputs" is equal to the following string:
-
-        "Reshape_16,SecondStageBoxPredictor_1/Conv_3/BiasAdd|SecondStageBoxPredictor_1/Conv_1/BiasAdd"
-
-    then the "Reshape_16" will be an output if it exists in the graph. The second output will be
-    SecondStageBoxPredictor_1/Conv_3/BiasAdd if it exist in the graph, if not then
-    SecondStageBoxPredictor_1/Conv_1/BiasAdd will be output if it exists in the graph.
-    """
-    replacement_id = 'ObjectDetectionAPIOutputReplacement'
-
-    def run_before(self):
-        return [ObjectDetectionAPIPreprocessorReplacement]
-
-    def transform_graph(self, graph: Graph, replacement_descriptions: dict):
-        if graph.graph['cmd_params'].output is not None:
-            log.warning('User defined output nodes are specified. Skip the graph cut-off by the '
-                        'ObjectDetectionAPIOutputReplacement.')
-            return
-        outputs = []
-        outputs_string = replacement_descriptions['outputs']
-        for alternatives in outputs_string.split(','):
-            for out_node_name in alternatives.split('|'):
-                if graph.has_node(out_node_name):
-                    outputs.append(out_node_name)
-                    break
-                else:
-                    log.debug('A node "{}" does not exist in the graph. Do not add it as output'.format(out_node_name))
-        _outputs = output_user_data_repack(graph, outputs)
-        add_output_ops(graph, _outputs, graph.graph['inputs'])
-```
-
-This is a replacer of type "general" which is called just once in comparison with other Front-replacers ("scope" and "points") which are called for each matched instance. The replacer reads node names that should become new output nodes, like specifying `--output <node_names>`. The only difference is that the string containing node names could contain '|' character specifying output node names alternatives. Detailed explanation is provided in the class description in the code.
-
-The `detection_boxes`, `detection_scores`, `num_detections` nodes are specified as outputs in the `faster_rcnn_support.json` file. These nodes are used to remove part of the graph that is not be needed to calculate value of specified output nodes.
-
 #### SecondStageBoxPredictor block
 
 The `SecondStageBoxPredictor` block differs from the self-titled block from Faster R-CNN topologies. It contains a number of `CropAndResize` operations consuming variously scaled boxes generated with a Proposal layer. The combination of `CropAndResize` layers located in the `while` loop forms a single position-sensitive ROI pooling (PSROIPooling) layer with bilinear interpolation. The `ObjectDetectionAPIPSROIPoolingReplacement` replacement matches two `while` loops with PSROIPooling layers applied to the blobs with box coordinates and classes predictions.
@@ -711,44 +662,6 @@ The Inference Engine `DetectionOutput` layer implementation produces one tensor 
 The boxes coordinates must be fed to the `ROIPooling` layer, so the `Crop` layer is added to remove unnecessary part (lines 37-50).
 
 Then the result tensor is reshaped (lines 53-54) and `ROIPooling` layer is created (lines 56-59).
-
-#### Mask Tensors Processing
-
-The post-processing part of Mask R-CNN topologies filters out bounding boxes with low probabilities and applies activation function to the rest one. This post-processing is implemented using the `Gather` operation, which is not supported by the Inference Engine. Special Front-replacer removes this post-processing and just inserts the activation layer to the end. The filtering of bounding boxes is done in the dedicated demo `mask_rcnn_demo`. The code of the replacer is the following:
-
-```python
-class ObjectDetectionAPIMaskRCNNSigmoidReplacement(FrontReplacementFromConfigFileGeneral):
-    """
-    This replacer is used to convert Mask R-CNN topologies only.
-    Adds activation with sigmoid function to the end of the network producing masks tensors.
-    """
-    replacement_id = 'ObjectDetectionAPIMaskRCNNSigmoidReplacement'
-
-    def run_after(self):
-        return [ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement]
-
-    def transform_graph(self, graph: Graph, replacement_descriptions):
-        output_node = None
-        op_outputs = [n for n, d in graph.nodes(data=True) if 'op' in d and d['op'] == 'OpOutput']
-        for op_output in op_outputs:
-            last_node = Node(graph, op_output).in_node(0)
-            if last_node.name.startswith('SecondStageBoxPredictor'):
-                sigmoid_op = Activation(graph, dict(operation='sigmoid'))
-                sigmoid_node = sigmoid_op.create_node([last_node], dict(name=last_node.id + '/sigmoid'))
-                sigmoid_node.name = 'masks'
-
-                if output_node is not None:
-                    raise Error('Identified two possible outputs from the topology. Cannot proceed.')
-                # add special node of type "Output" that is a marker for the output nodes of the topology
-                output_op = Output(graph, dict(name=sigmoid_node.name + '/OutputOp'))
-                output_node = output_op.create_node([sigmoid_node])
-
-        print('The predicted masks are produced by the "masks" layer for each bounding box generated with a '
-              '"detection_output" layer.\n Refer to IR catalogue in the documentation for information '
-              'about the DetectionOutput layer and Inference Engine documentation about output data interpretation.\n'
-              'The topology can be inferred using dedicated demo "mask_rcnn_demo".')
-```
-The replacer looks for the output node which name starts with 'SecondStageBoxPredictor' (the another node of type 'OpOutput' is located after the `DetectionOutput` node). This node contains the generated masks. The replacer adds activation layer 'Sigmoid' after this node as it is done in the initial TensorFlow* model.
 
 #### Cutting Off Part of the Topology
 
