@@ -53,14 +53,14 @@ void op::v0::Gelu::validate_and_infer_types() {
 
 namespace ov {
 template <>
-NGRAPH_API EnumNames<op::GeluApproximationMode>& EnumNames<op::GeluApproximationMode>::get() {
-    static auto enum_names = EnumNames<op::GeluApproximationMode>(
+NGRAPH_API EnumNames<ngraph::op::GeluApproximationMode>& EnumNames<ngraph::op::GeluApproximationMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::GeluApproximationMode>(
         "op::GeluApproximationMode",
-        {{"TANH", op::GeluApproximationMode::TANH}, {"ERF", op::GeluApproximationMode::ERF}});
+        {{"TANH", ngraph::op::GeluApproximationMode::TANH}, {"ERF", ngraph::op::GeluApproximationMode::ERF}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::GeluApproximationMode>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::GeluApproximationMode>::type_info;
 }  // namespace ov
 std::ostream& op::operator<<(std::ostream& s, const op::GeluApproximationMode& type) {
     return s << as_string(type);
