@@ -77,9 +77,8 @@ TEST_P(MemLeaksTestSuiteNoDevice, cnnnetwork_reshape_batch_x2) {
 
 TEST_P(MemLeaksTestSuiteNoDevice, set_input_params) {
     auto test_params = GetParam();
-    std::vector<std::function<void()>> pipeline;
-    for (int i = 0; i < test_params.models.size(); i++)
-        pipeline.push_back(set_input_params(test_params.models[i]["path"]));
+    std::vector<void()> pipeline;
+    for (auto model: test_params.models) pipeline.push_back(set_input_params(model["path"]));
     auto test = [&] {
         log_info("Apply preprocessing for CNNNetwork from network: \"" << test_params.models_names << "\" for " << test_params.numiters << " times");
         return common_test_pipeline(pipeline, test_params.numiters);
