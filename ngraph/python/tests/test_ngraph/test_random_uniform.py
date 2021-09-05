@@ -15,7 +15,7 @@ def test_random_uniform():
     random_uniform_node = ng.random_uniform(input_tensor, min_val, max_val, output_type='f32', global_seed=7461,
                                             op_seed=1546)
     computation = runtime.computation(random_uniform_node)
-    roll_results = computation()
+    random_uniform_results = computation()
     expected_results = np.array([[[2.8450181, -2.3457108, 2.2134445],
                                   [-1.0436587, 0.79548645, 1.3023183],
                                   [0.34447956, -2.0267959, 1.3989122],
@@ -26,4 +26,4 @@ def test_random_uniform():
                                   [3.1739233, 0.03919673, -0.2136085],
                                   [-1.4519991, -2.277353, 2.630727]]], dtype=np.float32)
 
-    assert np.allclose(roll_results, expected_results)
+    assert np.allclose(random_uniform_results, expected_results)
