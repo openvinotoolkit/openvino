@@ -87,7 +87,7 @@ def run_in_subprocess(cmd, check_call=True):
 
 
 def get_model_recs(test_conf_root, test_framework):
-    """Pparse models from test config."""
+    """Parse models from test config."""
     if test_framework == "memleak":
         model_recs = []
         for device_rec in test_conf_root.findall("device"):
