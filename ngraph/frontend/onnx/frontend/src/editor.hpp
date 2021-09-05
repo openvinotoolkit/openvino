@@ -31,6 +31,17 @@ public:
     ///
     /// \param model_path Path to the file containing the model.
     ONNXModelEditor(const std::string& model_path);
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    ONNXModelEditor(const std::wstring& model_path);
+#endif
+
+    /// \brief Creates an editor from a model stream. The stream is parsed and loaded
+    ///        into the m_model_proto member variable.
+    ///
+    /// \param model_stream The stream containing the model.
+    /// \param model_path Path to the file containing the model. This information can be used
+    ///                   for ONNX external weights feature support.
+    ONNXModelEditor(std::istream& model_stream, const std::string& path = "");
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input types for all inputs specified in the provided map.

@@ -34,7 +34,7 @@ class TestMerge(unittest.TestCase):
         graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes,
                                            edges_with_attrs=self.edges,
                                            update_nodes_attributes=[('merge_output', {'shape': np.array([2, 2]),
-                                                                                      'value': np.ones((2,2))}),
+                                                                                      'value': np.ones((2, 2))}),
                                                                     ('merge', {'is_not_fully_inferred': False})])
 
         tested_class = Merge(graph=graph, attrs={})

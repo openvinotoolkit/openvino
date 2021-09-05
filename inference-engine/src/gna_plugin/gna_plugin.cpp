@@ -488,12 +488,10 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
             auto fp32eq = [](float p1, float p2) -> bool {
                 return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
             };
-            float scaleInput = (fqLayer.getLevels() - 1) / (inputRange.second[0] - inputRange.first[0]);
-            auto minAbsVal = std::min(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
-            auto maxAbsVal = std::max(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
-            if (fp32eq(minAbsVal, 0.0f) && !fp32eq(maxAbsVal, 0.0f)) {
-                scaleInput = (fqLayer.getLevels() - 1) / (2 * maxAbsVal);
-            }
+            // GNA input is always quantized to int16, so number of levels can't be greater than max uint16
+            // todo: should be solved in POT (issue 63330)
+            size_t levels = std::min(fqLayer.getLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max() + 1));
+            auto scaleInput = frontend::CalculateScaleFactorFromStats(levels, inputRange.first[0], inputRange.second[0]);
 
             IE_ASSERT(config.inputScaleFactors.size() > inputIdx);
             IE_ASSERT(inputsDesc->inputScaleFactors.size() > inputIdx);
@@ -513,6 +511,33 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
         }
 
         inputIdx++;
+    }
+}
+
+void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwork & network) {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputsAndOutputsInfoFromNetwork");
+
+    // update inputs
+    {
+        InputsDataMap inputs = network.getInputsInfo();
+        if (inputsDesc->inputPrecisions.size() != 0) {
+            inputsDesc->inputPrecisions.clear();
+        }
+        for (const auto input : inputs) {
+            inputsDesc->inputPrecisions.push_back(input.second->getPrecision().getPrecVal());
+        }
+    }
+
+    // update outputs
+    {
+        OutputsDataMap outputs = network.getOutputsInfo();
+        outputsDesc.resize(outputs.size());
+
+        size_t outputIdx = 0;
+        for (const auto output : outputs) {
+            outputsDesc[outputIdx].precision = output.second->getPrecision().getPrecVal();
+            ++outputIdx;
+        }
     }
 }
 
@@ -721,11 +746,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
         const auto& pass_config = manager.get_pass_config();
-        pass_config->set_callback<ngraph::pass::UnrollTensorIterator>(
-                [](const std::shared_ptr<const ngraph::Node> &node) -> bool {
-                    // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
-                    return node->get_rt_info().count("UNROLL_TI") == 0;
-            });
         pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
         pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
         pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();
@@ -757,6 +777,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     UpdateGnaQuantModeFromNetwork(network);
     UpdateInputScaleFromNetwork(network);
 
+    // Set input and output information from orginal network
+    UpdateInputsAndOutputsInfoFromNetwork(network);
+
     if (MustBeConvertedFromNCHWToNHWC(details::CNNNetSortTopologically(network))) {
         FillInputsAndOutputsTranspositionInfo(network);
     }
@@ -766,10 +789,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision) {
         auto passes = make_shared<PassManager>(PassManagerSettings{runBeforeCopy, lowPrecision}, network);
         passes->registerPass<RemoveConstPass>();
-        passes->registerPass<UnrollTIPass>();
-        passes->registerPass<RemoveConstPass>();
-        if (!isNgraphPassesUsed)
+        if (!isNgraphPassesUsed) {
+            passes->registerPass<UnrollTIPass>();
+            passes->registerPass<RemoveConstPass>();
             passes->registerPass<UnrollLSTMCellPass>();
+        }
+
         passes->registerPass<RemoveSingleInputConcatPass>();
 
         // fake quantisation aware passes
@@ -920,7 +945,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         inputsDesc->getPtrInputsGlobal(input.first).resize(gnaFlags->gna_lib_async_threads_num);
     }
 
-    // CreatingLayer primitives
+    // Creating Layer primitives
     for (auto & layer : sortedNoMem) {
         graphCompiler.CreateLayerPrimitive(layer);
     }
@@ -938,8 +963,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     /// setting-up output layers information
-    outputsDesc.resize(outputsDataMap.size());
-
     int portId = 0;
     for (auto && outPort : outputsDataMap) {
         // gets output layer pointer in original topology not in cloned
@@ -1589,7 +1612,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     // If scale factors are defined in configuration we still need to use them instead of imported values,
     // for example to change the scale factors for the old models.
     if (!config.inputScaleFactors.empty()) {
-        IE_ASSERT(config.inputScaleFactors.size() == inputsDesc->inputScaleFactors.size());
+        IE_ASSERT(config.inputScaleFactors.size() <= inputsDesc->inputScaleFactors.size());
         for (size_t i = 0; i < config.inputScaleFactors.size(); ++i) {
             if (config.inputScaleFactors[i] != GNAPluginNS::kScaleFactorDefault) {
                 gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << i << std::endl;
