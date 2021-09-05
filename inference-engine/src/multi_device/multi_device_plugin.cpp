@@ -225,10 +225,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         multiNetworkConfig.insert(*priorities);
     }
 
-    // collect the settings that are applicable to the devices we are loading the network to
-    std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
-    multiNetworkConfig.insert(*priorities);
-
     DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
     std::mutex load_mutex;
     std::vector<Task> loads;
