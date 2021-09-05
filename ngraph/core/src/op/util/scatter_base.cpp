@@ -60,11 +60,11 @@ void ov::op::util::ScatterBase::validate_and_infer_types() {
         data_shape.rank().is_dynamic() || indices_shape.rank().is_dynamic() || updates_shape.rank().is_dynamic() ||
             updates_shape.rank().get_length() == indices_shape.rank().get_length() + data_shape.rank().get_length() - 1,
         "Updates rank is expected to be rank(indices) + rank(data) - 1.",
-        "Got: rank(data) = ",
+        " Got: rank(data) = ",
         data_shape.rank().get_length(),
-        "rank(indices) = ",
+        ", rank(indices) = ",
         indices_shape.rank().get_length(),
-        "rank(updates) = ",
+        ", rank(updates) = ",
         updates_shape.rank().get_length());
 
     if (data_shape.is_dynamic()) {
