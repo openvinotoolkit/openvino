@@ -13,8 +13,8 @@ class SwapAxis(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'op': __class__.op,
-            'infer': __class__.infer,
+            'op': self.op,
+            'infer': self.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
