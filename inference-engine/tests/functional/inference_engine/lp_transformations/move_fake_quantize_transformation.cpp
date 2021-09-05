@@ -21,12 +21,6 @@
 
 #include "low_precision/move_fake_quantize.hpp"
 #include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/rt_info/precision_preserved_attribute.hpp>
-#include <low_precision/align_quantization_parameters.hpp>
-#include <low_precision/fuse_subtract_to_fake_quantize.hpp>
-#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
-#include <low_precision/markup_can_be_quantized.hpp>
-#include <low_precision/markup_per_tensor_quantization.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/move_fake_quantize_function.hpp"
