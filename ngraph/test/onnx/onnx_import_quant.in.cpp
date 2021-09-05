@@ -264,20 +264,32 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8_ne
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/quant_conv_lin.onnx"));
 
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
     std::vector<std::vector<std::uint8_t>> inputs;
-    inputs.emplace_back(std::vector<std::uint8_t>{
-        1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-        28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
-        55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81});
+    test_case.add_input(std::vector<uint8_t>{ 1,  2,  3,  4,  5,  6,  7,  8,  9,
+                                             10, 11, 12, 13, 14, 15, 16, 17, 18,
+                                             19, 20, 21, 22, 23, 24, 25, 26, 27,
+                                             28, 29, 30, 31, 32, 33, 34, 35, 36,
+                                             37, 38, 39, 40, 41, 42, 43, 44, 45,
+                                             46, 47, 48, 49, 50, 51, 52, 53, 54,
+                                             55, 56, 57, 58, 59, 60, 61, 62, 63,
+                                             64, 65, 66, 67, 68, 69, 70, 71, 72,
+                                             73, 74, 75, 76, 77, 78, 79, 80, 81});
 
-    std::vector<std::vector<std::int8_t>> expected_output{std::vector<std::int8_t>{
-        2,  3,  3,  3,  4,  4,  4,  5,  2,  4,  6,  7,  8,  8,  9,  9,  10, 3,  8,  11, 12, 13, 13, 14, 14, 15, 5,
-        11, 16, 17, 18, 18, 19, 19, 20, 7,  14, 22, 22, 23, 23, 24, 24, 25, 8,  18, 27, 27, 28, 28, 29, 29, 30, 10,
-        21, 32, 32, 33, 33, 34, 34, 35, 12, 24, 37, 37, 38, 38, 39, 40, 40, 13, 17, 26, 27, 27, 27, 28, 28, 28, 9}};
-
-    std::vector<std::vector<std::int8_t>> outputs{
-        execute<std::uint8_t, std::int8_t>(function, inputs, "${BACKEND_NAME}")};
-    EXPECT_TRUE(test::all_close(expected_output.front(), outputs.front()));
+    test_case.add_expected_output<uint8_t>({1, 1, 9, 9}, std::vector<uint8_t>{ 2,  3,  3,  3,  4,  4,  4,  5,  2,
+                                                                               4,  6,  7,  8,  8,  9,  9, 10,  3,
+                                                                               8, 11, 12, 13, 13, 14, 14, 15,  5,
+                                                                              11, 16, 17, 18, 18, 19, 19, 20,  7,
+                                                                              14, 22, 22, 23, 23, 24, 24, 25,  8,
+                                                                              18, 27, 27, 28, 28, 29, 29, 30, 10,
+                                                                              21, 32, 32, 33, 33, 34, 34, 35, 12,
+                                                                              24, 37, 37, 38, 38, 39, 40, 40, 13,
+                                                                              17, 26, 27, 27, 27, 28, 28, 28, 9});
+    //clang-format on
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d) {
@@ -303,7 +315,27 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_3d) {
 
     auto test_case = test::TestCase<TestEngine>(function);
 
-    test_case.add_input_from_file<uint8_t>(TEST_FILES, "onnx/qlinearconv3d/x.bin");
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{130,  14, 244,  53,
+                                             244, 119, 236,  79,
+                                               9, 138,  93,  62,
+                                              66, 158,  81, 176,
+
+                                             225, 118, 160, 117,
+                                             246,  69, 172,  50,
+                                              23,  42, 139,  0,
+                                             146, 157, 248, 251,
+
+                                              30, 112,  99, 138,
+                                             190,  22, 143, 186,
+                                             199, 148, 190, 148,
+                                              89,  16, 134, 220,
+
+                                             191,  69,  34,   5,
+                                             156, 255, 196, 134,
+                                              49, 233, 220, 129,
+                                             107, 220, 172, 124});  // x
     test_case.add_input(std::vector<float>{0.00389225385151803f});  // x_scale
     test_case.add_input(std::vector<uint8_t>{127});                 // x_zero_point
     test_case.add_input(std::vector<uint8_t>{255});                 // w
@@ -312,7 +344,61 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_3d) {
     test_case.add_input(std::vector<float>{0.0011764180380851f});   // y_scale
     test_case.add_input(std::vector<uint8_t>{128});                 // y_zero_point
 
-    test_case.add_expected_output_from_file<uint8_t>({1, 1, 4, 4, 4}, TEST_FILES, "onnx/qlinearconv3d/y.bin");
+    test_case.add_expected_output<uint8_t>({1, 1, 4, 4, 4},
+                                           {128, 128, 128, 128,
+                                            128, 128, 128, 128,
+                                            128, 128, 128, 128,
+                                            128, 128, 128, 128,
+
+                                            128, 128, 128, 128,
+                                            128, 131, 255, 128,
+                                            128,   0,  91, 128,
+                                            128, 128, 128, 128,
+
+                                            128, 128, 128, 128,
+                                            128,  23,  98, 128,
+                                            128, 206, 196, 128,
+                                            128, 128, 128, 128,
+
+                                            128, 128, 128, 128,
+                                            128, 128, 128, 128,
+                                            128, 128, 128, 128,
+                                            128, 128, 128, 128});
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_onnx_example) {
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/quant_conv_linear_onnx_example.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // don't change style for better readibility
+    // clang-format off
+    test_case.add_input(std::vector<uint8_t>{255, 174, 162,  25, 203, 168,  58,
+                                              15,  59, 237,  95, 129,   0,  64,
+                                              56, 242, 153, 221, 168,  12, 166,
+                                             232, 178, 186, 195, 237, 162, 237,
+                                             188,  39, 124,  77,  80, 102,  43,
+                                             127, 230,  21,  83,  41,  40, 134,
+                                             255, 154,  92, 141,  42, 148, 247});  // x
+    test_case.add_input(std::vector<float>{0.00369204697f});                       // x_scale
+    test_case.add_input(std::vector<uint8_t>{132});                                // x_zero_point
+    test_case.add_input(std::vector<uint8_t>{0});                                  // w
+    test_case.add_input(std::vector<float>{0.00172794575f});                       // w_scale
+    test_case.add_input(std::vector<uint8_t>{255});                                // w_zero_point
+    test_case.add_input(std::vector<float>{0.00162681262f});                       // y_scale
+    test_case.add_input(std::vector<uint8_t>{123});                                // y_zero_point
+
+    test_case.add_expected_output<uint8_t>({1, 1, 7, 7}, std::vector<uint8_t>{  0,  81,  93, 230,  52,  87, 197,
+                                                                              240, 196,  18, 160, 126, 255, 191,
+                                                                              199,  13, 102,  34,  87, 243,  89,
+                                                                               23,  77,  69,  60,  18,  93,  18,
+                                                                               67, 216, 131, 178, 175, 153, 212,
+                                                                              128,  25, 234, 172, 214, 215, 121,
+                                                                                0, 101, 163, 114, 213, 107,   8});
+    // clang-format on
     test_case.run();
 }
 

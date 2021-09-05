@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ReduceOpsLayerTest::getTestCaseName(testing::TestParamInfo<reduceMeanParams> obj) {
+std::string ReduceOpsLayerTest::getTestCaseName(const testing::TestParamInfo<reduceMeanParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout;
