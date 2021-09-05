@@ -79,8 +79,8 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
                     return tests_cases;
 }
 
-std::vector<TestCaseMemLeaks> generateTestsParamsMemLeaks() {
-    std::vector<TestCaseMemLeaks> tests_cases;
+std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
+    std::vector<MemLeaksTestCase> tests_cases;
     const pugi::xml_document & test_config = Environment::Instance().getTestConfig();
 
     int numprocesses, numthreads, numiterations;
@@ -106,7 +106,7 @@ std::vector<TestCaseMemLeaks> generateTestsParamsMemLeaks() {
             std::map<std::string, std::string> model_map { {"name", path}, {"path", full_path}, {"path", precision} };
             models.push_back(model_map);
         }
-        tests_cases.push_back(TestCaseMemLeaks(numprocesses, numthreads, numiterations, device_name, models));
+        tests_cases.push_back(MemLeaksTestCase(numprocesses, numthreads, numiterations, device_name, models));
     }
 
     return tests_cases;
@@ -116,7 +116,7 @@ std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj) {
     return obj.param.test_case_name;
 }
 
-std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<TestCaseMemLeaks> &obj) {
+std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<MemLeaksTestCase> &obj) {
     return obj.param.test_case_name;
 }
 
