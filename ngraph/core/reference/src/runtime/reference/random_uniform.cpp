@@ -198,14 +198,18 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                              uint64_t seed,
                                              uint64_t seed2,
                                              std::pair<uint64_t, uint64_t> prev_state) {
+    // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
+    // Implementation in plugins may differ for this case.
     if (seed == 0 && seed2 == 0) {
         std::srand(std::time(nullptr));
         seed = std::rand();
     }
+
+    // Get previous counter state
     uint64_t n_state = prev_state.first;
     uint64_t counter_state = prev_state.second;
 
-    // Init Philox key and counters
+    // Initialize Philox key and counters
     uint64_t key = seed;
     uint64_t counter = counter_state > 0 ? counter_state : seed2;
     uint64_t n = n_state;
