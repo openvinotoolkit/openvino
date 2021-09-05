@@ -17,6 +17,7 @@
 #include <ie_parallel.hpp>
 #include <threading/ie_itask_executor.hpp>
 #include <threading/ie_executor_manager.hpp>
+#include "ie_icore.hpp"
 
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 # include <tbb/concurrent_queue.h>
@@ -160,6 +161,8 @@ private:
                                 const DeviceName& preferred_device);
 
 private:
+    std::shared_ptr<InferenceEngine::ICore>                              core;
+    InferenceEngine::IStreamsExecutor::Ptr                              _executor;
     MultiDeviceInferencePlugin* _multiPlugin;
     InferenceEngine::SoExecutableNetworkInternal                        _networkFirstReady;
     mutable InferenceEngine::SoExecutableNetworkInternal                _networkActualNeeded;
@@ -172,7 +175,6 @@ private:
     DeviceInformation                                                   _cpuDevice;
     DeviceInformation                                                   _acceleratorDevice;
     mutable std::once_flag                                              _oc;
-    InferenceEngine::IStreamsExecutor::Ptr                              _executor;
 };
 
 }  // namespace MultiDevicePlugin

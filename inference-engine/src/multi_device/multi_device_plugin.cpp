@@ -213,7 +213,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
 
     // if workMode is AUTO
-    if (workMode != fullConfig.end()) {
+    if (workModeAuto) {
         CheckConfig(fullConfig);
         return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, fullConfig, this);
     }

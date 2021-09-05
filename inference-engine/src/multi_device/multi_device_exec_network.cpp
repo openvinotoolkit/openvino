@@ -154,6 +154,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         IE_THROW() << "MULTI device supports just ngraph network representation";
     }
 
+    core = _multiPlugin->GetCore(); // shared_ptr that holds the Core
     auto strDevices = _multiPlugin->GetDeviceList(config);
     // collect the settings that are applicable to the devices we are loading the network to
     _config[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = strDevices;
@@ -162,7 +163,6 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _devicePrioritiesInitial = metaDevices;
     _devicePriorities = metaDevices;
 
-    auto core = _multiPlugin->GetCore(); // shared_ptr that holds the Core while the lambda below (which captures that by val) works
     std::vector<DeviceInformation> needLoadDevices;
 
     // check if have cpu device
@@ -199,7 +199,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         const auto device = p.deviceName;
         // will not wait for accelerator network load task,
         // so some parameters need to be transferred by value
-        loads.push_back([&, core, modelPath, network, device]() {
+        loads.push_back([&, modelPath, network, device]() {
             SoExecutableNetworkInternal executableNetwork;
             if (!modelPath.empty()) {
                 executableNetwork = core->LoadNetwork(modelPath, device, {});
