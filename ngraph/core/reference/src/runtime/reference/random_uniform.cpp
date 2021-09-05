@@ -149,14 +149,14 @@ void run_philox(uint64_t key, uint64_t counter, uint64_t n, size_t n_rounds, std
 
 // Implementation of RandomUniform that uses Philox algorithm as inner random unsigned integer generator.
 std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
-                    const char* min_val,
-                    const char* max_val,
-                    char* out,
-                    const Shape& out_shape_shape,
-                    const ngraph::element::Type& elem_type,
-                    uint64_t seed,
-                    uint64_t seed2,
-                    std::pair<uint64_t, uint64_t> prev_state) {
+                                             const char* min_val,
+                                             const char* max_val,
+                                             char* out,
+                                             const Shape& out_shape_shape,
+                                             const ngraph::element::Type& elem_type,
+                                             uint64_t seed,
+                                             uint64_t seed2,
+                                             std::pair<uint64_t, uint64_t> prev_state) {
     if (seed == 0 && seed2 == 0) {
         std::srand(std::time(nullptr));
         seed = std::rand();

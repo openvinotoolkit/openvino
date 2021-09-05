@@ -12,15 +12,15 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-    std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
-                    const char* min_val,
-                    const char* max_val,
-                    char* out,
-                    const Shape& out_shape_shape,
-                    const ngraph::element::Type& elem_type,
-                    uint64_t seed,
-                    uint64_t seed2,
-                    std::pair<uint64_t, uint64_t> prev_state);
+std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
+                                             const char* min_val,
+                                             const char* max_val,
+                                             char* out,
+                                             const Shape& out_shape_shape,
+                                             const ngraph::element::Type& elem_type,
+                                             uint64_t seed,
+                                             uint64_t seed2,
+                                             std::pair<uint64_t, uint64_t> prev_state);
 
 // Following const values are taken from the original paper:
 // https://www.thesalmons.org/john/random123/papers/random123sc11.pdf
