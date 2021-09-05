@@ -147,6 +147,47 @@ void run_philox(uint64_t key, uint64_t counter, uint64_t n, size_t n_rounds, std
     res[3] = res2.second;
 }
 
+// Converts uint32 values to destination type and normalizes to required range
+template <typename T>
+void convert_to_output_type(const std::vector<uint32_t>& res,
+                            size_t step,
+                            const ngraph::element::Type& elem_type,
+                            const char* min_val,
+                            const char* max_val,
+                            char* out,
+                            size_t k,
+                            size_t elem_count,
+                            T (*convert_single_input)(uint32_t) = nullptr,
+                            T (*convert_two_inputs)(uint32_t, uint32_t, T, T) = nullptr,
+                            T (*mod_func)(uint32_t, T, T) = nullptr) {
+    // Get min and max values
+    T mn[1];
+    T mx[1];
+    memcpy(mn, min_val, elem_type.size());
+    memcpy(mx, max_val, elem_type.size());
+
+    std::vector<T> res_out_type(step);
+    if (elem_type.size() > 4) {
+        // Each element of resulting sequence is formed using two uint32 values
+        res_out_type[0] = convert_two_inputs(res[0], res[1], mn[0], mx[0]);
+        res_out_type[1] = convert_two_inputs(res[2], res[3], mn[0], mx[0]);
+    } else {
+        // Each element of resulting sequence is formed using single uint32 value
+        std::transform(res.data(),
+                       res.data() + step,
+                       res_out_type.data(),
+                       [&mn, &mx, &convert_single_input, &mod_func](uint32_t elem) {
+                           if (convert_single_input != nullptr) {
+                               return convert_single_input(elem) * (mx[0] - mn[0]) + mn[0];
+                           } else {
+                               return mod_func(elem, mn[0], mx[0]);
+                           }
+                       });
+    }
+
+    memcpy(out + k * elem_type.size(), res_out_type.data(), std::min(step, elem_count - k) * elem_type.size());
+}
+
 // Implementation of RandomUniform that uses Philox algorithm as inner random unsigned integer generator.
 std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                              const char* min_val,
@@ -194,92 +235,77 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
         // convert values to corresponding output_type
         switch (elem_type) {
         case ngraph::element::Type_t::f32: {
-            std::vector<float> res_float(step);
-            std::transform(res.data(), res.data() + step, res_float.data(), uint32_to_float);
-            float mn[1];
-            float mx[1];
-            memcpy(mn, min_val, elem_type.size());
-            memcpy(mx, max_val, elem_type.size());
-            // convert uint32 values to float32 and normalize to range
-            // [min_val, max_val)
-            std::transform(res.data(), res.data() + step, res_float.data(), [&mn, &mx](uint32_t elem) {
-                return uint32_to_float(elem) * (mx[0] - mn[0]) + mn[0];
-            });
-
-            memcpy(out + k * elem_type.size(), res_float.data(), std::min(step, elem_count - k) * elem_type.size());
+            convert_to_output_type<float>(res, step, elem_type, min_val, max_val, out, k, elem_count, uint32_to_float);
             break;
         }
         case ngraph::element::Type_t::f16: {
-            std::vector<float16> res_float16(step);
-            // convert uint32 values to float16 and normalize to range
-            // [min_val, max_val)
-            std::transform(res.data(), res.data() + step, res_float16.data(), uint32_to_float16);
-            float16 mn[1];
-            float16 mx[1];
-            memcpy(mn, min_val, elem_type.size());
-            memcpy(mx, max_val, elem_type.size());
-            std::transform(res.data(), res.data() + step, res_float16.data(), [&mn, &mx](uint32_t elem) {
-                return uint32_to_float16(elem) * (mx[0] - mn[0]) + mn[0];
-            });
-            memcpy(out + k * elem_type.size(), res_float16.data(), std::min(step, elem_count - k) * elem_type.size());
+            convert_to_output_type<float16>(res,
+                                            step,
+                                            elem_type,
+                                            min_val,
+                                            max_val,
+                                            out,
+                                            k,
+                                            elem_count,
+                                            uint32_to_float16);
             break;
         }
         case ngraph::element::Type_t::bf16: {
-            std::vector<bfloat16> res_bfloat16(step);
-            bfloat16 mn[1];
-            bfloat16 mx[1];
-            memcpy(mn, min_val, elem_type.size());
-            memcpy(mx, max_val, elem_type.size());
-            // convert uint32 values to bfloat16 and normalize to range
-            // [min_val, max_val)
-            std::transform(res.data(), res.data() + step, res_bfloat16.data(), [&mn, &mx](uint32_t elem) {
-                return uint32_to_bfloat16(elem) * (mx[0] - mn[0]) + mn[0];
-            });
-            memcpy(out + k * elem_type.size(), res_bfloat16.data(), std::min(step, elem_count - k) * elem_type.size());
+            convert_to_output_type<bfloat16>(res,
+                                             step,
+                                             elem_type,
+                                             min_val,
+                                             max_val,
+                                             out,
+                                             k,
+                                             elem_count,
+                                             uint32_to_bfloat16);
             break;
         }
         case ngraph::element::Type_t::f64: {
-            std::vector<double> res_double(step);
-            double mn[1];
-            double mx[1];
-            memcpy(mn, min_val, elem_type.size());
-            memcpy(mx, max_val, elem_type.size());
-
-            // convert 2 pairs of uint32 values to 2 double values and normalize to
-            // range [min_val, max_val)
-            res_double[0] = uint32_to_double(res[0], res[1]) * (mx[0] - mn[0]) + mn[0];
-            res_double[1] = uint32_to_double(res[2], res[3]) * (mx[0] - mn[0]) + mn[0];
-            memcpy(out + k * elem_type.size(), res_double.data(), std::min(step, elem_count - k) * elem_type.size());
+            convert_to_output_type<double>(res,
+                                           step,
+                                           elem_type,
+                                           min_val,
+                                           max_val,
+                                           out,
+                                           k,
+                                           elem_count,
+                                           nullptr,
+                                           [](uint32_t a, uint32_t b, double mn, double mx) {
+                                               return uint32_to_double(a, b) * (mx - mn) + mn;
+                                           });
             break;
         }
         case ngraph::element::Type_t::i32: {
-            std::vector<int> res_int(step);
-            int mn[1];
-            int mx[1];
-            memcpy(mn, min_val, elem_type.size());
-            memcpy(mx, max_val, elem_type.size());
-            // convert uint32 values to int32 values and normalize to range
-            // [min_val, max_val)
-            std::transform(res.data(), res.data() + step, res_int.data(), [&mn, &mx](uint32_t elem) {
-                return elem % (mx[0] - mn[0]) + mn[0];
-            });
-            memcpy(out + k * elem_type.size(), res_int.data(), std::min(step, elem_count - k) * elem_type.size());
+            convert_to_output_type<int>(res,
+                                        step,
+                                        elem_type,
+                                        min_val,
+                                        max_val,
+                                        out,
+                                        k,
+                                        elem_count,
+                                        nullptr,
+                                        nullptr,
+                                        [](uint32_t x, int mn, int mx) {
+                                            return static_cast<int>(x % (mx - mn) + mn);
+                                        });
             break;
         }
         case ngraph::element::Type_t::i64: {
-            std::vector<int64_t> res_int64(step);
-            int64_t mn[1];
-            int64_t mx[1];
-            memcpy(mn, min_val, elem_type.size());
-            memcpy(mx, max_val, elem_type.size());
-            // convert 2 pairs of uint32 values to 2 double values and normalize to
-            // range [min_val, max_val)
-            auto v1 = static_cast<int64_t>(unite_high_low(res[1], res[0]) % (mx[0] - mn[0]));
-            auto v2 = static_cast<int64_t>(unite_high_low(res[3], res[2]) % (mx[0] - mn[0]));
-
-            res_int64[0] = v1 + mn[0];
-            res_int64[1] = v2 + mn[0];
-            memcpy(out + k * elem_type.size(), res_int64.data(), std::min(step, elem_count - k) * elem_type.size());
+            convert_to_output_type<int64_t>(res,
+                                            step,
+                                            elem_type,
+                                            min_val,
+                                            max_val,
+                                            out,
+                                            k,
+                                            elem_count,
+                                            nullptr,
+                                            [](uint32_t a, uint32_t b, int64_t mn, int64_t mx) {
+                                                return static_cast<int64_t>(unite_high_low(b, a) % (mx - mn) + mn);
+                                            });
             break;
         }
         default:
