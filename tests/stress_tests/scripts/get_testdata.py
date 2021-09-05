@@ -85,6 +85,7 @@ def run_in_subprocess(cmd, check_call=True):
     else:
         subprocess.call(cmd, shell=True)
 
+
 def get_model_recs(test_conf_root, test_framework):
     """Pparse models from test config."""
     if test_framework == "memleak":
@@ -107,8 +108,8 @@ def main():
     parser.add_argument('--test_conf', required=True, type=Path,
                         help='Path to a test config .xml file containing models '
                              'which will be downloaded and converted to IRs via OMZ.')
-    parser.add_argument('--test_framework', required=False, type=str,
-                        help='Test config framework')
+    parser.add_argument('--test_framework', required=False, default=None,
+                        help='Test config framework.')
     parser.add_argument('--omz_repo', required=False,
                         help='Path to Open Model Zoo (OMZ) repository. It will be used to skip cloning step.')
     parser.add_argument('--mo_tool', type=Path,

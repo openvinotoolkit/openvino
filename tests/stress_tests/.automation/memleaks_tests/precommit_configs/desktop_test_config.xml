@@ -1,8 +1,18 @@
-<cases>
-    <device iterations="30" name="CPU" processes="1" threads="1">
-        <model framework="caffe" full_path="/home/my/Desktop/repos/openvino-as-fork/tests/stress_tests/_omz_out/irs/public/mobilenet-ssd/FP32/mobilenet-ssd.xml" name="mobilenet-ssd" path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" precision="FP32" source="omz" subdirectory="public/mobilenet-ssd" />
-    </device>
-    <device iterations="30" name="GPU" processes="1" threads="1">
-        <model framework="caffe" full_path="/home/my/Desktop/repos/openvino-as-fork/tests/stress_tests/_omz_out/irs/public/mobilenet-ssd/FP32/mobilenet-ssd.xml" name="mobilenet-ssd" path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" precision="FP32" source="omz" subdirectory="public/mobilenet-ssd" />
-    </device>
-</cases>
+<attributes>
+    <processes>
+        <value>1</value>
+    </processes>
+    <threads>
+        <value>1</value>
+    </threads>
+    <iterations>
+        <value>30</value>
+    </iterations>
+    <devices>
+        <value>CPU</value>
+        <value>GPU</value>
+    </devices>
+    <models>
+        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+    </models>
+</attributes>
