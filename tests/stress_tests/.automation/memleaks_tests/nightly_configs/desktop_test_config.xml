@@ -1,11 +1,11 @@
 <cases>
-    <device iterations="30" name="CPU" processes="1" threads="1">
+    <device iterations="1000" name="CPU" processes="1" threads="1">
         <!-- Alexnet model contains MatMul node which is needed to cover *-52623 -->
         <model name="alexnet" precision="FP32" source="omz" />
         <model name="mobilenet-ssd" precision="FP32" source="omz" />
         <model name="mtcnn-r" precision="FP32" source="omz" />
     </device>
-    <device iterations="30" name="GPU" processes="1" threads="1">
+    <device iterations="1000" name="GPU" processes="1" threads="1">
         <!-- Alexnet model contains MatMul node which is needed to cover *-52623 -->
         <model name="alexnet" precision="FP32" source="omz" />
         <model name="mobilenet-ssd" precision="FP32" source="omz" />
