@@ -109,11 +109,11 @@ TEST_P(MemLeaksTestSuite, recreate_infer_request) {
     auto test_params = GetParam();
     Core ie;
     std::vector<std::function<void()>> pipeline;
-    for (auto model: test_params.models){
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model["path"]);
+    for (int i = 0; i < test_params.models.size(); i++){
+        CNNNetwork cnnNetwork = ie.ReadNetwork(test_params.models[i]["path"]);
         std::unique_ptr<ExecutableNetwork> exeNetwork(new ExecutableNetwork);
-        * exeNetwork = ie.LoadNetwork(cnnNetwork, test_params.device);
-        pipeline.push_back(recreate_infer_request(* exeNetwork));
+        *exeNetwork = ie.LoadNetwork(cnnNetwork, test_params.device);
+        pipeline.push_back(recreate_infer_request(*exeNetwork));
     }
     auto test = [&] {
         log_info("Create InferRequest from networks: " << test_params.models_names
@@ -130,17 +130,17 @@ TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
 
     std::vector<OutputsDataMap> outputs_info;
     std::vector<std::function<void()>> pipeline;
-    for (auto model: test_params.models){
-        CNNNetwork cnnNetwork = ie.ReadNetwork(model["path"]);
+    for (int i = 0; i < test_params.models.size(); i++){
+        CNNNetwork cnnNetwork = ie.ReadNetwork(test_params.models[i]["path"]);
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, test_params.device);
         std::unique_ptr<InferRequest> infer_request(new InferRequest);
-        * infer_request = exeNetwork.CreateInferRequest();
+        *infer_request = exeNetwork.CreateInferRequest();
         std::unique_ptr<OutputsDataMap> output_info(new OutputsDataMap(cnnNetwork.getOutputsInfo()));
         auto batchSize = cnnNetwork.getBatchSize();
         batchSize = batchSize != 0 ? batchSize : 1;
         const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
         fillBlobs(* infer_request, inputsInfo, batchSize);
-        pipeline.push_back(reinfer_request_inference(* infer_request, * output_info));
+        pipeline.push_back(reinfer_request_inference(*infer_request, *output_info));
     }
     auto test = [&] {
         log_info("Inference of InferRequest from networks: " << test_params.models_names
