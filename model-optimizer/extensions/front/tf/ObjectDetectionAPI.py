@@ -1038,10 +1038,8 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
             reshape_shape = int64_array([-1, max_proposals * 4])
         else:
             reshape_shape = int64_array([-1, (num_classes + 1) * max_proposals * 4])
-
         Const(graph, {'value': reshape_shape, 'name': flattened_offsets.name + '/Dim'}).create_node().out_port(0).\
             connect(flattened_offsets.in_port(1))
-
         mark_as_correct_data_layout(flattened_offsets)
 
         # find Proposal output which has the data layout as in TF: YXYX coordinates without batch indices.
@@ -1060,7 +1058,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
 
         # reshape priors boxes as Detection Output expects
         reshape_priors = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 1, max_proposals * 4]),
-                                                               dict(name='DetectionOutput_reshape_priors_'), proposal)
+                                                          dict(name='DetectionOutput_reshape_priors_'), proposal)
         mark_as_correct_data_layout(reshape_priors)
 
         detection_output_op = DetectionOutput(graph, {})
