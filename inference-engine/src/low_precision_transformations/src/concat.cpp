@@ -138,6 +138,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         const auto convert = convertNodes[0]->clone_with_new_inputs({ newConcat });
 
         NetworkHelper::copyInfo({ concat, convert }, convert);
+        //temp
         convert->set_friendly_name(concat->get_friendly_name() + "/DequantizationConvert");
         lastDequantization = convert;
     }
@@ -151,6 +152,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
                 ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1)));
 
         NetworkHelper::copyInfo({ concat, subtract }, subtract);
+        //temp
         subtract->set_friendly_name(concat->get_friendly_name() + "/DequantizationSubtract");
         lastDequantization = subtract;
     }
@@ -165,6 +167,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             layerDequantizations[0].multiply->get_output_element_type(0));
 
         NetworkHelper::copyInfo({ concat, multiply }, multiply);
+        //temp
         multiply->set_friendly_name(concat->get_friendly_name() + "/DequantizationMultyply");
         lastDequantization = multiply;
     }
