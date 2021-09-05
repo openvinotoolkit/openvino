@@ -143,7 +143,7 @@ TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
         pipeline.push_back(reinfer_request_inference(*infer_request, *output_info));
     }
     auto test = [&] {
-        log_info("Inference of InferRequest from networks: " << test_params.models_names
+        log_info("Inference of InferRequest from networks: " << test_params.model_name
               << " for device: \"" << test_params.device << "\" for " << test_params.numiters << " times");
         return common_test_pipeline(pipeline, test_params.numiters);
     };
@@ -182,13 +182,13 @@ TEST_P(MemLeaksTestSuite, inference_with_streams) {
 
 INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuiteNoModel,
                          ::testing::ValuesIn(generateTestsParamsMemLeaks()),
-                         getTestCaseNameMemLeaks);
+                         getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuiteNoDevice,
                         ::testing::ValuesIn(generateTestsParamsMemLeaks()),
-                        getTestCaseNameMemLeaks);
+                        getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuite,
                         ::testing::ValuesIn(generateTestsParamsMemLeaks()),
-                        getTestCaseNameMemLeaks);
+                        getTestCaseName);
 

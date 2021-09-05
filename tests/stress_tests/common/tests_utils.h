@@ -23,6 +23,14 @@ enum TestStatus
 using TestResult = std::pair<TestStatus, std::string>;
 
 class TestCaseBase {
+public:
+    int numprocesses;
+    int numthreads;
+    int numiters;
+    std::string precision;
+    std::string test_case_name;
+    std::string model_name;
+    std::string device;
 protected:
     std::string update_item_for_name(const std::string &item) {
         std::string _item(item);
@@ -34,16 +42,9 @@ protected:
     }
 };
 
-class TestCase: TestCaseBase {
+class TestCase: public TestCaseBase {
 public:
-    int numprocesses;
-    int numthreads;
-    int numiters;
-    std::string device;
-    std::string model_name;
     std::string model;
-    std::string precision;
-    std::string test_case_name;
 
     TestCase(int _numprocesses, int _numthreads, int _numiters, std::string _device, const std::string& _model, const std::string& _model_name, const std::string& _precision) {
         numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters, device = _device, model = _model, model_name = _model_name, precision = _precision;
@@ -54,15 +55,9 @@ public:
     }
 };
 
-class MemLeaksTestCase: TestCaseBase {
+class MemLeaksTestCase: public TestCaseBase {
 public:
-    int numprocesses;
-    int numthreads;
-    int numiters;
-    std::string device;
     std::vector<std::map<std::string, std::string>> models;
-    std::string test_case_name;
-    std::string models_names;
 
     MemLeaksTestCase(int _numprocesses, int _numthreads, int _numiters, std::string _device, std::vector<std::map<std::string, std::string>> _models) {
         numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters, device = _device, models = _models;
@@ -73,7 +68,7 @@ public:
             test_case_name +=
                     "_Model" + std::to_string(i) + "_" + update_item_for_name(models[i]["name"]) +
                     "_Precision_" +  update_item_for_name(models[i]["precision"]);
-            models_names += "\"" + models[i]["name"] + "\"" + (i < models.size() - 1 ? ", " : "");
+            model_name += "\"" + models[i]["name"] + "\"" + (i < models.size() - 1 ? ", " : "");
         }
     }
 };
@@ -99,7 +94,7 @@ public:
 std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> items);
 std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks();
 std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj);
-std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<MemLeaksTestCase> &obj);
+std::string getTestCaseName(const testing::TestParamInfo<MemLeaksTestCase> &obj);
 
 void runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
 void _runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
