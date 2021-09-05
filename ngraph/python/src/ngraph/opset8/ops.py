@@ -276,3 +276,31 @@ def gather(
         "batch_dims": batch_dims
     }
     return _get_node_factory_opset8().create("Gather", inputs, attributes)
+
+
+@nameable_op
+def random_uniform(
+        output_shape: NodeInput,
+        min_val: NodeInput,
+        max_val: NodeInput,
+        output_type: str,
+        global_seed: int = 0,
+        op_seed: int = 0
+) -> Node:
+    """Return a node which generates sequence of random values from uniform distribution.
+    @param output_shape: Tensor with shape of the output tensor.
+    @param min_val: Tensor with the lower bound on the range of random values to generate.
+    @param max_val: Tensor with the upper bound on the range of random values to generate.
+    @param output_type: Specifies the output tensor type, possible values: 'i64', 'i32', 'f64', 'f32', 'f16', 'bf16'.
+    @param global_seed: Specifies global seed value.
+    @param op_seed: Specifies operational seed value.
+    @return The new node which performs generation of random values from uniform distribution.
+    """
+    inputs = as_nodes(output_shape, min_val, max_val)
+
+    attributes = {
+        "output_type": output_type,
+        "global_seed": global_seed,
+        "op_seed": op_seed,
+    }
+    return _get_node_factory_opset8().create("RandomUniform", inputs, attributes)
