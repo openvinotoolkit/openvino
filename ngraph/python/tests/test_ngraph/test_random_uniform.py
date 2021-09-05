@@ -1,6 +1,5 @@
-import numpy as np
-
 import ngraph as ng
+import numpy as np
 from tests import xfail_issue_56596
 from tests.runtime import get_runtime
 
@@ -12,7 +11,8 @@ def test_random_uniform():
     min_val = ng.constant(np.array([-2.7], dtype=np.float32))
     max_val = ng.constant(np.array([3.5], dtype=np.float32))
 
-    random_uniform_node = ng.random_uniform(input_tensor, min_val, max_val, output_type='f32', global_seed=7461,
+    random_uniform_node = ng.random_uniform(input_tensor, min_val, max_val,
+                                            output_type="f32", global_seed=7461,
                                             op_seed=1546)
     computation = runtime.computation(random_uniform_node)
     random_uniform_results = computation()
