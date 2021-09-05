@@ -7,6 +7,7 @@ import pytest
 import warnings
 import threading
 from datetime import datetime
+import time
 
 from openvino.inference_engine import ie_api as ie
 from conftest import model_path, image_path
@@ -350,7 +351,7 @@ def test_async_infer_callback_wait_in_callback(device):
             self.cv.release()
             status = self.request.wait(ie.WaitMode.RESULT_READY)
             assert status == ie.StatusCode.OK
-            assert self.status_code == ie.StatusCode.OK
+            assert self.status_code == ie.StatusCode.REQUEST_BUSY
 
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
@@ -360,6 +361,24 @@ def test_async_infer_callback_wait_in_callback(device):
     request_wrap.execute({'data': img})
     del exec_net
     del ie_core
+
+
+def test_async_infer_wait_while_callback_will_not_finish(device):
+    def callback(status, callback_status):
+        time.sleep(0.5)
+        callback_status['finished'] = True
+
+    ie_core = ie.IECore()
+    net = ie_core.read_network(test_net_xml, test_net_bin)
+    exec_net = ie_core.load_network(net, device, num_requests=1)
+    callback_status = {}
+    callback_status['finished'] = False
+    request = exec_net.requests[0]
+    request.set_completion_callback(callback, py_data=callback_status)
+    img = read_image()
+    request.async_infer({'data': img})
+    request.wait()
+    assert callback_status['finished'] == True
 
 
 def test_get_perf_counts(device):

@@ -1046,14 +1046,13 @@ cdef class InferRequest:
         self._outputs_list = []
         self._py_callback = lambda *args, **kwargs: None
         self._py_callback_used = False
-        self._py_callback_called = threading.Event()
+        self._py_callback_finished = threading.Event()
         self._py_data = None
 
     cdef void user_callback(self, int status) with gil:
         if self._py_callback:
-            # Set flag at first since user can call wait in callback
             self._py_callback(status, self._py_data)
-            self._py_callback_called.set()
+            self._py_callback_finished.set()
 
     ## Description: Sets a callback function that is called on success or failure of an asynchronous request
     #
@@ -1194,8 +1193,8 @@ cdef class InferRequest:
     cpdef async_infer(self, inputs=None):
         if inputs is not None:
             self._fill_inputs(inputs)
-        if self._py_callback_used:
-            self._py_callback_called.clear()
+        if self._py_callback_finished:
+            self._py_callback_finished.clear()
         with nogil:
             deref(self.impl).infer_async()
 
@@ -1223,13 +1222,13 @@ cdef class InferRequest:
                 status = deref(self.impl).wait(c_wait_mode)
             if status != StatusCode.RESULT_NOT_READY:
                 return status
-            if not self._py_callback_called.is_set():
+            if not self._py_callback_finished.is_set():
                 if timeout == WaitMode.RESULT_READY:
                     timeout = None
                 if timeout is not None:
                     # Convert milliseconds to seconds
                     timeout = float(timeout)/1000
-                if not self._py_callback_called.wait(timeout):
+                if not self._py_callback_finished.wait(timeout):
                     return StatusCode.REQUEST_BUSY
             return StatusCode.OK
 
