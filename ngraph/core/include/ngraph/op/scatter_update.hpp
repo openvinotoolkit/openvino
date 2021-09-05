@@ -16,10 +16,7 @@ namespace v3 {
 ///
 class NGRAPH_API ScatterUpdate : public util::ScatterBase {
 public:
-    static constexpr NodeTypeInfo type_info{"ScatterUpdate", 3};
-    const NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    NGRAPH_RTTI_DECLARATION;
     ScatterUpdate() = default;
     ///
     /// \brief      Constructs ScatterUpdate operator object.
