@@ -18,5 +18,6 @@ using ov::op::v1::LogicalXor;
 namespace v0 {
 using ov::op::v0::Xor;
 }  // namespace v0
+using v0::Xor;
 }  // namespace op
 }  // namespace ngraph
