@@ -111,11 +111,14 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
                     const T yy = roi_start_h + static_cast<T>(ph) * bin_size_h +
                                  (static_cast<T>(iy) + static_cast<T>(0.5f)) * bin_size_h /
                                      static_cast<T>(roi_bin_grid_h);
-                    const T xx = roi_start_w + static_cast<T>(pw) * bin_size_w +
-                                 (static_cast<T>(ix) + static_cast<T>(0.5f)) * bin_size_w /
-                                     static_cast<T>(roi_bin_grid_w);
+                    // const T xx = roi_start_w + static_cast<T>(pw) * bin_size_w +
+                    //              (static_cast<T>(ix) + static_cast<T>(0.5f)) * bin_size_w /
+                    //                  static_cast<T>(roi_bin_grid_w);
+                    T x = roi_start_w + static_cast<T>(pw) * bin_size_w +
+                          (static_cast<T>(ix) + static_cast<T>(0.5f)) * bin_size_w /
+                              static_cast<T>(roi_bin_grid_w);
 
-                    T x = xx;
+                    // T x = xx;
                     T y = yy;
                     // deal with: inverse elements are out of feature map boundary
 //                     std::cout << "                       Before if:\n";
