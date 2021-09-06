@@ -490,7 +490,8 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
 
                     if ((!fakeQuantize && quantSibling->_dst_quant.IsScaleSet()) ||
                         (fakeQuantize && quantSibling->_dst_quant.IsScaleSet() && !fp32eq(quantSibling->_dst_quant.GetScale(), 1.0) &&
-                        quantSibling->_dst_quant.GetScale() < inputQuant->_dst_quant.GetScale()) || infiniteLoopCount > 0) {
+                        quantSibling->_dst_quant.GetScale() < inputQuant->_dst_quant.GetScale()) ||
+                        quantSibling->_dst_quant.IsScaleSet() && infiniteLoopCount > 0) {
                         // means we already restarted propagation input memory layer
                         // need to search for requantiseable layer prior memory output layer
                         InferenceEngine::CNNLayerPtr restartedLayer;
@@ -669,7 +670,7 @@ class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
         auto quantParamsOpposite =
                 InferenceEngine::getInjectedData<QuantizedLayerParams>(InferenceEngine::CNNNetPrevLayer(eltwiseLayer, !inputIx));
 
-        while (in) {
+        while (in && !LayerInfo(in).isInput() && !LayerInfo(in).isMemory() && !LayerInfo(in).isCopy()) {
             auto info = LayerInfo(in);
             if (info.isActivation() || info.isConst()) {
                 auto quantDataForInputLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(*in);
@@ -690,10 +691,6 @@ class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
                 quantDataForInputLayer->_dst_quant.SetScale(newOutputScale);
                 result = ScaleFactorUpdateResult(in.get());
                 return true;
-            }
-
-            if (info.has8BOr16BOutput()) {
-                return false;
             }
 
             if (fakeQuantize && info.isWeightableIdentity()) {
