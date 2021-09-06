@@ -7,6 +7,7 @@
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
+#include "ngraph/runtime/reference/random_uniform.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -116,7 +117,7 @@ bool op::v8::RandomUniform::visit_attributes(AttributeVisitor& visitor) {
 }
 
 shared_ptr<Node> op::v8::RandomUniform::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v8_Roll_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v8_RandomUniform_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v8::RandomUniform>(new_args[0],
                                           new_args[1],
@@ -124,4 +125,95 @@ shared_ptr<Node> op::v8::RandomUniform::clone_with_new_inputs(const OutputVector
                                           m_output_type,
                                           m_global_seed,
                                           m_op_seed);
+}
+
+bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v8_RandomUniform_evaluate);
+    const uint64_t* out_shape;
+    std::vector<uint64_t> out_shape_uint64(shape_size(inputs[0]->get_shape()));
+
+    if (inputs[0]->get_element_type() == element::Type_t::u64) {
+        out_shape = inputs[0]->get_data_ptr<const uint64_t>();
+    } else if (inputs[0]->get_element_type() == element::Type_t::i32) {
+        auto out_shape_i32 = inputs[0]->get_data_ptr<const int32_t>();
+        std::transform(out_shape_i32,
+                       out_shape_i32 + shape_size(inputs[0]->get_shape()),
+                       out_shape_uint64.begin(),
+                       [](const int32_t& elem) {
+                           return static_cast<uint64_t>(elem);
+                       });
+        out_shape = out_shape_uint64.data();
+    } else if (inputs[0]->get_element_type() == element::Type_t::i64) {
+        auto out_shape_i64 = inputs[0]->get_data_ptr<const int64_t>();
+        std::transform(out_shape_i64,
+                       out_shape_i64 + shape_size(inputs[0]->get_shape()),
+                       out_shape_uint64.begin(),
+                       [](const int64_t& elem) {
+                           return static_cast<uint64_t>(elem);
+                       });
+        out_shape = out_shape_uint64.data();
+    } else {
+        throw ngraph_error("Unsupported type of out shape in RandomUniform operation: " +
+                           inputs[0]->get_element_type().get_type_name());
+    }
+
+    element::Type_t t_out = get_out_type();
+    char* out;
+    switch (t_out) {
+    case element::Type_t::i32:
+        out = (char*)outputs[0]->get_data_ptr<const int32_t>();
+        break;
+    case element::Type_t::i64:
+        out = (char*)outputs[0]->get_data_ptr<const int64_t>();
+        break;
+    case element::Type_t::f16:
+        out = (char*)outputs[0]->get_data_ptr<const float16>();
+        break;
+    case element::Type_t::bf16:
+        out = (char*)outputs[0]->get_data_ptr<const bfloat16>();
+        break;
+    case element::Type_t::f32:
+        out = (char*)outputs[0]->get_data_ptr<const float>();
+        break;
+    case element::Type_t::f64:
+        out = (char*)outputs[0]->get_data_ptr<const double>();
+        break;
+    default:
+        throw ngraph_error("Unsupported type of RandomUniform: " + get_out_type().get_type_name());
+    }
+
+    auto state = runtime::reference::random_uniform(out_shape,
+                                                    inputs[1]->get_data_ptr<const char>(),
+                                                    inputs[2]->get_data_ptr<const char>(),
+                                                    out,
+                                                    inputs[0]->get_shape(),
+                                                    get_out_type(),
+                                                    get_global_seed(),
+                                                    get_op_seed(),
+                                                    m_state);
+
+    // Update RandomUniform state
+    std::lock_guard<std::mutex> guard(m_state_mutex);
+    m_state = state;
+    return true;
+}
+
+bool op::v8::RandomUniform::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v8_RandomUniform_has_evaluate);
+    if (get_input_element_type(0) != ngraph::element::i32 && get_input_element_type(0) != ngraph::element::i64) {
+        return false;
+    }
+
+    switch (get_out_type()) {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::f16:
+    case ngraph::element::bf16:
+    case ngraph::element::f32:
+    case ngraph::element::f64:
+        return true;
+    default:
+        break;
+    }
+    return false;
 }
