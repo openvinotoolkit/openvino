@@ -124,7 +124,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
         aux_gpr_idxs.push_back(_idx);
         preserved_gpr_idxs.push_back(_idx);
     }
-    assert(aux_gpr_idxs.size() == aux_gprs_count());
+//    assert(aux_gpr_idxs.size() == aux_gprs_count());
 
     if (!entry_map_.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
