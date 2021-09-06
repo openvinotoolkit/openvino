@@ -3,13 +3,17 @@
 //
 
 #include "mkldnn_graph_dumper.h"
+
+#include "utils/debug_capabilities.h"
 #include <ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
 #include "ie_common.h"
 #include "mkldnn_debug.h"
 #include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
-#include "utils/debug_capabilities.h"
+#include <ngraph/pass/manager.hpp>
+#include <transformations/serialize.hpp>
+
 #include <vector>
 #include <string>
 #include <memory>
@@ -222,7 +226,12 @@ void serializeToXML(const MKLDNNGraph &graph, const std::string& path) {
     if (path.empty())
         return;
 
-    graph.dump().serialize(path);
+    std::string binPath;
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::Serialize>(path,
+                                                   binPath,
+                                                   ngraph::pass::Serialize::Version::IR_V10);
+    manager.run_passes(graph.dump());
 }
 
 void serializeToCout(const MKLDNNGraph &graph) {

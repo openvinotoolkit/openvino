@@ -28,10 +28,16 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-bs', '--batch_size', default=1, type=int, help='Optional. Batch size 1-8 (default 1).')
     args.add_argument('-qb', '--quantization_bits', default=16, type=int,
                       help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
+    args.add_argument('-sf', '--scale_factor', type=float,
+                      help='Optional. The user-specified input scale factor for quantization.')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
     args.add_argument('-we', '--export_embedded_gna_model', type=str, help=argparse.SUPPRESS)
     args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str, help=argparse.SUPPRESS)
+    args.add_argument('-pc', '--performance_counter', action='store_true',
+                      help='Optional. Enables performance report (specify -a to ensure arch accurate results).')
+    args.add_argument('-a', '--arch', default='CORE', type=str.upper, choices=['CORE', 'ATOM'],
+                      help='Optional. Specify architecture. CORE, ATOM with the combination of -pc.')
     args.add_argument('-iname', '--input_layers', type=str,
                       help='Optional. Layer names for input blobs. The names are separated with ",". '
                       'Allows to change the order of input layers for -i flag. Example: Input1,Input2')
