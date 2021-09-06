@@ -37,7 +37,7 @@ if(ENABLE_PYTHON)
     endif()
 
     # creates a copy inside bin directory for developers to have ability running python benchmark_app
-    add_custom_target(python_tools ALL
+    add_custom_target(python_tools_benchmark ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/benchmark_tool/openvino/tools/benchmark
                                                    ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/tools/benchmark
