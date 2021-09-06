@@ -47,7 +47,7 @@ protected:
 };
 
 TEST_F(GNAAllocatorTest, canAllocateStdMemory) {
-    auto sp = GNAPluginNS::memory::make_polymorph<std::allocator<uint8_t>>();
+    auto sp = GNAPluginNS::memory::GNAFloatAllocator{};
     uint8_t *x = nullptr;
     ASSERT_NO_THROW(x = sp.allocate(100));
     ASSERT_NE(x, nullptr);
@@ -57,7 +57,7 @@ TEST_F(GNAAllocatorTest, canAllocateStdMemory) {
 TEST_F(GNAAllocatorTest, canAllocateGNAMemory) {
     // GNA device can be opened one per process for now
     gnadevice.reset(new GNADeviceHelper());
-    auto sp = GNAPluginNS::memory::make_polymorph<GNAPluginNS::memory::GNAAllocator>(gnadevice);
+    auto sp = GNAPluginNS::memory::GNAAllocator{ gnadevice };
     uint8_t *x = nullptr;
     ASSERT_NO_THROW(x = sp.allocate(100));
     ASSERT_NE(x, nullptr);
