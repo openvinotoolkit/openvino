@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::GRUCell, "GRUCell", 1);
+OPENVINO_RTTI_DEFINITION(op::v3::GRUCell, "GRUCell", 1, op::util::RNNCellBase);
 
 op::v3::GRUCell::GRUCell() : m_linear_before_reset(false) {
     m_activations = {"sigmoid", "tanh"};

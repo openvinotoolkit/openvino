@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v5::Loop, "Loop", 5);
+OPENVINO_RTTI_DEFINITION(op::v5::Loop, "Loop", 5, op::util::SubGraphOp);
 
 op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition) : SubGraphOp() {
     set_argument(0, trip_count);
