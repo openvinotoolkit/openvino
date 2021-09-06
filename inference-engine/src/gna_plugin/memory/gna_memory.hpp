@@ -121,9 +121,6 @@ class GNAMemory {
                     }
                 }
             }
-            // if (!(re._type & REQUEST_BIND)) {
-            //     offset += ALIGN(sz + re._padding, re._alignment);
-            // }
             offset += ALIGN(sz + re._padding, re._alignment);
         }
         return offset;
@@ -133,11 +130,10 @@ class GNAMemory {
      * @brief calculates size required for all requests, allocates memory and updates pointers
      */
     void commit() {
-        // heap = allocate(getTotalBytes());
-        getTotalBytes();
+        // getTotalBytes();
         size_t heap_offset = 0;
         for (auto queue : _mem_queues) {
-            if (queue.second->getSize() != 0) {
+            if (queue.second->calcSize() != 0) {
                 heap_offset = ALIGN(allocateRegion(queue.second), _page_alignment);
                 std::cout << "heap_offset " << rRegionToStr(queue.first) << ": " << heap_offset << std::endl;
             }
