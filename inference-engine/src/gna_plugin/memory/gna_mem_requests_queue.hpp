@@ -23,7 +23,7 @@ public:
     virtual ~GNAMemRequestsQueue() {}
 
     rRegion _region_type;
-    size_t _size;
+    size_t _size = 0;
     std::vector<MemRequest> _mem_requests;
     std::list<std::vector<char>> _local_storage;
 
