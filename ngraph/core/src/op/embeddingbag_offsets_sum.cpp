@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::EmbeddingBagOffsetsSum::type_info;
+OPENVINO_RTTI_DEFINITION(op::v3::EmbeddingBagOffsetsSum, "EmbeddingBagOffsetsSum", 3, util::EmbeddingBagOffsetsBase);
 
 op::v3::EmbeddingBagOffsetsSum::EmbeddingBagOffsetsSum(const Output<Node>& emb_table,
                                                        const Output<Node>& indices,

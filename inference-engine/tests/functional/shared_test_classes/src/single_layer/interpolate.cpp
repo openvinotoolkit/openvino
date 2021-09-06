@@ -11,7 +11,7 @@ using ngraph::helpers::operator<<;
 
 namespace LayerTestsDefinitions {
 
-std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<InterpolateLayerTestParams> obj) {
+std::string InterpolateLayerTest::getTestCaseName(const testing::TestParamInfo<InterpolateLayerTestParams>& obj) {
     InterpolateSpecificParams interpolateParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
