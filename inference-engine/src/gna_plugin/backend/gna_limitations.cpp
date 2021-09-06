@@ -93,9 +93,10 @@ std::string VectorOrSquareLimitByChannelsAndPrecision::GetErrorOrEmpty(const uin
     return GetByPrecision(precision).GetErrorOrEmpty(h, w, channels, what);
 }
 
-void Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
+bool Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
     const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
-    const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision) const {
+    const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
+    OvGnaType inPrecision, bool exception) const {
     const std::string prefix = "Layer Convolution2D: " + name + ":";
     auto error = inputHWLimit.GetErrorOrEmpty(inHeight, inWidth);
 
@@ -104,12 +105,18 @@ void Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const u
     error += inputChannelsNumberLimit.GetErrorOrEmpty(inChannels);
     error += kernelLimit.GetErrorOrEmpty(kH, kW, inPrecision, inChannels, "kernel");
     error += strideLimit.GetErrorOrEmpty(strideH, strideW, inPrecision, inChannels, "convolution stride");
-    ThrowIfNotEmpty(prefix, error);
+    error += dilationLimit.GetErrorOrEmpty(dilationH, dilationW);
+
+    if (exception)
+        ThrowIfNotEmpty(prefix, error);
+
+    return error.empty() ? true : false;
 }
 
-void Validator::ValidatePooling2D(std::string name,
+bool Validator::ValidatePooling2D(std::string name,
     const uint32_t windowH, const uint32_t windowW,
-    const uint32_t strideH, const uint32_t strideW) const {
+    const uint32_t strideH, const uint32_t strideW,
+    bool exception) const {
     const std::string prefix = "Layer Pooling2D: " + name + ":";
 
     auto error = poolingWindowLimit.GetErrorOrEmpty(windowH, windowW, "pooling window");
@@ -119,7 +126,10 @@ void Validator::ValidatePooling2D(std::string name,
     error += poolingStrideHLimit.GetErrorOrEmpty(strideH);
     error += poolingStrideWLimit.GetErrorOrEmpty(strideW);
 
-    ThrowIfNotEmpty(prefix, error);
+    if (exception)
+        ThrowIfNotEmpty(prefix, error);
+
+    return error.empty() ? true : false;
 }
 
 void Validator::ThrowIfNotEmpty(const std::string prefix, const std::string error) {
