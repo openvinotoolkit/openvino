@@ -21,7 +21,6 @@
         "runtime/lib/libinference_engine_preproc.so",
         "runtime/lib/libinference_engine_ir_reader.so",
         "runtime/lib/libinference_engine_c_api.dylib",
-        "runtime/lib/libAutoPlugin.so",
         "runtime/lib/libHeteroPlugin.so",
         "runtime/lib/libMultiDevicePlugin.so",
         "runtime/lib/libngraph.dylib",

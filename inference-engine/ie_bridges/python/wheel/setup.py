@@ -7,6 +7,7 @@ import sys
 import errno
 import subprocess  # nosec
 import typing
+import platform
 import multiprocessing
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -19,11 +20,25 @@ from distutils import log
 from setuptools import setup, find_namespace_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
+from setuptools.command.install import install
 from decouple import config
 
 WHEEL_LIBS_INSTALL_DIR = os.path.join('openvino', 'libs')
 WHEEL_LIBS_PACKAGE = 'openvino.libs'
 PYTHON_VERSION = f'python{sys.version_info.major}.{sys.version_info.minor}'
+
+LIBS_DIR = 'bin' if platform.system() == 'Windows' else 'lib'
+CONFIG = 'Release' if platform.system() == 'Windows' else ''
+
+machine = platform.machine()
+if machine == 'x86_64' or machine == 'AMD64':
+    ARCH = 'intel64'
+elif machine == 'X86':
+    ARCH = 'ia32'
+elif machine == 'arm':
+    ARCH = 'arm'
+elif machine == 'aarch64':
+    ARCH = 'arm64'
 
 # The following variables can be defined in environment or .env file
 CMAKE_BUILD_DIR = config('CMAKE_BUILD_DIR', '.')
@@ -59,12 +74,6 @@ LIB_INSTALL_CFG = {
     },
     'multi_plugin': {
         'name': 'multi',
-        'prefix': 'libs.plugins',
-        'install_dir': OV_RUNTIME_LIBS_DIR,
-        'rpath': LIBS_RPATH,
-    },
-    'auto_plugin': {
-        'name': 'auto',
         'prefix': 'libs.plugins',
         'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
@@ -163,10 +172,10 @@ class CustomBuild(build):
 
         # if setup.py is directly called use CMake to build product
         if CMAKE_BUILD_DIR == '.':
-            openvino_root_dir = os.path.normpath(os.path.join(CMAKE_BUILD_DIR, '../../../../'))
-            self.announce('Configuring cmake project', level=3)
-
-            self.spawn(['cmake', '-H' + openvino_root_dir, '-B' + self.build_temp,
+            # set path to the root of OpenVINO CMakeList file
+            openvino_root_dir = Path(__file__).resolve().parents[4]
+            self.announce(f'Configuring cmake project: {openvino_root_dir}', level=3)
+            self.spawn(['cmake', '-H' + str(openvino_root_dir), '-B' + self.build_temp,
                         '-DCMAKE_BUILD_TYPE={type}'.format(type=self.config),
                         '-DENABLE_PYTHON=ON',
                         '-DNGRAPH_ONNX_FRONTEND_ENABLE=ON'])
@@ -175,8 +184,8 @@ class CustomBuild(build):
             self.spawn(['cmake', '--build', self.build_temp,
                         '--config', self.config, '-j', str(self.jobs)])
             CMAKE_BUILD_DIR = self.build_temp
-
         self.run_command('build_clib')
+
         build.run(self)
         # Copy extra package_data content filtered by find_packages
         dst = Path(self.build_lib)
@@ -241,6 +250,10 @@ class CopyExt(build_ext):
     """Copy extension files to the build directory"""
 
     def run(self):
+        if len(self.extensions) == 1:
+            self.run_command('build_clib')
+            self.extensions = []
+            self.extensions = find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG))
         for extension in self.extensions:
             if not isinstance(extension, PrebuiltExtension):
                 raise DistutilsSetupError(f'copy_ext can accept PrebuiltExtension only, but got {extension.name}')
@@ -255,8 +268,15 @@ class CopyExt(build_ext):
                 elif sys.platform == 'darwin':
                     rpath = os.path.join('@loader_path', rpath, WHEEL_LIBS_INSTALL_DIR)
                 set_rpath(rpath, os.path.realpath(src))
-
             copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
+
+
+class CustomInstall(install):
+    """Enable build_clib during the installation"""
+
+    def run(self):
+        self.run_command('build')
+        install.run(self)
 
 
 class CustomClean(clean):
@@ -354,6 +374,8 @@ def find_prebuilt_extensions(search_dirs):
         ext_pattern = '**/*.so'
     for base_dir in search_dirs:
         for path in Path(base_dir).glob(ext_pattern):
+            if path.match('openvino/libs/*'):
+                continue
             relpath = path.relative_to(base_dir)
             if relpath.parent != '.':
                 package_names = str(relpath.parent).split(os.path.sep)
@@ -362,6 +384,8 @@ def find_prebuilt_extensions(search_dirs):
             package_names.append(path.name.split('.', 1)[0])
             name = '.'.join(package_names)
             extensions.append(PrebuiltExtension(name, sources=[str(path)]))
+    if not extensions:
+        extensions.append(PrebuiltExtension('openvino', sources=[str('setup.py')]))
     return extensions
 
 
@@ -417,12 +441,13 @@ if os.path.exists(package_license):
 
 packages = find_namespace_packages(get_package_dir(PY_INSTALL_CFG))
 package_data: typing.Dict[str, list] = {}
-
+pkg_name = config('WHEEL_PACKAGE_NAME', 'openvino')
+ext_modules = find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)) if pkg_name == 'openvino' else []
 
 setup(
     version=config('WHEEL_VERSION', '0.0.0'),
     author_email=config('WHEEL_AUTHOR_EMAIL', 'openvino_pushbot@intel.com'),
-    name=config('WHEEL_PACKAGE_NAME', 'openvino'),
+    name=pkg_name,
     license=config('WHEEL_LICENCE_TYPE', 'OSI Approved :: Apache Software License'),
     author=config('WHEEL_AUTHOR', 'Intel Corporation'),
     description=config('WHEEL_DESC', 'Inference Engine Python* API'),
@@ -433,11 +458,12 @@ setup(
     url=config('WHEEL_URL', 'https://docs.openvinotoolkit.org/latest/index.html'),
     cmdclass={
         'build': CustomBuild,
+        'install': CustomInstall,
         'build_clib': PrepareLibs,
         'build_ext': CopyExt,
         'clean': CustomClean,
     },
-    ext_modules=find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)),
+    ext_modules=ext_modules,
     packages=packages,
     package_dir={'': get_package_dir(PY_INSTALL_CFG)},
     package_data=package_data,

@@ -21,7 +21,6 @@
         "runtime/bin/Release/inference_engine_preproc.dll",
         "runtime/bin/Release/inference_engine_ir_reader.dll",
         "runtime/bin/Release/inference_engine_c_api.dll",
-        "runtime/bin/Release/AutoPlugin.dll",
         "runtime/bin/Release/HeteroPlugin.dll",
         "runtime/bin/Release/MultiDevicePlugin.dll",
         "runtime/bin/Release/ngraph.dll",
