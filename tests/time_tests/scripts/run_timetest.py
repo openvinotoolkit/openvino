@@ -151,7 +151,7 @@ def cli_parser():
                         required=True,
                         dest="model",
                         type=Path,
-                        help='path to an .xml/.onnx/.prototxt file with a trained model or'
+                        help='path to an .xml/.onnx file with a trained model or'
                              ' to a .blob files with a trained compiled model')
     parser.add_argument('-d',
                         required=True,

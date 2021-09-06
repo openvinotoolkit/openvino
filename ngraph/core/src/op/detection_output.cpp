@@ -7,31 +7,30 @@
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::DetectionOutput, "DetectionOutput", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::v0::DetectionOutput, "DetectionOutput", 0);
 
-op::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
-                                     const Output<Node>& class_preds,
-                                     const Output<Node>& proposals,
-                                     const Output<Node>& aux_class_preds,
-                                     const Output<Node>& aux_box_preds,
-                                     const DetectionOutputAttrs& attrs)
+ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
+                                             const Output<Node>& class_preds,
+                                             const Output<Node>& proposals,
+                                             const Output<Node>& aux_class_preds,
+                                             const Output<Node>& aux_box_preds,
+                                             const Attributes& attrs)
     : Op({box_logits, class_preds, proposals, aux_class_preds, aux_box_preds}),
       m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
-op::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
-                                     const Output<Node>& class_preds,
-                                     const Output<Node>& proposals,
-                                     const DetectionOutputAttrs& attrs)
+ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
+                                             const Output<Node>& class_preds,
+                                             const Output<Node>& proposals,
+                                             const Attributes& attrs)
     : Op({box_logits, class_preds, proposals}),
       m_attrs(attrs) {
     constructor_validate_and_infer_types();
 }
 
-void op::DetectionOutput::validate_and_infer_types() {
+void ov::op::v0::DetectionOutput::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_DetectionOutput_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, m_attrs.num_classes > 0, "Number of classes must be greater than zero");
 
@@ -205,12 +204,12 @@ void op::DetectionOutput::validate_and_infer_types() {
     } else {
         output_shape.push_back(num_images * num_prior_boxes * m_attrs.num_classes);
     }
-    output_shape.push_back(7);
+    output_shape.emplace_back(7);
 
     set_output_type(0, box_logits_et, output_shape);
 }
 
-shared_ptr<Node> op::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v0::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_DetectionOutput_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
@@ -230,7 +229,7 @@ shared_ptr<Node> op::DetectionOutput::clone_with_new_inputs(const OutputVector& 
     }
 }
 
-bool op::DetectionOutput::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v0::DetectionOutput::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_DetectionOutput_visit_attributes);
     visitor.on_attribute("num_classes", m_attrs.num_classes);
     visitor.on_attribute("background_label_id", m_attrs.background_label_id);

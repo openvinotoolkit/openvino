@@ -13,7 +13,7 @@ using namespace ngraph;
 
 // ---------------------------------- v1 ---------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::LessEqual, "LessEqual", 1, op::util::BinaryElementwiseComparison);
+OPENVINO_RTTI_DEFINITION(op::v1::LessEqual, "LessEqual", 1, op::util::BinaryElementwiseComparison);
 
 op::v1::LessEqual::LessEqual(const Output<Node>& arg0,
                              const Output<Node>& arg1,

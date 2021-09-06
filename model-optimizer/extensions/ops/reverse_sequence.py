@@ -10,14 +10,14 @@ class ReverseSequence(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
+            'type': self.op,
             'version': 'opset1',
             'seq_axis': None,
             'batch_axis': 0,
-            'op': __class__.op,
+            'op': self.op,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': __class__.infer,
+            'infer': self.infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -28,10 +28,10 @@ class ReverseSequence(Op):
     
     @staticmethod
     def infer(node):
-        input_data_shape = node.in_node(0).shape
+        input_data_shape = node.in_port(0).data.get_shape()
         assert input_data_shape is not None
         assert node.has_valid('seq_axis')
         assert node.has_valid('batch_axis')
 
         assert len(node.out_nodes()) == 1
-        node.out_node().shape = input_data_shape.copy()
+        node.out_port(0).data.set_shape(input_data_shape)
