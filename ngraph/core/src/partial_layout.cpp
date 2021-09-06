@@ -22,9 +22,9 @@ static constexpr char SCALAR[] = "SCALAR";
 // 1. only order of dimensions "adbc" (0312)
 // 2. can define order and meaning for dimensions "NCHW"
 // 3. partial layout specialization "NC?"
-PartialLayout::PartialLayout(const std::string& layoutStr) {
+Layout::Layout(const std::string& layoutStr) {
     if (layoutStr.empty()) {
-        throw ngraph::ngraph_error("Cannot parse ngraph::PartialLayout from an empty string");
+        throw ngraph::ngraph_error("Cannot parse ov::Layout from an empty string");
     }
 
     // TODO: ilavreno
@@ -64,11 +64,11 @@ PartialLayout::PartialLayout(const std::string& layoutStr) {
     }
 }
 
-bool PartialLayout::has_dim(const std::string& dimensionName) const {
+bool Layout::has_dim(const std::string& dimensionName) const {
     return _dimensionNames.find(dimensionName) != _dimensionNames.end();
 }
 
-std::int64_t PartialLayout::get_index_by_name(const std::string& name) const {
+std::int64_t Layout::get_index_by_name(const std::string& name) const {
     auto it = _dimensionNames.find(name);
     if (it == _dimensionNames.end()) {
         throw ngraph::ngraph_error(name + " dimension index is not defined");
@@ -76,7 +76,7 @@ std::int64_t PartialLayout::get_index_by_name(const std::string& name) const {
     return it->second;
 }
 
-void PartialLayout::set_dim_by_name(const std::string& dimensionName, std::int64_t index) {
+void Layout::set_dim_by_name(const std::string& dimensionName, std::int64_t index) {
     auto it = _dimensionNames.find(dimensionName);
 
     // we cannot change dimension index
@@ -87,17 +87,17 @@ void PartialLayout::set_dim_by_name(const std::string& dimensionName, std::int64
     _dimensionNames[dimensionName] = index;
 }
 
-#define DEFINE_NAMED_DIMENSION(NAME, name)                                \
-    bool layouts::has_##name(const PartialLayout& layout) {               \
-        return layout.has_dim(NAME);                                      \
-    }                                                                     \
-                                                                          \
-    std::int64_t layouts::name(const PartialLayout& layout) {             \
-        return layout.get_index_by_name(NAME);                            \
-    }                                                                     \
-                                                                          \
-    void layouts::set_##name(PartialLayout& layout, std::int64_t index) { \
-        layout.set_dim_by_name(NAME, index);                              \
+#define DEFINE_NAMED_DIMENSION(NAME, name)                         \
+    bool layouts::has_##name(const Layout& layout) {               \
+        return layout.has_dim(NAME);                               \
+    }                                                              \
+                                                                   \
+    std::int64_t layouts::name(const Layout& layout) {             \
+        return layout.get_index_by_name(NAME);                     \
+    }                                                              \
+                                                                   \
+    void layouts::set_##name(Layout& layout, std::int64_t index) { \
+        layout.set_dim_by_name(NAME, index);                       \
     }
 
 DEFINE_NAMED_DIMENSION(BATCH, batch)
@@ -106,15 +106,15 @@ DEFINE_NAMED_DIMENSION(DEPTH, depth)
 DEFINE_NAMED_DIMENSION(HEIGHT, height)
 DEFINE_NAMED_DIMENSION(WIDTH, width)
 
-bool PartialLayout::is_scalar() const {
+bool Layout::is_scalar() const {
     return _dimensionNames.find(::SCALAR) != _dimensionNames.end();
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ov::PartialLayout>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<ov::Layout>::type_info;
 
-const std::string& AttributeAdapter<ov::PartialLayout>::get() {
+const std::string& AttributeAdapter<ov::Layout>::get() {
     throw ngraph::ngraph_error("not implemented");
 }
-void AttributeAdapter<ov::PartialLayout>::set(const std::string& value) {
-    m_ref = PartialLayout(value);
+void AttributeAdapter<ov::Layout>::set(const std::string& value) {
+    m_ref = Layout(value);
 }

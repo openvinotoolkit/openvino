@@ -14,7 +14,7 @@ class PreProcessActionBase;
 
 struct InputTensorInfo::InputTensorImpl {
     ov::element::Type m_type = ov::element::dynamic;
-    ov::PartialLayout m_layout = {};
+    ov::Layout m_layout = {};
     ov::PartialShape m_shape = {};
 };
 
@@ -23,7 +23,7 @@ struct PreProcessSteps::PreProcessImpl {
 };
 
 struct InputNetworkInfo::InputNetworkInfoImpl {
-    ov::PartialLayout m_layout = {};
+    ov::Layout m_layout = {};
 };
 
 struct InputInfo::InputInfoImpl {
@@ -198,7 +198,7 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         if (input->m_tensor_data.get_element_type() == ov::element::dynamic) {
             input->m_tensor_data.set_element_type(param->get_element_type());
         }
-        auto new_param_layout = PartialLayout();
+        auto new_param_layout = Layout();
         if (input->m_tensor_data.get_layout().is_empty()) {
             input->m_tensor_data.set_layout(input->m_network_info.get_layout());
         }
@@ -255,12 +255,12 @@ InputTensorInfo&& InputTensorInfo::set_element_type(ov::element::Type type) && {
     return std::move(*this);
 }
 
-InputTensorInfo& InputTensorInfo::set_layout(const PartialLayout& layout) & {
+InputTensorInfo& InputTensorInfo::set_layout(const Layout& layout) & {
     m_impl->m_layout = layout;
     return *this;
 }
 
-InputTensorInfo&& InputTensorInfo::set_layout(const PartialLayout& layout) && {
+InputTensorInfo&& InputTensorInfo::set_layout(const Layout& layout) && {
     m_impl->m_layout = layout;
     return std::move(*this);
 }
@@ -268,7 +268,7 @@ InputTensorInfo&& InputTensorInfo::set_layout(const PartialLayout& layout) && {
 ov::element::Type InputTensorInfo::get_element_type() const {
     return m_impl->m_type;
 }
-const PartialLayout& InputTensorInfo::get_layout() const {
+const Layout& InputTensorInfo::get_layout() const {
     return m_impl->m_layout;
 }
 
@@ -297,6 +297,11 @@ PreProcessSteps& PreProcessSteps::scale(const std::vector<float>& values) & {
 PreProcessSteps&& PreProcessSteps::scale(const std::vector<float>& values) && {
     m_impl->m_actions.push_back(std::make_shared<PreProcessScale>(values));
     return std::move(*this);
+}
+
+PreProcessSteps& PreProcessSteps::mean(float value) & {
+    m_impl->m_actions.push_back(std::make_shared<PreProcessMean>(std::vector<float>{value}));
+    return *this;
 }
 
 PreProcessSteps&& PreProcessSteps::mean(float value) && {
@@ -329,17 +334,17 @@ InputNetworkInfo::InputNetworkInfo(InputNetworkInfo&&) = default;
 InputNetworkInfo& InputNetworkInfo::operator=(InputNetworkInfo&&) = default;
 InputNetworkInfo::~InputNetworkInfo() = default;
 
-InputNetworkInfo& InputNetworkInfo::set_layout(const PartialLayout& layout) & {
+InputNetworkInfo& InputNetworkInfo::set_layout(const Layout& layout) & {
     m_impl->m_layout = layout;
     return *this;
 }
 
-InputNetworkInfo&& InputNetworkInfo::set_layout(const PartialLayout& layout) && {
+InputNetworkInfo&& InputNetworkInfo::set_layout(const Layout& layout) && {
     m_impl->m_layout = layout;
     return std::move(*this);
 }
 
-const PartialLayout& InputNetworkInfo::get_layout() const {
+const Layout& InputNetworkInfo::get_layout() const {
     return m_impl->m_layout;
 }
 

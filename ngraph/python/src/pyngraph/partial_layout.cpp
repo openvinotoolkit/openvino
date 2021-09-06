@@ -16,32 +16,32 @@
 namespace py = pybind11;
 
 void regclass_pyngraph_PartialLayout(py::module m) {
-    py::class_<ov::PartialLayout, std::shared_ptr<ov::PartialLayout>> layout(m, "PartialLayout");
-    layout.doc() = "ngraph.impl.PartialLayout wraps ov::PartialLayout";
+    py::class_<ov::Layout, std::shared_ptr<ov::Layout>> layout(m, "Layout");
+    layout.doc() = "ngraph.impl.Layout wraps ov::Layout";
 
     layout.def(py::init<>());
     layout.def(py::init<const std::string&>());
 
     layout.def_property_readonly("is_empty",
-                                 &ov::PartialLayout::is_empty,
+                                 &ov::Layout::is_empty,
                                  R"(
                                     True if this layout is empty, else True.
                                 )");
     layout.def_property_readonly("size",
-                                 &ov::PartialLayout::size,
+                                 &ov::Layout::size,
                                  R"(
                                     The size/rank of the layout.
                                 )");
     layout.def_property(
         "channels",
-        [](const ov::PartialLayout& l) -> py::object {
+        [](const ov::Layout& l) -> py::object {
             py::object res = py::none();
             if (ov::layouts::has_channels(l)) {
                 res = py::int_(ov::layouts::channels(l));
             }
             return res;
         },
-        [](ov::PartialLayout& l, int c) {
+        [](ov::Layout& l, int c) {
             ov::layouts::set_channels(l, c);
         },
         R"(

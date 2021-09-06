@@ -11,24 +11,24 @@
 #include "ngraph/ngraph_visibility.hpp"
 
 namespace ov {
-class OPENVINO_API PartialLayout {
+class OPENVINO_API Layout {
 public:
-    /// \brief Constructs a static PartialLayout with no layout information.
-    PartialLayout() = default;
+    /// \brief Constructs a static Layout with no layout information.
+    Layout() = default;
 
-    /// \brief Constructs a PartialLayout with static or dynamic layout information based
+    /// \brief Constructs a Layout with static or dynamic layout information based
     /// on string representation.
-    /// \param layoutStr The string used to construct PartialLayout from.
+    /// \param layoutStr The string used to construct Layout from.
     /// The string representation can be in the following form:
     /// - can define order and meaning for dimensions "NCHW"
     /// - partial layout specialization:
-    ///   - "NC?" defines 3 dimentional layout, first two NC, 3rd one is not defined
+    ///   - "NC?" defines 3 dimensional layout, first two NC, 3rd one is not defined
     ///   - "N..C" defines layout with dynamic rank where 1st dimension is N, last one is C
     ///   - "N..C" defines layout with dynamic rank where first two are NC, others are not
     ///   defined
     /// - only order of dimensions "adbc" (0312)
-    PartialLayout(const char* layoutStr) : PartialLayout(std::string(layoutStr)) {}
-    PartialLayout(const std::string& layoutStr);
+    Layout(const char* layoutStr) : Layout(std::string(layoutStr)) {}
+    Layout(const std::string& layoutStr);
 
     /// \brief Checks if dimension with specified name is in layout
     /// \return `true` if layout has information about dimension index with a given name
@@ -52,7 +52,7 @@ public:
         return _dimensionNames.size();
     }
 
-    std::vector<int64_t> permutation(const PartialLayout& layout) const;
+    std::vector<int64_t> permutation(const Layout& layout) const;
 
 private:
     /// stores dimension names
@@ -60,43 +60,43 @@ private:
 };
 
 namespace layouts {
-OPENVINO_API bool has_batch(const PartialLayout& layout);
-OPENVINO_API std::int64_t batch(const PartialLayout& layout);
-OPENVINO_API void set_batch(PartialLayout& layout, std::int64_t index);
+OPENVINO_API bool has_batch(const Layout& layout);
+OPENVINO_API std::int64_t batch(const Layout& layout);
+OPENVINO_API void set_batch(Layout& layout, std::int64_t index);
 
-OPENVINO_API bool has_channels(const PartialLayout& layout);
-OPENVINO_API std::int64_t channels(const PartialLayout& layout);
-OPENVINO_API void set_channels(PartialLayout& layout, std::int64_t index);
+OPENVINO_API bool has_channels(const Layout& layout);
+OPENVINO_API std::int64_t channels(const Layout& layout);
+OPENVINO_API void set_channels(Layout& layout, std::int64_t index);
 
-OPENVINO_API bool has_depth(const PartialLayout& layout);
-OPENVINO_API std::int64_t depth(const PartialLayout& layout);
-OPENVINO_API void set_depth(PartialLayout& layout, std::int64_t index);
+OPENVINO_API bool has_depth(const Layout& layout);
+OPENVINO_API std::int64_t depth(const Layout& layout);
+OPENVINO_API void set_depth(Layout& layout, std::int64_t index);
 
-OPENVINO_API bool has_height(const PartialLayout& layout);
-OPENVINO_API std::int64_t height(const PartialLayout& layout);
-OPENVINO_API void set_height(PartialLayout& layout, std::int64_t index);
+OPENVINO_API bool has_height(const Layout& layout);
+OPENVINO_API std::int64_t height(const Layout& layout);
+OPENVINO_API void set_height(Layout& layout, std::int64_t index);
 
-OPENVINO_API bool has_width(const PartialLayout& layout);
-OPENVINO_API std::int64_t width(const PartialLayout& layout);
-OPENVINO_API void set_width(PartialLayout& layout, std::int64_t index);
+OPENVINO_API bool has_width(const Layout& layout);
+OPENVINO_API std::int64_t width(const Layout& layout);
+OPENVINO_API void set_width(Layout& layout, std::int64_t index);
 }  // namespace layouts
 
 template <>
-class OPENVINO_API AttributeAdapter<PartialLayout> : public ValueAccessor<std::string> {
+class OPENVINO_API AttributeAdapter<Layout> : public ValueAccessor<std::string> {
 public:
-    AttributeAdapter(PartialLayout& value) : m_ref(value) {}
+    AttributeAdapter(Layout& value) : m_ref(value) {}
 
     const std::string& get() override;
     void set(const std::string& value) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<PartialLayout>", 0};
+    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Layout>", 0};
     const DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
-    operator PartialLayout&() {
+    operator Layout&() {
         return m_ref;
     }
 
 protected:
-    PartialLayout& m_ref;
+    Layout& m_ref;
 };
 }  // namespace ov

@@ -14,9 +14,9 @@ except DistributionNotFound:
 
 from ngraph.impl import Dimension
 from ngraph.impl import Function
+from ngraph.impl import Layout
 from ngraph.impl import Node
 from ngraph.impl import PartialShape
-from ngraph.impl import PartialLayout
 from ngraph.frontend import FrontEnd
 from ngraph.frontend import FrontEndManager
 from ngraph.frontend import GeneralFailure

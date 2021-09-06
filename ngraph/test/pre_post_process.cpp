@@ -113,7 +113,7 @@ TEST(pre_post_process, mean_scale_vector_network_layout) {
     f = PrePostProcessor()
             .in(InputInfo()
                     .preprocess(PreProcessSteps().mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f}))
-                    .network(InputNetworkInfo().set_layout(PartialLayout("NCHW"))))
+                    .network(InputNetworkInfo().set_layout(Layout("NCHW"))))
             .build(f);
 
     auto result = std::make_shared<HostTensor>();
@@ -128,7 +128,7 @@ TEST(pre_post_process, scale_vector_tensor_layout) {
     ASSERT_EQ(f->get_output_element_type(0), element::f32);
     f = PrePostProcessor()
             .in(InputInfo()
-                    .tensor(InputTensorInfo().set_layout(PartialLayout("NHWC")))
+                    .tensor(InputTensorInfo().set_layout(Layout("NHWC")))
                     .preprocess(PreProcessSteps().mean({1.f, 2.f, 3.f})))
             .build(f);
     auto result = std::make_shared<HostTensor>();
@@ -144,7 +144,7 @@ TEST(pre_post_process, scale_vector_no_channels_layout) {
     ASSERT_EQ(f->get_output_element_type(0), element::f32);
     ASSERT_ANY_THROW(f = PrePostProcessor()
                              .in(InputInfo()
-                                     .tensor(InputTensorInfo().set_layout(PartialLayout("NHW?")))
+                                     .tensor(InputTensorInfo().set_layout(Layout("NHW?")))
                                      .preprocess(PreProcessSteps().scale({0.1f, 0.2f, 0.3f})))
                              .build(f););
 }

@@ -67,16 +67,16 @@ public:
 
     InputTensorInfo& set_element_type(ov::element::Type type) &;
     InputTensorInfo&& set_element_type(ov::element::Type type) &&;
-    InputTensorInfo& set_layout(const PartialLayout& layout) &;
-    InputTensorInfo&& set_layout(const PartialLayout& layout) &&;
+    InputTensorInfo& set_layout(const Layout& layout) &;
+    InputTensorInfo&& set_layout(const Layout& layout) &&;
 
     ov::element::Type get_element_type() const;
-    const PartialLayout& get_layout() const;
+    const Layout& get_layout() const;
 };
 
 class PreProcessContext {
     element::Type m_type;
-    PartialLayout m_layout;
+    Layout m_layout;
 
 public:
     PreProcessContext() = default;
@@ -87,10 +87,10 @@ public:
         return m_type;
     }
 
-    void set_layout(const PartialLayout& layout) {
+    void set_layout(const Layout& layout) {
         m_layout = layout;
     }
-    PartialLayout get_layout() const {
+    Layout get_layout() const {
         return m_layout;
     }
 };
@@ -133,10 +133,10 @@ public:
     InputNetworkInfo& operator=(InputNetworkInfo&&);
     ~InputNetworkInfo();
 
-    InputNetworkInfo& set_layout(const PartialLayout& layout) &;
-    InputNetworkInfo&& set_layout(const PartialLayout& layout) &&;
+    InputNetworkInfo& set_layout(const Layout& layout) &;
+    InputNetworkInfo&& set_layout(const Layout& layout) &&;
 
-    const PartialLayout& get_layout() const;
+    const Layout& get_layout() const;
 };
 
 }  // namespace preprocess
