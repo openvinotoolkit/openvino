@@ -60,7 +60,6 @@
         "deployment_tools/inference_engine/bin/intel64/Release/usb-ma2x8x.mvcmd",
         "deployment_tools/inference_engine/bin/intel64/Release/pcie-ma2x8x.elf",
         "deployment_tools/inference_engine/bin/intel64/Release/myriadPlugin.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_legacy.dll"
       ]
     },
     "gna": {
@@ -69,7 +68,6 @@
       "dependencies" : ["ie_core"],
       "files": [
         "deployment_tools/inference_engine/bin/intel64/Release/gna.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_legacy.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/GNAPlugin.dll"
       ]
     },
@@ -79,7 +77,6 @@
       "dependencies" : ["ie_core"],
       "files": [
         "deployment_tools/inference_engine/bin/intel64/Release/HDDLPlugin.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_legacy.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/hddl_perfcheck.exe",
         "deployment_tools/inference_engine/external/MovidiusDriver",
         "deployment_tools/inference_engine/external/hddl"

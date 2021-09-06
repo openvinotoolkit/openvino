@@ -66,7 +66,6 @@
         "deployment_tools/inference_engine/lib/intel64/pcie-ma2x8x.mvcmd",
         "deployment_tools/inference_engine/lib/intel64/libmyriadPlugin.so",
         "deployment_tools/inference_engine/lib/intel64/vpu_custom_kernels",
-        "deployment_tools/inference_engine/lib/intel64/libinference_engine_legacy.so",
         "install_dependencies/install_NCS_udev_rules.sh"
       ]
     },
@@ -76,7 +75,6 @@
       "dependencies" : ["ie_core"],
       "files": [
         "deployment_tools/inference_engine/external/gna",
-        "deployment_tools/inference_engine/lib/intel64/libinference_engine_legacy.so",
         "deployment_tools/inference_engine/lib/intel64/libGNAPlugin.so"
       ]
     },
@@ -86,7 +84,6 @@
       "dependencies" : ["ie_core"],
       "files": [
         "deployment_tools/inference_engine/lib/intel64/libHDDLPlugin.so",
-        "deployment_tools/inference_engine/lib/intel64/libinference_engine_legacy.so",
         "deployment_tools/inference_engine/external/hddl"
       ]
     },
