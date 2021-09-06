@@ -54,6 +54,8 @@ class NodeFactory(object):
         if attributes is None:
             attributes = {}
 
+        assert arguments is not None
+
         arguments = self._arguments_as_outputs(arguments)
         node = self.factory.create(op_type_name, arguments, attributes)
 
