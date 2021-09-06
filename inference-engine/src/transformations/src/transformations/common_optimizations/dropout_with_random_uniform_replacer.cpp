@@ -30,7 +30,7 @@ ngraph::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer
     const auto mul_pattern = ngraph::pattern::wrap_type<opset8::Multiply>({floor_pattern, mul_input_pattern});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto & pattern_map = m.get_pattern_value_map();
+        auto & pattern_map = m.get_pattern_value_map();
         const auto random_uniform = pattern_map[random_uniform_pattern];
         const auto shape_of = pattern_map[shape_of_pattern];
         const auto ru = std::dynamic_pointer_cast<opset8::RandomUniform>(random_uniform.get_node_shared_ptr());
