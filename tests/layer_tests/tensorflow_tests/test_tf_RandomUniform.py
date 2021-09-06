@@ -1,6 +1,14 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import numpy as np
 import pytest
 import tensorflow as tf
+from mo.front.common.partial_infer.utils import int64_array
+from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, connect, \
+    shaped_data, connect_front
 
+from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
 
 
@@ -24,8 +32,58 @@ class TestTFRandomUniform(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        # TODO: add reference IR net. Now it is omitted and tests only inference result that is more important
         ref_net = None
+        if check_ir_version(10, None, ir_version):
+
+            const_for_layer_tests = lambda name, value, shape, shape1: {
+                **{name + '_dd': {'kind': 'data', 'value': value, 'shape': shape1}},
+                **{name: {'kind': 'op', 'type': 'Const'}},
+                **shaped_data(name + '_d', shape)}
+
+            connect_const_for_layer_tests = lambda first_tensor_name, second_tensor_name: [
+                *connect_front(first_tensor_name + '_dd', first_tensor_name),
+                *connect(first_tensor_name, second_tensor_name)]
+
+            nodes_attributes = {
+                **regular_op_with_shaped_data('input', x_shape, {'type': 'Parameter'}),
+                **const_for_layer_tests('shape', x_shape, int64_array([len(x_shape)]), int64_array([len(x_shape)])),
+                **const_for_layer_tests('min_val_default', 0.0, int64_array([]), int64_array([1])),
+                **const_for_layer_tests('max_val_default', 1.0, int64_array([]), int64_array([1])),
+                **const_for_layer_tests('min_val', min_val, int64_array([]), int64_array([1])),
+                **const_for_layer_tests('max_val', max_val, int64_array([]), int64_array([1])),
+                **regular_op_with_shaped_data('random_uniform', x_shape, {'type': 'RandomUniform'}),
+                **regular_op_with_shaped_data('random_uniform_add', x_shape, {'type': 'Add'}),
+                **const_for_layer_tests('random_uniform_add_const', np.array([[min_val]]),
+                                        int64_array([1, 1]) if min_val == 0.0 else int64_array([1]), int64_array([1])),
+                **regular_op_with_shaped_data('random_uniform_mul', x_shape, {'type': 'Multiply'}),
+                **const_for_layer_tests('random_uniform_mul_const', [max_val - min_val],
+                                        int64_array([1, 1]) if max_val == 1.0 else int64_array([1]), int64_array([1])),
+                **regular_op_with_shaped_data('add', x_shape, {'type': 'Add'}),
+                **regular_op_with_shaped_data('result', x_shape, {'type': 'Result'}),
+
+            }
+            if input_type == tf.float32:
+                ref_net = build_graph(nodes_attributes,
+                                      [*connect_const_for_layer_tests('shape', '0:random_uniform'),
+                                       *connect_const_for_layer_tests('min_val_default', '1:random_uniform'),
+                                       *connect_const_for_layer_tests('max_val_default', '2:random_uniform'),
+                                       *connect('random_uniform', '0:random_uniform_mul'),
+                                       *connect_const_for_layer_tests('random_uniform_mul_const',
+                                                                      '1:random_uniform_mul'),
+                                       *connect('random_uniform_mul', '0:random_uniform_add'),
+                                       *connect_const_for_layer_tests('random_uniform_add_const',
+                                                                      '1:random_uniform_add'),
+                                       *connect('random_uniform_add', '0:add'),
+                                       *connect('input', '1:add'),
+                                       *connect('add', 'result')])
+            else:
+                ref_net = build_graph(nodes_attributes,
+                                      [*connect_const_for_layer_tests('shape', '0:random_uniform'),
+                                       *connect_const_for_layer_tests('min_val', '1:random_uniform'),
+                                       *connect_const_for_layer_tests('max_val', '2:random_uniform'),
+                                       *connect('random_uniform', '0:add'),
+                                       *connect('input', '1:add'),
+                                       *connect('add', 'result')])
 
         return tf_net, ref_net
 
@@ -39,7 +97,6 @@ class TestTFRandomUniform(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    @pytest.mark.xfail(reason="Needs RandomUniform reference implementation. Ticket: 56596.")
     def test_tf_random_uniform(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("RandomUniform is not supported on GPU")
