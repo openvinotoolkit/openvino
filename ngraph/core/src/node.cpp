@@ -508,11 +508,7 @@ const ov::PartialShape& ov::Node::get_output_partial_shape(size_t i) const {
 }
 
 const ngraph::Shape& ov::Node::get_shape() const {
-    if (get_output_size() != 1) {
-        stringstream es;
-        es << "get_shape() must be called on a node with exactly one output (" << description() << ")";
-        throw ngraph::ngraph_error(es);
-    }
+    NODE_VALIDATION_CHECK(this, get_output_size() == 1, "get_shape() must be called on a node with exactly one output");
     return get_output_shape(0);
 }
 
