@@ -5,9 +5,8 @@ import os
 import pytest
 import warnings
 
-import ngraph as ng
 from openvino.inference_engine import IECore, IENetwork, DataPtr, InputInfoPtr, PreProcessInfo
-from conftest import model_path, create_ngraph_function
+from conftest import model_path
 
 
 test_net_xml, test_net_bin = model_path()
@@ -140,6 +139,7 @@ def test_serialize(device):
     if device == "CPU":
         if ie.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
             pytest.skip("Can't run on ARM plugin due-to ngraph")
+    import ngraph as ng
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.serialize("./serialized_net.xml", "./serialized_net.bin")
     serialized_net = ie.read_network(model="./serialized_net.xml", weights="./serialized_net.bin")
@@ -166,7 +166,13 @@ def test_reshape():
     ([1, 3, 22, 22], [-1, -1, -1, -1]),
     ([1, 3, -1, 25], [1, 3, 22, -1])
 ])
-def test_reshape_with_partial_shape(shape, p_shape):
+def test_reshape_with_partial_shape(device, shape, p_shape):
+    ie = IECore()
+    if device == "CPU":
+        if ie.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin due-to ngraph")
+    from conftest import create_ngraph_function
+    import ngraph as ng
     function = create_ngraph_function(shape)
     net = ng.function_to_cnn(function)
     net.reshape({"data": p_shape})
@@ -182,7 +188,13 @@ def test_reshape_with_partial_shape(shape, p_shape):
     assert function.get_results()[0].get_output_partial_shape(0) == p_shape
 
 
-def test_incorrect_reshape():
+def test_incorrect_reshape(device):
+    ie = IECore()
+    if device == "CPU":
+        if ie.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin due-to ngraph")
+    from conftest import create_ngraph_function
+    import ngraph as ng
     function = create_ngraph_function([1, 3, 22, 22])
     net = ng.function_to_cnn(function)
     with pytest.raises(ValueError) as e:
@@ -282,6 +294,8 @@ def test_tensor_names():
 
 @pytest.mark.template_plugin
 def test_create_two_exec_net():
+    from conftest import create_ngraph_function
+    import ngraph as ng
     function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
     net = ng.function_to_cnn(function)
     ie_core = IECore()

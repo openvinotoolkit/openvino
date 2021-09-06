@@ -7,7 +7,7 @@ import numpy as np
 import os
 
 from openvino.inference_engine import TensorDesc, Blob, IECore
-from conftest import image_path, create_ngraph_function
+from conftest import image_path
 
 
 path_to_image = image_path()
@@ -121,6 +121,7 @@ def test_buffer_values_after_add_outputs(device):
     assert np.all(abs(result[output_layer])<30)
     assert result[output_layer].dtype == np.float16
 
+
 def test_set_shape():
     tensor_desc = TensorDesc("FP32", [1, 3, 127, 127], "NHWC")
     blob = Blob(tensor_desc)
@@ -137,6 +138,7 @@ def test_set_shape():
 
 @pytest.mark.template_plugin
 def test_blob_set_shape_after_async_infer():
+    from conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function([ng.Dimension(0,5), ng.Dimension(4), ng.Dimension(20), ng.Dimension(20)])
     net = ng.function_to_cnn(function)

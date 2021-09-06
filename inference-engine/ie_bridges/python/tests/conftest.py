@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from ngraph.opset1.ops import parameter
 import pytest
-import ngraph as ng
 import numpy as np
 
 
@@ -51,6 +49,7 @@ def pytest_configure(config):
 
 
 def create_ngraph_function(inputShape):
+    import ngraph as ng
     inputShape = ng.impl.PartialShape(inputShape)
     param = ng.parameter(inputShape, dtype=np.float32, name="data")
     result = ng.relu(param, name='out')
