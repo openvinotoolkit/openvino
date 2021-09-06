@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ngraph/op/util/binary_elementwise_comparison.hpp"
+#include "openvino/op/equal.hpp"
 
 namespace ngraph {
 namespace op {
@@ -43,6 +44,7 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     bool has_evaluate() const override;
 };
+using ov::op::v1::Equal;
 }  // namespace v1
 }  // namespace op
 }  // namespace ngraph
