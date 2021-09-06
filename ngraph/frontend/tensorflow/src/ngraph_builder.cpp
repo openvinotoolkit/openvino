@@ -25,6 +25,7 @@
 #include "ngraph/slice_plan.hpp"
 //#include <ngraph/pass/transpose_sinking.h>
 #include <ngraph/pass/constant_folding.hpp>
+#include <tensorflow_frontend/exceptions.hpp>
 #include <tensorflow_frontend/place.hpp>
 
 #include "default_opset.h"
@@ -2709,8 +2710,37 @@ static std::map<const string, const function<ngraph::OutputVector(const NodeCont
     //{"ZerosLike", TranslateZerosLikeOp},
 };
 
+static void extract_operation_name_and_port(const std::string& port_name, std::string& operation_name,
+    int& port_index, std::string& port_type) {
+    constexpr char delimeter[] = ":";
+    auto pos = port_name.find(delimeter);
+    if (pos == std::string::npos) {
+        operation_name = port_name;
+        port_type = "none";
+        port_index = 0;
+        return;
+    }
+
+    FRONT_END_GENERAL_CHECK((0 < pos) && (pos + 1 < port_name.length()), "Incorrect port name specified: " + port_name);
+
+    auto left_part = port_name.substr(0, pos);
+    auto right_part = port_name.substr(pos + 1, port_name.length() - pos);
+
+    if (left_part.find_first_not_of("0123456789") == std::string::npos) {
+        port_type = "in";
+        operation_name = right_part;
+        port_index = std::atoi(left_part.c_str());
+    } else if (right_part.find_first_not_of("0123456789") == std::string::npos) {
+        port_type = "out";
+        operation_name = left_part;
+        port_index = std::atoi(right_part.c_str());
+    } else {
+        FRONT_END_GENERAL_CHECK(false, "Incorrect port name specified: " + port_name);
+    }
+}
+
 void Builder::TranslateGraph(
-    std::shared_ptr<ngraph::frontend::InputModelTensorflow> tf_model,
+    std::shared_ptr<ngraph::frontend::InputModelTF> tf_model,
     const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>& static_input_map,
     const std::string name,
     std::shared_ptr<ngraph::Function>& ng_function) {
@@ -2724,15 +2754,33 @@ void Builder::TranslateGraph(
     ngraph::ResultVector results;
 
     const auto& ops = tf_model->get_op_places();
-    const auto& inputs = tf_model->partialShapes;
-    const auto& indexed_shapes = tf_model->input_shapes;
+    const auto& inputs = tf_model->get_inputs();
+    const auto& model_outputs = tf_model->get_outputs();
 
-    //
-    // Now create the nGraph ops from TensorFlow ops.
-    //
+    // create parameter nodes for all tensor places corresponding to inputs
+    for (const auto& input_place : inputs) {
+        //const auto& input_name = input_place->get_names()[0];
+        auto input_name = input_place->get_names()[0];
+        const auto& input_tensor_place = std::dynamic_pointer_cast<TensorPlaceTF>(input_place);
+        auto input_shape = input_tensor_place->get_partial_shape();
+        auto input_type = input_tensor_place->get_element_type();
+
+        auto input_output = ConstructNgNode<opset::Parameter>(input_name, input_type, input_shape);
+        auto input_node = std::dynamic_pointer_cast<opset::Parameter>(input_output.get_node_shared_ptr());
+        params.push_back(input_node);
+        ng_op_map[input_name] = {input_output};
+    }
+
+    // create the nGraph ops from TensorFlow ops
     for (auto& op_place : ops) {
         auto op = op_place->get_desc();
         auto op_name = op_place->get_names()[0];
+
+        // parameter nodes have been already created so skip them
+        if (ng_op_map.count(op_name)) {
+            continue;
+        }
+
 #if 0
     // TODO: Investigate why do we need it
       if (n->IsSink() || n->IsSource()) {
@@ -2772,7 +2820,27 @@ void Builder::TranslateGraph(
                 size_t port_idx;
                 try {
                     op->input_node(i, &input_name, &port_idx);
-                    ng_inputs.push_back(ng_op_map.at(input_name).at(port_idx));
+
+                    // TODO: add more comments here about order check (from closer Places to input port and far to producer output port)
+                    if (ng_op_map.count(std::to_string(i) + ":" + op_name)) {
+                        const auto& input_outputs_vector = ng_op_map.at(std::to_string(i) + ":" + op_name);
+                        FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
+                                                "Input created with pruning must have one output");
+                        ng_inputs.push_back(input_outputs_vector.at(0));
+                    } else if (ng_op_map.count(input_name + ":" + std::to_string(port_idx))) {
+                        const auto& input_outputs_vector = ng_op_map.at(input_name + ":" + std::to_string(port_idx));
+                        FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
+                                                "Input created with pruning must have one output");
+                        ng_inputs.push_back(input_outputs_vector.at(0));
+                    } else if (ng_op_map.count(input_name)) {
+                        const auto& input_outputs_vector = ng_op_map.at(input_name);
+                        FRONT_END_GENERAL_CHECK(input_outputs_vector.size() > port_idx,
+                                                "Input created with pruning must have one output");
+                        ng_inputs.push_back(input_outputs_vector.at(port_idx));
+                    } else {
+                        FRONT_END_GENERAL_CHECK(false,
+                                                "No input is found for node \"" + op_name + "\" by port" + std::to_string(port_idx));
+                    }
                 } catch (const std::exception& e) {
                     std::cerr << "[ ERROR ] Exception happened when preparing input " << i << " for op '" << op->name()
                               << "', expected input name: '" << input_name
@@ -2780,7 +2848,8 @@ void Builder::TranslateGraph(
                     throw;
                 }
             }
-            NodeContext node_context(ng_inputs, op, inputs, indexed_shapes);
+            // NodeContext node_context(ng_inputs, op, inputs, indexed_shapes);
+            NodeContext node_context(ng_inputs, op, inputs);
 
             // Next line does the conversion for a node by means of calling specific conversion rule
             auto outputs = (*op_fun)(node_context);
@@ -2810,7 +2879,30 @@ void Builder::TranslateGraph(
         }
     }
 
-    if (results.empty()) {  // TODO: Provide a control to trigger this at FE level, currently this is heuristics
+    for (const auto& model_output : model_outputs) {
+        auto model_output_tensor_place = std::dynamic_pointer_cast<TensorPlaceTF>(model_output);
+        auto model_output_name = model_output_tensor_place->get_names()[0];
+        std::string operation_name;
+        std::string port_type;
+        int port_index;
+        extract_operation_name_and_port(model_output_name, operation_name, port_index, port_type);
+
+        if (port_type == "none") {
+            for (const auto& node_output : ng_op_map[operation_name]) {
+                results.push_back(std::make_shared<default_opset::Result>(node_output));
+            }
+        } else if (port_type == "out") {
+            const auto& node_outputs = ng_op_map[operation_name];
+            FRONT_END_GENERAL_CHECK(node_outputs.size() > port_index,
+                                    "Output port with index " + std::to_string(port_index) + " of " + operation_name +
+                                        "node specified as custom output does not exist");
+            results.push_back(std::make_shared<default_opset::Result>(node_outputs[port_index]));
+        } else if (port_type == "in") {
+            // TODO: implement
+        }
+    }
+
+    if (results.empty()) {
         // Find all terminal nodes in ngraph graph to complete list of results
         for (const auto& p : ng_op_map) {
             for (auto output : p.second) {

@@ -156,9 +156,16 @@ private:
 
 class TensorPlaceTF : public PlaceTF {
 public:
+    /*
     TensorPlaceTF(const InputModel& input_model,
                   const std::vector<std::string>& names,
                   const ::tensorflow::TensorProto& tensor);
+    */
+
+    TensorPlaceTF(const InputModel& input_model,
+        ngraph::PartialShape pshape,
+        ngraph::element::Type type,
+        const std::vector<std::string>& names);
 
     void add_producing_port(const std::shared_ptr<OutPortPlaceTF>& out_port);
     void add_consuming_port(const std::shared_ptr<InPortPlaceTF>& in_port);
@@ -176,7 +183,6 @@ public:
     void set_element_type(const element::Type& type) {
         m_type = type;
     }
-    const ::tensorflow::TensorProto& get_desc() const;
 
     // External usage
     Ptr get_producing_operation() const override;
@@ -186,7 +192,7 @@ public:
     bool is_equal_data(Ptr another) const override;
 
 private:
-    const ::tensorflow::TensorProto& m_tensor;
+    //const ::tensorflow::TensorProto& m_tensor;
     PartialShape m_pshape;
     element::Type m_type;
 

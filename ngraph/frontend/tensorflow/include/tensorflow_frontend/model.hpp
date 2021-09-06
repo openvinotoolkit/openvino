@@ -21,15 +21,9 @@ namespace ngraph {
 namespace frontend {
 
 class OpPlaceTF;
+class TensorPlaceTF;
 
-namespace tensorflow {
-namespace detail {
-
-class TFNodeDecoder;
-
-}  // namespace detail
-}  // namespace tensorflow
-
+/*
 class TF_API InputModelTensorflow : public InputModel {
 public:
     // TODO: move these members to private section
@@ -85,7 +79,44 @@ private:
     // traverse graph from outputs to inputs to get nodes remaining in graph
     std::vector<std::shared_ptr<OpPlaceTF>> determine_cut_nodes() const;
 };
+*/
+
+class TF_API InputModelTF : public InputModel {
+    friend class FrontEndTF;
+    class InputModelTFImpl;
+    std::shared_ptr<InputModelTFImpl> _impl;
+
+    std::map<std::string, Output<Node>> get_tensor_values() const;
+
+public:
+    // TODO: move to private once Translation will be a part of FrontEndTF component
+    std::map<std::string, std::shared_ptr<TensorPlaceTF>> get_var_places() const;
+    std::vector<std::shared_ptr<OpPlaceTF>> get_op_places() const;
+
+    explicit InputModelTF(const std::string& path);
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    explicit InputModelTF(const std::wstring& path);
+#endif
+    explicit InputModelTF(const std::vector<std::istream*>& streams);
+
+    /*
+    InputModelTF(std::shared_ptr<::tensorflow::GraphDef> _graph_def,
+                         std::vector<ngraph::PartialShape> _input_shapes = {});
+    InputModelTF(const std::vector<std::shared_ptr<::tensorflow::NodeDef>>& _nodes_def,
+                         std::vector<ngraph::PartialShape> _input_shapes = {});
+    */
+
+    std::vector<Place::Ptr> get_inputs() const override;
+    std::vector<Place::Ptr> get_outputs() const override;
+    Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
+    void override_all_outputs(const std::vector<Place::Ptr>& outputs) override;
+    void override_all_inputs(const std::vector<Place::Ptr>& inputs) override;
+    void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
+    void set_partial_shape(Place::Ptr place, const ngraph::PartialShape&) override;
+    ngraph::PartialShape get_partial_shape(Place::Ptr place) const override;
+    void set_element_type(Place::Ptr place, const ngraph::element::Type&) override;
+    void set_tensor_value(Place::Ptr place, const void* value) override;
+};
 
 }  // namespace frontend
-
 }  // namespace ngraph

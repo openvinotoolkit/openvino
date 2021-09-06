@@ -17,7 +17,7 @@ using ::tensorflow::GraphDef;
 
 std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert(InputModel::Ptr model) const {
     try {
-        auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTensorflow>(model);
+        auto model_tf = std::dynamic_pointer_cast<ngraph::frontend::InputModelTF>(model);
         std::cout << "[ INFO ] FrontEndTensorflow::convert invoked\n";
 
         std::shared_ptr<ngraph::Function> f;

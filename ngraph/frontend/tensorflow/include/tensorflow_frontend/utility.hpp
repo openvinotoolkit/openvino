@@ -4,11 +4,19 @@
 
 #pragma once
 
+#include <frontend_manager/frontend_exceptions.hpp>
+
 #ifdef tensorflow_ngraph_frontend_EXPORTS
 #    define TF_API NGRAPH_HELPER_DLL_EXPORT
 #else
 #    define TF_API NGRAPH_HELPER_DLL_IMPORT
 #endif  // paddlepaddle_ngraph_frontend_EXPORTS
+
+#define TF_ASSERT(ex, msg)               \
+    {                                      \
+        if (!(ex))                         \
+            throw std::runtime_error(msg); \
+    }
 
 namespace tensorflow {
 namespace ngraph_bridge {
