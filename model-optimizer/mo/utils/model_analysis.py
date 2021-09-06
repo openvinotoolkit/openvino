@@ -114,11 +114,9 @@ class AnalysisCollectorAnchor(AnalyzeAction):
 
 def graph_contains_scope(graph: Graph, scope: str):
     """
-    Checks whether the graph contains node(s) which name starts with "scope" string.
+    Checks whether the graph contains node(s) which name includes "scope" string.
     :param graph: graph to check
     :param scope: string defining the scope
     :return: the result of the check (True/False)
     """
-    if scope[-1] != '/':
-        scope += '/'
     return any([node.soft_get('name').find(scope) != -1 for node in graph.get_op_nodes()])
