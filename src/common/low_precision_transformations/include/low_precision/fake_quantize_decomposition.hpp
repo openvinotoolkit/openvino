@@ -13,6 +13,11 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief FakeQuantizeDecompositionTransformation decomposes FakeQuantize operations to quantize
+ * (FakeQuantize with changes output intervals and low precision output type) and dequantize operations.
+ */
 class LP_TRANSFORMATIONS_API FakeQuantizeDecompositionTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

@@ -12,6 +12,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief StridedSliceTransformation propagates dequantization operations through StridedSlice operation.
+ */
 class LP_TRANSFORMATIONS_API StridedSliceTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

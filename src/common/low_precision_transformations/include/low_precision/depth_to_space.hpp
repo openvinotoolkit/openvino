@@ -10,6 +10,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief DepthToSpaceTransformation propagates dequantization operations through DepthToSpace operation.
+ */
 class LP_TRANSFORMATIONS_API DepthToSpaceTransformation : public TransparentBaseTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

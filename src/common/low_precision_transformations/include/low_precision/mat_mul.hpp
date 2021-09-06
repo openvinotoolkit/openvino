@@ -11,6 +11,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MatMulTransformation propagates dequantization operations through MatMul operation.
+ */
 class LP_TRANSFORMATIONS_API MatMulTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

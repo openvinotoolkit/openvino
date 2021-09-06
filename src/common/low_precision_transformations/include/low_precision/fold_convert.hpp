@@ -12,6 +12,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief FoldConvertTransformation evaluates Convert operation on Subtract constant subgraph.
+ */
 class LP_TRANSFORMATIONS_API FoldConvertTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

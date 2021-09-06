@@ -27,6 +27,11 @@ class PropagateThroughPrecisionPreserved;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PropagateThroughPrecisionPreserved transformation propagates AttributeType attribute instances
+ * through precision preserved operations.
+ */
 template <typename AttributeType>
 class ngraph::pass::low_precision::PropagateThroughPrecisionPreserved : public ngraph::pass::MatcherPass {
 public:

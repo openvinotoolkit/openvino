@@ -12,6 +12,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ReluTransformation propagates dequantization operations through Relu operation.
+ */
 class LP_TRANSFORMATIONS_API ReluTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

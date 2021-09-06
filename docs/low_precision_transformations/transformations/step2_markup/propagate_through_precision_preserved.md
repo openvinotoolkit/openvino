@@ -1,0 +1,1 @@
+# OpenVINO™ Low Precision Transformations: PropagateThroughPrecisionPreserved {#openvino_docs_IE_DG_lpt_PropagateThroughPrecisionPreserved}

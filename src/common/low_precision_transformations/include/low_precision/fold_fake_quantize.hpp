@@ -11,6 +11,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief FoldFakeQuantizeTransformation evaluate FakeQuantize operations.
+ */
 class LP_TRANSFORMATIONS_API FoldFakeQuantizeTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

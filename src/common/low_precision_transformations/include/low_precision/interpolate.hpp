@@ -10,6 +10,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief InterpolateTransformation propagates dequantization operations through Interpolate operation.
+ */
 class LP_TRANSFORMATIONS_API InterpolateTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

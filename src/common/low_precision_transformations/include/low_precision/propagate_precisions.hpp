@@ -22,6 +22,10 @@ class LP_TRANSFORMATIONS_API PropagatePrecisions;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PropagatePrecisions transformation propagates PrecisionsAttribute attribute instances precision preserved operations.
+ */
 class ngraph::pass::low_precision::PropagatePrecisions : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;

@@ -12,6 +12,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PadTransformation propagates dequantization operations through Pad operation.
+ */
 class LP_TRANSFORMATIONS_API PadTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

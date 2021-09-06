@@ -12,6 +12,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ClampTransformation propagates dequantization operations through Clamp operation.
+ */
 class LP_TRANSFORMATIONS_API ClampTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

@@ -190,3 +190,32 @@ lptManager.run_passes(nGraphFunc);
 
 return 0;
 }
+
+int lpt_markup_pipeline() {
+std::shared_ptr<ov::Function> nGraphFunc;
+ngraph::pass::Manager manager;
+
+using namespace ngraph::pass::low_precision;
+//! [lpt_markup_pipeline]
+auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
+    OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+        {0, {ngraph::element::u8}},
+        {1, {ngraph::element::i8}},
+    }),
+});
+
+auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
+    OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0})
+});
+
+ngraph::pass::Manager lptManager;
+lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
+lptManager.run_passes(nGraphFunc);
+//! [lpt_markup_pipeline]
+
+ngraph::pass::Manager deviceSpecificManager;
+deviceSpecificManager.register_pass<ngraph::pass::device::ConvertOpSet1ToDeviceSpecific>();
+deviceSpecificManager.run_passes(nGraphFunc);
+
+return 0;
+}

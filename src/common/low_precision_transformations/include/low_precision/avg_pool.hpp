@@ -11,6 +11,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief AvgPoolTransformation propagates dequantization operations through AvgPool operation.
+ */
 class LP_TRANSFORMATIONS_API AvgPoolTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

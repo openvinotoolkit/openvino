@@ -19,6 +19,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ConcatTransformation propagates dequantization operations through Concat operation.
+ */
 class LP_TRANSFORMATIONS_API ConcatTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

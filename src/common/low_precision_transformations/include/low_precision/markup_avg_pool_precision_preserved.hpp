@@ -18,6 +18,10 @@ class LP_TRANSFORMATIONS_API MarkupAvgPoolPrecisionPreserved;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MarkupAvgPoolPrecisionPreserved transformation marks AvgPool operations as precision preserved or not.
+ */
 class ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;

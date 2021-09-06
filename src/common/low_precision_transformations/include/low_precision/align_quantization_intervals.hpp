@@ -18,6 +18,12 @@ class LP_TRANSFORMATIONS_API AlignQuantizationIntervals;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief AlignQuantizationIntervals transformation marks precision preserved operations subgraph by `IntervalsAlignmentAttribute`
+ * after FakeQuantize
+ * operations.
+ */
 class ngraph::pass::low_precision::AlignQuantizationIntervals : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;

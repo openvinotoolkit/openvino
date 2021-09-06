@@ -1,0 +1,1 @@
+# OpenVINO™ Low Precision Transformations: CreatePrecisionsDependentAttribute {#openvino_docs_IE_DG_lpt_CreatePrecisionsDependentAttribute}

@@ -11,6 +11,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief UnsqueezeTransformation propagates dequantization operations through Unsqueeze operation.
+ */
 class LP_TRANSFORMATIONS_API UnsqueezeTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

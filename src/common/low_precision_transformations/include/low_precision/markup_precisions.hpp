@@ -23,6 +23,13 @@ class LP_TRANSFORMATIONS_API MarkupPrecisions;
 }  // namespace ngraph
 
 // Transformation is used to add customization options runtime
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MarkupPrecisions transformation marks:
+ *    1) not supported operations by PrecisionsAttribute attribute with empty precisions,
+ *    2) operations with required precisions by PrecisionsAttribute attribute in accordance with provided restrictions,
+ *    3) precision preserved operations by PrecisionPreservedAttribute attribute.
+ */
 class ngraph::pass::low_precision::MarkupPrecisions : public ngraph::pass::FunctionPass {
 public:
     class Restriction {

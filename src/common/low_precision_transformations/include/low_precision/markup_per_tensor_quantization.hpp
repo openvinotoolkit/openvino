@@ -22,6 +22,11 @@ class LP_TRANSFORMATIONS_API MarkupPerTensorQuantization;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MarkupPerTensorQuantization transformation marks operations as required pre-tensor quantization in accordance with
+ * provided restrictions.
+ */
 class ngraph::pass::low_precision::MarkupPerTensorQuantization : public ngraph::pass::FunctionPass {
 public:
     class PerTensorQuantization {

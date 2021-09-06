@@ -11,6 +11,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief GroupConvolutionTransformation propagates dequantization operations through GroupConvolution operation.
+ */
 class LP_TRANSFORMATIONS_API GroupConvolutionTransformation : public ConvolutionTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

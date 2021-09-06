@@ -14,6 +14,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ReduceSumTransformation propagates dequantization operations through ReduceSum operation.
+ */
 class LP_TRANSFORMATIONS_API ReduceSumTransformation : public ReduceBaseTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

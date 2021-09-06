@@ -10,6 +10,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MVNTransformation propagates dequantization operations through MVN operation.
+ */
 class LP_TRANSFORMATIONS_API MVNTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

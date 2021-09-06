@@ -12,6 +12,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief FuseConvertTransformation fuses Convert operation with Multiply, Subtract or Add operations.
+ */
 class LP_TRANSFORMATIONS_API FuseConvertTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

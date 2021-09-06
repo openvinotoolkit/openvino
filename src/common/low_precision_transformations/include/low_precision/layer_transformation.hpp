@@ -192,7 +192,10 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
     return os;
 }
 
-// Base class for all LP transformations, holds some common data structures
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Base class for low precision transformation.
+ */
 class LP_TRANSFORMATIONS_API LayerTransformation : public ngraph::pass::MatcherPass {
     static std::vector<ngraph::element::Type> defaultPrecisions;
     static std::mutex defaultPrecisionsMutex;

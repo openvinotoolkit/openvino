@@ -31,6 +31,10 @@ enum class AttributeSource {
     OutputPort
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief CreateAttribute transformation marks OperationType operations by AttributeType attribute.
+ */
 template <typename AttributeType, typename OperationType = ngraph::pattern::op::Label>
 class ngraph::pass::low_precision::CreateAttribute : public ngraph::pass::low_precision::BaseMatcherPass {
 public:

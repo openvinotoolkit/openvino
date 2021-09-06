@@ -11,6 +11,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ShuffleChannelsTransformation propagates dequantization operations through ShuffleChannels operation.
+ */
 class LP_TRANSFORMATIONS_API ShuffleChannelsTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

@@ -19,6 +19,11 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief AlignQuantizationParameters transformation marks precision preserved operations subgraph by `QuantizationAlignmentAttribute`
+ * attribute after FakeQuantize operations.
+ */
 class ngraph::pass::low_precision::AlignQuantizationParameters : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;

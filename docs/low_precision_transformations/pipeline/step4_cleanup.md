@@ -1,0 +1,8 @@
+# OpenVINO™ LPT: step #4. Cleanup transformations {#openvino_docs_IE_DG_lpt_step4_cleanup}
+
+* [FoldConvertTransformation](@ref openvino_docs_IE_DG_lpt_FoldConvertTransformation)
+* [FoldFakeQuantizeTransformation](@ref openvino_docs_IE_DG_lpt_FoldFakeQuantizeTransformation)
+* [FuseConvertTransformation](@ref openvino_docs_IE_DG_lpt_FuseConvertTransformation)
+* [FuseMultiplyToFakeQuantizeTransformation](@ref openvino_docs_IE_DG_lpt_FuseMultiplyToFakeQuantizeTransformation)
+* [FuseSubtractToFakeQuantizeTransformation](@ref openvino_docs_IE_DG_lpt_FuseSubtractToFakeQuantizeTransformation)
+* [MultiplyToGroupConvolutionTransformation](@ref openvino_docs_IE_DG_lpt_MultiplyToGroupConvolutionTransformation)

@@ -11,6 +11,11 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief AddTransformation propagates dequantization subtraction from one input branch to another and
+ * propagates dequantization multiplication from the same branch through Add operation.
+ */
 class LP_TRANSFORMATIONS_API AddTransformation : public EltwiseBaseTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

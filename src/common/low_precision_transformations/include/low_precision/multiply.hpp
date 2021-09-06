@@ -11,6 +11,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MultiplyTransformation propagates dequantization operations through Multiply operation.
+ */
 class LP_TRANSFORMATIONS_API MultiplyTransformation : public EltwiseBaseTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

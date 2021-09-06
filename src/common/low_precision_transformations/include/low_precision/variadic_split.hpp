@@ -13,6 +13,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief VariadicSplitTransformation propagates dequantization operations through VariadicSplit operation.
+ */
 class LP_TRANSFORMATIONS_API VariadicSplitTransformation : public SplitTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

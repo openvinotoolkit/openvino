@@ -11,6 +11,10 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief ReshapeTransformation propagates dequantization operations through Reshape operation.
+ */
 class LP_TRANSFORMATIONS_API ReshapeTransformation : public LayerTransformation {
 public:
     NGRAPH_RTTI_DECLARATION;

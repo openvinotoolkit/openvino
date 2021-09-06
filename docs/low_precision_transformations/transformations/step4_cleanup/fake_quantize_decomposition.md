@@ -1,0 +1,1 @@
+# OpenVINO™ Low Precision Transformations: FakeQuantizeDecompositionTransformation {#openvino_docs_IE_DG_lpt_FakeQuantizeDecompositionTransformation}
