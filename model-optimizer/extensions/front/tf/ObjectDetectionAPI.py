@@ -55,7 +55,6 @@ from mo.front.tf.graph_utils import add_activation_function_after_node, add_conv
     add_fake_background_loc, create_op_node_with_second_input, create_op_with_const_inputs
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph, Node
-from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.clamp import AttributedClamp
 from mo.ops.concat import Concat
 from mo.ops.const import Const
@@ -1001,7 +1000,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
 
         # reshape offsets tensor to 2D so it could be multiplied with variances
         reshape_offsets_2d = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 4]),
-                                                               dict(name='reshape_locs_2d'), offsets)
+                                                              dict(name='reshape_locs_2d'), offsets)
         mark_as_correct_data_layout(reshape_offsets_2d)
 
         # multiply bounding boxes shape offsets with variances
@@ -1066,19 +1065,19 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
             if key in match.custom_replacement_desc.custom_attributes:
                 detection_output_op.attrs[key] = int(match.custom_replacement_desc.custom_attributes[key])
 
-        detection_output = detection_output_op.create_node([flattened_offsets, reshape_conf_node, reshape_priors],
-            dict(name=detection_output_op.attrs['type'],
-                 share_location=int(share_box_across_classes),
-                 variance_encoded_in_target=1,
-                 background_label_id=int(custom_attributes.get('background_label_id', 0)),
-                 code_type='caffe.PriorBoxParameter.CENTER_SIZE',
-                 pad_mode='caffe.ResizeParameter.CONSTANT',
-                 resize_mode='caffe.ResizeParameter.WARP',
-                 num_classes=num_classes + 1,
-                 confidence_threshold=_value_or_raise(match, pipeline_config, 'postprocessing_score_threshold'),
-                 top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_detections_per_class'),
-                 keep_top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_total_detections'),
-                 nms_threshold=_value_or_raise(match, pipeline_config, 'postprocessing_iou_threshold')))
+        detection_output = detection_output_op.create_node([flattened_offsets, reshape_conf_node, reshape_priors], dict(
+            name=detection_output_op.attrs['type'],
+            share_location=int(share_box_across_classes),
+            variance_encoded_in_target=1,
+            background_label_id=int(custom_attributes.get('background_label_id', 0)),
+            code_type='caffe.PriorBoxParameter.CENTER_SIZE',
+            pad_mode='caffe.ResizeParameter.CONSTANT',
+            resize_mode='caffe.ResizeParameter.WARP',
+            num_classes=num_classes + 1,
+            confidence_threshold=_value_or_raise(match, pipeline_config, 'postprocessing_score_threshold'),
+            top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_detections_per_class'),
+            keep_top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_total_detections'),
+            nms_threshold=_value_or_raise(match, pipeline_config, 'postprocessing_iou_threshold')))
         # sets specific name to the node so we can find it in other transformations
         detection_output.name = 'detection_output'
 
@@ -1313,8 +1312,8 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
                       'results will be inaccurate.'.format(variance_x, variance_y))
         if anchor_generator_height_stride != anchor_generator_width_stride:
             log.error('The values for the anchor generator height stride "{}" is not equal to the anchor generator '
-                      'width stride "{}". The detection results will be inaccurate.'.format(
-                anchor_generator_height_stride, anchor_generator_width_stride))
+                      'width stride "{}". The detection results will be inaccurate.'
+                      ''.format(anchor_generator_height_stride, anchor_generator_width_stride))
         if anchor_generator_height != anchor_generator_width:
             log.error('The values for the anchor generator height "{}" is not equal to the anchor generator width '
                       'stride "{}". The detection results will be inaccurate.'.format(anchor_generator_height,
@@ -1635,7 +1634,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
             # create PriorBoxClustered nodes instead of a constant value with prior boxes so the model could be reshaped
             if pipeline_config.get_param('ssd_anchor_generator_num_layers') is not None:
                 priors_node = _create_prior_boxes_node(graph, pipeline_config)
-            elif pipeline_config.get_param('multiscale_anchor_generator_min_level') is not None:
+            else:
                 priors_node = _create_multiscale_prior_boxes_node(graph, pipeline_config)
         else:
             log.info('The anchor generator is not known. Save constant with prior-boxes to IR.')
