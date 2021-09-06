@@ -14,10 +14,10 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::LRN, "LRN", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::LRN, "LRN", 0);
 
 op::LRN::LRN(const Output<Node>& arg, double alpha, double beta, double bias, size_t size)
-    : LRN(arg, op::Constant::create(element::i64, Shape{1}, {1}), alpha, beta, bias, size) {
+    : LRN(arg, op::v0::Constant::create(element::i64, Shape{1}, {1}), alpha, beta, bias, size) {
     add_provenance_group_member(input_value(1).get_node_shared_ptr());
 }
 
@@ -102,5 +102,5 @@ bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor) {
 shared_ptr<Node> op::LRN::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_LRN_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::LRN>(new_args.at(0), new_args.at(1), m_alpha, m_beta, m_bias, m_size);
+    return make_shared<op::v0::LRN>(new_args.at(0), new_args.at(1), m_alpha, m_beta, m_bias, m_size);
 }
