@@ -816,7 +816,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         pad_to_max_dimension = pipeline_config.get_param('pad_to_max_dimension')
 
         # update the model Parameter node shape based on MO command line parameters and values in the pipeline.config
-        _, parameter_node = update_parameter_shape(graph, None)
+        _, __ = update_parameter_shape(graph, None)
 
         # NOTE: this transformation can be implemented as a "scope" or "points" transformation since we need to match
         # some sub-graph between specific nodes

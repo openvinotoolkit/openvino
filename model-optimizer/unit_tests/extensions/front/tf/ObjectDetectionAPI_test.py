@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
+from argparse import Namespace
 
 from generator import generator, generate
 from unittest.mock import patch
@@ -15,6 +16,46 @@ from mo.utils.custom_replacement_config import CustomReplacementDescriptor
 from mo.utils.error import Error
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import const, regular_op, result, build_graph, connect_front
+
+
+pipeline_config_content = """
+model {
+  faster_rcnn {
+    num_classes: 90
+    image_resizer {
+      keep_aspect_ratio_resizer {
+        min_dimension: 800
+        max_dimension: 1333
+        pad_to_max_dimension: true
+      }
+    }
+    feature_extractor {
+      type: 'faster_rcnn_inception_resnet_v2_keras'
+    }
+    first_stage_anchor_generator {
+      grid_anchor_generator {
+        scales: [0.125, 1.5]
+        aspect_ratios: [1.0, 2.0]
+        height_stride: 8
+        width_stride: 8
+      }
+    }
+    first_stage_nms_score_threshold: 0.7
+    first_stage_nms_iou_threshold: 0.6
+    first_stage_max_proposals: 100
+    initial_crop_size: 10
+    second_stage_post_processing {
+      batch_non_max_suppression {
+        score_threshold: 0.2
+        iou_threshold: 0.7
+        max_detections_per_class: 200
+        max_total_detections: 300
+      }
+      score_converter: SOFTMAX
+    }
+  }
+}
+"""
 
 
 class FakePipelineConfig:
@@ -145,7 +186,8 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
 
     def test_case_1(self, update_parameter_shape_mock):
         # test for case #1 described in the ObjectDetectionAPIPreprocessor2Replacement
-        update_parameter_shape_mock.return_value = None
+        # sub/mul should be removed because they are applied before prep-processing and pad_to_max_dimension is True
+        update_parameter_shape_mock.return_value = (None, None)
         edges = [*connect_front('input', '0:mul'),
                  *connect_front('mul_const', '1:mul'),
                  *connect_front('sub_const', '0:sub'),
@@ -157,15 +199,42 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
                  ]
         graph = build_graph(self.nodes, edges)
         graph.stage = 'front'
+        graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=pipeline_config_content)):
+            ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
+
+        (flag, resp) = compare_graphs(graph, self.build_ref_graph(False), 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_case_1_2(self, update_parameter_shape_mock):
+        # test for case #1 described in the ObjectDetectionAPIPreprocessor2Replacement
+        # sub/mul should be kept even though they are applied before prep-processing and pad_to_max_dimension is False
+        update_parameter_shape_mock.return_value = (None, None)
+        edges = [*connect_front('input', '0:mul'),
+                 *connect_front('mul_const', '1:mul'),
+                 *connect_front('sub_const', '0:sub'),
+                 *connect_front('mul', '1:sub'),
+                 *connect_front('sub', self.start_node_name),
+                 *connect_front(self.start_node_name, 'resize'),
+                 *connect_front('resize', self.end_node_name),
+                 *connect_front(self.end_node_name, 'result'),
+                 ]
+        graph = build_graph(self.nodes, edges)
+        graph.stage = 'front'
+        graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
+
+        updated_pipeline_config_content = pipeline_config_content.replace('pad_to_max_dimension: true',
+                                                                          'pad_to_max_dimension: false')
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=updated_pipeline_config_content)):
+            ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(True), 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
     def test_case_2(self, update_parameter_shape_mock):
         # test for case #2 described in the ObjectDetectionAPIPreprocessor2Replacement
-        update_parameter_shape_mock.return_value = None
+        update_parameter_shape_mock.return_value = (None, None)
 
         edges = [*connect_front('input', self.start_node_name),
                  *connect_front(self.start_node_name, 'resize'),
@@ -178,15 +247,17 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
                  ]
         graph = build_graph(self.nodes, edges)
         graph.stage = 'front'
+        graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=pipeline_config_content)):
+            ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(True), 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
     def test_case_3(self, update_parameter_shape_mock):
         # test for case #3 described in the ObjectDetectionAPIPreprocessor2Replacement
-        update_parameter_shape_mock.return_value = None
+        update_parameter_shape_mock.return_value = (None, None)
 
         edges = [*connect_front('input', self.start_node_name),
                  *connect_front(self.start_node_name, 'resize'),
@@ -195,8 +266,10 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
                  ]
         graph = build_graph(self.nodes, edges)
         graph.stage = 'front'
+        graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=pipeline_config_content)):
+            ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(False), 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -217,7 +290,6 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
                 **regular_op('resize', {'type': 'Interpolate'}),
                 **result('result'),
             }
-            edges = None
             if pre_processing == 'no':
                 edges = [*connect_front('input', self.loop_start_node_name),
                          *connect_front(self.loop_start_node_name, 'resize'),
@@ -261,33 +333,39 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
 
     def test_case_4(self, update_parameter_shape_mock):
         # test for case #4 described in the ObjectDetectionAPIPreprocessor2Replacement
-        update_parameter_shape_mock.return_value = None
+        update_parameter_shape_mock.return_value = (None, None)
 
         graph = self.build_main_graph('leading')
+        graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=pipeline_config_content)):
+            ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(True), 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
     def test_case_5(self, update_parameter_shape_mock):
         # test for case #5 described in the ObjectDetectionAPIPreprocessor2Replacement
-        update_parameter_shape_mock.return_value = None
+        update_parameter_shape_mock.return_value = (None, None)
 
         graph = self.build_main_graph('trailing')
+        graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=pipeline_config_content)):
+            ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(True), 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
     def test_case_6(self, update_parameter_shape_mock):
         # test for case #6 described in the ObjectDetectionAPIPreprocessor2Replacement
-        update_parameter_shape_mock.return_value = None
+        update_parameter_shape_mock.return_value = (None, None)
 
         graph = self.build_main_graph('no')
+        graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=pipeline_config_content)):
+            ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(False), 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
