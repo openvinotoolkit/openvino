@@ -2,21 +2,21 @@
 
 To optimize your performance results during runtime step it is possible to play with: 
 
-preprocess 
+* preprocess 
 
-throughput mode  
+* throughput mode  
 
-async API 
+* async API 
 
-lowering inference precision 
+* lowering inference precision 
 
-device optimization 
+* device optimization 
 
-combination of devices 
+* combination of devices 
 
-threading 
+* threading 
 
-Basic Interoperability with Other APIs 
+* Basic Interoperability with Other APIs 
 
 **Preprocess**
 

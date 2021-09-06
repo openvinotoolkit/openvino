@@ -9,7 +9,7 @@ Avoid including one-time costs like model loading.
 
 Track separately the operations that happen outside the Inference Engine, like video decoding. 
 
->**NOTE**: Some image pre-processing can be baked into the IR and accelerated. For more information, refer to Model Optimizer Knobs Related to Performance. 
+> **NOTE**: Some image pre-processing can be baked into the IR and accelerated. For more information, refer to Model Optimizer Knobs Related to Performance. 
 
 
 ## Tip 2. Getting Credible Performance Numbers 
@@ -69,7 +69,7 @@ All major performance calls of the Inference Engine are instrumented with Instru
 
 When choosing the Analysis type in Intel&reg; VTune&trade; Amplifier, make sure to select the **Analyze user tasks, events, and counters** option:
 
-![](../img/vtune_option.jpg)
+![](vtune_option.png)
 
 See the [corresponding section in the Intel® VTune™ Amplifier User's Guide](https://software.intel.com/en-us/vtune-amplifier-help-task-analysis) for details.
 
@@ -78,12 +78,12 @@ Example of Inference Engine calls:
 -	On the Intel VTune Amplifier timeline.
 	Notice that `Task_runNOThrow` is an Async API wrapper and it is executed in a different thread and triggers the Intel MKL-DNN execution:
 
-	![](../img/vtune_timeline.png)
+	![](vtune_timeline.png)
 	
 -	In the Intel VTune Amplifier **Top-down view**, grouped by the **Task Domain**.
 	Notice the `Task_runNoThrow` and `MKLDNN _INFER` that are bracketing the actual Intel MKL-DNN kernels execution:
 	
-	![](../img/vtune_topdown_view.jpg)
+	![](vtune_topdown_view.jpg)
 	
 Similarly, you can use any GPU analysis in the Intel VTune Amplifier and get general correlation with Inference Engine API as well as the execution breakdown for OpenCL kernels.
 
