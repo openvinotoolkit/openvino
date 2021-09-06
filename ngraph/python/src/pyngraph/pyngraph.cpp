@@ -27,6 +27,7 @@
 #include "pyngraph/ops/util/regmodule_pyngraph_op_util.hpp"
 #include "pyngraph/partial_shape.hpp"
 #include "pyngraph/passes/regmodule_pyngraph_passes.hpp"
+#include "pyngraph/pre_post_process.hpp"
 #include "pyngraph/rt_map.hpp"
 #include "pyngraph/shape.hpp"
 #include "pyngraph/strides.hpp"
@@ -75,4 +76,7 @@ PYBIND11_MODULE(_pyngraph, m) {
     regclass_pyngraph_Variant(m);
     regclass_pyngraph_VariantWrapper<std::string>(m, std::string("String"));
     regclass_pyngraph_VariantWrapper<int64_t>(m, std::string("Int"));
+    py::module m_preprocess =
+        m.def_submodule("preprocess", "Package ngraph.impl.preprocess that wraps ngraph::preprocess");
+    regclass_pyngraph_PrePostProcessor(m_preprocess);
 }
