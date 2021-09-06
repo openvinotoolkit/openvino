@@ -25,11 +25,11 @@ struct GatherTreeParams {
         stepIdsTensor(inShape, element::from<IN_ET>(), stepIds), parentIdsTensor(inShape, element::from<IN_ET>(), parentIds),
         maxSeqLenTensor(ngraph::Shape{inShape[1]}, element::from<IN_ET>(), maxSeqLen), endTokenTensor(ngraph::Shape{}, element::from<IN_ET>(), endToken),
         expectedTensor(inShape, element::from<IN_ET>(), output) {}
-Tensor stepIdsTensor;
-Tensor parentIdsTensor;
-Tensor maxSeqLenTensor;
-Tensor endTokenTensor;
-Tensor expectedTensor;
+    Tensor stepIdsTensor;
+    Tensor parentIdsTensor;
+    Tensor maxSeqLenTensor;
+    Tensor endTokenTensor;
+    Tensor expectedTensor;
 };
 
 class ReferenceGatherTreeTest : public testing::TestWithParam<GatherTreeParams>, public CommonReferenceTest {
