@@ -10,13 +10,19 @@
 
 #include <string>
 
+#include "ngraph/deprecated.hpp"
+
 #ifdef IN_NGRAPH_LIBRARY
 #    error("ngraph.hpp is for external use only")
 #endif
 
 #include <ngraph/ngraph_visibility.hpp>
 
-extern "C" NGRAPH_API const char* get_ngraph_version_string();
+// clang-format off
+extern "C" NGRAPH_API 
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
+const char* get_ngraph_version_string();
+// clang-format on
 
 namespace ngraph {
 /// \brief Function to query parsed version information of the version of ngraph which
@@ -30,6 +36,7 @@ namespace ngraph {
 ///
 /// \note Throws a runtime_error if there is an error during parsing
 NGRAPH_API
+NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 void get_version(size_t& major, size_t& minor, size_t& patch, std::string& extra);
 }  // namespace ngraph
 

@@ -16,7 +16,7 @@ public:
     class Convert {
     public:
         Convert();
-        Convert(const ngraph::element::Type outPrecision, const bool addDeqAttr = true);
+        Convert(const ngraph::element::Type outPrecision, const bool toRemove = true);
         bool empty() const noexcept;
         bool equal(const DequantizationOperations::Convert& value) const noexcept;
         bool operator==(const Convert& value) const noexcept {
@@ -32,14 +32,14 @@ public:
     class Subtract {
     public:
         Subtract();
-        Subtract(const float value, const bool addDeqAttr = true);
-        Subtract(const std::vector<float>& values, const bool addDeqAttr = true);
-        Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision, const bool addDeqAttr = true);
+        Subtract(const float value, const bool toRemove = true);
+        Subtract(const std::vector<float>& values);
+        Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision);
         Subtract(
             const std::vector<float>& values,
             const ngraph::element::Type outPrecision,
             const ngraph::Shape& constantShape,
-            const bool addDequantizationAttribute = true,
+            const bool toRemove = false,
             const size_t constantIndex = 1ul,
             const ngraph::element::Type constantPrecision = ngraph::element::undefined,
             const bool addConvert = false,
@@ -59,7 +59,6 @@ public:
         ngraph::element::Type outPrecision = ngraph::element::undefined;
         ngraph::Shape constantShape;
         bool constantShapeIsDefined = false;
-        bool addDequantizationAttribute = true;
         size_t constantIndex = 1ul;
         ngraph::element::Type constantPrecision = ngraph::element::undefined;
         bool addConvert = false;
@@ -80,7 +79,7 @@ public:
             const std::vector<float>& values,
             const ngraph::element::Type outPrecision,
             const ngraph::Shape& constantShape,
-            const bool addDequantizationAttribute = true,
+            const bool toRemove = false,
             const size_t constantIndex = 1ul,
             const ngraph::element::Type constantPrecision = ngraph::element::undefined);
         bool empty() const noexcept;
@@ -94,7 +93,6 @@ public:
         ngraph::element::Type outPrecision = ngraph::element::undefined;
         ngraph::Shape constantShape;
         bool constantShapeIsDefined = false;
-        bool addDequantizationAttribute = true;
         size_t constantIndex = 1ul;
         ngraph::element::Type constantPrecision = ngraph::element::undefined;
 
@@ -128,7 +126,6 @@ inline std::ostream& operator<<(std::ostream& out, const DequantizationOperation
         subtract.outPrecision << "_" <<
         subtract.constantShape << "_" <<
         subtract.constantShapeIsDefined << "_" <<
-        subtract.addDequantizationAttribute << "_" <<
         subtract.constantIndex << "_" <<
         subtract.constantPrecision << "_" <<
         subtract.addConvert;
@@ -140,7 +137,6 @@ inline std::ostream& operator<<(std::ostream& out, const DequantizationOperation
         multiply.outPrecision << "_" <<
         multiply.constantShape << "_" <<
         multiply.constantShapeIsDefined << "_" <<
-        multiply.addDequantizationAttribute << "_" <<
         multiply.constantIndex << "_" <<
         multiply.constantPrecision;
 }

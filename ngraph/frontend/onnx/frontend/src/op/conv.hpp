@@ -11,6 +11,9 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
+namespace detail {
+OutputVector conv(const Node& node, Output<ngraph::Node> data, Output<ngraph::Node> filters, Output<ngraph::Node> bias);
+}
 /// \brief Performs ONNX Conv operation.
 ///
 /// \param node   The ONNX node object representing this operation.

@@ -31,8 +31,7 @@ void ReduceEltwiseTest::SetUp() {
     CommonTestUtils::OpType opType;
     bool keepDims;
     InferenceEngine::Precision netPrecision;
-    std::string targetName;
-    std::tie(inputShape, axes, opType, keepDims, netPrecision, targetName) = this->GetParam();
+    std::tie(inputShape, axes, opType, keepDims, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(

@@ -86,7 +86,7 @@ Intel® GNA essentially operates in the low-precision mode, which represents a m
 Unlike other plugins supporting low-precision execution, the GNA plugin can calculate quantization factors at the model loading time, so you can run a model without calibration using the [Post-Training Optimizaton Tool](@ref pot_README).
 However, this mode may not provide satisfactory accuracy because the internal quantization algorithm is based on heuristics which may or may not be efficient, depending on the model and dynamic range of input data.
 
-Starting with 2021.4 release of OpenVINO, GNA plugin users are encouraged to use the [POT API Usage sample for GNA](@ref pot_sample_speech_README) to get a model with quantization hints based on statistics for the provided dataset.
+Starting with 2021.4 release of OpenVINO™, GNA plugin users are encouraged to use the [POT API Usage sample for GNA](@ref pot_sample_speech_README) to get a model with quantization hints based on statistics for the provided dataset.
 
 
 ## <a name="execution-modes">Execution Modes</a>
@@ -97,6 +97,7 @@ Starting with 2021.4 release of OpenVINO, GNA plugin users are encouraged to use
 | `GNA_HW` | Uses Intel® GNA if available, otherwise raises an error. |
 | `GNA_SW` | *Deprecated*. Executes the GNA-compiled graph on CPU performing calculations in the same precision as the Intel® GNA, but not in the bit-exact mode. |
 | `GNA_SW_EXACT` | Executes the GNA-compiled graph on CPU performing calculations in the same precision as the Intel® GNA in the bit-exact mode. |
+| `GNA_HW_WITH_SW_FBACK` | Uses Intel® GNA if available, otherwise raises an error. If the HW queue is not empty, automatically falls back to CPU in the bit-exact mode. |
 | `GNA_SW_FP32` | Executes the GNA-compiled graph on CPU but substitutes parameters and calculations from low precision to floating point (`FP32`). |
 
 ## Supported Configuration Parameters
@@ -188,6 +189,19 @@ executableNet.SetConfig(newConfig);
 
 ```
 2. Resubmit and switch back to GNA_HW expecting that the competing application has finished.
+
+> **NOTE:** This method is deprecated since a new automatic QoS mode has been introduced in 2021.4.1 release of OpenVINO™ (see below).
+
+## GNA3 Automatic QoS Feature on Windows*
+
+Starting with 2021.4.1 release of OpenVINO and 03.00.00.1363 version of Windows* GNA driver, a new execution mode (GNA_HW_WITH_SW_FBACK) is introduced
+to assure that workloads satisfy real-time execution. In this mode, the GNA driver automatically falls back on CPU for a particular infer request
+if the HW queue is not empty, so there is no need for explicitly switching between GNA and CPU.
+
+**NOTE:** Due to the "first come - first served" nature of GNA driver and the QoS feature, this mode may lead to increased CPU consumption
+if there are several clients using GNA simultaneously.
+Even a lightweight competing infer request which has not been cleared at the time when the user's GNA client process makes its request,
+can cause the user's request to be executed on CPU, thereby unnecessarily increasing CPU utilization and power.
 
 ## See Also
 

@@ -215,13 +215,13 @@ class XmlSerializer : public ngraph::AttributeVisitor {
             input.append_attribute("external_port_id").set_value(input_description->m_input_index);
             input.append_attribute("internal_layer_id").set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
 
-            if (auto slice_input = as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
+            if (auto slice_input = ov::as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
                 input.prepend_attribute("axis").set_value(slice_input->m_axis);
                 input.append_attribute("start").set_value(slice_input->m_start);
                 input.append_attribute("end").set_value(slice_input->m_end);
                 input.append_attribute("stride").set_value(slice_input->m_stride);
                 input.append_attribute("part_size").set_value(slice_input->m_part_size);
-            } else if (auto merged_input = as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
+            } else if (auto merged_input = ov::as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
                 pugi::xml_node back_edges = m_xml_node.parent().child("back_edges");
                 if (!back_edges) {
                     back_edges = m_xml_node.parent().insert_child_after("back_edges", port_map);
@@ -249,7 +249,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
             output.append_attribute("external_port_id").set_value(input_count + output_description->m_output_index);
             output.append_attribute("internal_layer_id").set_value(result_mapping[output_description->m_body_value_index].c_str());
 
-            if (auto concat_output = as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
+            if (auto concat_output = ov::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
                 output.prepend_attribute("axis").set_value(concat_output->m_axis);
                 output.append_attribute("start").set_value(concat_output->m_start);
                 output.append_attribute("end").set_value(concat_output->m_end);
@@ -325,7 +325,7 @@ public:
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
             }
-        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<op::FrameworkNodeAttrs>>(&adapter)) {
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
             const auto & attrs = a->get();
 
             // Update type and version attributes
@@ -623,7 +623,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
         auto & op = f_ops[id];
         auto & clone_op = f_clone_ops[id];
 
-        if (auto op_subgraph = std::dynamic_pointer_cast<op::util::SubGraphOp>(op)) {
+        if (auto op_subgraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op)) {
             resolve_dynamic_shapes(*op_subgraph->get_function());
         }
 
@@ -811,7 +811,33 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         f.validate_nodes_and_infer_types();
     }
 }
+
+std::string valid_xml_path(const std::string &path) {
+    NGRAPH_CHECK(path.length() > 4, "Path for xml file is to short: \"" + path + "\"");
+
+    const char *const extension = ".xml";
+    const bool has_xml_extension = path.rfind(extension) == path.size() - std::strlen(extension);
+    NGRAPH_CHECK(has_xml_extension,
+                 "Path for xml file doesn't contains file name with 'xml' extension: \"" +
+                     path + "\"");
+    return path;
+}
+
+std::string provide_bin_path(const std::string &xmlPath, const std::string &binPath) {
+    if (!binPath.empty()) {
+        return binPath;
+    }
+    assert(xmlPath.size() > 4); // should be check by valid_xml_path
+    std::string bestPath = xmlPath;
+    const char *const extension = "bin";
+    const auto ext_size = std::strlen(extension);
+    bestPath.replace(bestPath.size() - ext_size, ext_size, extension);
+    return bestPath;
+}
+
 }  // namespace
+
+namespace ngraph {
 
 // ! [function_pass:serialize_cpp]
 // serialize.cpp
@@ -868,33 +894,6 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     return false;
 }
 
-namespace {
-
-std::string valid_xml_path(const std::string &path) {
-    NGRAPH_CHECK(path.length() > 4, "Path for xml file is to short: \"" + path + "\"");
-
-    const char *const extension = ".xml";
-    const bool has_xml_extension = path.rfind(extension) == path.size() - std::strlen(extension);
-    NGRAPH_CHECK(has_xml_extension,
-                 "Path for xml file doesn't contains file name with 'xml' extension: \"" +
-                     path + "\"");
-    return path;
-}
-
-std::string provide_bin_path(const std::string &xmlPath, const std::string &binPath) {
-    if (!binPath.empty()) {
-        return binPath;
-    }
-    assert(xmlPath.size() > 4); // should be check by valid_xml_path
-    std::string bestPath = xmlPath;
-    const char *const extension = "bin";
-    const auto ext_size = std::strlen(extension);
-    bestPath.replace(bestPath.size() - ext_size, ext_size, extension);
-    return bestPath;
-}
-
-} // namespace
-
 pass::Serialize::Serialize(std::ostream& xmlFile,
                            std::ostream& binFile,
                            pass::Serialize::Version version,
@@ -921,3 +920,4 @@ pass::Serialize::Serialize(const std::string& xmlPath,
 {
 }
 // ! [function_pass:serialize_cpp]
+}  // namespace ngraph

@@ -24,9 +24,8 @@
 #include "perf_counters.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace internal {
 PerfCounters& perf_counters() {
@@ -35,24 +34,25 @@ PerfCounters& perf_counters() {
 }
 }  // namespace internal
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-pass::Manager::Manager()
+ov::pass::Manager::Manager()
     : m_pass_config(std::make_shared<PassConfig>()),
-      m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING")) {}
+      m_visualize(ngraph::getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING")) {}
 
-pass::Manager::~Manager() {}
+ov::pass::Manager::~Manager() = default;
 
-pass::Manager::Manager(std::shared_ptr<ngraph::pass::PassConfig> pass_config) : m_pass_config(std::move(pass_config)) {}
+ov::pass::Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config) : m_pass_config(std::move(pass_config)) {}
 
-void pass::Manager::run_passes(shared_ptr<Function> func) {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::Manager::run_passes");
+void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::Manager::run_passes");
 
-    static bool profile_enabled = getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
+    static bool profile_enabled = ngraph::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
 
     size_t index = 0;
-    stopwatch pass_timer;
-    stopwatch overall_timer;
+    ngraph::stopwatch pass_timer;
+    ngraph::stopwatch overall_timer;
     overall_timer.start();
     bool function_changed = false;
     for (auto& pass : m_pass_list) {
@@ -62,12 +62,11 @@ void pass::Manager::run_passes(shared_ptr<Function> func) {
         }
 
         OV_ITT_SCOPE(FIRST_INFERENCE,
-                     itt::domains::nGraphPass_LT,
+                     ov::itt::domains::nGraphPass_LT,
                      pass::internal::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();
 
-        NGRAPH_SUPPRESS_DEPRECATED_START
         if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass)) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
@@ -96,17 +95,16 @@ void pass::Manager::run_passes(shared_ptr<Function> func) {
             } else {
                 function_changed = function_pass->run_on_function(func);
             }
-        } else if (auto node_pass = dynamic_pointer_cast<NodePass>(pass)) {
+        } else if (auto node_pass = dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {
             if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
                 NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
                              << "function is dynamic. Skipping this transformation";
                 continue;
             }
-            for (shared_ptr<Node> n : func->get_ops()) {
+            for (const shared_ptr<Node>& n : func->get_ops()) {
                 function_changed |= node_pass->run_on_node(n);
             }
         }
-        NGRAPH_SUPPRESS_DEPRECATED_END
 
         if (m_visualize) {
             // visualizations and serializations will be named after the outermost function
@@ -116,7 +114,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func) {
             auto base_filename = func->get_name() + std::string("_") + index_str + std::string("_") + pass->get_name();
 
             if (m_visualize) {
-                static const string format = getenv_string("NGRAPH_VISUALIZE_TRACING_FORMAT");
+                static const string format = ngraph::getenv_string("NGRAPH_VISUALIZE_TRACING_FORMAT");
                 auto file_ext = format.empty() ? "svg" : format;
                 pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
                 vt.run_on_function(func);
@@ -131,4 +129,5 @@ void pass::Manager::run_passes(shared_ptr<Function> func) {
     if (profile_enabled) {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
