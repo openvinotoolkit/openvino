@@ -207,7 +207,8 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
             constantShape.insert(constantShape.begin(), 1ul);
         }
 
-        const bool dqOnlyByConcatAxis = std::count_if(constantShape.begin(), constantShape.end(), [](size_t elem) { return elem > 1; }) < 2;
+        const auto dqDimensionsCount = std::count_if(constantShape.begin(), constantShape.end(), [](size_t elem) { return elem > 1; });
+        const bool dqOnlyByConcatAxis = (dqDimensionsCount == 0) || (dqDimensionsCount == 1 && constantShape[normalizedAxis] != 1ul);
         return dqOnlyByConcatAxis;
     };
 
