@@ -24,7 +24,7 @@ class NodeFactory(object):
     def create(
         self,
         op_type_name: str,
-        arguments: Optional[List[Union[Node, Output]]] = None,
+        arguments: List[Union[Node, Output]],
         attributes: Optional[Dict[str, Any]] = None,
     ) -> Node:
         """Create node object from provided description.
@@ -39,13 +39,6 @@ class NodeFactory(object):
         """
         if attributes is None:
             attributes = {}
-
-        if attributes is None and arguments is None:
-            node = self.factory.create(op_type_name)
-            node._attr_cache = {}
-            node._attr_cache_valid = False
-
-            return node
 
         arguments = self._arguments_as_outputs(arguments)
         node = self.factory.create(op_type_name, arguments, attributes)
@@ -74,6 +67,27 @@ class NodeFactory(object):
                 self._normalize_attr_name_setter(attr_name),
                 partial(NodeFactory._set_node_attr_value, node, attr_name),
             )
+
+        # Setup helper members for caching attribute values.
+        # The cache would be lazily populated at first access attempt.
+        node._attr_cache = {}
+        node._attr_cache_valid = False
+
+        return node
+
+    def create(
+        self,
+        op_type_name: str,
+    ) -> Node:
+        """Create empty node object.
+
+        The user provides only op name.
+
+        @param      op_type_name:  The operator type name.
+
+        @return   Empty node object representing requested operator without attributtes and argumnets set.
+        """
+        node = self.factory.create(op_type_name)
 
         # Setup helper members for caching attribute values.
         # The cache would be lazily populated at first access attempt.

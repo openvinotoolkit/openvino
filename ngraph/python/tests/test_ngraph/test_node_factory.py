@@ -65,11 +65,11 @@ def test_node_factory_empty_topk_with_args_and_attrs():
     factory = _NodeFactory("opset1")
     arguments = NodeFactory._arguments_as_outputs([data, k])
     node = factory.create("TopK")
-    node._set_arguments(arguments)
+    node.set_arguments(arguments)
     node._set_attribute("axis", 1)
     node._set_attribute("mode", "max")
     node._set_attribute("sort", "value")
-    node._validate()
+    node.validate()
 
     assert node.get_type_name() == "TopK"
     assert node.get_output_size() == 2
