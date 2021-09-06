@@ -90,7 +90,7 @@ class GNAMemory {
                     *reinterpret_cast<void **>(re._ptr_out) = cptr;
                 }
                 std::cout << "ALLOCATED=" << static_cast<void*>(cptr) << ", size=" << re._element_size * re._num_elements << "\n";
-                mRequests->iterate_binded(re, [](MemRequest & reference, MemRequest & binded) {
+                getQueue(REGION_AUTO)->iterate_binded(re, [](MemRequest & reference, MemRequest & binded) {
                     *reinterpret_cast<void **>(binded._ptr_out) =
                         binded._offset + reinterpret_cast<uint8_t *>(*reinterpret_cast<void **>(reference._ptr_out));
                     binded._num_elements = reference._num_elements;
@@ -135,9 +135,11 @@ class GNAMemory {
         for (auto queue : _mem_queues) {
             expandBindRequests(queue.second);
             heap_offset = ALIGN(allocateRegion(queue.second, heap_offset), _page_alignment);
-            // std::cout << "heap_offset :" << heap_offset << std::endl;
+            std::cout << "heap_offset " << rRegionToStr(queue.first) << ": " << heap_offset << std::endl;
         }
+#ifdef GNA_HEAP_PROFILER
         memoryDump();
+#endif
     }
 
  protected:
@@ -155,7 +157,7 @@ class GNAMemory {
         for (auto &originated : mRequests->_mem_requests) {
             if (originated._type & REQUEST_BIND) continue;
             size_t offset = 0;
-            mRequests->iterate_binded(originated, [&](MemRequest & reference, MemRequest & binded) {
+            getQueue(REGION_AUTO)->iterate_binded(originated, [&](MemRequest & reference, MemRequest & binded) {
                 if (&originated == &reference) {
                     offset = 0;
                 }
@@ -169,6 +171,7 @@ class GNAMemory {
         }
     }
 
+#ifdef GNA_HEAP_PROFILER
     void memoryDump() {
         std::ofstream dumpFile("gna_memory_requests.txt", std::ios::out);
         for (auto queue : _mem_queues) {
@@ -187,6 +190,7 @@ class GNAMemory {
             }
         }
     }
+#endif
 };
 
 }  // namespace memory

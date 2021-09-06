@@ -214,7 +214,7 @@ void  GNAGraphCompiler::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) 
     connectOutput(constLayer, ptr_for_const_blob, const_blob->byteSize());
     // TODO: segment type for bind, bind initializer not used - need refactor to separate bind and allocation requests
     // dont see practical use case when bind storage type need to be different that allocation type
-    gnamem->getQueue(REGION_STATES)->bind_initializer(ptr_for_const_blob, [const_blob](void* data, size_t size) {
+    gnamem->getQueue(REGION_AUTO)->bind_initializer(ptr_for_const_blob, [const_blob](void* data, size_t size) {
         ie_memcpy(data, size, const_blob->buffer(), const_blob->byteSize());
         });
 }
@@ -2201,12 +2201,12 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                     auto memorySize = InferenceEngine::details::product(nextMemoryLayer.getDims()) * nextMemoryLayer.elementSizeBytes();
 
                     gnamem->getQueue(REGION_STATES)->reserve_ptr(&nextMemoryLayer.gna_ptr, ALIGN64(memorySize), 64);
-                    gnamem->getQueue(REGION_STATES)->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
+                    gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
 
                     nextMemoryLayer.reserved_size = ALIGN64(memorySize);
                 } else {
                     // We may need to extend memory buffer if connected input size is bigger, for example for concat connection
-                    gnamem->getQueue(REGION_STATES)->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer), ALIGN64(num_data_bytes_out));
+                    gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer), ALIGN64(num_data_bytes_out));
                 }
                 return;
             }
@@ -2330,7 +2330,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                 if (layer->params.find("output_offset") != layer->params.end()) {
                     output_offset = layer->GetParamAsInt("output_offset");
                 }
-                gnamem->getQueue(REGION_STATES)->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, output_offset);
+                gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, output_offset);
             }
             return;
         }
@@ -2340,7 +2340,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
     if (gnaFlags->compact_mode) {
         unused_input = find_first_unused_input(layer);
         if (unused_input != nullptr) {
-            gnamem->getQueue(REGION_STATES)->bind_ptr(ptr, &unused_input->ptr_inputs, 0, ALIGN64(num_data_bytes_out));
+            gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &unused_input->ptr_inputs, 0, ALIGN64(num_data_bytes_out));
         }
     }
     // cannot reuse suitable input
@@ -2395,10 +2395,10 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         }
 
         if (connectTo) {
-            gnamem->getQueue(REGION_INPUTS)
+            gnamem->getQueue(REGION_AUTO)
                 ->bind_ptr(ptr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), offset, ALIGN(num_data_bytes_in, 64));
         } else {
-            gnamem->getQueue(REGION_INPUTS)
+            gnamem->getQueue(REGION_AUTO)
                 ->bind_ptr(&inputDesc->getPtrInputsGlobal(prevLayer->name).front(), ptr, offset, ALIGN(num_data_bytes_in, 64));
         }
 
@@ -2407,9 +2407,9 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     // const input
     if (LayerInfo(prevLayer).isConst()) {
         if (connectTo) {
-            gnamem->getQueue(REGION_STATES)->bind_ptr(ptr, const_connections[prevLayer->name], offset);
+            gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, const_connections[prevLayer->name], offset);
         } else {
-            gnamem->getQueue(REGION_STATES)->bind_ptr(const_connections[prevLayer->name], ptr, offset);
+            gnamem->getQueue(REGION_AUTO)->bind_ptr(const_connections[prevLayer->name], ptr, offset);
         }
 
         return prevLayer;
@@ -2448,7 +2448,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         if (concatLayerInfo != concat_connection.end()) {
             auto & concatLayerInfoItem = concatLayerInfo->second;
             // dnnLayer that is input for concat layer
-            gnamem->getQueue(REGION_STATES)->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, offset);
+            gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, offset);
             // return layer over concat
             return CNNNetPrevLayer(prevLayer);
         }
@@ -2457,7 +2457,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                 prevLayer->name);
         if (cropLayerInfo != crop_connection.end()) {
             auto & cropLayerInfoItem = cropLayerInfo->second;
-            gnamem->getQueue(REGION_STATES)->bind_ptr(ptr, &cropLayerInfoItem.gna_ptr, offset);
+            gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &cropLayerInfoItem.gna_ptr, offset);
             return CNNNetPrevLayer(prevLayer);
         }
     }
@@ -2465,7 +2465,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
     // check for generic prev layer
     if (prevDnnLayer != nullptr) {
-        gnamem->getQueue(REGION_STATES)->bind_ptr(ptr, &prevDnnLayer->ptr_outputs, offset);
+        gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &prevDnnLayer->ptr_outputs, offset);
         return prevLayer;
     }
 
@@ -2484,19 +2484,19 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             if (connectTo) {
                 memorySize = std::max(memorySize, num_data_bytes_in);
                 gnamem->getQueue(REGION_STATES)->reserve_ptr(&memoryLayer.gna_ptr, ALIGN64(memorySize), 64);
-                gnamem->getQueue(REGION_STATES)->bind_ptr(ptr, &memoryLayer.gna_ptr, offset);
+                gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &memoryLayer.gna_ptr, offset);
             } else {
                 if (num_data_bytes_in < memorySize + offset) {
                     THROW_GNA_LAYER_EXCEPTION(layer) <<" invalid allocation request of "
                                                      << num_data_bytes_in << " is more then state tensor size of: " << memorySize + offset;
                 }
-                gnamem->getQueue(REGION_STATES)->bind_ptr(&memoryLayer.gna_ptr, ptr, offset);
+                gnamem->getQueue(REGION_AUTO)->bind_ptr(&memoryLayer.gna_ptr, ptr, offset);
             }
 
             memoryLayer.reserved_size = ALIGN64(memorySize);
         } else {
             // We may need to extend memory buffer if connected input size is bigger, for example for concat connection
-            gnamem->getQueue(REGION_STATES)->bind_ptr(ptr, &memoryLayer.gna_ptr, offset, ALIGN64(num_data_bytes_in));
+            gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &memoryLayer.gna_ptr, offset, ALIGN64(num_data_bytes_in));
         }
 
         return prevLayer;
