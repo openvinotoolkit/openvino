@@ -118,7 +118,7 @@ TEST_F(I16QuantisationTest, canQuantizeLstmLikeTopology) {
     ASSERT_NO_THROW(q.quantize(network, 1000));
 }
 
-TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
+TEST_F(I16QuantisationTest, outputScaleFactorForAffineIsCorrect){
     ModelQuantizer<QuantI16> q;
 
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {440}, C });
@@ -211,7 +211,6 @@ TEST_F(I16QuantisationTest, EltwiseSumm_onlyOneIdentityInsertion) {
         .inNotCompactMode().gna().propagate_forward().called_with().pwl_inserted_into_nnet().once();
 }
 
-
 TEST_F(I16QuantisationTest, canDetectLeakyRelu) {
     assert_that().onInferModel(TFLeakyReluModel())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
@@ -223,6 +222,7 @@ TEST_F(I16QuantisationTest, canDetectSoftWSignSubgraph) {
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActSigmoid});
 }
+
 
 TEST_F(I16QuantisationTest, MaxPool_followedAfterActivation) {
     assert_that().onInferModel(maxpoolAfterRelu())
@@ -353,7 +353,7 @@ TEST_F(I16QuantisationTest, fp16tofp32_on_fullyConnected_model) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {220}, Layout::C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(FCOnlyModelFP16(), weights);
 
@@ -403,7 +403,7 @@ TEST_F(I16QuantisationTest, LSTMCell_unaligned_quantize) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {3480}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(LSTMCellOnlyModelUnaligned(), weights);
 
@@ -434,7 +434,7 @@ TEST_F(I16QuantisationTest, TI_quantize) {
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {249748}, C });
     weights->allocate();
     fillWeights(weights);
-    
+
     Core ie;
     auto network = ie.ReadNetwork(TIModelWithLSTMCell2(), weights);
 

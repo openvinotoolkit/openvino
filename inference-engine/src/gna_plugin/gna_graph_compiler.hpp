@@ -16,7 +16,6 @@
 #include "descriptions/gna_flags.hpp"
 #include "connection_details.hpp"
 #include "backend/dnn.hpp"
-#include "memory/polymorph_allocator.hpp"
 #include "memory/gna_memory.hpp"
 #include "layers/gna_memory_layer.hpp"
 #include "layers/gna_concat_layer.hpp"

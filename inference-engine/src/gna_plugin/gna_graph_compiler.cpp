@@ -40,6 +40,7 @@
 using namespace InferenceEngine;
 using namespace std;
 using namespace GNAPluginNS;
+using namespace memory;
 
 #define CREATE(name) [](GNAGraphCompiler *p, CNNLayerPtr l) {p->name(l);}
 
@@ -208,7 +209,7 @@ void  GNAGraphCompiler::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) 
     connectOutput(constLayer, ptr_for_const_blob, const_blob->byteSize());
     // TODO: segment type for bind, bind initializer not used - need refactor to separate bind and allocation requests
     // dont see practical use case when bind storage type need to be different that allocation type
-    gnamem->readonly().bind_initializer(ptr_for_const_blob, [const_blob](void* data, size_t size) {
+    gnamem->getQueue(REGION_AUTO)->bind_initializer(ptr_for_const_blob, [const_blob](void* data, size_t size) {
         ie_memcpy(data, size, const_blob->buffer(), const_blob->byteSize());
         });
 }
@@ -475,7 +476,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     }
 
     if (num_conv_kernel_padding == 0) {
-        gnamem->readonly().push_local_ptr(ptr_weights,
+        gnamem->getQueue(REGION_RO)->push_local_ptr(ptr_weights,
             transposedWeights.data(),
             convolution._weights->byteSize(),
             64);
@@ -502,19 +503,19 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
                 offset += padding_zeros.size();
             }
         };
-        gnamem->readonly().push_initializer(ptr_weights,
+        gnamem->getQueue(REGION_RO)->push_initializer(ptr_weights,
             paddedWeightsSize,
             initializer,
             64);
     }
 
     if (convolution._biases) {
-        gnamem->readonly().push_ptr(ptr_biases,
+        gnamem->getQueue(REGION_RO)->push_ptr(ptr_biases,
             convolution._biases->cbuffer().as<const void*>(),
             convolution._biases->byteSize(),
             64);
     } else {
-        gnamem->readonly().push_value(ptr_biases, 0.0f, out_channels, 64);
+        gnamem->getQueue(REGION_RO)->push_value(ptr_biases, 0.0f, out_channels, 64);
     }
 }
 
@@ -647,18 +648,18 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         transposedWeights.resize(transposedWeights.size() + kernelPad);
     }
 
-    gnamem->readonly().push_local_ptr(ptr_weights,
+    gnamem->getQueue(REGION_RO)->push_local_ptr(ptr_weights,
         transposedWeights.data(),
         transposedWeights.size(),
         64);
 
     if (convolution._biases) {
-        gnamem->readonly().push_ptr(ptr_biases,
+        gnamem->getQueue(REGION_RO)->push_ptr(ptr_biases,
             convolution._biases->cbuffer().as<const void*>(),
             convolution._biases->byteSize(),
             64);
     } else {
-        gnamem->readonly().push_value(ptr_biases, 0.0f, out_channels, 64);
+        gnamem->getQueue(REGION_RO)->push_value(ptr_biases, 0.0f, out_channels, 64);
     }
 }
 #endif
@@ -718,8 +719,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
         if (gnaFlags->sw_fp32) {
             IE_ASSERT(quantized == nullptr);
-            gnamem->readonly().push_value(ptr_weights, power.scale, num_rows_out, 64);
-            gnamem->readonly().push_value(ptr_biases, power.offset, num_rows_out, 64);
+            gnamem->getQueue(REGION_RO)->push_value(ptr_weights, power.scale, num_rows_out, 64);
+            gnamem->getQueue(REGION_RO)->push_value(ptr_biases, power.offset, num_rows_out, 64);
         } else {
             IE_ASSERT(quantized != nullptr);
             if (!gnaFlags->input_low_precision) {
@@ -727,15 +728,15 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
                     static_cast<float>(INT16_MAX)));
                 auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.GetScale() * power.offset,
                     static_cast<float>(INT32_MAX)));
-                gnamem->readonly().push_value<int16_t>(ptr_weights, quantizedScale, num_rows_out, 64);
-                gnamem->readonly().push_value<int32_t>(ptr_biases, quantizedOffset, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int16_t>(ptr_weights, quantizedScale, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int32_t>(ptr_biases, quantizedOffset, num_rows_out, 64);
             } else {
                 auto quantizedScale = FLOAT_TO_INT8(std::min(quantized->_weights_quant.GetScale() * power.scale,
                     static_cast<float>(INT8_MAX)));
                 auto quantizedOffset = FLOAT_TO_INT8(std::min(quantized->_dst_quant.GetScale() * power.offset,
                     static_cast<float>(INT8_MAX)));
-                gnamem->readonly().push_value<int8_t>(ptr_weights, quantizedScale, num_rows_out, 64);
-                gnamem->readonly().push_value<int8_t>(ptr_biases, quantizedOffset, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int8_t>(ptr_weights, quantizedScale, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int8_t>(ptr_biases, quantizedOffset, num_rows_out, 64);
             }
         }
     } else {
@@ -804,7 +805,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         connectInput(layer, ptr_pwl_input, num_data_bytes_in, 0, 0);
 
         if (ptr_pwl_segments_target != nullptr) {
-            gnamem->readonly().push_local_ptr(ptr_pwl_segments_target,
+            gnamem->getQueue(REGION_RO)->push_local_ptr(ptr_pwl_segments_target,
                 &ptr_pwl_segments.front(),
                 ptr_pwl_segments.size() * sizeof(gna_pwl_segment_t),
                 64);
@@ -1128,8 +1129,8 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         FillWeightOfAligningFilter(layer, ptr_weights, offset.front(), (quantized == nullptr) ? false : true);
 
         (quantized == nullptr) ?
-            gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64) :
-            gnamem->readonly().push_value<int32_t>(ptr_biases, 0, num_rows_out, 64);
+            gnamem->getQueue(REGION_RO)->push_value(ptr_biases, 0.0f, num_rows_out, 64) :
+            gnamem->getQueue(REGION_RO)->push_value<int32_t>(ptr_biases, 0, num_rows_out, 64);
     }
 }
 
@@ -1262,36 +1263,36 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     switch (eltwise._operation) {
     case EltwiseLayer::Sub:
         if (quantized == nullptr) {
-            gnamem->readonly().push_value(ptr_weights, -1.0f, num_rows_out, 64);
+            gnamem->getQueue(REGION_RO)->push_value(ptr_weights, -1.0f, num_rows_out, 64);
         } else {
             auto scaledIdentity = -quantized->_weights_quant.GetScale();
 
             if (gnaFlags->input_low_precision == false) {
                 auto quantizedIdentity = FLOAT_TO_INT16(std::min(scaledIdentity, static_cast<float>(INT16_MAX)));
 
-                gnamem->readonly().push_value<int16_t>(ptr_weights, quantizedIdentity, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int16_t>(ptr_weights, quantizedIdentity, num_rows_out, 64);
             } else {
                 auto quantizedIdentity = FLOAT_TO_INT8(std::min(scaledIdentity, static_cast<float>(INT8_MAX)));
 
-                gnamem->readonly().push_value<int8_t>(ptr_weights, quantizedIdentity, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int8_t>(ptr_weights, quantizedIdentity, num_rows_out, 64);
             }
         }
         connectInput(layer, ptr_biases, num_data_bytes_in, 0, biasesLayerIdx);
         break;
     case EltwiseLayer::Sum:
         if (quantized == nullptr) {
-            gnamem->readonly().push_value(ptr_weights, 1.0f, num_rows_out, 64);
+            gnamem->getQueue(REGION_RO)->push_value(ptr_weights, 1.0f, num_rows_out, 64);
         } else {
             auto scaledIdentity = quantized->_weights_quant.GetScale();
 
             if (gnaFlags->input_low_precision == false) {
                 auto quantizedIdentity = FLOAT_TO_INT16(std::min(scaledIdentity, static_cast<float>(INT16_MAX)));
 
-                gnamem->readonly().push_value<int16_t>(ptr_weights, quantizedIdentity, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int16_t>(ptr_weights, quantizedIdentity, num_rows_out, 64);
             } else {
                 auto quantizedIdentity = FLOAT_TO_INT8(std::min(scaledIdentity, static_cast<float>(INT8_MAX)));
 
-                gnamem->readonly().push_value<int8_t>(ptr_weights, quantizedIdentity, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int8_t>(ptr_weights, quantizedIdentity, num_rows_out, 64);
             }
         }
         connectInput(layer, ptr_biases, num_data_bytes_in, 0, biasesLayerIdx);
@@ -1299,12 +1300,12 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     case EltwiseLayer::Prod:
         if (quantized == nullptr) {
-            gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+            gnamem->getQueue(REGION_RO)->push_value(ptr_biases, 0.0f, num_rows_out, 64);
         } else {
             if (gnaFlags->input_low_precision == false) {
-                gnamem->readonly().push_value<int32_t>(ptr_biases, 0, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int32_t>(ptr_biases, 0, num_rows_out, 64);
             } else {
-                gnamem->readonly().push_value<int8_t>(ptr_biases, 0, num_rows_out, 64);
+                gnamem->getQueue(REGION_RO)->push_value<int8_t>(ptr_biases, 0, num_rows_out, 64);
             }
         }
         connectInput(layer, ptr_weights, num_data_bytes_in, 0, biasesLayerIdx);
@@ -1372,9 +1373,9 @@ void GNAGraphCompiler::GemmPrimitive(InferenceEngine::CNNLayerPtr layer) {
     connectInput(layer, ptr_input_2, num_data_bytes_in_2, 0, 1);
     if (gnaFlags->sw_fp32) {
         IE_ASSERT(quantized == nullptr);
-        gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+        gnamem->getQueue(REGION_RO)->push_value(ptr_biases, 0.0f, num_rows_out, 64);
     } else {
-        gnamem->readonly().push_value<int32_t>(ptr_biases, 0.0f, num_rows_out, 64);
+        gnamem->getQueue(REGION_RO)->push_value<int32_t>(ptr_biases, 0.0f, num_rows_out, 64);
     }
 }
 
@@ -1485,12 +1486,12 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
 
     if (num_padding == 0) {
         if (!transpose) {
-            gnamem->readonly().push_ptr(ptr_weights,
+            gnamem->getQueue(REGION_RO)->push_ptr(ptr_weights,
                 weightable._weights->cbuffer().as<const void*>(),
                 weightable._weights->byteSize(),
                 64);
         } else {
-            gnamem->readonly().push_initializer(ptr_weights, weightable._weights->byteSize(), [=](void* data, size_t size) {
+            gnamem->getQueue(REGION_RO)->push_initializer(ptr_weights, weightable._weights->byteSize(), [=](void* data, size_t size) {
                 for (uint32_t k = 0; k < (isDiag ? 1 : num_rows_out); k++) {
                     auto rowOffset = k * transposedRows * transposedCols * weightable.precision.size();
                     auto cbuffer = weightable._weights->cbuffer().as<const uint8_t*>() + rowOffset;
@@ -1519,7 +1520,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
         auto paddedWeights = isDiag ? elementsIn : elementsIn * num_rows_out;
         auto paddedWeightsSize = paddedWeights * weightable.precision.size();
 
-        gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
+        gnamem->getQueue(REGION_RO)->push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
             for (uint32_t i = 0; i < (isDiag ? 1 : num_rows_out); i++) {
                 ie_memcpy(data, size,
                     weightable._weights->cbuffer().as<const uint8_t*>() + num_rows_in * i * weightable.precision.size(),
@@ -1530,16 +1531,16 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
     }
 
     if (weightable._biases) {
-        gnamem->readonly().push_ptr(ptr_biases,
+        gnamem->getQueue(REGION_RO)->push_ptr(ptr_biases,
             weightable._biases->cbuffer().as<const void*>(),
             weightable._biases->byteSize(),
             64);
     } else {
         // in that case input from previous layer goes into biases, so we have to initialize input pointer by zero
         if (useBiasConnection) {
-            gnamem->readonly().push_value(ptr_inputs, 0.0f, num_rows_in + num_padding, 64);
+            gnamem->getQueue(REGION_RO)->push_value(ptr_inputs, 0.0f, num_rows_in + num_padding, 64);
         } else {
-            gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out + num_padding_out, 64);
+            gnamem->getQueue(REGION_RO)->push_value(ptr_biases, 0.0f, num_rows_out + num_padding_out, 64);
         }
     }
 }
@@ -1557,7 +1558,7 @@ void GNAGraphCompiler::FillWeightOfAligningFilter(InferenceEngine::CNNLayerPtr l
         THROW_GNA_EXCEPTION << "Weights memory is not allocated!!!";
     }
 
-    gnamem->readonly().push_initializer(ptrWeights, num_rows_out * ALIGN(num_rows_in, 8) * layer->precision.size(), [=](void* data, size_t size) {
+    gnamem->getQueue(REGION_RO)->push_initializer(ptrWeights, num_rows_out * ALIGN(num_rows_in, 8) * layer->precision.size(), [=](void* data, size_t size) {
         int out = 0;
         for (int input = offset; input < num_rows_out + offset; ++input) {
             auto mem_ptr = reinterpret_cast<uint8_t*>(data) + input * layer->precision.size() + out * ALIGN(num_rows_in, 8) * layer->precision.size();
@@ -1681,7 +1682,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
         size_t weights_stride =  (num_rows_in + num_rows_copied) * weightsElementSize;
         size_t weights_offset = weights_stride * num_rows_copied +  num_rows_copied * weightsElementSize;
 
-        gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
+        gnamem->getQueue(REGION_RO)->push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
             size_t roffset = weights_offset;
             size_t woffset = 0;
             for (int i = 0; i < num_rows_out && size >= woffset; i++) {
@@ -1696,12 +1697,12 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     }
 
     if (filterLayer->_biases) {
-        gnamem->readonly().push_ptr(ptr_biases,
+        gnamem->getQueue(REGION_RO)->push_ptr(ptr_biases,
             filterLayer->_biases->cbuffer().as<const void*>(),
             filterLayer->_biases->byteSize(),
             64);
     } else {
-        gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+        gnamem->getQueue(REGION_RO)->push_value(ptr_biases, 0.0f, num_rows_out, 64);
     }
 }
 
@@ -1774,18 +1775,18 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
     connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
-    gnamem->readonly().push_ptr(ptr_weights,
+    gnamem->getQueue(REGION_RO)->push_ptr(ptr_weights,
         filterLayer->_weights->cbuffer().as<const void*>(),
         filterLayer->_weights->byteSize(),
         64);
 
     if (filterLayer->_biases) {
-        gnamem->readonly().push_ptr(ptr_biases,
+        gnamem->getQueue(REGION_RO)->push_ptr(ptr_biases,
             filterLayer->_biases->cbuffer().as<const void*>(),
             filterLayer->_biases->byteSize(),
             64);
     } else {
-        gnamem->readonly().push_value(ptr_biases, 0.0f, numberOfFilters, 64);
+        gnamem->getQueue(REGION_RO)->push_value(ptr_biases, 0.0f, numberOfFilters, 64);
     }
 }
 
@@ -2016,7 +2017,7 @@ case name:\
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     if (ptr_pwl_segments_target != nullptr) {
-        gnamem->readonly().push_local_ptr(ptr_pwl_segments_target,
+        gnamem->getQueue(REGION_RO)->push_local_ptr(ptr_pwl_segments_target,
             &ptr_pwl_segments.front(),
             ptr_pwl_segments.size() * sizeof(gna_pwl_segment_t),
             64);
@@ -2191,13 +2192,13 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                 if (nextMemoryLayer.reserved_size == 0) {
                     auto memorySize = InferenceEngine::details::product(nextMemoryLayer.getDims()) * nextMemoryLayer.elementSizeBytes();
 
-                    gnamem->reserve_ptr(&nextMemoryLayer.gna_ptr, ALIGN64(memorySize), 64);
-                    gnamem->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
+                    gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(&nextMemoryLayer.gna_ptr, ALIGN64(memorySize), 64);
+                    gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
 
                     nextMemoryLayer.reserved_size = ALIGN64(memorySize);
                 } else {
                     // We may need to extend memory buffer if connected input size is bigger, for example for concat connection
-                    gnamem->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer), ALIGN64(num_data_bytes_out));
+                    gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer), ALIGN64(num_data_bytes_out));
                 }
                 return;
             }
@@ -2288,7 +2289,8 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                                              return it != concatItem.second.concatInputLayers.end();
                                          });
                     if (included == concat_connection.end()) {
-                        gnamem->reserve_ptr(&concatLayerInfoItem.gna_ptr, ALIGN64(concatLayerInfoItem.reserved_size), 64);
+                        auto outputSize = std::max(concatLayerInfoItem.reserved_size, num_data_bytes_out * 2);
+                        gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(&concatLayerInfoItem.gna_ptr, ALIGN64(outputSize), 64);
 
                         std::function<void(GNAConcatLayer, GNAPluginNS::InputDesc&, ConcatConnection&)> allocate_input_recursively =
                             [&allocate_input_recursively](GNAConcatLayer clayer, GNAPluginNS::InputDesc& inputDesc, ConcatConnection& concat_connection) {
@@ -2321,7 +2323,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                 if (layer->params.find("output_offset") != layer->params.end()) {
                     output_offset = layer->GetParamAsInt("output_offset");
                 }
-                gnamem->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, output_offset);
+                gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, output_offset);
             }
             return;
         }
@@ -2331,12 +2333,22 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
     if (gnaFlags->compact_mode) {
         unused_input = find_first_unused_input(layer);
         if (unused_input != nullptr) {
-            gnamem->bind_ptr(ptr, &unused_input->ptr_inputs, 0, ALIGN64(num_data_bytes_out));
+            gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &unused_input->ptr_inputs, 0, ALIGN64(num_data_bytes_out));
         }
     }
     // cannot reuse suitable input
     if (unused_input == nullptr) {
-        gnamem->reserve_ptr(ptr, ALIGN64(num_data_bytes_out), 64);
+        auto isNonFunctional = [](CNNLayerPtr ptr) {
+            return LayerInfo(ptr).isNonFunctional();
+        };
+        // real output should be allocated in separate region.
+        // need to fix case when layer is not final output
+        auto mem_region = REGION_SCRATCH;
+        auto nextLayer = CNNNetCheckNextLayerSkipCertain(layer, 0, 0, true, isNonFunctional).first;
+        if (LayerInfo(layer).isOutput() || !nextLayer) {
+            mem_region = REGION_OUTPUTS;
+        }
+        gnamem->getQueue(mem_region)->reserve_ptr(ptr, ALIGN64(num_data_bytes_out), 64);
     }
 }
 
@@ -2363,12 +2375,12 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
             // real allocation pointer will be kept in ptr not in ptr_inputs_global
             if (!connectTo) {
-                gnamem->push_value(ptr,
+                gnamem->getQueue(REGION_INPUTS)->push_value(ptr,
                                    static_cast<uint8_t>(0),
                                    num_data_bytes_in,
                                    64);
             } else {
-                gnamem->push_value(&inputDesc->getPtrInputsGlobal(prevLayer->name).front(),
+                gnamem->getQueue(REGION_INPUTS)->push_value(&inputDesc->getPtrInputsGlobal(prevLayer->name).front(),
                                    static_cast<uint8_t>(0),
                                    num_data_bytes_in,
                                    64);
@@ -2384,9 +2396,11 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         }
 
         if (connectTo) {
-            gnamem->bind_ptr(ptr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), offset, ALIGN(num_data_bytes_in, 64));
+            gnamem->getQueue(REGION_AUTO)
+                ->bind_ptr(ptr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), offset, ALIGN(num_data_bytes_in, 64));
         } else {
-            gnamem->bind_ptr(&inputDesc->getPtrInputsGlobal(prevLayer->name).front(), ptr, offset, ALIGN(num_data_bytes_in, 64));
+            gnamem->getQueue(REGION_AUTO)
+                ->bind_ptr(&inputDesc->getPtrInputsGlobal(prevLayer->name).front(), ptr, offset, ALIGN(num_data_bytes_in, 64));
         }
 
         return prevLayer;
@@ -2394,9 +2408,9 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     // const input
     if (LayerInfo(prevLayer).isConst()) {
         if (connectTo) {
-            gnamem->bind_ptr(ptr, const_connections[prevLayer->name], offset);
+            gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, const_connections[prevLayer->name], offset);
         } else {
-            gnamem->bind_ptr(const_connections[prevLayer->name], ptr, offset);
+            gnamem->getQueue(REGION_AUTO)->bind_ptr(const_connections[prevLayer->name], ptr, offset);
         }
 
         return prevLayer;
@@ -2423,7 +2437,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
             if (it != splitLayerInfoItem.splitOutputLayers.end()) {
                 gnalog()  << "Connecting " << splitName << " input \n";
-                auto res = connectInput(splittingLayer, ptr, splitLayerInfoItem.reserved_size, it->offset + offset, 0);
+                auto res = connectInput(splittingLayer, ptr, std::max(splitLayerInfoItem.reserved_size, num_data_bytes_in), it->offset + offset, 0);
                 gnalog()  << "Connected \n";
                 return res;
             }
@@ -2435,7 +2449,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         if (concatLayerInfo != concat_connection.end()) {
             auto & concatLayerInfoItem = concatLayerInfo->second;
             // dnnLayer that is input for concat layer
-            gnamem->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, offset);
+            gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, offset);
             // return layer over concat
             return CNNNetPrevLayer(prevLayer);
         }
@@ -2444,7 +2458,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                 prevLayer->name);
         if (cropLayerInfo != crop_connection.end()) {
             auto & cropLayerInfoItem = cropLayerInfo->second;
-            gnamem->bind_ptr(ptr, &cropLayerInfoItem.gna_ptr, offset);
+            gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &cropLayerInfoItem.gna_ptr, offset);
             return CNNNetPrevLayer(prevLayer);
         }
     }
@@ -2452,7 +2466,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
     // check for generic prev layer
     if (prevDnnLayer != nullptr) {
-        gnamem->bind_ptr(ptr, &prevDnnLayer->ptr_outputs, offset);
+        gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &prevDnnLayer->ptr_outputs, offset);
         return prevLayer;
     }
 
@@ -2470,20 +2484,20 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             // connectTo used for  indicate that memory layer should be bound to given buffer
             if (connectTo) {
                 memorySize = std::max(memorySize, num_data_bytes_in);
-                gnamem->reserve_ptr(&memoryLayer.gna_ptr, ALIGN64(memorySize), 64);
-                gnamem->bind_ptr(ptr, &memoryLayer.gna_ptr, offset);
+                gnamem->getQueue(REGION_STATES)->reserve_ptr(&memoryLayer.gna_ptr, ALIGN64(memorySize), 64);
+                gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &memoryLayer.gna_ptr, offset);
             } else {
                 if (num_data_bytes_in < memorySize + offset) {
                     THROW_GNA_LAYER_EXCEPTION(layer) <<" invalid allocation request of "
                                                      << num_data_bytes_in << " is more then state tensor size of: " << memorySize + offset;
                 }
-                gnamem->bind_ptr(&memoryLayer.gna_ptr, ptr, offset);
+                gnamem->getQueue(REGION_AUTO)->bind_ptr(&memoryLayer.gna_ptr, ptr, offset);
             }
 
             memoryLayer.reserved_size = ALIGN64(memorySize);
         } else {
             // We may need to extend memory buffer if connected input size is bigger, for example for concat connection
-            gnamem->bind_ptr(ptr, &memoryLayer.gna_ptr, offset, ALIGN64(num_data_bytes_in));
+            gnamem->getQueue(REGION_AUTO)->bind_ptr(ptr, &memoryLayer.gna_ptr, offset, ALIGN64(num_data_bytes_in));
         }
 
         return prevLayer;

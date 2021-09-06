@@ -76,6 +76,7 @@
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
+#include <gna2-common-api.h>
 
 uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
@@ -101,6 +102,7 @@ constexpr uint32_t GNAPluginNS::GNAPlugin::FAKE_REQUEST_CONFIG_ID;
 using namespace InferenceEngine;
 using namespace std;
 using namespace GNAPluginNS;
+using namespace GNAPluginNS::memory;
 using namespace InferenceEngine::details;
 
 namespace InferenceEngine {
@@ -426,7 +428,7 @@ void GNAPlugin::InitGNADevice() {
                 GetDeviceVersionFromString(config.dumpXNNGeneration));
 #endif
     size_t page_size_bytes = 4096;
-    gnamem = std::make_shared<gna_memory_type>(memory::make_polymorph<memory::GNAAllocator>(gnadevice), page_size_bytes);
+    gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), page_size_bytes);
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
@@ -522,7 +524,7 @@ bool GNAPlugin::TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer) 
         desc.num_elements = numElem;
 
         // binding ptr for first infer request - then others will be setup during relocation
-        gnamem->bind_ptr(&desc.ptrs.front(), outputPtr);
+        gnamem->getQueue(REGION_AUTO)->bind_ptr(&desc.ptrs.front(), outputPtr);
     };
 
     // probing gna_primitives
@@ -669,7 +671,7 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
-
+    gnalog() << "GNAPlugin::LoadNetwork()\n";
     if (!gnaFlags->sw_fp32) {
         InitGNADevice();
     }
@@ -899,7 +901,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     if (gnaFlags->sw_fp32) {
-        gnamem.reset(new gna_memory_type(memory::make_polymorph<std::allocator<uint8_t>>()));
+        gnamem = std::make_shared<gna_memory_float>(memory::GNAFloatAllocator{});
         graphCompiler.setGNAMemoryPtr(gnamem);
     }
 
@@ -974,7 +976,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // TODO: how active list will work in multioutput case
     // make room for active list
-    gnamem->reserve_ptr(nullptr,
+    gnamem->getQueue(REGION_OUTPUTS)->reserve_ptr(nullptr,
         ALIGN64(outputsDesc.front().num_bytes_per_element * outputsDesc.front().num_elements), 64);
 
     void *pParallelExecutionData  = nullptr;
@@ -982,7 +984,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // reserving more bytes for intermediate data in parallel case - TODO: this works incorrectly in compact mode at lest
     rwSegmentSize = gnamem->getRWBytes();
     if (gnaFlags->gna_lib_async_threads_num > 1) {
-        gnamem->reserve_ptr(&pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
+        gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(&pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
     }
 
     gnamem->commit();
@@ -1152,6 +1154,9 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
 #endif
 
 int GNAPlugin::GetDeviceVersionFromString(const std::string deviceString) {
+    if (deviceString == "GNA35") {
+        return static_cast<int>(Gna2DeviceVersionEmbedded3_5);
+    }
     constexpr uint32_t embeddedSuffix = 0xE;
     if (deviceString.empty())
         return 0x100 + embeddedSuffix;
@@ -1197,6 +1202,17 @@ void GNAPlugin::DumpXNNToFile() const {
         dump.header.OutputScalingFactor = outputsDesc.front().scale_factor;
         dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
         dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.ModelSize);
+    } else if (versionInt == Gna2DeviceVersionEmbedded3_5) {
+        uint32_t input_size = 0;
+        uint32_t output_size = 0;
+        for (auto i : inputsDesc->bytes_allocated_for_input)
+            input_size += i.second;
+        for (auto o : outputsDesc)
+            output_size += o.num_bytes_per_element* o.num_elements;
+        auto inSF = inputsDesc->inputScaleFactors.front();
+        auto outSF = outputsDesc.front().scale_factor;
+        gnadevice->dumpTLVForDeviceVersion(modelId, dumpStream, Gna2DeviceVersionEmbedded3_5,
+            input_size, output_size, inSF, outSF);
     } else {
         static_assert(sizeof(versionInt) >= sizeof(Gna2DeviceVersion), "");
         gnadevice->dumpXnnForDeviceVersion(modelId, dumpStream,
@@ -1430,7 +1446,10 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             FILE* f = nullptr;
             static int num_infers = 0;
             {
-                f = fopen("ex_scores.txt", "w");
+                f = std::fopen("ex_scores.txt", "w");
+                if (!f) {
+                    THROW_GNA_EXCEPTION << "ex_scores.txt opening failed";
+                }
             }
             num_infers++;
             if (f) {
@@ -1562,7 +1581,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 
     graphCompiler.setGNAMemoryPtr(gnamem);
     void *basePtr = nullptr;
-    gnamem->reserve_ptr(&basePtr, header.gnaMemSize);
+    gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(&basePtr, header.gnaMemSize);
     gnamem->commit();
 #if GNA_LIB_VER == 2
     gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(header.layersCount)));

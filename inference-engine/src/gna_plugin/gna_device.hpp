@@ -15,6 +15,8 @@
 
 #include <ie_common.h>
 
+#include "memory/gna_mem_requests.hpp"
+
 #if GNA_LIB_VER == 2
 #include "gna2-common-api.h"
 #include "gna2-inference-api.h"
@@ -105,7 +107,7 @@ public:
         if (gnaLibVersion.rfind("2.1", 0) == 0) {
             isGnaLibVersion2_1 = true;
         }
-        if (gnaLibVersion.rfind("3.0", 0) == 0) {
+        if (gnaLibVersion.rfind("3.", 0) == 0) {
             isGnaLibVersion3_0 = true;
         }
 #endif
@@ -125,6 +127,7 @@ public:
     }
 
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
+    void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);
 
 #if GNA_LIB_VER == 1
     uint32_t propagate(const intel_nnet_type_t *pNeuralNetwork,
@@ -179,6 +182,11 @@ public:
     void dumpXnnForDeviceVersion(const uint32_t modelId,
         std::ostream & outStream,
         Gna2DeviceVersion targetDeviceVersion);
+
+    void dumpTLVForDeviceVersion(const uint32_t modelId, std::ostream& outStream,
+        Gna2DeviceVersion targetDeviceVersion, uint32_t input_size, uint32_t output_size,
+        float inSF, float outSF);
+
 #endif
     void free(void * ptr);
 

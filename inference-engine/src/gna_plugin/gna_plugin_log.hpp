@@ -13,7 +13,8 @@
 /**
  * @brief used for creating graphviz charts, and layers dump
  */
-# define PLOT
+// # define PLOT
+// # define GNA_HEAP_PROFILER
 # define gnalog() std::cout
 # define gnawarn() std::cerr
 #else
