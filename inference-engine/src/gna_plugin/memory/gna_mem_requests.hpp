@@ -21,10 +21,58 @@ enum rType : uint8_t {
  * @brief region of firmware data
  */
 enum rRegion {
+    REGION_INPUTS,
+    REGION_OUTPUTS,
+    REGION_SCRATCH,
     REGION_RO,
-    REGION_RW,
-    REGION_AUTO,
+    REGION_STATES,
+    REGION_AUTO
 };
+
+inline const char* rRegionToStr(uint8_t region) {
+   const char* strRegion = "UNKNOWN";
+   switch (region) {
+        case REGION_INPUTS:
+            strRegion = "REGION_INPUTS";
+            break;
+        case REGION_OUTPUTS:
+            strRegion = "REGION_OUTPUTS";
+            break;
+        case REGION_SCRATCH:
+            strRegion = "REGION_SCRATCH";
+            break;
+        case REGION_RO:
+            strRegion = "REGION_RO";
+            break;
+        case REGION_STATES:
+            strRegion = "REGION_STATES";
+            break;
+        case REGION_AUTO:
+            strRegion = "REGION_AUTO";
+            break;
+   }
+   return strRegion;
+}
+
+inline const char* rTypeToStr(uint8_t type) {
+   const char* strType = "UNKNOWN";
+   uint8_t initializerMask = 0x7;
+   switch (type & initializerMask) {
+      case REQUEST_STORE:
+        strType = "REQUEST_STORE";
+        break;
+      case REQUEST_ALLOCATE:
+        strType = "REQUEST_ALLOCATE";
+        break;
+      case REQUEST_BIND:
+        strType = "REQUEST_BIND";
+        break;
+      case REQUEST_INITIALIZER:
+        strType = "REQUEST_INITIALIZER";
+        break;
+   }
+   return strType;
+}
 
 struct MemRequest {
     rRegion  _region;

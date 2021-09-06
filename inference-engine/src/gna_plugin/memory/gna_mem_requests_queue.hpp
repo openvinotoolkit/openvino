@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <functional>
 #include "gna_mem_requests.hpp"
+#include "gna_lib_ver_selector.hpp"
 
 namespace GNAPluginNS {
 namespace memory {
@@ -17,7 +18,14 @@ namespace memory {
  */
 class GNAMemRequestsQueue {
 public:
+    explicit GNAMemRequestsQueue(rRegion region) : _region_type(region) {
+    }
     virtual ~GNAMemRequestsQueue() {}
+
+    rRegion _region_type;
+    size_t _size;
+    std::vector<MemRequest> _mem_requests;
+    std::list<std::vector<char>> _local_storage;
 
     /**
      * @brief register initialiser to access memory once it is actually allocated
@@ -87,9 +95,81 @@ public:
     /**
      * @brief interface for actual queue storage
      */
-    virtual rRegion regionType() const = 0;
-    virtual std::vector<MemRequest> & futureHeap()  = 0;
-    virtual std::list<std::vector<char>> &localStorage() = 0;
+    rRegion regionType() const {
+        return _region_type;
+    }
+
+    std::vector<MemRequest> & futureHeap()  {
+        return _mem_requests;
+    }
+
+    std::list<std::vector<char>> &localStorage() {
+        return _local_storage;
+    }
+
+    size_t calcSize() {
+        _size = 0;
+        for (auto &re : _mem_requests) {
+            if (re._type == REQUEST_BIND) continue;
+            _size += ALIGN(re._num_elements * re._element_size + re._padding, re._alignment);
+        }
+        return _size;
+    }
+
+    size_t getSize() {
+        return _size;
+    }
+
+    template<class T>
+    void iterate_binded(GNAPluginNS::memory::MemRequest & reference, const T & visitor) {
+        for (auto &re : _mem_requests) {
+            if ((re._type & REQUEST_BIND) && (re._ptr_in == reference._ptr_out)) {
+                // std::cout << "  [binded=" << re._type << ", ptr=" << re._ptr_out <<"]\n";
+                visitor(reference, re);
+                // primitive loop check
+                if (re._ptr_in == re._ptr_out) continue;
+                // TODO: no circular dependency checking, only tree-style dependency with loops supported
+                iterate_binded(re, visitor);
+            }
+        }
+    }
 };
+
+class GNAMemRequestsInputsQueue : public GNAMemRequestsQueue {
+public:
+    explicit GNAMemRequestsInputsQueue() : GNAMemRequestsQueue(REGION_INPUTS) {
+    }
+};
+
+class GNAMemRequestsOutputsQueue : public GNAMemRequestsQueue {
+public:
+    explicit GNAMemRequestsOutputsQueue() : GNAMemRequestsQueue(REGION_OUTPUTS) {
+    }
+};
+
+class GNAMemRequestsScratchQueue : public GNAMemRequestsQueue {
+public:
+    explicit GNAMemRequestsScratchQueue() : GNAMemRequestsQueue(REGION_SCRATCH) {
+    }
+};
+
+class GNAMemRequestsReadOnlyQueue : public GNAMemRequestsQueue {
+public:
+    explicit GNAMemRequestsReadOnlyQueue() : GNAMemRequestsQueue(REGION_RO) {
+    }
+};
+
+class GNAMemRequestsStatesQueue : public GNAMemRequestsQueue {
+public:
+    explicit GNAMemRequestsStatesQueue() : GNAMemRequestsQueue(REGION_STATES) {
+    }
+};
+
+class GNAMemRequestsBindingsQueue : public GNAMemRequestsQueue {
+public:
+    explicit GNAMemRequestsBindingsQueue() : GNAMemRequestsQueue(REGION_AUTO) {
+    }
+};
+
 }  // namespace memory
 }  // namespace GNAPluginNS
