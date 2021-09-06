@@ -93,7 +93,7 @@ def create_ngraph_function(args: argparse.Namespace) -> ngraph.impl.Function:
         weights[weights_offset : weights_offset + conv_2_kernel_length].reshape(conv_2_kernel_shape),
     )
     weights_offset += conv_2_kernel_length
-    conv_2_node = ngraph.convolution(maxpool_1_node, conv_2_kernel, [1, 1], padding_begin, padding_end, [1, 1])
+    conv_2_node = ngraph.convolution(maxpool_1_node.output(0), conv_2_kernel, [1, 1], padding_begin, padding_end, [1, 1])
 
     # add 2
     add_2_kernel_shape, add_2_kernel_length = shape_and_length([1, 50, 1, 1])
@@ -115,7 +115,7 @@ def create_ngraph_function(args: argparse.Namespace) -> ngraph.impl.Function:
     )
     reshape_1_kernel = ngraph.constant(dtype_weights)
     weights_offset += 2 * reshape_1_length
-    reshape_1_node = ngraph.reshape(maxpool_2_node, reshape_1_kernel, True)
+    reshape_1_node = ngraph.reshape(maxpool_2_node.output(0), reshape_1_kernel, True)
 
     # matmul 1
     matmul_1_kernel_shape, matmul_1_kernel_length = shape_and_length([500, 800])
