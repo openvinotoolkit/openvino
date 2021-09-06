@@ -1484,7 +1484,8 @@ bool ngraph::host_tensor_is_positive(const HostTensorPtr& bound) {
     OutputVector all(1);
     folded = std::make_shared<op::v1::ReduceLogicalAnd>(greater[0], axes)->constant_fold(all, {greater[0], axes});
     NGRAPH_CHECK(folded && ov::is_type<op::Constant>(all[0].get_node()->shared_from_this()));
-    const auto result = std::dynamic_pointer_cast<op::Constant>(all[0].get_node()->shared_from_this())->cast_vector<bool>();
+    const auto result =
+        std::dynamic_pointer_cast<op::Constant>(all[0].get_node()->shared_from_this())->cast_vector<bool>();
     NGRAPH_CHECK(all[0].get_shape() == Shape{});
     return result[0];
 }

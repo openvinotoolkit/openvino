@@ -43,8 +43,8 @@ OutputVector dropout(const Node& node) {
         CHECK_VALID_NODE(node,
                          ngraph::op::is_constant(ng_inputs.at(2).get_node()->shared_from_this()),
                          "Non-constant training_mode input is not supported.");
-        training_mode =
-            ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(2).get_node()->shared_from_this())->cast_vector<bool>()[0];
+        training_mode = ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(2).get_node()->shared_from_this())
+                            ->cast_vector<bool>()[0];
     }
     return build_dropout(node, training_mode);
 }

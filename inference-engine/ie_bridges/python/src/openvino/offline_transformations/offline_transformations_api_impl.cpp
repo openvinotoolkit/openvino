@@ -61,6 +61,7 @@ void InferenceEnginePython::CheckAPI() {
 
     assert(f->get_results().size() == 1);
     auto reshape = f->get_result()->input_value(0).get_node()->shared_from_this();
-    assert(std::dynamic_pointer_cast<ngraph::opset6::Parameter>(reshape->input_value(0).get_node()->shared_from_this()));
+    assert(
+        std::dynamic_pointer_cast<ngraph::opset6::Parameter>(reshape->input_value(0).get_node()->shared_from_this()));
     assert(std::dynamic_pointer_cast<ngraph::opset6::Constant>(reshape->input_value(1).get_node()->shared_from_this()));
 }

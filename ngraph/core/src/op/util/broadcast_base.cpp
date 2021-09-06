@@ -427,7 +427,8 @@ bool ov::op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
 
 ngraph::Shape ov::op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const {
     ngraph::Shape target_shape;
-    const auto shape_constant = ov::as_type_ptr<ngraph::op::v0::Constant>(input_value(1).get_node()->shared_from_this());
+    const auto shape_constant =
+        ov::as_type_ptr<ngraph::op::v0::Constant>(input_value(1).get_node()->shared_from_this());
     if (shape_constant) {
         target_shape = shape_constant->get_shape_val();
     } else {

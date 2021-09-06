@@ -224,7 +224,8 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
     }
 
     const auto concat = std::dynamic_pointer_cast<ngraph::op::Concat>(input_values[0].get_node()->shared_from_this());
-    const auto indices = std::dynamic_pointer_cast<ngraph::op::Constant>(input_values[1].get_node()->shared_from_this());
+    const auto indices =
+        std::dynamic_pointer_cast<ngraph::op::Constant>(input_values[1].get_node()->shared_from_this());
     const auto axis = std::dynamic_pointer_cast<ngraph::op::Constant>(input_values[2].get_node()->shared_from_this());
 
     if (!concat || !indices || !axis) {

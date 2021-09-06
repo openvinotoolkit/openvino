@@ -211,7 +211,8 @@ OutputVector slice(const Node& node) {
 
     starts = adjust_indices_if_needed(starts, normalized_axes, slice_indices_length, 0).get_node()->shared_from_this();
     ends = adjust_indices_if_needed(ends, normalized_axes, slice_indices_length, 0).get_node()->shared_from_this();
-    strides = adjust_indices_if_needed(strides, normalized_axes, slice_indices_length, 1).get_node()->shared_from_this();
+    strides =
+        adjust_indices_if_needed(strides, normalized_axes, slice_indices_length, 1).get_node()->shared_from_this();
 
     return {std::make_shared<default_opset::StridedSlice>(data, starts, ends, strides, begin_end_mask, begin_end_mask)};
 }

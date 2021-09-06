@@ -36,7 +36,7 @@ bool ov::pass::ConstantFolding::run_on_function(std::shared_ptr<ov::Function> f)
                         replacement.get_node()->shared_from_this()->set_friendly_name(node->get_friendly_name());
                     } else {
                         replacement.get_node()->shared_from_this()->set_friendly_name(node->get_friendly_name() + "." +
-                                                                             std::to_string(i));
+                                                                                      std::to_string(i));
                     }
                     node_output.replace(replacement);
                     // Propagate runtime info attributes to replacement consumer nodes

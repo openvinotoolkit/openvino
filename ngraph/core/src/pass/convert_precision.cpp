@@ -107,8 +107,8 @@ bool convert_precision(pass::PassBase& pass,
     auto register_constants = [&const_to_internal_output](const std::vector<std::shared_ptr<Node>>& ops) {
         for (auto& node : ops) {
             for (auto& input : node->inputs()) {
-                if (auto const_node =
-                        std::dynamic_pointer_cast<opset4::Constant>(input.get_source_output().get_node()->shared_from_this())) {
+                if (auto const_node = std::dynamic_pointer_cast<opset4::Constant>(
+                        input.get_source_output().get_node()->shared_from_this())) {
                     const_to_internal_output[const_node.get()].emplace_back(input);
                 }
             }
