@@ -28,9 +28,9 @@ ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
             return false;
         }
 
-        const auto depth_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input_value(1).get_node_shared_ptr());
-        const auto on_value_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input_value(2).get_node_shared_ptr());
-        const auto off_value_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input_value(3).get_node_shared_ptr());
+        const auto depth_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input_value(1).get_node()->shared_from_this());
+        const auto on_value_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input_value(2).get_node()->shared_from_this());
+        const auto off_value_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input_value(3).get_node()->shared_from_this());
 
         // can be converted iff inputs with depth, on/off values are constants
         if (depth_node == nullptr || on_value_node == nullptr || off_value_node == nullptr) return false;

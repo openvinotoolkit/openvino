@@ -31,8 +31,8 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         auto & label_to_output = m.get_pattern_value_map();
 
-        auto mul = label_to_output[m_mul].get_node_shared_ptr();
-        auto add = label_to_output[m_add].get_node_shared_ptr();
+        auto mul = label_to_output[m_mul].get_node()->shared_from_this();
+        auto add = label_to_output[m_add].get_node()->shared_from_this();
 
         if (transformation_callback(mul)) {
             return false;
@@ -78,8 +78,8 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         auto & label_to_output = m.get_pattern_value_map();
 
-        auto add1 = label_to_output[m_add1].get_node_shared_ptr();
-        auto add2 = label_to_output[m_add2].get_node_shared_ptr();
+        auto add1 = label_to_output[m_add1].get_node()->shared_from_this();
+        auto add2 = label_to_output[m_add2].get_node()->shared_from_this();
 
         Output<Node> input = label_to_output[m_data];
         Output<Node> add1_const = label_to_output[m_add1_constant];
@@ -113,8 +113,8 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         auto & label_to_output = m.get_pattern_value_map();
 
-        auto mul1 = label_to_output[m_mul1].get_node_shared_ptr();
-        auto mul2 = label_to_output[m_mul2].get_node_shared_ptr();
+        auto mul1 = label_to_output[m_mul1].get_node()->shared_from_this();
+        auto mul2 = label_to_output[m_mul2].get_node()->shared_from_this();
 
         Output<Node> input = label_to_output[m_data];
         Output<Node> mul1_const = label_to_output[m_mul1_constant];

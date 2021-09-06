@@ -35,10 +35,10 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         const auto &pattern_map = m.get_pattern_value_map();
-        const auto fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
+        const auto fq_node = pattern_map.at(fq_node_p).get_node()->shared_from_this();
         if (fq_node->is_dynamic())
             return false;
-        const auto &reshape_node = pattern_map.at(reshape_node_p).get_node_shared_ptr();
+        const auto &reshape_node = pattern_map.at(reshape_node_p).get_node()->shared_from_this();
         const auto &original_data_rank = fq_node->get_input_shape(0).size();
         OutputVector renewed_inputs = {reshape_node->clone_with_new_inputs({fq_node->input_value(0), reshape_node->input_value(1)})};
         for (auto i = 1; i < 5; ++i) {
@@ -68,7 +68,7 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
             return false;
         }
         for (auto &new_input : renewed_inputs)
-            copy_runtime_info({reshape_node, fq_node}, new_input.get_node_shared_ptr());
+            copy_runtime_info({reshape_node, fq_node}, new_input.get_node()->shared_from_this());
         const auto new_fq_node = fq_node->clone_with_new_inputs(renewed_inputs);
         replace_node(reshape_node, new_fq_node);
         new_fq_node->set_friendly_name(fq_node->get_friendly_name());

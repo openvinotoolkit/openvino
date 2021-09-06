@@ -37,9 +37,9 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
-        const auto exp_input = std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
-        const auto axes_input = std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
-        const auto eps_attr = std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(eps_const).get_node_shared_ptr());
+        const auto exp_input = std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(exp).get_node()->shared_from_this());
+        const auto axes_input = std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(axes).get_node()->shared_from_this());
+        const auto eps_attr = std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(eps_const).get_node()->shared_from_this());
 
         if (!exp_input || !axes_input || !eps_attr) {
             return false;
@@ -71,11 +71,11 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
             return false;
 
         normalize_l2->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(pow).get_node_shared_ptr(),
-                                   pattern_to_output.at(reduce_sum).get_node_shared_ptr(),
-                                   pattern_to_output.at(sqrt).get_node_shared_ptr(),
-                                   pattern_to_output.at(divide).get_node_shared_ptr(),
-                                   eps_node.get_node_shared_ptr()
+        ngraph::copy_runtime_info({pattern_to_output.at(pow).get_node()->shared_from_this(),
+                                   pattern_to_output.at(reduce_sum).get_node()->shared_from_this(),
+                                   pattern_to_output.at(sqrt).get_node()->shared_from_this(),
+                                   pattern_to_output.at(divide).get_node()->shared_from_this(),
+                                   eps_node.get_node()->shared_from_this()
                                    },
                                    normalize_l2);
         ngraph::replace_node(m.get_match_root(), normalize_l2);

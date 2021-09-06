@@ -20,7 +20,7 @@ ngraph::pass::Gelu7Downgrade::Gelu7Downgrade() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto gelu_node = std::dynamic_pointer_cast<ngraph::opset7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
+        auto gelu_node = std::dynamic_pointer_cast<ngraph::opset7::Gelu>(pattern_to_output.at(gelu).get_node()->shared_from_this());
 
         if (gelu_node == nullptr || transformation_callback(gelu_node)) {
             return false;

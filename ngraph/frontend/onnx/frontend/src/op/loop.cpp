@@ -38,8 +38,8 @@ bool is_termination_condition_always_true(const Output<ngraph::Node>& body_out_c
     // value of loop_cond - true
     // Identity op for boolean value is represented by LogicalOr op whose second
     // input is always false
-    if (ov::is_type<default_opset::LogicalOr>(body_out_cond.get_node_shared_ptr())) {
-        const auto second_input = body_out_cond.get_node_shared_ptr()->input_value(1).get_node_shared_ptr();
+    if (ov::is_type<default_opset::LogicalOr>(body_out_cond.get_node()->shared_from_this())) {
+        const auto second_input = body_out_cond.get_node()->shared_from_this()->input_value(1).get_node()->shared_from_this();
         if (ngraph::op::is_constant(second_input) && second_input->get_element_type() == element::boolean &&
             ov::as_type_ptr<default_opset::Constant>(second_input)->cast_vector<bool>().at(0) == false) {
             return true;
@@ -73,8 +73,8 @@ OutputVector loop(const Node& node) {
     Output<ngraph::Node> trip_count;
     // trip count skipped or has value max(int64_t) means infinitive loop
     if (ngraph::op::is_null(ng_inputs.at(0)) ||
-        (ngraph::op::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
-         ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())->cast_vector<int64_t>()[0] ==
+        (ngraph::op::is_constant(ng_inputs.at(0).get_node()->shared_from_this()) &&
+         ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node()->shared_from_this())->cast_vector<int64_t>()[0] ==
              std::numeric_limits<int64_t>::max())) {
         // -1 means infinite Loop
         trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {-1});
@@ -83,11 +83,11 @@ OutputVector loop(const Node& node) {
     }
 
     Output<ngraph::Node> termination_cond;                           // true means that first interation should be run
-    if (ngraph::op::is_null(ng_inputs.at(1).get_node_shared_ptr()))  // termination condition skipped
+    if (ngraph::op::is_null(ng_inputs.at(1).get_node()->shared_from_this()))  // termination condition skipped
     {
         termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
-    } else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
-               ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(1).get_node_shared_ptr())
+    } else if (ngraph::op::is_constant(ng_inputs.at(1).get_node()->shared_from_this()) &&
+               ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(1).get_node()->shared_from_this())
                        ->cast_vector<bool>()[0] == false) {
         // no iteration is performed so initial values are returned
         OutputVector node_outputs;
@@ -111,7 +111,7 @@ OutputVector loop(const Node& node) {
         body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(body_outputs[i], concat_axis_const);
     }
 
-    const auto& body_loop_out_cond = body_outputs.at(0).get_node_shared_ptr();
+    const auto& body_loop_out_cond = body_outputs.at(0).get_node()->shared_from_this();
     // optimization allow to improve nG Loop shape inference
     if (is_termination_condition_always_true(body_loop_out_cond)) {
         body_outputs[0] = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});

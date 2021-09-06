@@ -28,9 +28,9 @@ ngraph::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
         auto mish = std::make_shared<ngraph::opset4::Mish>(exp_input);
 
         mish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(mul).get_node_shared_ptr(),
-                                   pattern_to_output.at(tanh).get_node_shared_ptr(),
-                                   pattern_to_output.at(softplus).get_node_shared_ptr()}, mish);
+        ngraph::copy_runtime_info({pattern_to_output.at(mul).get_node()->shared_from_this(),
+                                   pattern_to_output.at(tanh).get_node()->shared_from_this(),
+                                   pattern_to_output.at(softplus).get_node()->shared_from_this()}, mish);
         ngraph::replace_node(m.get_match_root(), mish);
         return true;
     };

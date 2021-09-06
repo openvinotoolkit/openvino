@@ -25,13 +25,13 @@ namespace {
         int64_t seqAxis = 1; // default
         const auto& target_inputs = sequenceOp->output(0).get_target_inputs();
         if (target_inputs.size() == 1) {
-            const auto& transpose_before = std::dynamic_pointer_cast<ngraph::op::v1::Transpose>(sequenceOp->input_value(0).get_node_shared_ptr());
+            const auto& transpose_before = std::dynamic_pointer_cast<ngraph::op::v1::Transpose>(sequenceOp->input_value(0).get_node()->shared_from_this());
             const auto& transpose_after = std::dynamic_pointer_cast<ngraph::op::v1::Transpose>(target_inputs.begin()->get_node()->shared_from_this());
             if (transpose_after != nullptr && transpose_before != nullptr) {
                 auto order_before = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(
-                        transpose_before->input_value(1).get_node_shared_ptr());
+                        transpose_before->input_value(1).get_node()->shared_from_this());
                 auto order_after = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(
-                        transpose_after->input_value(1).get_node_shared_ptr());
+                        transpose_after->input_value(1).get_node()->shared_from_this());
                 if (order_before != nullptr && order_after != nullptr) {
                     auto order_before_values = order_before->cast_vector<int64_t>();
                     auto order_after_values = order_after->cast_vector<int64_t>();
@@ -50,7 +50,7 @@ namespace {
         // Detect pattern: Transpose_before -> Seq -> Transpose_after
         auto seqAxis = getSeqAxis(sequenceOp);
         if (seqAxis == 0) {
-            ngraph::Output<ngraph::Node> in_0 = sequenceOp->get_input_source_output(0).get_node_shared_ptr()->get_input_source_output(0);
+            ngraph::Output<ngraph::Node> in_0 = sequenceOp->get_input_source_output(0).get_node()->shared_from_this()->get_input_source_output(0);
 
             auto newInShape = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{3}, sequenceOp->get_input_shape(0));
             auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(in_0, newInShape, false);

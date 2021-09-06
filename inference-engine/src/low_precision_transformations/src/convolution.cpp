@@ -178,7 +178,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             ngraph::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
 
         replace_node(convolution, newMultiplyAfter);
-        convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
+        convolution = newMultiplyAfter->input_value(0).get_node()->shared_from_this();
 
         if (ov::is_type<opset1::Convert>(convolution->get_input_node_ptr(0))) {
             auto newConvolution = convolution->clone_with_new_inputs({
@@ -205,7 +205,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             NetworkHelper::getDequantization(reshapeFromWeights);
         assert(!dequantization.empty());
         if (ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node())) {
-            const std::shared_ptr<opset1::FakeQuantize> fq = ov::as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr());
+            const std::shared_ptr<opset1::FakeQuantize> fq = ov::as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node()->shared_from_this());
             std::shared_ptr<ngraph::Node> newFQ = NetworkHelper::fold_fake_quantize(fq, true);
             NetworkHelper::copyInfo(fq, newFQ);
             replace_node(fq, newFQ);
@@ -250,7 +250,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                         false),
                     convolution->get_output_element_type(0)));
             replace_node(convolution, newMultiplyAfter);
-            convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
+            convolution = newMultiplyAfter->input_value(0).get_node()->shared_from_this();
         }
 
         if (subtractFromWeights != nullptr) {

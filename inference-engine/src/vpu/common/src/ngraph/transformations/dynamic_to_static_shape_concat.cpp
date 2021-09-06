@@ -23,7 +23,7 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
     ngraph::OutputVector dsrInputs;
     ngraph::OutputVector staticInputs;
     for (const auto& input : inputs) {
-        const auto inputNode = input.get_node_shared_ptr();
+        const auto inputNode = input.get_node()->shared_from_this();
         if (ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(inputNode)) {
             dsrInputs.emplace_back(input);
         } else {
@@ -37,16 +37,16 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
                      target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info,
                      std::accumulate(inputs.begin(), inputs.end(), std::string(), [](
                              const std::string& typesStr, const ngraph::Output<ngraph::Node>& input) {
-                         return typesStr + input.get_node_shared_ptr()->get_type_info().name + ", ";
+                         return typesStr + input.get_node()->shared_from_this()->get_type_info().name + ", ";
                      }));
 
-    const auto firstDSRInputNode = dsrInputs.front().get_node_shared_ptr();
+    const auto firstDSRInputNode = dsrInputs.front().get_node()->shared_from_this();
     const auto shapeDataType = firstDSRInputNode->input(1).get_element_type();
     const auto dataRank = firstDSRInputNode->get_output_partial_shape(0).rank().get_length();
     const auto axis = ngraph::as_type_ptr<ngraph::opset3::Concat>(target)->get_concatenation_axis();
 
     const auto getShapeFromDSR = [&target, &shapeDataType](const ngraph::Output<ngraph::Node>& dsrOutput) {
-        const auto dsrNode = dsrOutput.get_node_shared_ptr();
+        const auto dsrNode = dsrOutput.get_node()->shared_from_this();
         const auto dsrShapeInputValue = dsrNode->input_value(1);
         VPU_THROW_UNLESS(dsrShapeInputValue.get_element_type() == shapeDataType,
                          "DynamicToStaticShape transformation for {} of type {} expects input "

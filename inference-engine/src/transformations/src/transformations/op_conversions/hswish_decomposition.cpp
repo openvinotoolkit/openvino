@@ -20,7 +20,7 @@ ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto &pattern_to_output = m.get_pattern_value_map();
-        auto hswish_node = pattern_to_output.at(hswish).get_node_shared_ptr();
+        auto hswish_node = pattern_to_output.at(hswish).get_node()->shared_from_this();
 
         if (transformation_callback(hswish_node)) {
             return false;

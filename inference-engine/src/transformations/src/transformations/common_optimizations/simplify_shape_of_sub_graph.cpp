@@ -57,7 +57,7 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
         NodeVector new_ops;
         size_t i = 0, original_inputs_size = inputs.size();
         while (inputs.size() > i + 1) {
-            auto curr = inputs[i].get_node_shared_ptr(), next = inputs[i + 1].get_node_shared_ptr();
+            auto curr = inputs[i].get_node()->shared_from_this(), next = inputs[i + 1].get_node()->shared_from_this();
             if (curr->get_type_info() != next->get_type_info() ||
                 (!ov::is_type<opset1::Gather>(curr) && !ov::is_type<opset7::Gather>(curr)) ||
                 (curr->input_value(0) != next->input_value(0))) {
@@ -131,7 +131,7 @@ ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto node = m.get_match_root();
-        auto gather = ov::as_type_ptr<opset3::Gather>(node->input_value(0).get_node_shared_ptr());
+        auto gather = ov::as_type_ptr<opset3::Gather>(node->input_value(0).get_node()->shared_from_this());
         if (!gather) {
             return false;
         }

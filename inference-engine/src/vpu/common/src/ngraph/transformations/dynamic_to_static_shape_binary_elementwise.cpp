@@ -24,8 +24,8 @@ void processBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise, size_t lhsIndex
 
     const auto copied = eltwise->copy_with_new_inputs(eltwise->input_values());
 
-    const auto lhsDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(eltwise->input_value(lhsIndex).get_node_shared_ptr());
-    const auto rhsDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(eltwise->input_value(rhsIndex).get_node_shared_ptr());
+    const auto lhsDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(eltwise->input_value(lhsIndex).get_node()->shared_from_this());
+    const auto rhsDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(eltwise->input_value(rhsIndex).get_node()->shared_from_this());
 
     VPU_THROW_UNLESS(lhsDSR || rhsDSR, "DynamicToStaticShape transformation for {} of type {} expects at least one DSR as input",
                      eltwise->get_friendly_name(), eltwise->get_type_info());

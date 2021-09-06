@@ -38,8 +38,8 @@ void dynamicToStaticShapeMatMul(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(matmul, "dynamicToStaticShapeMatMul transformation is not applicable for {}, it should be {} instead",
             target, ngraph::opset3::MatMul::type_info);
 
-    const auto a_input_DSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node_shared_ptr());
-    const auto b_input_DSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(1).get_node_shared_ptr());
+    const auto a_input_DSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node()->shared_from_this());
+    const auto b_input_DSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(1).get_node()->shared_from_this());
 
     if (a_input_DSR && b_input_DSR) {
         VPU_THROW_UNLESS(a_input_DSR->get_input_element_type(1) == b_input_DSR->get_input_element_type(1),

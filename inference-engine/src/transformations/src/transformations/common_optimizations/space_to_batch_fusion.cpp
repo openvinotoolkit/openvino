@@ -38,9 +38,9 @@ ngraph::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
         auto get_reshape_or_transpose = [&pattern_map] (const std::shared_ptr<Node>& reshape_pattern,
                                                         const std::shared_ptr<Node>& trans_pattern) -> std::shared_ptr<Node> {
             if (pattern_map.count(reshape_pattern))
-                return pattern_map.at(reshape_pattern).get_node_shared_ptr();
+                return pattern_map.at(reshape_pattern).get_node()->shared_from_this();
             if (pattern_map.count(trans_pattern))
-                return pattern_map.at(trans_pattern).get_node_shared_ptr();
+                return pattern_map.at(trans_pattern).get_node()->shared_from_this();
             return nullptr;
         };
         auto check_input_output_shape = [] (const std::shared_ptr<Node>& node) -> bool {
@@ -64,17 +64,17 @@ ngraph::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
         if (!check_input_output_shape(reshape_or_trans_after))
             return false;
 
-        auto pad = std::dynamic_pointer_cast<opset6::Pad>(pattern_map.at(pad_pattern).get_node_shared_ptr());
+        auto pad = std::dynamic_pointer_cast<opset6::Pad>(pattern_map.at(pad_pattern).get_node()->shared_from_this());
         if (!pad || pad->get_pad_mode() != op::PadMode::CONSTANT)
             return false;
-        auto pad_value_const = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(pad_value).get_node_shared_ptr());
+        auto pad_value_const = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(pad_value).get_node()->shared_from_this());
         if (!pad_value_const)
             return false;
         auto pad_value = pad_value_const->cast_vector<float>();
         if (pad_value.size() != 1 || pad_value[0] != 0.0f)
             return false;
 
-        auto space_to_depth = std::dynamic_pointer_cast<opset6::SpaceToDepth>(pattern_map.at(space_to_depth_pattern).get_node_shared_ptr());
+        auto space_to_depth = std::dynamic_pointer_cast<opset6::SpaceToDepth>(pattern_map.at(space_to_depth_pattern).get_node()->shared_from_this());
         if (!space_to_depth)
             return false;
         if (space_to_depth->get_mode() != opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST)

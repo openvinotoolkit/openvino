@@ -145,7 +145,7 @@ bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, 
         return false;
     }
 
-    const auto parent = dequantization.subtract->input_value(1).get_node_shared_ptr();
+    const auto parent = dequantization.subtract->input_value(1).get_node()->shared_from_this();
 
     if (ov::is_type<opset1::Constant>(parent)) {
         return true;
@@ -335,7 +335,7 @@ void LayerTransformation::updateOutput(
     std::shared_ptr<ngraph::Node> lastNode,
     std::shared_ptr<ngraph::Node> originalNode) const {
     // TODO: not tested!!!
-    for (auto output : lastNode->outputs()) {
+    for (const auto& output : lastNode->outputs()) {
         for (auto input : output.get_target_inputs()) {
             if (ov::is_type<ngraph::opset1::Result>(input.get_node())) {
                 const std::string originalName = originalNode->get_friendly_name();

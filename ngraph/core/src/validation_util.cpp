@@ -1071,8 +1071,8 @@ vector<MaxValue> exec_shape_of(Node* node, vector<MaxValue>& inputs) {
 vector<MaxValue> exec_gather(Node* node, vector<MaxValue>& inputs) {
     auto gather = ov::as_type<op::v1::Gather>(node);
 
-    const auto& indices = ov::as_type_ptr<op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
-    const auto& axis = ov::as_type_ptr<op::v0::Constant>(node->input_value(2).get_node_shared_ptr());
+    const auto& indices = ov::as_type_ptr<op::v0::Constant>(node->input_value(1).get_node()->shared_from_this());
+    const auto& axis = ov::as_type_ptr<op::v0::Constant>(node->input_value(2).get_node()->shared_from_this());
 
     if (!indices || !axis) {
         return {MaxValue()};
@@ -1483,14 +1483,14 @@ bool ngraph::host_tensor_is_positive(const HostTensorPtr& bound) {
     const auto axes = op::Constant::create(element::i64, {axes_vector.size()}, axes_vector);
     OutputVector all(1);
     folded = std::make_shared<op::v1::ReduceLogicalAnd>(greater[0], axes)->constant_fold(all, {greater[0], axes});
-    NGRAPH_CHECK(folded && ov::is_type<op::Constant>(all[0].get_node_shared_ptr()));
-    const auto result = std::dynamic_pointer_cast<op::Constant>(all[0].get_node_shared_ptr())->cast_vector<bool>();
+    NGRAPH_CHECK(folded && ov::is_type<op::Constant>(all[0].get_node()->shared_from_this()));
+    const auto result = std::dynamic_pointer_cast<op::Constant>(all[0].get_node()->shared_from_this())->cast_vector<bool>();
     NGRAPH_CHECK(all[0].get_shape() == Shape{});
     return result[0];
 }
 
 bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {
-    if (op::is_constant(source.get_node_shared_ptr()))
+    if (op::is_constant(source.get_node()->shared_from_this()))
         return true;
     HostTensorPtr lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(source);
@@ -1500,7 +1500,7 @@ bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {
 shared_ptr<op::Constant> ngraph::get_constant_from_source(const Output<Node>& source) {
     if (!has_and_set_equal_bounds(source))
         return nullptr;
-    if (const auto& c = ov::as_type_ptr<op::Constant>(source.get_node_shared_ptr()))
+    if (const auto& c = ov::as_type_ptr<op::Constant>(source.get_node()->shared_from_this()))
         return c;
     return std::make_shared<op::Constant>(source.get_tensor().get_upper_value());
 }

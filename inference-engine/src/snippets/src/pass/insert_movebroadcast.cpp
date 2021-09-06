@@ -17,7 +17,7 @@ using namespace ngraph;
 
 static std::shared_ptr<ngraph::Node> numpy_broadcast_node(const ngraph::Output<ngraph::Node>& value,
     const ngraph::Shape& output_shape, const ngraph::Shape& source_shape) {
-    std::shared_ptr<ngraph::Node> broadcasted_node = value.get_node_shared_ptr();
+    std::shared_ptr<ngraph::Node> broadcasted_node = value.get_node()->shared_from_this();
 
     if (output_shape == value.get_shape()) {
         return broadcasted_node;

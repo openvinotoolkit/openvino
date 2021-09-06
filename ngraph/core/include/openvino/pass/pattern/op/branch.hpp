@@ -36,9 +36,7 @@ public:
     }
 
     Output<Node> get_destination() const {
-        return m_destination_node == nullptr
-                   ? Output<Node>()
-                   : Output<Node>{m_destination_node->shared_from_this(), m_destination_index};
+        return m_destination_node == nullptr ? Output<Node>() : Output<Node>{m_destination_node, m_destination_index};
     }
 
     bool match_value(pattern::Matcher* matcher,

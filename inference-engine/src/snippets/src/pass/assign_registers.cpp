@@ -157,7 +157,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_function(std::shared_ptr<Fu
         }
         // store effective address and procced with vector registers
         if (ov::as_type_ptr<ngraph::snippets::op::Load>(n) || ov::as_type_ptr<ngraph::snippets::op::BroadcastLoad>(n)) {
-            auto source = n->get_input_source_output(0).get_node_shared_ptr();
+            auto source = n->get_input_source_output(0).get_node()->shared_from_this();
 
             if (auto param = ov::as_type_ptr<opset1::Parameter>(source)) {
                 auto ea = reg64_tmp_start+static_cast<int64_t>(f->get_parameter_index(param));

@@ -86,7 +86,7 @@ TEST(TransformationTests, TestInitMasks) {
     m.register_pass<pass::InitMasks>();
     m.run_passes(f);
 
-    compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), {{1, 2, 3}, {}, {}, {}});
+    compare_masks(*getMask(weights.get_node()->shared_from_this()->output(0)), {{1, 2, 3}, {}, {}, {}});
 }
 
 TEST(TransformationTests, InitMasksNegative) {
@@ -153,7 +153,7 @@ TEST(TransformationTests, PropagateMasksBasic) {
     compare_masks(*getMask(add->output(0)), Mask({{}, {1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(sub->output(0)), Mask({{}, {1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(mul->output(0)), Mask({{}, {1, 2, 3, 4}, {}, {}}));
-    compare_masks(*getMask(weights2.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3, 4}, {}, {}}));
+    compare_masks(*getMask(weights2.get_node()->shared_from_this()->output(0)), Mask({{}, {1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),    Mask({{}, {}, {}, {}}));
 }
 
@@ -261,7 +261,7 @@ TEST(TransformationTests, PropagateMaskPassThrough) {
     auto input = std::make_shared<opset5::Parameter>(element::f32, input_shape);
     input->set_friendly_name("input");
     auto weights_const_1 = create_constant_with_zeros(weights_shape, {{1, 2, 3}, {}, {}, {}});
-    weights_const_1.get_node_shared_ptr()->set_friendly_name("weights_1");
+    weights_const_1.get_node()->shared_from_this()->set_friendly_name("weights_1");
 
     auto conv_1 = std::make_shared<opset5::Convolution>(input, weights_const_1, Strides(2, 1),
                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
@@ -291,7 +291,7 @@ TEST(TransformationTests, PropagateMaskPassThrough) {
     m.register_pass<pass::PropagateMasks>();
     m.run_passes(f);
 
-    compare_masks(*getMask(weights_const_1.get_node_shared_ptr()->output(0)),  Mask({{1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(weights_const_1.get_node()->shared_from_this()->output(0)),  Mask({{1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(relu->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(clamp->output(0)),     Mask({{}, {1, 2, 3}, {}, {}}));
@@ -306,7 +306,7 @@ TEST(TransformationTests, PropagateMasksHardDependencies) {
 
     Shape weights1_shape{6, 3, 3, 3};
     auto weights1 = create_constant_with_zeros(weights1_shape, {{1, 2, 3}, {}, {}, {}});
-    weights1.get_node_shared_ptr()->set_friendly_name("weights1");
+    weights1.get_node()->shared_from_this()->set_friendly_name("weights1");
 
     auto conv1 = std::make_shared<opset5::Convolution>(input1, weights1, Strides(2, 1),
                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
@@ -320,7 +320,7 @@ TEST(TransformationTests, PropagateMasksHardDependencies) {
 
     Shape weights2_shape{6, 3, 3, 3};
     auto weights2 = create_constant_with_zeros(weights2_shape, {{2, 3}, {}, {}, {}});
-    weights2.get_node_shared_ptr()->set_friendly_name("weights2");
+    weights2.get_node()->shared_from_this()->set_friendly_name("weights2");
 
     auto conv2 = std::make_shared<opset5::Convolution>(input2, weights2, Strides(2, 1),
                                                       CoordinateDiff(2, 0), CoordinateDiff(2, 0), Strides(2, 1));
@@ -404,14 +404,14 @@ TEST(TransformationTests, PropagateMasksQuantizedGroupConvolution) {
     m.register_pass<pass::Pruning>();
     m.run_passes(f);
 
-    compare_masks(*getMask(weights1.get_node_shared_ptr()->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(weights1.get_node()->shared_from_this()->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0 , 1, 2, 3}, {}, {}}));
 
     compare_masks(*getMask(weights_group->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(sub->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
-    compare_masks(*getMask(sub_const.get_node_shared_ptr()->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(sub_const.get_node()->shared_from_this()->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(mul->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
-    compare_masks(*getMask(mul_const.get_node_shared_ptr()->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(mul_const.get_node()->shared_from_this()->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}}));
 
     compare_masks(*getMask(reshape->output(0)), Mask({{0 , 1, 2, 3}, {}, {}, {}, {}}));
 
@@ -466,15 +466,15 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerTensor) {
     m.run_passes(f);
 
     compare_masks(*getMask(weights_1->output(0)), Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
-    compare_masks(*getMask(sub_const.get_node_shared_ptr()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
+    compare_masks(*getMask(sub_const.get_node()->shared_from_this()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
     compare_masks(*getMask(sub->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
 
-    compare_masks(*getMask(mul_const.get_node_shared_ptr()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
+    compare_masks(*getMask(mul_const.get_node()->shared_from_this()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
     compare_masks(*getMask(mul->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
 
     compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
 
-    compare_masks(*getMask(add_const.get_node_shared_ptr()->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
+    compare_masks(*getMask(add_const.get_node()->shared_from_this()->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(add->output(0)),  Mask({{}, {0 , 1, 2, 3, 4},  {}, {}}));
 
     compare_masks(*getMask(fq->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
@@ -529,15 +529,15 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerChannel) {
     m.run_passes(f);
 
     compare_masks(*getMask(weights_1->output(0)), Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
-    compare_masks(*getMask(sub_const.get_node_shared_ptr()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
+    compare_masks(*getMask(sub_const.get_node()->shared_from_this()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
     compare_masks(*getMask(sub->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
 
-    compare_masks(*getMask(mul_const.get_node_shared_ptr()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
+    compare_masks(*getMask(mul_const.get_node()->shared_from_this()->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
     compare_masks(*getMask(mul->output(0)),  Mask({{0 , 1, 2, 3, 4}, {}, {}, {}}));
 
     compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
 
-    compare_masks(*getMask(add_const.get_node_shared_ptr()->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
+    compare_masks(*getMask(add_const.get_node()->shared_from_this()->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(add->output(0)),  Mask({{}, {0 , 1, 2, 3, 4},  {}, {}}));
 
     compare_masks(*getMask(fq->output(0)),  Mask({{}, {0 , 1, 2, 3, 4}, {}, {}}));
@@ -584,17 +584,17 @@ TEST(TransformationTests, TestConcatMaskPropagation) {
     m.register_pass<pass::PropagateMasks>();
     m.run_passes(f);
 
-    compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)),  Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(weights_1.get_node()->shared_from_this()->output(0)),  Mask({{0, 1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
 
-    compare_masks(*getMask(weights_2.get_node_shared_ptr()->output(0)),  Mask({{7, 8, 9, 10}, {}, {}, {}}));
+    compare_masks(*getMask(weights_2.get_node()->shared_from_this()->output(0)),  Mask({{7, 8, 9, 10}, {}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),  Mask({{}, {7, 8, 9, 10}, {}, {}}));
 
-    compare_masks(*getMask(weights_3.get_node_shared_ptr()->output(0)),  Mask({{4, 5, 6, 7}, {}, {}, {}}));
+    compare_masks(*getMask(weights_3.get_node()->shared_from_this()->output(0)),  Mask({{4, 5, 6, 7}, {}, {}, {}}));
     compare_masks(*getMask(conv3->output(0)),  Mask({{}, {4, 5, 6, 7}, {}, {}}));
 
     compare_masks(*getMask(concat->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
-    compare_masks(*getMask(weights_out_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
+    compare_masks(*getMask(weights_out_conv.get_node()->shared_from_this()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
 }
 
 
@@ -634,21 +634,21 @@ TEST(TransformationTests, TestConcatMaskPropagationUp) {
     m.register_pass<pass::PropagateMasks>();
     m.run_passes(f);
 
-    compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)),  Mask({{0, 1, 2, 3}, {}, {}, {}}));
+    compare_masks(*getMask(weights_1.get_node()->shared_from_this()->output(0)),  Mask({{0, 1, 2, 3}, {}, {}, {}}));
     compare_masks(*getMask(conv1->output(0)),  Mask({{}, {0, 1, 2, 3}, {}, {}}));
 
-    compare_masks(*getMask(weights_2.get_node_shared_ptr()->output(0)),  Mask({{7, 8, 9, 10}, {}, {}, {}}));
+    compare_masks(*getMask(weights_2.get_node()->shared_from_this()->output(0)),  Mask({{7, 8, 9, 10}, {}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),  Mask({{}, {7, 8, 9, 10}, {}, {}}));
 
-    compare_masks(*getMask(weights_3.get_node_shared_ptr()->output(0)),  Mask({{4, 5, 6, 7}, {}, {}, {}}));
+    compare_masks(*getMask(weights_3.get_node()->shared_from_this()->output(0)),  Mask({{4, 5, 6, 7}, {}, {}, {}}));
     compare_masks(*getMask(conv3->output(0)),  Mask({{}, {4, 5, 6, 7}, {}, {}}));
 
-    compare_masks(*getMask(add_const.get_node_shared_ptr()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
+    compare_masks(*getMask(add_const.get_node()->shared_from_this()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
     compare_masks(*getMask(add->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
 
 
     compare_masks(*getMask(concat->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
-    compare_masks(*getMask(weights_out_conv.get_node_shared_ptr()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
+    compare_masks(*getMask(weights_out_conv.get_node()->shared_from_this()->output(0)),  Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
 }
 
 
@@ -684,16 +684,16 @@ TEST(TransformationTests, TestConcatMaskPropagationUpEmpty) {
     m.register_pass<pass::PropagateMasks>();
     m.run_passes(f);
 
-    compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(weights_1.get_node()->shared_from_this()->output(0)),  Mask({{}, {}, {}, {}}));
     compare_masks(*getMask(conv1->output(0)),  Mask({{}, {}, {}, {}}));
 
-    compare_masks(*getMask(weights_2.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(weights_2.get_node()->shared_from_this()->output(0)),  Mask({{}, {}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)),  Mask({{}, {}, {}, {}}));
 
-    compare_masks(*getMask(weights_3.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(weights_3.get_node()->shared_from_this()->output(0)),  Mask({{}, {}, {}, {}}));
     compare_masks(*getMask(conv3->output(0)),  Mask({{}, {}, {}, {}}));
 
-    compare_masks(*getMask(add_const.get_node_shared_ptr()->output(0)),  Mask({{}, {}, {}, {}}));
+    compare_masks(*getMask(add_const.get_node()->shared_from_this()->output(0)),  Mask({{}, {}, {}, {}}));
     compare_masks(*getMask(add->output(0)),  Mask({{}, {}, {}, {}}));
 
 

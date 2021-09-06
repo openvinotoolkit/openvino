@@ -23,8 +23,8 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
             auto root = m.get_match_root();
 
             const auto &pm = m.get_pattern_value_map();
-            const auto input = pm.at(load_pattern).get_node_shared_ptr();
-            const auto param = pm.at(param_pattern).get_node_shared_ptr();
+            const auto input = pm.at(load_pattern).get_node()->shared_from_this();
+            const auto param = pm.at(param_pattern).get_node()->shared_from_this();
 
             // check if load has more than 1 user to avoid load+broadcast load on the same parameter
             if (input->output(0).get_target_inputs().size() != 1) {

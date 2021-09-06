@@ -84,20 +84,20 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         auto data = pattern_map[data_pattern];
         auto input_low = pattern_map[input_low_pattern];
         auto input_high = pattern_map[input_high_pattern];
-        auto output_low = std::dynamic_pointer_cast<opset4::Constant>(pattern_map[output_low_pattern].get_node_shared_ptr());
+        auto output_low = std::dynamic_pointer_cast<opset4::Constant>(pattern_map[output_low_pattern].get_node()->shared_from_this());
         if (!output_low)
             return false;
-        auto output_high = std::dynamic_pointer_cast<opset4::Constant>(pattern_map[output_high_pattern].get_node_shared_ptr());
+        auto output_high = std::dynamic_pointer_cast<opset4::Constant>(pattern_map[output_high_pattern].get_node()->shared_from_this());
         if (!output_high)
             return false;
-        auto fq = std::dynamic_pointer_cast<opset4::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
+        auto fq = std::dynamic_pointer_cast<opset4::FakeQuantize>(pattern_map[fq_pattern].get_node()->shared_from_this());
         if (!fq)
             return false;
         auto zero_point = pattern_map[zero_point_pattern];
         auto scale = pattern_map[scale_pattern];
         auto convert1 = pattern_map[convert1_pattern];
         auto convert2 = pattern_map[convert2_pattern];
-        auto mul = pattern_map[mul_pattern].get_node_shared_ptr();
+        auto mul = pattern_map[mul_pattern].get_node()->shared_from_this();
 
         // convert1 and convert2 should have only one input
         if (convert1.get_target_inputs().size() != 1)
@@ -150,7 +150,7 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         auto new_fq = std::make_shared<ngraph::opset4::FakeQuantize>(data, input_low, input_high, new_out_low, new_out_high, levels);
         new_fq->set_friendly_name(mul->get_friendly_name());
 
-        copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);
+        copy_runtime_info({fq, convert1.get_node()->shared_from_this(), convert2.get_node()->shared_from_this()}, new_fq);
         replace_node(mul, new_fq);
 
         return true;

@@ -46,14 +46,14 @@ ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulti
 
         if (nms->output(1).get_element_type() != output_1.get_element_type()) {
             output_1 = std::make_shared<opset1::Convert>(output_1, nms->output(1).get_element_type());
-            output_1.get_node_shared_ptr()->set_friendly_name(nms->get_friendly_name() + "/convert.1");
-            new_ops.emplace_back(output_1.get_node_shared_ptr());
+            output_1.get_node()->shared_from_this()->set_friendly_name(nms->get_friendly_name() + "/convert.1");
+            new_ops.emplace_back(output_1.get_node()->shared_from_this());
         }
 
         if (nms->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<opset1::Convert>(output_2, nms->output(2).get_element_type());
-            output_2.get_node_shared_ptr()->set_friendly_name(nms->get_friendly_name() + "/convert.2");
-            new_ops.emplace_back(output_2.get_node_shared_ptr());
+            output_2.get_node()->shared_from_this()->set_friendly_name(nms->get_friendly_name() + "/convert.2");
+            new_ops.emplace_back(output_2.get_node()->shared_from_this());
         }
 
         nms_new->set_friendly_name(nms->get_friendly_name());

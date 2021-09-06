@@ -29,10 +29,10 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
                                                                         ngraph::pattern::any_input()});
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
-        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
+        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node()->shared_from_this());
         if (!fq)
             return false;
-        std::shared_ptr<Node> add_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
+        std::shared_ptr<Node> add_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_value_map.at(const_pattern).get_node()->shared_from_this());
         if (!add_const)
             return false;
         auto const_shape = add_const->get_shape();
@@ -60,7 +60,7 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
                                                               fq->input_value(4),
                                                               fq->get_levels());
         new_fq->set_friendly_name(fq->get_friendly_name());
-        copy_runtime_info({pattern_value_map.at(add_pattern).get_node_shared_ptr(), fq}, {new_input_low, new_input_high, new_fq});
+        copy_runtime_info({pattern_value_map.at(add_pattern).get_node()->shared_from_this(), fq}, {new_input_low, new_input_high, new_fq});
         replace_node(fq, new_fq);
         return true;
     };

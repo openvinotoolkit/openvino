@@ -28,7 +28,7 @@ ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToI
             return false;
 
         auto data_node = interpolate->input_value(0);
-        auto out_shape_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(interpolate->input_value(1).get_node_shared_ptr());
+        auto out_shape_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(interpolate->input_value(1).get_node()->shared_from_this());
         auto interpolate_attrs = interpolate->get_attrs();
         auto input_shape = data_node.get_shape();
 

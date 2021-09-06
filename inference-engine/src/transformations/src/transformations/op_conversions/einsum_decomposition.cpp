@@ -671,7 +671,7 @@ ngraph::pass::EinsumDecomposition::EinsumDecomposition() {
 
         // replace the original Einsum node with the last node from decomposing sub-graph
         // preserve the original node name
-        auto last_node = input_nodes[0].get_node_shared_ptr();
+        auto last_node = input_nodes[0].get_node()->shared_from_this();
         last_node->set_friendly_name(einsum_node->get_friendly_name());
         ngraph::copy_runtime_info(einsum_node, subgraph_nodes);
         ngraph::replace_node(einsum_node, last_node);

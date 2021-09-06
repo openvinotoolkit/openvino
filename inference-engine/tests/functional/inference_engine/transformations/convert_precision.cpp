@@ -316,7 +316,7 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
         manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
 
-        auto casted_end = std::dynamic_pointer_cast<opset1::Constant>(ss->input_value(2).get_node_shared_ptr());
+        auto casted_end = std::dynamic_pointer_cast<opset1::Constant>(ss->input_value(2).get_node()->shared_from_this());
         ASSERT_TRUE(casted_end != nullptr);
         ASSERT_EQ(casted_end->get_element_type(), element::i32);
         ASSERT_EQ(casted_end->cast_vector<int32_t>(), std::vector<int32_t>({max_int32, max_int32, max_int32, max_int32}));

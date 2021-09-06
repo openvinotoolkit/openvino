@@ -82,7 +82,7 @@ public:
             const auto convertOnWeights = std::make_shared<opset1::Convert>(testValues.expected.weights, netPrecision);
             OutputVector convertedOutput(1);
             convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
-            const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
+            const auto convertedWeights = convertedOutput[0].get_node()->shared_from_this();
             testValues.expected.weights = ov::as_type_ptr<opset1::Constant>(convertedWeights);
         }
 

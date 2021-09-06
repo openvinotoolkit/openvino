@@ -28,7 +28,7 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
         const auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node()->shared_from_this());
         if (!constant) return false;
 
         auto data = constant->cast_vector<float>();
@@ -39,9 +39,9 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
         auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(exp_input);
 
         softplus->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(log).get_node_shared_ptr(),
-                                   pattern_to_output.at(add).get_node_shared_ptr(),
-                                   pattern_to_output.at(exp).get_node_shared_ptr()}, softplus);
+        ngraph::copy_runtime_info({pattern_to_output.at(log).get_node()->shared_from_this(),
+                                   pattern_to_output.at(add).get_node()->shared_from_this(),
+                                   pattern_to_output.at(exp).get_node()->shared_from_this()}, softplus);
         ngraph::replace_node(m.get_match_root(), softplus);
         return true;
     };

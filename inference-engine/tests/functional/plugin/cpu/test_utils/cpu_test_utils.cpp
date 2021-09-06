@@ -152,7 +152,7 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
                 const auto parentPort = node->input_values()[i];
                 const auto port = node->inputs()[i];
                 if ((parentPort.get_tensor_ptr() == port.get_tensor_ptr())) {
-                    auto parentNode = parentPort.get_node_shared_ptr();
+                    auto parentNode = parentPort.get_node()->shared_from_this();
                     auto shape = parentNode->get_output_tensor(0).get_shape();
                     auto actualInputMemoryFormat = getExecValueOutputsLayout(parentNode);
 

@@ -21,15 +21,15 @@ MKLDNNPlugin::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto & pattern_to_output = m.get_pattern_value_map();
 
-        auto add = pattern_to_output[m_add].get_node_shared_ptr();
-        auto bias = pattern_to_output[m_bias].get_node_shared_ptr();
-        auto fc = std::dynamic_pointer_cast<MKLDNNPlugin::FullyConnectedNode>(pattern_to_output[m_fc].get_node_shared_ptr());
+        auto add = pattern_to_output[m_add].get_node()->shared_from_this();
+        auto bias = pattern_to_output[m_bias].get_node()->shared_from_this();
+        auto fc = std::dynamic_pointer_cast<MKLDNNPlugin::FullyConnectedNode>(pattern_to_output[m_fc].get_node()->shared_from_this());
         if (!fc) {
             return false;
         }
 
         if (auto bcast = std::dynamic_pointer_cast<ngraph::opset1::Broadcast>(bias)) {
-            bias = bcast->input_value(0).get_node_shared_ptr();
+            bias = bcast->input_value(0).get_node()->shared_from_this();
         }
 
         if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(bias)) {

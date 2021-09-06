@@ -87,11 +87,11 @@ pass::PadFusionAvgPool::PadFusionAvgPool() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
-        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node_shared_ptr());
-        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node_shared_ptr());
-        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
-        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
-        auto avg_pool = std::dynamic_pointer_cast<opset5::AvgPool>(pattern_map[avg_pool_pattern].get_node_shared_ptr());
+        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node()->shared_from_this());
+        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node()->shared_from_this());
+        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node()->shared_from_this());
+        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node()->shared_from_this());
+        auto avg_pool = std::dynamic_pointer_cast<opset5::AvgPool>(pattern_map[avg_pool_pattern].get_node()->shared_from_this());
         if (!can_be_fused(pad, avg_pool, pad_value_const, pads_begin, pads_end))
             return false;
 
@@ -148,11 +148,11 @@ pass::PadFusionMaxPool::PadFusionMaxPool() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
-        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node_shared_ptr());
-        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node_shared_ptr());
-        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
-        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
-        auto max_pool = std::dynamic_pointer_cast<opset5::MaxPool>(pattern_map[max_pool_pattern].get_node_shared_ptr());
+        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node()->shared_from_this());
+        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node()->shared_from_this());
+        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node()->shared_from_this());
+        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node()->shared_from_this());
+        auto max_pool = std::dynamic_pointer_cast<opset5::MaxPool>(pattern_map[max_pool_pattern].get_node()->shared_from_this());
         if (!can_be_fused(pad, max_pool, pad_value_const, pads_begin, pads_end))
             return false;
 
@@ -211,11 +211,11 @@ pass::PadFusionConvolution::PadFusionConvolution() {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
-        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node_shared_ptr());
-        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node_shared_ptr());
-        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
-        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
-        auto conv = std::dynamic_pointer_cast<opset5::Convolution>(pattern_map[conv_pattern].get_node_shared_ptr());
+        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node()->shared_from_this());
+        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node()->shared_from_this());
+        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node()->shared_from_this());
+        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node()->shared_from_this());
+        auto conv = std::dynamic_pointer_cast<opset5::Convolution>(pattern_map[conv_pattern].get_node()->shared_from_this());
         if (!can_be_fused(pad, conv, pad_value_const, pads_begin, pads_end))
             return false;
 
@@ -254,11 +254,11 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
-        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node_shared_ptr());
-        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node_shared_ptr());
-        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
-        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
-        auto conv = std::dynamic_pointer_cast<opset5::ConvolutionBackpropData>(pattern_map[conv_pattern].get_node_shared_ptr());
+        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node()->shared_from_this());
+        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node()->shared_from_this());
+        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node()->shared_from_this());
+        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node()->shared_from_this());
+        auto conv = std::dynamic_pointer_cast<opset5::ConvolutionBackpropData>(pattern_map[conv_pattern].get_node()->shared_from_this());
         if (!can_be_fused(pad, conv, pad_value_const, pads_begin, pads_end))
             return false;
 
@@ -308,11 +308,11 @@ pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
-        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node_shared_ptr());
-        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node_shared_ptr());
-        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
-        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
-        auto conv = std::dynamic_pointer_cast<opset5::GroupConvolution>(pattern_map[conv_pattern].get_node_shared_ptr());
+        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node()->shared_from_this());
+        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node()->shared_from_this());
+        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node()->shared_from_this());
+        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node()->shared_from_this());
+        auto conv = std::dynamic_pointer_cast<opset5::GroupConvolution>(pattern_map[conv_pattern].get_node()->shared_from_this());
         if (!can_be_fused(pad, conv, pad_value_const, pads_begin, pads_end))
             return false;
 
@@ -351,11 +351,11 @@ pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropDa
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto filter = pattern_map[filter_pattern];
-        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node_shared_ptr());
-        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node_shared_ptr());
-        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node_shared_ptr());
-        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node_shared_ptr());
-        auto conv = std::dynamic_pointer_cast<opset5::GroupConvolutionBackpropData>(pattern_map[conv_pattern].get_node_shared_ptr());
+        auto pad = std::dynamic_pointer_cast<opset5::Pad>(pattern_map[pad_node_pattern].get_node()->shared_from_this());
+        auto pad_value_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pad_value_pattern].get_node()->shared_from_this());
+        auto pads_begin = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_begin_pattern].get_node()->shared_from_this());
+        auto pads_end = std::dynamic_pointer_cast<opset5::Constant>(pattern_map[pads_end_pattern].get_node()->shared_from_this());
+        auto conv = std::dynamic_pointer_cast<opset5::GroupConvolutionBackpropData>(pattern_map[conv_pattern].get_node()->shared_from_this());
         if (!can_be_fused(pad, conv, pad_value_const, pads_begin, pads_end))
             return false;
 

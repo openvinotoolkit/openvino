@@ -123,8 +123,8 @@ matcher_pass_callback get_callback() {
 
         // Reshape(input_shape)->Op->Reshape(output_shape)
         Output<Node> last = op::util::reshapeTo(node->input_value(0), input_shape);
-        last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/reshape_begin");
-        new_ops.push_back(last.get_node_shared_ptr());
+        last.get_node()->shared_from_this()->set_friendly_name(node->get_friendly_name() + "/reshape_begin");
+        new_ops.push_back(last.get_node()->shared_from_this());
 
         if (auto conv = std::dynamic_pointer_cast<op::ConvolutionIE>(node)) {
             last = convert(last, conv, new_ops);
@@ -136,12 +136,12 @@ matcher_pass_callback get_callback() {
             throw ngraph_error("Reshape1DOps: op type is not supported");
         }
 
-        last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/new");
-        new_ops.push_back(last.get_node_shared_ptr());
+        last.get_node()->shared_from_this()->set_friendly_name(node->get_friendly_name() + "/new");
+        new_ops.push_back(last.get_node()->shared_from_this());
 
         last = op::util::reshapeTo(last, output_shape);
-        last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name());
-        new_ops.push_back(last.get_node_shared_ptr());
+        last.get_node()->shared_from_this()->set_friendly_name(node->get_friendly_name());
+        new_ops.push_back(last.get_node()->shared_from_this());
 
         ngraph::copy_runtime_info(node, new_ops);
         node->output(0).replace(last);

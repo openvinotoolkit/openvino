@@ -389,7 +389,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithSplitedIntermed
             ngraph::Strides{ 1, 1 });
         lastOutput = convolution->output(0);
     }
-    lastOutput.get_node_shared_ptr()->set_friendly_name("output_2");
+    lastOutput.get_node()->shared_from_this()->set_friendly_name("output_2");
 
     ngraph::ResultVector results{
         std::make_shared<ngraph::opset1::Result>(concat),
@@ -1453,7 +1453,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedInterme
         convolution->set_friendly_name("output_2");
         lastOutput = convolution->output(0);
     } else {
-        lastOutput.get_node_shared_ptr()->set_friendly_name("output_2.1");
+        lastOutput.get_node()->shared_from_this()->set_friendly_name("output_2.1");
     }
 
     ngraph::ResultVector results{

@@ -35,12 +35,12 @@ ngraph::pass::ConvertShapeOf3::ConvertShapeOf3() {
             last = new_shapeof;
         } else {
             last = std::make_shared<ngraph::opset1::Convert>(new_shapeof, shapeof->get_output_type());
-            new_ops.push_back(last.get_node_shared_ptr());
+            new_ops.push_back(last.get_node()->shared_from_this());
         }
 
-        last.get_node_shared_ptr()->set_friendly_name(shapeof->get_friendly_name());
+        last.get_node()->shared_from_this()->set_friendly_name(shapeof->get_friendly_name());
         ngraph::copy_runtime_info(shapeof, new_ops);
-        ngraph::replace_node(shapeof, last.get_node_shared_ptr());
+        ngraph::replace_node(shapeof, last.get_node()->shared_from_this());
         return true;
     };
 

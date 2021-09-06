@@ -26,8 +26,8 @@ ngraph::pass::ConvertSeluToSeluIEMatcher::ConvertSeluToSeluIEMatcher() {
         if (!selu) {
             return false;
         }
-        auto alpha_node = selu->input(1).get_source_output().get_node_shared_ptr();
-        auto gamma_node = selu->input(2).get_source_output().get_node_shared_ptr();
+        auto alpha_node = selu->input(1).get_source_output().get_node()->shared_from_this();
+        auto gamma_node = selu->input(2).get_source_output().get_node()->shared_from_this();
 
         auto alpha_const = std::dynamic_pointer_cast<ngraph::opset1::Constant>(alpha_node);
         auto gamma_const = std::dynamic_pointer_cast<ngraph::opset1::Constant>(gamma_node);

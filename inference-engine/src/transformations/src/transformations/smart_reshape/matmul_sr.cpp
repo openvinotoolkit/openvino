@@ -22,12 +22,12 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
                                          const std::shared_ptr<ngraph::Node> & reshape_pattern_label,
                                          bool reshape_is_A_input) {
     const auto & reshape_rank = pattern_to_output.at(reshape_label).get_partial_shape().rank();
-    const auto & matmul = std::dynamic_pointer_cast<ngraph::opset4::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
+    const auto & matmul = std::dynamic_pointer_cast<ngraph::opset4::MatMul>(pattern_to_output.at(matmul_label).get_node()->shared_from_this());
     if (!matmul || reshape_rank.is_dynamic() || reshape_rank.get_length() != 2)
         return false;
     const auto &shape_source = pattern_to_output.at(other_input_label);
-    if (ngraph::is_type<ngraph::opset4::Transpose>(shape_source.get_node_shared_ptr()) ||
-            ngraph::is_type<ngraph::opset4::Reshape>(shape_source.get_node_shared_ptr()))
+    if (ngraph::is_type<ngraph::opset4::Transpose>(shape_source.get_node()->shared_from_this()) ||
+            ngraph::is_type<ngraph::opset4::Reshape>(shape_source.get_node()->shared_from_this()))
         // avoiding loop creation
         return false;
 
@@ -40,7 +40,7 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
             (matmul->get_transpose_b() ? ngraph::OutputVector({N, C}) : ngraph::OutputVector({C, N}));
     const auto & new_reshape_pattern = std::make_shared<ngraph::opset4::Concat>(pattern_vector, 0);
 
-    auto reshape_pattern = pattern_to_output.at(reshape_pattern_label).get_node_shared_ptr();
+    auto reshape_pattern = pattern_to_output.at(reshape_pattern_label).get_node()->shared_from_this();
     new_reshape_pattern->set_friendly_name(reshape_pattern->get_friendly_name());
     copy_runtime_info(reshape_pattern, new_reshape_pattern);
     replace_node(reshape_pattern, new_reshape_pattern);
@@ -91,7 +91,7 @@ ngraph::pass::TransposeMatMul::TransposeMatMul() {
 
     matcher_pass_callback callback = [=](pattern::Matcher &m) -> bool {
         const auto & pattern_to_output = m.get_pattern_value_map();
-        auto matmul = std::dynamic_pointer_cast<ngraph::opset4::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
+        auto matmul = std::dynamic_pointer_cast<ngraph::opset4::MatMul>(pattern_to_output.at(matmul_label).get_node()->shared_from_this());
         if (!matmul)
             return false;
 

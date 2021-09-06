@@ -96,7 +96,7 @@ void op::ResampleV2::validate_and_infer_types() {
             output_shape[i] *= m_attrs.factor;
         }
         set_output_type(0, get_input_element_type(0), output_shape);
-    } else if (auto const_shape = dynamic_pointer_cast<op::Constant>(input_value(1).get_node_shared_ptr())) {
+    } else if (auto const_shape = dynamic_pointer_cast<op::Constant>(input_value(1).get_node()->shared_from_this())) {
         NODE_VALIDATION_CHECK(this, shape_size(const_shape->get_shape()) == 4 || shape_size(const_shape->get_shape()) == 5,
                               "Layer shape must have rank 4 or 5", const_shape->get_shape());
 

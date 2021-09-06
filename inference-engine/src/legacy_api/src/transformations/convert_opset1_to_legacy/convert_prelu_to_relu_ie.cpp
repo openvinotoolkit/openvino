@@ -26,7 +26,7 @@ ngraph::pass::ConvertPReLUToReLUIE::ConvertPReLUToReLUIE() {
         if (!prelu) {
             return false;
         }
-        auto node = prelu->input(1).get_source_output().get_node_shared_ptr();
+        auto node = prelu->input(1).get_source_output().get_node()->shared_from_this();
         if (auto const_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node)) {
             float value(0);
             if (!ngraph::op::util::get_single_value(const_node, value)) {

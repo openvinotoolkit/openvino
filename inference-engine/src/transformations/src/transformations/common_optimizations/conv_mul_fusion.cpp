@@ -32,8 +32,8 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         const auto & m_weights = pattern_to_output.at(weights);
         const auto & m_const = pattern_to_output.at(mul_const);
         const auto & m_input = pattern_to_output.at(input);
-        const auto & m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
-        const auto & m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
+        const auto & m_conv = pattern_to_output.at(conv).get_node()->shared_from_this();
+        const auto & m_mul = pattern_to_output.at(mul).get_node()->shared_from_this();
 
         const auto & channel_dim = m_weights.get_partial_shape()[0].get_length();
         const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
@@ -71,7 +71,7 @@ ngraph::pass::ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         // Replace Convolution->Multiply with Convolution with new inputs
         auto new_conv = m_conv->copy_with_new_inputs({m_input, weights_multiply});
         new_conv->set_friendly_name(m_mul->get_friendly_name());
-        copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
+        copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node()->shared_from_this(), weights_multiply});
         replace_node(m_mul, new_conv);
         return true;
     };
@@ -95,8 +95,8 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
 
         auto m_weights = pattern_to_output.at(weights);
         const auto & m_const = pattern_to_output.at(mul_const);
-        const auto & m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
-        const auto & m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
+        const auto & m_conv = pattern_to_output.at(conv).get_node()->shared_from_this();
+        const auto & m_mul = pattern_to_output.at(mul).get_node()->shared_from_this();
 
         const auto & weights_shape = m_weights.get_partial_shape();
         const auto & G = weights_shape[0].get_length();
@@ -118,7 +118,7 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
             return false;
         }
 
-        auto reshape = std::dynamic_pointer_cast<opset4::Reshape>(m_weights.get_node_shared_ptr());
+        auto reshape = std::dynamic_pointer_cast<opset4::Reshape>(m_weights.get_node()->shared_from_this());
         bool are_weights_reshaped = reshape != nullptr;
         if (are_weights_reshaped) {
             m_weights = reshape->input_value(0);
@@ -183,8 +183,8 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
         const auto & m_weights = pattern_to_output.at(weights);
         const auto & m_const = pattern_to_output.at(mul_const);
         const auto & m_input = pattern_to_output.at(input);
-        const auto & m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
-        const auto & m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
+        const auto & m_conv = pattern_to_output.at(conv).get_node()->shared_from_this();
+        const auto & m_mul = pattern_to_output.at(mul).get_node()->shared_from_this();
 
         const auto & channel_dim = m_weights.get_partial_shape()[1].get_length();
         const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
@@ -222,7 +222,7 @@ ngraph::pass::ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMult
         // Replace Convolution->Multiply with Convolution with new inputs
         auto new_conv = m_conv->copy_with_new_inputs({m_input, weights_multiply});
         new_conv->set_friendly_name(m_mul->get_friendly_name());
-        copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
+        copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node()->shared_from_this(), weights_multiply});
         replace_node(m_mul, new_conv);
         return true;
     };
@@ -247,8 +247,8 @@ ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpr
         const auto & m_weights = pattern_to_output.at(weights);
         const auto & m_const = pattern_to_output.at(mul_const);
         const auto & m_input = pattern_to_output.at(input);
-        const auto & m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
-        const auto & m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
+        const auto & m_conv = pattern_to_output.at(conv).get_node()->shared_from_this();
+        const auto & m_mul = pattern_to_output.at(mul).get_node()->shared_from_this();
 
         const auto & G = m_weights.get_partial_shape()[0].get_length();
         const auto & O = m_weights.get_partial_shape()[2].get_length();
@@ -288,7 +288,7 @@ ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpr
         // Replace Convolution->Multiply with Convolution with new inputs
         auto new_conv = m_conv->copy_with_new_inputs({m_input, weights_multiply});
         new_conv->set_friendly_name(m_mul->get_friendly_name());
-        copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node_shared_ptr(), weights_multiply});
+        copy_runtime_info({m_conv, m_mul}, {new_conv, final_const.get_node()->shared_from_this(), weights_multiply});
         replace_node(m_mul, new_conv);
         return true;
     };

@@ -26,7 +26,7 @@ op::PadIE::PadIE(const std::shared_ptr<op::v1::Pad>& pad)
       m_output_shape(pad->output(0).get_shape()) {
     if (pad->inputs().size() == 4) {
         auto const_node =
-            std::dynamic_pointer_cast<op::Constant>(pad->input(3).get_source_output().get_node_shared_ptr());
+            std::dynamic_pointer_cast<op::Constant>(pad->input(3).get_source_output().get_node()->shared_from_this());
         if (!const_node) {
             throw ngraph_error("Pad " + pad->get_friendly_name() + " with not constant pad_value is not allowed");
         }

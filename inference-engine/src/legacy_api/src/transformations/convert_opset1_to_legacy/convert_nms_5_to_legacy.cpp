@@ -49,13 +49,13 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
         Output<Node> new_shape_for_soft_nms_sigma = opset1::Constant::create(ngraph::element::i64, Shape{1}, {1});
 
         new_max_per_class = std::make_shared<opset1::Reshape>(arg2, new_shape_for_max_per_class, true);
-        new_ops.emplace_back(new_max_per_class.get_node_shared_ptr());
+        new_ops.emplace_back(new_max_per_class.get_node()->shared_from_this());
 
         new_iou_threshold = std::make_shared<opset1::Reshape>(arg3, new_shape_for_iou_threshold, true);
-        new_ops.emplace_back(new_iou_threshold.get_node_shared_ptr());
+        new_ops.emplace_back(new_iou_threshold.get_node()->shared_from_this());
 
         new_score_threshold = std::make_shared<opset1::Reshape>(arg4, new_shape_for_score_threshold, true);
-        new_ops.emplace_back(new_score_threshold.get_node_shared_ptr());
+        new_ops.emplace_back(new_score_threshold.get_node()->shared_from_this());
 
         int center_point_box = 0;
         switch (nms_5->get_box_encoding()) {
@@ -75,7 +75,7 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
         auto output_type = force_i32_output_type ? element::i32 : nms_5->get_output_type();
         if (num_of_inputs > 5 && !nms_5->is_soft_nms_sigma_constant_and_default()) {
             new_soft_nms_sigma = std::make_shared<opset1::Reshape>(new_args.at(5), new_shape_for_soft_nms_sigma, true);
-            new_ops.emplace_back(new_soft_nms_sigma.get_node_shared_ptr());
+            new_ops.emplace_back(new_soft_nms_sigma.get_node()->shared_from_this());
             nms_legacy = std::make_shared<op::NonMaxSuppressionIE3>(
                     new_args.at(0),
                     new_args.at(1),
@@ -103,15 +103,15 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
         Output<Node> output_0 = nms_legacy->output(0);
         if (nms_5->output(0).get_element_type() != output_0.get_element_type()) {
             output_0 = std::make_shared<opset1::Convert>(output_0, nms_5->output(0).get_element_type());
-            output_0.get_node_shared_ptr()->set_friendly_name(nms_5->get_friendly_name() + "/convert.0");
-            new_ops.emplace_back(output_0.get_node_shared_ptr());
+            output_0.get_node()->shared_from_this()->set_friendly_name(nms_5->get_friendly_name() + "/convert.0");
+            new_ops.emplace_back(output_0.get_node()->shared_from_this());
         }
 
         Output<Node> output_2 = nms_legacy->output(2);
         if (nms_5->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<opset1::Convert>(output_2, nms_5->output(2).get_element_type());
-            output_2.get_node_shared_ptr()->set_friendly_name(nms_5->get_friendly_name() + "/convert.2");
-            new_ops.emplace_back(output_2.get_node_shared_ptr());
+            output_2.get_node()->shared_from_this()->set_friendly_name(nms_5->get_friendly_name() + "/convert.2");
+            new_ops.emplace_back(output_2.get_node()->shared_from_this());
         }
 
         nms_legacy->set_friendly_name(nms_5->get_friendly_name());

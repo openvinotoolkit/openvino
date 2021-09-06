@@ -47,7 +47,7 @@ bool isDynamic(const Node& node) {
     return std::any_of(outputs.cbegin(), outputs.cend(), [](const Output<const Node>& output) {
         VPU_THROW_UNLESS(output.get_partial_shape().rank() != ngraph::Rank::dynamic(),
         "DynamicToStaticShape transformation: got dynamic rank for {} with type {} while only static is supported",
-        output.get_node_shared_ptr()->get_friendly_name(), output.get_node_shared_ptr()->get_type_info());
+        output.get_node()->shared_from_this()->get_friendly_name(), output.get_node()->shared_from_this()->get_type_info());
 
         return output.get_partial_shape().is_dynamic();
     });

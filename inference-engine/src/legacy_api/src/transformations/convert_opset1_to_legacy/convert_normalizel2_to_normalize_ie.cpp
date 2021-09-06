@@ -26,26 +26,26 @@ ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulT
         auto mul = std::dynamic_pointer_cast<ngraph::opset1::Multiply> (m.get_match_root());
         if (!mul) return false;
 
-        auto normalize = std::dynamic_pointer_cast<ngraph::opset1::NormalizeL2> (mul->input(0).get_source_output().get_node_shared_ptr());
+        auto normalize = std::dynamic_pointer_cast<ngraph::opset1::NormalizeL2> (mul->input(0).get_source_output().get_node()->shared_from_this());
         auto weights_output = mul->input(1).get_source_output();
         if (!normalize) {
-            normalize = std::dynamic_pointer_cast<ngraph::opset1::NormalizeL2> (mul->input(1).get_source_output().get_node_shared_ptr());
+            normalize = std::dynamic_pointer_cast<ngraph::opset1::NormalizeL2> (mul->input(1).get_source_output().get_node()->shared_from_this());
             weights_output = mul->input(1).get_source_output();
             if (!normalize) return false;
         }
 
-        auto const_axis = std::dynamic_pointer_cast<ngraph::opset1::Constant> (normalize->input(1).get_source_output().get_node_shared_ptr());
+        auto const_axis = std::dynamic_pointer_cast<ngraph::opset1::Constant> (normalize->input(1).get_source_output().get_node()->shared_from_this());
         if (!const_axis) return false;
 
         //  Handle two cases:
         //  1. When Mul has weights input as Broadcast
         //  2. When Mul has weights as Constant
 
-        auto broadcast = std::dynamic_pointer_cast<ngraph::opset1::Broadcast> (weights_output.get_node_shared_ptr());
-        auto constant = std::dynamic_pointer_cast<ngraph::opset1::Constant> (weights_output.get_node_shared_ptr());
+        auto broadcast = std::dynamic_pointer_cast<ngraph::opset1::Broadcast> (weights_output.get_node()->shared_from_this());
+        auto constant = std::dynamic_pointer_cast<ngraph::opset1::Constant> (weights_output.get_node()->shared_from_this());
 
         if (broadcast) {
-            constant = std::dynamic_pointer_cast<ngraph::opset1::Constant> (broadcast->input(0).get_source_output().get_node_shared_ptr());
+            constant = std::dynamic_pointer_cast<ngraph::opset1::Constant> (broadcast->input(0).get_source_output().get_node()->shared_from_this());
         }
 
         if (!constant) {
@@ -86,7 +86,7 @@ ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatch
         auto normalize = std::dynamic_pointer_cast<ngraph::opset1::NormalizeL2> (m.get_match_root());
         if (!normalize) return false;
 
-        auto const_axis = std::dynamic_pointer_cast<ngraph::opset1::Constant> (normalize->input(1).get_source_output().get_node_shared_ptr());
+        auto const_axis = std::dynamic_pointer_cast<ngraph::opset1::Constant> (normalize->input(1).get_source_output().get_node()->shared_from_this());
         if (!const_axis) return false;
 
         //  Replace NormalizeL2 with NormalizeIE operation

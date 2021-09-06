@@ -32,9 +32,9 @@ ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        auto min_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
-        auto div_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node()->shared_from_this());
+        auto min_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(min_constant).get_node()->shared_from_this());
+        auto div_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(div_constant).get_node()->shared_from_this());
 
         bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0)
                                         && op::util::has_constant_value<float>(min_const_value, 6.0)
@@ -47,10 +47,10 @@ ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
         auto hsigmoid = register_new_node<ngraph::opset7::HSigmoid>(x_output);
 
         hsigmoid->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({ pattern_to_output.at(add).get_node_shared_ptr(),
-                                    pattern_to_output.at(relu).get_node_shared_ptr(),
-                                    pattern_to_output.at(min).get_node_shared_ptr(),
-                                    pattern_to_output.at(div).get_node_shared_ptr(),
+        ngraph::copy_runtime_info({ pattern_to_output.at(add).get_node()->shared_from_this(),
+                                    pattern_to_output.at(relu).get_node()->shared_from_this(),
+                                    pattern_to_output.at(min).get_node()->shared_from_this(),
+                                    pattern_to_output.at(div).get_node()->shared_from_this(),
                                    },
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
@@ -79,9 +79,9 @@ ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        auto min_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
-        auto mul_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node()->shared_from_this());
+        auto min_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(min_constant).get_node()->shared_from_this());
+        auto mul_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(mul_constant).get_node()->shared_from_this());
 
         bool valid_constant_values =  op::util::has_constant_value<float>(add_const_value, 3.0f)
                                         &&  op::util::has_constant_value<float>(min_const_value, 6.0f)
@@ -94,10 +94,10 @@ ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
         auto hsigmoid = register_new_node<ngraph::opset7::HSigmoid>(x_output);
 
         hsigmoid->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({ pattern_to_output.at(add).get_node_shared_ptr(),
-                                    pattern_to_output.at(relu).get_node_shared_ptr(),
-                                    pattern_to_output.at(min).get_node_shared_ptr(),
-                                    pattern_to_output.at(mul_second).get_node_shared_ptr()
+        ngraph::copy_runtime_info({ pattern_to_output.at(add).get_node()->shared_from_this(),
+                                    pattern_to_output.at(relu).get_node()->shared_from_this(),
+                                    pattern_to_output.at(min).get_node()->shared_from_this(),
+                                    pattern_to_output.at(mul_second).get_node()->shared_from_this()
                                    },
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
@@ -128,10 +128,10 @@ ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        auto max_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(max_constant).get_node_shared_ptr());
-        auto min_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
-        auto div_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node()->shared_from_this());
+        auto max_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(max_constant).get_node()->shared_from_this());
+        auto min_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(min_constant).get_node()->shared_from_this());
+        auto div_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(div_constant).get_node()->shared_from_this());
 
         bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0f)
                                         && op::util::has_constant_value<float>(max_const_value, 0.0f)
@@ -145,10 +145,10 @@ ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
         auto hsigmoid = register_new_node<ngraph::opset7::HSigmoid>(x_output);
 
         hsigmoid->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({ pattern_to_output.at(add).get_node_shared_ptr(),
-                                    pattern_to_output.at(max).get_node_shared_ptr(),
-                                    pattern_to_output.at(min).get_node_shared_ptr(),
-                                    pattern_to_output.at(div).get_node_shared_ptr()
+        ngraph::copy_runtime_info({ pattern_to_output.at(add).get_node()->shared_from_this(),
+                                    pattern_to_output.at(max).get_node()->shared_from_this(),
+                                    pattern_to_output.at(min).get_node()->shared_from_this(),
+                                    pattern_to_output.at(div).get_node()->shared_from_this()
                                    },
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
@@ -175,8 +175,8 @@ ngraph::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        auto mul_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node()->shared_from_this());
+        auto mul_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(mul_constant).get_node()->shared_from_this());
 
         bool valid_constant_values = op::util::has_constant_value(add_const_value, 3.0)
                                      && op::util::has_constant_value(mul_const_value, (1.0/6.0), 0.0001);
@@ -185,16 +185,16 @@ ngraph::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
             return false;
         }
 
-        auto clamp_node = std::dynamic_pointer_cast<ngraph::opset7::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
+        auto clamp_node = std::dynamic_pointer_cast<ngraph::opset7::Clamp>(pattern_to_output.at(clamp).get_node()->shared_from_this());
         if (!clamp_node || clamp_node->get_min() != 0 || clamp_node->get_max() != 6)
             return false;
 
         auto hsigmoid = register_new_node<ngraph::opset7::HSigmoid>(x_output);
 
         hsigmoid->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({ pattern_to_output.at(add).get_node_shared_ptr(),
-                                    pattern_to_output.at(clamp).get_node_shared_ptr(),
-                                    pattern_to_output.at(mul_first).get_node_shared_ptr()
+        ngraph::copy_runtime_info({ pattern_to_output.at(add).get_node()->shared_from_this(),
+                                    pattern_to_output.at(clamp).get_node()->shared_from_this(),
+                                    pattern_to_output.at(mul_first).get_node()->shared_from_this()
                                   },
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
@@ -221,8 +221,8 @@ ngraph::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        auto div_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node()->shared_from_this());
+        auto div_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(div_constant).get_node()->shared_from_this());
 
         bool valid_constant_values = op::util::has_constant_value(add_const_value, 3.0)
                                      && op::util::has_constant_value(div_const_value, 6.0);
@@ -231,16 +231,16 @@ ngraph::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
             return false;
         }
 
-        auto clamp_node = std::dynamic_pointer_cast<ngraph::opset7::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
+        auto clamp_node = std::dynamic_pointer_cast<ngraph::opset7::Clamp>(pattern_to_output.at(clamp).get_node()->shared_from_this());
         if (!clamp_node || clamp_node->get_min() != 0 || clamp_node->get_max() != 6)
             return false;
 
         auto hsigmoid = register_new_node<ngraph::opset7::HSigmoid>(x_output);
 
         hsigmoid->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({ pattern_to_output.at(add).get_node_shared_ptr(),
-                                    pattern_to_output.at(clamp).get_node_shared_ptr(),
-                                    pattern_to_output.at(div).get_node_shared_ptr()
+        ngraph::copy_runtime_info({ pattern_to_output.at(add).get_node()->shared_from_this(),
+                                    pattern_to_output.at(clamp).get_node()->shared_from_this(),
+                                    pattern_to_output.at(div).get_node()->shared_from_this()
                                   },
                                   hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);

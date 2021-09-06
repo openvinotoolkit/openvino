@@ -21,9 +21,9 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
 
     do {
         auto data_output = op->input_value(0);
-        auto begin_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
-        auto end_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
-        auto stride_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(3).get_node_shared_ptr());
+        auto begin_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(1).get_node()->shared_from_this());
+        auto end_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(2).get_node()->shared_from_this());
+        auto stride_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(3).get_node()->shared_from_this());
 
         auto partial_input_shape = op->get_input_partial_shape(0);
 

@@ -10,7 +10,6 @@
 
 namespace ov {
 Output<Node>::Output(Node* node, size_t index) : m_node(node->shared_from_this()), m_index(index) {}
-
 Output<Node>::Output(const std::shared_ptr<Node>& node, size_t index) : m_node(node), m_index(index) {}
 
 void Output<Node>::reset() {
@@ -19,7 +18,7 @@ void Output<Node>::reset() {
 }
 
 Output<Node> Output<Node>::for_node(const std::shared_ptr<Node>& node) {
-    return Output(node, m_index);
+    return Output(node.get(), m_index);
 }
 Node* Output<Node>::get_node() const {
     return m_node.get();
@@ -98,23 +97,22 @@ bool Output<Node>::operator>=(const Output& other) const {
     return !(*this < other);
 }
 Output<const Node>::Output(const Node* node, size_t index) : m_node(node->shared_from_this()), m_index(index) {}
-
 Output<const Node>::Output(const std::shared_ptr<const Node>& node, size_t index) : m_node(node), m_index(index) {}
 
+std::shared_ptr<const Node> Output<const Node>::get_node_shared_ptr() const {
+    return m_node;
+}
 void Output<const Node>::reset() {
     m_node.reset();
     m_index = 0;
 }
 
 Output<const Node> Output<const Node>::for_node(const std::shared_ptr<const Node>& node) {
-    return Output(node, m_index);
+    return Output(node.get(), m_index);
 }
 
 const Node* Output<const Node>::get_node() const {
     return m_node.get();
-}
-std::shared_ptr<const Node> Output<const Node>::get_node_shared_ptr() const {
-    return m_node;
 }
 size_t Output<const Node>::get_index() const {
     return m_index;

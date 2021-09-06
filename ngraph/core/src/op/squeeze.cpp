@@ -44,7 +44,7 @@ void op::Squeeze::validate_and_infer_types() {
         // This way the following code (validation, shape inference) can be used in both cases.
         axes_constant = make_shared<op::v0::Constant>(element::i64, Shape{0}, vector<int64_t>{});
     } else {
-        auto axes_node = input_value(1).get_node_shared_ptr();
+        auto axes_node = input_value(1).get_node()->shared_from_this();
         auto axes_pshape = get_input_partial_shape(1);
         axes_constant = get_constant_from_source(axes_node);
 
@@ -268,7 +268,7 @@ bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVec
 
     const auto& shape = get_output_shape(0);
 
-    if (auto data_const = std::dynamic_pointer_cast<op::Constant>(inputs_values[0].get_node_shared_ptr())) {
+    if (auto data_const = std::dynamic_pointer_cast<op::Constant>(inputs_values[0].get_node()->shared_from_this())) {
         output_values[0] = std::make_shared<op::Constant>(*data_const, shape);
         return true;
     }

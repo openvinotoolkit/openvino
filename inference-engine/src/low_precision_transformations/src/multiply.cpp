@@ -79,8 +79,8 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
         auto multiplyParent = multiply->get_input_source_output(multiplyBranch.first);
         auto constParent = multiply->get_input_source_output(multiplyBranch.first == 0 ? 1 : 0);
-        auto multiplyParentParent = multiplyParent.get_node_shared_ptr()->get_input_source_output(multiplyBranch.second);
-        auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->get_input_source_output(multiplyBranch.second == 0 ? 1 : 0);
+        auto multiplyParentParent = multiplyParent.get_node()->shared_from_this()->get_input_source_output(multiplyBranch.second);
+        auto multiplyParentConst = multiplyParent.get_node()->shared_from_this()->get_input_source_output(multiplyBranch.second == 0 ? 1 : 0);
 
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 },
@@ -92,7 +92,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
                     foldConvert(constParent, element::f32)),
                 element::f32).get());
 
-        NetworkHelper::copyInfo(multiplyParent.get_node_shared_ptr(), newMultiply);
+        NetworkHelper::copyInfo(multiplyParent.get_node()->shared_from_this(), newMultiply);
         NetworkHelper::copyInfo(multiply, newMultiply);
     } else {
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
@@ -160,14 +160,14 @@ bool MultiplyTransformation::canBeTransformed(const TransformationContext& conte
     FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, 1ul);
 
     if ((dequantization1.data.get_node() == nullptr) ||
-        (dequantization1.empty() && !ov::is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
-                                    !ov::is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()))) {
+        (dequantization1.empty() && !ov::is_type<opset1::Constant>(dequantization1.data.get_node()->shared_from_this()) &&
+                                    !ov::is_type<opset1::Constant>(dequantization2.data.get_node()->shared_from_this()))) {
         return false;
     }
 
     if ((dequantization2.data.get_node() == nullptr) ||
-        (dequantization2.empty() && !ov::is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()) &&
-                                    !ov::is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()))) {
+        (dequantization2.empty() && !ov::is_type<opset1::Constant>(dequantization2.data.get_node()->shared_from_this()) &&
+                                    !ov::is_type<opset1::Constant>(dequantization1.data.get_node()->shared_from_this()))) {
         return false;
     }
     return EltwiseBaseTransformation::canBeTransformed(context, layer);

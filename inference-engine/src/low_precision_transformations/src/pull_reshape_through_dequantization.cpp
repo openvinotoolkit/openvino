@@ -82,7 +82,7 @@ std::shared_ptr<Node> moveThroughConvert(const std::shared_ptr<Node>& reshape, c
 void fuseConstant(const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& constant) {
     ngraph::OutputVector result(1);
     reshape->constant_fold(result, { constant->output(0), reshape->get_input_node_ptr(1)->output(0) });
-    const auto newConstant = result[0].get_node_shared_ptr();
+    const auto newConstant = result[0].get_node()->shared_from_this();
     replace_node(reshape, newConstant);
     copy_runtime_info({ constant, reshape }, newConstant);
 }

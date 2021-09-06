@@ -42,20 +42,20 @@ ngraph::pass::ConvertTopK3::ConvertTopK3() {
         } else if (topk->get_output_target_inputs(0).size() == 0) {
             last0 = topk->output(0);
             last1 = std::make_shared<ngraph::opset2::Convert>(new_topk->output(1), topk->get_index_element_type());
-            new_ops.push_back(last1.get_node_shared_ptr());
+            new_ops.push_back(last1.get_node()->shared_from_this());
 
             // workaround for naming two outputs of TopK
-            last1.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".1");
+            last1.get_node()->shared_from_this()->set_friendly_name(topk->get_friendly_name() + ".1");
         } else {
             // create fake convert for 0 output, it is a workaround in purpose of correct output names preserving
             last0 = std::make_shared<ngraph::opset2::Convert>(new_topk->output(0), topk->get_output_element_type(0));
             last1 = std::make_shared<ngraph::opset2::Convert>(new_topk->output(1), topk->get_index_element_type());
-            new_ops.push_back(last0.get_node_shared_ptr());
-            new_ops.push_back(last1.get_node_shared_ptr());
+            new_ops.push_back(last0.get_node()->shared_from_this());
+            new_ops.push_back(last1.get_node()->shared_from_this());
 
             // workaround for naming two outputs of TopK
-            last0.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".0");
-            last1.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".1");
+            last0.get_node()->shared_from_this()->set_friendly_name(topk->get_friendly_name() + ".0");
+            last1.get_node()->shared_from_this()->set_friendly_name(topk->get_friendly_name() + ".1");
         }
 
         ngraph::copy_runtime_info(topk, new_ops);

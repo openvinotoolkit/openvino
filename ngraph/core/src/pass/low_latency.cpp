@@ -166,7 +166,7 @@ bool ov::pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
 
                     const auto& input = sub_graph_op->input(merged_in->m_input_index);
                     if (std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(
-                            input.get_source_output().get_node_shared_ptr()) != nullptr) {
+                            input.get_source_output().get_node()->shared_from_this()) != nullptr) {
                         NGRAPH_DEBUG << "LowLatency2 transformation cannot be applied because the "
                                      << "ReadValue node is already an input to the TensorIterator."
                                      << "LowLatency2 transformation may have already been applied, please "

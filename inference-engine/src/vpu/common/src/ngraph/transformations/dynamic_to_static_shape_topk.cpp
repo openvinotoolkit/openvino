@@ -18,7 +18,7 @@
 namespace vpu {
 
 void dynamicToStaticShapeTopK(std::shared_ptr<ngraph::Node> target) {
-    const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node_shared_ptr());
+    const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node()->shared_from_this());
     VPU_THROW_UNLESS(dsr, "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
                      target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
 
@@ -28,7 +28,7 @@ void dynamicToStaticShapeTopK(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(data_rank.is_static(), "dynamicToStaticShapeTopK transformation for {} doesn't support dynamic rank", target);
     int64_t axis = topk->get_axis();
 
-    const auto data_shape = dsr->input_value(1).get_node_shared_ptr();
+    const auto data_shape = dsr->input_value(1).get_node()->shared_from_this();
     const auto data_rank_value = data_rank.get_length();
     ngraph::OutputVector first_shape_part, second_shape_part;
     if (axis) {

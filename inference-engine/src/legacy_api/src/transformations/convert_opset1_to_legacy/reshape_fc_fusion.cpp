@@ -23,8 +23,8 @@ ngraph::pass::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         auto & pattern_to_output = m.get_pattern_value_map();
-        auto fc = pattern_to_output[m_fc].get_node_shared_ptr();
-        auto reshape = pattern_to_output[m_reshape].get_node_shared_ptr();
+        auto fc = pattern_to_output[m_fc].get_node()->shared_from_this();
+        auto reshape = pattern_to_output[m_reshape].get_node()->shared_from_this();
 
         // Check that Reshape reshapes 4D tensor to 2D or input shape = output shape
         auto shape_in = reshape->input_value(0).get_shape();

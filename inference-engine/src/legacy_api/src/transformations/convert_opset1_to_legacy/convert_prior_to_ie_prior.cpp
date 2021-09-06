@@ -30,8 +30,8 @@ ngraph::pass::ConvertPriorBoxToLegacy::ConvertPriorBoxToLegacy() {
     attr.variance = {0.1f, 0.1f, 0.2f, 0.2f};
     attr.step = 64.0f;
     attr.offset = 0.5f;
-    attr.clip = 0;
-    attr.flip = 1;
+    attr.clip = false;
+    attr.flip = true;
     attr.scale_all_sizes = true;
 
     auto prior_box = std::make_shared<ngraph::opset1::PriorBox>(data, image, attr);
@@ -42,7 +42,7 @@ ngraph::pass::ConvertPriorBoxToLegacy::ConvertPriorBoxToLegacy() {
         if (!unsqueeze) {
             return false;
         }
-        auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBox> (unsqueeze->input_value(0).get_node_shared_ptr());
+        auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBox> (unsqueeze->input_value(0).get_node()->shared_from_this());
 
         if (!prior_box_node || transformation_callback(prior_box_node)) {
             return false;
@@ -51,8 +51,8 @@ ngraph::pass::ConvertPriorBoxToLegacy::ConvertPriorBoxToLegacy() {
         // vector of nGraph nodes that will be replaced
         ngraph::NodeVector ops_to_replace{unsqueeze, prior_box_node};
 
-        std::shared_ptr<Node> input_1(prior_box_node->input_value(0).get_node_shared_ptr());
-        std::shared_ptr<Node> input_2(prior_box_node->input_value(1).get_node_shared_ptr());
+        std::shared_ptr<Node> input_1(prior_box_node->input_value(0).get_node()->shared_from_this());
+        std::shared_ptr<Node> input_2(prior_box_node->input_value(1).get_node()->shared_from_this());
 
         auto convert1 = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_1);
         auto convert2 = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_2);
@@ -60,8 +60,8 @@ ngraph::pass::ConvertPriorBoxToLegacy::ConvertPriorBoxToLegacy() {
         if (convert1 && convert2) {
             ops_to_replace.push_back(convert1);
             ops_to_replace.push_back(convert2);
-            input_1 = convert1->input_value(0).get_node_shared_ptr();
-            input_2 = convert2->input_value(0).get_node_shared_ptr();
+            input_1 = convert1->input_value(0).get_node()->shared_from_this();
+            input_2 = convert2->input_value(0).get_node()->shared_from_this();
         }
 
         auto strided_slice1 = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice> (input_1);
@@ -75,9 +75,9 @@ ngraph::pass::ConvertPriorBoxToLegacy::ConvertPriorBoxToLegacy() {
         ops_to_replace.push_back(strided_slice2);
 
         //  Check that StridedSlice1 cuts H,W dims for PriorBox
-        auto begin = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(1).get_node_shared_ptr());
-        auto end = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(2).get_node_shared_ptr());
-        auto stride = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(3).get_node_shared_ptr());
+        auto begin = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(1).get_node()->shared_from_this());
+        auto end = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(2).get_node()->shared_from_this());
+        auto stride = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(3).get_node()->shared_from_this());
 
         if (!begin || !end || !stride) {
             return false;
@@ -100,8 +100,8 @@ ngraph::pass::ConvertPriorBoxToLegacy::ConvertPriorBoxToLegacy() {
         }
 
         // TODO: should we check second StridedSlice?
-        input_1 = strided_slice1->input_value(0).get_node_shared_ptr();
-        input_2 = strided_slice2->input_value(0).get_node_shared_ptr();
+        input_1 = strided_slice1->input_value(0).get_node()->shared_from_this();
+        input_2 = strided_slice2->input_value(0).get_node()->shared_from_this();
 
         convert1 = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_1);
         convert2 = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_2);
@@ -109,8 +109,8 @@ ngraph::pass::ConvertPriorBoxToLegacy::ConvertPriorBoxToLegacy() {
         if (convert1 && convert2) {
             ops_to_replace.push_back(convert1);
             ops_to_replace.push_back(convert2);
-            input_1 = convert1->input_value(0).get_node_shared_ptr();
-            input_2 = convert2->input_value(0).get_node_shared_ptr();
+            input_1 = convert1->input_value(0).get_node()->shared_from_this();
+            input_2 = convert2->input_value(0).get_node()->shared_from_this();
         }
 
         // the input can be either ShapeOf-1 or ShapeOf-3
@@ -131,8 +131,8 @@ ngraph::pass::ConvertPriorBoxToLegacy::ConvertPriorBoxToLegacy() {
 //            auto shapeof2_convert = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_2);
 //            if (!shapeof1_convert || !shapeof2_convert)
 //                return false;
-//            shape_of1 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf>(shapeof1_convert->input_value(0).get_node_shared_ptr());
-//            shape_of2 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf>(shapeof2_convert->input_value(0).get_node_shared_ptr());
+//            shape_of1 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf>(shapeof1_convert->input_value(0).get_node()->shared_from_this());
+//            shape_of2 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf>(shapeof2_convert->input_value(0).get_node()->shared_from_this());
 //            if (!shape_of1 || !shape_of2)
 //                return false;
 //            ops_to_replace.push_back(shapeof1_convert);
@@ -181,7 +181,7 @@ ngraph::pass::ConvertPriorBoxClusteredToLegacy::ConvertPriorBoxClusteredToLegacy
         if (!unsqueeze) {
             return false;
         }
-        auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBoxClustered>(unsqueeze->input_value(0).get_node_shared_ptr());
+        auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBoxClustered>(unsqueeze->input_value(0).get_node()->shared_from_this());
 
         if (!prior_box_node || transformation_callback(prior_box_node)) {
             return false;
@@ -190,8 +190,8 @@ ngraph::pass::ConvertPriorBoxClusteredToLegacy::ConvertPriorBoxClusteredToLegacy
         // vector of nGraph nodes that will be replaced
         ngraph::NodeVector ops_to_replace{unsqueeze, prior_box_node};
 
-        std::shared_ptr<Node> input_1(prior_box_node->input_value(0).get_node_shared_ptr());
-        std::shared_ptr<Node> input_2(prior_box_node->input_value(1).get_node_shared_ptr());
+        std::shared_ptr<Node> input_1(prior_box_node->input_value(0).get_node()->shared_from_this());
+        std::shared_ptr<Node> input_2(prior_box_node->input_value(1).get_node()->shared_from_this());
 
         auto convert1 = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_1);
         auto convert2 = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_2);
@@ -199,8 +199,8 @@ ngraph::pass::ConvertPriorBoxClusteredToLegacy::ConvertPriorBoxClusteredToLegacy
         if (convert1 && convert2) {
             ops_to_replace.push_back(convert1);
             ops_to_replace.push_back(convert2);
-            input_1 = convert1->input_value(0).get_node_shared_ptr();
-            input_2 = convert2->input_value(0).get_node_shared_ptr();
+            input_1 = convert1->input_value(0).get_node()->shared_from_this();
+            input_2 = convert2->input_value(0).get_node()->shared_from_this();
         }
 
         auto strided_slice1 = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice> (input_1);
@@ -214,9 +214,9 @@ ngraph::pass::ConvertPriorBoxClusteredToLegacy::ConvertPriorBoxClusteredToLegacy
         ops_to_replace.push_back(strided_slice2);
 
         //  Check that StridedSlice1 cuts H,W dims for PriorBox
-        auto begin = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(1).get_node_shared_ptr());
-        auto end = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(2).get_node_shared_ptr());
-        auto stride = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(3).get_node_shared_ptr());
+        auto begin = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(1).get_node()->shared_from_this());
+        auto end = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(2).get_node()->shared_from_this());
+        auto stride = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(3).get_node()->shared_from_this());
 
         if (!begin || !end || !stride) {
             return false;
@@ -239,8 +239,8 @@ ngraph::pass::ConvertPriorBoxClusteredToLegacy::ConvertPriorBoxClusteredToLegacy
         }
 
         // TODO: should we check second StridedSlice?
-        input_1 = strided_slice1->input_value(0).get_node_shared_ptr();
-        input_2 = strided_slice2->input_value(0).get_node_shared_ptr();
+        input_1 = strided_slice1->input_value(0).get_node()->shared_from_this();
+        input_2 = strided_slice2->input_value(0).get_node()->shared_from_this();
 
         convert1 = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_1);
         convert2 = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_2);
@@ -248,8 +248,8 @@ ngraph::pass::ConvertPriorBoxClusteredToLegacy::ConvertPriorBoxClusteredToLegacy
         if (convert1 && convert2) {
             ops_to_replace.push_back(convert1);
             ops_to_replace.push_back(convert2);
-            input_1 = convert1->input_value(0).get_node_shared_ptr();
-            input_2 = convert2->input_value(0).get_node_shared_ptr();
+            input_1 = convert1->input_value(0).get_node()->shared_from_this();
+            input_2 = convert2->input_value(0).get_node()->shared_from_this();
         }
 
         // the input can be either ShapeOf-1 or ShapeOf-3
@@ -270,8 +270,8 @@ ngraph::pass::ConvertPriorBoxClusteredToLegacy::ConvertPriorBoxClusteredToLegacy
 //            auto shapeof2_convert = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_2);
 //            if (!shapeof1_convert || !shapeof2_convert)
 //                return false;
-//            shape_of1 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf>(shapeof1_convert->input_value(0).get_node_shared_ptr());
-//            shape_of2 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf>(shapeof2_convert->input_value(0).get_node_shared_ptr());
+//            shape_of1 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf>(shapeof1_convert->input_value(0).get_node()->shared_from_this());
+//            shape_of2 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf>(shapeof2_convert->input_value(0).get_node()->shared_from_this());
 //            if (!shape_of1 || !shape_of2)
 //                return false;
 //            ops_to_replace.push_back(shapeof1_convert);

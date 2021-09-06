@@ -103,8 +103,8 @@ TEST(TransformationTests, GRUSequenceConversionTest) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto sequence_node = result_node_of_converted_f->input_value(0).get_node_shared_ptr()
-            ->input_value(0).get_node_shared_ptr();
+    auto sequence_node = result_node_of_converted_f->input_value(0).get_node()->shared_from_this()
+            ->input_value(0).get_node()->shared_from_this();
 }
 
 TEST(TransformationTests, RNNSequenceConversionTest) {
@@ -169,8 +169,8 @@ TEST(TransformationTests, RNNSequenceConversionTest) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto sequence_node = result_node_of_converted_f->input_value(0).get_node_shared_ptr()
-            ->input_value(0).get_node_shared_ptr();
+    auto sequence_node = result_node_of_converted_f->input_value(0).get_node()->shared_from_this()
+            ->input_value(0).get_node()->shared_from_this();
 }
 
 TEST(TransformationTests, LSTMSequenceConversionTest) {
@@ -267,6 +267,6 @@ TEST(TransformationTests, LSTMSequenceConversionTest) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto sequence_node = result_node_of_converted_f->input_value(0).get_node_shared_ptr()
-            ->input_value(0).get_node_shared_ptr();
+    auto sequence_node = result_node_of_converted_f->input_value(0).get_node()->shared_from_this()
+            ->input_value(0).get_node()->shared_from_this();
 }

@@ -48,7 +48,7 @@ bool TransposeOrderMatches(std::shared_ptr<ngraph::opset7::Transpose> transpose,
     if (transpose_order_dim != 1 || transpose_order.get_shape()[0] != order.size())
         return false;
 
-    auto const_with_order_values = std::dynamic_pointer_cast<ngraph::opset7::Constant>(transpose_order.get_node_shared_ptr());
+    auto const_with_order_values = std::dynamic_pointer_cast<ngraph::opset7::Constant>(transpose_order.get_node()->shared_from_this());
     if (!const_with_order_values)
         return false;
 

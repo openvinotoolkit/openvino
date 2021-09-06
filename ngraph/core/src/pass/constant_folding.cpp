@@ -31,11 +31,11 @@ bool ov::pass::ConstantFolding::run_on_function(std::shared_ptr<ov::Function> f)
             for (size_t i = 0; i < replacements.size(); ++i) {
                 auto node_output = node->output(i);
                 auto replacement = replacements.at(i);
-                if (replacement.get_node_shared_ptr() && (node_output != replacement)) {
+                if (replacement.get_node()->shared_from_this() && (node_output != replacement)) {
                     if (replacements.size() == 1) {
-                        replacement.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name());
+                        replacement.get_node()->shared_from_this()->set_friendly_name(node->get_friendly_name());
                     } else {
-                        replacement.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "." +
+                        replacement.get_node()->shared_from_this()->set_friendly_name(node->get_friendly_name() + "." +
                                                                              std::to_string(i));
                     }
                     node_output.replace(replacement);
@@ -97,7 +97,7 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
             }
 
             if (status && input_value.get_tensor().has_and_set_bound()) {
-                auto input_node = input_value.get_node_shared_ptr();
+                auto input_node = input_value.get_node()->shared_from_this();
                 auto replacement = std::make_shared<ngraph::op::Constant>(input_value.get_tensor().get_lower_value());
                 if (replacement && !ov::is_type<ngraph::op::Constant>(input_node)) {
                     if (input_node->get_output_size() == 1) {
@@ -114,7 +114,7 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
                 }
             } else {
                 // continue searching
-                const auto& input_node = input_value.get_node_shared_ptr();
+                const auto& input_node = input_value.get_node()->shared_from_this();
                 nodes.push_front(input_node);
             }
         }

@@ -20,7 +20,7 @@ op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const Axis
           arg,
           ngraph::op::Constant::create(element::i64, ngraph::Shape{reduction_axes.size()}, reduction_axes.to_vector())
               ->output(0)) {
-    add_provenance_group_member(input_value(1).get_node_shared_ptr());
+    add_provenance_group_member(input_value(1).get_node()->shared_from_this());
 }
 
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const Output<Node>& reduction_axes)

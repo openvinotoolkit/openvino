@@ -25,7 +25,7 @@ ngraph::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFo
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
-        const auto convert = opsMap.at(matcherConvert).get_node_shared_ptr();
+        const auto convert = opsMap.at(matcherConvert).get_node()->shared_from_this();
 
         // validation by Convert operation input precisions
         if (!inputPrecisions.empty()) {

@@ -19,7 +19,7 @@ bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     possible_block_size = shape_reshape_before[1];
     if (possible_block_size == 0)
         return false;
-    uint64_t c_dim = static_cast<uint64_t>(shape_input[1] / std::pow(possible_block_size, spatial_dims));
+    auto c_dim = static_cast<uint64_t>(shape_input[1] / std::pow(possible_block_size, spatial_dims));
 
     // x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2, ..., DK])
     ngraph::Shape expected_shape = {shape_input[0]};
@@ -55,7 +55,7 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     possible_block_size = shape_reshape_before[2];
     if (possible_block_size == 0)
         return false;
-    uint64_t c_dim = static_cast<uint64_t>(shape_input[1] / std::pow(possible_block_size, spatial_dims));
+    auto c_dim = static_cast<uint64_t>(shape_input[1] / std::pow(possible_block_size, spatial_dims));
 
     // x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2, ..., DK])
     ngraph::Shape expected_shape = {shape_input[0], static_cast<size_t>(c_dim)};
@@ -100,12 +100,12 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
             return false;
         }
 
-        auto permute = std::dynamic_pointer_cast<ngraph::opset3::Transpose>(reshape_after->input_value(0).get_node_shared_ptr());
+        auto permute = std::dynamic_pointer_cast<ngraph::opset3::Transpose>(reshape_after->input_value(0).get_node()->shared_from_this());
         if (!permute || permute->get_output_target_inputs(0).size() != 1) {
             return false;
         }
 
-        auto reshape_before = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(permute->input_value(0).get_node_shared_ptr());
+        auto reshape_before = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(permute->input_value(0).get_node()->shared_from_this());
         if (!reshape_before || reshape_before->get_output_target_inputs(0).size() != 1) {
             return false;
         }
@@ -137,7 +137,7 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
         }
 
         ngraph::AxisVector permutation;
-        if (auto input_const = std::dynamic_pointer_cast<opset3::Constant>(permute->input_value(1).get_node_shared_ptr())) {
+        if (auto input_const = std::dynamic_pointer_cast<opset3::Constant>(permute->input_value(1).get_node()->shared_from_this())) {
             permutation = input_const->get_axis_vector_val();
         } else {
             return false;

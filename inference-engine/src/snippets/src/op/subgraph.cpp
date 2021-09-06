@@ -76,7 +76,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
 
     for (auto input : node->inputs()) {
         auto source_output = input.get_source_output();
-        if (is_scalar_constant(source_output.get_node_shared_ptr())) {
+        if (is_scalar_constant(source_output.get_node()->shared_from_this())) {
             body_inputs.push_back(source_output);
         } else {
             auto parameter = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
@@ -271,8 +271,8 @@ void snippets::op::Subgraph::print() const {
     }
 
     for (auto& in : this->inputs()) {
-        remark(13) << "  -> " << in.get_source_output().get_node_shared_ptr()->get_friendly_name() << " "
-            << in.get_source_output().get_node_shared_ptr() << std::endl;
+        remark(13) << "  -> " << in.get_source_output().get_node()->shared_from_this()->get_friendly_name() << " "
+            << in.get_source_output().get_node()->shared_from_this() << std::endl;
     }
 
     for (auto& out : this->outputs()) {

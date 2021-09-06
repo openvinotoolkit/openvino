@@ -40,14 +40,14 @@ void ngraph::traverse_nodes(const std::shared_ptr<const Function> p, std::functi
 void ngraph::traverse_nodes(const Function* p, std::function<void(std::shared_ptr<Node>)> f) {
     NodeVector nodes;
 
-    for (auto r : p->get_results()) {
+    for (const auto& r : p->get_results()) {
         nodes.push_back(r);
     }
-    for (auto s : p->get_sinks()) {
+    for (const auto& s : p->get_sinks()) {
         nodes.emplace_back(s);
     }
 
-    for (auto param : p->get_parameters()) {
+    for (const auto& param : p->get_parameters()) {
         nodes.push_back(param);
     }
 
@@ -85,19 +85,19 @@ void ngraph::traverse_nodes(const NodeVector& subgraph_results,
 NodeVector ngraph::find_common_args(std::shared_ptr<Node> node1, std::shared_ptr<Node> node2) {
     std::unordered_set<std::shared_ptr<Node>> node1_args;
 
-    auto compute_node1_args = [&node1_args](const std::shared_ptr<Node> node) {
+    auto compute_node1_args = [&node1_args](const std::shared_ptr<Node>& node) {
         node1_args.insert(node);
     };
 
-    traverse_nodes({node1}, compute_node1_args, NodeVector{});
+    traverse_nodes({std::move(node1)}, compute_node1_args, NodeVector{});
 
     std::unordered_set<std::shared_ptr<Node>> node2_args;
 
-    auto compute_node2_args = [&node2_args](const std::shared_ptr<Node> node) {
+    auto compute_node2_args = [&node2_args](const std::shared_ptr<Node>& node) {
         node2_args.insert(node);
     };
 
-    traverse_nodes({node2}, compute_node2_args, NodeVector{});
+    traverse_nodes({std::move(node2)}, compute_node2_args, NodeVector{});
 
     NodeVector common_args;
     for (const auto& e : node1_args) {
@@ -131,7 +131,7 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
         std::set<string> removed_subgraph_tags;
 
         auto set_replacement_prov = [&removed_subgraph_tags](std::shared_ptr<Node> node) {
-            for (auto tag : node->get_provenance_tags()) {
+            for (const auto& tag : node->get_provenance_tags()) {
                 removed_subgraph_tags.insert(tag);
             }
         };
@@ -139,7 +139,7 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
         traverse_nodes({target}, set_replacement_prov, common_args);
         replacement->add_provenance_tags(removed_subgraph_tags);
 
-        auto set_prov_new_nodes = [&removed_subgraph_tags](std::shared_ptr<Node> node) {
+        auto set_prov_new_nodes = [&removed_subgraph_tags](const std::shared_ptr<Node>& node) {
             node->add_provenance_tags(removed_subgraph_tags);
         };
 
@@ -171,7 +171,7 @@ void ngraph::replace_node(const std::shared_ptr<Node>& target, const OutputVecto
     //         Change I's connected upstream output to O_rep
     for (size_t i = 0; i < target->get_output_size(); i++) {
         auto& replacement_value = replacement_values.at(i);
-        auto replacement_node = replacement_value.get_node_shared_ptr();
+        auto replacement_node = replacement_value.get_node()->shared_from_this();
         if (replacement_nodes.find(replacement_node) == replacement_nodes.end()) {
             replacement_node->add_node_control_dependents(target);
             replacement_node->add_node_control_dependencies(target);
@@ -239,7 +239,7 @@ std::vector<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector
                                                                NodeMap& node_map) {
     // for each node in topological order
     auto sorted_nodes = topological_sort(nodes);
-    for (auto node : sorted_nodes) {
+    for (const auto& node : sorted_nodes) {
         if (node_map.count(node.get()) == 0) {
             // get (already) cloned arguments and clone the node
             OutputVector cloned_args;
@@ -267,7 +267,7 @@ std::vector<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector
                 new_output.get_rt_info() = output_rt_info;
             }
 
-            for (auto tag : node->get_provenance_tags()) {
+            for (const auto& tag : node->get_provenance_tags()) {
                 cloned_node->add_provenance_tag(tag);
             }
             cloned_node->set_op_annotations(node->get_op_annotations());
@@ -279,7 +279,7 @@ std::vector<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector
     // create and return vector of cloned nodes
     // order matches input vector (not necessarily topological)
     std::vector<std::shared_ptr<ngraph::Node>> cloned_nodes;
-    for (auto node : nodes) {
+    for (const auto& node : nodes) {
         cloned_nodes.push_back(node_map.at(node.get()));
     }
     return cloned_nodes;
@@ -290,20 +290,20 @@ std::list<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector<s
     // for each node in topological order
     auto sorted_nodes = topological_sort(nodes);
     std::list<shared_ptr<Node>> cloned_nodes;
-    for (auto node : sorted_nodes) {
+    for (const auto& node : sorted_nodes) {
         auto node_outputs = node->outputs();
-        for (auto value : node_outputs) {
+        for (const auto& value : node_outputs) {
             if (output_map.count(value) == 0) {
                 // We need this node cloned
                 // get (already) cloned arguments and clone the node
                 OutputVector cloned_args;
-                for (auto value : node->input_values()) {
+                for (const auto& value : node->input_values()) {
                     cloned_args.push_back(output_map.at(value));
                 }
                 NodeVector cloned_dependencies;
                 for (auto& dependency : node->get_control_dependencies()) {
-                    for (auto dependency_value : dependency->outputs()) {
-                        shared_ptr<Node> dependent = output_map.at(dependency_value).get_node_shared_ptr();
+                    for (const auto& dependency_value : dependency->outputs()) {
+                        shared_ptr<Node> dependent = output_map.at(dependency_value).get_node()->shared_from_this();
                         if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
                             cloned_dependencies.end()) {
                             cloned_dependencies.push_back(dependent);
@@ -317,11 +317,11 @@ std::list<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector<s
                 auto rt_info = node->get_rt_info();
                 cloned_node->get_rt_info() = rt_info;
 
-                for (auto tag : node->get_provenance_tags()) {
+                for (const auto& tag : node->get_provenance_tags()) {
                     cloned_node->add_provenance_tag(tag);
                 }
                 cloned_node->set_op_annotations(node->get_op_annotations());
-                for (auto cloned_value : cloned_node->outputs()) {
+                for (const auto& cloned_value : cloned_node->outputs()) {
                     auto original_value = node_outputs.at(cloned_value.get_index());
                     if (output_map.count(original_value) == 0) {
                         output_map[original_value] = cloned_value;
@@ -392,7 +392,7 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
 }
 
 bool ngraph::is_equal_to_const_value(const std::string& const_value, const Output<Node>& reduce_constant) {
-    if (auto rc = ov::as_type_ptr<ngraph::op::Constant>(reduce_constant.get_node_shared_ptr())) {
+    if (auto rc = ov::as_type_ptr<ngraph::op::Constant>(reduce_constant.get_node()->shared_from_this())) {
         return (rc->get_all_data_elements_bitwise_identical() && rc->convert_value_to_string(0) == const_value);
     } else {
         return false;
@@ -544,7 +544,7 @@ NodeVector ngraph::get_subgraph_outputs(const NodeVector& nodes,
 
     NodeVector outputs;
 
-    for (auto n : nodes) {
+    for (const auto& n : nodes) {
         if (exclusions_set.count(n) != 0) {
             continue;
         }
@@ -565,7 +565,7 @@ NodeVector ngraph::extract_subgraph(const NodeVector& results, const NodeVector&
     NodeVector subgraph;
     traverse_nodes(
         results,
-        [&](std::shared_ptr<Node> n) {
+        [&](const std::shared_ptr<Node>& n) {
             subgraph.push_back(n);
         },
         args);
@@ -691,7 +691,7 @@ std::vector<Output<Node>> ngraph::get_outputs_to(Node& src, Node& dst) {
     return result;
 }
 
-static bool check_for_cycles_bkwd(std::shared_ptr<ngraph::Node> node,
+static bool check_for_cycles_bkwd(const std::shared_ptr<ngraph::Node>& node,
                                   std::deque<std::shared_ptr<ngraph::Node>>& path,
                                   std::unordered_set<std::shared_ptr<ngraph::Node>>& path_set,
                                   ngraph::NodeVector& cycle_nodes) {
@@ -700,7 +700,7 @@ static bool check_for_cycles_bkwd(std::shared_ptr<ngraph::Node> node,
     for (size_t i = 0; i < node->inputs().size(); i++) {
         auto arg = node->get_input_node_shared_ptr(i);
         if (path_set.find(arg) != path_set.end()) {
-            for (auto it : path) {
+            for (const auto& it : path) {
                 cycle_nodes.push_back(it);
             }
             // last node
@@ -716,7 +716,7 @@ static bool check_for_cycles_bkwd(std::shared_ptr<ngraph::Node> node,
     return false;
 }
 
-static bool check_for_cycles_fwd(std::shared_ptr<ngraph::Node> node,
+static bool check_for_cycles_fwd(const std::shared_ptr<ngraph::Node>& node,
                                  std::deque<std::shared_ptr<ngraph::Node>>& path,
                                  std::unordered_set<std::shared_ptr<ngraph::Node>>& path_set,
                                  ngraph::NodeVector& cycle_nodes) {
@@ -724,7 +724,7 @@ static bool check_for_cycles_fwd(std::shared_ptr<ngraph::Node> node,
     path_set.insert(node);
     for (auto& arg : node->get_users()) {
         if (path_set.find(arg) != path_set.end()) {
-            for (auto it : path) {
+            for (const auto& it : path) {
                 cycle_nodes.push_back(it);
             }
             // last node
@@ -741,7 +741,7 @@ static bool check_for_cycles_fwd(std::shared_ptr<ngraph::Node> node,
 }
 
 bool ngraph::check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& cycle_nodes, bool& is_bkwd_cycle) {
-    for (auto res : func->get_results()) {
+    for (const auto& res : func->get_results()) {
         std::deque<std::shared_ptr<Node>> path;
         // mirror of path stack for faster cycle check
         std::unordered_set<std::shared_ptr<Node>> path_set;
@@ -751,7 +751,7 @@ bool ngraph::check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& 
         }
     }
 
-    for (auto res : func->get_sinks()) {
+    for (const auto& res : func->get_sinks()) {
         std::deque<std::shared_ptr<Node>> path;
         // mirror of path stack for faster cycle check
         std::unordered_set<std::shared_ptr<Node>> path_set;
@@ -761,7 +761,7 @@ bool ngraph::check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& 
         }
     }
 
-    for (auto param : func->get_parameters()) {
+    for (const auto& param : func->get_parameters()) {
         std::deque<std::shared_ptr<Node>> path;
         // mirror of path stack for faster cycle check
         std::unordered_set<std::shared_ptr<Node>> path_set;
@@ -801,8 +801,8 @@ bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>&
         // Restore back original replacement tensor names
         replacement.get_tensor().add_names(output_names);
 
-        copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
-                          replacement.get_node_shared_ptr());
+        copy_runtime_info({replacement.get_node()->shared_from_this(), output.get_node()->shared_from_this()},
+                          replacement.get_node()->shared_from_this());
         return true;
     }
     return false;

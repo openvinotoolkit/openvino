@@ -12,12 +12,12 @@ public:
     bool virtual match_value(const ngraph::Output<ngraph::Node>& pattern_value,
                              const ngraph::Output<ngraph::Node>& graph_value) override
     {
-        if (ngraph::is_type<::ngraph::op::Parameter>(pattern_value.get_node_shared_ptr()))
+        if (ngraph::is_type<::ngraph::op::Parameter>(pattern_value.get_node()->shared_from_this()))
         {
             bool result = pattern_value == graph_value;
             if (result)
             {
-                m_matched_list.push_back(graph_value.get_node_shared_ptr());
+                m_matched_list.push_back(graph_value.get_node()->shared_from_this());
             }
             return result;
         }

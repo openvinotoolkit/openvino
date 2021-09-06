@@ -33,10 +33,10 @@ ngraph::pass::SoftmaxFusion::SoftmaxFusion() {
 
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto reduce_max_axes = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(reduce_max_axes_pattern).get_node_shared_ptr());
+        auto reduce_max_axes = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(reduce_max_axes_pattern).get_node()->shared_from_this());
         if (!reduce_max_axes || shape_size(reduce_max_axes->get_shape()) != 1)
             return false;
-        auto reduce_sum_axes = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(reduce_sum_axes_pattern).get_node_shared_ptr());
+        auto reduce_sum_axes = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(reduce_sum_axes_pattern).get_node()->shared_from_this());
         if (!reduce_sum_axes || shape_size(reduce_sum_axes->get_shape()) != 1)
             return false;
 
@@ -54,14 +54,14 @@ ngraph::pass::SoftmaxFusion::SoftmaxFusion() {
             return false;
 
         auto softmax = register_new_node<ngraph::opset6::Softmax>(pattern_map.at(data_pattern), reduce_sum_axis);
-        auto div = pattern_map.at(div_pattern).get_node_shared_ptr();
+        auto div = pattern_map.at(div_pattern).get_node()->shared_from_this();
         softmax->set_friendly_name(div->get_friendly_name());
 
         copy_runtime_info({
-                            pattern_map.at(reduce_max_pattern).get_node_shared_ptr(),
-                            pattern_map.at(sub_pattern).get_node_shared_ptr(),
-                            pattern_map.at(exp_pattern).get_node_shared_ptr(),
-                            pattern_map.at(reduce_sum_pattern).get_node_shared_ptr(),
+                            pattern_map.at(reduce_max_pattern).get_node()->shared_from_this(),
+                            pattern_map.at(sub_pattern).get_node()->shared_from_this(),
+                            pattern_map.at(exp_pattern).get_node()->shared_from_this(),
+                            pattern_map.at(reduce_sum_pattern).get_node()->shared_from_this(),
                             div,
                           },
                           softmax);

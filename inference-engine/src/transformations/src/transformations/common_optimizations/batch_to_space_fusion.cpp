@@ -38,9 +38,9 @@ ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         auto get_reshape_or_transpose = [&pattern_map] (const std::shared_ptr<Node>& reshape_pattern,
                                                         const std::shared_ptr<Node>& trans_pattern) -> std::shared_ptr<Node> {
             if (pattern_map.count(reshape_pattern))
-                return pattern_map.at(reshape_pattern).get_node_shared_ptr();
+                return pattern_map.at(reshape_pattern).get_node()->shared_from_this();
             if (pattern_map.count(trans_pattern))
-                return pattern_map.at(trans_pattern).get_node_shared_ptr();
+                return pattern_map.at(trans_pattern).get_node()->shared_from_this();
             return nullptr;
         };
         auto check_input_output_shape = [] (const std::shared_ptr<Node>& node) -> bool {
@@ -64,7 +64,7 @@ ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         if (!check_input_output_shape(reshape_or_trans_after))
             return false;
 
-        auto depth_to_space = std::dynamic_pointer_cast<opset6::DepthToSpace>(pattern_map.at(depth_to_space_pattern).get_node_shared_ptr());
+        auto depth_to_space = std::dynamic_pointer_cast<opset6::DepthToSpace>(pattern_map.at(depth_to_space_pattern).get_node()->shared_from_this());
         if (!depth_to_space)
             return false;
         if (depth_to_space->get_mode() != opset6::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST)
@@ -75,10 +75,10 @@ ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         auto block_size = static_cast<int64_t>(depth_to_space->get_block_size());
         auto block_shape = op::Constant::create(element::i64, Shape{4},
                 std::vector<int64_t>{1, 1, block_size, block_size});
-        auto starts = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(starts_pattern).get_node_shared_ptr());
+        auto starts = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(starts_pattern).get_node()->shared_from_this());
         if (!starts)
             return false;
-        auto ends = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(ends_pattern).get_node_shared_ptr());
+        auto ends = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(ends_pattern).get_node()->shared_from_this());
         if (!ends)
             return false;
         auto starts_value = starts->cast_vector<int64_t>();
@@ -105,7 +105,7 @@ ngraph::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         copy_runtime_info({
                             reshape_or_trans_before,
                             depth_to_space,
-                            pattern_map.at(slice_pattern).get_node_shared_ptr(),
+                            pattern_map.at(slice_pattern).get_node()->shared_from_this(),
                             reshape_or_trans_after
                           },
                           batch_to_space);

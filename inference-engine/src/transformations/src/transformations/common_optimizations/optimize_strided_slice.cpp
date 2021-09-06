@@ -3,6 +3,7 @@
 //
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "itt.hpp"
@@ -31,7 +32,7 @@ bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ng
         if (ss->input(0).get_shape() != ss->output(0).get_shape())
             continue;
 
-        auto stridesNode = std::dynamic_pointer_cast<ngraph::opset3::Constant>(ss->input_value(3).get_node_shared_ptr());
+        auto stridesNode = std::dynamic_pointer_cast<ngraph::opset3::Constant>(ss->input_value(3).get_node()->shared_from_this());
         if (stridesNode) {
             auto strides = stridesNode->cast_vector<int64_t>();
             if (!std::any_of(strides.begin(), strides.end(), [](int64_t strd) { return strd < 0;}))
@@ -51,10 +52,10 @@ ngraph::SlicePlan get_slice_plan(std::shared_ptr<ngraph::opset1::StridedSlice> s
         return axis_set;
     };
 
-    auto data = slice->input_value(0).get_node_shared_ptr();
-    auto begin = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(1).get_node_shared_ptr());
-    auto end = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(2).get_node_shared_ptr());
-    auto strides = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(3).get_node_shared_ptr());
+    auto data = slice->input_value(0).get_node()->shared_from_this();
+    auto begin = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(1).get_node()->shared_from_this());
+    auto end = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(2).get_node()->shared_from_this());
+    auto strides = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(3).get_node()->shared_from_this());
     if (!begin || !end || !strides || slice->input(0).get_partial_shape().is_dynamic())
         return ngraph::SlicePlan();
 
@@ -79,8 +80,8 @@ ngraph::SlicePlan get_slice_plan(std::shared_ptr<ngraph::opset1::StridedSlice> s
 
 bool strided_slices_perform_the_same(std::shared_ptr<ngraph::opset1::StridedSlice> lhs,
                                      std::shared_ptr<ngraph::opset1::StridedSlice> rhs) {
-    auto lhs_plan = get_slice_plan(lhs);
-    auto rhs_plan = get_slice_plan(rhs);
+    auto lhs_plan = get_slice_plan(std::move(lhs));
+    auto rhs_plan = get_slice_plan(std::move(rhs));
 
     auto empty_plan = ngraph::SlicePlan();
     if (lhs_plan == empty_plan || rhs_plan == empty_plan)
@@ -196,7 +197,7 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
         if (output_to_partition.size() < 2) continue;
 
         std::sort(output_to_partition.begin(), output_to_partition.end(),
-                [](OutputToPatrition lhs, OutputToPatrition rhs)
+                [](const OutputToPatrition& lhs, const OutputToPatrition& rhs)
             {return lhs.begin < rhs.begin;});
 
         std::vector<std::pair<Output<Node>, uint64_t>> output_to_size;
@@ -223,6 +224,7 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
         auto axis_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
 
         std::vector<int64_t> size_splits;
+        size_splits.reserve(output_to_size.size());
         for (const auto & item : output_to_size)
             size_splits.push_back(item.second);
         auto size_splits_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{size_splits.size()}, size_splits);
@@ -233,7 +235,7 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
         for (auto & record : output_to_size) {
             if (record.first != fake_output) {
                 record.first.replace(variadic_split->output(i));
-                ops_to_replace.push_back(record.first.get_node_shared_ptr());
+                ops_to_replace.push_back(record.first.get_node()->shared_from_this());
             }
             ++i;
         }

@@ -47,13 +47,13 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
 
         auto div_const_value =
             std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-                pattern_to_output.at(div_constant).get_node_shared_ptr());
+                pattern_to_output.at(div_constant).get_node()->shared_from_this());
         auto add_const_value =
             std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-                pattern_to_output.at(add_constant).get_node_shared_ptr());
+                pattern_to_output.at(add_constant).get_node()->shared_from_this());
         auto mul_const_value =
             std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-                pattern_to_output.at(mul_constant).get_node_shared_ptr());
+                pattern_to_output.at(mul_constant).get_node()->shared_from_this());
 
         if (!div_const_value || !add_const_value || !mul_const_value) {
             return false;
@@ -73,11 +73,11 @@ ngraph::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
         gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(
             {
-                pattern_to_output.at(div).get_node_shared_ptr(),
-                pattern_to_output.at(erf).get_node_shared_ptr(),
-                pattern_to_output.at(add).get_node_shared_ptr(),
-                pattern_to_output.at(mul_first).get_node_shared_ptr(),
-                pattern_to_output.at(mul).get_node_shared_ptr(),
+                pattern_to_output.at(div).get_node()->shared_from_this(),
+                pattern_to_output.at(erf).get_node()->shared_from_this(),
+                pattern_to_output.at(add).get_node()->shared_from_this(),
+                pattern_to_output.at(mul_first).get_node()->shared_from_this(),
+                pattern_to_output.at(mul).get_node()->shared_from_this(),
             },
             gelu);
         ngraph::replace_node(m.get_match_root(), gelu);
@@ -117,13 +117,13 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
 
         auto div_const_value =
             std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-                pattern_to_output.at(div_constant).get_node_shared_ptr());
+                pattern_to_output.at(div_constant).get_node()->shared_from_this());
         auto add_const_value =
             std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-                pattern_to_output.at(add_constant).get_node_shared_ptr());
+                pattern_to_output.at(add_constant).get_node()->shared_from_this());
         auto mul_const_value =
             std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-                pattern_to_output.at(mul_constant).get_node_shared_ptr());
+                pattern_to_output.at(mul_constant).get_node()->shared_from_this());
 
         if (!div_const_value || !add_const_value || !mul_const_value) {
             return false;
@@ -143,11 +143,11 @@ ngraph::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
         gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(
             {
-                pattern_to_output.at(div).get_node_shared_ptr(),
-                pattern_to_output.at(erf).get_node_shared_ptr(),
-                pattern_to_output.at(add).get_node_shared_ptr(),
-                pattern_to_output.at(mul_first).get_node_shared_ptr(),
-                pattern_to_output.at(mul).get_node_shared_ptr(),
+                pattern_to_output.at(div).get_node()->shared_from_this(),
+                pattern_to_output.at(erf).get_node()->shared_from_this(),
+                pattern_to_output.at(add).get_node()->shared_from_this(),
+                pattern_to_output.at(mul_first).get_node()->shared_from_this(),
+                pattern_to_output.at(mul).get_node()->shared_from_this(),
             },
             gelu);
         ngraph::replace_node(m.get_match_root(), gelu);
@@ -187,13 +187,13 @@ ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
 
         auto div_const_value =
             std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-                pattern_to_output.at(div_constant).get_node_shared_ptr());
+                pattern_to_output.at(div_constant).get_node()->shared_from_this());
         auto add_const_value =
             std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-                pattern_to_output.at(add_constant).get_node_shared_ptr());
+                pattern_to_output.at(add_constant).get_node()->shared_from_this());
         auto mul_const_value =
             std::dynamic_pointer_cast<ngraph::opset7::Constant>(
-                pattern_to_output.at(mul_constant).get_node_shared_ptr());
+                pattern_to_output.at(mul_constant).get_node()->shared_from_this());
 
         if (!div_const_value || !add_const_value || !mul_const_value) {
             return false;
@@ -213,11 +213,11 @@ ngraph::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
         gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(
             {
-                pattern_to_output.at(div).get_node_shared_ptr(),
-                pattern_to_output.at(erf).get_node_shared_ptr(),
-                pattern_to_output.at(add).get_node_shared_ptr(),
-                pattern_to_output.at(mul_first).get_node_shared_ptr(),
-                pattern_to_output.at(mul).get_node_shared_ptr(),
+                pattern_to_output.at(div).get_node()->shared_from_this(),
+                pattern_to_output.at(erf).get_node()->shared_from_this(),
+                pattern_to_output.at(add).get_node()->shared_from_this(),
+                pattern_to_output.at(mul_first).get_node()->shared_from_this(),
+                pattern_to_output.at(mul).get_node()->shared_from_this(),
             },
             gelu);
         ngraph::replace_node(m.get_match_root(), gelu);

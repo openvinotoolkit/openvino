@@ -344,8 +344,8 @@ TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto broadcast_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    auto crop_node = broadcast_node->input(0).get_source_output().get_node_shared_ptr();
+    auto broadcast_node = result_node_of_converted_f->input(0).get_source_output().get_node()->shared_from_this();
+    auto crop_node = broadcast_node->input(0).get_source_output().get_node()->shared_from_this();
     ASSERT_TRUE(broadcast_node->get_friendly_name() == "broadcast") << "Transformation ConvertBroadcast3 should keep output names.\n";
 }
 
@@ -379,8 +379,8 @@ TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto broadcast_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    auto crop_node = broadcast_node->input(0).get_source_output().get_node_shared_ptr();
+    auto broadcast_node = result_node_of_converted_f->input(0).get_source_output().get_node()->shared_from_this();
+    auto crop_node = broadcast_node->input(0).get_source_output().get_node()->shared_from_this();
     ASSERT_TRUE(broadcast_node->get_friendly_name() == "broadcast") << "Transformation ConvertBroadcast3 should keep output names.\n";
 }
 
@@ -415,8 +415,8 @@ TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto broadcast_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    auto crop_node = broadcast_node->input(0).get_source_output().get_node_shared_ptr();
+    auto broadcast_node = result_node_of_converted_f->input(0).get_source_output().get_node()->shared_from_this();
+    auto crop_node = broadcast_node->input(0).get_source_output().get_node()->shared_from_this();
     ASSERT_TRUE(broadcast_node->get_friendly_name() == "broadcast") << "Transformation ConvertBroadcast3 should keep output names.\n";
 }
 
@@ -451,7 +451,7 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto result_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    auto crop_node = result_node->input(0).get_source_output().get_node_shared_ptr();
+    auto result_node = result_node_of_converted_f->input(0).get_source_output().get_node()->shared_from_this();
+    auto crop_node = result_node->input(0).get_source_output().get_node()->shared_from_this();
     ASSERT_TRUE(result_node->get_friendly_name() == "broadcast") << "Transformation ConvertBroadcast3 should keep output names.\n";
 }

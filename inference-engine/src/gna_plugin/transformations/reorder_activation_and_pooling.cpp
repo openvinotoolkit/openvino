@@ -38,7 +38,7 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto& pattern_map = m.get_pattern_value_map();
-        auto pool_node = pattern_map.at(pool).get_node_shared_ptr();
+        auto pool_node = pattern_map.at(pool).get_node()->shared_from_this();
         auto pool = std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(pool_node);
         IE_ASSERT(pool != nullptr);
         auto kernel_shape = pool->get_kernel();
@@ -46,12 +46,12 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
             return false;
         }
 
-        auto act = pool_node->input_value(0).get_node_shared_ptr();
+        auto act = pool_node->input_value(0).get_node()->shared_from_this();
         IE_ASSERT(act != nullptr);
 
         gnalog() << "Reorder " << pool_node->get_friendly_name() << " and  " << act->get_friendly_name() << "\n";
 
-        auto node_before_act = act->input_value(0).get_node_shared_ptr();
+        auto node_before_act = act->input_value(0).get_node()->shared_from_this();
         IE_ASSERT(node_before_act != nullptr);
 
         auto consumers = node_before_act->output(0).get_target_inputs();

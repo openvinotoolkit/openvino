@@ -16,7 +16,7 @@ SliceConfiguration sliceMatMul(const ngraph::Node& node) {
     // there are tests on dynamic MatMul with non-constant second input
     // if try to process MatMul with non-constant second input it will
     // affect tests and they will fail, since Loop support is not ready yet
-    if (!ngraph::op::is_constant(node.input_value(1).get_node_shared_ptr())) {
+    if (!ngraph::op::is_constant(node.input_value(1).get_node()->shared_from_this())) {
         return {};
     }
 

@@ -38,7 +38,7 @@ std::shared_ptr<ngraph::Node> get_reduction_axes_from_input(const Node& node) {
                      node.get_description());
 
         if (reduction_axes_rank.get_length() != 0 && reduction_axes.get_shape() != Shape{0}) {
-            return reduction_axes.get_node_shared_ptr();
+            return reduction_axes.get_node()->shared_from_this();
         }
     }
 
@@ -85,7 +85,7 @@ std::shared_ptr<ngraph::Node> make_ng_reduction_op(const Node& node,
     if (reduction_axes != nullptr) {
         return std::make_shared<OpType>(ng_input, reduction_axes, static_cast<bool>(keepdims));
     } else {
-        return op::set_1::identity(node).at(0).get_node_shared_ptr();
+        return op::set_1::identity(node).at(0).get_node()->shared_from_this();
     }
 }
 }  // namespace

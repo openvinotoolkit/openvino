@@ -8,6 +8,7 @@
 #include <functional>
 #include <numeric>
 #include <sstream>
+#include <utility>
 
 #include "core/value_info.hpp"
 #include "default_opset.hpp"
@@ -48,7 +49,7 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
 }
 
-void add_provenance_tag_to_initializer(const Tensor& tensor, std::shared_ptr<default_opset::Constant> node) {
+void add_provenance_tag_to_initializer(const Tensor& tensor, const std::shared_ptr<default_opset::Constant>& node) {
     if (!ngraph::get_provenance_enabled()) {
         return;
     }
@@ -58,7 +59,7 @@ void add_provenance_tag_to_initializer(const Tensor& tensor, std::shared_ptr<def
     node->add_provenance_tag(tag);
 }
 
-void add_provenance_tag_to_input(const ValueInfo& input, std::shared_ptr<ngraph::Node> node) {
+void add_provenance_tag_to_input(const ValueInfo& input, const std::shared_ptr<ngraph::Node>& node) {
     if (!ngraph::get_provenance_enabled()) {
         return;
     }
@@ -78,7 +79,7 @@ void add_provenance_tags(const Node& onnx_node, const OutputVector& ng_node_vect
 
     ngraph::traverse_nodes(
         as_node_vector(ng_node_vector),
-        [&tag](std::shared_ptr<ngraph::Node> ng_node) {
+        [&tag](const std::shared_ptr<ngraph::Node>& ng_node) {
             ng_node->add_provenance_tag(tag);
         },
         as_node_vector(ng_inputs));
@@ -86,7 +87,7 @@ void add_provenance_tags(const Node& onnx_node, const OutputVector& ng_node_vect
 }  // namespace detail
 
 Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto)
-    : Graph(model_proto, common::make_unique<GraphCache>()) {}
+    : Graph(std::move(model_proto), common::make_unique<GraphCache>()) {}
 
 Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, std::unique_ptr<GraphCache>&& cache)
     : m_model{common::make_unique<Model>(model_proto)},
@@ -117,7 +118,7 @@ Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, std::uniqu
 
             initializers.emplace(initializer_tensor.name(), tensor);
             detail::add_provenance_tag_to_initializer(tensor, ng_constant);
-            m_cache->emplace_node(initializer_tensor.name(), std::move(ng_constant));
+            m_cache->emplace_node(initializer_tensor.name(), ng_constant);
         }
     }
 
@@ -131,7 +132,7 @@ Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, std::uniqu
         ValueInfo value_info{input};
         auto ng_node = value_info.get_ng_node(m_parameters, initializers);
         detail::add_provenance_tag_to_input(value_info, ng_node);
-        m_cache->emplace_node(input.name(), std::move(ng_node));
+        m_cache->emplace_node(input.name(), ng_node);
     }
 
     // Verify that ONNX graph contains only nodes of available operator types
@@ -310,7 +311,7 @@ const OpsetImports& Graph::get_opset_imports() const {
 }
 
 Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, const Graph& parent_graph)
-    : Graph(model_proto, common::make_unique<GraphCache>()),
+    : Graph(std::move(model_proto), common::make_unique<GraphCache>()),
       m_parent_graph_cache(&parent_graph.get_graph_cache()) {}
 
 Output<ngraph::Node> Subgraph::get_ng_node_from_cache(const std::string& name) const {
@@ -329,7 +330,7 @@ void Subgraph::find_inputs_from_parent() {
             if (m_parent_graph_cache->contains(in_name)) {
                 const auto& from_parent_node = m_parent_graph_cache->get_node(in_name);
                 // constants are skipped
-                if (!ngraph::is_type<ngraph::op::Constant>(from_parent_node.get_node_shared_ptr())) {
+                if (!ngraph::is_type<ngraph::op::Constant>(from_parent_node.get_node()->shared_from_this())) {
                     for (const auto& out_name : node_proto.output()) {
                         if (m_cache->contains(out_name)) {
                             auto out_node_to_replace_input = m_cache->get_node(out_name);

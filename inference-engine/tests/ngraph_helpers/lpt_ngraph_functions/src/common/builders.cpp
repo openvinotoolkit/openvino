@@ -25,8 +25,8 @@ std::shared_ptr<Node> makeDequantization(
 
     if (!dequantizationOperations.convert.empty()) {
         auto convert = std::make_shared<opset1::Convert>(data, dequantizationOperations.convert.outPrecision);
-        NetworkHelper::copyInfo({ data.get_node_shared_ptr(), convert }, convert);
-        convert->set_friendly_name(data.get_node_shared_ptr()->get_friendly_name() + "/DequantizationConvert");
+        NetworkHelper::copyInfo({ data.get_node()->shared_from_this(), convert }, convert);
+        convert->set_friendly_name(data.get_node()->shared_from_this()->get_friendly_name() + "/DequantizationConvert");
         parent = convert;
     }
 
@@ -96,11 +96,11 @@ std::shared_ptr<Node> makeDequantization(
                     ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get());
             }
 
-            subtract->set_friendly_name(data.get_node_shared_ptr()->get_friendly_name() + "/DequantizationSubtract");
+            subtract->set_friendly_name(data.get_node()->shared_from_this()->get_friendly_name() + "/DequantizationSubtract");
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, dequantizationOperations.subtract.outPrecision);
         }
 
-        NetworkHelper::copyInfo({ data.get_node_shared_ptr(), subtract }, subtract);
+        NetworkHelper::copyInfo({ data.get_node()->shared_from_this(), subtract }, subtract);
 
         if (!dequantizationOperations.subtract.attributes.empty()) {
             auto& rt = subtract->get_rt_info();
@@ -114,12 +114,12 @@ std::shared_ptr<Node> makeDequantization(
 
     if (!dequantizationOperations.multiply.empty()) {
         auto const newMultiply = makeMultiply(parent, dequantizationOperations.multiply);
-        NetworkHelper::copyInfo({ data.get_node_shared_ptr(), newMultiply }, newMultiply);
-        newMultiply->set_friendly_name(data.get_node_shared_ptr()->get_friendly_name() + "/DequantizationMultiply");
+        NetworkHelper::copyInfo({ data.get_node()->shared_from_this(), newMultiply }, newMultiply);
+        newMultiply->set_friendly_name(data.get_node()->shared_from_this()->get_friendly_name() + "/DequantizationMultiply");
         parent = newMultiply;
     }
 
-    return parent.get_node_shared_ptr();
+    return parent.get_node()->shared_from_this();
 }
 
 std::shared_ptr<Node> makeMultiply(const Output<Node>& parent, const DequantizationOperations::Multiply& multiply) {

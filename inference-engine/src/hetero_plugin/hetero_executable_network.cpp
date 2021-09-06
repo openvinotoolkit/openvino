@@ -294,7 +294,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             auto output = input.get_source_output();
             output.remove_target_input(input);
             auto result = std::make_shared<ngraph::op::Result>(output);
-            ngraph::copy_runtime_info(output.get_node_shared_ptr(), result);
+            ngraph::copy_runtime_info(output.get_node()->shared_from_this(), result);
             auto parameter = std::make_shared<ngraph::op::Parameter>(output.get_element_type(), output.get_partial_shape());
             ngraph::copy_runtime_info(input.get_node()->shared_from_this(), parameter);
             input.replace_source_output(parameter->output(0));

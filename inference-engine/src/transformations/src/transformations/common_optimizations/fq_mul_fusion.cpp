@@ -22,9 +22,9 @@ std::pair<ngraph::Output<ngraph::Node>, ngraph::Output<ngraph::Node>>
                               ngraph::Output<ngraph::Node> multiplier) {
         const auto mul_out_low = std::make_shared<ngraph::opset4::Multiply>(out_low, multiplier);
         const auto mul_out_high = std::make_shared<ngraph::opset4::Multiply>(out_high, multiplier);
-        copy_runtime_info({out_low.get_node_shared_ptr(), multiplier.get_node_shared_ptr()},
+        copy_runtime_info({out_low.get_node()->shared_from_this(), multiplier.get_node()->shared_from_this()},
                           mul_out_low);
-        copy_runtime_info({out_high.get_node_shared_ptr(), multiplier.get_node_shared_ptr()},
+        copy_runtime_info({out_high.get_node()->shared_from_this(), multiplier.get_node()->shared_from_this()},
                           mul_out_high);
 
         ngraph::OutputVector new_out_low(1), new_out_high(1);
@@ -81,7 +81,7 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        const auto fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
+        const auto fq_node = pattern_map.at(fq_node_p).get_node()->shared_from_this();
 
         const auto & original_output_low = pattern_map.at(fq_output_low_p);
         const auto & original_output_high = pattern_map.at(fq_output_high_p);
@@ -96,7 +96,7 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
             new_output_limits.first,
             new_output_limits.second});
 
-        const auto mul_node = pattern_map.at(mul_node_p).get_node_shared_ptr();
+        const auto mul_node = pattern_map.at(mul_node_p).get_node()->shared_from_this();
 
         // WA: this check is intended to prevent replacement when new FQ has shape
         // which is different to Multiply output shape. Otherwise such replacement

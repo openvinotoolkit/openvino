@@ -68,8 +68,8 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
     std::tie(supported, width, in_channels, out_channels) = VerifyAndGetConvParams(matmul_node);
     if (!supported) return false;
 
-    auto input_node = matmul_node->input_value(0).get_node_shared_ptr();
-    auto weights_node = matmul_node->input_value(1).get_node_shared_ptr();
+    auto input_node = matmul_node->input_value(0).get_node()->shared_from_this();
+    auto weights_node = matmul_node->input_value(1).get_node()->shared_from_this();
     auto base_name = matmul_node->get_friendly_name();
 
     auto reshape_const_before = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
@@ -157,7 +157,7 @@ ConvertMatmulToPointWiseConvolution::ConvertMatmulToPointWiseConvolution() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        return Convert(pattern_map.at(matmul).get_node_shared_ptr(), nullptr, nullptr, nullptr);
+        return Convert(pattern_map.at(matmul).get_node()->shared_from_this(), nullptr, nullptr, nullptr);
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, matcher_name);
@@ -179,8 +179,8 @@ ConvertMatmulWithBiasToPointWiseConvolution::ConvertMatmulWithBiasToPointWiseCon
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        return Convert(pattern_map.at(matmul).get_node_shared_ptr(), pattern_map.at(add).get_node_shared_ptr(),
-            pattern_map.at(bias).get_node_shared_ptr(), nullptr);
+        return Convert(pattern_map.at(matmul).get_node()->shared_from_this(), pattern_map.at(add).get_node()->shared_from_this(),
+            pattern_map.at(bias).get_node()->shared_from_this(), nullptr);
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
@@ -209,11 +209,11 @@ ConvertMatmulWithFqToPointWiseConvolution::ConvertMatmulWithFqToPointWiseConvolu
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto add_it = pattern_map.find(add);
-        auto add_node = (add_it == std::end(pattern_map) ? nullptr : add_it->second.get_node_shared_ptr());
+        auto add_node = (add_it == std::end(pattern_map) ? nullptr : add_it->second.get_node()->shared_from_this());
         auto bias_it = pattern_map.find(bias);
-        auto bias_node = (bias_it == std::end(pattern_map) ? nullptr : bias_it->second.get_node_shared_ptr());
-        return Convert(pattern_map.at(matmul).get_node_shared_ptr(), add_node, bias_node,
-             pattern_map.at(out_fq).get_node_shared_ptr());
+        auto bias_node = (bias_it == std::end(pattern_map) ? nullptr : bias_it->second.get_node()->shared_from_this());
+        return Convert(pattern_map.at(matmul).get_node()->shared_from_this(), add_node, bias_node,
+             pattern_map.at(out_fq).get_node()->shared_from_this());
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(out_fq, matcher_name);

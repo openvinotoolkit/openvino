@@ -92,7 +92,7 @@ ngraph::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
 
         ::NodeVector new_ops = {original_shape, split_input_dimensions, transpose, reshape, reshape_back, new_shape};
         for (auto output : new_dimensions)
-            new_ops.insert(new_ops.begin(), output.get_node_shared_ptr());
+            new_ops.insert(new_ops.begin(), output.get_node()->shared_from_this());
         reshape_back->set_friendly_name(shuffle_channels->get_friendly_name());
         ::copy_runtime_info(shuffle_channels, new_ops);
         ::replace_node(shuffle_channels, reshape_back);

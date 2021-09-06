@@ -98,7 +98,7 @@ void op::v5::Loop::validate_and_infer_types() {
             m_num_iterations = 1;  // condition_always_false, do_while mode
         }
     } else if (const auto& cond_param = std::dynamic_pointer_cast<const ngraph::opset5::Parameter>(
-                   body_execution_condition.get_node_shared_ptr())) {
+                   body_execution_condition.get_node()->shared_from_this())) {
         // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
         for (const auto& desc : get_input_descriptions()) {
             if (m_bodies[0]->get_parameters().at(desc->m_body_parameter_index) == cond_param) {

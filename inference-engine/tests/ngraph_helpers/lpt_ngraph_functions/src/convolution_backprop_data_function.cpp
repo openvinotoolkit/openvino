@@ -57,7 +57,7 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
     const auto convert = std::make_shared<opset1::Convert>(weights, netPrecision);
     OutputVector convertedOutput(1);
     convert->constant_fold(convertedOutput, convert->input_values());
-    const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
+    const auto convertedWeights = convertedOutput[0].get_node()->shared_from_this();
     const auto fq = makeFakeQuantize(convertedWeights, netPrecision, fqOnWeights);
 
     return fq;

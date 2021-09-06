@@ -662,7 +662,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
             for (size_t i = 0; i < replacements.size(); ++i) {
                 auto node_output = clone_op->output(i);
                 auto replacement = replacements.at(i);
-                if (replacement.get_node_shared_ptr() && (node_output != replacement)) {
+                if (replacement.get_node()->shared_from_this() && (node_output != replacement)) {
                     node_output.replace(replacement);
                 }
             }

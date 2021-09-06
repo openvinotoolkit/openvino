@@ -40,7 +40,7 @@ void op::NonMaxSuppressionIE::validate_and_infer_types() {
     };
 
     // Calculate output shape using opset3::NonMaxSuppression
-    auto max_output_boxes_per_class = std::dynamic_pointer_cast<opset3::Constant>(input_value(2).get_node_shared_ptr());
+    auto max_output_boxes_per_class = std::dynamic_pointer_cast<opset3::Constant>(input_value(2).get_node()->shared_from_this());
     auto nms = std::make_shared<opset3::NonMaxSuppression>(input_value(0), input_value(1),
             /* second input is used for output calculation and only if it's Constant output shape won't be dynamic */
                                                            max_output_boxes_per_class ? opset3::Constant::create(element::i64, Shape{},
@@ -89,7 +89,7 @@ void op::NonMaxSuppressionIE2::validate_and_infer_types() {
     };
 
     // Calculate output shape using opset4::NonMaxSuppression
-    auto max_output_boxes_per_class = std::dynamic_pointer_cast<opset4::Constant>(input_value(2).get_node_shared_ptr());
+    auto max_output_boxes_per_class = std::dynamic_pointer_cast<opset4::Constant>(input_value(2).get_node()->shared_from_this());
     auto nms = std::make_shared<opset4::NonMaxSuppression>(input_value(0), input_value(1),
             /* second input is used for output calculation and only if it's Constant output shape won't be dynamic */
                                                            max_output_boxes_per_class ? opset4::Constant::create(element::i64, Shape{},
@@ -164,7 +164,7 @@ int64_t op::NonMaxSuppressionIE3::max_boxes_output_from_input() const {
     }
 
     const auto max_output_boxes_input =
-        ov::as_type_ptr<op::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
+        ov::as_type_ptr<op::Constant>(input_value(max_output_boxes_per_class_port).get_node()->shared_from_this());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -180,7 +180,7 @@ void op::NonMaxSuppressionIE3::validate_and_infer_types() {
 
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
         const auto num_boxes_boxes = boxes_ps[1];
-        const auto max_output_boxes_per_class_node = input_value(max_output_boxes_per_class_port).get_node_shared_ptr();
+        const auto max_output_boxes_per_class_node = input_value(max_output_boxes_per_class_port).get_node()->shared_from_this();
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
             op::is_constant(max_output_boxes_per_class_node)) {
             const auto num_boxes = num_boxes_boxes.get_length();

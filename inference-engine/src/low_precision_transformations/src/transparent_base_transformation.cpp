@@ -17,8 +17,8 @@ using namespace ngraph::pass::low_precision;
 
 bool TransparentBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     auto operation = m.get_match_root();
-    const std::shared_ptr<Node> dequantization = operation->input_value(0).get_node_shared_ptr();
-    // const std::shared_ptr<Node> dequantizationParent = dequantization->input_value(0).get_node_shared_ptr();
+    const std::shared_ptr<Node> dequantization = operation->input_value(0).get_node()->shared_from_this();
+    // const std::shared_ptr<Node> dequantizationParent = dequantization->input_value(0).get_node()->shared_from_this();
 
     // auto newOperation = operation->copy_with_new_inputs({ dequantizationParent });
     // const auto newDequantization = dequantization->copy_with_new_inputs({

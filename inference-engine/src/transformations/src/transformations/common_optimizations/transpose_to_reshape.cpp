@@ -24,7 +24,7 @@ bool replace_transpose_with_reshape(const std::shared_ptr<Node>& transpose) {
 
     const size_t input_shape_rank = input_shape.rank().get_length();
 
-    auto order = ov::as_type_ptr<opset6::Constant>(transpose->input_value(1).get_node_shared_ptr());
+    auto order = ov::as_type_ptr<opset6::Constant>(transpose->input_value(1).get_node()->shared_from_this());
     if (!order || !ngraph::shape_size(order->get_shape())) {
         return false;
     }
@@ -89,7 +89,7 @@ bool replace_transpose_with_reshape(const std::shared_ptr<Node>& transpose) {
         new_ops.push_back(shape_of);
         reshape_dim = std::make_shared<opset3::Gather>(
             shape_of, order, opset3::Constant::create(element::i64, Shape{ 1 }, { 0 }));
-        new_ops.push_back(reshape_dim.get_node_shared_ptr());
+        new_ops.push_back(reshape_dim.get_node()->shared_from_this());
     }
 
     auto reshape_op = std::make_shared<opset3::Reshape>(data, reshape_dim, true);

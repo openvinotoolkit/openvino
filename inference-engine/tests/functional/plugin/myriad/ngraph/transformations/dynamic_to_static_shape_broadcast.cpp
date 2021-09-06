@@ -251,7 +251,7 @@ protected:
         const auto targetShapeDimsCount = targetShape.rank().get_length();
 
         const auto tensorShapeNode = broadcastInputType == BroadcastInputType::DYNAMIC ?
-            staticShapeBroadcast->input_value(0).get_node_shared_ptr()->input_value(1) :
+            staticShapeBroadcast->input_value(0).get_node()->shared_from_this()->input_value(1) :
             vpu::shapeToConstant(shapeType, tensorShape.get_shape());
 
         const auto maxRankNode = tensorShapeDimsCount > targetShapeDimsCount ? tensorShapeNode : shapeOf;

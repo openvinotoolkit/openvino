@@ -103,7 +103,7 @@ public:
     static std::shared_ptr<T> unique_match(const std::shared_ptr<Node>& node) {
         std::shared_ptr<T> matched;
         for (const auto& arg : node->input_values()) {
-            if (auto t_casted = ov::as_type_ptr<T>(arg.get_node_shared_ptr())) {
+            if (auto t_casted = ov::as_type_ptr<T>(arg.get_node()->shared_from_this())) {
                 if (matched) {
                     throw Exception("There's more than two arguments of the same type");
                 } else {
@@ -129,7 +129,7 @@ public:
         return m_name;
     }
     std::shared_ptr<Node> get_pattern() {
-        return m_pattern_node.get_node_shared_ptr();
+        return m_pattern_node.get_node()->shared_from_this();
     }
     Output<Node> get_pattern_value() {
         return m_pattern_node;
@@ -252,7 +252,7 @@ public:
     bool match(Output<Node> graph);
 
     std::shared_ptr<Node> get_match_root() {
-        return m_match_root.get_node_shared_ptr();
+        return m_match_root.get_node()->shared_from_this();
     }
     Output<Node> get_match_value() {
         return m_match_root;

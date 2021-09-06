@@ -33,12 +33,12 @@ ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
         // need to unsqueeze constant manually.
         Output<Node> unsqueezed_k;
         NodeVector new_ops;
-        if (auto k_const = std::dynamic_pointer_cast<opset1::Constant>(topk->input_value(1).get_node_shared_ptr())) {
+        if (auto k_const = std::dynamic_pointer_cast<opset1::Constant>(topk->input_value(1).get_node()->shared_from_this())) {
             auto k_value = k_const->cast_vector<int64_t>();
             unsqueezed_k = opset1::Constant::create(element::i64, Shape{1}, k_value);
         } else {
             unsqueezed_k = std::make_shared<opset1::Unsqueeze>(topk->input_value(1), opset1::Constant::create(element::i64, Shape{1}, {0}));
-            new_ops.push_back(unsqueezed_k.get_node_shared_ptr());
+            new_ops.push_back(unsqueezed_k.get_node()->shared_from_this());
         }
 
         auto topk_ie = std::make_shared<ngraph::op::TopKIE>(topk->input_value(0), unsqueezed_k, topk->get_axis(), topk->get_mode(),
@@ -54,20 +54,20 @@ ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
             topk_ie->set_friendly_name(topk->get_friendly_name());
         } else if (topk->get_output_target_inputs(0).size() == 0) {
             index_output = std::make_shared<opset1::Convert>(topk_ie->output(1), topk->get_index_element_type());
-            new_ops.push_back(index_output.get_node_shared_ptr());
+            new_ops.push_back(index_output.get_node()->shared_from_this());
 
             // workaround for naming output #1 of TopK
-            index_output.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".1");
+            index_output.get_node()->shared_from_this()->set_friendly_name(topk->get_friendly_name() + ".1");
         } else {
             // create fake convert for 0 output, it is a workaround in purpose of correct output names preserving
             element_output = std::make_shared<opset1::Convert>(topk_ie->output(0), topk->get_output_element_type(0));
             index_output = std::make_shared<opset1::Convert>(topk_ie->output(1), topk->get_index_element_type());
-            new_ops.push_back(element_output.get_node_shared_ptr());
-            new_ops.push_back(index_output.get_node_shared_ptr());
+            new_ops.push_back(element_output.get_node()->shared_from_this());
+            new_ops.push_back(index_output.get_node()->shared_from_this());
 
             // workaround for naming two outputs of TopK
-            element_output.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".0");
-            index_output.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".1");
+            element_output.get_node()->set_friendly_name(topk->get_friendly_name() + ".0");
+            index_output.get_node()->set_friendly_name(topk->get_friendly_name() + ".1");
         }
 
         ngraph::copy_runtime_info(topk, new_ops);

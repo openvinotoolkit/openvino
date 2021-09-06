@@ -30,9 +30,9 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
         }
 
         auto data_output = slice->input_value(0);
-        auto begin_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(1).get_node_shared_ptr());
-        auto end_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(2).get_node_shared_ptr());
-        auto stride_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(3).get_node_shared_ptr());
+        auto begin_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(1).get_node()->shared_from_this());
+        auto end_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(2).get_node()->shared_from_this());
+        auto stride_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(3).get_node()->shared_from_this());
 
         auto partial_input_shape = slice->get_input_partial_shape(0);
 
@@ -54,7 +54,7 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
 
         if (!ones_stride) return false;
 
-        auto convert_to_set = [](const std::vector<int64_t> mask) {
+        auto convert_to_set = [](const std::vector<int64_t>& mask) {
             AxisSet axis_set{};
             for (size_t i = 0; i < static_cast<size_t>(mask.size()); ++i) {
                 if (mask[i] == 1) {

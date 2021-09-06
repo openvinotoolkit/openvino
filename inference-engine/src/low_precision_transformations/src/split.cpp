@@ -68,7 +68,7 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         }
 
         for (auto& result : results) {
-            result = NetworkHelper::toScalarIfPossible(result.get_node_shared_ptr());
+            result = NetworkHelper::toScalarIfPossible(result.get_node()->shared_from_this());
         }
 
         return results;

@@ -137,7 +137,7 @@ public:
             auto weights_mask = getMask(m_weights);
             if (!weights_mask) {
                 // Setting mask only if weights are constant
-                if (ngraph::is_type<opset6::Constant>(m_output.get_node_shared_ptr())) {
+                if (ngraph::is_type<opset6::Constant>(m_output.get_node()->shared_from_this())) {
                     weights_mask = std::make_shared<Mask>(weights_shape.size());
                     setMask(m_weights, weights_mask);
                 } else {
@@ -208,7 +208,7 @@ public:
             const auto & m_output = pattern_map.at(reshape);
             const auto & m_input = pattern_map.at(input);
 
-            auto shape_val = m_shape.get_node_shared_ptr();
+            auto shape_val = m_shape.get_node()->shared_from_this();
 
             // In Depthwise Convolutions Reshape on weights just add additional dimension for output channels count
             // (1 in case of the depthwise) of kernel.
@@ -245,7 +245,7 @@ public:
 
             // To allow pruning on weights (allow reshape input Group (0) dim changing) replace Reshape Shape constant
             // [G, 1, 1, X, Y, Z] by [-1, 1, 1, X, Y, Z].
-            auto old_shape_const = std::dynamic_pointer_cast<opset6::Constant>(m_shape.get_node_shared_ptr());
+            auto old_shape_const = std::dynamic_pointer_cast<opset6::Constant>(m_shape.get_node()->shared_from_this());
             if (!old_shape_const) {
                 return false;
             }
@@ -284,7 +284,7 @@ public:
             const auto & m_input = pattern_map.at(input);
 
             // Case when input masks should be united instead of intersection
-            bool union_eltwise_type = ngraph::is_type<opset6::Multiply>(m_output.get_node_shared_ptr());
+            bool union_eltwise_type = ngraph::is_type<opset6::Multiply>(m_output.get_node()->shared_from_this());
 
             const auto & input_rank = m_input.get_partial_shape().rank().get_length();
             const auto & weights_rank = m_weights.get_partial_shape().rank().get_length();
@@ -293,14 +293,14 @@ public:
             if (weights_rank < 3 || input_rank < 3) return false;
 
             // In case if first of the inputs is constant
-            InitConstMask({0, 1/* potential output channel dim */}).apply(m_input.get_node_shared_ptr());
+            InitConstMask({0, 1/* potential output channel dim */}).apply(m_input.get_node()->shared_from_this());
             auto input_mask = getMask(m_input);
             if (!input_mask) {
                 NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
             }
 
-            InitConstMask({0, 1}).apply(m_weights.get_node_shared_ptr());
+            InitConstMask({0, 1}).apply(m_weights.get_node()->shared_from_this());
 
             auto weights_mask = getMask(m_weights);
             if (!weights_mask) {
@@ -414,11 +414,11 @@ public:
 
             // If input/output ranges in FQ should be broadcasted to input shape -> broadcast this consant values
             // for the convenience of working with the masks
-            NodeVector fq_params_nodes{m_input_low.get_node_shared_ptr(),
-                                                               m_input_high.get_node_shared_ptr(),
-                                                               m_output_low.get_node_shared_ptr(),
-                                                               m_output_high.get_node_shared_ptr()};
-            auto fq_node = std::dynamic_pointer_cast<op::FakeQuantize>(m_output.get_node_shared_ptr());
+            NodeVector fq_params_nodes{m_input_low.get_node()->shared_from_this(),
+                                                               m_input_high.get_node()->shared_from_this(),
+                                                               m_output_low.get_node()->shared_from_this(),
+                                                               m_output_high.get_node()->shared_from_this()};
+            auto fq_node = std::dynamic_pointer_cast<op::FakeQuantize>(m_output.get_node()->shared_from_this());
             size_t idx = 0;
             if (fq_node->get_auto_broadcast() != ngraph::op::AutoBroadcastType::NONE) {
                 for (auto node : fq_params_nodes) {
@@ -465,7 +465,7 @@ public:
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
             const auto & pattern_map = m.get_pattern_value_map();
             const auto & m_output = pattern_map.at(concat);
-            auto concat_ptr = std::dynamic_pointer_cast<opset6::Concat>(m_output.get_node_shared_ptr());
+            auto concat_ptr = std::dynamic_pointer_cast<opset6::Concat>(m_output.get_node()->shared_from_this());
             if (!concat_ptr) {
                 return false;
             }
@@ -568,7 +568,7 @@ public:
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto & pattern_map = m.get_pattern_value_map();
             const auto & m_output = pattern_map.at(unary_op);
-            const auto & m_input = m_output.get_node_shared_ptr()->input_value(0);
+            const auto & m_input = m_output.get_node()->shared_from_this()->input_value(0);
 
             if (auto input_mask = getMask(m_input)) {
                 setMask(m_output, input_mask);

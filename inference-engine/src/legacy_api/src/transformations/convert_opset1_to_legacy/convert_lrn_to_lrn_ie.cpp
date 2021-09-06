@@ -27,7 +27,7 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
             return false;
         }
 
-        auto axis_const = std::dynamic_pointer_cast<ngraph::opset1::Constant> (lrn->input(1).get_source_output().get_node_shared_ptr());
+        auto axis_const = std::dynamic_pointer_cast<ngraph::opset1::Constant> (lrn->input(1).get_source_output().get_node()->shared_from_this());
         if (!axis_const) {
             return false;
         }

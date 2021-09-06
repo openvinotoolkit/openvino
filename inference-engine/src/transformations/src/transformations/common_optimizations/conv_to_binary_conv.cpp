@@ -45,17 +45,17 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
         auto conv = std::dynamic_pointer_cast<opset5::Convolution>(m.get_match_root());
         if (!conv)
             return false;
-        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(conv->input_value(0).get_node_shared_ptr());
+        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(conv->input_value(0).get_node()->shared_from_this());
         if (!fq || fq->get_levels() != 2)
             return false;
 
-        auto output_low_constant = std::dynamic_pointer_cast<opset5::Constant>(fq->input_value(3).get_node_shared_ptr());
+        auto output_low_constant = std::dynamic_pointer_cast<opset5::Constant>(fq->input_value(3).get_node()->shared_from_this());
         if (!output_low_constant)
             return false;
         auto output_low = output_low_constant->cast_vector<float>();
         bool output_low_is_zero = std::all_of(output_low.begin(), output_low.end(), [] (float f) -> bool { return f == 0.0f; });
         bool output_low_is_minus_one = std::all_of(output_low.begin(), output_low.end(), [] (float f) -> bool { return f == -1.0f; });
-        auto output_high_constant = std::dynamic_pointer_cast<opset5::Constant>(fq->input_value(4).get_node_shared_ptr());
+        auto output_high_constant = std::dynamic_pointer_cast<opset5::Constant>(fq->input_value(4).get_node()->shared_from_this());
         if (!output_high_constant)
             return false;
         auto output_high = output_high_constant->cast_vector<float>();
@@ -64,7 +64,7 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
         if (!(output_high_is_one && (output_low_is_zero || output_low_is_minus_one)))
                 return false;
 
-        auto weights_constant = std::dynamic_pointer_cast<opset5::Constant>(conv->input_value(1).get_node_shared_ptr());
+        auto weights_constant = std::dynamic_pointer_cast<opset5::Constant>(conv->input_value(1).get_node()->shared_from_this());
         if (!weights_constant)
             return false;
 

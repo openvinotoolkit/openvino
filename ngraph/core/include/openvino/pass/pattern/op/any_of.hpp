@@ -36,7 +36,7 @@ public:
               type,
               s,
               [pred](const Output<Node>& value) {
-                  return pred(value.get_node_shared_ptr());
+                  return pred(value.get_node()->shared_from_this());
               },
               as_output_vector(wrapped_values)) {}
 

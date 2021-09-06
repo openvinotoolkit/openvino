@@ -27,8 +27,8 @@ static float quantize(float f, float input_low, float input_high, float output_l
 
 
 static std::vector<float> quantize_weights(const Shape& weights_shape, std::vector<float>& weights,
-                                           Shape input_low_high_shape, const std::vector<float>& input_low, const std::vector<float>& input_high,
-                                           Shape output_low_high_shape, const std::vector<float>& output_low, const std::vector<float>& output_high) {
+                                           const Shape& input_low_high_shape, const std::vector<float>& input_low, const std::vector<float>& input_high,
+                                           const Shape& output_low_high_shape, const std::vector<float>& output_low, const std::vector<float>& output_high) {
     NGRAPH_CHECK(shape_size(input_low_high_shape) == 1 || shape_size(input_low_high_shape) == weights_shape[0]);
     NGRAPH_CHECK(shape_size(output_low_high_shape) == 1 || shape_size(output_low_high_shape) == weights_shape[0]);
     size_t out_feat_off = 1;
@@ -73,14 +73,14 @@ pass::BinarizeWeights::BinarizeWeights() {
         auto conv = std::dynamic_pointer_cast<opset5::Convolution>(m.get_match_root());
         if (!conv)
             return false;
-        auto activations_fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(conv->input_value(0).get_node_shared_ptr());
+        auto activations_fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(conv->input_value(0).get_node()->shared_from_this());
         if (!activations_fq || activations_fq->get_levels() != 2)
             return false;
-        auto weights_fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(conv->input_value(1).get_node_shared_ptr());
+        auto weights_fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(conv->input_value(1).get_node()->shared_from_this());
         if (!weights_fq || weights_fq->get_levels() != 2)
             return false;
 
-        auto weights_const = std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(0).get_node_shared_ptr());
+        auto weights_const = std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(0).get_node()->shared_from_this());
         if (!weights_const)
             return false;
 
@@ -95,8 +95,8 @@ pass::BinarizeWeights::BinarizeWeights() {
             return std::tuple<bool, bool>{output_low_is_zero, output_low_high_are_opposite};
         };
 
-        auto activations_output_low_const = std::dynamic_pointer_cast<opset5::Constant>(activations_fq->input_value(3).get_node_shared_ptr());
-        auto activations_output_high_const = std::dynamic_pointer_cast<opset5::Constant>(activations_fq->input_value(4).get_node_shared_ptr());
+        auto activations_output_low_const = std::dynamic_pointer_cast<opset5::Constant>(activations_fq->input_value(3).get_node()->shared_from_this());
+        auto activations_output_high_const = std::dynamic_pointer_cast<opset5::Constant>(activations_fq->input_value(4).get_node()->shared_from_this());
         if (!activations_output_low_const || !activations_output_high_const)
             return false;
 
@@ -110,12 +110,12 @@ pass::BinarizeWeights::BinarizeWeights() {
         if (!(act_out_low_high_are_opposite || act_out_low_is_zero))
             return false;
 
-        auto weights_input_low_const = std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(1).get_node_shared_ptr());
-        auto weights_input_high_const = std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(2).get_node_shared_ptr());
+        auto weights_input_low_const = std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(1).get_node()->shared_from_this());
+        auto weights_input_high_const = std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(2).get_node()->shared_from_this());
         if (!weights_input_low_const || !weights_input_high_const)
             return false;
-        auto weights_output_low_const = std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(3).get_node_shared_ptr());
-        auto weights_output_high_const = std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(4).get_node_shared_ptr());
+        auto weights_output_low_const = std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(3).get_node()->shared_from_this());
+        auto weights_output_high_const = std::dynamic_pointer_cast<opset5::Constant>(weights_fq->input_value(4).get_node()->shared_from_this());
         if (!weights_output_low_const || !weights_output_high_const)
             return false;
 

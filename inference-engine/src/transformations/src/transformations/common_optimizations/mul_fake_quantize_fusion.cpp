@@ -29,10 +29,10 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
                                                                         ngraph::pattern::any_input()});
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
-        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
+        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node()->shared_from_this());
         if (!fq)
             return false;
-        auto mul_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
+        auto mul_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_value_map.at(const_pattern).get_node()->shared_from_this());
         if (!mul_const)
             return false;
 
@@ -62,7 +62,7 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         auto new_input_low = std::make_shared<opset5::Divide>(fq->input_value(1), mul_const_node);
         auto new_input_high = std::make_shared<opset5::Divide>(fq->input_value(2), mul_const_node);
 
-        auto mul = pattern_value_map.at(mul_pattern).get_node_shared_ptr();
+        auto mul = pattern_value_map.at(mul_pattern).get_node()->shared_from_this();
         const auto& mul_data = pattern_value_map.at(input_pattern);
 
         std::shared_ptr<Node> new_fq;

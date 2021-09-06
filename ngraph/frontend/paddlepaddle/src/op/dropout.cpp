@@ -23,7 +23,7 @@ NamedOutputs dropout(const NodeContext& node) {
         return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Multiply>(data, dropout_prob)},
                                                   {"Out"});
     } else {
-        return node.default_single_output_mapping(data.get_node_shared_ptr(), {"Out"});
+        return node.default_single_output_mapping(data.get_node()->shared_from_this(), {"Out"});
     }
 }
 

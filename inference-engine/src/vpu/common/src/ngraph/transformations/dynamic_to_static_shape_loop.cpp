@@ -20,7 +20,7 @@ void validateLoop(const ngraph::Node& node) {
     const auto& loop = dynamic_cast<const ngraph::opset6::Loop&>(node);
     VPU_THROW_UNLESS(loop.get_input_size() >= 3, "Encountered operation {} with {} inputs, expected at least {} inputs", loop, loop.get_input_size(), 3);
 
-    const auto& executionCondition = ngraph::as_type_ptr<ngraph::opset6::Constant>(loop.input_value(1).get_node_shared_ptr());
+    const auto& executionCondition = ngraph::as_type_ptr<ngraph::opset6::Constant>(loop.input_value(1).get_node()->shared_from_this());
     VPU_THROW_UNLESS(executionCondition != nullptr, "Execution condition of a loop {} is expected to be constant true, got {}", loop, executionCondition);
     const auto& executionConditionValue = executionCondition->get_vector<bool>();
     VPU_THROW_UNLESS(executionConditionValue == std::vector<bool>{true},
@@ -86,7 +86,7 @@ void dynamicToStaticShapeLoop(std::shared_ptr<ngraph::Node> node) {
     const auto& body = staticShapeLoop->get_function();
     for (const auto& outputDescription : loop->get_output_descriptions()) {
         const auto& index = outputDescription->m_output_index;
-        auto replacement = staticShapeLoop->output(index).get_node_shared_ptr();
+        auto replacement = staticShapeLoop->output(index).get_node()->shared_from_this();
         if (const auto& concatOutputDescription = ngraph::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(outputDescription)) {
             const auto& bodyOutput = body->get_results().at(concatOutputDescription->m_body_value_index)->input_value(0);
 

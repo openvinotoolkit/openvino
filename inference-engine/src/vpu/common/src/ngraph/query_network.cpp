@@ -81,7 +81,7 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNe
             const auto& parentName = input.get_source_output().get_node()->get_friendly_name();
             if (InferenceEngine::details::contains(supported, parentName) &&
                 InferenceEngine::details::contains(splitNames, parentName)) {
-                markParentSplitAsUnsupported(input.get_source_output().get_node_shared_ptr());
+                markParentSplitAsUnsupported(input.get_source_output().get_node()->shared_from_this());
             }
         }
         const auto& name = split->get_friendly_name();

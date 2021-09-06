@@ -46,8 +46,8 @@ OutputVector dequantize_linear(const Node& node) {
     const auto scale = inputs[1];
     const auto zero_point = detail::get_zero_point(inputs);
 
-    common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), {element::f32});
-    common::validate_scalar_input("Zero point", zero_point.get_node_shared_ptr());
+    common::validate_scalar_input("Dequantization scale", scale.get_node()->shared_from_this(), {element::f32});
+    common::validate_scalar_input("Zero point", zero_point.get_node()->shared_from_this());
 
     const auto converted_x = std::make_shared<default_opset::Convert>(x, element::f32);
 
@@ -59,7 +59,7 @@ OutputVector dequantize_linear(const Node& node) {
 
 namespace set_13 {
 namespace detail {
-void validate_scale(const Output<ngraph::Node> scale, const Output<ngraph::Node> x, const int64_t axis) {
+void validate_scale(const Output<ngraph::Node>& scale, const Output<ngraph::Node>& x, const int64_t axis) {
     const auto& scale_shape = scale.get_partial_shape();
     NGRAPH_CHECK(scale_shape.rank().get_length() == 0 || scale_shape.rank().get_length() == 1,
                  "Dequantization scale needs to be a scalar or a vector.");
@@ -79,7 +79,7 @@ void validate_scale(const Output<ngraph::Node> scale, const Output<ngraph::Node>
     }
 }
 
-void validate_zero_point(const Output<ngraph::Node> zero_point, const Output<ngraph::Node> x, const int64_t axis) {
+void validate_zero_point(const Output<ngraph::Node>& zero_point, const Output<ngraph::Node>& x, const int64_t axis) {
     const auto& zero_point_shape = zero_point.get_partial_shape();
     NGRAPH_CHECK(zero_point_shape.rank().get_length() == 0 || zero_point_shape.rank().get_length() == 1,
                  "Zero point needs to be a scalar or a vector.");
@@ -99,14 +99,14 @@ void validate_zero_point(const Output<ngraph::Node> zero_point, const Output<ngr
     }
 }
 
-std::shared_ptr<ngraph::Node> reshape_input(const Output<ngraph::Node> input,
+std::shared_ptr<ngraph::Node> reshape_input(const Output<ngraph::Node>& input,
                                             const int64_t axis,
                                             const PartialShape& x_shape) {
     auto input_rank = input.get_partial_shape().rank();
 
     // Do not reshape input, if it contains a scalar value
     if (input_rank.is_static() && input_rank.get_length() == 0) {
-        return input.get_node_shared_ptr();
+        return input.get_node()->shared_from_this();
     }
 
     std::vector<int64_t> target_dims;

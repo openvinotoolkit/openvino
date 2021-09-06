@@ -66,8 +66,8 @@ ngraph::pass::TransposeReduction::TransposeReduction() {
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher &m) {
         const auto &pattern_to_output = m.get_pattern_value_map();
 
-        auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
-        auto reduction = pattern_to_output.at(reduce_or_squeeze_label).get_node_shared_ptr();
+        auto transpose = pattern_to_output.at(transpose_label).get_node()->shared_from_this();
+        auto reduction = pattern_to_output.at(reduce_or_squeeze_label).get_node()->shared_from_this();
         auto arithmetic_reduce = std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduction);
         auto logical_reduce = std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduction);
         auto squeeze = std::dynamic_pointer_cast<opset6::Squeeze>(reduction);
@@ -128,9 +128,9 @@ ngraph::pass::TransposeFQReduction::TransposeFQReduction() {
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher &m) {
         auto &pattern_to_output = m.get_pattern_value_map();
 
-        auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
+        auto transpose = pattern_to_output.at(transpose_label).get_node()->shared_from_this();
         auto transpose_order = std::dynamic_pointer_cast<opset6::Constant>(transpose->get_input_node_shared_ptr(1));
-        auto fq = pattern_to_output.at(fq_label).get_node_shared_ptr();
+        auto fq = pattern_to_output.at(fq_label).get_node()->shared_from_this();
         if (!transpose || !transpose_order || !fq)
             return false;
 
@@ -185,8 +185,8 @@ ngraph::pass::TransposeFuse::TransposeFuse() {
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
-        auto transpose1 = pattern_to_output.at(transpose_1).get_node_shared_ptr();
-        auto transpose2 = pattern_to_output.at(transpose_2).get_node_shared_ptr();
+        auto transpose1 = pattern_to_output.at(transpose_1).get_node()->shared_from_this();
+        auto transpose2 = pattern_to_output.at(transpose_2).get_node()->shared_from_this();
         auto input = transpose1->input_value(0);
 
         auto transpose1_order = std::dynamic_pointer_cast<ngraph::opset7::Constant>(transpose1->get_input_node_shared_ptr(1));

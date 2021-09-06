@@ -69,7 +69,7 @@ static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> co
 }
 
 static std::shared_ptr<ngraph::Node> VerifyBiasAndReshapeConst(std::shared_ptr<ngraph::opset7::Add> conv_bias, const ConvData& conv_data) {
-    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(conv_bias->input_value(1).get_node_shared_ptr());
+    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(conv_bias->input_value(1).get_node()->shared_from_this());
 
     if (add_const) {
         auto bias_size = shape_size(add_const->get_shape());
@@ -155,7 +155,7 @@ static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared
             result.push_back(std::make_shared<ngraph::opset7::Transpose>(flat_filter,
                 ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{0, 1, 3, 2})));
         } else {
-            result.push_back(flat_filter.get_node_shared_ptr());
+            result.push_back(flat_filter.get_node()->shared_from_this());
         }
     }
 
@@ -211,7 +211,7 @@ static std::vector<std::shared_ptr<ngraph::Node>> SplitFilters(const GraphData& 
 
     // Take account of fake quantize when getting filter values
     auto filter_values = std::dynamic_pointer_cast<ngraph::opset7::Constant>(graph_data.fq_conv == nullptr ?
-        graph_data.conv->input_value(1).get_node_shared_ptr() : graph_data.fq_conv->input_value(0).get_node_shared_ptr());
+        graph_data.conv->input_value(1).get_node()->shared_from_this() : graph_data.fq_conv->input_value(0).get_node()->shared_from_this());
     bool vertical_permute = (conv_data.filter_height > 1);
     bool horizontal_permute = (conv_data.filter_dilation_width > 1);
     std::vector<std::shared_ptr<ngraph::Node>> h_1_filters{};
@@ -369,7 +369,7 @@ static std::shared_ptr<ngraph::Node> CreateDecomposedConv(const GraphData& graph
         if (horizontal_permute) {
             // Horizontal split - transform input accordingly
             ngraph::OutputVector dilated_chunks;
-            std::shared_ptr<ngraph::Node> dilated_chunks_concat = nhwc_conv_y_input.get_node_shared_ptr();
+            std::shared_ptr<ngraph::Node> dilated_chunks_concat = nhwc_conv_y_input.get_node()->shared_from_this();
 
             // We need to calculate some parameters in case horizontal stride > 1 is used, because if we use the ones available from the original convolution
             // we won't take into account the fact horizontal strides will be supported by the newly created 1D convolution, and not by decomposition
@@ -516,10 +516,10 @@ static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
 }
 
 static bool VerifyBias(std::shared_ptr<ngraph::Node> conv, std::shared_ptr<ngraph::Node> bias) {
-    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(1).get_node_shared_ptr());
+    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(1).get_node()->shared_from_this());
 
     if (!add_const) {
-        add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(0).get_node_shared_ptr());
+        add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(0).get_node()->shared_from_this());
     }
 
     if (!add_const) {
@@ -573,31 +573,31 @@ Decompose2DConv::Decompose2DConv() {
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto fq_conv_it = pattern_map.find(fq_conv);
-        auto fq_conv_node = (fq_conv_it == std::end(pattern_map) ? nullptr : fq_conv_it->second.get_node_shared_ptr());
+        auto fq_conv_node = (fq_conv_it == std::end(pattern_map) ? nullptr : fq_conv_it->second.get_node()->shared_from_this());
         auto bias_it = pattern_map.find(bias);
-        auto bias_node = (bias_it == std::end(pattern_map) ? nullptr : bias_it->second.get_node_shared_ptr());
+        auto bias_node = (bias_it == std::end(pattern_map) ? nullptr : bias_it->second.get_node()->shared_from_this());
         auto fq_bias_it = pattern_map.find(fq_bias);
-        auto fq_bias_node = (fq_bias_it == std::end(pattern_map) ? nullptr : fq_bias_it->second.get_node_shared_ptr());
+        auto fq_bias_node = (fq_bias_it == std::end(pattern_map) ? nullptr : fq_bias_it->second.get_node()->shared_from_this());
         auto fq_af_it = pattern_map.find(fq_af);
-        auto fq_af_node = (fq_af_it == std::end(pattern_map) ? nullptr : fq_af_it->second.get_node_shared_ptr());
+        auto fq_af_node = (fq_af_it == std::end(pattern_map) ? nullptr : fq_af_it->second.get_node()->shared_from_this());
         auto max_pool1_it = pattern_map.find(max_pool1);
         auto max_pool2_it = pattern_map.find(max_pool2);
         auto max_pool_node = (max_pool1_it == std::end(pattern_map) ?
-            ((max_pool2_it == std::end(pattern_map) ? nullptr : max_pool2_it->second.get_node_shared_ptr())) : max_pool1_it->second.get_node_shared_ptr());
+            ((max_pool2_it == std::end(pattern_map) ? nullptr : max_pool2_it->second.get_node()->shared_from_this())) : max_pool1_it->second.get_node()->shared_from_this());
         std::shared_ptr<ngraph::Node> af_node = nullptr;
         std::vector<ngraph::pattern::PatternValueMap::const_iterator> af_it
         {pattern_map.find(af1), pattern_map.find(af2), pattern_map.find(af3), pattern_map.find(af4)};
 
         for (auto const& af : af_it) {
             if (af != std::end(pattern_map)) {
-                af_node = af->second.get_node_shared_ptr();
+                af_node = af->second.get_node()->shared_from_this();
                 break;
             }
         }
 
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), fq_conv_node, pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), bias_node, fq_bias_node, max_pool_node, af_node, fq_af_node,
-            pattern_map.at(trailing_transpose).get_node_shared_ptr());
+        return Convert(pattern_map.at(leading_transpose).get_node()->shared_from_this(), fq_conv_node, pattern_map.at(conv).get_node()->shared_from_this(),
+            pattern_map.at(trailing_transpose).get_node()->shared_from_this(), bias_node, fq_bias_node, max_pool_node, af_node, fq_af_node,
+            pattern_map.at(trailing_transpose).get_node()->shared_from_this());
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);
@@ -621,12 +621,12 @@ Decompose2DConvTransposedWithBias::Decompose2DConvTransposedWithBias() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        if (!VerifyBias(pattern_map.at(conv).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr()))
+        if (!VerifyBias(pattern_map.at(conv).get_node()->shared_from_this(), pattern_map.at(bias).get_node()->shared_from_this()))
             return false;
 
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), nullptr, pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr(), nullptr, nullptr,
-            nullptr, nullptr, pattern_map.at(bias).get_node_shared_ptr());
+        return Convert(pattern_map.at(leading_transpose).get_node()->shared_from_this(), nullptr, pattern_map.at(conv).get_node()->shared_from_this(),
+            pattern_map.at(trailing_transpose).get_node()->shared_from_this(), pattern_map.at(bias).get_node()->shared_from_this(), nullptr, nullptr,
+            nullptr, nullptr, pattern_map.at(bias).get_node()->shared_from_this());
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(bias, matcher_name);
@@ -654,12 +654,12 @@ Decompose2DConvTransposedWithBiasAF::Decompose2DConvTransposedWithBiasAF() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        if (!VerifyBias(pattern_map.at(conv).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr()))
+        if (!VerifyBias(pattern_map.at(conv).get_node()->shared_from_this(), pattern_map.at(bias).get_node()->shared_from_this()))
             return false;
 
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), nullptr, pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr(), nullptr,
-            nullptr, pattern_map.at(af).get_node_shared_ptr(), nullptr, pattern_map.at(af).get_node_shared_ptr());
+        return Convert(pattern_map.at(leading_transpose).get_node()->shared_from_this(), nullptr, pattern_map.at(conv).get_node()->shared_from_this(),
+            pattern_map.at(trailing_transpose).get_node()->shared_from_this(), pattern_map.at(bias).get_node()->shared_from_this(), nullptr,
+            nullptr, pattern_map.at(af).get_node()->shared_from_this(), nullptr, pattern_map.at(af).get_node()->shared_from_this());
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(af, matcher_name);

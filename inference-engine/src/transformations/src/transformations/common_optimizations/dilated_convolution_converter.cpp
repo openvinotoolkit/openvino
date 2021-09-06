@@ -31,22 +31,22 @@ ngraph::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto block_shape = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(block_shape_pattern).get_node_shared_ptr());
+        auto block_shape = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(block_shape_pattern).get_node()->shared_from_this());
         if (!block_shape)
             return false;
-        auto pads_begin = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(pads_begin_pattern).get_node_shared_ptr());
+        auto pads_begin = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(pads_begin_pattern).get_node()->shared_from_this());
         if (!pads_begin)
             return false;
-        auto pads_end = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(pads_end_pattern).get_node_shared_ptr());
+        auto pads_end = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(pads_end_pattern).get_node()->shared_from_this());
         if (!pads_end)
             return false;
-        auto crops_begin = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(crops_begin_pattern).get_node_shared_ptr());
+        auto crops_begin = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(crops_begin_pattern).get_node()->shared_from_this());
         if (!crops_begin)
             return false;
-        auto crops_end = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(crops_end_pattern).get_node_shared_ptr());
+        auto crops_end = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(crops_end_pattern).get_node()->shared_from_this());
         if (!crops_end)
             return false;
-        auto conv = std::dynamic_pointer_cast<opset6::Convolution>(pattern_map.at(conv_pattern).get_node_shared_ptr());
+        auto conv = std::dynamic_pointer_cast<opset6::Convolution>(pattern_map.at(conv_pattern).get_node()->shared_from_this());
         if (!conv)
             return false;
 
@@ -73,12 +73,12 @@ ngraph::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
         auto new_conv = register_new_node<opset6::Convolution>(pattern_map.at(data_pattern), conv->input_value(1),
                 conv->get_strides(), new_pads_begin, new_pads_end, dilations, op::PadType::EXPLICIT);
 
-        auto batch_to_space = pattern_map.at(batch_to_space_pattern).get_node_shared_ptr();
+        auto batch_to_space = pattern_map.at(batch_to_space_pattern).get_node()->shared_from_this();
         new_conv->set_friendly_name(batch_to_space->get_friendly_name());
 
         copy_runtime_info({
-                            pattern_map.at(space_to_batch_pattern).get_node_shared_ptr(),
-                            pattern_map.at(conv_pattern).get_node_shared_ptr(),
+                            pattern_map.at(space_to_batch_pattern).get_node()->shared_from_this(),
+                            pattern_map.at(conv_pattern).get_node()->shared_from_this(),
                             batch_to_space,
                           },
                           new_conv);

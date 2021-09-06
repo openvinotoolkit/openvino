@@ -225,7 +225,7 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
 
     size_t arg_index = 0;
     for (auto input_value : node->input_values()) {
-        auto arg = input_value.get_node_shared_ptr();
+        auto arg = input_value.get_node()->shared_from_this();
         size_t jump_distance = height_maps[arg.get()].max_jump_to(height_maps[node.get()]);
         if (ov::is_type<ngraph::op::Constant>(arg) || ov::is_type<ngraph::op::Parameter>(arg)) {
             auto clone_name = "CLONE_" + to_string(fake_node_ctr);

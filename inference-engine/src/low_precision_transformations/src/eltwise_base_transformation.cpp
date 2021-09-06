@@ -58,13 +58,13 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
     return true;
 }
 
-static bool isTargetType(const std::shared_ptr<Node> node) {
+static bool isTargetType(const std::shared_ptr<Node>& node) {
     return ov::is_type<opset1::Convolution>(node) ||
            ov::is_type<opset1::GroupConvolution>(node) ||
            ov::is_type<opset1::MatMul>(node);
 }
 
-static std::shared_ptr<Node> getDataParent(const std::shared_ptr<Node> branchData) {
+static std::shared_ptr<Node> getDataParent(const std::shared_ptr<Node>& branchData) {
     std::shared_ptr<Node> parent = branchData;
     while (ov::is_type<opset1::FakeQuantize>(parent)) {
         parent = parent->get_input_node_shared_ptr(0);
@@ -76,7 +76,7 @@ static std::shared_ptr<Node> getDataParent(const std::shared_ptr<Node> branchDat
     return parent;
 }
 
-static bool isBranchHaveMultipleConsumers(const std::shared_ptr<Node> branchData, const std::shared_ptr<Node> branchDataParent) {
+static bool isBranchHaveMultipleConsumers(const std::shared_ptr<Node>& branchData, const std::shared_ptr<Node>& branchDataParent) {
     auto parent = branchData;
     while (parent != branchDataParent) {
         if ((parent->get_output_size() != 1ul) || (parent->get_output_target_inputs(0).size() != 1ul)) {
@@ -124,9 +124,9 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
     }
 
     const std::shared_ptr<opset1::FakeQuantize> fakeQuantize1 =
-        ov::as_type_ptr<opset1::FakeQuantize>(dequantization1.data.get_node_shared_ptr());
+        ov::as_type_ptr<opset1::FakeQuantize>(dequantization1.data.get_node()->shared_from_this());
     const std::shared_ptr<opset1::FakeQuantize> fakeQuantize2 =
-        ov::as_type_ptr<opset1::FakeQuantize>(dequantization2.data.get_node_shared_ptr());
+        ov::as_type_ptr<opset1::FakeQuantize>(dequantization2.data.get_node()->shared_from_this());
 
     if (fakeQuantize1 && !fakeQuantize2) {
         return 0;
@@ -154,8 +154,8 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
     }
 
     const std::vector<std::shared_ptr<Node>> parentNodes = {
-            getDataParent(dequantization1.data.get_node_shared_ptr()),
-            getDataParent(dequantization2.data.get_node_shared_ptr()) };
+            getDataParent(dequantization1.data.get_node()->shared_from_this()),
+            getDataParent(dequantization2.data.get_node()->shared_from_this()) };
 
     const bool allBranchesAreEqual = isTargetType(parentNodes[0]) == isTargetType(parentNodes[1]);
     if (allBranchesAreEqual) {
@@ -166,8 +166,8 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
         }
     }
 
-    const bool multipleConsumers0 = isBranchHaveMultipleConsumers(dequantization1.data.get_node_shared_ptr(), parentNodes[0]);
-    const bool multipleConsumers1 = isBranchHaveMultipleConsumers(dequantization2.data.get_node_shared_ptr(), parentNodes[1]);
+    const bool multipleConsumers0 = isBranchHaveMultipleConsumers(dequantization1.data.get_node()->shared_from_this(), parentNodes[0]);
+    const bool multipleConsumers1 = isBranchHaveMultipleConsumers(dequantization2.data.get_node()->shared_from_this(), parentNodes[1]);
     if (multipleConsumers0 && !multipleConsumers1) {
         return 1;
     }
@@ -194,7 +194,7 @@ std::pair<int, int> EltwiseBaseTransformation::getMultiplyConstBranch(const std:
 
     std::shared_ptr<opset1::Constant> constParent = dequantization1.empty() ?
         ov::as_type_ptr<opset1::Constant>(parent1) :
-        ov::as_type_ptr<opset1::Constant>(dequantization1.data.get_node_shared_ptr());
+        ov::as_type_ptr<opset1::Constant>(dequantization1.data.get_node()->shared_from_this());
     std::shared_ptr<opset1::Multiply> multiplyParent = ov::as_type_ptr<opset1::Multiply>(parent2);
     int multiplyBranch = 1;
 
@@ -202,7 +202,7 @@ std::pair<int, int> EltwiseBaseTransformation::getMultiplyConstBranch(const std:
     if (constParent == nullptr || multiplyParent == nullptr) {
         constParent = dequantization2.empty() ?
             ov::as_type_ptr<opset1::Constant>(parent2) :
-            ov::as_type_ptr<opset1::Constant>(dequantization2.data.get_node_shared_ptr());
+            ov::as_type_ptr<opset1::Constant>(dequantization2.data.get_node()->shared_from_this());
         multiplyParent = ov::as_type_ptr<opset1::Multiply>(parent1);
         multiplyBranch = 0;
     }

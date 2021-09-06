@@ -205,9 +205,9 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getCons
     auto funcResults = function->get_results();
     for (size_t i = 0; i < numOutputs; i++) {
         outputs[i].first = funcResults[i]->get_element_type();
-        const auto &output = function->output(i).get_node_shared_ptr();
+        const auto &output = function->output(i).get_node()->shared_from_this();
         NGRAPH_CHECK(output->inputs().size() == 1);
-        auto parrentNode = output->input_value(0).get_node_shared_ptr();
+        auto parrentNode = output->input_value(0).get_node()->shared_from_this();
         NGRAPH_CHECK(op::is_constant(parrentNode), "Function was not fully folded to constant state!\n",
                      "Parent node of one of results is not constant and has type ", parrentNode->get_type_name());
 

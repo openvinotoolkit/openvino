@@ -79,10 +79,10 @@ std::string asString<double>(const double& value) {
     sStrm << std::fixed << value;
     std::string result = sStrm.str();
 
-    auto pos = result.find_last_not_of("0");
+    auto pos = result.find_last_not_of('0');
     if (pos != std::string::npos) result.erase(pos + 1);
 
-    pos = result.find_last_not_of(".");
+    pos = result.find_last_not_of('.');
     if (pos != std::string::npos) result.erase(pos + 1);
 
     return result;
@@ -157,7 +157,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
             temp_body.inputs[counter++] = info->getInputData();
         }
 
-        auto map_ng_result_to_ie_name = [] (std::shared_ptr<ngraph::op::v0::Result> res_op) {
+        auto map_ng_result_to_ie_name = [] (const std::shared_ptr<ngraph::op::v0::Result>& res_op) {
             auto result = res_op->input(0).get_source_output();
 
             std::string name = result.get_node()->get_friendly_name();
@@ -177,7 +177,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
         body = InferenceEngine::NetPass::CopyTIBody(temp_body);
 
         // Check if data is really const layer holder
-        auto is_constant_holder = [] (const DataPtr data) {
+        auto is_constant_holder = [] (const DataPtr& data) {
             return data->getPrecision() == Precision::UNSPECIFIED;
         };
 
@@ -333,7 +333,7 @@ public:
     }
 
     void addSpecificCreator(const std::vector<std::string>& forTypes, const CreatorFor& creator) {
-        for (const auto type : forTypes) {
+        for (const auto& type : forTypes) {
             creators[type] = creator;
         }
     }
@@ -631,7 +631,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["input"] = Builder::asString(weights_shape[1]);
         res->params["pad_value"] = Builder::asString(castedLayer->get_pad_value());
 
-        const auto weightsNode = castedLayer->input(1).get_source_output().get_node_shared_ptr();
+        const auto weightsNode = castedLayer->input(1).get_source_output().get_node()->shared_from_this();
         InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
         return res;
@@ -712,10 +712,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         }
         res->params["kernel"] = kernel_value;
 
-        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(1).get_node()->shared_from_this();
         if (InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
             if (node->inputs().size() == 3) {
-                const auto biasNode = node->input_value(2).get_node_shared_ptr();
+                const auto biasNode = node->input_value(2).get_node()->shared_from_this();
                 InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
             }
         }
@@ -746,7 +746,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"LogicalNot"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
-                          const std::map<std::string, std::string> params) -> CNNLayerPtr {
+                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Activation",
                               details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
@@ -756,15 +756,15 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"LSTMCellIE"},
                         [](const std::shared_ptr<::ngraph::Node>& node,
-                           const std::map<std::string, std::string> params) -> CNNLayerPtr {
+                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "LSTMCell",
                              details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<LSTMCell>(attrs);
         res->params = params;
-        const auto weightsNode = node->input_value(3).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(3).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
-        const auto biasNode = node->input_value(4).get_node_shared_ptr();
+        const auto biasNode = node->input_value(4).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
 
         return res;
@@ -778,10 +778,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<RNNCell>(attrs);
         res->params = params;
 
-        const auto weightsNode = node->input_value(2).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(2).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
-        const auto biasNode = node->input_value(3).get_node_shared_ptr();
+        const auto biasNode = node->input_value(3).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
 
         return res;
@@ -795,10 +795,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<GRUCell>(attrs);
         res->params = params;
 
-        const auto weightsNode = node->input_value(2).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(2).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
-        const auto biasNode = node->input_value(3).get_node_shared_ptr();
+        const auto biasNode = node->input_value(3).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
 
         return res;
@@ -812,7 +812,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<PReLULayer>(attrs);
         res->params = params;
 
-        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(1).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
         return res;
@@ -960,7 +960,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<SplitLayer>(attrs);
 
-        auto axis_node = node->input_value(1).get_node_shared_ptr();
+        auto axis_node = node->input_value(1).get_node()->shared_from_this();
         const auto axis_node_const = std::dynamic_pointer_cast<ngraph::op::Constant>(axis_node);
         if (!axis_node_const) {
             IE_THROW() << "Split " << node->get_friendly_name() << " has no axes as Constant";
@@ -1050,7 +1050,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
-        if (auto transpose_const = std::dynamic_pointer_cast<ngraph::op::Constant>(node->input_value(1).get_node_shared_ptr())) {
+        if (auto transpose_const = std::dynamic_pointer_cast<ngraph::op::Constant>(node->input_value(1).get_node()->shared_from_this())) {
             res->params["order"] = Builder::asString(transpose_const->cast_vector<int64_t>());
         }
         return res;
@@ -1169,10 +1169,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             res->cellType = RNNSequenceLayer::CellType::GRU_LBR;
         }
 
-        const auto weightsNode = node->input_value(3).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(3).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
-        const auto biasNode = node->input_value(4).get_node_shared_ptr();
+        const auto biasNode = node->input_value(4).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
 
         return res;
@@ -1194,10 +1194,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         else
             res->params["direction"] = "Bidirectional";
 
-        const auto weightsNode = node->input_value(3).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(3).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
-        const auto biasNode = node->input_value(4).get_node_shared_ptr();
+        const auto biasNode = node->input_value(4).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
 
         return res;
@@ -1219,10 +1219,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         else
             res->params["direction"] = "Bidirectional";
 
-        const auto weightsNode = node->input_value(4).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(4).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
-        const auto biasNode = node->input_value(5).get_node_shared_ptr();
+        const auto biasNode = node->input_value(5).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
 
         return res;
@@ -1373,7 +1373,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["channel_shared"] = res->getBoolStrParamAsIntStr("channel_shared");
         res->params["across_spatial"] = res->getBoolStrParamAsIntStr("across_spatial");
 
-        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(1).get_node()->shared_from_this();
         if (auto castedLayer = ngraph::as_type_ptr<ngraph::op::Constant>(weightsNode)) {
             res->blobs["weights"] = InferenceEngine::details::shareWeights(castedLayer);
         }
@@ -1540,10 +1540,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             res->params.erase("auto_pad");
         }
 
-        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(1).get_node()->shared_from_this();
         if (!keep_constants && InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
             if (node->inputs().size() == 3) {
-                const auto biasNode = node->input_value(2).get_node_shared_ptr();
+                const auto biasNode = node->input_value(2).get_node()->shared_from_this();
                 InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
             }
         }
@@ -1572,7 +1572,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             res->params.erase("auto_pad");
         }
 
-        const auto weightsNode = node->input_value(2).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(2).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
 
         return res;
@@ -1637,7 +1637,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto castedLayer = std::dynamic_pointer_cast<ngraph::op::VariadicSplit>(node);
         if (!castedLayer) IE_THROW() << "Cannot get " << attrs.type << " layer " << attrs.name;
 
-        auto axis_node = castedLayer->input_value(1).get_node_shared_ptr();
+        auto axis_node = castedLayer->input_value(1).get_node()->shared_from_this();
         const auto axis_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(axis_node);
         if (!axis_node_const) {
             IE_THROW() << "Split " << castedLayer->get_friendly_name() << " has no axes as Constant";
@@ -1673,9 +1673,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         LayerParams attrs = {node->get_friendly_name(), "ScaleShift", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::ScaleShiftLayer>(attrs);
         res->params = params;
-        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(1).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
-        const auto biasNode = node->input_value(2).get_node_shared_ptr();
+        const auto biasNode = node->input_value(2).get_node()->shared_from_this();
         InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
         return res;
     });
@@ -1743,9 +1743,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         if (auto attr = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rt_info["keep_constants"])) {
             keep_constants = attr->get();
         }
-        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(1).get_node()->shared_from_this();
         if (!keep_constants && InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
-            const auto biasNode = node->input_value(2).get_node_shared_ptr();
+            const auto biasNode = node->input_value(2).get_node()->shared_from_this();
             InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
         }
         return res;
@@ -1806,7 +1806,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
         if (!result)
             IE_THROW() << "Cannot cast ngraph node " << node->get_friendly_name() << " to CNNLayer!";
-        NGraphCNNLayer * layer = reinterpret_cast<NGraphCNNLayer*>(result.get());
+        auto * layer = reinterpret_cast<NGraphCNNLayer*>(result.get());
         layer->setNode(node);
         return result;
     };
@@ -1845,14 +1845,14 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
 
             for (; inputID < consumerLayer->inputs().size(); ++inputID) {
-                auto inputLayer = consumerLayer->input(inputID).get_source_output().get_node_shared_ptr();
+                auto inputLayer = consumerLayer->input(inputID).get_source_output().get_node()->shared_from_this();
                 if (inputLayer == constLayer) {
                     return true;
                 }
             }
         } else if (::ngraph::as_type_ptr<::ngraph::op::LSTMCellIE>(consumerLayer)) {
             for (size_t inputID = 3; inputID < consumerLayer->inputs().size(); ++inputID) {
-                auto inputLayer = consumerLayer->input(inputID).get_source_output().get_node_shared_ptr();
+                auto inputLayer = consumerLayer->input(inputID).get_source_output().get_node()->shared_from_this();
                 if (inputLayer == constLayer) {
                     return true;
                 }
@@ -1909,7 +1909,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     IE_SUPPRESS_DEPRECATED_START
     const auto & icnnnetwork = static_cast<const ICNNNetwork &>(network);
     IE_SUPPRESS_DEPRECATED_END
-    const CNNNetworkNGraphImpl* nGraphImpl = dynamic_cast<const CNNNetworkNGraphImpl*>(&icnnnetwork);
+    const auto* nGraphImpl = dynamic_cast<const CNNNetworkNGraphImpl*>(&icnnnetwork);
 
     InputsDataMap thisInputDataMap = network.getInputsInfo();
 
@@ -1935,7 +1935,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         return true;
     };
 
-    auto generate_unique_name = [&unique_names](std::string name) -> std::string {
+    auto generate_unique_name = [&unique_names](const std::string& name) -> std::string {
         size_t suffix = 1;
         while (unique_names.count(name + "/" + std::to_string(suffix))) {
             ++suffix;
@@ -2002,7 +2002,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
         size_t inputCount(0);
         for (size_t i = 0; i < layer->get_input_size(); i++) {
-            const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(layer->input(i).get_source_output().get_node_shared_ptr());
+            const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(layer->input(i).get_source_output().get_node()->shared_from_this());
             if (constant && isInternalConstLayer(constant, layer, keep_constants)) {
                 continue;
             }
@@ -2103,7 +2103,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         uint64_t count_of_skipped = 0;
         for (size_t i = 0; i < layer->get_input_size(); i++) {
             const auto &output_port = layer->input_value(i);
-            const auto &input = output_port.get_node_shared_ptr();
+            const auto &input = output_port.get_node()->shared_from_this();
 
             if (auto const_node = std::dynamic_pointer_cast<::ngraph::op::Constant>(input)) {
                 if (isInternalConstLayer(const_node, layer, keep_constants)) {
@@ -2160,7 +2160,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     InputsDataMap resultInputDataMap;
     cnnNetworkImpl->getInputsInfo(resultInputDataMap);
     IE_ASSERT(resultInputDataMap.size() == thisInputDataMap.size());
-    for (auto i : resultInputDataMap) {
+    for (const auto& i : resultInputDataMap) {
         auto &thisInputData = *thisInputDataMap[i.first];
         i.second->setPrecision(thisInputData.getPrecision());
         i.second->setLayout(thisInputData.getLayout());

@@ -28,8 +28,8 @@ ngraph::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
         const auto& m_unsqueezeAxis = patternValue.at(unsqueezeAxis);
         const auto& m_gatherAxis = patternValue.at(gatherAxis);
 
-        const auto& unsqueezeAxisNode = ngraph::as_type_ptr<ngraph::opset6::Constant>(m_unsqueezeAxis.get_node_shared_ptr());
-        const auto& gatherAxisNode = ngraph::as_type_ptr<ngraph::opset6::Constant>(m_gatherAxis.get_node_shared_ptr());
+        const auto& unsqueezeAxisNode = ngraph::as_type_ptr<ngraph::opset6::Constant>(m_unsqueezeAxis.get_node()->shared_from_this());
+        const auto& gatherAxisNode = ngraph::as_type_ptr<ngraph::opset6::Constant>(m_gatherAxis.get_node()->shared_from_this());
 
         if (!unsqueezeAxisNode || !gatherAxisNode) {
             return false;
@@ -50,7 +50,7 @@ ngraph::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
         const auto& m_unsqueeze = patternValue.at(unsqueeze);
         const auto& m_unsqueezeInput = patternValue.at(unsqueezeInput);
 
-        ngraph::copy_runtime_info(m_gather.get_node_shared_ptr(), m_unsqueeze.get_node_shared_ptr());
+        ngraph::copy_runtime_info(m_gather.get_node()->shared_from_this(), m_unsqueeze.get_node()->shared_from_this());
         m_gather.replace(m_unsqueezeInput);
 
         return true;

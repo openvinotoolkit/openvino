@@ -100,7 +100,7 @@ TEST(control_dependencies, clone_function_cdop) {
     test_ordered_ops(f, NodeVector{absn});
     auto clone = ngraph::clone_function(*f.get());
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
-    auto cdop_clone = clone->get_results().at(0)->input_value(0).get_node_shared_ptr();
+    auto cdop_clone = clone->get_results().at(0)->input_value(0).get_node()->shared_from_this();
     ASSERT_TRUE(matcher->match(cdop_clone));
     auto cloned_deps = cdop_clone->get_control_dependencies();
     ASSERT_EQ(cloned_deps.size(), 1);
@@ -120,7 +120,7 @@ TEST(control_dependencies, clone_function_cdop_abs) {
     auto clone = ngraph::clone_function(*f.get());
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone =
-        clone->get_results().at(0)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr();
+        clone->get_results().at(0)->input_value(0).get_node()->shared_from_this()->input_value(0).get_node()->shared_from_this();
     ASSERT_TRUE(matcher->match(cdop_clone));
     auto cloned_deps = cdop_clone->get_control_dependencies();
     ASSERT_EQ(cloned_deps.size(), 2);

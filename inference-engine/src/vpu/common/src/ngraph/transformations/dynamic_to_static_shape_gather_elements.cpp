@@ -15,7 +15,7 @@
 namespace vpu {
 
 void dynamicToStaticShapeGatherElements(std::shared_ptr<ngraph::Node> target) {
-    const auto dsr = target->input_value(1).get_node_shared_ptr();
+    const auto dsr = target->input_value(1).get_node()->shared_from_this();
     VPU_THROW_UNLESS(ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(dsr),
                      "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
                      target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 1);

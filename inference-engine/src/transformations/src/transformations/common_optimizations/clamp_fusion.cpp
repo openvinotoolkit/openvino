@@ -27,12 +27,12 @@ ngraph::pass::ClampFusion::ClampFusion() {
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map.at(data_pattern);
-        auto min_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map.at(min_const_pattern).get_node_shared_ptr());
+        auto min_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map.at(min_const_pattern).get_node()->shared_from_this());
         if (!min_const)
             return false;
         if (shape_size(min_const->get_shape()) != 1)
             return false;
-        auto max_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map.at(max_const_pattern).get_node_shared_ptr());
+        auto max_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map.at(max_const_pattern).get_node()->shared_from_this());
         if (!max_const)
             return false;
         if (shape_size(max_const->get_shape()) != 1)
@@ -46,11 +46,11 @@ ngraph::pass::ClampFusion::ClampFusion() {
         clamp->set_friendly_name(minimum.get_node()->get_friendly_name());
 
         copy_runtime_info({
-                            pattern_map.at(max_pattern).get_node_shared_ptr(),
-                            minimum.get_node_shared_ptr()
+                            pattern_map.at(max_pattern).get_node()->shared_from_this(),
+                            minimum.get_node()->shared_from_this()
                           },
                           clamp);
-        replace_node(minimum.get_node_shared_ptr(), clamp);
+        replace_node(minimum.get_node()->shared_from_this(), clamp);
 
         return true;
     };

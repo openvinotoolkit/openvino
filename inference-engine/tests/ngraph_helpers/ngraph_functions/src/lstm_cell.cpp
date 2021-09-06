@@ -49,7 +49,7 @@ std::shared_ptr<ngraph::Node> makeLSTM(const std::vector<ngraph::Output<Node>>& 
             case ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM:
             case ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM: {
                 // Seq_lengths should be as a Parameter node for these two modes
-                seq_lengths = in.at(3).get_node_shared_ptr();
+                seq_lengths = in.at(3).get_node()->shared_from_this();
                 break;
             }
             default:

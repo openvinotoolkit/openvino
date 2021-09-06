@@ -18,7 +18,7 @@ bool convert_to_proposal_ie(std::shared_ptr<ngraph::op::v0::Proposal> proposal, 
     ngraph::NodeVector ops_to_replace, new_ops;
     ops_to_replace.push_back(proposal);
 
-    if (auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(proposal->input_value(2).get_node_shared_ptr())) {
+    if (auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(proposal->input_value(2).get_node()->shared_from_this())) {
         const ngraph::PartialShape& im_info_shape = reshape->get_input_partial_shape(0);
         if (im_info_shape != ngraph::Shape({1, 3}) && im_info_shape != ngraph::Shape({1, 4})) {
             return false;
@@ -28,7 +28,7 @@ bool convert_to_proposal_ie(std::shared_ptr<ngraph::op::v0::Proposal> proposal, 
     } else {
         auto const_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, -1});
         last = std::make_shared<ngraph::opset1::Reshape>(proposal->input_value(2), const_shape, true);
-        new_ops.push_back(last.get_node_shared_ptr());
+        new_ops.push_back(last.get_node()->shared_from_this());
     }
 
     auto ie_attrs = proposal->get_attrs();

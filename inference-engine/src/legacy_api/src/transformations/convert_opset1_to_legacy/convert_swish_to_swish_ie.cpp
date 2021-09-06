@@ -25,7 +25,7 @@ ngraph::pass::ConvertSwishToSwishIEMatcher::ConvertSwishToSwishIEMatcher() {
         }
         float beta_value = 1.0;
         if (swish->input_values().size() == 2) {
-            auto beta_node = swish->input_value(1).get_node_shared_ptr();
+            auto beta_node = swish->input_value(1).get_node()->shared_from_this();
             auto beta_const = std::dynamic_pointer_cast<ngraph::opset4::Constant>(beta_node);
 
             if (!beta_const) {

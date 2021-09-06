@@ -16,7 +16,7 @@
 bool crop_scales_for_proposal(const ngraph::pattern::PatternValueMap & pattern_to_output,
                               std::shared_ptr<ngraph::Node> parameter_label, std::shared_ptr<ngraph::Node> proposal_label) {
     const auto & parameter = pattern_to_output.at(parameter_label);
-    const auto & proposal = pattern_to_output.at(proposal_label).get_node_shared_ptr();
+    const auto & proposal = pattern_to_output.at(proposal_label).get_node()->shared_from_this();
 
     auto cropped_scales = std::make_shared<ngraph::opset5::StridedSlice>(
             proposal->input_value(2),

@@ -77,8 +77,8 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
             return false;
         }
 
-        auto add_input_0 = add_node->input(0).get_source_output().get_node_shared_ptr();
-        auto add_input_1 = add_node->input(1).get_source_output().get_node_shared_ptr();
+        auto add_input_0 = add_node->input(0).get_source_output().get_node()->shared_from_this();
+        auto add_input_1 = add_node->input(1).get_source_output().get_node()->shared_from_this();
 
         auto mul_node = ngraph::as_type_ptr<ngraph::opset1::Multiply>(add_input_0);
         auto const_bias_node = ngraph::as_type_ptr<ngraph::opset1::Constant>(add_input_1);
@@ -91,8 +91,8 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
             return false;
         }
 
-        auto mul_input_0 = mul_node->input(0).get_source_output().get_node_shared_ptr();
-        auto mul_input_1 = mul_node->input(1).get_source_output().get_node_shared_ptr();
+        auto mul_input_0 = mul_node->input(0).get_source_output().get_node()->shared_from_this();
+        auto mul_input_1 = mul_node->input(1).get_source_output().get_node()->shared_from_this();
 
         auto data_node = mul_node->input(0).get_source_output();
         auto const_weights_node = ngraph::as_type_ptr<ngraph::opset1::Constant>(mul_input_1);
@@ -120,7 +120,7 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
                 }
             }
 
-            auto parent = data_node.get_node_shared_ptr();
+            auto parent = data_node.get_node()->shared_from_this();
             size_t consumers_count = 0;
             for (const auto &output : parent->outputs()) {
                 consumers_count += output.get_target_inputs().size();

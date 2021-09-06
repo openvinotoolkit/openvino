@@ -77,7 +77,7 @@ ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
         } else if (broadcast_type == op::BroadcastType::NONE) {
             input = std::make_shared<opset1::Broadcast>(input, target_shape_input, broadcast->input_value(2), op::AutoBroadcastType::NONE);
         } else if (broadcast_type == op::BroadcastType::BIDIRECTIONAL) {
-            if (auto const_target_shape = std::dynamic_pointer_cast<opset1::Constant>(target_shape_input.get_node_shared_ptr())) {
+            if (auto const_target_shape = std::dynamic_pointer_cast<opset1::Constant>(target_shape_input.get_node()->shared_from_this())) {
                 const auto & input_shape = input.get_partial_shape();
                 const auto & target_shape = const_target_shape->cast_vector<size_t>();
                 std::vector<size_t> aligned_target_shape{target_shape};
@@ -102,8 +102,8 @@ ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
             return false;
         }
 
-        input.get_node_shared_ptr()->set_friendly_name(broadcast->get_friendly_name());
-        copy_runtime_info(broadcast, input.get_node_shared_ptr());
+        input.get_node()->shared_from_this()->set_friendly_name(broadcast->get_friendly_name());
+        copy_runtime_info(broadcast, input.get_node()->shared_from_this());
         replace_node(broadcast, {input});
         return true;
     };

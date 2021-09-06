@@ -27,7 +27,7 @@ using namespace std;
 
 shared_ptr<Node> builder::opset1::reshape(const Output<Node>& value, const Shape& shape) {
     if (value.get_partial_shape().same_scheme(shape)) {
-        return value.get_node_shared_ptr();
+        return value.get_node()->shared_from_this();
     } else if (is_scalar(shape)) {
         auto value_rank = value.get_shape().size();
         AxisVector axes_vector(value_rank);
@@ -142,7 +142,7 @@ shared_ptr<Node> builder::opset1::expand_dims(const Output<Node>& value, size_t 
 
 shared_ptr<Node> builder::opset1::squeeze(const Output<Node>& value, vector<size_t> axes) {
     if (axes.empty()) {
-        return value.get_node_shared_ptr();
+        return value.get_node()->shared_from_this();
     }
 
     Shape in_shape{value.get_shape()};
@@ -160,7 +160,7 @@ shared_ptr<Node> builder::opset1::squeeze(const Output<Node>& value, vector<size
 
 shared_ptr<Node> builder::opset1::collapse(const Output<Node>& value, const size_t start_axis, const size_t end_axis) {
     if (start_axis == end_axis) {
-        return value.get_node_shared_ptr();
+        return value.get_node()->shared_from_this();
     }
 
     if (value.get_partial_shape().is_static()) {

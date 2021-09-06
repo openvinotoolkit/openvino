@@ -24,13 +24,13 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvFusion, "ConvFusion", 0);
 
 template <class A, class B>
-std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(std::shared_ptr<ngraph::Node> node) {
-    auto eltwise = std::dynamic_pointer_cast<A>(node->input(0).get_source_output().get_node_shared_ptr());
-    auto constant = std::dynamic_pointer_cast<B>(node->input(1).get_source_output().get_node_shared_ptr());
+std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(const std::shared_ptr<ngraph::Node>& node) {
+    auto eltwise = std::dynamic_pointer_cast<A>(node->input(0).get_source_output().get_node()->shared_from_this());
+    auto constant = std::dynamic_pointer_cast<B>(node->input(1).get_source_output().get_node()->shared_from_this());
 
     if (!eltwise) {
-        eltwise = std::dynamic_pointer_cast<A>(node->input(1).get_source_output().get_node_shared_ptr());
-        constant = std::dynamic_pointer_cast<B>(node->input(0).get_source_output().get_node_shared_ptr());
+        eltwise = std::dynamic_pointer_cast<A>(node->input(1).get_source_output().get_node()->shared_from_this());
+        constant = std::dynamic_pointer_cast<B>(node->input(0).get_source_output().get_node()->shared_from_this());
     }
 
     if (!eltwise || !constant) {
@@ -153,9 +153,9 @@ bool conv_callback(ngraph::pattern::Matcher &m) {
         return false;
     }
 
-    ngraph::copy_runtime_info({m_conv, eltwise}, new_conv.get_node_shared_ptr());
-    new_conv.get_node_shared_ptr()->set_friendly_name(m.get_match_root()->get_friendly_name());
-    ngraph::replace_node(m.get_match_root(), new_conv.get_node_shared_ptr());
+    ngraph::copy_runtime_info({m_conv, eltwise}, new_conv.get_node()->shared_from_this());
+    new_conv.get_node()->shared_from_this()->set_friendly_name(m.get_match_root()->get_friendly_name());
+    ngraph::replace_node(m.get_match_root(), new_conv.get_node()->shared_from_this());
     return true;
 }
 

@@ -45,11 +45,11 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
     std::shared_ptr<ngraph::Node> dsr;
 
     if (broadcast->get_broadcast_spec() == ngraph::op::BroadcastType::BIDIRECTIONAL) {
-        const auto dataDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(broadcast->input_value(0).get_node_shared_ptr());
+        const auto dataDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(broadcast->input_value(0).get_node()->shared_from_this());
         const auto shapeElementType = dataDSR ? dataDSR->get_input_element_type(1) : broadcast->get_input_element_type(1);
         const auto dataShape = dataDSR ? dataDSR->input_value(1) : shapeToConstant(shapeElementType, broadcast->get_input_shape(0));
 
-        const auto targetShape = broadcast->input_value(1).get_node_shared_ptr();
+        const auto targetShape = broadcast->input_value(1).get_node()->shared_from_this();
 
         const auto dataShapeDimsCount = ngraph::shape_size(dataShape.get_shape());
         const auto targetShapeDimsCount = ngraph::shape_size(broadcast->get_input_partial_shape(1).get_shape());

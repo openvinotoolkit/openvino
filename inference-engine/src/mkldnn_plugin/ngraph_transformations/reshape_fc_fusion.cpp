@@ -56,7 +56,7 @@ MKLDNNPlugin::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
         if (newWeightsShape != weightInput.get_shape()) {
             auto newShape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{newWeightsShape.size()}, newWeightsShape);
             weightInput = std::make_shared<ngraph::opset1::Reshape>(weightInput, newShape, true);
-            new_ops.push_back(weightInput.get_node_shared_ptr());
+            new_ops.push_back(weightInput.get_node()->shared_from_this());
         }
 
         std::shared_ptr<ngraph::Node> new_fc;

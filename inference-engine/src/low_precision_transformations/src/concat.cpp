@@ -73,7 +73,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     auto broadcastElementWiseConst = [](
         // FakeQuantize constant shape must be broadcastable to the shape on data.
         std::shared_ptr<ngraph::opset1::Constant> operation,
-        const ngraph::Shape targetShape) -> std::shared_ptr<Node> {
+        const ngraph::Shape& targetShape) -> std::shared_ptr<Node> {
             auto targetShapeConst = std::make_shared<ngraph::opset1::Constant>(
                 element::i64, ngraph::Shape{ targetShape.size() },
                 targetShape);
@@ -220,7 +220,7 @@ void ConcatTransformation::fillDequantizationNodes(
         auto broadcastElementWiseConst = [](
             // FakeQuantize constant shape must be broadcastable to the shape on data.
             std::shared_ptr<ngraph::opset1::Constant> operation,
-            const ngraph::Shape targetShape) -> std::shared_ptr<Node> {
+            const ngraph::Shape& targetShape) -> std::shared_ptr<Node> {
                 auto targetShapeConst = std::make_shared<ngraph::opset1::Constant>(
                     element::i64, ngraph::Shape{ targetShape.size() },
                     targetShape);
@@ -273,11 +273,11 @@ void ConcatTransformation::fillDequantizationNodes(
         }
 
         if (layerDequantizations[0].subtract != nullptr) {
-            subtractNodes.push_back(layerDequantizations[0].subtract->input_value(1).get_node_shared_ptr());
+            subtractNodes.push_back(layerDequantizations[0].subtract->input_value(1).get_node()->shared_from_this());
         }
 
         if (layerDequantizations[0].multiply != nullptr) {
-            multiplyNodes.push_back(layerDequantizations[0].multiply->input_value(1).get_node_shared_ptr());
+            multiplyNodes.push_back(layerDequantizations[0].multiply->input_value(1).get_node()->shared_from_this());
         }
     }
 }

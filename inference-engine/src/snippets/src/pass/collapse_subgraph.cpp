@@ -103,7 +103,7 @@ auto has_cycles_of_dependencies(const std::vector<std::set<ngraph::Input<ngraph:
 auto has_subgraph_as_input(std::shared_ptr<Node> node) -> bool {
     auto inputs = node->inputs();
     for (auto input : inputs) {
-        auto parent = input.get_source_output().get_node_shared_ptr();
+        auto parent = input.get_source_output().get_node()->shared_from_this();
         if (!!ov::as_type_ptr<snippets::op::Subgraph>(parent)) {
             return true;
         }
@@ -289,7 +289,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
 
         auto is_recurrent = [inputs](const ngraph::Output<ngraph::Node>& to_find) -> bool {
             for (auto in : inputs) {
-                if (in.get_source_output().get_node_shared_ptr() == to_find.get_node_shared_ptr()) {
+                if (in.get_source_output().get_node()->shared_from_this() == to_find.get_node()->shared_from_this()) {
                     return true;
                 }
             }
@@ -313,7 +313,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
         };
 
         for (auto input : inputs) {
-            auto input_node = input.get_source_output().get_node_shared_ptr();
+            auto input_node = input.get_source_output().get_node()->shared_from_this();
 
             if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
                 if (!clones.count(input_node)) {
@@ -325,7 +325,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
         }
 
         for (auto input : inputs) {
-            auto input_node = input.get_source_output().get_node_shared_ptr();
+            auto input_node = input.get_source_output().get_node()->shared_from_this();
 
             if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
                 if (!input_subgraphs.count(input_node)) {
@@ -349,19 +349,19 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
                                 body_parameters.push_back(input_body_parameters[i]);
                             }
                         } else if (is_recurrent(subgraph->input_value(i))) {
-                            remark(13) << "ternary merge is conducted " << subgraph->input_value(i).get_node_shared_ptr() << std::endl;
+                            remark(13) << "ternary merge is conducted " << subgraph->input_value(i).get_node()->shared_from_this() << std::endl;
 
                             auto internal = input_body_parameters[i];
                             auto internal_consumers = internal->outputs();
 
                             for (auto output : internal->outputs()) {
                                 for (auto consumer : output.get_target_inputs()) {
-                                    if (auto to_replace_with = ov::as_type_ptr<op::Subgraph>(subgraph->input_value(i).get_node_shared_ptr())) {
-                                        auto other_body = clones[subgraph->input_value(i).get_node_shared_ptr()];
+                                    if (auto to_replace_with = ov::as_type_ptr<op::Subgraph>(subgraph->input_value(i).get_node()->shared_from_this())) {
+                                        auto other_body = clones[subgraph->input_value(i).get_node()->shared_from_this()];
                                         auto other_body_result = other_body->get_results()[consumer.get_source_output().get_index()];
                                         auto result_producer = other_body_result->input(0).get_source_output();
 
-                                        consumer.replace_source_output(result_producer.get_node_shared_ptr());
+                                        consumer.replace_source_output(result_producer.get_node()->shared_from_this());
                                     }
                                 }
                             }

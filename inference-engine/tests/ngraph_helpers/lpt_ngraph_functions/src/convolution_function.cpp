@@ -51,7 +51,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     const auto convertOnWeights = std::make_shared<opset1::Convert>(weights, netPrecision);
     OutputVector convertedOutput(1);
     convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
-    const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
+    const auto convertedWeights = convertedOutput[0].get_node()->shared_from_this();
 
     const auto onWeights = fakeQuantizeOnWeights.empty() ? convertedWeights :
         ngraph::builder::makeFakeQuantize(
@@ -240,7 +240,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     const auto convertOnWeights = std::make_shared<opset1::Convert>(weights, netPrecision);
     OutputVector convertedOutput(1);
     convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
-    const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
+    const auto convertedWeights = convertedOutput[0].get_node()->shared_from_this();
 
     std::shared_ptr<ngraph::Node> onWeights = fakeQuantizeOnWeights.empty() ?
         (weights->get_output_element_type(0).is_real() ?

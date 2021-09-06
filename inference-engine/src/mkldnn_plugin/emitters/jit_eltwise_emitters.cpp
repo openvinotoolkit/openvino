@@ -1286,7 +1286,7 @@ size_t jit_logical_not_emitter::aux_vecs_count() const {
 /// POWER_STATIC ///
 jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
-    auto parent = node->input(1).get_source_output().get_node_shared_ptr();
+    auto parent = node->input(1).get_source_output().get_node()->shared_from_this();
     if (!std::dynamic_pointer_cast<ngraph::op::Constant>(parent)) {
         throw ngraph::ngraph_error("unsupported non constant power");
     }

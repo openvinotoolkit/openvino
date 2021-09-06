@@ -75,7 +75,7 @@ Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node) {
 
     // If node is a Constant, recreate as Constant with Shape{}
     if (ngraph::op::is_constant(node.get_node())) {
-        const auto value = ngraph::as_type_ptr<default_opset::Constant>(node.get_node_shared_ptr())->get_data_ptr();
+        const auto value = ngraph::as_type_ptr<default_opset::Constant>(node.get_node()->shared_from_this())->get_data_ptr();
         return std::make_shared<default_opset::Constant>(node.get_element_type(), ngraph::Shape{}, value);
     }
 

@@ -20,7 +20,7 @@ RemoveExtraReshapes::RemoveExtraReshapes() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
+        const auto reshape_node = pattern_map.at(reshape).get_node()->shared_from_this();
         if (reshape_node->get_input_shape(0) != reshape_node->get_output_shape(0)) {
             return false;
         }

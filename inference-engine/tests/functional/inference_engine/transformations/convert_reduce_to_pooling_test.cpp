@@ -107,7 +107,7 @@ public:
                     ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{params.reshape_end.size()}, params.reshape_end), true);
         }
 
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{input.get_node_shared_ptr()}, ngraph::ParameterVector{param});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{input.get_node()->shared_from_this()}, ngraph::ParameterVector{param});
     }
 };
 

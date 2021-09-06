@@ -23,10 +23,10 @@ ngraph::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNor
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto gather = pattern_to_output.at(gather_node).get_node_shared_ptr();
+        auto gather = pattern_to_output.at(gather_node).get_node()->shared_from_this();
         auto data = pattern_to_output.at(data_input);
-        auto axis_constant = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(axis_input).get_node_shared_ptr());
-        auto indices_constant = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(indices_input).get_node_shared_ptr());
+        auto axis_constant = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(axis_input).get_node()->shared_from_this());
+        auto indices_constant = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(indices_input).get_node()->shared_from_this());
 
         if (!gather || !axis_constant || !indices_constant) {
             return false;

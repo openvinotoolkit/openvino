@@ -198,7 +198,7 @@ void op::v1::TopK::validate_and_infer_types() {
 
     if (op::is_constant(input_value(1).get_node())) {
         // Check k value
-        read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
+        read_k_from_constant_node(input_value(1).get_node()->shared_from_this(), get_input_element_type(1));
     }
 
     PartialShape output_shape{input_partial_shape};
@@ -335,7 +335,7 @@ shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_arg
 size_t op::v1::TopK::get_k() const {
     size_t k = 0;
     if (op::is_constant(input_value(1).get_node())) {
-        k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
+        k = read_k_from_constant_node(input_value(1).get_node()->shared_from_this(), get_input_element_type(1));
     }
 
     if (k == 0 && get_input_partial_shape(0).is_static()) {
@@ -359,7 +359,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
     // 2. get value of k - from constant node or from HT
     size_t k = 0;
     if (op::is_constant(input_value(1).get_node())) {
-        k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
+        k = read_k_from_constant_node(input_value(1).get_node()->shared_from_this(), get_input_element_type(1));
         NGRAPH_CHECK(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
     } else {
         k = topk::read_k_from_host_tensor(inputs[1]);

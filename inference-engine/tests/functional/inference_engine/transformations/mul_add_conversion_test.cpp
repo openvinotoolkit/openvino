@@ -75,7 +75,7 @@ public:
             last = std::make_shared<ngraph::opset1::Add>(last, create_constant(add_const.shape, add_const.value));
         }
         last = std::make_shared<ngraph::opset1::Relu>(last);
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{last.get_node_shared_ptr()}, ngraph::ParameterVector{input});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{last.get_node()->shared_from_this()}, ngraph::ParameterVector{input});
     }
 
     static

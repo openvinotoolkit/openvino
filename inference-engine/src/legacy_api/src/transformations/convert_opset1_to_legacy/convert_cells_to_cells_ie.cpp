@@ -30,12 +30,12 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
         if (!lstm_cell) {
             return false;
         }
-        auto W = std::dynamic_pointer_cast<ngraph::opset1::Constant> (lstm_cell->input_value(3).get_node_shared_ptr());
+        auto W = std::dynamic_pointer_cast<ngraph::opset1::Constant> (lstm_cell->input_value(3).get_node()->shared_from_this());
         if (!W) {
             return false;
         }
 
-        auto R = std::dynamic_pointer_cast<ngraph::opset1::Constant> (lstm_cell->input_value(4).get_node_shared_ptr());
+        auto R = std::dynamic_pointer_cast<ngraph::opset1::Constant> (lstm_cell->input_value(4).get_node()->shared_from_this());
         if (!R) {
             return false;
         }
@@ -73,12 +73,12 @@ ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
             return false;
         }
 
-        auto W = std::dynamic_pointer_cast<ngraph::opset1::Constant> (gru_cell->input_value(2).get_node_shared_ptr());
+        auto W = std::dynamic_pointer_cast<ngraph::opset1::Constant> (gru_cell->input_value(2).get_node()->shared_from_this());
         if (!W) {
             return false;
         }
 
-        auto R = std::dynamic_pointer_cast<ngraph::opset1::Constant> (gru_cell->input_value(3).get_node_shared_ptr());
+        auto R = std::dynamic_pointer_cast<ngraph::opset1::Constant> (gru_cell->input_value(3).get_node()->shared_from_this());
         if (!R) {
             return false;
         }
@@ -116,12 +116,12 @@ ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
             return false;
         }
 
-        auto W = std::dynamic_pointer_cast<ngraph::opset1::Constant> (rnn_cell->input_value(2).get_node_shared_ptr());
+        auto W = std::dynamic_pointer_cast<ngraph::opset1::Constant> (rnn_cell->input_value(2).get_node()->shared_from_this());
         if (!W) {
             return false;
         }
 
-        auto R = std::dynamic_pointer_cast<ngraph::opset1::Constant> (rnn_cell->input_value(3).get_node_shared_ptr());
+        auto R = std::dynamic_pointer_cast<ngraph::opset1::Constant> (rnn_cell->input_value(3).get_node()->shared_from_this());
         if (!R) {
             return false;
         }

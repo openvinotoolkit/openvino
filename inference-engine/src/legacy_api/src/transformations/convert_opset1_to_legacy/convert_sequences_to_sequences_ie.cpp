@@ -31,13 +31,13 @@ namespace {
         int64_t seq_axis = 1; // default
         const auto& target_inputs = sequence_node->output(0).get_target_inputs();
         if (target_inputs.size() == 1) {
-            const auto& transpose_before = std::dynamic_pointer_cast<ngraph::opset5::Transpose>(sequence_node->input_value(0).get_node_shared_ptr());
+            const auto& transpose_before = std::dynamic_pointer_cast<ngraph::opset5::Transpose>(sequence_node->input_value(0).get_node()->shared_from_this());
             const auto& transpose_after = std::dynamic_pointer_cast<ngraph::opset5::Transpose>(target_inputs.begin()->get_node()->shared_from_this());
             if (transpose_after != nullptr && transpose_before != nullptr) {
                 auto order_before = std::dynamic_pointer_cast<ngraph::opset5::Constant>(
-                        transpose_before->input_value(1).get_node_shared_ptr());
+                        transpose_before->input_value(1).get_node()->shared_from_this());
                 auto order_after = std::dynamic_pointer_cast<ngraph::opset5::Constant>(
-                        transpose_after->input_value(1).get_node_shared_ptr());
+                        transpose_after->input_value(1).get_node()->shared_from_this());
                 if (order_before != nullptr && order_after != nullptr) {
                     auto order_before_values = order_before->cast_vector<int64_t>();
                     auto order_after_values = order_after->cast_vector<int64_t>();
@@ -74,7 +74,7 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
         ngraph::Output<ngraph::Node> in_0 = lstm_sequence->input(0).get_source_output();
         if (seq_axis == 0) {
             // input(0) to Transpose_before
-            in_0 = lstm_sequence->get_input_source_output(0).get_node_shared_ptr()->get_input_source_output(0);
+            in_0 = lstm_sequence->get_input_source_output(0).get_node()->shared_from_this()->get_input_source_output(0);
         }
         // for forward/reverse cases we can squeeze num_direction dimension
         auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
@@ -148,7 +148,7 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
         ngraph::Output<ngraph::Node> in_0 = gru_sequence->input(0).get_source_output();
         if (seq_axis == 0) {
             // input(0) to Transpose_before
-            in_0 = gru_sequence->get_input_source_output(0).get_node_shared_ptr()->get_input_source_output(0);
+            in_0 = gru_sequence->get_input_source_output(0).get_node()->shared_from_this()->get_input_source_output(0);
         }
         // for forward/reverse cases we can squeeze num_direction dimension
         auto axis_1 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
@@ -216,7 +216,7 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
         ngraph::Output<ngraph::Node> in_0 = rnn_sequence->input(0).get_source_output();
         if (seq_axis == 0) {
             // input(0) to Transpose_before
-            in_0 = rnn_sequence->get_input_source_output(0).get_node_shared_ptr()->get_input_source_output(0);
+            in_0 = rnn_sequence->get_input_source_output(0).get_node()->shared_from_this()->get_input_source_output(0);
         }
 
         auto W = rnn_sequence->input_value(3);

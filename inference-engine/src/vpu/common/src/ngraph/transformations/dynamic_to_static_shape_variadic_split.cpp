@@ -18,11 +18,11 @@
 namespace vpu {
 
 void dynamicToStaticShapeVariadicSplit(std::shared_ptr<ngraph::Node> target) {
-    const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node_shared_ptr());
+    const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node()->shared_from_this());
     VPU_THROW_UNLESS(dsr, "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
                      target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
 
-    const auto axis_node = ngraph::as_type_ptr<ngraph::opset3::Constant>(target->input_value(1).get_node_shared_ptr());
+    const auto axis_node = ngraph::as_type_ptr<ngraph::opset3::Constant>(target->input_value(1).get_node()->shared_from_this());
     VPU_THROW_UNLESS(axis_node, "dynamicToStaticShapeVariadic transformation is not applicable for {}, dynamic axis is not supported", target);
 
     const auto data_rank = target->get_input_partial_shape(0).rank();
@@ -30,7 +30,7 @@ void dynamicToStaticShapeVariadicSplit(std::shared_ptr<ngraph::Node> target) {
 
     int64_t axis = ngraph::normalize_axis(target->description(), axis_node->cast_vector<int64_t>()[0], data_rank);
 
-    const auto split_lengths_node = ngraph::as_type_ptr<ngraph::opset3::Constant>(target->input_value(2).get_node_shared_ptr());
+    const auto split_lengths_node = ngraph::as_type_ptr<ngraph::opset3::Constant>(target->input_value(2).get_node()->shared_from_this());
     VPU_THROW_UNLESS(split_lengths_node, "dynamicToStaticShapeVariadic transformation is not applicable for {}, dynamic split_length is not supported", target);
     const auto split_lengths = split_lengths_node->cast_vector<int64_t>();
 
@@ -39,7 +39,7 @@ void dynamicToStaticShapeVariadicSplit(std::shared_ptr<ngraph::Node> target) {
         VPU_THROW_UNLESS(i > 0, "dynamicToStaticShapeVariadic transformation is not applicable for {}, non-positive split_length  is not supported", target);
     }
 
-    const auto data_shape = dsr->input_value(1).get_node_shared_ptr();
+    const auto data_shape = dsr->input_value(1).get_node()->shared_from_this();
     const auto copied = target->clone_with_new_inputs(target->input_values());
     const auto data_rank_value = data_rank.get_length();
     ngraph::OutputVector first_shape_part, second_shape_part;

@@ -94,7 +94,7 @@ private:
 
         last = std::make_shared<ngraph::opset3::Relu>(last);
 
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{last.get_node_shared_ptr()}, ngraph::ParameterVector{data});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{last.get_node()->shared_from_this()}, ngraph::ParameterVector{data});
     }
 };
 

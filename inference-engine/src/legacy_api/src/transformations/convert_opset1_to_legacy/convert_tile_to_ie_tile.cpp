@@ -25,7 +25,7 @@ ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
             return false;
         }
 
-        auto tiles_node = std::dynamic_pointer_cast<ngraph::opset1::Constant> (tile->input_value(1).get_node_shared_ptr());
+        auto tiles_node = std::dynamic_pointer_cast<ngraph::opset1::Constant> (tile->input_value(1).get_node()->shared_from_this());
         if (!tiles_node) return false;
 
         auto tiles = tiles_node->cast_vector<int64_t>();
@@ -83,7 +83,7 @@ ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
             ++tiles_it;
         }
 
-        last_node.get_node_shared_ptr()->set_friendly_name(tile->get_friendly_name());
+        last_node.get_node()->set_friendly_name(tile->get_friendly_name());
         ngraph::copy_runtime_info(tile, new_ops);
         ngraph::replace_node(tile, {last_node});
         return true;

@@ -41,7 +41,7 @@ ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         }
 
         if (pad->inputs().size() == 4) {
-            if (auto pad_value = std::dynamic_pointer_cast<opset4::Constant>(pad->input_value(3).get_node_shared_ptr())) {
+            if (auto pad_value = std::dynamic_pointer_cast<opset4::Constant>(pad->input_value(3).get_node()->shared_from_this())) {
                 // pad value is a scalar
                 if (pad_value->cast_vector<float>()[0] != 0) {
                     return false;

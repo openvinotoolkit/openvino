@@ -17,7 +17,7 @@
 namespace vpu {
 
 void dynamicToStaticShapeReduce(std::shared_ptr<ngraph::Node> target) {
-    const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node_shared_ptr());
+    const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node()->shared_from_this());
     VPU_THROW_UNLESS(dsr, "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
                      target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
 
@@ -27,11 +27,11 @@ void dynamicToStaticShapeReduce(std::shared_ptr<ngraph::Node> target) {
                      target->get_friendly_name(), target->get_type_info());
 
 
-    const auto axes_const_node = ngraph::as_type_ptr<ngraph::opset3::Constant>(target->input_value(1).get_node_shared_ptr());
+    const auto axes_const_node = ngraph::as_type_ptr<ngraph::opset3::Constant>(target->input_value(1).get_node()->shared_from_this());
     VPU_THROW_UNLESS(axes_const_node,
                      "dynamicToStaticShapeReduce transformation for {} of type {} expects {} as input with index {}, but it has {} node of type {} instead",
                      target->get_friendly_name(), target->get_type_info(), ngraph::opset3::Constant::type_info, 1,
-                     target->input_value(1).get_node_shared_ptr()->get_friendly_name(), target->input_value(1).get_node_shared_ptr()->get_type_info());
+                     target->input_value(1).get_node()->shared_from_this()->get_friendly_name(), target->input_value(1).get_node()->shared_from_this()->get_type_info());
 
     const auto axes = axes_const_node->cast_vector<int64_t>();
 

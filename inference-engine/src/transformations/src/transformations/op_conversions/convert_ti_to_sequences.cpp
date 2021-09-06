@@ -145,9 +145,9 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         auto in_2 = std::make_shared<ngraph::opset5::Unsqueeze>(ti->input_values()[ordered_in_descs[2]->m_input_index], axis_1);
 
         auto axis_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
-        auto in_4 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_W]->output(0).get_node_shared_ptr(), axis_2);
-        auto in_5 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_R]->output(0).get_node_shared_ptr(), axis_2);
-        auto in_6 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_B]->output(0).get_node_shared_ptr(), axis_2);
+        auto in_4 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_W]->output(0).get_node()->shared_from_this(), axis_2);
+        auto in_5 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_R]->output(0).get_node()->shared_from_this(), axis_2);
+        auto in_6 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_B]->output(0).get_node()->shared_from_this(), axis_2);
         auto sequence = std::make_shared<opset5::LSTMSequence>(
                 in_0,
                 in_1,
@@ -188,7 +188,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         ngraph::OutputVector new_nodes = {in_1, in_2, in_4, in_5, in_6, sequence->output(0), out_0, out_1, out_2};
         if (slice_axis == 0) {
             new_nodes.push_back(out);
-            new_nodes.push_back(in_0.get_node_shared_ptr());
+            new_nodes.push_back(in_0.get_node()->shared_from_this());
         }
         copy_runtime_info(ti, as_node_vector(new_nodes));
         return true;
@@ -302,9 +302,9 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(ti->input_values()[ordered_in_descs[1]->m_input_index], axis_1);
 
         auto axis_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
-        auto in_3 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_W]->output(0).get_node_shared_ptr(), axis_2);
-        auto in_4 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_R]->output(0).get_node_shared_ptr(), axis_2);
-        auto in_5 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_B]->output(0).get_node_shared_ptr(), axis_2);
+        auto in_3 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_W]->output(0).get_node()->shared_from_this(), axis_2);
+        auto in_4 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_R]->output(0).get_node()->shared_from_this(), axis_2);
+        auto in_5 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_B]->output(0).get_node()->shared_from_this(), axis_2);
         auto sequence = std::make_shared<opset5::RNNSequence>(
                 in_0,
                 in_1,
@@ -458,9 +458,9 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         auto in_1 = std::make_shared<ngraph::opset5::Unsqueeze>(ti->input_values()[ordered_in_descs[1]->m_input_index], axis_1);
 
         auto axis_2 = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
-        auto in_3 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_W]->output(0).get_node_shared_ptr(), axis_2);
-        auto in_4 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_R]->output(0).get_node_shared_ptr(), axis_2);
-        auto in_5 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_B]->output(0).get_node_shared_ptr(), axis_2);
+        auto in_3 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_W]->output(0).get_node()->shared_from_this(), axis_2);
+        auto in_4 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_R]->output(0).get_node()->shared_from_this(), axis_2);
+        auto in_5 = std::make_shared<ngraph::opset5::Unsqueeze>(pattern_map[input_B]->output(0).get_node()->shared_from_this(), axis_2);
         auto sequence = std::make_shared<opset5::GRUSequence>(
                 in_0,
                 in_1,

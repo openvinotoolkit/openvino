@@ -224,7 +224,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
     auto transformationPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
-        return !!std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
+        return !!std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node()->shared_from_this());
     };
     pass_config->set_callback<ngraph::pass::ConvertMatMulToFC,
                               ngraph::pass::ConvertStridedSliceToCropMatcher>(transformationPredicate);

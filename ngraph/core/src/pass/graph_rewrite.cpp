@@ -106,11 +106,11 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Function> f,
             break;
         }
 
-        auto root = matcher->get_pattern_value().get_node_shared_ptr();
+        auto root = matcher->get_pattern_value().get_node()->shared_from_this();
         // pattern::op::AnyOutput operation automatically appends for multi output operations inside
         // Matcher and to gen actual root node we need to take it's parent.
         if (auto any_type = std::dynamic_pointer_cast<pattern::op::AnyOutput>(root)) {
-            root = any_type->input_value(0).get_node_shared_ptr();
+            root = any_type->input_value(0).get_node()->shared_from_this();
         }
 
         // if root is an operation from opset or has pattern::op::WrapType type then we can extract

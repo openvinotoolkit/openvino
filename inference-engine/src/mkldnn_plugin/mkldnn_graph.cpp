@@ -146,7 +146,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
                 ngraph::op::v6::Assign::type_info)) {
             int outPortIdx = 0;
             for (int oi = 0; oi < op->get_output_size(); oi++) {
-                op2node[op->output(oi).get_node_shared_ptr()] = {node, outPortIdx++};
+                op2node[op->output(oi).get_node()->shared_from_this()] = {node, outPortIdx++};
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }
@@ -156,7 +156,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
 
     // Add stub output node for unused data
     for (auto unusedOutput : unusedOutputs) {
-        auto portInfo = op2node[unusedOutput.get_node_shared_ptr()];
+        auto portInfo = op2node[unusedOutput.get_node()->shared_from_this()];
         auto parentNode = portInfo.first;
         auto port = portInfo.second;
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
@@ -258,7 +258,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
     // Add stub output node for unused outputs
     for (auto unusedOutput : unusedOutputs) {
-        auto parentNode = op2node[unusedOutput.get_node_shared_ptr()];
+        auto parentNode = op2node[unusedOutput.get_node()->shared_from_this()];
         const auto port = unusedOutput.get_index();
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
         const MKLDNNNodePtr outNode = std::make_shared<MKLDNNInputNode>(parentNode->outputShapes[port],

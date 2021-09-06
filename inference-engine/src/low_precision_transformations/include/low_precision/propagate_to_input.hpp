@@ -85,7 +85,7 @@ private:
         auto output = input2.get_source_output();
         std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> attribute = getAttributeFromOutput<std::shared_ptr<AttributeType>>(output);
         if (attribute == nullptr) {
-            attribute = getAttribute<std::shared_ptr<AttributeType>>(output.get_node_shared_ptr());
+            attribute = getAttribute<std::shared_ptr<AttributeType>>(output.get_node()->shared_from_this());
         }
         return attribute;
     }

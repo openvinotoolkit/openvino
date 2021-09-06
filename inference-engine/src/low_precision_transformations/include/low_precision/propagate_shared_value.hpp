@@ -49,12 +49,12 @@ public:
 
             if (!NetworkHelper::isPrecisionPreserved(node)) {
                 for (auto& input : node->inputs()) {
-                    auto parentNode = input.get_source_output().get_node_shared_ptr();
+                    auto parentNode = input.get_source_output().get_node()->shared_from_this();
 
                     auto getAttributes = [](const Input<Node>& nodeInput) {
                         const std::string name = ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>::type_info.name;
 
-                        auto node = nodeInput.get_source_output().get_node_shared_ptr();
+                        auto node = nodeInput.get_source_output().get_node()->shared_from_this();
                         std::vector<std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<PrecisionsAttribute>>>> attributes;
                         if (ov::is_type<opset1::FakeQuantize>(node)) {
                             // output

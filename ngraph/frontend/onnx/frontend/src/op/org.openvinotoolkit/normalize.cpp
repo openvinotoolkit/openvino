@@ -28,7 +28,7 @@ OutputVector normalize(const Node& node) {
         const auto& shape = inputs[1].get_partial_shape();
         NGRAPH_CHECK(shape.is_static() && shape.rank().get_length() == 1,
                      "Weights rank must be equal to 1 if channel_shared is set to 1");
-        weights = inputs[1].get_node_shared_ptr();
+        weights = inputs[1].get_node()->shared_from_this();
     } else {
         std::vector<int64_t> weights_shape{1};
         const auto& data_shape = inputs[0].get_partial_shape();

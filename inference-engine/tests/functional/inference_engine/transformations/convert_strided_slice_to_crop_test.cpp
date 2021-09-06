@@ -77,8 +77,8 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests1) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto reshape_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    auto crop_node = reshape_node->input(0).get_source_output().get_node_shared_ptr();
+    auto reshape_node = result_node_of_converted_f->input(0).get_source_output().get_node()->shared_from_this();
+    auto crop_node = reshape_node->input(0).get_source_output().get_node()->shared_from_this();
     bool names_are_correct = (crop_node->get_friendly_name() == "strided_slice/Crop") &&
                              (reshape_node->get_friendly_name() == "strided_slice");
     ASSERT_TRUE(names_are_correct) << "Transformation ConvertStridedSliceToCrop should keep output names.\n";
@@ -131,8 +131,8 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests2) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto reshape_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    auto crop_node = reshape_node->input(0).get_source_output().get_node_shared_ptr();
+    auto reshape_node = result_node_of_converted_f->input(0).get_source_output().get_node()->shared_from_this();
+    auto crop_node = reshape_node->input(0).get_source_output().get_node()->shared_from_this();
     bool names_are_correct = (crop_node->get_friendly_name() == "strided_slice/Crop") &&
                              (reshape_node->get_friendly_name() == "strided_slice");
     ASSERT_TRUE(names_are_correct) << "Transformation ConvertStridedSliceToCrop should keep output names.\n";

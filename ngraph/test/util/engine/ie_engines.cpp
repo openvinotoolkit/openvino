@@ -239,8 +239,8 @@ std::string test::IE_Engine::get_output_name(const std::shared_ptr<op::v0::Resul
     else
     {
         const auto& prev_layer = ng_result->input_value(0);
-        auto network_out_name = prev_layer.get_node_shared_ptr()->get_friendly_name();
-        if (prev_layer.get_node_shared_ptr()->get_output_size() != 1)
+        auto network_out_name = prev_layer.get_node()->get_friendly_name();
+        if (prev_layer.get_node()->get_output_size() != 1)
         {
             network_out_name += "." + std::to_string(prev_layer.get_index());
         }

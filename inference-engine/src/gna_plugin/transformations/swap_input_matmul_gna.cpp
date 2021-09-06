@@ -29,7 +29,7 @@ static void SwapAndTransposeInputs(std::shared_ptr<ngraph::opset8::MatMul> matmu
                                    std::shared_ptr<ngraph::Node> fq) {
     auto create_transpose =
         [](ngraph::Output<ngraph::Node> node, const std::string& transpose_name) -> std::shared_ptr<ngraph::Node> {
-        ngraph::Shape output_shape = node.get_node_shared_ptr()->get_shape();
+        ngraph::Shape output_shape = node.get_node()->shared_from_this()->get_shape();
 
         std::vector<size_t> transpose_order(output_shape.size());
         std::iota(transpose_order.begin(), transpose_order.end(), 0);
@@ -80,7 +80,7 @@ static void SwapAndTransposeInputs(std::shared_ptr<ngraph::opset8::MatMul> matmu
 SwapInputMatMul::SwapInputMatMul() {
     MATCHER_SCOPE(SwapInputMatMul);
     auto constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>({}, [](const ngraph::Output<ngraph::Node>& node) {
-        auto shape = node.get_node_shared_ptr()->get_output_shape(0);
+        auto shape = node.get_node()->shared_from_this()->get_output_shape(0);
         if (shape.size() != 2 || shape[0] < 8 || ((shape[0] % 8 != 0 || shape[1] % 8 != 0))) {
             return false;
         }
@@ -96,7 +96,7 @@ SwapInputMatMul::SwapInputMatMul() {
                                                                       ngraph::pattern::has_static_shape());
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(pattern_map.at(matmul).get_node_shared_ptr());
+        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(pattern_map.at(matmul).get_node()->shared_from_this());
         IE_ASSERT(matmul_node != nullptr);
         SwapAndTransposeInputs(matmul_node, nullptr, nullptr, nullptr);
         return true;
@@ -109,7 +109,7 @@ SwapInputMatMul::SwapInputMatMul() {
 SwapInputMatMulWithBias::SwapInputMatMulWithBias() {
     MATCHER_SCOPE(SwapInputMatMulWithBias);
     auto constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>({}, [](const ngraph::Output<ngraph::Node>& node) {
-        auto shape = node.get_node_shared_ptr()->get_output_shape(0);
+        auto shape = node.get_node()->shared_from_this()->get_output_shape(0);
         if (shape.size() != 2 || shape[0] < 8 || ((shape[0] % 8 != 0 || shape[1] % 8 != 0))) {
             return false;
         }
@@ -128,10 +128,10 @@ SwapInputMatMulWithBias::SwapInputMatMulWithBias() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(pattern_map.at(matmul).get_node_shared_ptr());
+        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(pattern_map.at(matmul).get_node()->shared_from_this());
         IE_ASSERT(matmul_node != nullptr);
-        SwapAndTransposeInputs(matmul_node, pattern_map.at(add).get_node_shared_ptr(),
-            pattern_map.at(bias).get_node_shared_ptr(), nullptr);
+        SwapAndTransposeInputs(matmul_node, pattern_map.at(add).get_node()->shared_from_this(),
+            pattern_map.at(bias).get_node()->shared_from_this(), nullptr);
         return true;
     };
 
@@ -142,7 +142,7 @@ SwapInputMatMulWithBias::SwapInputMatMulWithBias() {
 SwapInputMatMulWithFq::SwapInputMatMulWithFq() {
     MATCHER_SCOPE(SwapInputMatMulWithFq);
     auto constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>({}, [](const ngraph::Output<ngraph::Node>& node) {
-        auto shape = node.get_node_shared_ptr()->get_output_shape(0);
+        auto shape = node.get_node()->shared_from_this()->get_output_shape(0);
         if (shape.size() != 2 || shape[0] < 8 || ((shape[0] % 8 != 0 || shape[1] % 8 != 0))) {
             return false;
         }
@@ -167,13 +167,13 @@ SwapInputMatMulWithFq::SwapInputMatMulWithFq() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(pattern_map.at(matmul).get_node_shared_ptr());
+        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(pattern_map.at(matmul).get_node()->shared_from_this());
         IE_ASSERT(matmul_node != nullptr);
         auto add_it = pattern_map.find(add);
-        auto add_node = (add_it == std::end(pattern_map) ? nullptr : add_it->second.get_node_shared_ptr());
+        auto add_node = (add_it == std::end(pattern_map) ? nullptr : add_it->second.get_node()->shared_from_this());
         auto bias_it = pattern_map.find(bias);
-        auto bias_node = (bias_it == std::end(pattern_map) ? nullptr : bias_it->second.get_node_shared_ptr());
-        SwapAndTransposeInputs(matmul_node, add_node, bias_node, pattern_map.at(out_fq).get_node_shared_ptr());
+        auto bias_node = (bias_it == std::end(pattern_map) ? nullptr : bias_it->second.get_node()->shared_from_this());
+        SwapAndTransposeInputs(matmul_node, add_node, bias_node, pattern_map.at(out_fq).get_node()->shared_from_this());
         return true;
     };
 

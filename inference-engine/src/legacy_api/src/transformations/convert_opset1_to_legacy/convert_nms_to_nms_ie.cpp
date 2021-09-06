@@ -49,13 +49,13 @@ ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
             // WA: we need to create Constant manually because it requires by NMS shape inference
             //     otherwise we will get dynamic shape until first CF is executed. It can be resolved
             //     if CF will be executed right after transformation and before Validate pass.
-            if (auto new_max_per_class_const = std::dynamic_pointer_cast<opset1::Constant>(new_max_per_class.get_node_shared_ptr())) {
+            if (auto new_max_per_class_const = std::dynamic_pointer_cast<opset1::Constant>(new_max_per_class.get_node()->shared_from_this())) {
                 new_max_per_class = opset1::Constant::create(element::i64, Shape{1}, new_max_per_class_const->cast_vector<int64_t>());
             } else {
                 new_max_per_class = std::make_shared<ngraph::op::v0::Unsqueeze>(
                         nms->input_value(2),
                         opset1::Constant::create(element::i64, Shape{1}, {0}));
-                new_ops.push_back(new_max_per_class.get_node_shared_ptr());
+                new_ops.push_back(new_max_per_class.get_node()->shared_from_this());
             }
         }
         auto new_iou_threshold = nms->input_value(3);
@@ -63,14 +63,14 @@ ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
             new_iou_threshold = std::make_shared<ngraph::op::v0::Unsqueeze>(
                     nms->input_value(3),
                     opset1::Constant::create(element::i64, Shape{1}, {0}));
-            new_ops.push_back(new_iou_threshold.get_node_shared_ptr());
+            new_ops.push_back(new_iou_threshold.get_node()->shared_from_this());
         }
         auto new_score_threshold = nms->input_value(4);
         if (score_threshold_rank.get_length() == 0) {
             new_score_threshold = std::make_shared<ngraph::op::v0::Unsqueeze>(
                     nms->input_value(4),
                     opset1::Constant::create(element::i64, Shape{1}, {0}));
-            new_ops.push_back(new_score_threshold.get_node_shared_ptr());
+            new_ops.push_back(new_score_threshold.get_node()->shared_from_this());
         }
         int center_point_box = 0;
         switch (nms->get_box_encoding()) {

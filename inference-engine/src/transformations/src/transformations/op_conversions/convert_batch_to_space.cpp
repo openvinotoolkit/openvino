@@ -34,9 +34,9 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
         }
         const auto& data_shape = data.get_shape();
 
-        const auto block_const = std::dynamic_pointer_cast<opset3::Constant>(block.get_node_shared_ptr());
-        const auto crops_begin_const = std::dynamic_pointer_cast<opset3::Constant>(crops_begin.get_node_shared_ptr());
-        const auto crops_end_const = std::dynamic_pointer_cast<opset3::Constant>(crops_end.get_node_shared_ptr());
+        const auto block_const = std::dynamic_pointer_cast<opset3::Constant>(block.get_node()->shared_from_this());
+        const auto crops_begin_const = std::dynamic_pointer_cast<opset3::Constant>(crops_begin.get_node()->shared_from_this());
+        const auto crops_end_const = std::dynamic_pointer_cast<opset3::Constant>(crops_end.get_node()->shared_from_this());
 
         if (!block_const || !crops_begin_const || !crops_end_const) {
             return false;
@@ -150,9 +150,9 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         auto crops_begin = batch_to_space->input_value(2);
         auto crops_end = batch_to_space->input_value(3);
 
-        const auto block_const = ov::as_type_ptr<opset3::Constant>(block.get_node_shared_ptr());
-        const auto crops_begin_const = ov::as_type_ptr<opset3::Constant>(crops_begin.get_node_shared_ptr());
-        const auto crops_end_const = ov::as_type_ptr<opset3::Constant>(crops_end.get_node_shared_ptr());
+        const auto block_const = ov::as_type_ptr<opset3::Constant>(block.get_node()->shared_from_this());
+        const auto crops_begin_const = ov::as_type_ptr<opset3::Constant>(crops_begin.get_node()->shared_from_this());
+        const auto crops_end_const = ov::as_type_ptr<opset3::Constant>(crops_end.get_node()->shared_from_this());
 
         const std::vector<int64_t> &block_values = block_const->cast_vector<int64_t>();
         const std::vector<int64_t> &crops_end_values = crops_end_const->cast_vector<int64_t>();
@@ -167,7 +167,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
 
         NodeVector new_ops;
 
-        std::shared_ptr<Node> flat_node = data.get_node_shared_ptr();
+        std::shared_ptr<Node> flat_node = data.get_node()->shared_from_this();
         for (size_t block_idx = 1; block_idx < block_values.size(); ++block_idx) {
             dispersed_shape[0] = block_values[block_idx];
             dispersed_shape[1] /= block_values[block_idx];

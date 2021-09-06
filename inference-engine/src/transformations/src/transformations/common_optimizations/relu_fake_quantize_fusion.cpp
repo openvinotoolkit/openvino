@@ -31,13 +31,13 @@ ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
         auto data = pattern_map[data_pattern];
         auto relu = pattern_map[relu_pattern];
         auto input_low = pattern_map[input_low_pattern];
-        auto input_low_const = std::dynamic_pointer_cast<opset5::Constant>(input_low.get_node_shared_ptr());
+        auto input_low_const = std::dynamic_pointer_cast<opset5::Constant>(input_low.get_node()->shared_from_this());
         if (!input_low_const)
             return false;
         auto input_low_values = input_low_const->cast_vector<float>();
         if (std::any_of(input_low_values.begin(), input_low_values.end(), [] (float f) -> bool { return f < 0; }))
             return false;
-        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
+        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_map[fq_pattern].get_node()->shared_from_this());
         if (!fq)
             return false;
 
@@ -49,7 +49,7 @@ ngraph::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
                                                                       fq->get_levels());
         new_fq->set_friendly_name(fq->get_friendly_name());
 
-        copy_runtime_info({relu.get_node_shared_ptr(), fq}, new_fq);
+        copy_runtime_info({relu.get_node()->shared_from_this(), fq}, new_fq);
         replace_node(fq, new_fq);
 
         return true;

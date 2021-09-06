@@ -105,7 +105,7 @@ std::shared_ptr<Node> make_constant(const element::Type& type, const Shape& shap
         for (size_t i = 0; i < shape.size(); i++) {
             axes.insert(i);
         }
-        val = builder::opset1::make_broadcast(val, shape, axes).get_node_shared_ptr();
+        val = builder::opset1::make_broadcast(val, shape, axes).get_node()->shared_from_this();
     }
 
     return val->add_provenance_group_members_above({});

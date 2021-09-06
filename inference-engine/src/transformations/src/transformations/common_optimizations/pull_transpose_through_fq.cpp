@@ -26,8 +26,8 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto & pattern_map = m.get_pattern_value_map();
-        auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
-        auto fq = pattern_map[m_fq].get_node_shared_ptr();
+        auto transpose = pattern_map[m_transpose].get_node()->shared_from_this();
+        auto fq = pattern_map[m_fq].get_node()->shared_from_this();
 
         auto input_rank = fq->input(0).get_partial_shape().rank().get_length();
 
@@ -43,10 +43,10 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
             if (!unsqueeze_axes.empty()) {
                 fq_input = std::make_shared<ngraph::opset1::Unsqueeze>(fq_input,
                                                                        opset1::Constant::create(element::i64, Shape{unsqueeze_axes.size()}, unsqueeze_axes));
-                new_ops.push_back(fq_input.get_node_shared_ptr());
+                new_ops.push_back(fq_input.get_node()->shared_from_this());
             }
             fq_input = transpose->copy_with_new_inputs({fq_input, transpose->input_value(1)});
-            ngraph::copy_runtime_info(transpose, fq_input.get_node_shared_ptr());
+            ngraph::copy_runtime_info(transpose, fq_input.get_node()->shared_from_this());
             fq_inputs.push_back(fq_input);
         }
 

@@ -75,7 +75,7 @@ int64_t op::internal::NonMaxSuppressionIEInternal::max_boxes_output_from_input()
     }
 
     const auto max_output_boxes_input =
-        ov::as_type_ptr<op::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
+        ov::as_type_ptr<op::Constant>(input_value(max_output_boxes_per_class_port).get_node()->shared_from_this());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
@@ -92,7 +92,7 @@ void op::internal::NonMaxSuppressionIEInternal::validate_and_infer_types() {
 
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
         const auto num_boxes_boxes = boxes_ps[1];
-        const auto max_output_boxes_per_class_node = input_value(max_output_boxes_per_class_port).get_node_shared_ptr();
+        const auto max_output_boxes_per_class_node = input_value(max_output_boxes_per_class_port).get_node()->shared_from_this();
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
             op::is_constant(max_output_boxes_per_class_node)) {
             const auto num_boxes = num_boxes_boxes.get_length();

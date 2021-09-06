@@ -67,7 +67,7 @@ size_t Matcher::add_node(Output<Node> value) {
 }
 
 std::shared_ptr<Node> Matcher::get_match_root() {
-    return m_match_root.get_node_shared_ptr();
+    return m_match_root.get_node()->shared_from_this();
 }
 
 MatcherState Matcher::start_match() {
@@ -92,7 +92,7 @@ bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unuse
         for (const auto& entry : m_pattern_map) {
             // leaf label
             if (entry.first->get_input_size() == 0) {
-                label_exclusions.push_back(entry.second.get_node_shared_ptr());
+                label_exclusions.push_back(entry.second.get_node()->shared_from_this());
             }
         }
         return ngraph::get_subgraph_outputs(get_matched_nodes(), label_exclusions, ignore_unused).size() < 2;
@@ -103,8 +103,8 @@ bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unuse
 }
 
 bool Matcher::match_value(const ngraph::Output<Node>& pattern_value, const ngraph::Output<Node>& graph_value) {
-    std::shared_ptr<Node> pattern_node = pattern_value.get_node_shared_ptr();
-    std::shared_ptr<Node> graph_node = graph_value.get_node_shared_ptr();
+    std::shared_ptr<Node> pattern_node = pattern_value.get_node()->shared_from_this();
+    std::shared_ptr<Node> graph_node = graph_value.get_node()->shared_from_this();
 
     // This env var allows one to specify node name patterns to abort pattern matching
     // at particular nodes. The upshot is that one can quickly zero in on an offending

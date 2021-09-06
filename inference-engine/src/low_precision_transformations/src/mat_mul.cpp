@@ -50,7 +50,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
     if (dequantization2.empty()) {
         const std::shared_ptr<opset1::FakeQuantize> fakeQuantize =
-            ov::as_type_ptr<opset1::FakeQuantize>(dequantization2.data.get_node_shared_ptr());
+            ov::as_type_ptr<opset1::FakeQuantize>(dequantization2.data.get_node()->shared_from_this());
         if (fakeQuantize != nullptr) {
             const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
 

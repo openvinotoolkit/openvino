@@ -30,7 +30,7 @@ public:
             const Output<Node>& arg1,
             const ngraph::op::AutoBroadcastSpec& auto_broadcast =
                 ngraph::op::AutoBroadcastSpec(ngraph::op::AutoBroadcastType::NUMPY)) : Power(arg0, arg1, auto_broadcast) {
-        NGRAPH_CHECK(!!std::dynamic_pointer_cast<ngraph::snippets::op::Scalar>(arg1.get_node_shared_ptr()), "second argument must be scalar constant.");
+        NGRAPH_CHECK(!!std::dynamic_pointer_cast<ngraph::snippets::op::Scalar>(arg1.get_node()->shared_from_this()), "second argument must be scalar constant.");
     }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {

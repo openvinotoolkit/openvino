@@ -73,13 +73,13 @@ HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto transpose_it = pattern_map.find(transpose);
         if (transpose_it != std::end(pattern_map)) {
-            ReplaceTransposeWithReshape(transpose_it->second.get_node_shared_ptr());
+            ReplaceTransposeWithReshape(transpose_it->second.get_node()->shared_from_this());
         } else {
-            auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
+            auto reshape_node = pattern_map.at(reshape).get_node()->shared_from_this();
             if (!GNALimitations::IsTransposeSupported(reshape_node->get_output_shape(0))) return false;
             auto matmul_it = pattern_map.find(matmul1);
             auto matmul_out = matmul_it != std::end(pattern_map) ? matmul_it->second : pattern_map.at(matmul2);
-            InsertTranspose(reshape_node, matmul_out.get_node_shared_ptr()->get_friendly_name());
+            InsertTranspose(reshape_node, matmul_out.get_node()->shared_from_this()->get_friendly_name());
         }
         return true;
     };
@@ -102,11 +102,11 @@ HandleTransposeAfterMatMul::HandleTransposeAfterMatMul() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto transpose_it = pattern_map.find(transpose);
         if (transpose_it != std::end(pattern_map)) {
-            ReplaceTransposeWithReshape(transpose_it->second.get_node_shared_ptr());
+            ReplaceTransposeWithReshape(transpose_it->second.get_node()->shared_from_this());
         } else {
-            auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
+            auto reshape_node = pattern_map.at(reshape).get_node()->shared_from_this();
             if (!GNALimitations::IsTransposeSupported(reshape_node->get_input_shape(0))) return false;
-            auto matmul_node = pattern_map.at(matmul).get_node_shared_ptr();
+            auto matmul_node = pattern_map.at(matmul).get_node()->shared_from_this();
             InsertTranspose(matmul_node, matmul_node->get_friendly_name());
         }
         return true;
@@ -117,8 +117,8 @@ HandleTransposeAfterMatMul::HandleTransposeAfterMatMul() {
 }
 
 bool VerifyReshape::operator()(const ngraph::Output<ngraph::Node>& reshape_out) const {
-    auto in_shape = reshape_out.get_node_shared_ptr()->get_input_shape(0);
-    auto out_shape = reshape_out.get_node_shared_ptr()->get_output_shape(0);
+    auto in_shape = reshape_out.get_node()->shared_from_this()->get_input_shape(0);
+    auto out_shape = reshape_out.get_node()->shared_from_this()->get_output_shape(0);
 
     // Check if Reshape changes the final 2d shape of Affine primitive
     in_shape.erase(std::remove(in_shape.begin(), in_shape.end(), 1), in_shape.end());

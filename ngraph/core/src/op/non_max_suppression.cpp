@@ -772,7 +772,7 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const {
 }
 
 bool op::v5::NonMaxSuppression::is_soft_nms_sigma_constant_and_default() const {
-    auto soft_nms_sigma_node = input_value(soft_nms_sigma_port).get_node_shared_ptr();
+    auto soft_nms_sigma_node = input_value(soft_nms_sigma_port).get_node()->shared_from_this();
     if (inputs().size() < 6 || !ngraph::op::is_constant(soft_nms_sigma_node)) {
         return false;
     }

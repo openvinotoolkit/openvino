@@ -33,7 +33,7 @@ bool op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v0::NormalizeL2::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_NormalizeL2_validate_and_infer_types);
-    auto axes_node = input_value(1).get_node_shared_ptr();
+    auto axes_node = input_value(1).get_node()->shared_from_this();
     const auto& input_pshape = get_input_partial_shape(0);
     const auto& axes_pshape = get_input_partial_shape(1);
     const auto& input_rank = input_pshape.rank();

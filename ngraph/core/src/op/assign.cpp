@@ -30,7 +30,7 @@ void op::v3::Assign::validate_and_infer_types() {
     if (!m_variable) {
         NodeVector start_nodes;
         for (const auto& input : inputs()) {
-            start_nodes.push_back(input.get_source_output().get_node_shared_ptr());
+            start_nodes.push_back(input.get_source_output().get_node()->shared_from_this());
         }
         auto nodes = topological_sort(start_nodes);
         for (const auto& node : nodes) {

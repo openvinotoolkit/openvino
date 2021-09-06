@@ -25,7 +25,7 @@ ngraph::pass::ConvertGather0D::ConvertGather0D() {
             return false;
         }
 
-        auto axes_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(gather->input_value(2).get_node_shared_ptr());
+        auto axes_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(gather->input_value(2).get_node()->shared_from_this());
         if (!axes_constant) {
             return false;
         }
@@ -44,7 +44,7 @@ ngraph::pass::ConvertGather0D::ConvertGather0D() {
         auto sq = std::make_shared<ngraph::opset1::Squeeze>(gather_new, opset1::Constant::create(element::i64, Shape{1}, {axis}));
         sq->set_friendly_name(gather->get_friendly_name());
 
-        ngraph::copy_runtime_info(gather, {indices.get_node_shared_ptr(), gather_new, sq});
+        ngraph::copy_runtime_info(gather, {indices.get_node()->shared_from_this(), gather_new, sq});
         ngraph::replace_node(gather, sq);
 
         return true;

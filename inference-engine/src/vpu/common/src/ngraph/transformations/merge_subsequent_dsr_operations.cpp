@@ -16,7 +16,7 @@ MergeSubsequentDSROperations::MergeSubsequentDSROperations() {
             return false;
         }
 
-        const auto& predecessor = std::dynamic_pointer_cast<ngraph::vpu::op::DynamicShapeResolver>(dsr->input_value(0).get_node_shared_ptr());
+        const auto& predecessor = std::dynamic_pointer_cast<ngraph::vpu::op::DynamicShapeResolver>(dsr->input_value(0).get_node()->shared_from_this());
         if (!predecessor) {
             return false;
         }

@@ -293,7 +293,7 @@ shared_ptr<ov::Node> ov::Node::add_provenance_group_members_above(const OutputVe
         }
         add_provenance_group_member(node->shared_from_this());
         for (auto value : node->input_values()) {
-            if (m_provenance_group.count(value.get_node_shared_ptr()) == 0) {
+            if (m_provenance_group.count(value.get_node()->shared_from_this()) == 0) {
                 todo.push_back(value.get_node());
             }
         }
@@ -619,7 +619,7 @@ ov::OutputVector ov::as_output_vector(const NodeVector& args) {
 ov::NodeVector ov::as_node_vector(const OutputVector& values) {
     NodeVector node_vector;
     for (auto& value : values) {
-        node_vector.emplace_back(value.get_node_shared_ptr());
+        node_vector.emplace_back(value.get_node()->shared_from_this());
     }
     return node_vector;
 }
@@ -627,7 +627,7 @@ ov::NodeVector ov::as_node_vector(const OutputVector& values) {
 ov::ResultVector ov::as_result_vector(const OutputVector& values) {
     ResultVector result;
     for (auto value : values) {
-        shared_ptr<Node> node = value.get_node_shared_ptr();
+        shared_ptr<Node> node = value.get_node()->shared_from_this();
         result.push_back(ov::is_type<ngraph::op::Result>(node) ? ov::as_type_ptr<ngraph::op::Result>(node)
                                                                : make_shared<ngraph::op::Result>(value));
     }
@@ -655,8 +655,8 @@ bool ov::Node::match_node(ngraph::pattern::Matcher* matcher, const Output<Node>&
     // Not exact matching allows using base classes in the patterns and successfully matching such
     // patterns
     // with sub-graph of descent nodes types.
-    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
-        matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
+    if (graph_value.get_node()->shared_from_this()->get_type_info().is_castable(get_type_info()) &&
+        matcher->match_arguments(this, graph_value.get_node()->shared_from_this())) {
         auto& pattern_map = matcher->get_pattern_value_map();
         pattern_map[shared_from_this()] = graph_value;
         return true;
@@ -748,7 +748,7 @@ vector<ov::Output<ov::Node>> ov::Node::outputs() {
     vector<Output<Node>> result;
 
     for (size_t i = 0; i < get_output_size(); i++) {
-        result.emplace_back(shared_from_this(), i);
+        result.emplace_back(this, i);
     }
 
     return result;
@@ -758,7 +758,7 @@ vector<ov::Output<const ov::Node>> ov::Node::outputs() const {
     vector<Output<const Node>> result;
 
     for (size_t i = 0; i < get_output_size(); i++) {
-        result.emplace_back(shared_from_this(), i);
+        result.emplace_back(this, i);
     }
 
     return result;
@@ -807,7 +807,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
 
     // If all the inputs are constants, try to evaluate the outputs
     bool all_constants = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
-        return ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr());
+        return ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node()->shared_from_this());
     });
     if (!all_constants)
         return false;
@@ -815,7 +815,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     HostTensorVector input_tensors;
     for (const auto& input : input_values) {
         auto host_tensor = make_shared<ngraph::runtime::HostTensor>(
-            ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr()));
+            ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node()->shared_from_this()));
         input_tensors.push_back(host_tensor);
     }
     HostTensorVector output_tensors;

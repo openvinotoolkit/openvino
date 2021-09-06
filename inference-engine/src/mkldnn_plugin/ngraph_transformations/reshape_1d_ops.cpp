@@ -114,8 +114,8 @@ ngraph::matcher_pass_callback get_callback() {
 
         // Reshape(input_shape)->Op->Reshape(output_shape)
         ngraph::Output<ngraph::Node> last = ngraph::op::util::reshapeTo(node->input_value(0), input_shape);
-        last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/reshape_begin");
-        new_ops.push_back(last.get_node_shared_ptr());
+        last.get_node()->shared_from_this()->set_friendly_name(node->get_friendly_name() + "/reshape_begin");
+        new_ops.push_back(last.get_node()->shared_from_this());
 
         if (auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node)) {
             last = convert(last, conv, new_ops);
@@ -129,8 +129,8 @@ ngraph::matcher_pass_callback get_callback() {
             throw ngraph::ngraph_error("Reshape1DOps: op type is not supported");
         }
 
-        last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name() + "/new");
-        new_ops.push_back(last.get_node_shared_ptr());
+        last.get_node()->shared_from_this()->set_friendly_name(node->get_friendly_name() + "/new");
+        new_ops.push_back(last.get_node()->shared_from_this());
 
         // if convolution is followed by add we need to replace add before output reshape to fuse conv+bias on plug-in side
         std::shared_ptr<ngraph::Node> addToReplace = nullptr;
@@ -143,7 +143,7 @@ ngraph::matcher_pass_callback get_callback() {
             if (dstNodes.size() == 1) {
                 addToReplace = dstNodes.begin()->get_node()->shared_from_this();
                 if (std::dynamic_pointer_cast<ngraph::opset1::Add>(addToReplace) &&
-                    std::dynamic_pointer_cast<ngraph::opset1::Constant>(addToReplace->input(1).get_source_output().get_node_shared_ptr()) &&
+                    std::dynamic_pointer_cast<ngraph::opset1::Constant>(addToReplace->input(1).get_source_output().get_node()->shared_from_this()) &&
                         addToReplace->get_input_shape(1) == expectedShape) {
                     ngraph::Shape newBiasShape(addToReplace->get_input_shape(1));
                     newBiasShape.push_back(1);
@@ -157,7 +157,7 @@ ngraph::matcher_pass_callback get_callback() {
         }
 
         if (reshapedAdd != nullptr) {
-            ngraph::replace_node(node, last.get_node_shared_ptr());
+            ngraph::replace_node(node, last.get_node()->shared_from_this());
             ngraph::copy_runtime_info(node, new_ops);
             last = reshapedAdd;
             node = addToReplace;
@@ -165,8 +165,8 @@ ngraph::matcher_pass_callback get_callback() {
         }
 
         last = ngraph::op::util::reshapeTo(last, output_shape);
-        last.get_node_shared_ptr()->set_friendly_name(node->get_friendly_name());
-        ngraph::replace_node(node, last.get_node_shared_ptr());
+        last.get_node()->shared_from_this()->set_friendly_name(node->get_friendly_name());
+        ngraph::replace_node(node, last.get_node()->shared_from_this());
         ngraph::copy_runtime_info(node, new_ops);
         return true;
     };

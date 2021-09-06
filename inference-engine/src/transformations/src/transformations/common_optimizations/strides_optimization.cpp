@@ -41,7 +41,7 @@ static std::tuple<ngraph::Strides, bool> check_next_ops(const std::vector<ngraph
 }
 
 static void insert_pooling(const ngraph::Output<ngraph::Node>& first, ngraph::Input<ngraph::Node>& second, const ngraph::Strides& strides) {
-    auto first_node = first.get_node_shared_ptr();
+    auto first_node = first.get_node()->shared_from_this();
     auto rank = first.get_partial_shape().rank();
     bool do_reshape = rank.is_static() && static_cast<size_t>(rank.get_length()) < strides.size() + 2;
     if (do_reshape) {

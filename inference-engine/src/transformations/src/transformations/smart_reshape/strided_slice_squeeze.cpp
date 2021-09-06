@@ -25,9 +25,9 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
         if (!const_axes || !slice)
             return false;
 
-        auto begin = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(1).get_node_shared_ptr());
-        auto end = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(2).get_node_shared_ptr());
-        auto strides = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(3).get_node_shared_ptr());
+        auto begin = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(1).get_node()->shared_from_this());
+        auto end = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(2).get_node()->shared_from_this());
+        auto strides = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(3).get_node()->shared_from_this());
         if (!begin || !end || !strides)
             return false;
 
@@ -94,9 +94,9 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
         if (!const_axes || !slice)
             return false;
 
-        auto begin = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(1).get_node_shared_ptr());
-        auto end = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(2).get_node_shared_ptr());
-        auto strides = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(3).get_node_shared_ptr());
+        auto begin = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(1).get_node()->shared_from_this());
+        auto end = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(2).get_node()->shared_from_this());
+        auto strides = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(3).get_node()->shared_from_this());
         if (!begin || !end || !strides)
             return false;
 

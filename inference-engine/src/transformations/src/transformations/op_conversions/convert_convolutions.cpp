@@ -68,13 +68,13 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
             reshape_shape.push_back(shape[i]);
         }
         Output<Node> weights;
-        auto w_input = gconv->input_value(1).get_node_shared_ptr();
+        auto w_input = gconv->input_value(1).get_node()->shared_from_this();
         if (std::dynamic_pointer_cast<opset1::Reshape>(w_input) && w_input->input_value(0).get_shape() == reshape_shape) {
             weights = w_input->input_value(0);
         } else {
             weights = std::make_shared<ngraph::opset1::Reshape>(gconv->input_value(1),
                                                                 op::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape), true);
-            ngraph::copy_runtime_info(gconv, weights.get_node_shared_ptr());
+            ngraph::copy_runtime_info(gconv, weights.get_node()->shared_from_this());
         }
         auto conv_ie = std::make_shared<ngraph::op::ConvolutionIE>(gconv->input_value(0),
                                                                    weights,
@@ -117,7 +117,7 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
                                                                        1 /* groups */,
                                                                        deconv->get_auto_pad(),
                                                                        deconv->get_output_padding(),
-                                                                       (deconv->inputs().size() == 3 ? deconv->input_value(2).get_node_shared_ptr()
+                                                                       (deconv->inputs().size() == 3 ? deconv->input_value(2).get_node()->shared_from_this()
                                                                                                      : nullptr));
         deconv_ie->set_friendly_name(deconv->get_friendly_name());
         ngraph::copy_runtime_info(deconv, deconv_ie);
@@ -163,7 +163,7 @@ ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
                                                                      group,
                                                                      gconv->get_auto_pad(),
                                                                      gconv->get_output_padding(),
-                                                                     (gconv->inputs().size() == 3 ? gconv->input_value(2).get_node_shared_ptr()
+                                                                     (gconv->inputs().size() == 3 ? gconv->input_value(2).get_node()->shared_from_this()
                                                                                                   : nullptr));
         conv_ie->set_friendly_name(gconv->get_friendly_name());
         ngraph::copy_runtime_info(gconv, conv_ie);

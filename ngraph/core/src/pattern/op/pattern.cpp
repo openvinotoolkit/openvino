@@ -22,7 +22,7 @@ ValuePredicate as_value_predicate(NodePredicate pred) {
         };
     } else {
         return [pred](const Output<Node>& value) {
-            return pred(value.get_node_shared_ptr());
+            return pred(value.get_node()->shared_from_this());
         };
     }
 }
@@ -31,7 +31,7 @@ ValuePredicate as_value_predicate(NodePredicate pred) {
 PatternMap as_pattern_map(const PatternValueMap& pattern_value_map) {
     PatternMap result;
     for (auto& kv : pattern_value_map) {
-        result[kv.first] = kv.second.get_node_shared_ptr();
+        result[kv.first] = kv.second.get_node()->shared_from_this();
     }
     return result;
 }

@@ -414,7 +414,7 @@ public:
 
             NodeVector nodes;
             for (const auto& inputs : node->input_values()) {
-                nodes.emplace_back(inputs.get_node_shared_ptr());
+                nodes.emplace_back(inputs.get_node()->shared_from_this());
             }
 
             /* The expected number of use_count() for Node is equal to the sum of next components:

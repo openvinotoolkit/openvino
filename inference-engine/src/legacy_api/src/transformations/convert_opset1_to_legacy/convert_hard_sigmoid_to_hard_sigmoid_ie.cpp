@@ -27,12 +27,12 @@ ngraph::pass::ConvertHardSigmoidToLegacyMatcher::ConvertHardSigmoidToLegacyMatch
             return false;
         }
 
-        auto alpha = std::dynamic_pointer_cast<ngraph::opset1::Constant> (hard_sigmoid->input(1).get_source_output().get_node_shared_ptr());
+        auto alpha = std::dynamic_pointer_cast<ngraph::opset1::Constant> (hard_sigmoid->input(1).get_source_output().get_node()->shared_from_this());
         if (!alpha) {
             return false;
         }
 
-        auto beta = std::dynamic_pointer_cast<ngraph::opset1::Constant> (hard_sigmoid->input(2).get_source_output().get_node_shared_ptr());
+        auto beta = std::dynamic_pointer_cast<ngraph::opset1::Constant> (hard_sigmoid->input(2).get_source_output().get_node()->shared_from_this());
         if (!beta) {
             return false;
         }

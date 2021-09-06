@@ -149,7 +149,7 @@ ov::Output<ov::Node> ov::op::util::MultiSubGraphOp::set_body_outputs(const Resul
         }
     }
     set_output_size(output_index + 1);
-    return Output<Node>(shared_from_this(), output_index);
+    return Output<Node>(this, output_index);
 }
 
 namespace ov {

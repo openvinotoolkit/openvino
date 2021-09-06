@@ -223,9 +223,9 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
         return false;
     }
 
-    const auto concat = std::dynamic_pointer_cast<ngraph::op::Concat>(input_values[0].get_node_shared_ptr());
-    const auto indices = std::dynamic_pointer_cast<ngraph::op::Constant>(input_values[1].get_node_shared_ptr());
-    const auto axis = std::dynamic_pointer_cast<ngraph::op::Constant>(input_values[2].get_node_shared_ptr());
+    const auto concat = std::dynamic_pointer_cast<ngraph::op::Concat>(input_values[0].get_node()->shared_from_this());
+    const auto indices = std::dynamic_pointer_cast<ngraph::op::Constant>(input_values[1].get_node()->shared_from_this());
+    const auto axis = std::dynamic_pointer_cast<ngraph::op::Constant>(input_values[2].get_node()->shared_from_this());
 
     if (!concat || !indices || !axis) {
         return false;
@@ -256,7 +256,7 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
     NGRAPH_CHECK(positive_index >= 0 && positive_index < rank);
 
     // gather takes exactly one element out of the Concat output
-    const auto gathered_concat_input = concat_inputs[positive_index].get_source_output().get_node_shared_ptr();
+    const auto gathered_concat_input = concat_inputs[positive_index].get_source_output().get_node()->shared_from_this();
     // Concat inputs are 1D, resulting tensor shape depends on Gather indices
     auto gathered = gathered_concat_input;
     if (indices_shape.empty()) {

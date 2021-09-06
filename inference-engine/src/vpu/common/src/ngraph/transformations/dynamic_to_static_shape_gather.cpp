@@ -25,8 +25,8 @@ void dynamicToStaticShapeGather(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(axis != std::numeric_limits<int64_t>::max() && axis >= 0,
             "dynamicToStaticShapeGather: Unsupported Gather axis {} for node {}", axis, gather);
 
-    const auto dataDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gather->input_value(0).get_node_shared_ptr());
-    const auto idxDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gather->input_value(1).get_node_shared_ptr());
+    const auto dataDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gather->input_value(0).get_node()->shared_from_this());
+    const auto idxDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gather->input_value(1).get_node()->shared_from_this());
 
     VPU_THROW_UNLESS(dataDSR || idxDSR, "DynamicToStaticShape transformation for {} of type {} expects at least one DSR as input",
                      gather->get_friendly_name(), gather->get_type_info());

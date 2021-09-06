@@ -19,7 +19,7 @@ using namespace ngraph;
 
 //`simplify_gather`, optimizes gather if Gather is gathering the
 // whole input tensor
-static bool simplify_gather(std::shared_ptr<Node> node) {
+static bool simplify_gather(const std::shared_ptr<Node>& node) {
     if (auto gather = ov::as_type_ptr<opset3::Gather>(node)) {
         // check if we are gathering the whole input
         auto data = gather->input_value(0);
@@ -56,7 +56,7 @@ static bool simplify_gather(std::shared_ptr<Node> node) {
 
         // check if the indices is constant
         auto constant_indices =
-                ov::as_type_ptr<opset3::Constant>(gather->input_value(1).get_node_shared_ptr());
+                ov::as_type_ptr<opset3::Constant>(gather->input_value(1).get_node()->shared_from_this());
         if (!constant_indices) {
             return false;
         } else {
@@ -97,7 +97,7 @@ static bool eliminate_reshape_v1(const std::shared_ptr<Node>& node) {
         return replace_output_update_name(node->output(0), input);
     }
     // eliminate redundant reshape, squeeze, or unsqueeze
-    auto input_node = input.get_node_shared_ptr();
+    auto input_node = input.get_node()->shared_from_this();
     if (ov::as_type_ptr<opset3::Squeeze>(input_node) ||
         ov::as_type_ptr<opset3::Unsqueeze>(input_node) ||
         ov::as_type_ptr<opset3::Reshape>(input_node)) {
@@ -147,7 +147,7 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
     }
 
     shared_ptr<Node> reshape;
-    auto input = node->input_value(0).get_node_shared_ptr();
+    auto input = node->input_value(0).get_node()->shared_from_this();
     auto pat =
         opset3::Constant::create<int64_t>(element::i64, Shape{target_shape.size()}, target_shape);
 
@@ -208,7 +208,7 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
     auto unsqueeze = ov::as_type_ptr<opset3::Unsqueeze>(node);
     if (unsqueeze == nullptr)
         return false;
-    auto input = unsqueeze->input_value(0).get_node_shared_ptr();
+    auto input = unsqueeze->input_value(0).get_node()->shared_from_this();
     auto squeeze = ov::as_type_ptr<opset3::Squeeze>(input);
     auto replace_unsqueeze_only = [&](const vector<int64_t>& axes) {
         auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
@@ -222,8 +222,8 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
     // eliminate redundant squeeze->unsqueeze
     if (squeeze) {
         const auto& data_shape = squeeze->input_value(0).get_partial_shape();
-        if (ngraph::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
-                                      unsqueeze->input_value(1).get_node_shared_ptr())) {
+        if (ngraph::compare_constants(squeeze->input_value(1).get_node()->shared_from_this(),
+                                      unsqueeze->input_value(1).get_node()->shared_from_this())) {
             return replace_output_update_name(unsqueeze->output(0), squeeze->input_value(0));
         }
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
@@ -276,7 +276,7 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
     auto squeeze = ov::as_type_ptr<opset3::Squeeze>(node);
     if (squeeze == nullptr)
         return false;
-    auto input = squeeze->input_value(0).get_node_shared_ptr();
+    auto input = squeeze->input_value(0).get_node()->shared_from_this();
     auto replace_squeeze_only = [&](const vector<int64_t>& axes) {
         auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
         auto new_sq = make_shared<opset3::Squeeze>(input->input_value(0), axes_const);
@@ -293,8 +293,8 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
         } else {
             data_shape = input->input(0).get_partial_shape();
         }
-        if (ngraph::compare_constants(unsqueeze->input_value(1).get_node_shared_ptr(),
-                                      squeeze->input_value(1).get_node_shared_ptr())) {
+        if (ngraph::compare_constants(unsqueeze->input_value(1).get_node()->shared_from_this(),
+                                      squeeze->input_value(1).get_node()->shared_from_this())) {
             return replace_output_update_name(squeeze->output(0), unsqueeze->input_value(0));
         }
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {

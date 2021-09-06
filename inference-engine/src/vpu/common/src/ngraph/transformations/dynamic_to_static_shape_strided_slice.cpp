@@ -122,7 +122,7 @@ std::shared_ptr<ngraph::Node> calculate_output_shape(
 }
 
 void dynamicToStaticShapeStridedSlice(std::shared_ptr<ngraph::Node> target) {
-    const auto dsr = target->input_value(0).get_node_shared_ptr();
+    const auto dsr = target->input_value(0).get_node()->shared_from_this();
     VPU_THROW_UNLESS(ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(dsr),
         "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
         target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
@@ -146,9 +146,9 @@ void dynamicToStaticShapeStridedSlice(std::shared_ptr<ngraph::Node> target) {
 
     const auto input_shape = dsr->input_value(1);
     const auto output_shape = calculate_output_shape(
-            get_i64_vector_from_const(stridedSlice->input_value(1).get_node_shared_ptr()),
-            get_i64_vector_from_const(stridedSlice->input_value(2).get_node_shared_ptr()),
-            get_i64_vector_from_const(stridedSlice->input_value(3).get_node_shared_ptr()),
+            get_i64_vector_from_const(stridedSlice->input_value(1).get_node()->shared_from_this()),
+            get_i64_vector_from_const(stridedSlice->input_value(2).get_node()->shared_from_this()),
+            get_i64_vector_from_const(stridedSlice->input_value(3).get_node()->shared_from_this()),
             convert_mask_to_axis_set(stridedSlice->get_begin_mask()),
             convert_mask_to_axis_set(stridedSlice->get_end_mask()),
             convert_mask_to_axis_set(stridedSlice->get_shrink_axis_mask()),

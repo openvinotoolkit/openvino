@@ -43,7 +43,7 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>>>
     bool leastOneOperationIsNotFakeQuantize = false;
     for (auto index = 0ul; index < node->get_input_size(); ++index) {
         const auto& input = node->input(index);
-        auto inputNode = input.get_source_output().get_node_shared_ptr();
+        auto inputNode = input.get_source_output().get_node()->shared_from_this();
 
         const auto dequantization = NetworkHelper::getDequantization(node, index);
         if (!dequantization.empty() &&

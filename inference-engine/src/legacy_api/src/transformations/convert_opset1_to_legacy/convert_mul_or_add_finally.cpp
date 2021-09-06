@@ -62,10 +62,10 @@ ngraph::matcher_pass_callback get_callback() {
         }
 
         std::shared_ptr<ngraph::opset1::Constant> const_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(
-                lin_op->input(0).get_source_output().get_node_shared_ptr());
+                lin_op->input(0).get_source_output().get_node()->shared_from_this());
         auto data_node = lin_op->input(1).get_source_output();
         if (!const_node) {
-            const_node = std::dynamic_pointer_cast<ngraph::opset1::Constant> (lin_op->input(1).get_source_output().get_node_shared_ptr());
+            const_node = std::dynamic_pointer_cast<ngraph::opset1::Constant> (lin_op->input(1).get_source_output().get_node()->shared_from_this());
             data_node = lin_op->input(0).get_source_output();
             if (!const_node) {
                 return convert_to_eltwise<T>(lin_op,

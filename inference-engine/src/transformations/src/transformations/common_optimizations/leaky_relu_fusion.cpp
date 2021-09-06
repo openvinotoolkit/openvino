@@ -35,11 +35,11 @@ ngraph::pass::LeakyReluFusion::LeakyReluFusion() {
         leaky_relu->set_friendly_name(maximum.get_node()->get_friendly_name());
 
         copy_runtime_info({
-                            pattern_map.at(multiply_pattern).get_node_shared_ptr(),
-                            maximum.get_node_shared_ptr()
+                            pattern_map.at(multiply_pattern).get_node()->shared_from_this(),
+                            maximum.get_node()->shared_from_this()
                           },
                           leaky_relu);
-        replace_node(maximum.get_node_shared_ptr(), leaky_relu);
+        replace_node(maximum.get_node()->shared_from_this(), leaky_relu);
 
         return true;
     };

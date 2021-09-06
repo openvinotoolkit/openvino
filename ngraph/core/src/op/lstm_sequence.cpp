@@ -155,7 +155,7 @@ shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
                                                        const Output<Node>& default_value) const {
     Output<Node> mask_value = default_value;
     // Create zero mask value node.
-    if (!mask_value.get_node_shared_ptr()) {
+    if (!mask_value.get_node()->shared_from_this()) {
         mask_value = opset1::Constant::create(data.get_element_type(),
                                               data.get_shape(),
                                               vector<float>(shape_size(data.get_shape()), 0.f));
@@ -170,7 +170,7 @@ shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
 
     Output<Node> batch_seq_length =
         builder::opset1::legacy_broadcast_for_binary_operation(curr_time_step_node,
-                                                               input_value(3).get_node_shared_ptr(),
+                                                               input_value(3).get_node()->shared_from_this(),
                                                                batch_axis);
 
     // Create mask node deciding whether or not to mask batch data.
@@ -203,10 +203,10 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const {
     // h_list  - The list of hidden states at all processed time steps.
 
     NodeVector h_list;
-    shared_ptr<Node> X = input_value(0).get_node_shared_ptr();
+    shared_ptr<Node> X = input_value(0).get_node()->shared_from_this();
     shared_ptr<Node> H_t = prepare_input(input_value(1), is_reverse, 1);
     shared_ptr<Node> C_t = prepare_input(input_value(2), is_reverse, 1);
-    shared_ptr<Node> seq_lengths = input_value(3).get_node_shared_ptr();
+    shared_ptr<Node> seq_lengths = input_value(3).get_node()->shared_from_this();
     shared_ptr<Node> W = prepare_input(input_value(4), is_reverse);
     shared_ptr<Node> R = prepare_input(input_value(5), is_reverse);
     shared_ptr<Node> B = prepare_input(input_value(6), is_reverse);

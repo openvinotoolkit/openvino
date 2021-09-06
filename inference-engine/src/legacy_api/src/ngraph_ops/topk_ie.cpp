@@ -39,7 +39,7 @@ void op::TopKIE::validate_and_infer_types() {
 
     // Construct v1::TopK operation to calculate output shapes
     std::shared_ptr<Node> topk;
-    if (auto k_const = std::dynamic_pointer_cast<opset1::Constant>(input_value(1).get_node_shared_ptr())) {
+    if (auto k_const = std::dynamic_pointer_cast<opset1::Constant>(input_value(1).get_node()->shared_from_this())) {
         const auto k = k_const->cast_vector<int64_t>();
         topk = std::make_shared<opset1::TopK>(input_value(0),
                                               opset1::Constant::create(element::i64, Shape{}, k),

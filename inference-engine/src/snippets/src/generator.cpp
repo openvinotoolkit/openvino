@@ -26,7 +26,7 @@ auto ngraph::snippets::getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph:
 
     std::vector<size_t> rin;
     for (auto input : n->inputs()) {
-        auto rt = input.get_source_output().get_node_shared_ptr()->get_rt_info();
+        auto rt = input.get_source_output().get_node()->shared_from_this()->get_rt_info();
         if (auto rinfo = rt["reginfo"]) {
             auto reginfo = ngraph::as_type_ptr<ngraph::VariantWrapper<std::vector<size_t>>>(rinfo)->get();
             for (auto reg : reginfo) {

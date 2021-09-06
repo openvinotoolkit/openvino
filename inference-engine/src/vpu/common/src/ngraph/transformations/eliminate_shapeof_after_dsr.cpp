@@ -26,7 +26,7 @@ EliminateShapeOfAfterDSR::EliminateShapeOfAfterDSR() {
             return false;
         }
 
-        auto dsr = shapeOfNode->input_value(0).get_node_shared_ptr();
+        auto dsr = shapeOfNode->input_value(0).get_node()->shared_from_this();
         if (!ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(dsr)) {
             return false;
         }

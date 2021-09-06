@@ -20,8 +20,8 @@ void dynamicToStaticShapeGatherND(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(gatherND, "dynamicToStaticShapeGatherND transformation is not applicable for {}, it should be {} instead",
                      target, ngraph::opset5::GatherND::type_info);
 
-    const auto dataDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gatherND->input_value(0).get_node_shared_ptr());
-    const auto indicesDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gatherND->input_value(1).get_node_shared_ptr());
+    const auto dataDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gatherND->input_value(0).get_node()->shared_from_this());
+    const auto indicesDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gatherND->input_value(1).get_node()->shared_from_this());
 
     VPU_THROW_UNLESS(dataDSR || indicesDSR, "dynamicToStaticShapeGatherND transformation for {} of type {} expects at least one DSR as input",
                      gatherND->get_friendly_name(), gatherND->get_type_info());

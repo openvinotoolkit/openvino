@@ -111,7 +111,7 @@ static pair<Shape, vector<Shape>> get_numpy_broadcast_shapes(const OutputVector&
 static shared_ptr<Node> numpy_broadcast_node(const Output<Node>& value,
                                              const Shape& output_shape,
                                              const Shape& source_shape) {
-    shared_ptr<Node> broadcasted_node = value.get_node_shared_ptr();
+    shared_ptr<Node> broadcasted_node = value.get_node()->shared_from_this();
     // If node already has the required shape, return original node
     if (output_shape == value.get_shape()) {
         return broadcasted_node;
@@ -160,11 +160,11 @@ static shared_ptr<Node> numpy_broadcast_node(const Output<Node>& value,
 /// \return     The broadcasted Node.
 ///
 static shared_ptr<Node> broadcast_value_pdpd_style(const Output<Node>& value, const Shape& output_shape, int64_t axis) {
-    auto value_shape = value.get_shape();
+    const auto& value_shape = value.get_shape();
 
     // If node already has the required shape, return original node
     if (output_shape == value_shape) {
-        return value.get_node_shared_ptr();
+        return value.get_node()->shared_from_this();
     }
 
     if (axis == -1) {
@@ -206,7 +206,7 @@ pair<shared_ptr<Node>, shared_ptr<Node>> numpy_broadcast(const pair<Output<Node>
 
     // Handle the trivial case...
     if (arg1_in_shape == arg2_in_shape) {
-        return make_pair(args.first.get_node_shared_ptr(), args.second.get_node_shared_ptr());
+        return make_pair(args.first.get_node()->shared_from_this(), args.second.get_node()->shared_from_this());
     }
 
     NodeVector bcasted_outputs = as_node_vector(numpy_broadcast_outputs({args.first, args.second}));

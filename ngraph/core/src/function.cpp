@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <list>
 #include <memory>
+#include <utility>
 
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
@@ -326,19 +327,19 @@ shared_ptr<ov::Node> ov::Function::get_result() const {
 
 std::vector<shared_ptr<ov::Node>> ov::Function::get_ops() const {
     std::vector<std::shared_ptr<Node>> ops;
-    ngraph::traverse_nodes(this, [&](shared_ptr<Node> node) {
+    ngraph::traverse_nodes(this, [&](const shared_ptr<Node>& node) {
         ops.push_back(node);
     });
     return ops;
 }
 
 void ov::Function::replace_node(std::shared_ptr<Node> old, std::shared_ptr<Node> repl) {
-    ngraph::replace_node(old, repl);
+    ngraph::replace_node(std::move(old), std::move(repl));
 }
 
 size_t ov::Function::get_graph_size() const {
     size_t total_size = 0;
-    for (auto node : get_ops()) {
+    for (const auto& node : get_ops()) {
         total_size += sizeof(*node);
         if (node->description() == "Constant") {
             const ngraph::Shape& shape = node->get_output_shape(0);
@@ -375,12 +376,12 @@ void ov::Function::replace_parameter(size_t parameter_index, const shared_ptr<ng
 }
 
 void ov::Function::set_topological_sort(topological_sort_t sorter) {
-    m_topological_sorter = sorter;
+    m_topological_sorter = std::move(sorter);
 }
 
 int64_t ov::Function::get_parameter_index(const std::shared_ptr<ngraph::op::Parameter>& parameter) const {
     int64_t pos = 0;
-    for (auto p : get_parameters()) {
+    for (const auto& p : get_parameters()) {
         if (p == parameter) {
             return pos;
         }
@@ -391,16 +392,16 @@ int64_t ov::Function::get_parameter_index(const std::shared_ptr<ngraph::op::Para
 
 int64_t ov::Function::get_result_index(const Output<Node>& value) const {
     int64_t pos = 0;
-    if (is_type<ngraph::op::Result>(value.get_node_shared_ptr())) {
-        auto result = value.get_node_shared_ptr();
-        for (auto r : get_results()) {
+    if (is_type<ngraph::op::Result>(value.get_node()->shared_from_this())) {
+        auto result = value.get_node()->shared_from_this();
+        for (const auto& r : get_results()) {
             if (r == result) {
                 return pos;
             }
             pos++;
         }
     } else {
-        for (auto r : get_results()) {
+        for (const auto& r : get_results()) {
             if (r->input_value(0) == value) {
                 return pos;
             }

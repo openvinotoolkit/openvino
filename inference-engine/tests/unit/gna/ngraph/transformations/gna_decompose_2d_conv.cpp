@@ -307,7 +307,7 @@ void Decompose2DConvTestFixture::SetUp() {
 }
 
 std::shared_ptr<ngraph::Node> ReshapeBiasConst(std::shared_ptr<ngraph::opset7::Add> conv_bias, const ConvParams& conv_params) {
-    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(conv_bias->input_value(1).get_node_shared_ptr());
+    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(conv_bias->input_value(1).get_node()->shared_from_this());
 
     IE_ASSERT(add_const);
 
@@ -404,7 +404,7 @@ std::vector<std::shared_ptr<ngraph::Node>> SplitFilters(const GraphData& graph_d
 
     // Take account of fake quantize when getting filter values
     auto filter_values = std::dynamic_pointer_cast<ngraph::opset7::Constant>(graph_data.fq_conv == nullptr ?
-        graph_data.conv->input_value(1).get_node_shared_ptr() : graph_data.fq_conv->input_value(0).get_node_shared_ptr());
+        graph_data.conv->input_value(1).get_node()->shared_from_this() : graph_data.fq_conv->input_value(0).get_node()->shared_from_this());
     bool vertical_permute = (conv_params.filter_height > 1);
     bool horizontal_permute = (conv_params.filter_dilation_width > 1);
     std::vector<std::shared_ptr<ngraph::Node>> h_1_filters{};
@@ -550,7 +550,7 @@ std::shared_ptr<ngraph::Node> CreateDeomposedConv(const GraphData& graph_data, C
         if (horizontal_permute) {
             // Horizontal split - transform input accordingly
             ngraph::OutputVector dilated_chunks;
-            std::shared_ptr<ngraph::Node> dilated_chunks_concat = nhwc_conv_y_input.get_node_shared_ptr();
+            std::shared_ptr<ngraph::Node> dilated_chunks_concat = nhwc_conv_y_input.get_node()->shared_from_this();
 
             // We need to calculate some parameters in case horizontal stride > 1 is used, because if we use the ones available from the original convolution
             // we won't take into account the fact horizontal strides will be supported by the newly created 1D convolution, and not by decomposition

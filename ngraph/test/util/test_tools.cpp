@@ -23,10 +23,10 @@ bool validate_list(const vector<shared_ptr<Node>>& nodes)
         auto node_tmp = *it;
         NodeVector dependencies_tmp;
         for (auto& val : node_tmp->input_values())
-            dependencies_tmp.emplace_back(val.get_node_shared_ptr());
+            dependencies_tmp.emplace_back(val.get_node()->shared_from_this());
         vector<Node*> dependencies;
 
-        for (shared_ptr<Node> n : dependencies_tmp)
+        for (const shared_ptr<Node>& n : dependencies_tmp)
         {
             dependencies.push_back(n.get());
         }

@@ -141,13 +141,13 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         fqFromWeights = ov::as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
         if (fqFromWeights == nullptr) {
             const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer, 1ul);
-            fqFromWeights = ov::as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr());
+            fqFromWeights = ov::as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node()->shared_from_this());
         }
     } else {
         fqFromWeights = ov::as_type_ptr<opset1::FakeQuantize>(reshapeFromWeights->get_input_node_shared_ptr(0));
         if (fqFromWeights == nullptr) {
             const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshapeFromWeights, 0ul);
-            fqFromWeights = ov::as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr());
+            fqFromWeights = ov::as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node()->shared_from_this());
         }
     }
 
@@ -188,7 +188,7 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             return false;
         }
 
-        const auto weightsData = ov::as_type_ptr<opset1::Constant>(dequantizationOnWeights.data.get_node_shared_ptr());
+        const auto weightsData = ov::as_type_ptr<opset1::Constant>(dequantizationOnWeights.data.get_node()->shared_from_this());
         if (weightsData == nullptr) {
             return false;
         }

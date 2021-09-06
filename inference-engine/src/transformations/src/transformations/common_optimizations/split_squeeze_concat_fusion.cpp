@@ -22,7 +22,7 @@ ngraph::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto concat = std::dynamic_pointer_cast<ngraph::opset7::Concat>(pattern_to_output.at(concat_pattern).get_node_shared_ptr());
+        auto concat = std::dynamic_pointer_cast<ngraph::opset7::Concat>(pattern_to_output.at(concat_pattern).get_node()->shared_from_this());
         if (!concat) return false;
 
         NodeVector nodes_to_delete{ concat };
@@ -33,13 +33,13 @@ ngraph::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
         const auto& concat_inputs = concat->input_values();
         if (concat_inputs.empty()) return false;
         for (size_t i = 0; i < concat_inputs.size(); i++) {
-            auto squeeze = std::dynamic_pointer_cast<ngraph::opset7::Squeeze>(concat_inputs[i].get_node_shared_ptr());
+            auto squeeze = std::dynamic_pointer_cast<ngraph::opset7::Squeeze>(concat_inputs[i].get_node()->shared_from_this());
             if (!squeeze) return false;
 
             nodes_to_delete.push_back(squeeze);
 
-            auto split_to_check = std::dynamic_pointer_cast<ngraph::opset7::Split>(squeeze->input_value(0).get_node_shared_ptr());
-            auto squeeze_axes = std::dynamic_pointer_cast<ngraph::opset7::Constant>(squeeze->input_value(1).get_node_shared_ptr());
+            auto split_to_check = std::dynamic_pointer_cast<ngraph::opset7::Split>(squeeze->input_value(0).get_node()->shared_from_this());
+            auto squeeze_axes = std::dynamic_pointer_cast<ngraph::opset7::Constant>(squeeze->input_value(1).get_node()->shared_from_this());
             if (!squeeze_axes || !split_to_check) return false;
 
             auto squeeze_axes_vec = squeeze_axes->cast_vector<int64_t>();
@@ -61,7 +61,7 @@ ngraph::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
 
         if (split->get_num_splits() != concat_inputs.size()) return false;
 
-        auto split_axis = std::dynamic_pointer_cast<ngraph::opset7::Constant>(split->input_value(1).get_node_shared_ptr());
+        auto split_axis = std::dynamic_pointer_cast<ngraph::opset7::Constant>(split->input_value(1).get_node()->shared_from_this());
         if (!split_axis) return false;
 
         auto axis_vec = split_axis->cast_vector<int64_t>();

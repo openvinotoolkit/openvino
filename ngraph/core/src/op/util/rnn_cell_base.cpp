@@ -153,7 +153,7 @@ shared_ptr<ov::Node> ov::op::util::RNNCellBase::mul(const Output<Node>& lhs, con
 
 shared_ptr<ov::Node> ov::op::util::RNNCellBase::clip(const Output<Node>& data) const {
     if (m_clip == 0.f) {
-        return data.get_node_shared_ptr();
+        return data.get_node()->shared_from_this();
     }
 
     return make_shared<ngraph::op::Clamp>(data, -m_clip, m_clip);

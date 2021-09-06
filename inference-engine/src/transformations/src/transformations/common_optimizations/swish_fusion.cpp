@@ -46,8 +46,8 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
         auto swish = std::make_shared<ngraph::opset4::Swish>(exp_input);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(sigmoid).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul).get_node_shared_ptr()},
+        ngraph::copy_runtime_info({pattern_to_output.at(sigmoid).get_node()->shared_from_this(),
+                                   pattern_to_output.at(mul).get_node()->shared_from_this()},
                                   swish);
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
@@ -73,7 +73,7 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         auto exp_input = pattern_to_output.at(input);
         auto beta_input = pattern_to_output.at(beta);
 
-        auto beta_constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(beta_input.get_node_shared_ptr());
+        auto beta_constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(beta_input.get_node()->shared_from_this());
         Output<Node> new_beta;
         if (beta_constant) {
             if (check_beta_value(beta_constant)) {
@@ -92,8 +92,8 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         auto swish = std::make_shared<ngraph::opset4::Swish>(exp_input, new_beta);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(sigmoid).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul).get_node_shared_ptr()},
+        ngraph::copy_runtime_info({pattern_to_output.at(sigmoid).get_node()->shared_from_this(),
+                                   pattern_to_output.at(mul).get_node()->shared_from_this()},
                                   swish);
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
@@ -121,7 +121,7 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node()->shared_from_this());
         if (!op::util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
@@ -129,13 +129,13 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         auto swish = std::make_shared<ngraph::opset4::Swish>(exp_input, pattern_to_output.at(beta));
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(beta).get_node_shared_ptr(),
-                                   pattern_to_output.at(mul).get_node_shared_ptr(),
-                                   pattern_to_output.at(neg).get_node_shared_ptr(),
-                                   pattern_to_output.at(exp).get_node_shared_ptr(),
-                                   pattern_to_output.at(add_constant).get_node_shared_ptr(),
-                                   pattern_to_output.at(add).get_node_shared_ptr(),
-                                   pattern_to_output.at(div).get_node_shared_ptr()},
+        ngraph::copy_runtime_info({pattern_to_output.at(beta).get_node()->shared_from_this(),
+                                   pattern_to_output.at(mul).get_node()->shared_from_this(),
+                                   pattern_to_output.at(neg).get_node()->shared_from_this(),
+                                   pattern_to_output.at(exp).get_node()->shared_from_this(),
+                                   pattern_to_output.at(add_constant).get_node()->shared_from_this(),
+                                   pattern_to_output.at(add).get_node()->shared_from_this(),
+                                   pattern_to_output.at(div).get_node()->shared_from_this()},
                                   swish);
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
@@ -161,7 +161,7 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         auto & pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto constant = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(add_constant).get_node()->shared_from_this());
         if (!op::util::has_constant_value<float>(constant, 1.0f)) {
             return false;
         }
@@ -169,11 +169,11 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         auto swish = std::make_shared<ngraph::opset4::Swish>(exp_input);
 
         swish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(neg).get_node_shared_ptr(),
-                                   pattern_to_output.at(exp).get_node_shared_ptr(),
-                                   pattern_to_output.at(add_constant).get_node_shared_ptr(),
-                                   pattern_to_output.at(add).get_node_shared_ptr(),
-                                   pattern_to_output.at(div).get_node_shared_ptr()},
+        ngraph::copy_runtime_info({pattern_to_output.at(neg).get_node()->shared_from_this(),
+                                   pattern_to_output.at(exp).get_node()->shared_from_this(),
+                                   pattern_to_output.at(add_constant).get_node()->shared_from_this(),
+                                   pattern_to_output.at(add).get_node()->shared_from_this(),
+                                   pattern_to_output.at(div).get_node()->shared_from_this()},
                                    swish);
         ngraph::replace_node(m.get_match_root(), swish);
         return true;

@@ -33,9 +33,9 @@ ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        auto min_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
-        auto div_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node()->shared_from_this());
+        auto min_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(min_constant).get_node()->shared_from_this());
+        auto div_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(div_constant).get_node()->shared_from_this());
 
         bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0)
                                         && op::util::has_constant_value<float>(min_const_value, 6.0)
@@ -48,14 +48,14 @@ ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
         auto hswish = std::make_shared<ngraph::opset7::HSwish>(x_output);
 
         hswish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({ pattern_to_output.at(add_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(add).get_node_shared_ptr(),
-                                    pattern_to_output.at(relu).get_node_shared_ptr(),
-                                    pattern_to_output.at(min_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(min).get_node_shared_ptr(),
-                                    pattern_to_output.at(mul).get_node_shared_ptr(),
-                                    pattern_to_output.at(div_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(div).get_node_shared_ptr(),
+        ngraph::copy_runtime_info({ pattern_to_output.at(add_constant).get_node()->shared_from_this(),
+                                    pattern_to_output.at(add).get_node()->shared_from_this(),
+                                    pattern_to_output.at(relu).get_node()->shared_from_this(),
+                                    pattern_to_output.at(min_constant).get_node()->shared_from_this(),
+                                    pattern_to_output.at(min).get_node()->shared_from_this(),
+                                    pattern_to_output.at(mul).get_node()->shared_from_this(),
+                                    pattern_to_output.at(div_constant).get_node()->shared_from_this(),
+                                    pattern_to_output.at(div).get_node()->shared_from_this(),
                                    },
                                   hswish);
         ngraph::replace_node(m.get_match_root(), hswish);
@@ -85,9 +85,9 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
-        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
-        auto min_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
-        auto mul_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node()->shared_from_this());
+        auto min_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(min_constant).get_node()->shared_from_this());
+        auto mul_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(mul_constant).get_node()->shared_from_this());
 
         bool valid_constant_values =  op::util::has_constant_value<float>(add_const_value, 3.0f)
                                         &&  op::util::has_constant_value<float>(min_const_value, 6.0f)
@@ -100,14 +100,14 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
         auto hswish = std::make_shared<ngraph::opset7::HSwish>(x_output);
 
         hswish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({ pattern_to_output.at(add_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(add).get_node_shared_ptr(),
-                                    pattern_to_output.at(relu).get_node_shared_ptr(),
-                                    pattern_to_output.at(min_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(min).get_node_shared_ptr(),
-                                    pattern_to_output.at(mul_first).get_node_shared_ptr(),
-                                    pattern_to_output.at(mul_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(mul_second).get_node_shared_ptr()
+        ngraph::copy_runtime_info({ pattern_to_output.at(add_constant).get_node()->shared_from_this(),
+                                    pattern_to_output.at(add).get_node()->shared_from_this(),
+                                    pattern_to_output.at(relu).get_node()->shared_from_this(),
+                                    pattern_to_output.at(min_constant).get_node()->shared_from_this(),
+                                    pattern_to_output.at(min).get_node()->shared_from_this(),
+                                    pattern_to_output.at(mul_first).get_node()->shared_from_this(),
+                                    pattern_to_output.at(mul_constant).get_node()->shared_from_this(),
+                                    pattern_to_output.at(mul_second).get_node()->shared_from_this()
                                    },
                                   hswish);
         ngraph::replace_node(m.get_match_root(), hswish);
@@ -129,8 +129,8 @@ ngraph::pass::HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto hsigmoid = pattern_to_output.at(hsigmoid_pattern).get_node_shared_ptr();
-        auto mul = pattern_to_output.at(mul_pattern).get_node_shared_ptr();
+        auto hsigmoid = pattern_to_output.at(hsigmoid_pattern).get_node()->shared_from_this();
+        auto mul = pattern_to_output.at(mul_pattern).get_node()->shared_from_this();
 
         auto hswish = std::make_shared<ngraph::opset7::HSwish>(pattern_to_output.at(input));
         hswish->set_friendly_name(mul->get_friendly_name());

@@ -238,7 +238,7 @@ TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweenS
         auto out = ti->get_concatenated_slices(result, 0, 1, 1, -1, 1);
 
         return std::make_shared<Function>(
-            NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
+            NodeVector{out.get_node()->shared_from_this()}, ParameterVector{X, Y});
     };
     const auto f1 = createFunc(element::f32);
     const auto f2 = createFunc(element::f16);
@@ -275,7 +275,7 @@ TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweenI
         auto out = ti->get_concatenated_slices(result, 0, 1, 1, -1, 1);
 
         return std::make_shared<Function>(
-            NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
+            NodeVector{out.get_node()->shared_from_this()}, ParameterVector{X, Y});
     };
     const auto f1 = createFunc(element::f32);
 
@@ -311,7 +311,7 @@ TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweent
         auto out = ti->get_concatenated_slices(result, 0, 1, 1, -1, 1);
 
         auto fn = std::make_shared<Function>(
-            NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
+            NodeVector{out.get_node()->shared_from_this()}, ParameterVector{X, Y});
 
         /// <<
         auto&& result_out = result->output(0);

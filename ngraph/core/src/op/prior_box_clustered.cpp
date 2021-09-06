@@ -57,7 +57,7 @@ void op::PriorBoxClustered::validate_and_infer_types() {
 
     set_input_is_relevant_to_shape(0);
 
-    if (auto const_shape = get_constant_from_source(input_value(0).get_node_shared_ptr())) {
+    if (auto const_shape = get_constant_from_source(input_value(0).get_node()->shared_from_this())) {
         NODE_VALIDATION_CHECK(this,
                               shape_size(const_shape->get_shape()) == 2,
                               "Layer shape must have rank 2",

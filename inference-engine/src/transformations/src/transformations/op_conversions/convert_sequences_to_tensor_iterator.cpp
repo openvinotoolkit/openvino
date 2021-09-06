@@ -102,7 +102,7 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         auto max_seq_len = X.get_shape().at(1);
-        bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
+        bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node()->shared_from_this(), max_seq_len);
 
         std::shared_ptr<Node> reverse_seq_before;
         if (is_reverse && enable_mask) {
@@ -261,7 +261,7 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         auto max_seq_len = X.get_shape().at(1);
-        bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
+        bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node()->shared_from_this(), max_seq_len);
 
         std::shared_ptr<Node> reverse_seq_before;
         if (is_reverse && enable_mask) {
@@ -422,7 +422,7 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         auto max_seq_len = X.get_shape().at(1);
-        bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
+        bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node()->shared_from_this(), max_seq_len);
 
         std::shared_ptr<Node> reverse_seq_before;
         if (is_reverse && enable_mask) {

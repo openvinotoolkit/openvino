@@ -11,7 +11,7 @@ namespace vpu {
 SliceConfiguration sliceConvolution(const ngraph::Node& node) {
     VPU_THROW_UNLESS(node.get_input_size() == 2,  "Expecting operation {} to have {} inputs, got {}", node, 2, node.get_input_size());
     VPU_THROW_UNLESS(node.get_output_size() == 1, "Expecting operation {} to have {} outputs, got {}", node, 1, node.get_output_size());
-    VPU_THROW_UNLESS(ngraph::op::is_constant(node.input_value(1).get_node_shared_ptr()), "Expecting operation {} to have constant kernel, got {}",
+    VPU_THROW_UNLESS(ngraph::op::is_constant(node.input_value(1).get_node()->shared_from_this()), "Expecting operation {} to have constant kernel, got {}",
         node, node.input_value(1));
 
     const auto& data = node.input_value(0);

@@ -24,7 +24,7 @@ bool isValidRangesInputs(const std::shared_ptr<ngraph::opset1::FakeQuantize> &fq
     if (!greater_equal->constant_fold(result, greater_equal->input_values()))
         return false;
 
-    auto res_node = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(result[0].get_node_shared_ptr());
+    auto res_node = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(result[0].get_node()->shared_from_this());
 
     const std::vector<bool> comp_result = res_node->cast_vector<bool>();
 
@@ -42,7 +42,8 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
         auto &pattern_to_output = m.get_pattern_value_map();
-        const auto fake_quantize_node = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(pattern_to_output.at(fake_quantize).get_node_shared_ptr());
+        const auto fake_quantize_node =
+            std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(pattern_to_output.at(fake_quantize).get_node()->shared_from_this());
 
         if (fake_quantize_node == nullptr || transformation_callback(fake_quantize_node) || !isValidRangesInputs(fake_quantize_node)) {
             return false;
@@ -59,7 +60,7 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         if (input_type != input_low.get_element_type()) {
             input_type = input_low.get_element_type();
             data = std::make_shared<ngraph::opset1::Convert>(data, input_type);
-            decomp_ops.push_back(data.get_node_shared_ptr());
+            decomp_ops.push_back(data.get_node()->shared_from_this());
         }
 
         // if we set input_low or input_high in formula we got output = output_low and output = output_high respectively

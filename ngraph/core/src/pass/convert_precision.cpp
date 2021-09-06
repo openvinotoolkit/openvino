@@ -108,7 +108,7 @@ bool convert_precision(pass::PassBase& pass,
         for (auto& node : ops) {
             for (auto& input : node->inputs()) {
                 if (auto const_node =
-                        std::dynamic_pointer_cast<opset4::Constant>(input.get_source_output().get_node_shared_ptr())) {
+                        std::dynamic_pointer_cast<opset4::Constant>(input.get_source_output().get_node()->shared_from_this())) {
                     const_to_internal_output[const_node.get()].emplace_back(input);
                 }
             }
@@ -197,7 +197,7 @@ bool convert_precision(pass::PassBase& pass,
                     if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node)) {
                         // WA for topK, dont remove fake convert
                         if (convert->input(0).get_element_type() == convert->get_convert_element_type() &&
-                            convert->input_value(0).get_node_shared_ptr()->get_output_size() == 1) {
+                            convert->input_value(0).get_node()->shared_from_this()->get_output_size() == 1) {
                             replace_output_update_name(convert->output(0), convert->input_value(0));
                         }
                     }

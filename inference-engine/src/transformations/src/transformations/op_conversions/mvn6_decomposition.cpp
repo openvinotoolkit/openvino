@@ -22,7 +22,7 @@ ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto mvn_node = std::dynamic_pointer_cast<ngraph::opset6::MVN>(pattern_to_output.at(mvn).get_node_shared_ptr());
+        auto mvn_node = std::dynamic_pointer_cast<ngraph::opset6::MVN>(pattern_to_output.at(mvn).get_node()->shared_from_this());
 
         if (mvn_node == nullptr || transformation_callback(mvn_node)) {
             return false;

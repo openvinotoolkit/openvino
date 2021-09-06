@@ -75,7 +75,7 @@ private:
             throw ngraph::ngraph_error("Unsupported element type");
         }
 
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{eltwise.get_node_shared_ptr()}, ngraph::ParameterVector{input});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{eltwise.get_node()->shared_from_this()}, ngraph::ParameterVector{input});
     }
 
     std::shared_ptr<ngraph::Function> get_reference_function(const InputShape&   input_shape,
@@ -95,7 +95,7 @@ private:
             if (eltwise_shape.size() != 1) {
                 const_node = ngraph::op::util::reshapeTo(const_node, ngraph::Shape{ngraph::shape_size(eltwise_shape)});
             }
-            conv = conv.get_node_shared_ptr()->copy_with_new_inputs({input, weights, const_node});
+            conv = conv.get_node()->shared_from_this()->copy_with_new_inputs({input, weights, const_node});
         } else if (eltwise_type == ngraph::opset5::Multiply::type_info) {
             if (eltwise_shape.size() > 1) {
                 const_node = ngraph::op::util::reshapeTo(const_node, ngraph::Shape{ngraph::shape_size(eltwise_shape)});
@@ -103,12 +103,12 @@ private:
             ngraph::Shape const_shape(weights_shape.size(), 1);
             const_shape[0] = weights_shape[0];
             weights = std::make_shared<ngraph::opset5::Multiply>(weights, ngraph::op::util::reshapeTo(const_node, const_shape));
-            conv = conv.get_node_shared_ptr()->copy_with_new_inputs({input, weights});
+            conv = conv.get_node()->shared_from_this()->copy_with_new_inputs({input, weights});
         } else {
             throw ngraph::ngraph_error("Unsupported element type");
         }
 
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv.get_node_shared_ptr()}, ngraph::ParameterVector{input});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv.get_node()->shared_from_this()}, ngraph::ParameterVector{input});
     }
 };
 

@@ -28,7 +28,7 @@ const PartialShape& Input<Node>::get_partial_shape() const {
 
 Output<Node> Input<Node>::get_source_output() const {
     auto& output_descriptor = m_node->m_inputs.at(m_index).get_output();
-    return Output<Node>(output_descriptor.get_node(), output_descriptor.get_index());
+    return Output<Node>(output_descriptor.get_node().get(), output_descriptor.get_index());
 }
 
 descriptor::Tensor& Input<Node>::get_tensor() const {
@@ -48,7 +48,8 @@ bool Input<Node>::get_is_relevant_to_values() const {
 }
 
 void Input<Node>::replace_source_output(const Output<Node>& new_source_output) const {
-    m_node->m_inputs.at(m_index).replace_output(new_source_output.get_node_shared_ptr(), new_source_output.get_index());
+    m_node->m_inputs.at(m_index).replace_output(new_source_output.get_node()->shared_from_this(),
+                                                new_source_output.get_index());
 }
 
 bool Input<Node>::operator==(const Input& other) const {
@@ -104,7 +105,7 @@ const PartialShape& Input<const Node>::get_partial_shape() const {
 
 Output<Node> Input<const Node>::get_source_output() const {
     auto& output_descriptor = m_node->m_inputs.at(m_index).get_output();
-    return Output<Node>(output_descriptor.get_node(), output_descriptor.get_index());
+    return Output<Node>(output_descriptor.get_node().get(), output_descriptor.get_index());
 }
 
 descriptor::Tensor& Input<const Node>::get_tensor() const {

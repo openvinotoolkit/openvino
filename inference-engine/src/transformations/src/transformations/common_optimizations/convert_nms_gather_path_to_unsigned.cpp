@@ -100,7 +100,7 @@ public:
                 return false;
 
             auto out_type = (indices.get_element_type() == element::i64 ?  element::u64 : element::u32);
-            auto existing_convert = dynamic_pointer_cast<opset8::Convert>(indices.get_node_shared_ptr());
+            auto existing_convert = dynamic_pointer_cast<opset8::Convert>(indices.get_node()->shared_from_this());
             if (existing_convert && indices.get_target_inputs().size() == 1) {
                 existing_convert->set_convert_element_type(out_type);
                 existing_convert->validate_and_infer_types();

@@ -35,11 +35,11 @@ static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> co
 }
 
 static bool VerifyBias(std::shared_ptr<ngraph::opset7::Add> bias, const size_t& filter_count) {
-    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(0).get_node_shared_ptr());
+    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(0).get_node()->shared_from_this());
 
     // We need to check both inputs of Add when looking for constant
     if (!add_const)
-        add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(1).get_node_shared_ptr());
+        add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(1).get_node()->shared_from_this());
 
     // The add may be a normal add not convolution bias, then we just go further
     return (add_const && shape_size(add_const->get_shape()) == filter_count);
@@ -235,10 +235,10 @@ ConvertPadded2ValidConv::ConvertPadded2ValidConv() {
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto bias_it = pattern_map.find(bias);
-        auto bias_node = (bias_it == std::end(pattern_map) ? nullptr : bias_it->second.get_node_shared_ptr());
+        auto bias_node = (bias_it == std::end(pattern_map) ? nullptr : bias_it->second.get_node()->shared_from_this());
 
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), bias_node);
+        return Convert(pattern_map.at(leading_transpose).get_node()->shared_from_this(), pattern_map.at(conv).get_node()->shared_from_this(),
+            pattern_map.at(trailing_transpose).get_node()->shared_from_this(), bias_node);
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);

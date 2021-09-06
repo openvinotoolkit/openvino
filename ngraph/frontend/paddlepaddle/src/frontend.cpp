@@ -88,7 +88,7 @@ bool normalize_framework_node(const std::shared_ptr<PDPDFrameworkNode>& node,
     FRONT_END_OP_CONVERSION_CHECK(creator_it != CREATORS_MAP.end(), "No creator found for ", type, " node.");
 
     auto new_node_outputs = creator_it->second(NodeContext(node->get_decoder(), node->get_named_inputs()));
-    auto new_node = new_node_outputs.begin()->second[0].get_node_shared_ptr();
+    auto new_node = new_node_outputs.begin()->second[0].get_node()->shared_from_this();
     new_node->set_friendly_name(node->get_friendly_name());
     auto node_outputs = node->return_named_outputs();
 
@@ -158,7 +158,7 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
             if (!named_outputs.empty()) {
                 // set layer name by the name of first output var
                 const auto& tensor_name = op_desc.outputs().begin()->arguments()[0];
-                auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
+                auto node = named_outputs.begin()->second[0].get_node()->shared_from_this();
                 node->set_friendly_name(tensor_name);
 
                 const auto& out_ports = op_desc.outputs();
@@ -186,7 +186,7 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
     for (const auto& _outp_place : model->get_outputs()) {
         const auto& outp_place = std::dynamic_pointer_cast<TensorPlacePDPD>(_outp_place);
         auto var = outp_place->get_desc();
-        auto input_var_name = var.name();
+        const auto& input_var_name = var.name();
         auto result = std::make_shared<Result>(nodes_dict.at(input_var_name));
         result->set_friendly_name(input_var_name + "/Result");
         result_nodes.push_back(result);
@@ -284,7 +284,7 @@ void FrontEndPDPD::convert(std::shared_ptr<ngraph::Function> partiallyConverted)
                                            pdpd::get_supported_ops());
         }
     }
-    for (auto result : partiallyConverted->get_results()) {
+    for (const auto& result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
     }
 }
@@ -324,7 +324,7 @@ extern "C" PDPD_API FrontEndVersion GetAPIVersion() {
 }
 
 extern "C" PDPD_API void* GetFrontEndData() {
-    FrontEndPluginInfo* res = new FrontEndPluginInfo();
+    auto* res = new FrontEndPluginInfo();
     res->m_name = "paddle";
     res->m_creator = []() {
         return std::make_shared<FrontEndPDPD>();

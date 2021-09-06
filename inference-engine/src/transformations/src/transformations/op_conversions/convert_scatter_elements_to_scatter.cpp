@@ -29,8 +29,8 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto scatter = m.get_match_root();
-        auto broadcast = scatter->input_value(1).get_node_shared_ptr();
-        auto axis_const = std::dynamic_pointer_cast<ngraph::opset3::Constant>(scatter->input_value(3).get_node_shared_ptr());
+        auto broadcast = scatter->input_value(1).get_node()->shared_from_this();
+        auto axis_const = std::dynamic_pointer_cast<ngraph::opset3::Constant>(scatter->input_value(3).get_node()->shared_from_this());
 
         if (!axis_const) {
             return false;
@@ -174,7 +174,7 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
             if (indices_shape != indices_new_shape) {
                 indices_input = std::make_shared<ngraph::opset3::Reshape>(indices_input,
                         opset3::Constant::create(element::i64, Shape{indices_new_shape.size()}, indices_new_shape), false);
-                new_ops.push_back(indices_input.get_node_shared_ptr());
+                new_ops.push_back(indices_input.get_node()->shared_from_this());
             }
         } else {
             // Tight constrain for dynamic case:
@@ -195,7 +195,7 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
                 std::iota(squeeze_axes.begin(), squeeze_axes.end(), 1);
                 indices_input = std::make_shared<ngraph::opset3::Squeeze>(indices_input,
                         opset3::Constant::create(element::i64, Shape{squeeze_axes.size()}, squeeze_axes));
-                new_ops.push_back(indices_input.get_node_shared_ptr());
+                new_ops.push_back(indices_input.get_node()->shared_from_this());
             }
         }
 

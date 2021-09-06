@@ -100,7 +100,7 @@ private:
         const auto output = dequantizationInput.get_source_output();
         auto attribute = ngraph::pass::low_precision::getAttribute<AttributeType>(output.get_node()->shared_from_this());
         if (attribute == nullptr) {
-            attribute = ngraph::pass::low_precision::getAttribute<AttributeType>(output.get_node_shared_ptr());
+            attribute = ngraph::pass::low_precision::getAttribute<AttributeType>(output.get_node()->shared_from_this());
         }
         return attribute;
     }

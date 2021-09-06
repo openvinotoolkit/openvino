@@ -22,7 +22,7 @@ ngraph::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
             return false;
         }
 
-        auto axes_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(gather->input_value(2).get_node_shared_ptr());
+        auto axes_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(gather->input_value(2).get_node()->shared_from_this());
         if (!axes_constant) {
             return false;
         }
@@ -43,7 +43,7 @@ ngraph::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
         if (indices_rank.get_length() == 0) {
             squeeze_gather_output = true;
             indices = std::make_shared<ngraph::opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
-            new_ops.push_back(indices.get_node_shared_ptr());
+            new_ops.push_back(indices.get_node()->shared_from_this());
         }
 
         auto gather_ie = std::make_shared<ngraph::op::GatherIE>(gather->input_value(0), indices, axis);

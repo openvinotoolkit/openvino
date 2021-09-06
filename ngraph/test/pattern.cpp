@@ -82,10 +82,10 @@ public:
 
             auto pattern_map = m.get_pattern_map();
 
-            size_t const_node_index = m.get_match_root()->input_value(0).get_node_shared_ptr() == pattern_map[pattern];
+            size_t const_node_index = m.get_match_root()->input_value(0).get_node()->shared_from_this() == pattern_map[pattern];
             auto const_node =
-                ov::as_type_ptr<op::Constant>(m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
-            auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
+                ov::as_type_ptr<op::Constant>(m.get_match_root()->input_value(const_node_index).get_node()->shared_from_this());
+            auto second_node = m.get_match_root()->input_value(const_node_index).get_node()->shared_from_this();
             NGRAPH_DEBUG << "second_node = " << second_node->get_name()
                          << " , pattern = " << pattern_map[pattern]->get_name();
 
@@ -126,10 +126,10 @@ public:
 
             auto pattern_map = m.get_pattern_map();
 
-            size_t const_node_index = m.get_match_root()->input_value(0).get_node_shared_ptr() == pattern_map[pattern];
+            size_t const_node_index = m.get_match_root()->input_value(0).get_node()->shared_from_this() == pattern_map[pattern];
             auto const_node =
-                ov::as_type_ptr<op::Constant>(m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
-            auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
+                ov::as_type_ptr<op::Constant>(m.get_match_root()->input_value(const_node_index).get_node()->shared_from_this());
+            auto second_node = m.get_match_root()->input_value(const_node_index).get_node()->shared_from_this();
             NGRAPH_DEBUG << "second_node = " << second_node->get_name()
                          << " , pattern = " << pattern_map[pattern]->get_name();
 
@@ -203,7 +203,7 @@ TEST(pattern, graph_rewrite) {
         auto sum = make_shared<op::v1::Add>(a, iconst0);
         auto graph = make_shared<op::v1::Add>(b, sum);
         run_passes(pass_manager, graph, {a, b});
-        ASSERT_EQ(graph->input_value(1).get_node_shared_ptr(), a);
+        ASSERT_EQ(graph->input_value(1).get_node()->shared_from_this(), a);
         ASSERT_EQ(graph->input_value(1), a->output(0));           // graph's input points to a's output
         ASSERT_TRUE(sum->output(0).get_target_inputs().empty());  // graph's input is removed from sum's target inptus
         ASSERT_TRUE(a->get_output_target_inputs(0).count(graph->input(1)));  // a's output feeds into graph's input
@@ -216,7 +216,7 @@ TEST(pattern, graph_rewrite) {
         auto mul = make_shared<op::v1::Multiply>(a, iconst1);
         auto graph = make_shared<op::v1::Add>(b, mul);
         run_passes(pass_manager, graph, {a, b});
-        ASSERT_EQ(graph->input_value(1).get_node_shared_ptr(), a);
+        ASSERT_EQ(graph->input_value(1).get_node()->shared_from_this(), a);
         ASSERT_EQ(graph->input_value(1), a->output(0));           // graph's input points to a's output
         ASSERT_TRUE(mul->output(0).get_target_inputs().empty());  // graph's input is removed from sum's target inputs
         ASSERT_TRUE(a->get_output_target_inputs(0).count(graph->input(1)));  // a's output feeds into graph's input
@@ -230,7 +230,7 @@ TEST(pattern, graph_rewrite) {
         multiply = make_shared<op::v1::Multiply>(make_shared<op::v1::Multiply>(multiply, iconst1), iconst1);
         auto graph = make_shared<op::v1::Add>(multiply, b);
         run_passes(pass_manager, graph, {a, b});
-        ASSERT_EQ(graph->input_value(0).get_node_shared_ptr(), a);
+        ASSERT_EQ(graph->input_value(0).get_node()->shared_from_this(), a);
         ASSERT_EQ(graph->input_value(0), a->output(0));                      // graph's input points to a's output
         ASSERT_TRUE(a->get_output_target_inputs(0).count(graph->input(0)));  // a's output feeds into graph's input
     }
@@ -243,7 +243,7 @@ TEST(pattern, graph_rewrite) {
         auto mul = make_shared<op::v1::Multiply>(make_shared<op::v1::Add>(a, iconst0), iconst1);
         auto graph = make_shared<op::v1::Add>(b, make_shared<op::v1::Add>(iconst0, mul));
         run_passes(pass_manager, graph, {a, b});
-        ASSERT_EQ(graph->input_value(1).get_node_shared_ptr(), a);
+        ASSERT_EQ(graph->input_value(1).get_node()->shared_from_this(), a);
         ASSERT_EQ(graph->input_value(1), a->output(0));                      // graph's input points to a's output
         ASSERT_TRUE(a->get_output_target_inputs(0).count(graph->input(1)));  // a's output feeds into graph's input
     }
@@ -256,7 +256,7 @@ TEST(pattern, graph_rewrite) {
         mul = make_shared<op::v1::Multiply>(iconst1, make_shared<op::v1::Multiply>(iconst1, mul));
         auto graph = make_shared<op::v1::Add>(b, mul);
         run_passes(pass_manager, graph, {a, b});
-        ASSERT_EQ(graph->input_value(1).get_node_shared_ptr(), a);
+        ASSERT_EQ(graph->input_value(1).get_node()->shared_from_this(), a);
         ASSERT_EQ(graph->input_value(1), a->output(0));                      // graph's input points to a's output
         ASSERT_TRUE(a->get_output_target_inputs(0).count(graph->input(1)));  // a's output feeds into graph's input
     }
@@ -671,12 +671,12 @@ TEST(pattern, recurrent_graph_rewrite) {
         auto f = std::make_shared<Function>(ngraph::NodeVector{graph}, ParameterVector{a, b});
         pass_manager.run_passes(f);
 
-        auto left_abs = graph->input_value(0).get_node_shared_ptr();
-        auto add_a = left_abs->input_value(0).get_node_shared_ptr();
+        auto left_abs = graph->input_value(0).get_node()->shared_from_this();
+        auto add_a = left_abs->input_value(0).get_node()->shared_from_this();
         ASSERT_EQ(add_a, a);
 
-        auto right_abs = graph->input_value(1).get_node_shared_ptr();
-        auto add_b = right_abs->input_value(0).get_node_shared_ptr();
+        auto right_abs = graph->input_value(1).get_node()->shared_from_this();
+        auto add_b = right_abs->input_value(0).get_node()->shared_from_this();
         ASSERT_EQ(add_b, b);
     }
 }
