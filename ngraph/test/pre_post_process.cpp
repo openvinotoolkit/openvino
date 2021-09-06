@@ -53,14 +53,11 @@ TEST(pre_post_process, convert_element_type_and_scale) {
     auto f = create_simple_function(element::i8, ngraph::Shape{1, 3, 2, 2});
     f = PrePostProcessor()
             .in(InputInfo()
-                .tensor(InputTensorInfo()
-                    .set_element_type(element::i16))
-                .preprocess(PreProcessSteps()
-                    .convert_element_type(element::f32)
-                    .scale(2.f)
-                    .convert_element_type(element::i8)
-                )
-            )
+                    .tensor(InputTensorInfo().set_element_type(element::i16))
+                    .preprocess(PreProcessSteps()
+                                    .convert_element_type(element::f32)
+                                    .scale(2.f)
+                                    .convert_element_type(element::i8)))
             .build(f);
 
     auto result = std::make_shared<HostTensor>();
@@ -74,7 +71,7 @@ TEST(pre_post_process, convert_element_type_and_scale) {
     ASSERT_EQ(f->get_output_element_type(0), element::i8);
 }
 
-//TEST(pre_post_process, convert_element_type_from_unknown) {
+// TEST(pre_post_process, convert_element_type_from_unknown) {
 //    auto f = create_simple_function(element::i32, ngraph::Shape{1, 3, 224, 224});
 //    ASSERT_ANY_THROW(f = PrePostProcessor()
 //                             .in(InputInfo()
@@ -88,12 +85,8 @@ TEST(pre_post_process, convert_element_type_no_match) {
     auto f = create_simple_function(element::i32, ngraph::Shape{1, 3, 224, 224});
     ASSERT_ANY_THROW(f = PrePostProcessor()
                              .in(InputInfo()
-                                .tensor(InputTensorInfo()
-                                    .set_element_type(element::i32))
-                                 .preprocess(PreProcessSteps()
-                                    .convert_element_type(element::f32)
-                                    .scale(2.0f))
-                             )
+                                     .tensor(InputTensorInfo().set_element_type(element::i32))
+                                     .preprocess(PreProcessSteps().convert_element_type(element::f32).scale(2.0f)))
                              .build(f););
 }
 
@@ -101,14 +94,8 @@ TEST(pre_post_process, tensor_element_type_and_scale) {
     auto f = create_simple_function(element::i8, ngraph::Shape{1, 3, 1, 1});
     f = PrePostProcessor()
             .in(InputInfo()
-                .tensor(InputTensorInfo()
-                    .set_element_type(element::f32)
-                )
-                .preprocess(PreProcessSteps()
-                    .scale(2.0f)
-                    .convert_element_type(element::i8)
-                )
-            )
+                    .tensor(InputTensorInfo().set_element_type(element::f32))
+                    .preprocess(PreProcessSteps().scale(2.0f).convert_element_type(element::i8)))
             .build(f);
 
     auto result = std::make_shared<HostTensor>();
@@ -125,14 +112,8 @@ TEST(pre_post_process, mean_scale_vector_network_layout) {
     ASSERT_EQ(f->get_output_element_type(0), element::f32);
     f = PrePostProcessor()
             .in(InputInfo()
-                .preprocess(PreProcessSteps()
-                    .mean({1.f, 2.f, 3.f})
-                    .scale({2.f, 3.f, 4.f})
-                )
-                .network(InputNetworkInfo()
-                    .set_layout(PartialLayout("NCHW"))
-                )
-            )
+                    .preprocess(PreProcessSteps().mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f}))
+                    .network(InputNetworkInfo().set_layout(PartialLayout("NCHW"))))
             .build(f);
 
     auto result = std::make_shared<HostTensor>();
@@ -143,18 +124,19 @@ TEST(pre_post_process, mean_scale_vector_network_layout) {
 }
 
 TEST(pre_post_process, scale_vector_tensor_layout) {
-    auto f = create_simple_function(element::f32, ngraph::PartialShape{Dimension::dynamic(), 4, 4, 3});
+    auto f = create_simple_function(element::f32, ngraph::PartialShape{Dimension::dynamic(), 3, 1, 3});
     ASSERT_EQ(f->get_output_element_type(0), element::f32);
     f = PrePostProcessor()
             .in(InputInfo()
-                .tensor(InputTensorInfo()
-                    .set_layout(PartialLayout("NHWC"))
-                )
-                .preprocess(PreProcessSteps()
-                    .scale({0.1f, 0.2f, 0.3f})
-                )
-            )
+                    .tensor(InputTensorInfo().set_layout(PartialLayout("NHWC")))
+                    .preprocess(PreProcessSteps().mean({1.f, 2.f, 3.f})))
             .build(f);
+    auto result = std::make_shared<HostTensor>();
+    f->evaluate(
+        {result},
+        {make_host_tensor<ngraph::element::f32>(ngraph::Shape{1, 3, 1, 3}, {1., 2., 3., 4., 5., 6., 7., 8., 9.})});
+    auto result_val = read_vector<float>(result);
+    EXPECT_TRUE(all_close_f(std::vector<float>{0., 0., 0., 3., 3., 3., 6., 6., 6.}, result_val));
 }
 
 TEST(pre_post_process, scale_vector_no_channels_layout) {
@@ -162,10 +144,7 @@ TEST(pre_post_process, scale_vector_no_channels_layout) {
     ASSERT_EQ(f->get_output_element_type(0), element::f32);
     ASSERT_ANY_THROW(f = PrePostProcessor()
                              .in(InputInfo()
-                                .tensor(InputTensorInfo()
-                                    .set_layout(PartialLayout("NHW?"))
-                     )
-                             .preprocess(PreProcessSteps()
-                                 .scale({0.1f, 0.2f, 0.3f})))
+                                     .tensor(InputTensorInfo().set_layout(PartialLayout("NHW?")))
+                                     .preprocess(PreProcessSteps().scale({0.1f, 0.2f, 0.3f})))
                              .build(f););
 }

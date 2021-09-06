@@ -265,8 +265,12 @@ InputTensorInfo&& InputTensorInfo::set_layout(const PartialLayout& layout) && {
     return std::move(*this);
 }
 
-ov::element::Type InputTensorInfo::get_element_type() const { return m_impl->m_type; }
-const PartialLayout& InputTensorInfo::get_layout() const { return m_impl->m_layout; }
+ov::element::Type InputTensorInfo::get_element_type() const {
+    return m_impl->m_type;
+}
+const PartialLayout& InputTensorInfo::get_layout() const {
+    return m_impl->m_layout;
+}
 
 //------------------------------------
 
@@ -335,7 +339,9 @@ InputNetworkInfo&& InputNetworkInfo::set_layout(const PartialLayout& layout) && 
     return std::move(*this);
 }
 
-const PartialLayout& InputNetworkInfo::get_layout() const { return m_impl->m_layout; }
+const PartialLayout& InputNetworkInfo::get_layout() const {
+    return m_impl->m_layout;
+}
 
 }  // namespace preprocess
 }  // namespace ov
