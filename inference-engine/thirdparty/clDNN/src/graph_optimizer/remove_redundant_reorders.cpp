@@ -359,7 +359,7 @@ void remove_redundant_reorders::run(program& p) {
             return;
 
         if (user_optimized_of_input(node) && node->get_output_layout().data_padding)
-            continue;
+            return;
 
         if (dep.is_type<input_layout>())
             return;
