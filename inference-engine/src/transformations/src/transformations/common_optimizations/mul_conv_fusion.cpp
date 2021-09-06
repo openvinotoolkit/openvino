@@ -55,6 +55,8 @@ ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
+        // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
+        // since that breaks low precision transformations
         if (is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
@@ -63,6 +65,10 @@ ngraph::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
 
         const auto& weights_shape = weights.get_shape();
         const auto& mul_const_shape = mul_const.get_shape();
+        // Check if mul_const if broadcastable to weights.
+        // Also if mul_const's rank matches weights rank and mul_const.shape[0] != 1
+        // then we can't fuse the multiply, since first dimension in mul_const corresponds to
+        // batch size, while first dimension in weights corresponds to output channel count
         if (op::util::check_for_broadcast(weights_shape, mul_const_shape) ||
             (weights_shape.size() == mul_const_shape.size() && mul_const_shape[0] != 1)) {
             return false;
@@ -102,6 +108,8 @@ ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
     matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
+        // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
+        // since that breaks low precision transformations
         if (is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
@@ -109,15 +117,19 @@ ngraph::pass::MultiplyGroupConvolutionFusion::MultiplyGroupConvolutionFusion() {
         std::shared_ptr<Node> mul_const = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
 
         const auto& weights_shape = weights.get_shape();
-        auto mul_const_shape = mul_const->get_shape();
         if (shape_size(mul_const->get_shape()) > 1) {
             auto mul_const_shape = mul_const->get_shape();
+            // extend mul_const_shape rank with unit dimensions
             if (weights_shape.size() - mul_const_shape.size() > 1)
                 mul_const_shape.insert(mul_const_shape.begin(), weights_shape.size() - mul_const_shape.size() - 1, 1);
+            // if mul_const.shape[0] != 1
+            // then we can't fuse the multiply, since first dimension in mul_const corresponds to
+            // batch size, while first dimension in weights corresponds to output channel count
             if (mul_const_shape[0] != 1)
                 return false;
             auto G = mul_const_shape[1] > 1 ? weights_shape[0] : 1;
             auto C = mul_const_shape[1] / G;
+            // Reshape mul_const from shape (1, C, H, W) to (G, 1, C / G, H, W) to match GroupConvolution weights format
             Shape new_shape{G, 1, C};
             std::copy(mul_const_shape.begin() + 2, mul_const_shape.end(), std::back_inserter(new_shape));
             if (op::util::check_for_broadcast(weights_shape, new_shape)) {
@@ -160,6 +172,8 @@ ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackprop
     matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
+        // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
+        // since that breaks low precision transformations
         if (is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
@@ -169,16 +183,21 @@ ngraph::pass::MultiplyConvolutionBackpropDataFusion::MultiplyConvolutionBackprop
 
         if (shape_size(mul_const->get_shape()) > 1) {
             auto mul_const_shape = mul_const->get_shape();
+            // extend mul_const_shape rank with unit dimensions
             if (weights_shape.size() > mul_const_shape.size())
                 mul_const_shape.insert(mul_const_shape.begin(), weights_shape.size() - mul_const_shape.size(), 1);
+            // Check if constant has following shape (1, C, 1, 1, ..)
+            // We can't fuse constants like (1, C, H, W) due to backprop nature of this convolution
+            // In backprop, weights pixels are applied to input differently than in fprop convolution
             for (size_t i = 0; i < mul_const_shape.size(); i++) {
                 if (i == 1)
                    continue;
                 if (mul_const_shape[i] != 1)
                     return false;
             }
+            // Reshape mul_const from shape (1, C, 1, 1) to (C, 1, 1, 1) to match ConvolutionBackpropData weights format
             Shape new_shape{mul_const_shape[1], 1};
-            std::copy(mul_const_shape.begin() + 2, mul_const_shape.end(), std::back_inserter(new_shape));
+            new_shape.insert(new_shape.end(), mul_const_shape.size() - 2, 1);
             if (op::util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }
@@ -219,6 +238,8 @@ ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvoluti
     matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
+        // Can't fuse Multiply to Convolution if that Multiply is part of dequantization subgraph
+        // since that breaks low precision transformations
         if (is_dequantization_subgraph(pattern_to_output.at(mul_pattern)))
             return false;
 
@@ -226,21 +247,24 @@ ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion::MultiplyGroupConvoluti
         std::shared_ptr<Node> mul_const = pattern_to_output.at(mul_const_pattern).get_node_shared_ptr();
 
         const auto& weights_shape = weights.get_shape();
-        auto mul_const_shape = mul_const->get_shape();
         if (shape_size(mul_const->get_shape()) > 1) {
             auto mul_const_shape = mul_const->get_shape();
+            // extend mul_const_shape rank with unit dimensions
             if (weights_shape.size() - mul_const_shape.size() > 1)
                 mul_const_shape.insert(mul_const_shape.begin(), weights_shape.size() - mul_const_shape.size() - 1, 1);
+            // We can't fuse constants like (1, C, H, W) due to backprop nature of this convolution
+            // In backprop, weights pixels are applied to input differently than in fprop convolution
             for (size_t i = 0; i < mul_const_shape.size(); i++) {
                 if (i == 1)
                    continue;
                 if (mul_const_shape[i] != 1)
                     return false;
             }
+            // Reshape mul_const from shape (1, C, 1, 1) to (G, C / G, 1, 1, 1) to match GroupConvolutionBackpropData weights format
             auto G = mul_const_shape[1] > 1 ? weights_shape[0] : 1;
             auto C = mul_const_shape[1] / G;
             Shape new_shape{G, C, 1};
-            std::copy(mul_const_shape.begin() + 2, mul_const_shape.end(), std::back_inserter(new_shape));
+            new_shape.insert(new_shape.end(), mul_const_shape.size() - 2, 1);
             if (op::util::check_for_broadcast(weights_shape, new_shape)) {
                 return false;
             }

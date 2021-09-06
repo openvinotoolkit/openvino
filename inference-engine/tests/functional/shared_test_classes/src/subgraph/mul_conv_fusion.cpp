@@ -64,11 +64,58 @@ void MulConvFusion::SetUp() {
     manager.run_passes(cloned_function);
 
     bool functions_equal = false;
-    std::tie(functions_equal, std::ignore) = compare_functions(function, cloned_function, true);
     if (!is_negative) {
-        ASSERT_EQ(cloned_function->get_ops().size(), 4);
-        ASSERT_FALSE(functions_equal);
+        auto param = std::make_shared<ngraph::opset8::Parameter>(precision, input_shape);
+        ngraph::Shape strides(spatial_dims, 1);
+        std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
+        std::shared_ptr<ngraph::Node> conv;
+        if (conv_type == ngraph::opset8::Convolution::type_info) {
+            weights = std::make_shared<ngraph::opset8::Multiply>(weights, mul_const);
+            weights = ngraph::get_constant_from_source(weights);
+            ASSERT_NE(nullptr, weights);
+            conv = std::make_shared<ngraph::opset8::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
+        } else if (conv_type == ngraph::opset8::GroupConvolution::type_info) {
+            const_shape.insert(const_shape.begin(), weights_shape.size() - const_shape.size(), 1);
+            auto G = const_shape[2] > 1 ? weights_shape[0] : 1;
+            const_shape[0] = G;
+            const_shape[2] /= G;
+            auto reshape = std::make_shared<ngraph::opset8::Reshape>(mul_const,
+                    ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{const_shape.size()}, const_shape), false);
+            weights = std::make_shared<ngraph::opset8::Multiply>(weights, reshape);
+            weights = ngraph::get_constant_from_source(weights);
+            ASSERT_NE(nullptr, weights);
+            conv = std::make_shared<ngraph::opset8::GroupConvolution>(param, weights, strides, pad_begin, pad_end, strides);
+        } else if (conv_type == ngraph::opset8::ConvolutionBackpropData::type_info) {
+            const_shape.insert(const_shape.begin(), weights_shape.size() - const_shape.size(), 1);
+            const_shape[0] = const_shape[1];
+            const_shape[1] = 1;
+            auto reshape = std::make_shared<ngraph::opset8::Reshape>(mul_const,
+                    ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{const_shape.size()}, const_shape), false);
+            weights = std::make_shared<ngraph::opset8::Multiply>(weights, reshape);
+            weights = ngraph::get_constant_from_source(weights);
+            ASSERT_NE(nullptr, weights);
+            conv = std::make_shared<ngraph::opset8::ConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
+        } else if (conv_type == ngraph::opset8::GroupConvolutionBackpropData::type_info) {
+            const_shape.insert(const_shape.begin(), weights_shape.size() - const_shape.size(), 1);
+            auto G = const_shape[2] > 1 ? weights_shape[0] : 1;
+            const_shape[0] = G;
+            const_shape[1] = const_shape[2] / G;
+            const_shape[2] = 1;
+            auto reshape = std::make_shared<ngraph::opset8::Reshape>(mul_const,
+                    ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{const_shape.size()}, const_shape), false);
+            weights = std::make_shared<ngraph::opset8::Multiply>(weights, reshape);
+            weights = ngraph::get_constant_from_source(weights);
+            ASSERT_NE(nullptr, weights);
+            conv = std::make_shared<ngraph::opset8::GroupConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
+        } else {
+            throw ngraph::ngraph_error("Unsupported type");
+        }
+        auto reference_function = std::make_shared<ngraph::Function>(ngraph::OutputVector{conv}, ngraph::ParameterVector{param});
+        std::tie(functions_equal, std::ignore) = compare_functions(cloned_function, reference_function, true);
+        ASSERT_TRUE(functions_equal);
     } else {
+        auto reference_function = ngraph::clone_function(*function);
+        std::tie(functions_equal, std::ignore) = compare_functions(cloned_function, reference_function, true);
         ASSERT_TRUE(functions_equal);
     }
 }
