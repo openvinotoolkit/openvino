@@ -119,6 +119,8 @@ void op::v8::Slice::validate_and_infer_types() {
             auto stop = stops[i];
             auto step = steps[i];
 
+            NODE_VALIDATION_CHECK(this, step != 0, "'step' value can't be zero!");
+
             const auto& axis_dim = data_shape[norm_axis];
             if (axis_dim.is_dynamic()) {
                 if (start < 0 || stop < 0) {  // Can't be normalized
