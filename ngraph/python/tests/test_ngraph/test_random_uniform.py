@@ -1,10 +1,8 @@
 import ngraph as ng
 import numpy as np
-from tests import xfail_issue_56596
 from tests.runtime import get_runtime
 
 
-@xfail_issue_56596
 def test_random_uniform():
     runtime = get_runtime()
     input_tensor = ng.constant(np.array([2, 4, 3], dtype=np.int32))

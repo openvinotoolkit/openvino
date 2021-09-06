@@ -152,5 +152,3 @@ skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with
 xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
-
-xfail_issue_56596 = xfail_test(reason="RandomUniform test requires reference implementation.")
