@@ -9,6 +9,7 @@
 
 #include "gna2_model_debug_log.hpp"
 #include "gna2-model-api.h"
+#include "gna_device.hpp"
 
 #include <cstdint>
 #include <fstream>
@@ -335,11 +336,11 @@ void DumpPwl(std::ostream& dumpFile, const Gna2Tensor& activation) {
         double a = static_cast<double>(segments[k].Slope) / factor;
         double b = static_cast<double>(segments[k].yBase) - ((static_cast<double>(B) * segments[k].Slope) / factor);
 
-        dumpFile << "\t\tBase value for input (B) : " << B << "\n";
-        dumpFile << "\t\tBase value for output (b) : " << segments[k].yBase << "\n";
-        dumpFile << "\t\tSegment slope (S): " << segments[k].Slope << "\n";
-        dumpFile << "\t\tShift (scale) : " << scale << "\n";
-        dumpFile << "\t\ty = ax + b:   a = " << a << ", b = " << b;
+        dumpFile << "\t\tBase input (B) : " << B << ", ";
+        dumpFile << "Base output (b) : " << segments[k].yBase << ", ";
+        dumpFile << "Slope (S): " << segments[k].Slope << ", ";
+        dumpFile << "Shift (scale) : " << scale << ", ";
+        dumpFile << "y = (" << a << ")x + (" << b << ")";
         if (segments[k].Slope != 0) {
             double x0 = static_cast<double>(B) - ((static_cast<double>(segments[k].yBase) * factor) / segments[k].Slope);
             dumpFile << ", x0 = " << x0;
@@ -366,17 +367,27 @@ void DumpCharArray(std::ostream& dumpFile, const char *carray,  size_t count) {
     }
     dumpFile << "\n";
 }
-
 } // namespace
 
-void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGNA, bool dumpData) {
+void DumpGna2Model(const Gna2Model& gnaModel,
+                   const std::string dumpFolderNameGNA,
+                   bool dumpData,
+                   const GnaAllAllocations& allGnaAllocations,
+                   std::string modeOfOperation) {
     std::stringstream dumpFileName;
     uint32_t opsNo = gnaModel.NumberOfOperations;
     std::time_t currTime = std::time(nullptr);
 
-    dumpFileName << dumpFolderNameGNA << "Gna2ModelDebugDump_" << opsNo << "_layer_" << std::put_time(std::localtime(&currTime), "%Y%m%d%H%M%S");
+    dumpFileName << dumpFolderNameGNA << "Gna2ModelDebugDump_" << opsNo << "_layer_"
+                 << std::put_time(std::localtime(&currTime), "%Y%m%d%H%M%S") << modeOfOperation;
 
     std::ofstream dumpFile(dumpFileName.str() + ".txt", std::ios::out);
+
+
+    for (auto&& a : allGnaAllocations) {
+        dumpFile << "Allocation: ptr=" << a.ptr << "\tsizeRequested=" << a.sizeRequested << "\tsizeGranted=" << a.sizeGranted <<
+            "\t tag=" << a.GetTagName() << "\n";
+    }
 
     dumpFile << "Layers (operations) count: " << opsNo << "\n";
 
@@ -395,9 +406,22 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
                 continue;
             }
             const auto& operand = *operation.Operands[j];
+            GnaAllocation found;
+            size_t offset = 0;
+            for (auto&& a : allGnaAllocations) {
+                auto x = a.getOffset(operand.Data);
+                if (x.first) {
+                    found = a;
+                    offset = x.second;
+                    break;
+                }
+            }
             dumpFile << "\tOperand " << j << " (" << GetOperandName(operation.Type, j) << ")"
                 << " type: " << GetOperandType(operand.Type) <<
                 " shape: " << GetSimpleString(operand.Shape) <<
+                " baseAlloc: " << found.ptr <<
+                " offset: " << offset <<
+                " tag: " << found.GetTagName() <<
                 " data: " << operand.Data <<
                 " layout: ";
 
@@ -406,7 +430,7 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
             if (operand.Type == Gna2DataTypePwlSegment) {
                 DumpPwl(dumpFile, operand);
             } else if (operand.Type == Gna2DataTypeCompoundBias) {
-                DumpCompoundBias(dumpFile, operand);
+                // DumpCompoundBias(dumpFile, operand);
             } else if (dumpData) {
                 std::ofstream datFile(dumpFileName.str() + ".dat", std::ios::out);
                 std::vector<uint32_t> elementIndex(operand.Shape.NumberOfDimensions);

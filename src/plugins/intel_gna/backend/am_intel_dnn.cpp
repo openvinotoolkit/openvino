@@ -1410,7 +1410,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const 
     memset(gnaModel->Operations, 0, gnaModel->NumberOfOperations * sizeof(Gna2Operation));
     gnaOperation = gnaModel->Operations;
     for (int i = 0; i < component.size(); i++) {
-        // std::cout << "Component + " << i <<"=GNA_" << std::distance(ptr_nnet->pLayers, pLayer) << "\n";
+        gnalog() << "Component + " << i << "=GNA_" << std::distance(gnaModel->Operations, gnaOperation) << "\n";
+
         auto& comp = component[i];
         switch (comp.operation) {
             case kDnnAffineOp:
