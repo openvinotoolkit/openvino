@@ -175,8 +175,7 @@ private:
 
 template <typename BaseOp>
 bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    auto convert = std::make_shared<ngraph::op::v0::Convert>();
-
+    std::shared_ptr<ngraph::op::v0::Convert> convert;
     HostTensorVector casted_inputs(BaseOp::get_input_size());
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
         const auto expected_input_type = get_origin_input_type(i);
@@ -184,19 +183,26 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
         if (inputs[i]->get_element_type() == expected_input_type || expected_input_type == element::undefined) {
             casted_inputs[i] = inputs[i];
         } else {
-            convert->set_destination_type(expected_input_type);
+            if (convert == nullptr) {
+                convert = std::make_shared<ngraph::op::v0::Convert>();
+            }
 
-            const auto casted_input = std::make_shared<HostTensor>(expected_input_type, inputs[i]->get_shape());
-            if (!convert->evaluate({ casted_input }, { inputs[i] })) {
+            convert->set_destination_type(expected_input_type);
+            casted_inputs[i] = std::make_shared<HostTensor>(expected_input_type, inputs[i]->get_shape());
+            if (!convert->evaluate({ casted_inputs[i] }, { inputs[i] })) {
                 return false;
             }
-            casted_inputs[i] = casted_input;
         }
     }
 
     HostTensorVector original_outputs(BaseOp::get_output_size());
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
-        original_outputs[i] = std::make_shared<HostTensor>(m_original_output_data_types[i], BaseOp::get_output_partial_shape(i));
+        const auto expected_output_type = get_overridden_output_type(i);
+        if (expected_output_type == element::undefined || expected_output_type == m_original_output_data_types[i]) {
+            original_outputs[i] = outputs[i];
+        } else {
+            original_outputs[i] = std::make_shared<HostTensor>(m_original_output_data_types[i], BaseOp::get_output_partial_shape(i));
+        }
     }
 
     if (!BaseOp::evaluate(original_outputs, casted_inputs)) {
@@ -206,16 +212,16 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
         const auto expected_output_type = get_overridden_output_type(i);
 
-        if (expected_output_type == element::undefined || original_outputs[i]->get_element_type() == expected_output_type) {
-            outputs[i]->write(original_outputs[i]->get_data_ptr(), outputs[i]->get_size_in_bytes());
-        } else {
-            convert->set_destination_type(expected_output_type);
+        if (expected_output_type != element::undefined && original_outputs[i]->get_element_type() != expected_output_type) {
+            if (convert == nullptr) {
+                convert = std::make_shared<ngraph::op::v0::Convert>();
+            }
 
+            convert->set_destination_type(expected_output_type);
             const auto casted_output = std::make_shared<HostTensor>(expected_output_type, original_outputs[i]->get_shape());
-            if (!convert->evaluate({ casted_output }, { original_outputs[i] })) {
+            if (!convert->evaluate({ outputs[i] }, { original_outputs[i] })) {
                 return false;
             }
-            outputs[i]->write(casted_output->get_data_ptr(), outputs[i]->get_size_in_bytes());
         }
     }
 
