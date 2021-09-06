@@ -30,14 +30,19 @@ public:
                   const Output<Node>& min_val,
                   const Output<Node>& max_val,
                   const ngraph::element::Type& out_type,
-                  uint64_t global_seed,
-                  uint64_t op_seed);
+                  uint64_t global_seed = 0,
+                  uint64_t op_seed = 0);
 
     void validate_and_infer_types() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    /// \return Turns off constant folding for RandomUniform operation.
+    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override {
+        return false;
+    }
 
     /// \return The output tensor type.
     const ngraph::element::Type& get_out_type() const {
@@ -63,10 +68,17 @@ public:
         m_op_seed = seed2;
     }
 
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+
+    bool has_evaluate() const override;
+
 protected:
     ngraph::element::Type m_output_type;
     uint64_t m_global_seed;
     uint64_t m_op_seed;
+
+    mutable std::mutex m_state_mutex;
+    mutable std::pair<uint64_t, uint64_t> m_state;
 };
 }  // namespace v8
 }  // namespace op
