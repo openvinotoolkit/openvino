@@ -169,10 +169,10 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
                     T lx = x - x_low;
                     T hy = static_cast<T>(1.0) - ly;
                     T hx = static_cast<T>(1.0) - lx;
-                    T w1 = hy * hx;
-                    T w2 = hy * lx;
-                    T w3 = ly * hx;
-                    T w4 = ly * lx;
+                    // T w1 = hy * hx;
+                    // T w2 = hy * lx;
+                    // T w3 = ly * hx;
+                    // T w4 = ly * lx;
 
                     // save weights and indeces
                     PreCalc<T> pc;
@@ -180,10 +180,14 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
                     pc.pos2 = y_low * width + x_high;
                     pc.pos3 = y_high * width + x_low;
                     pc.pos4 = y_high * width + x_high;
-                    pc.w1 = w1;
-                    pc.w2 = w2;
-                    pc.w3 = w3;
-                    pc.w4 = w4;
+                    // pc.w1 = w1;
+                    // pc.w2 = w2;
+                    // pc.w3 = w3;
+                    // pc.w4 = w4;
+                    pc.w1 = hy * hx;
+                    pc.w2 = hy * lx;
+                    pc.w3 = ly * hx;
+                    pc.w4 = ly * lx;
                     pre_calc.at(pre_calc_index) = pc;
 
                     pre_calc_index += 1;
