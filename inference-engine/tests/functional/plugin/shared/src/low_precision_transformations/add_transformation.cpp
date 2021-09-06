@@ -16,7 +16,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string AddTransformation::getTestCaseName(testing::TestParamInfo< AddTransformationParams> obj) {
+std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< AddTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
