@@ -970,12 +970,14 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
                                                              dict(name='do_reshape_conf'), activation_conf_node)
         mark_as_correct_data_layout(reshape_conf_node)
 
-        # Workaround for TransposeForReshape pass.
         # We looking for first not Reshape-typed node before match.single_input_node(0)[0].in_node(0).
-        # And add  reshape_loc node after this first not Reshape-typed node.
+        # And add reshape_offsets node after this first not Reshape-typed node to avoid issues with Reshape-like
+        # operations which may trigger insert of Transpose operations before/after them
         current_node = skip_nodes_by_condition(match.single_input_node(0)[0].in_node(0),
                                                lambda x: x['kind'] == 'op' and x.has_and_set('reinterp_shape'))
 
+        # if share_box_across_classes=1 then the same set of bounding boxes shape offsets is used for all classes,
+        # otherwise per-class set of shape offsets is used and we need to use appropriate Reshape output shape
         share_box_across_classes = _value_or_raise(match, pipeline_config, 'share_box_across_classes')
         if share_box_across_classes:
             reshape_offsets_shape = int64_array([-1, 1, 1, 4])
@@ -984,9 +986,6 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         reshape_offsets = create_op_node_with_second_input(graph, Reshape, reshape_offsets_shape,
                                                            dict(name='reshape_loc'), current_node)
         mark_as_correct_data_layout(reshape_offsets)
-
-        # constant node with variances
-        variances = Const(graph, dict(value=_variance_from_pipeline_config(pipeline_config))).create_node([])
 
         if share_box_across_classes:
             offsets = reshape_offsets
@@ -1001,7 +1000,9 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
                                                               dict(name='reshape_locs_2d'), offsets)
         mark_as_correct_data_layout(reshape_offsets_2d)
 
-        # multiply bounding boxes shape offsets with variances
+        # multiply bounding boxes shape offsets with variances as it is expected when variance_encoded_in_target=1 for
+        # the DetectionOutput operation
+        variances = Const(graph, dict(value=_variance_from_pipeline_config(pipeline_config))).create_node([])
         scaled_offsets = Mul(graph, dict()).create_node([reshape_offsets_2d, variances], dict(name='scale_locs'))
 
         # there are Convolution/MatMul nodes before the post-processing block in all models except RFCN. So for most of
@@ -1666,6 +1667,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
             dict(name=detection_output_op.attrs['type'],
                  background_label_id=0 if has_background_class else -1,
                  num_classes=num_classes,
+                 variances_encoded_in_target=False,
                  confidence_threshold=_value_or_raise(match, pipeline_config, 'postprocessing_score_threshold'),
                  top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_detections_per_class'),
                  keep_top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_total_detections'),
