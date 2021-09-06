@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension_value
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
@@ -44,12 +44,14 @@ class NonZero(Op):
             'NonZero `output_type` attribute must be int32 or int64, `{}` found'.format(np.dtype(node.output_type).name)
 
         input_value = node.in_port(0).data.get_value()
-        if input_value is not None:
+        if is_fully_defined(input_value):
             node.out_port(0).data.set_value(np.array(np.nonzero(input_value), dtype=node.output_type))
         else:
-            # output shape of NonZero should be [input_rank, dynamic]
-            # having restriction to save IR with static shape only we count upper-bound shape value here
-            node.out_port(0).data.set_shape(int64_array([len(input_shape), np.prod(input_shape)]))
+            if is_fully_defined(input_shape):
+                # output shape of NonZero is still static (upper bound)
+                node.out_port(0).data.set_shape([len(input_shape), np.prod(input_shape)])
+            else:
+                node.out_port(0).data.set_shape([len(input_shape), dynamic_dimension_value])
 
     @staticmethod
     def type_infer(node):
