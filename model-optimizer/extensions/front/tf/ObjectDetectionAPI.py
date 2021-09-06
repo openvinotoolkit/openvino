@@ -914,8 +914,6 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
     Replaces the sub-graph that is equal to the DetectionOutput layer from Inference Engine (similarly to the
     ObjectDetectionAPISSDPostprocessorReplacement). This transformation is used for Faster R-CNN, R-FCN and Mask R-CNN
     topologies conversion.
-    The transformation uses a value of the custom attribute 'coordinates_swap_method' from the sub-graph replacement
-    configuration file to choose how to swap box coordinates of the 0-th input of the generated DetectionOutput layer.
     Refer to the code for more details.
     """
     replacement_id = 'ObjectDetectionAPIDetectionOutputReplacement'
@@ -1006,27 +1004,23 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         # multiply bounding boxes shape offsets with variances
         scaled_offsets = Mul(graph, dict()).create_node([reshape_offsets_2d, variances], dict(name='scale_locs'))
 
-        coordinates_swap_method = 'add_convolution'
-        if 'coordinates_swap_method' not in custom_attributes:
-            log.error('The ObjectDetectionAPIDetectionOutputReplacement sub-graph replacement configuration file '
-                      'must contain "coordinates_swap_method" in the "custom_attributes" dictionary. Two values are '
-                      'supported: "swap_weights" and "add_convolution". The first one should be used when there is '
-                      'a MatMul or Conv2D node before the "SecondStagePostprocessor" block in the topology. With this '
-                      'solution the weights of the MatMul or Conv2D nodes are permutted, simulating the swap of XY '
-                      'coordinates in the tensor. The second could be used in any other cases but it is worse in terms '
-                      'of performance because it adds the Conv2D node which performs permutting of data. Since the '
-                      'attribute is not defined the second approach is used by default.')
-        else:
-            coordinates_swap_method = custom_attributes['coordinates_swap_method']
-        supported_swap_methods = ['swap_weights', 'add_convolution']
-        if coordinates_swap_method not in supported_swap_methods:
-            raise Error('Unsupported "coordinates_swap_method" defined in the sub-graph replacement configuration '
-                        'file. Supported methods are: {}'.format(', '.join(supported_swap_methods)))
-
-        if coordinates_swap_method == 'add_convolution':
+        # there are Convolution/MatMul nodes before the post-processing block in all models except RFCN. So for most of
+        # the models we can just update Convolution/MatMul weights to perform swapping of coordinates. But for the RFCN
+        # models we use approach with adding special Convolution node which perform the same swap. Previously we used a
+        # dedicated parameter in the transformation config but now it is not needed and the get this information from
+        # the model automatically by performing graph traversal until CropAndResize (RFCN case) or Conv/MatMul nodes are
+        # found
+        if 'coordinates_swap_method' in custom_attributes:
+            log.error('The "coordinates_swap_method" parameter is not needed anymore. Consider removing it from the '
+                      '"ObjectDetectionAPIDetectionOutputReplacement" transformation custom attributes.',
+                      extra={'is_warning': True})
+        matmul_or_conv_nodes = backward_bfs_for_operation(scaled_offsets, ['MatMul', 'Conv2D'], ['ShapeOf',
+                                                                                                 'CropAndResize'])
+        if len(matmul_or_conv_nodes) == 0:
             swapped_offsets = add_convolution_to_swap_xy_coordinates(graph, scaled_offsets, 4)
             flattened_offsets = Reshape(graph, dict(name='do_reshape_locs')).create_node([swapped_offsets])
         else:
+            swap_weights_xy(graph, matmul_or_conv_nodes)
             flattened_offsets = Reshape(graph, dict(name='do_reshape_locs')).create_node([scaled_offsets])
 
         # IE DetectionOutput layer consumes flattened tensors so need add a Reshape layer.
@@ -1081,10 +1075,6 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         # sets specific name to the node so we can find it in other transformations
         detection_output.name = 'detection_output'
 
-        if coordinates_swap_method == 'swap_weights':
-            swap_weights_xy(graph, backward_bfs_for_operation(detection_output.in_node(0), ['MatMul', 'Conv2D'],
-                                                              ['ShapeOf']))
-
         # when the use_matmul_crop_and_resize = True then the prior boxes were not swapped and we need to swap them from
         # YXYX to XYXY before passing to the DetectionOutput operation
         if pipeline_config.get_param('use_matmul_crop_and_resize'):
@@ -1131,7 +1121,8 @@ class ObjectDetectionAPIMaskRCNNROIPoolingSecondReplacement(FrontReplacementFrom
         # the output spatial dimensions of the ROIPooling operation are defined in the pipeline.config
         roi_pool_size = _value_or_raise(match, pipeline_config, 'initial_crop_size')
 
-        # find the DetectionOutput operation by name to get tensor with information about bounding boxes from it
+        # find the DetectionOutput operation by name to get tensor with information about bounding boxes from it.
+        # the layout of bounding boxes is XYXY already, so no need to swap them
         detection_output_nodes_ids = [node_id for node_id, attrs in graph.nodes(data=True)
                                       if 'name' in attrs and attrs['name'] == 'detection_output']
         if len(detection_output_nodes_ids) != 1:
