@@ -44,30 +44,22 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
                                     'SecondStagePostprocessor',
                                     'mask_rcnn_keras_box_predictor',
                                     ],),
-                    'SSD': (['FeatureExtractor',
-                             'Postprocessor',
-                             ],
-                            ['ssd_mobile_net_v2keras_feature_extractor',
-                             'Postprocessor'],
-                            ['ssd_mobile_net_v1fpn_keras_feature_extractor',
-                             'Postprocessor'],
-                            ['ssd_mobile_net_v2fpn_keras_feature_extractor',
-                             'Postprocessor'],
-                            ['ResNet50V1_FPN',
-                             'Postprocessor'],
-                            ['ResNet101V1_FPN',
-                             'Postprocessor'],
-                            ['ResNet152V1_FPN',
+                    'SSD': ([('FeatureExtractor', 'ssd_mobile_net_v2keras_feature_extractor',
+                              'ssd_mobile_net_v1fpn_keras_feature_extractor',
+                              'ssd_mobile_net_v2fpn_keras_feature_extractor', 'ResNet50V1_FPN', 'ResNet101V1_FPN',
+                              'ResNet152V1_FPN'
+                              ),
                              'Postprocessor']
                             ),
                     }
 
     def analyze(self, graph: Graph):
-        tf_1_names = ['image_tensor', 'detection_classes', 'detection_boxes', 'detection_scores', 'Preprocessor']
-        tf_1_cond = all(graph_contains_scope(graph, scope) for scope in tf_1_names)
+        tf_1_names = ['image_tensor', 'detection_classes', 'detection_boxes', 'detection_scores',
+                      ('Preprocessor', 'map')]
+        tf_1_cond = all([graph_contains_scope(graph, scope) for scope in tf_1_names])
 
-        tf_2_names = ['input_tensor', 'output_control_node', 'Identity_', 'Preprocessor']
-        tf_2_cond = all(graph_contains_scope(graph, scope) for scope in tf_2_names)
+        tf_2_names = ['input_tensor', 'output_control_node', 'Identity_', ('Preprocessor', 'map')]
+        tf_2_cond = all([graph_contains_scope(graph, scope) for scope in tf_2_names])
 
         if not tf_1_cond and not tf_2_cond:
             log.debug('The model does not contain nodes that must exist in the TF OD API models')
