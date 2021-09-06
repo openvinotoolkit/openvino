@@ -24,7 +24,7 @@ class CropToStridedSlice(BackReplacementPattern):
     def pattern():
         return dict(
             nodes=[
-                ('crop', dict(type='Crop'))
+                ('crop', dict(op='Crop'))
             ],
             edges=[]
         )

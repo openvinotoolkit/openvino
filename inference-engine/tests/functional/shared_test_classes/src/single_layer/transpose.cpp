@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string TransposeLayerTest::getTestCaseName(testing::TestParamInfo<transposeParams> obj) {
+std::string TransposeLayerTest::getTestCaseName(const testing::TestParamInfo<transposeParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;

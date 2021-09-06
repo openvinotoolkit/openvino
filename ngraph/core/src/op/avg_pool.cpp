@@ -13,7 +13,7 @@ using namespace std;
 using namespace ngraph;
 
 // *** AvgPool OP SET 1 ***
-NGRAPH_RTTI_DEFINITION(op::v1::AvgPool, "AvgPool", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::AvgPool, "AvgPool", 1);
 
 op::v1::AvgPool::AvgPool(const Output<Node>& arg,
                          const Strides& strides,
@@ -205,5 +205,5 @@ shared_ptr<Node> op::v1::AvgPool::clone_with_new_inputs(const OutputVector& new_
 }
 
 shared_ptr<Node> op::v1::AvgPool::get_default_value() const {
-    return op::Constant::create(get_element_type(), get_shape(), {0});
+    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
 }
