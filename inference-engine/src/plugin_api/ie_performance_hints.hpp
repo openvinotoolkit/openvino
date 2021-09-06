@@ -25,7 +25,7 @@ struct PerfHintsConfig {
         if (PluginConfigParams::KEY_PERFORMANCE_HINT == key) {
             ovPerfHint = CheckPerformanceHintValue(value);
         } else if (PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS == key) {
-            ovPerfHint = CheckPerformanceHintRequestValue(value);
+            ovPerfHintNumRequests = CheckPerformanceHintRequestValue(value);
         }
     }
 
