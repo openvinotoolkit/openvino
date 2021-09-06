@@ -3,6 +3,7 @@
 //
 
 #include <vector>
+#include <limits>
 
 #include <gtest/gtest.h>
 // to suppress deprecated definition errors
@@ -43,6 +44,11 @@ TEST_F(GnaGetScaleFactorTest, invalidSF) {
     EXPECT_ANY_THROW(GetScaleFactorAndCheck(100, -200, 300, 400));
     EXPECT_ANY_THROW(GetScaleFactorAndCheck(100, 200, -300, 400));
     EXPECT_ANY_THROW(GetScaleFactorAndCheck(100, 200, 300, -400));
+    double inf = std::numeric_limits<float>::infinity();
+    EXPECT_ANY_THROW(GetScaleFactorAndCheck(inf, 200, 300, 400));
+    EXPECT_ANY_THROW(GetScaleFactorAndCheck(100, inf, 300, 400));
+    EXPECT_ANY_THROW(GetScaleFactorAndCheck(100, 200, inf, 400));
+    EXPECT_ANY_THROW(GetScaleFactorAndCheck(100, 200, 300, inf));
 }
 
 } // namespace

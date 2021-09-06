@@ -741,7 +741,7 @@ inline float getScaleFactor(InferenceEngine::CNNLayerPtr layer, QuantizedDataTyp
         return std::abs(p1) <= 0.00001f;
     };
 
-    if (scale_factor < 0.0 || isZero(scale_factor)) {
+    if (scale_factor < 0.0 || isZero(scale_factor) || std::isinf(scale_factor)) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Invalid scale factor: " << scale_factor;
     }
 
