@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v5::LogSoftmax, "LogSoftmax", 5);
+OPENVINO_RTTI_DEFINITION(op::v5::LogSoftmax, "LogSoftmax", 5);
 
 op::v5::LogSoftmax::LogSoftmax(const Output<Node>& arg, const int64_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();

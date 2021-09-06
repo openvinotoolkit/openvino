@@ -42,19 +42,15 @@ namespace runtime {
 class HostTensor;
 }  // namespace runtime
 
-namespace op {
-
-namespace v0 {
-class Result;
-}  // namespace v0
-}  // namespace op
-
 }  // namespace ngraph
 
 namespace ov {
 namespace op {
+namespace v0 {
+class Result;
+}  // namespace v0
 struct AutoBroadcastSpec;
-}
+}  // namespace op
 namespace pass {
 namespace pattern {
 class Matcher;
@@ -76,7 +72,7 @@ class Node;
 /// environment) for evaluating ngraph::function.
 using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
 
-using ResultVector = std::vector<std::shared_ptr<ngraph::op::v0::Result>>;
+using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
 
 OPENVINO_API
 std::string node_validation_failure_loc_string(const Node* node);

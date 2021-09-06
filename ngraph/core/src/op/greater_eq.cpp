@@ -51,7 +51,7 @@ bool evaluate_greater_equal(const HostTensorPtr& arg0,
 
 //---------------------------------- v1 ----------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::GreaterEqual, "GreaterEqual", 1, op::util::BinaryElementwiseComparison);
+OPENVINO_RTTI_DEFINITION(op::v1::GreaterEqual, "GreaterEqual", 1, op::util::BinaryElementwiseComparison);
 
 op::v1::GreaterEqual::GreaterEqual(const Output<Node>& arg0,
                                    const Output<Node>& arg1,

@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Parameter, "Parameter", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Parameter, "Parameter", 0);
 
 op::Parameter::Parameter(const element::Type& element_type, const PartialShape& pshape)
     : m_partial_shape(pshape),

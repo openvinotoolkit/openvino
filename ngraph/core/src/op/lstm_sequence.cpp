@@ -16,8 +16,8 @@
 using namespace ngraph;
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(op::v0::LSTMSequence, "LSTMSequence", 0);
-NGRAPH_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5);
+OPENVINO_RTTI_DEFINITION(op::v0::LSTMSequence, "LSTMSequence", 0);
+OPENVINO_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5);
 
 op::v0::LSTMSequence::LSTMSequence()
     : Op(),

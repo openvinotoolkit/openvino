@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Log, "Log", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Log, "Log", 0, op::util::UnaryElementwiseArithmetic);
 
 op::Log::Log(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
