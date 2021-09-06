@@ -63,18 +63,6 @@ if (TARGET ngraph::onnx_ngraph_frontend)
     add_dependencies(_${PROJECT_NAME} ngraph::onnx_ngraph_frontend)
 endif()
 
-if(NGRAPH_UNIT_TEST_ENABLE)
-    add_subdirectory(../../tests/mock/mock_py_ngraph_frontend)
-    add_dependencies(_${PROJECT_NAME} mock_py_ngraph_frontend)
-    set_target_properties(mock_py_ngraph_frontend PROPERTIES
-            LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
-            ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
-            COMPILE_PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
-            PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN})
-
-    add_subdirectory(../../tests/mock/pyngraph_fe_mock_api)
-    add_dependencies(_${PROJECT_NAME} pybind_mock_frontend)
-endif()
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)
@@ -102,7 +90,7 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
             COMPONENT pyngraph_${PYTHON_VERSION}
             USE_SOURCE_PERMISSIONS)
 
-    install(DIRECTORY ../../tests
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../tests
             DESTINATION tests/${PROJECT_NAME}
             COMPONENT tests EXCLUDE_FROM_ALL)
 
