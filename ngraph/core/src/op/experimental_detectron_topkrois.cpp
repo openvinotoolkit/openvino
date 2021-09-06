@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronTopKROIs, "ExperimentalDetectronTopKROIs", 6);
+OPENVINO_RTTI_DEFINITION(op::v6::ExperimentalDetectronTopKROIs, "ExperimentalDetectronTopKROIs", 6);
 
 op::v6::ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const Output<Node>& input_rois,
                                                                      const Output<Node>& rois_probs,

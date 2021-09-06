@@ -9,7 +9,7 @@
 
 using namespace std;
 
-constexpr ov::NodeTypeInfo ov::op::util::EmbeddingBagPackedBase::type_info;
+OPENVINO_RTTI_DEFINITION(ov::op::util::EmbeddingBagPackedBase, "EmbeddingBagPackedBase", 3);
 
 ov::op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>& emb_table,
                                                              const Output<Node>& indices,

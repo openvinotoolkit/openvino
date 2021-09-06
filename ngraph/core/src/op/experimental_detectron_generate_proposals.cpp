@@ -12,9 +12,9 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronGenerateProposalsSingleImage,
-                       "ExperimentalDetectronGenerateProposalsSingleImage",
-                       6);
+OPENVINO_RTTI_DEFINITION(op::v6::ExperimentalDetectronGenerateProposalsSingleImage,
+                         "ExperimentalDetectronGenerateProposalsSingleImage",
+                         6);
 
 op::v6::ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage(
     const Output<Node>& im_info,

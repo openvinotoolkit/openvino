@@ -16,7 +16,7 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::DepthToSpace, "DepthToSpace", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::DepthToSpace, "DepthToSpace", 0);
 
 op::DepthToSpace::DepthToSpace(const Output<Node>& data, const DepthToSpaceMode& mode, const size_t block_size)
     : Op({data}),
@@ -113,7 +113,7 @@ bool op::DepthToSpace::has_evaluate() const {
     return !get_input_partial_shape(0).is_dynamic();
 }
 
-std::ostream& ngraph::operator<<(std::ostream& s, const op::DepthToSpace::DepthToSpaceMode& type) {
+std::ostream& ov::operator<<(std::ostream& s, const ov::op::v0::DepthToSpace::DepthToSpaceMode& type) {
     return s << as_string(type);
 }
 

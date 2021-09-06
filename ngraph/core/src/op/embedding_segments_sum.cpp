@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::EmbeddingSegmentsSum::type_info;
+OPENVINO_RTTI_DEFINITION(op::v3::EmbeddingSegmentsSum, "EmbeddingSegmentsSum", 3);
 
 op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table,
                                                    const Output<Node>& indices,
