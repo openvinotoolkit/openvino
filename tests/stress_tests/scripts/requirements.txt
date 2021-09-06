@@ -4,5 +4,6 @@ PyYAML
 fastjsonschema~=2.15.1
 pandas
 requests>=2.20.0
+scipy
 
 h5py<3.0.0 # WA for OMZ Keras models. Details: https://github.com/openvinotoolkit/open_model_zoo/issues/1806
