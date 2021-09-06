@@ -8,6 +8,8 @@ from _pyngraph import NodeFactory as _NodeFactory
 
 from ngraph.impl import Node, Output
 
+from ngraph.exceptions import UserInputError
+
 DEFAULT_OPSET = "opset8"
 
 
@@ -24,7 +26,7 @@ class NodeFactory(object):
     def create(
         self,
         op_type_name: str,
-        arguments: List[Union[Node, Output]],
+        arguments: Optional[List[Union[Node, Output]]] = None,
         attributes: Optional[Dict[str, Any]] = None,
     ) -> Node:
         """Create node object from provided description.
@@ -37,6 +39,18 @@ class NodeFactory(object):
 
         @return   Node object representing requested operator with attributes set.
         """
+        if arguments is None and attributes is None:
+            node = self.factory.create(op_type_name)
+            node._attr_cache = {}
+            node._attr_cache_valid = False
+            return node
+
+        if arguments is None and attributes is not None:
+            raise UserInputError(
+                'Cannot create "{}" op without arguments. Provide arguments along with attributes.'.format(
+                    op_type_name)
+            )
+
         if attributes is None:
             attributes = {}
 
@@ -67,27 +81,6 @@ class NodeFactory(object):
                 self._normalize_attr_name_setter(attr_name),
                 partial(NodeFactory._set_node_attr_value, node, attr_name),
             )
-
-        # Setup helper members for caching attribute values.
-        # The cache would be lazily populated at first access attempt.
-        node._attr_cache = {}
-        node._attr_cache_valid = False
-
-        return node
-
-    def create(
-        self,
-        op_type_name: str,
-    ) -> Node:
-        """Create empty node object.
-
-        The user provides only op name.
-
-        @param      op_type_name:  The operator type name.
-
-        @return   Empty node object representing requested operator without attributtes and argumnets set.
-        """
-        node = self.factory.create(op_type_name)
 
         # Setup helper members for caching attribute values.
         # The cache would be lazily populated at first access attempt.
