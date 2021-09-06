@@ -68,7 +68,8 @@ def test_is_dynamic():
     ie.register_plugin("templatePlugin", "TEMPLATE")
     exec_net = ie.load_network(net, "TEMPLATE")
     assert exec_net.outputs["out"].is_dynamic
-    assert isinstance(exec_net.outputs["out"].partial_shape, ng.impl.PartialShape)
+    p_shape = ng.partial_shape_from_data(exec_net.outputs["out"])
+    assert isinstance(p_shape, ng.impl.PartialShape)
     with pytest.raises(RuntimeError) as e:
        exec_net.outputs["out"].shape
     assert  "Cannot return dims for Data with dynamic shapes!" in str(e.value)

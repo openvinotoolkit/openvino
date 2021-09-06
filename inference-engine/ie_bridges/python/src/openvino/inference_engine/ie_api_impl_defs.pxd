@@ -229,4 +229,4 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
     cdef IENetwork read_network(string path_to_xml, string path_to_bin)
 
-    cdef object getPartialShape(DataPtr)
+    cdef object getPartialShape_capsule(DataPtr)

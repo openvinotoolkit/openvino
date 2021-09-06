@@ -208,7 +208,7 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string
     return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
-PyObject* InferenceEnginePython::getPartialShape(InferenceEngine::CDataPtr data) {
+PyObject* InferenceEnginePython::getPartialShape_capsule(InferenceEngine::CDataPtr data) {
     const char* py_capsule_name = "ngraph_partial_shape";
     auto ngraph_pShape_ptr = std::make_shared<ngraph::PartialShape>(data->getPartialShape());
     auto* sp_copy = new std::shared_ptr<const ngraph::PartialShape>(ngraph_pShape_ptr);

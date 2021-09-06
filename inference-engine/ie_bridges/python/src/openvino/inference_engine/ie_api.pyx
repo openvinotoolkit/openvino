@@ -28,7 +28,6 @@ from .constants import WaitMode, StatusCode, MeanVariant, layout_str_to_enum, fo
     known_plugins, supported_precisions, ResizeAlgorithm, ColorFormat
 
 import numpy as np
-from _pyngraph import PartialShape
 
 warnings.filterwarnings(action="module", category=DeprecationWarning)
 
@@ -808,11 +807,6 @@ cdef class DataPtr:
     def shape(self):
         return deref(self._ptr).getDims()
 
-    ## Partial Shape (dimensions) of the data object
-    @property
-    def partial_shape(self):
-        return PartialShape.from_capsule(C.getPartialShape(self._ptr))
-
     ## Layout of the data object
     @property
     def layout(self):
@@ -834,6 +828,10 @@ cdef class DataPtr:
     def is_dynamic(self):
         return deref(self._ptr).isDynamic()
 
+    ## get capsule with ngraph::PartialShape
+    def _get_partial_shape_capsule(self):
+        return C.getPartialShape_capsule(self._ptr)
+
 
 ## This class is the layer constant data representation. Provides same interface as DataPtr object except properties setters
 cdef class CDataPtr:
@@ -852,11 +850,6 @@ cdef class CDataPtr:
     def shape(self):
         return deref(self._ptr).getDims()
 
-    ## Partial Shape (dimensions) of the data object
-    @property
-    def partial_shape(self):
-        return PartialShape.from_capsule(C.getPartialShape(self._ptr))
-
     ## Layout of the data object
     @property
     def layout(self):
@@ -870,6 +863,10 @@ cdef class CDataPtr:
     @property
     def is_dynamic(self):
         return deref(self._ptr).isDynamic()
+
+    ## get capsule with ngraph::PartialShape
+    def _get_partial_shape_capsule(self):
+        return C.getPartialShape_capsule(self._ptr)
 
 
 ## This class represents a network instance loaded to plugin and ready for inference.
