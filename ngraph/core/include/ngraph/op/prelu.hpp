@@ -13,5 +13,6 @@ namespace op {
 namespace v0 {
 using ov::op::v0::PRelu;
 }  // namespace v0
+using v0::PRelu;
 }  // namespace op
 }  // namespace ngraph

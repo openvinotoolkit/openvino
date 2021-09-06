@@ -25,4 +25,5 @@ namespace v5 {
 using ov::op::v5::NonMaxSuppression;
 }  // namespace v5
 }  // namespace op
+using ov::operator<<;
 }  // namespace ngraph

@@ -13,4 +13,5 @@ namespace v8 {
 using ov::op::v8::MatrixNms;
 }  // namespace v8
 }  // namespace op
+using ov::operator<<;
 }  // namespace ngraph
