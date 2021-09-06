@@ -351,7 +351,7 @@ def test_async_infer_callback_wait_in_callback(device):
             self.cv.release()
             status = self.request.wait(ie.WaitMode.RESULT_READY)
             assert status == ie.StatusCode.OK
-            assert self.status_code == ie.StatusCode.REQUEST_BUSY
+            assert self.status_code == ie.StatusCode.RESULT_NOT_READY
 
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
