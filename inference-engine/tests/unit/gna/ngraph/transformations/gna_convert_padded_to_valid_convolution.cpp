@@ -417,7 +417,7 @@ TEST_P(ConvertPaddedToValidConvTestFixture, CompareFunctions) {
     execute_test(function, reference_function);
 }
 
-INSTANTIATE_TEST_SUITE_P(ConvertPaddedToValidConvTestSuite, ConvertPaddedToValidConvTestFixture,
+INSTANTIATE_TEST_CASE_P(ConvertPaddedToValidConvTestSuite, ConvertPaddedToValidConvTestFixture,
     ::testing::Combine(
         // With / without Fake Quantize layers
         ::testing::Values(true, false),
@@ -448,7 +448,7 @@ TEST_P(ConvertPaddedToValidConvTestInvalidFixture, CompareFunctions) {
     execute_test(function, reference_function);
 }
 
-INSTANTIATE_TEST_SUITE_P(ConvertPaddedToValidConvInvalidTestSuite, ConvertPaddedToValidConvTestInvalidFixture,
+INSTANTIATE_TEST_CASE_P(ConvertPaddedToValidConvInvalidTestSuite, ConvertPaddedToValidConvTestInvalidFixture,
     ::testing::Combine(
         // With / without Fake Quantize layers
         ::testing::Values(true, false),

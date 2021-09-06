@@ -95,10 +95,10 @@ class Validator {
     RangeMultipleLimit inputChannelsNumberLimit{ {8, 384, "number of input channels"}, 8 };
 
     RangeMultipleLimit kernelNumberLimit{ {8, 256, "number of kernels"}, 8 };
-    VectorOrSquareLimitByChannelsAndPrecision kernelLimit {
+    VectorOrSquareLimitByChannelsAndPrecision kernelLimit{
         { 240, { 3, 7, 3 }, { 2, 7, 2 } },
         { 120, { 3, 7, 3 }, { 1, 7, 1 } } };
-    VectorOrSquareLimitByChannelsAndPrecision& strideLimit = kernelLimit;
+    VectorOrSquareLimitByChannelsAndPrecision & strideLimit = kernelLimit;
     RangeLimit2D dilationLimit{{convDilationHeight, convDilationHeight, "dilation height"},
         {convDilationWidth, convDilationWidth, "dilation width"}};
     const VectorOrSquareLimit poolingWindowLimit{ 3, 1, 1 };

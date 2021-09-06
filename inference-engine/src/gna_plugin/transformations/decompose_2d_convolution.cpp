@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/cc/ngraph/itt.hpp>
-
 #include "transformations/decompose_2d_convolution.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
@@ -71,10 +69,12 @@ static bool VerifyMaxPool(GraphData& graph_data, std::shared_ptr<ngraph::opset7:
     auto pool_strides = max_pool->get_strides();
 
     // Check Max Pool padding and limitations
+    // Allow only Max Pool 1D (2D is currently not supported by this transformation)
     if ((max_pool->get_auto_pad() != ngraph::op::PadType::VALID &&
         (max_pool->get_auto_pad() != ngraph::op::PadType::EXPLICIT ||
             max_pool->get_pads_begin() != ngraph::Shape({0, 0}) || max_pool->get_pads_end() != ngraph::Shape({0, 0}))) ||
         pool_filter.size() != 2 || pool_strides.size() != 2 ||
+        pool_filter[1] > 1 || pool_strides[1] > 1 ||
         pool_filter[0] > GNALimitations::maxPoolMaxWindowSize)
         return false;
 
@@ -84,8 +84,10 @@ static bool VerifyMaxPool(GraphData& graph_data, std::shared_ptr<ngraph::opset7:
 }
 
 static bool GNA30SupportedConv(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision,
-    const GNALimitations::Cnn2D::Validator& cnn2dValidator, const GraphData& graph_data, const ConvData& conv_data) {
-    return (gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0 &&
+    const GraphData& graph_data, const ConvData& conv_data) {
+    const GNALimitations::Cnn2D::Validator cnn2dValidator;
+
+    if (gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0 &&
         cnn2dValidator.ValidateCnn2D(graph_data.conv->get_friendly_name(),
             conv_data.input_height, conv_data.input_width, conv_data.input_channel_count,
             conv_data.filter_height, conv_data.filter_width, conv_data.filter_channel_count,
@@ -94,7 +96,10 @@ static bool GNA30SupportedConv(const std::string& gnaCompileTarget, const Infere
         (!graph_data.max_pool || cnn2dValidator.ValidatePooling2D(graph_data.conv->get_friendly_name(),
             graph_data.max_pool->get_kernel()[0], graph_data.max_pool->get_kernel()[1],
             graph_data.max_pool->get_strides()[0], graph_data.max_pool->get_strides()[1],
-            false))) ? true : false;
+            false)))
+        return true;
+
+    return false;
 }
 
 static size_t CalculateConvCount(const ConvData& conv_data) {
@@ -469,7 +474,6 @@ static bool Convert(const std::string& gnaCompileTarget,
     std::shared_ptr<ngraph::Node> af,
     std::shared_ptr<ngraph::Node> fq_af,
     std::shared_ptr<ngraph::Node> last_op_for_replacement) {
-    const GNALimitations::Cnn2D::Validator cnn2dValidator;
     GraphData graph_data{std::dynamic_pointer_cast<ngraph::opset7::Transpose>(leading_transpose),
         std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_conv),
         std::dynamic_pointer_cast<ngraph::opset7::Convolution>(conv),
@@ -488,7 +492,7 @@ static bool Convert(const std::string& gnaCompileTarget,
         return false;
 
     // If compile target is GNA 3.0 and the convolution is supported on it, then skip decomposition
-    if (GNA30SupportedConv(gnaCompileTarget, gnaPrecision, cnn2dValidator, graph_data, conv_data))
+    if (GNA30SupportedConv(gnaCompileTarget, gnaPrecision, graph_data, conv_data))
         return false;
 
     // We are looking for Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC)
@@ -509,8 +513,6 @@ static bool Convert(const std::string& gnaCompileTarget,
 }
 
 Decompose2DConv::Decompose2DConv(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision) {
-    MATCHER_SCOPE(Decompose2DConv);
-
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ngraph::pattern::any_input(), const_input},
         consumers_and_rank(1, 4));
@@ -583,13 +585,11 @@ Decompose2DConv::Decompose2DConv(const std::string& gnaCompileTarget, const Infe
             pattern_map.at(trailing_transpose).get_node_shared_ptr());
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, "Decompose2DConv");
     this->register_matcher(m, callback);
 }
 
 Decompose2DConvTransposedWithBias::Decompose2DConvTransposedWithBias(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision) {
-    MATCHER_SCOPE(Decompose2DConvTransposedWithBias);
-
     auto const_input_i64 = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::type_matches(ngraph::element::i64));
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ngraph::pattern::any_input(), const_input_i64},
@@ -615,13 +615,11 @@ Decompose2DConvTransposedWithBias::Decompose2DConvTransposedWithBias(const std::
             nullptr, nullptr, pattern_map.at(bias).get_node_shared_ptr());
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(bias, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(bias, "Decompose2DConvTransposedWithBias");
     this->register_matcher(m, callback);
 }
 
 Decompose2DConvTransposedWithBiasAF::Decompose2DConvTransposedWithBiasAF(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision) {
-    MATCHER_SCOPE(Decompose2DConvTransposedWithBiasAF);
-
     auto const_input_i64 = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::type_matches(ngraph::element::i64));
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ngraph::pattern::any_input(), const_input_i64},
@@ -651,6 +649,6 @@ Decompose2DConvTransposedWithBiasAF::Decompose2DConvTransposedWithBiasAF(const s
             nullptr, pattern_map.at(af).get_node_shared_ptr(), nullptr, pattern_map.at(af).get_node_shared_ptr());
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(af, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(af, "Decompose2DConvTransposedWithBiasAF");
     this->register_matcher(m, callback);
 }

@@ -695,6 +695,7 @@ std::shared_ptr<ngraph::Function> Decompose2DConvTestFixture::get_reference(cons
 void execute_test(modelType model, std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
+    InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
 
     switch (model) {
     default:
@@ -703,13 +704,13 @@ void execute_test(modelType model, std::shared_ptr<ngraph::Function> function, s
     case modelType::TranspConvBcastAddMaxPoolTransp:
     case modelType::TranspConvBcastAddActTransp:
     case modelType::TranspConvBcastAddMaxPoolActTransp:
-        manager.register_pass<GNAPluginNS::Decompose2DConv>();
+        manager.register_pass<GNAPluginNS::Decompose2DConv>("", gnaPrecision);
         break;
     case modelType::TranspConvTranspBcastAdd:
-        manager.register_pass<GNAPluginNS::Decompose2DConvTransposedWithBias>();
+        manager.register_pass<GNAPluginNS::Decompose2DConvTransposedWithBias>("", gnaPrecision);
         break;
     case modelType::TranspConvTranspBcastAddAct:
-        manager.register_pass<GNAPluginNS::Decompose2DConvTransposedWithBiasAF>();
+        manager.register_pass<GNAPluginNS::Decompose2DConvTransposedWithBiasAF>("", gnaPrecision);
         break;
     }
 
@@ -723,7 +724,7 @@ TEST_P(Decompose2DConvTestFixture, CompareFunctions) {
     execute_test(model, function, reference_function);
 }
 
-INSTANTIATE_TEST_SUITE_P(Decompose2DConvTestSuite, Decompose2DConvTestFixture,
+INSTANTIATE_TEST_CASE_P(Decompose2DConvTestSuite, Decompose2DConvTestFixture,
     ::testing::Combine(
         // With / without Fake Quantize layers
         ::testing::Values(true, false),
@@ -747,7 +748,7 @@ TEST_P(Decompose2DConvTestInvalidFixture, CompareFunctions) {
     execute_test(model, function, reference_function);
 }
 
-INSTANTIATE_TEST_SUITE_P(Decompose2DConvInvalidTestSuite, Decompose2DConvTestInvalidFixture,
+INSTANTIATE_TEST_CASE_P(Decompose2DConvInvalidTestSuite, Decompose2DConvTestInvalidFixture,
     ::testing::Combine(
         // With / without Fake Quantize layers
         ::testing::Values(true, false),

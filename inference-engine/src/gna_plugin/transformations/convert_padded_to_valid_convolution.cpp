@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/cc/ngraph/itt.hpp>
-
 #include "transformations/convert_padded_to_valid_convolution.hpp"
 
 #include <memory>
@@ -183,8 +181,6 @@ static std::function<bool(ngraph::Output<ngraph::Node>)> consumers_and_rank(cons
 }
 
 ConvertPaddedToValidConv::ConvertPaddedToValidConv() {
-    MATCHER_SCOPE(ConvertPaddedToValidConv);
-
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ngraph::pattern::any_input(), const_input},
         consumers_and_rank(1, 4));
@@ -230,6 +226,6 @@ ConvertPaddedToValidConv::ConvertPaddedToValidConv() {
             pattern_map.at(trailing_transpose).get_node_shared_ptr(), bias_node);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, "ConvertPaddedToValidConv");
     this->register_matcher(m, callback);
 }

@@ -94,17 +94,23 @@ std::string VectorOrSquareLimitByChannelsAndPrecision::GetErrorOrEmpty(const uin
 }
 
 bool Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
-    const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
+    const uint32_t inChannels, const uint32_t kernelH, const uint32_t kernelW, const uint32_t kernelN,
     const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
     OvGnaType inPrecision, bool exception) const {
     const std::string prefix = "Layer Convolution2D: " + name + ":";
     auto error = inputHWLimit.GetErrorOrEmpty(inHeight, inWidth);
 
-    error += kernelNumberLimit.GetErrorOrEmpty(kN);
-
+    error += kernelNumberLimit.GetErrorOrEmpty(kernelN);
     error += inputChannelsNumberLimit.GetErrorOrEmpty(inChannels);
-    error += kernelLimit.GetErrorOrEmpty(kH, kW, inPrecision, inChannels, "kernel");
+    error += kernelLimit.GetErrorOrEmpty(kernelH, kernelW, inPrecision, inChannels, "kernel");
     error += strideLimit.GetErrorOrEmpty(strideH, strideW, inPrecision, inChannels, "convolution stride");
+
+    const RangeLimit kernelStrideHLimit{1, kernelH, "kernel stride height (must be up to kernel height)"};
+    const RangeLimit kernelStrideWLimit{1, kernelW, "kernel stride width (must be up to kernel width)"};
+
+    error += kernelStrideHLimit.GetErrorOrEmpty(strideH);
+    error += kernelStrideWLimit.GetErrorOrEmpty(strideW);
+
     error += dilationLimit.GetErrorOrEmpty(dilationH, dilationW);
 
     if (exception)

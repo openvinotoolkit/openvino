@@ -277,8 +277,8 @@ const std::vector<std::vector<size_t >> maxpool1DPools = {{1, 2}};
 const std::vector<std::vector<size_t >> maxpool1DStrides = {{1, 1}};
 
 const std::vector<std::vector<size_t>> input2DNHWC = {{1, 16, 16, 32}};
-const std::vector<std::vector<size_t >> kernels2D = {{2, 2}, {4, 1}, {1, 3}};
-const std::vector<std::vector<size_t >> strides2D = {{1, 1}, {1, 2}, {2, 1}, {2, 2}};
+const std::vector<std::vector<size_t >> kernels2D = {{2, 2}, {4, 1}};
+const std::vector<std::vector<size_t >> strides2D = {{1, 1}, {2, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{1, 2}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{3, 1}};
 const std::vector<std::vector<size_t >> dilations2D = {{1, 1}};
