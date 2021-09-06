@@ -169,7 +169,7 @@ std::shared_ptr<InferenceEngine::IRemoteContext> MultiDeviceExecutableNetwork::G
         } catch (const NotImplemented&) {}
     }
     IE_THROW(NotImplemented) << "None of the devices in the MULTI has an associated remote context."
-                       << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
+                             << " Current list of devices allowed via the DEVICE_PRIORITIES config: " << devices_names;
 }
 
 InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
@@ -221,8 +221,7 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
                 if (_networksPerDevice.find(device.deviceName) == _networksPerDevice.end()) {
                     IE_THROW(NotFound) << "You can only change device priorities but not add new devices with"
                         << " the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES. "
-                        << device.deviceName <<
-                            " device was not in the original device list!";
+                        << device.deviceName << " device was not in the original device list!";
                 }
             }
             _devicePriorities = metaDevices;

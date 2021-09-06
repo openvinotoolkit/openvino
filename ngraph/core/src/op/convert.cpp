@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Convert, "Convert", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Convert, "Convert", 0);
 
 op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_type)
     : Op({arg}),
