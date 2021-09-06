@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::GRUCell::type_info;
+OPENVINO_RTTI_DEFINITION(op::v3::GRUCell, "GRUCell", 1, op::util::RNNCellBase);
 
 op::v3::GRUCell::GRUCell() : m_linear_before_reset(false) {
     m_activations = {"sigmoid", "tanh"};
@@ -172,9 +172,9 @@ void op::v3::GRUCell::validate_and_infer_types() {
 
 void op::v3::GRUCell::add_default_bias_input() {
     Output<Node> B =
-        op::Constant::create(get_input_element_type(0),
-                             Shape{(s_gates_count + m_linear_before_reset) * get_hidden_size()},
-                             vector<float>((s_gates_count + m_linear_before_reset) * get_hidden_size(), 0.f));
+        op::v0::Constant::create(get_input_element_type(0),
+                                 Shape{(s_gates_count + m_linear_before_reset) * get_hidden_size()},
+                                 vector<float>((s_gates_count + m_linear_before_reset) * get_hidden_size(), 0.f));
     set_argument(4, B);
 }
 

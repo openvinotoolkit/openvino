@@ -17,8 +17,8 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::LSTMCell, "LSTMCell", 0, op::util::RNNCellBase);
-NGRAPH_RTTI_DEFINITION(op::v4::LSTMCell, "LSTMCell", 4, op::util::RNNCellBase);
+OPENVINO_RTTI_DEFINITION(op::v0::LSTMCell, "LSTMCell", 0, op::util::RNNCellBase);
+OPENVINO_RTTI_DEFINITION(op::v4::LSTMCell, "LSTMCell", 4, op::util::RNNCellBase);
 
 op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
     m_activations = {"sigmoid", "tanh", "tanh"};
@@ -273,14 +273,15 @@ void op::v0::LSTMCell::validate_and_infer_types() {
 }
 
 Output<Node> op::v0::LSTMCell::get_default_bias_input() const {
-    return Output<Node>{
-        op::Constant::create(get_input_element_type(0), Shape{s_gates_count * get_hidden_size()}, vector<float>{0.f})};
+    return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
+                                                 Shape{s_gates_count * get_hidden_size()},
+                                                 vector<float>{0.f})};
 }
 
 Output<Node> op::v0::LSTMCell::get_default_peepholes_input() const {
-    return Output<Node>{op::Constant::create(get_input_element_type(0),
-                                             Shape{s_peepholes_count * get_hidden_size()},
-                                             vector<float>{0.f})};
+    return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
+                                                 Shape{s_peepholes_count * get_hidden_size()},
+                                                 vector<float>{0.f})};
 }
 
 shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -511,8 +512,9 @@ void op::v4::LSTMCell::validate_and_infer_types() {
 }
 
 Output<Node> op::v4::LSTMCell::get_default_bias_input() const {
-    return Output<Node>{
-        op::Constant::create(get_input_element_type(0), Shape{s_gates_count * get_hidden_size()}, vector<float>{0.f})};
+    return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
+                                                 Shape{s_gates_count * get_hidden_size()},
+                                                 vector<float>{0.f})};
 }
 
 shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const {
