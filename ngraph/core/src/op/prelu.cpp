@@ -10,13 +10,12 @@
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::PRelu, "PRelu", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::v0::PRelu, "PRelu", 0);
 
-op::PRelu::PRelu() : Op() {}
+ov::op::v0::PRelu::PRelu() : Op() {}
 
-op::PRelu::PRelu(const Output<Node>& data, const Output<Node>& slope) : Op({data, slope}) {
+ov::op::v0::PRelu::PRelu(const Output<Node>& data, const Output<Node>& slope) : Op({data, slope}) {
     constructor_validate_and_infer_types();
 }
 
@@ -29,26 +28,28 @@ void ngraph::op::v0::PRelu::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::PRelu::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v0::PRelu::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_PRelu_clone_with_new_inputs);
     if (new_args.size() != 2) {
-        throw ngraph_error("Incorrect number of new arguments");
+        throw ov::Exception("Incorrect number of new arguments");
     }
     return make_shared<PRelu>(new_args.at(0), new_args.at(1));
 }
 
 namespace prelu {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& slope, const HostTensorPtr& out) {
-    runtime::reference::prelu(arg->get_data_ptr<ET>(),
-                              slope->get_data_ptr<ET>(),
-                              out->get_data_ptr<ET>(),
-                              arg->get_shape(),
-                              slope->get_shape());
+template <ov::element::Type_t ET>
+bool evaluate(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& slope, const ngraph::HostTensorPtr& out) {
+    ngraph::runtime::reference::prelu(arg->get_data_ptr<ET>(),
+                                      slope->get_data_ptr<ET>(),
+                                      out->get_data_ptr<ET>(),
+                                      arg->get_shape(),
+                                      slope->get_shape());
     return true;
 }
 
-bool evaluate_prelu(const HostTensorPtr& arg, const HostTensorPtr& slope, const HostTensorPtr& out) {
+bool evaluate_prelu(const ngraph::HostTensorPtr& arg,
+                    const ngraph::HostTensorPtr& slope,
+                    const ngraph::HostTensorPtr& out) {
     bool rc = true;
     switch (arg->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_prelu, i8, arg, slope, out);
@@ -63,13 +64,13 @@ bool evaluate_prelu(const HostTensorPtr& arg, const HostTensorPtr& slope, const 
 }
 }  // namespace prelu
 
-bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v0::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_PRelu_evaluate);
-    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(outputs, 1) && ngraph::validate_host_tensor_vector(inputs, 2));
     return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]);
 }
 
-bool op::PRelu::has_evaluate() const {
+bool ov::op::v0::PRelu::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_PRelu_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
