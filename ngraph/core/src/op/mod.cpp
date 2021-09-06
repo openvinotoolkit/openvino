@@ -11,7 +11,7 @@ using namespace ngraph;
 
 // ------------------------------ v1 -------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Mod, "Mod", 1, op::util::BinaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(op::v1::Mod, "Mod", 1, op::util::BinaryElementwiseArithmetic);
 
 op::v1::Mod::Mod(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {

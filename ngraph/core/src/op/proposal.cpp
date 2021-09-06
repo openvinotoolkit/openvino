@@ -10,12 +10,12 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Proposal, "Proposal", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Proposal, "Proposal", 0);
 
 op::v0::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& bbox_deltas,
                            const Output<Node>& image_shape,
-                           const ProposalAttrs& attrs)
+                           const Attributes& attrs)
     : Op({class_probs, bbox_deltas, image_shape}),
       m_attrs(attrs) {
     constructor_validate_and_infer_types();
@@ -128,12 +128,12 @@ bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-NGRAPH_RTTI_DEFINITION(op::v4::Proposal, "Proposal", 4);
+OPENVINO_RTTI_DEFINITION(op::v4::Proposal, "Proposal", 4);
 
 op::v4::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& class_bbox_deltas,
                            const Output<Node>& image_shape,
-                           const op::ProposalAttrs& attrs)
+                           const op::v0::Proposal::Attributes& attrs)
     : v0::Proposal(class_probs, class_bbox_deltas, image_shape, attrs) {
     constructor_validate_and_infer_types();
 }

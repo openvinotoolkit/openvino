@@ -17,7 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::Pad, "Pad", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::Pad, "Pad", 1);
 
 op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
@@ -33,7 +33,7 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
                  const Output<Node>& pads_end,
                  PadMode pad_mode)
-    : Op({arg, pads_begin, pads_end, op::Constant::create(arg.get_element_type(), Shape{}, {0})}),
+    : Op({arg, pads_begin, pads_end, op::v0::Constant::create(arg.get_element_type(), Shape{}, {0})}),
       m_pad_mode{pad_mode} {
     constructor_validate_and_infer_types();
 }

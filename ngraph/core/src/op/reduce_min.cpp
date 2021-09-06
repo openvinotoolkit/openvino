@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/min.hpp"
-
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
+#include "ngraph/op/min.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/min.hpp"
@@ -40,7 +39,7 @@ bool evaluate_min(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
 }
 }  // namespace minop
 
-NGRAPH_RTTI_DEFINITION(op::v1::ReduceMin, "ReduceMin", 1, util::ArithmeticReductionKeepDims);
+OPENVINO_RTTI_DEFINITION(op::v1::ReduceMin, "ReduceMin", 1, util::ArithmeticReductionKeepDims);
 
 op::v1::ReduceMin::ReduceMin(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {

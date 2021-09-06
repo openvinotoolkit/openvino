@@ -18,7 +18,7 @@
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v8::MatrixNms, "MatrixNms", 8, op::util::NmsBase);
+OPENVINO_RTTI_DEFINITION(op::v8::MatrixNms, "MatrixNms", 8, op::util::NmsBase);
 
 op::v8::MatrixNms::MatrixNms() : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k) {}
 
@@ -64,7 +64,7 @@ bool ngraph::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-std::ostream& ngraph::operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type) {
+std::ostream& ov::operator<<(std::ostream& s, const op::v8::MatrixNms::DecayFunction& type) {
     return s << as_string(type);
 }
 
