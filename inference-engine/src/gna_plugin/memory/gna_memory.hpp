@@ -69,12 +69,13 @@ class GNAMemory {
     size_t getTotalBytes() {
         _total = 0;
         for (auto queue : _mem_queues) {
+            expandBindRequests(queue.second);
             _total += ALIGN(queue.second->calcSize(), _page_alignment);
         }
         return _total;
     }
 
-    size_t allocateRegion(std::shared_ptr<GNAMemRequestsQueue> mRequests, size_t offset) {
+    size_t allocateRegion(std::shared_ptr<GNAMemRequestsQueue> mRequests, size_t offset = 0) {
         for (auto &re : mRequests->_mem_requests) {
             if (re._type == REQUEST_BIND) continue;
 
@@ -97,7 +98,7 @@ class GNAMemory {
                     binded._element_size = reference._element_size;
                 });
 
-                std::cout << "size=" << ALIGN(sz, re._alignment) << "\n" << std::flush;
+                // std::cout << "size=" << ALIGN(sz, re._alignment) << "\n" << std::flush;
 
                 switch (re._type & ~REQUEST_BIND) {
                     case REQUEST_ALLOCATE :
@@ -133,9 +134,10 @@ class GNAMemory {
         heap = allocate(getTotalBytes());
         size_t heap_offset = 0;
         for (auto queue : _mem_queues) {
-            expandBindRequests(queue.second);
-            heap_offset = ALIGN(allocateRegion(queue.second, heap_offset), _page_alignment);
-            std::cout << "heap_offset " << rRegionToStr(queue.first) << ": " << heap_offset << std::endl;
+            if (queue.second->getSize() != 0) {
+                heap_offset = ALIGN(allocateRegion(queue.second, heap_offset), _page_alignment);
+                std::cout << "heap_offset " << rRegionToStr(queue.first) << ": " << heap_offset << std::endl;
+            }
         }
 #ifdef GNA_HEAP_PROFILER
         memoryDump();
@@ -173,7 +175,6 @@ class GNAMemory {
 
 #ifdef GNA_HEAP_PROFILER
     void memoryDump() {
-        std::ofstream dumpFile("gna_memory_requests.txt", std::ios::out);
         for (auto queue : _mem_queues) {
             std::ofstream dumpFile("gna_memory_requests_" + std::string(rRegionToStr(queue.first)) + ".txt", std::ios::out);
             for (auto &re : queue.second->_mem_requests) {
