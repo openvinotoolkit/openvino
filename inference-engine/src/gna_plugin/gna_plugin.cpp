@@ -1032,10 +1032,14 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #else
     nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(), -1, InferenceEngine::BlobMap());
 #endif
+    std::string effectiveGnaCompileTarget = config.gnaCompileTarget;
+    if (gnadevice) {
+        effectiveGnaCompileTarget = gnadevice->getEffectiveGnaCompileTarget();
+    }
     if (!gnaFlags->sw_fp32 && !graphCompiler.dnnComponents.components.empty()) {
         // number of layer gets calculated inside that InitGNAStruct function
 #if GNA_LIB_VER == 2
-        dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj, config.gnaCompileTarget);
+        dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj, effectiveGnaCompileTarget);
 #else
         dnn->InitGNAStruct(&std::get<0>(nnets.front())->obj);
 #endif
@@ -1046,7 +1050,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #if GNA_LIB_VER == 2
         gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
         // this can be improved by just copy all structures, but we are too lazy
-        dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, config.gnaCompileTarget);
+        dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, effectiveGnaCompileTarget);
 #else
         nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(), -1, InferenceEngine::BlobMap());
         dnn->InitGNAStruct(&std::get<0>(nnets.back())->obj);
@@ -1612,7 +1616,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     // If scale factors are defined in configuration we still need to use them instead of imported values,
     // for example to change the scale factors for the old models.
     if (!config.inputScaleFactors.empty()) {
-        IE_ASSERT(config.inputScaleFactors.size() == inputsDesc->inputScaleFactors.size());
+        IE_ASSERT(config.inputScaleFactors.size() <= inputsDesc->inputScaleFactors.size());
         for (size_t i = 0; i < config.inputScaleFactors.size(); ++i) {
             if (config.inputScaleFactors[i] != GNAPluginNS::kScaleFactorDefault) {
                 gnalog() << "[Import Network] Using input scale factor defined in configuration for input " << i << std::endl;
