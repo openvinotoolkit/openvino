@@ -205,7 +205,6 @@ Below are listed the most important tips for the efficient usage of the FPGA:
 -	FPGA performance heavily depends on the bitstream.
 -	Number of the infer request per executable network is limited to five, so “channel” parallelism (keeping individual infer request per camera/video input) would not work beyond five inputs. Instead, you need to mux the inputs into some queue that will internally use a pool of (5) requests.
 -	In most scenarios, the FPGA acceleration is leveraged through <a href="heterogeneity">heterogeneous execution</a> with further specific tips.
--	For multi-device FPGA execution please refer to the [FPGA plugin documentation](../IE_DG/supported_plugins/FPGA.md)
 
 ## Heterogeneity <a name="heterogeneity"></a>
 
