@@ -23,17 +23,17 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacer) {
         ngraph::element::i32, ngraph::Shape{3});
     auto shape = std::make_shared<ngraph::opset8::ShapeOf>(input);
     auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32,
-                                                      ngraph::Shape{1}, {0.0});
+                                                      ngraph::Shape{}, {0.0});
     auto max_const = ngraph::opset8::Constant::create(ngraph::element::f32,
-                                                      ngraph::Shape{1}, {1.0});
+                                                      ngraph::Shape{}, {1.0});
     auto ru = std::make_shared<ngraph::opset8::RandomUniform>(
         shape, min_const, max_const, ngraph::element::f32, 100, 200);
     auto add_const = ngraph::opset8::Constant::create(ngraph::element::f32,
-                                                      ngraph::Shape{1}, {30.0});
+                                                      ngraph::Shape{}, {30.0});
     auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
     auto floor = std::make_shared<ngraph::opset8::Floor>(add);
     auto mul_const = ngraph::opset8::Constant::create(ngraph::element::f32,
-                                                      ngraph::Shape{1}, {25.0});
+                                                      ngraph::Shape{}, {25.0});
     auto mul = std::make_shared<ngraph::opset8::Multiply>(mul_const, floor);
 
     f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul},
@@ -51,17 +51,17 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacer) {
         ngraph::element::i32, ngraph::Shape{3});
     auto shape = std::make_shared<ngraph::opset8::ShapeOf>(input);
     auto broadcast_const = ngraph::opset8::Constant::create(
-        ngraph::element::f32, ngraph::Shape{1}, {0.5});
+        ngraph::element::f32, ngraph::Shape{}, {0.5});
     auto broadcast =
         std::make_shared<ngraph::opset8::Broadcast>(broadcast_const, shape);
 
     auto add_const = ngraph::opset8::Constant::create(ngraph::element::f32,
-                                                      ngraph::Shape{1}, {30.0});
+                                                      ngraph::Shape{}, {30.0});
     auto add = std::make_shared<ngraph::opset8::Add>(broadcast, add_const);
     auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
     auto mul_const = ngraph::opset8::Constant::create(ngraph::element::f32,
-                                                      ngraph::Shape{1}, {25.0});
+                                                      ngraph::Shape{}, {25.0});
     auto mul = std::make_shared<ngraph::opset8::Multiply>(mul_const, floor);
 
     f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul},
