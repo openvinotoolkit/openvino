@@ -3,9 +3,9 @@
 
 import unittest
 from argparse import Namespace
+from unittest.mock import patch
 
 from generator import generator, generate
-from unittest.mock import patch
 
 from extensions.front.tf.ObjectDetectionAPI import calculate_shape_keeping_aspect_ratio, \
     calculate_placeholder_spatial_shape, ObjectDetectionAPIPreprocessor2Replacement
@@ -15,47 +15,8 @@ from mo.graph.graph import Graph
 from mo.utils.custom_replacement_config import CustomReplacementDescriptor
 from mo.utils.error import Error
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from unit_tests.mo.utils.pipeline_config_test import file_content
 from unit_tests.utils.graph import const, regular_op, result, build_graph, connect_front
-
-
-pipeline_config_content = """
-model {
-  faster_rcnn {
-    num_classes: 90
-    image_resizer {
-      keep_aspect_ratio_resizer {
-        min_dimension: 800
-        max_dimension: 1333
-        pad_to_max_dimension: true
-      }
-    }
-    feature_extractor {
-      type: 'faster_rcnn_inception_resnet_v2_keras'
-    }
-    first_stage_anchor_generator {
-      grid_anchor_generator {
-        scales: [0.125, 1.5]
-        aspect_ratios: [1.0, 2.0]
-        height_stride: 8
-        width_stride: 8
-      }
-    }
-    first_stage_nms_score_threshold: 0.7
-    first_stage_nms_iou_threshold: 0.6
-    first_stage_max_proposals: 100
-    initial_crop_size: 10
-    second_stage_post_processing {
-      batch_non_max_suppression {
-        score_threshold: 0.2
-        iou_threshold: 0.7
-        max_detections_per_class: 200
-        max_total_detections: 300
-      }
-      score_converter: SOFTMAX
-    }
-  }
-}
-"""
 
 
 class FakePipelineConfig:
@@ -184,7 +145,7 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
         ref_graph.stage = 'front'
         return ref_graph
 
-    def test_case_1(self, update_parameter_shape_mock):
+    def test_case_1_pad_to_max_dim(self, update_parameter_shape_mock):
         # test for case #1 described in the ObjectDetectionAPIPreprocessor2Replacement
         # sub/mul should be removed because they are applied before prep-processing and pad_to_max_dimension is True
         update_parameter_shape_mock.return_value = (None, None)
@@ -201,13 +162,13 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
         graph.stage = 'front'
         graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=pipeline_config_content)):
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=file_content)):
             ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(False), 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
-    def test_case_1_2(self, update_parameter_shape_mock):
+    def test_case_1_no_pad_to_max_dim(self, update_parameter_shape_mock):
         # test for case #1 described in the ObjectDetectionAPIPreprocessor2Replacement
         # sub/mul should be kept even though they are applied before prep-processing and pad_to_max_dimension is False
         update_parameter_shape_mock.return_value = (None, None)
@@ -224,8 +185,8 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
         graph.stage = 'front'
         graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        updated_pipeline_config_content = pipeline_config_content.replace('pad_to_max_dimension: true',
-                                                                          'pad_to_max_dimension: false')
+        updated_pipeline_config_content = file_content.replace('pad_to_max_dimension: true',
+                                                               'pad_to_max_dimension: false')
         with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=updated_pipeline_config_content)):
             ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
@@ -249,7 +210,7 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
         graph.stage = 'front'
         graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=pipeline_config_content)):
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=file_content)):
             ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(True), 'result', check_op_attrs=True)
@@ -268,7 +229,7 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
         graph.stage = 'front'
         graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=pipeline_config_content)):
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=file_content)):
             ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(False), 'result', check_op_attrs=True)
@@ -338,7 +299,7 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
         graph = self.build_main_graph('leading')
         graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=pipeline_config_content)):
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=file_content)):
             ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(True), 'result', check_op_attrs=True)
@@ -351,7 +312,7 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
         graph = self.build_main_graph('trailing')
         graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=pipeline_config_content)):
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=file_content)):
             ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(True), 'result', check_op_attrs=True)
@@ -364,7 +325,7 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
         graph = self.build_main_graph('no')
         graph.graph['cmd_params'] = Namespace(tensorflow_object_detection_api_pipeline_config=__file__)
 
-        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=pipeline_config_content)):
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=file_content)):
             ObjectDetectionAPIPreprocessor2Replacement().transform_graph(graph, self.replacement_desc)
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(False), 'result', check_op_attrs=True)
