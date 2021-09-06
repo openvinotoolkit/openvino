@@ -61,7 +61,7 @@ private:
         h->mov(amount, h->ptr[schedule + (tile_rank - 1) * sizeof(int64_t)]);
 
         for (auto& c : code) {
-            c.first->emit_code(c.second.first, c.second.second);
+            c.first->emit_code(c.second.first, c.second.second, pool, gpr);
         }
 
         h->postamble();
@@ -99,7 +99,9 @@ private:
         Xbyak::Reg64 schedule { dnnl::impl::cpu::x64::abi_param2 };
         Xbyak::Reg64 offsets  { dnnl::impl::cpu::x64::abi_not_param1 };
         std::array<Xbyak::Label, 2> for_body;
-
+        // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
+        // todo: Do we need explicitly check that code contains ScalarEmitter?
+        std::vector<size_t> local_gpr = reg64_tmp_start + nparams < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
         std::vector<Xbyak::Reg64> regs(nparams);
         for (auto i = 0; dim > 0 && i < nparams; i++)
             regs[i] = Xbyak::Reg64(reg64_tmp_start + i);
@@ -114,7 +116,7 @@ private:
         h->L(for_body[0]); {
             h->push(amount);
             for (auto& c : code) {
-                c.first->emit_code(c.second.first, c.second.second);
+                c.first->emit_code(c.second.first, c.second.second, pool, local_gpr);
             }
             h->pop(amount);
 
