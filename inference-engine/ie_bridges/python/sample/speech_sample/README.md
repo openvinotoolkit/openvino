@@ -80,7 +80,8 @@ Usage message:
 usage: speech_sample.py [-h] (-m MODEL | -rg IMPORT_GNA_MODEL) -i INPUT       
                         [-o OUTPUT] [-r REFERENCE] [-d DEVICE]
                         [-bs BATCH_SIZE] [-qb QUANTIZATION_BITS]
-                        [-wg EXPORT_GNA_MODEL] [-iname INPUT_LAYERS]
+                        [-sf SCALE_FACTOR] [-wg EXPORT_GNA_MODEL] [-pc]       
+                        [-a {CORE,ATOM}] [-iname INPUT_LAYERS]
                         [-oname OUTPUT_LAYERS]
 
 optional arguments:
@@ -94,9 +95,10 @@ optional arguments:
 Options:
   -h, --help            Show this help message and exit.
   -i INPUT, --input INPUT
-                        Required. Path to an input file (.ark or .npz).
+                        Required. Path to an input file (.ark or .npz).       
   -o OUTPUT, --output OUTPUT
-                        Optional. Output file name to save inference results (.ark or .npz).
+                        Optional. Output file name to save inference results  
+                        (.ark or .npz).
   -r REFERENCE, --reference REFERENCE
                         Optional. Read reference score file and compare
                         scores.
@@ -113,9 +115,18 @@ Options:
   -qb QUANTIZATION_BITS, --quantization_bits QUANTIZATION_BITS
                         Optional. Weight bits for quantization: 8 or 16
                         (default 16).
+  -sf SCALE_FACTOR, --scale_factor SCALE_FACTOR
+                        Optional. The user-specified input scale factor for
+                        quantization.
   -wg EXPORT_GNA_MODEL, --export_gna_model EXPORT_GNA_MODEL
                         Optional. Write GNA model to file using path/filename
                         provided.
+  -pc, --performance_counter
+                        Optional. Enables performance report (specify -a to
+                        ensure arch accurate results).
+  -a {CORE,ATOM}, --arch {CORE,ATOM}
+                        Optional. Specify architecture. CORE, ATOM with the
+                        combination of -pc.
   -iname INPUT_LAYERS, --input_layers INPUT_LAYERS
                         Optional. Layer names for input blobs. The names are
                         separated with ",". Allows to change the order of
