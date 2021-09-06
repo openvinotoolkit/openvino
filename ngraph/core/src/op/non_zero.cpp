@@ -16,7 +16,7 @@
 using namespace ngraph;
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(op::v3::NonZero, "NonZero", 3);
+OPENVINO_RTTI_DEFINITION(op::v3::NonZero, "NonZero", 3);
 
 op::v3::NonZero::NonZero(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();

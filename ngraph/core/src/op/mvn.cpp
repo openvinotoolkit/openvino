@@ -13,7 +13,7 @@ using namespace ngraph;
 
 // ------------------------------ V0 ------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v0::MVN, "MVN", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::MVN, "MVN", 0);
 
 op::v0::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
     : Op({data}),
@@ -83,11 +83,11 @@ constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::MVNEpsMode>::type_info;
 
 }  // namespace ov
 
-std::ostream& op::operator<<(std::ostream& s, const ngraph::op::MVNEpsMode& type) {
+std::ostream& ov::op::operator<<(std::ostream& s, const ngraph::op::MVNEpsMode& type) {
     return s << as_string(type);
 }
 
-NGRAPH_RTTI_DEFINITION(op::v6::MVN, "MVN", 6);
+OPENVINO_RTTI_DEFINITION(op::v6::MVN, "MVN", 6);
 
 op::v6::MVN::MVN(const Output<Node>& data,
                  const Output<Node>& reduction_axes,
