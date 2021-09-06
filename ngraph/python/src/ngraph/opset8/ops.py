@@ -286,7 +286,7 @@ def max_pool(
     pads_begin: List[int],
     pads_end: List[int],
     kernel_shape: TensorShape,
-    rounding_type: Optional[str] = "floor",
+    rounding_type: str = "floor",
     auto_pad: Optional[str] = None,
     index_element_type: Optional[str] = "i64",
     axis: Optional[int] = 0,
