@@ -286,7 +286,7 @@ def max_pool(
     pads_begin: List[int],
     pads_end: List[int],
     kernel_shape: TensorShape,
-    rounding_type: str = "floor",
+    rounding_type: Optional[str] = "floor",
     auto_pad: Optional[str] = None,
     index_element_type: Optional[str] = "i64",
     axis: Optional[int] = 0,
@@ -302,7 +302,7 @@ def max_pool(
     @param  pads_end:            The number of pixels to add at the end along each axis.
     @param  kernel_shape:        The pooling operation kernel shape.
     @param  rounding_type:       Determines used rounding schema when computing output shape.
-                                 Acceptable values are: ['floor', 'ceil']
+                                 Acceptable values are: ['floor', 'ceil']. Defaults to 'floor'.
     @param  auto_pad:            Determines how the padding is calculated. Acceptable values:
                                  [None, 'same_upper', 'same_lower', 'valid']. Defaults to None.
     @param  index_element_type:  The data type used for the indices output of this operator.
