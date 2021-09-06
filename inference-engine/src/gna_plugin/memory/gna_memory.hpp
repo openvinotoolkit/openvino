@@ -75,15 +75,16 @@ class GNAMemory {
         return _total;
     }
 
-    size_t allocateRegion(std::shared_ptr<GNAMemRequestsQueue> mRequests, size_t offset = 0) {
+    size_t allocateRegion(std::shared_ptr<GNAMemRequestsQueue> mRequests) {
+        size_t r_size = ALIGN(mRequests->getSize(), _page_alignment);
+        size_t offset = 0;
+        mRequests->_basePtr = allocate(r_size);
         for (auto &re : mRequests->_mem_requests) {
-            if (re._type == REQUEST_BIND) continue;
-
             auto sz = re._element_size * re._num_elements;
 
             if (re._ptr_out != nullptr) {
-                auto cptr = heap.get() + offset;
-                size_t cptr_avail_size = getTotalBytes() - offset;
+                auto cptr = mRequests->_basePtr.get() + offset;
+                size_t cptr_avail_size = r_size - offset;
                 if (re._type & REQUEST_BIND) {
                     cptr = reinterpret_cast<uint8_t*>(*reinterpret_cast<void **>(re._ptr_out));
                     cptr_avail_size = sz;
@@ -120,9 +121,10 @@ class GNAMemory {
                     }
                 }
             }
-            if (!(re._type & REQUEST_BIND)) {
-                offset += ALIGN(sz + re._padding, re._alignment);
-            }
+            // if (!(re._type & REQUEST_BIND)) {
+            //     offset += ALIGN(sz + re._padding, re._alignment);
+            // }
+            offset += ALIGN(sz + re._padding, re._alignment);
         }
         return offset;
     }
@@ -131,11 +133,12 @@ class GNAMemory {
      * @brief calculates size required for all requests, allocates memory and updates pointers
      */
     void commit() {
-        heap = allocate(getTotalBytes());
+        // heap = allocate(getTotalBytes());
+        getTotalBytes();
         size_t heap_offset = 0;
         for (auto queue : _mem_queues) {
             if (queue.second->getSize() != 0) {
-                heap_offset = ALIGN(allocateRegion(queue.second, heap_offset), _page_alignment);
+                heap_offset = ALIGN(allocateRegion(queue.second), _page_alignment);
                 std::cout << "heap_offset " << rRegionToStr(queue.first) << ": " << heap_offset << std::endl;
             }
         }

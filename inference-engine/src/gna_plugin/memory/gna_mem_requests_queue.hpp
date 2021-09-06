@@ -26,6 +26,7 @@ public:
     size_t _size = 0;
     std::vector<MemRequest> _mem_requests;
     std::list<std::vector<char>> _local_storage;
+    std::shared_ptr<uint8_t> _basePtr = nullptr;
 
     /**
      * @brief register initialiser to access memory once it is actually allocated
@@ -118,6 +119,10 @@ public:
 
     size_t getSize() {
         return _size;
+    }
+
+    void *getBasePtr() {
+        return _basePtr.get();
     }
 
     template<class T>
