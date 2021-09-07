@@ -7,7 +7,7 @@ Before exploring optimization techniques, let us first define what performance i
 
 Performance means how fast the model is in deployment. Two key metrics are used to measure performance: latency and throughput. 
 
-![](../img/Latency_Throughput.png)
+![](../img/latency_throughput_1.png)
 
 Latency measures inference time (ms) required to process a single input. When it comes to batch input need to measure throughput (images per second or frames per second, FPS). To calculate throughput, divide number of frames that were processed by the processing time.   
 
