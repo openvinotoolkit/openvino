@@ -18,7 +18,6 @@
 #include "ie_itt.hpp"
 #include "ngraph/opsets/opset6.hpp"
 #include "ngraph/variant.hpp"
-#include "transformations/rt_info/dequantization_attribute.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "transformations/serialize.hpp"
@@ -121,9 +120,6 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
             } else if (auto intData =
                            std::dynamic_pointer_cast<ngraph::VariantWrapper<std::int64_t>>(rtMapData.second)) {
                 seed = hash_combine(seed, intData->get());
-            } else if (auto deq = std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::DequantizationAttr>>(
-                           rtMapData.second)) {
-                seed = hash_combine(seed, deq->get().getDequantizationAttr());
             } else if (auto fNames =
                            std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::FusedNames>>(rtMapData.second)) {
                 seed = hash_combine(seed, fNames->get().getNames());

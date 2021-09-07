@@ -13,7 +13,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/variant.hpp>
-#include "transformations/rt_info/dequantization_attribute.hpp"
 
 using namespace ngraph;
 
