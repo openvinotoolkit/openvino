@@ -1,7 +1,7 @@
 # Getting Performance Numbers {#openvino_docs_MO_DG_Getting_Performance_Numbers}
 
 
-## Tip 1: Measure the Proper Set of Operations 
+## Tip 1. Measure the Proper Set of Operations 
 
 When evaluating performance of your model with the Inference Engine, you must measure the proper set of operations. To do so, consider the following tips: 
 
