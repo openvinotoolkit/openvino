@@ -6,34 +6,12 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
+#include "openvino/op/swish.hpp"
 
 namespace ngraph {
 namespace op {
 namespace v4 {
-/// \brief A Swish Activation Function
-/// f(x) =  x / (1.0 + exp(-beta * x)) or
-/// f(x) = x * sigmoid(beta * x)
-///
-class NGRAPH_API Swish : public ngraph::op::Op {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    Swish() = default;
-
-    /// \brief Constructs an Swish operation.
-    ///
-    /// \param data Input tensor
-    /// \param beta Scalar with beta value. If the argument is not specified then use
-    /// the default value 1.0
-    Swish(const Output<Node>& arg, const Output<Node>& beta);
-    explicit Swish(const Output<Node>& arg);
-
-    bool visit_attributes(AttributeVisitor& visitor) override;
-    void validate_and_infer_types() override;
-
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    bool has_evaluate() const override;
-};
+using ov::op::v4::Swish;
 }  // namespace v4
 }  // namespace op
 }  // namespace ngraph
