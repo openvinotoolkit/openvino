@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::ScatterNDUpdate::type_info;
+OPENVINO_RTTI_DEFINITION(op::v3::ScatterNDUpdate, "ScatterNDUpdate", 3, util::ScatterNDBase);
 
 shared_ptr<Node> op::v3::ScatterNDUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v3_ScatterNDUpdate_clone_with_new_inputs);

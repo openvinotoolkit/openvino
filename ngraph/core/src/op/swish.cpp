@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v4::Swish, "Swish", 4);
+OPENVINO_RTTI_DEFINITION(op::v4::Swish, "Swish", 4);
 
 op::v4::Swish::Swish(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
