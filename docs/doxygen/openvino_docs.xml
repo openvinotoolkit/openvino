@@ -42,7 +42,7 @@ limitations under the License.
                     <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit for Linux* from a Docker* Image" url="@ref openvino_docs_install_guides_installing_openvino_docker_linux"/>
                     <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit for Windows* from a Docker* Image" url="@ref openvino_docs_install_guides_installing_openvino_docker_windows"/>
                 </tab>
-                <tab type="user" title="Docker with DL Workbench" url="./workbench_docs_Workbench_DG_Install_from_Docker_Hub.html"/><!-- Link to the original Workbench topic -->
+                <tab type="user" title="Docker with DL Workbench" url="./workbench_docs_Workbench_DG_Run_Locally.html"/><!-- Link to the original Workbench topic -->
                 <tab type="user" title="APT" url="@ref openvino_docs_install_guides_installing_openvino_apt"/>
                 <tab type="user" title="YUM" url="@ref openvino_docs_install_guides_installing_openvino_yum"/>
                 <tab type="user" title="Anaconda Cloud" url="@ref openvino_docs_install_guides_installing_openvino_conda"/>
@@ -57,7 +57,7 @@ limitations under the License.
                 <tab type="user" title="Windows" url="@ref openvino_docs_get_started_get_started_windows"/>
                 <tab type="user" title="macOS" url="@ref openvino_docs_get_started_get_started_macos"/>
                 <tab type="user" title="Raspbian" url="@ref openvino_docs_get_started_get_started_raspbian"/>
-                <tab type="user" title="Get Started with OpenVINO via DL Workbench" url="@ref openvino_docs_get_started_get_started_dl_workbench"/>
+                <tab type="user" title="DL Workbench: Quick Start with OpenVINO™ Toolkit" url="@ref openvino_docs_get_started_get_started_dl_workbench"/>
                 <tab type="user" title="Legal Information" url="@ref openvino_docs_Legal_Information"/>
             </tab>
             <!-- Configuration for Hardware -->
@@ -103,7 +103,7 @@ limitations under the License.
                 <tab type="usergroup" title="Performance Benchmark Results" url="@ref openvino_docs_performance_benchmarks">
                     <tab type="usergroup" title="Intel® Distribution of OpenVINO™ toolkit Benchmark Results" url="@ref openvino_docs_performance_benchmarks_openvino">
                         <tab type="user" title="Performance Information Frequently Asked Questions" url="@ref openvino_docs_performance_benchmarks_faq"/>
-                        <tab type="user" title="Download Performance Data Spreadsheet in MS Excel* Format" url="https://docs.openvinotoolkit.org/downloads/benchmark_files/OV-2021.3-Download-Excel.xlsx"/>
+                        <tab type="user" title="Download Performance Data Spreadsheet in MS Excel* Format" url="https://docs.openvinotoolkit.org/downloads/benchmark_files/OV-2021.4-Download-Excel.xlsx"/>
                         <tab type="user" title="INT8 vs. FP32 Comparison on Select Networks and Platforms" url="@ref openvino_docs_performance_int8_vs_fp32"/>
                     </tab>
                     <tab type="user" title="OpenVINO™ Model Server Benchmark Results" url="@ref openvino_docs_performance_benchmarks_ovms"/>
@@ -116,6 +116,9 @@ limitations under the License.
                 <!-- Tuning Utilities -->
                 <tab type="usergroup" title="Tuning Utilities" url="">
                     <xi:include href="omz_docs.xml" xpointer="omz_tools_accuracy_checker">
+                        <xi:fallback/>
+                    </xi:include>
+                    <xi:include href="omz_docs.xml" xpointer="omz_data">
                         <xi:fallback/>
                     </xi:include>
                     <tab type="user" title="Using Cross Check Tool for Per-Layer Comparison Between Plugins" url="@ref openvino_inference_engine_tools_cross_check_tool_README"/>
@@ -158,9 +161,6 @@ limitations under the License.
             <xi:include href="omz_docs.xml" xpointer="omz_models">
                 <xi:fallback/>
             </xi:include>
-            <tab type="user" title="Dataset Preparation Guide" url="@ref omz_data_datasets"/>
-            <tab type="user" title="Intel's Pre-Trained Models Device Support" url="@ref omz_models_intel_device_support"/>
-            <tab type="user" title="Public Pre-Trained Models Device Support" url="@ref omz_models_public_device_support"/>
             <xi:include href="omz_docs.xml" xpointer="omz_demos">
                 <xi:fallback/>
             </xi:include>
