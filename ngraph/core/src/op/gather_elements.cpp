@@ -12,7 +12,7 @@ using namespace ngraph;
 
 // ------------------------------ V6 ------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v6::GatherElements, "GatherElements", 6);
+OPENVINO_RTTI_DEFINITION(op::v6::GatherElements, "GatherElements", 6);
 
 op::v6::GatherElements::GatherElements(const Output<Node>& data, const Output<Node>& indices, const int64_t axis)
     : Op({data, indices}),
