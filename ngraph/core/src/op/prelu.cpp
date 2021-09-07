@@ -11,7 +11,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::PRelu, "PRelu", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::v0::PRelu, "PRelu", "opset1");
 
 ov::op::v0::PRelu::PRelu() : Op() {}
 

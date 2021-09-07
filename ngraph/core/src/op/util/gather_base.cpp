@@ -16,7 +16,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::GatherBase, "GatherBase", 7);
+OPENVINO_RTTI_DEFINITION(ov::op::util::GatherBase, "GatherBase");
 
 ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
                                      const Output<Node>& indices,

@@ -15,7 +15,7 @@
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::NmsBase, "NmsBase", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::util::NmsBase, "NmsBase");
 
 ov::op::util::NmsBase::NmsBase(ngraph::element::Type& output_type, int& nms_top_k, int& keep_top_k)
     : m_output_type(output_type),

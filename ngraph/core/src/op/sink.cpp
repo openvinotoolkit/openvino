@@ -6,6 +6,6 @@
 
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::Sink, "Sink", 0);
+OPENVINO_RTTI_DEFINITION(op::Sink, "Sink");
 
 op::Sink::~Sink() = default;

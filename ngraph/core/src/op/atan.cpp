@@ -20,7 +20,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::Atan, "Atan", 0, util::UnaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(ov::op::v0::Atan, "Atan", "opset1", util::UnaryElementwiseArithmetic);
 
 op::Atan::Atan(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

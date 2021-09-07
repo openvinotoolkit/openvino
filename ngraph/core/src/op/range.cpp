@@ -43,7 +43,7 @@ check_value(T value) {
     return value == value && value_minus_value == value_minus_value;
 }
 
-OPENVINO_RTTI_DEFINITION(op::v4::Range, "Range", 4);
+OPENVINO_RTTI_DEFINITION(op::v4::Range, "Range", "opset4", op::Op, 4);
 
 op::v4::Range::Range(const Output<Node>& start,
                      const Output<Node>& stop,
@@ -286,7 +286,7 @@ bool op::v4::Range::has_evaluate() const {
     return false;
 }
 
-OPENVINO_RTTI_DEFINITION(op::v0::Range, "Range", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Range, "Range", "opset1");
 
 op::v0::Range::Range(const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step)
     : Op({start, stop, step}) {

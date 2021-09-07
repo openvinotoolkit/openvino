@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::ScatterUpdate, "ScatterUpdate", 3, util::ScatterBase);
+OPENVINO_RTTI_DEFINITION(op::v3::ScatterUpdate, "ScatterUpdate", "opset3", util::ScatterBase, 3);
 
 op::v3::ScatterUpdate::ScatterUpdate(const Output<Node>& data,
                                      const Output<Node>& indices,

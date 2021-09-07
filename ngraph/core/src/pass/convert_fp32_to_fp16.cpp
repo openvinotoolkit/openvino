@@ -10,7 +10,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::pass::ConvertFP32ToFP16, "ConvertFP32ToFP16", 0);
+OPENVINO_RTTI_DEFINITION(ov::pass::ConvertFP32ToFP16, "ConvertFP32ToFP16");
 
 bool ov::pass::ConvertFP32ToFP16::run_on_function(std::shared_ptr<ov::Function> f) {
     ov::pass::Manager m(get_pass_config());

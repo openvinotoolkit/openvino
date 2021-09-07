@@ -50,7 +50,7 @@ bool evaluate_greater(const HostTensorPtr& arg0,
 
 //-------------------------------------- v1 ------------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::Greater, "Greater", 1, op::util::BinaryElementwiseComparison);
+OPENVINO_RTTI_DEFINITION(op::v1::Greater, "Greater", "opset1", op::util::BinaryElementwiseComparison, 1);
 
 op::v1::Greater::Greater(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseComparison(arg0, arg1, auto_broadcast) {

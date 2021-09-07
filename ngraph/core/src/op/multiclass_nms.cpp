@@ -18,7 +18,7 @@
 
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v8::MulticlassNms, "MulticlassNms", 8, op::util::NmsBase);
+OPENVINO_RTTI_DEFINITION(op::v8::MulticlassNms, "MulticlassNms", "opset8", op::util::NmsBase, 8);
 
 op::v8::MulticlassNms::MulticlassNms() : NmsBase(m_attrs.output_type, m_attrs.nms_top_k, m_attrs.keep_top_k) {}
 

@@ -13,7 +13,7 @@ using namespace std;
 using namespace ngraph;
 
 // *** AvgPool OP SET 1 ***
-OPENVINO_RTTI_DEFINITION(op::v1::AvgPool, "AvgPool", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::AvgPool, "AvgPool", "opset1", op::Op, 1);
 
 op::v1::AvgPool::AvgPool(const Output<Node>& arg,
                          const Strides& strides,

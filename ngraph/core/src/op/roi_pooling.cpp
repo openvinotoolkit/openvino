@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::ROIPooling, "ROIPooling", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::ROIPooling, "ROIPooling", "opset2");
 
 op::ROIPooling::ROIPooling(const Output<Node>& input,
                            const Output<Node>& coords,

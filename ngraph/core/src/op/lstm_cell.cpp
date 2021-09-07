@@ -17,8 +17,8 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::LSTMCell, "LSTMCell", 0, op::util::RNNCellBase);
-OPENVINO_RTTI_DEFINITION(op::v4::LSTMCell, "LSTMCell", 4, op::util::RNNCellBase);
+OPENVINO_RTTI_DEFINITION(op::v0::LSTMCell, "LSTMCell", "opset1", op::util::RNNCellBase);
+OPENVINO_RTTI_DEFINITION(op::v4::LSTMCell, "LSTMCell", "opset4", op::util::RNNCellBase, 4);
 
 op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
     m_activations = {"sigmoid", "tanh", "tanh"};

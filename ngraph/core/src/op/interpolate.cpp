@@ -17,7 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Interpolate, "Interpolate", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Interpolate, "Interpolate", "opset1");
 
 op::v0::Interpolate::Interpolate(const Output<Node>& image, const Output<Node>& output_shape, const Attributes& attrs)
     : Op({image, output_shape}),
@@ -90,7 +90,7 @@ constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v0::Interpolate::Interpo
 
 // Interpolate v4
 
-OPENVINO_RTTI_DEFINITION(op::v4::Interpolate, "Interpolate", 4);
+OPENVINO_RTTI_DEFINITION(op::v4::Interpolate, "Interpolate", "opset4", op::Op, 4);
 
 op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                  const Output<Node>& output_shape,

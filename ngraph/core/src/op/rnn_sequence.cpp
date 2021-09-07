@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v5::RNNSequence, "RNNSequence", 4, util::RNNCellBase);
+OPENVINO_RTTI_DEFINITION(op::v5::RNNSequence, "RNNSequence", "opset5", util::RNNCellBase, 4);
 
 op::v5::RNNSequence::RNNSequence() : m_direction(op::RecurrentSequenceDirection::FORWARD) {}
 

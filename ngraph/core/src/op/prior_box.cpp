@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::PriorBox, "PriorBox", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::PriorBox, "PriorBox", "opset1");
 
 op::PriorBox::PriorBox(const Output<Node>& layer_shape,
                        const Output<Node>& image_shape,

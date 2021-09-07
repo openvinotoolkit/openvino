@@ -10,7 +10,10 @@ using namespace std;
 
 // ------------------------------ v0 -------------------------------------------
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::SquaredDifference, "SquaredDifference", 0, util::BinaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(ov::op::v0::SquaredDifference,
+                         "SquaredDifference",
+                         "opset1",
+                         util::BinaryElementwiseArithmetic);
 
 ov::op::v0::SquaredDifference::SquaredDifference(const Output<Node>& arg0,
                                                  const Output<Node>& arg1,

@@ -10,7 +10,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::ArithmeticReduction, "ArithmeticReduction", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::util::ArithmeticReduction, "ArithmeticReduction");
 
 ov::op::util::ArithmeticReduction::ArithmeticReduction() = default;
 

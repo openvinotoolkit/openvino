@@ -8,7 +8,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::DetectionOutput, "DetectionOutput", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::v0::DetectionOutput, "DetectionOutput", "opset1");
 
 ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
                                              const Output<Node>& class_preds,

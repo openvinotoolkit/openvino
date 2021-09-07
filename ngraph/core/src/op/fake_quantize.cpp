@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::FakeQuantize, "FakeQuantize", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::FakeQuantize, "FakeQuantize", "opset1");
 
 op::FakeQuantize::FakeQuantize() : Op(), m_levels() {}
 

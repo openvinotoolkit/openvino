@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::HardSigmoid, "HardSigmoid", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::HardSigmoid, "HardSigmoid", "opset1");
 
 op::v0::HardSigmoid::HardSigmoid() : Op() {}
 

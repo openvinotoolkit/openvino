@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::OneHot, "OneHot", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::OneHot, "OneHot", "opset1", op::Op, 1);
 
 op::v1::OneHot::OneHot(const Output<Node>& indices,
                        const Output<Node>& depth,

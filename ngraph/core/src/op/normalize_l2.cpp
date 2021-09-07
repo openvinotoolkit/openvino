@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::NormalizeL2, "NormalizeL2", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::NormalizeL2, "NormalizeL2", "opset1");
 
 op::v0::NormalizeL2::NormalizeL2(const Output<Node>& data, const Output<Node>& axes, float eps, EpsMode eps_mode)
     : Op({data, axes}),

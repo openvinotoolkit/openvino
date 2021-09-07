@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v5::HSigmoid, "HSigmoid", 5, op::util::UnaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(op::v5::HSigmoid, "HSigmoid", "opset5", op::util::UnaryElementwiseArithmetic, 5);
 
 op::v5::HSigmoid::HSigmoid(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

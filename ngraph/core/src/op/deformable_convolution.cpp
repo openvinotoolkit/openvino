@@ -16,12 +16,14 @@ using namespace ngraph;
 
 OPENVINO_RTTI_DEFINITION(op::v1::DeformableConvolution,
                          "DeformableConvolution",
-                         1,
-                         op::util::DeformableConvolutionBase);
+                         "opset1",
+                         op::util::DeformableConvolutionBase,
+                         1);
 OPENVINO_RTTI_DEFINITION(op::v8::DeformableConvolution,
                          "DeformableConvolution",
-                         8,
-                         op::util::DeformableConvolutionBase);
+                         "opset8",
+                         op::util::DeformableConvolutionBase,
+                         8);
 
 op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,

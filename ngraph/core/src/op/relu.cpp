@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Relu, "Relu", 0, util::UnaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(op::v0::Relu, "Relu", "opset1", util::UnaryElementwiseArithmetic);
 
 op::Relu::Relu(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

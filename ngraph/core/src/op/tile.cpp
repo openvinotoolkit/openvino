@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Tile, "Tile", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Tile, "Tile", "opset1");
 
 op::v0::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats) : Op({data, repeats}) {
     constructor_validate_and_infer_types();

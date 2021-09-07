@@ -9,7 +9,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::EmbeddingBagPackedBase, "EmbeddingBagPackedBase", 3);
+OPENVINO_RTTI_DEFINITION(ov::op::util::EmbeddingBagPackedBase, "EmbeddingBagPackedBase");
 
 ov::op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>& emb_table,
                                                              const Output<Node>& indices,

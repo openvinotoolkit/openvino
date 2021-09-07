@@ -11,7 +11,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::ArithmeticReductionKeepDims, "ArithmeticReductionKeepDims", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::util::ArithmeticReductionKeepDims, "ArithmeticReductionKeepDims");
 
 ov::op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(
     const ngraph::Output<ngraph::Node>& arg,

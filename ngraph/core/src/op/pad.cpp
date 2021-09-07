@@ -17,7 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::Pad, "Pad", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::Pad, "Pad", "opset1", op::Op, 1);
 
 op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,

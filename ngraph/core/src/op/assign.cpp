@@ -13,8 +13,8 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v3::Assign, "Assign", 3, op::Sink);
-OPENVINO_RTTI_DEFINITION(ov::op::v6::Assign, "Assign", 6, op::Sink);
+OPENVINO_RTTI_DEFINITION(ov::op::v3::Assign, "Assign", "opset3", op::Sink, 3);
+OPENVINO_RTTI_DEFINITION(ov::op::v6::Assign, "Assign", "opset6", op::Sink, 6);
 
 op::v3::Assign::Assign(const Output<Node>& new_value, const std::string& variable_id)
     : AssignBase({new_value}),

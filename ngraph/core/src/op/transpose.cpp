@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::Transpose, "Transpose", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::Transpose, "Transpose", "opset1", op::Op, 1);
 
 op::v1::Transpose::Transpose(const Output<Node>& arg, const Output<Node>& input_order) : Op({arg, input_order}) {
     constructor_validate_and_infer_types();

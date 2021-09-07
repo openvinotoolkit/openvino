@@ -12,7 +12,7 @@ using namespace ngraph;
 
 // ExtractImagePatches v3
 
-OPENVINO_RTTI_DEFINITION(op::v3::ExtractImagePatches, "ExtractImagePatches", 3);
+OPENVINO_RTTI_DEFINITION(op::v3::ExtractImagePatches, "ExtractImagePatches", "opset3", op::Op, 3);
 
 op::v3::ExtractImagePatches::ExtractImagePatches(const Output<Node>& image,
                                                  const Shape& sizes,

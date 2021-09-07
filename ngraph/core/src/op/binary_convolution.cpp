@@ -14,7 +14,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v1::BinaryConvolution, "BinaryConvolution", 1);
+OPENVINO_RTTI_DEFINITION(ov::op::v1::BinaryConvolution, "BinaryConvolution", "opset1", op::Op, 1);
 
 ov::op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
                                                  const Output<Node>& kernel,

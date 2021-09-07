@@ -14,7 +14,7 @@ using namespace std;
 using namespace ngraph;
 
 // ------------------------------ V0 ------------------------------
-OPENVINO_RTTI_DEFINITION(op::v0::Gelu, "Gelu", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Gelu, "Gelu", "opset2", op::Op, 0);
 
 op::v0::Gelu::Gelu() : Op() {}
 
@@ -66,7 +66,8 @@ std::ostream& op::operator<<(std::ostream& s, const op::GeluApproximationMode& t
 
 constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::GeluApproximationMode>::type_info;
 }  // namespace ov
-OPENVINO_RTTI_DEFINITION(op::v7::Gelu, "Gelu", 7);
+
+OPENVINO_RTTI_DEFINITION(op::v7::Gelu, "Gelu", "opset7", op::Op, 7);
 
 op::v7::Gelu::Gelu(const Output<Node>& data, GeluApproximationMode mode)
     : UnaryElementwiseArithmetic(data),

@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v4::Mish, "Mish", 4);
+OPENVINO_RTTI_DEFINITION(op::v4::Mish, "Mish", "opset4", op::Op, 4);
 
 op::v4::Mish::Mish(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();

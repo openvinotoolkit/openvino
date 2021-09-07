@@ -61,7 +61,7 @@ bool evaluate_round(const HostTensorPtr& arg0,
 }
 }  // namespace roundop
 
-OPENVINO_RTTI_DEFINITION(op::v5::Round, "Round", 5);
+OPENVINO_RTTI_DEFINITION(op::v5::Round, "Round", "opset5", op::Op, 5);
 
 op::v5::Round::Round(const Output<Node>& arg, RoundMode mode) : Op({arg}), m_mode(mode) {
     constructor_validate_and_infer_types();

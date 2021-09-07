@@ -17,7 +17,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::BroadcastBase, "BroadcastBase", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::util::BroadcastBase, "BroadcastBase");
 
 ov::op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
                                            const Output<Node>& target_shape,

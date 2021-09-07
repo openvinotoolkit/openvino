@@ -19,7 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Squeeze, "Squeeze", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Squeeze, "Squeeze", "opset1");
 
 op::Squeeze::Squeeze() : Op() {}
 

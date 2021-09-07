@@ -20,7 +20,7 @@ using namespace ngraph;
 
 // ------------------------------ V1 ------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::NonMaxSuppression, "NonMaxSuppression", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::NonMaxSuppression, "NonMaxSuppression", "opset1", op::Op, 1);
 
 op::v1::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
@@ -195,7 +195,7 @@ std::ostream& ov::operator<<(std::ostream& s, const op::v1::NonMaxSuppression::B
 }
 
 // ------------------------------ V3 ------------------------------
-OPENVINO_RTTI_DEFINITION(op::v3::NonMaxSuppression, "NonMaxSuppression", 3);
+OPENVINO_RTTI_DEFINITION(op::v3::NonMaxSuppression, "NonMaxSuppression", "opset3", op::Op, 3);
 
 op::v3::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
@@ -384,7 +384,7 @@ std::ostream& ov::operator<<(std::ostream& s, const op::v3::NonMaxSuppression::B
 
 // ------------------------------ V4 ------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v4::NonMaxSuppression, "NonMaxSuppression", 4);
+OPENVINO_RTTI_DEFINITION(op::v4::NonMaxSuppression, "NonMaxSuppression", "opset4", op::v3::NonMaxSuppression, 4);
 
 op::v4::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
@@ -471,7 +471,7 @@ void op::v4::NonMaxSuppression::validate_and_infer_types() {
 
 // ------------------------------ V5 ------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v5::NonMaxSuppression, "NonMaxSuppression", 5);
+OPENVINO_RTTI_DEFINITION(op::v5::NonMaxSuppression, "NonMaxSuppression", "opset5", op::Op, 5);
 
 op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,

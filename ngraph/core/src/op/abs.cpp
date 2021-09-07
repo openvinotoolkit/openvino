@@ -10,7 +10,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/abs.hpp"
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::Abs, "Abs", 0, util::UnaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(ov::op::v0::Abs, "Abs", "opset1", util::UnaryElementwiseArithmetic);
 
 ov::op::v0::Abs::Abs(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

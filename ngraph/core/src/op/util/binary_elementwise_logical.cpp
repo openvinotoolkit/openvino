@@ -10,7 +10,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::BinaryElementwiseLogical, "BinaryElementwiseLogical", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::util::BinaryElementwiseLogical, "BinaryElementwiseLogical");
 
 ov::op::util::BinaryElementwiseLogical::BinaryElementwiseLogical() = default;
 

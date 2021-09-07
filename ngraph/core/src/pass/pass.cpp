@@ -12,7 +12,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::pass::FunctionPass, "ov::pass::FunctionPass", 0);
+OPENVINO_RTTI_DEFINITION(ov::pass::FunctionPass, "ov::pass::FunctionPass");
 
 ov::pass::PassBase::PassBase() : m_property(), m_pass_config(std::make_shared<PassConfig>()) {}
 
@@ -52,6 +52,6 @@ ov::pass::FunctionPass::~FunctionPass() = default;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-OPENVINO_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass", 0);
+OPENVINO_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass");
 
 ngraph::pass::NodePass::~NodePass() = default;

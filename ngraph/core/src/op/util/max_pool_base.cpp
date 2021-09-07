@@ -11,7 +11,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::MaxPoolBase, "MaxPoolBase", 8);
+OPENVINO_RTTI_DEFINITION(ov::op::util::MaxPoolBase, "MaxPoolBase");
 
 ov::op::util::MaxPoolBase::MaxPoolBase(const Output<Node>& arg,
                                        const Strides& strides,

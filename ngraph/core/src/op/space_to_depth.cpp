@@ -17,7 +17,7 @@
 
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::SpaceToDepth, "SpaceToDepth", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::v0::SpaceToDepth, "SpaceToDepth", "opset1");
 
 ov::op::v0::SpaceToDepth::SpaceToDepth(const Output<Node>& data, const SpaceToDepthMode& mode, size_t block_size)
     : Op({data}),

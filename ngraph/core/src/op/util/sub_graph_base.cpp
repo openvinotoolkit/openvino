@@ -7,7 +7,7 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::SubGraphOp, "SubGraphOp", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::util::SubGraphOp, "SubGraphOp");
 
 ov::op::util::SubGraphOp::SubGraphOp() : MultiSubGraphOp(1) {}
 

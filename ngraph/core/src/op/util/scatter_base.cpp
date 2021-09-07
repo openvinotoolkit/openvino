@@ -11,7 +11,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::ScatterBase, "ScatterBase", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::util::ScatterBase, "ScatterBase");
 
 ov::op::util::ScatterBase::ScatterBase(const Output<Node>& data,
                                        const Output<Node>& indices,

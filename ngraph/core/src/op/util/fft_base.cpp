@@ -11,7 +11,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::FFTBase, "FFTBase", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::util::FFTBase, "FFTBase");
 
 ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {}
 

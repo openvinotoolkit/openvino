@@ -22,7 +22,7 @@ using namespace ngraph;
 //                        v1::GroupConvolution
 //------------------------------------------------------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::GroupConvolution, "GroupConvolution", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::GroupConvolution, "GroupConvolution", "opset1", op::Op, 1);
 
 shared_ptr<Node> op::v1::GroupConvolution::get_default_value() const {
     return op::v0::Constant::create(get_element_type(), get_shape(), {0});
@@ -249,7 +249,7 @@ shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVec
 //                        v1::GroupConvolutionBackpropData
 //------------------------------------------------------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::GroupConvolutionBackpropData, "GroupConvolutionBackpropData", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::GroupConvolutionBackpropData, "GroupConvolutionBackpropData", "opset1", op::Op, 1);
 
 op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData()
     : Op(),

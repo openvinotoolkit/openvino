@@ -9,7 +9,7 @@
 
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::pass::Validate, "ov::pass::Validate", 0);
+OPENVINO_RTTI_DEFINITION(ov::pass::Validate, "ov::pass::Validate");
 
 bool ov::pass::Validate::run_on_function(std::shared_ptr<Function> f) {
     f->validate_nodes_and_infer_types();

@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Erf, "Erf", 0, util::UnaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(op::v0::Erf, "Erf", "opset1", util::UnaryElementwiseArithmetic);
 
 bool ngraph::op::v0::Erf::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v0_Erf_visit_attributes);

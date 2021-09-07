@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::ConvertLike, "ConvertLike", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::ConvertLike, "ConvertLike", "opset1", op::Op, 1);
 
 op::v1::ConvertLike::ConvertLike(const Output<Node>& data, const Output<Node>& like) : Op({data, like}) {
     constructor_validate_and_infer_types();

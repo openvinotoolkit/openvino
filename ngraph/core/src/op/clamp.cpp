@@ -97,7 +97,7 @@ bool op::v0::Clamp::has_evaluate() const {
     return false;
 }
 
-OPENVINO_RTTI_DEFINITION(op::v0::Clamp, "Clamp", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Clamp, "Clamp", "opset1");
 
 op::Clamp::Clamp() : Op(), m_min(), m_max() {}
 

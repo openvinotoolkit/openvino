@@ -16,6 +16,8 @@ using namespace ngraph;
 
 OPENVINO_RTTI_DEFINITION(op::v6::ExperimentalDetectronROIFeatureExtractor,
                          "ExperimentalDetectronROIFeatureExtractor",
+                         "opset6",
+                         op::Op,
                          6);
 
 op::v6::ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor(const OutputVector& args,

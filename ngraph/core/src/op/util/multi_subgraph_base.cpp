@@ -7,12 +7,12 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp, "MultiSubGraphOp", 0);
-NGRAPH_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::SliceInputDescription, "SliceInputDescription", 0);
-NGRAPH_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::MergedInputDescription, "MergedInputDescription", 0);
-NGRAPH_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::InvariantInputDescription, "InvariantInputDescription", 0);
-NGRAPH_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::BodyOutputDescription, "BodyOutputDescription", 0);
-NGRAPH_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::ConcatOutputDescription, "ConcatOutputDescription", 0);
+OPENVINO_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp, "MultiSubGraphOp");
+OPENVINO_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::SliceInputDescription, "SliceInputDescription");
+OPENVINO_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::MergedInputDescription, "MergedInputDescription");
+OPENVINO_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::InvariantInputDescription, "InvariantInputDescription");
+OPENVINO_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::BodyOutputDescription, "BodyOutputDescription");
+OPENVINO_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::ConcatOutputDescription, "ConcatOutputDescription");
 
 ov::op::util::MultiSubGraphOp::InputDescription::InputDescription(uint64_t input_index, uint64_t body_parameter_index)
     : m_input_index(input_index),
@@ -153,13 +153,11 @@ ov::Output<ov::Node> ov::op::util::MultiSubGraphOp::set_body_outputs(const Resul
 }
 
 namespace ov {
-NGRAPH_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>,
-                       "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::"
-                       "MultiSubGraphOp::InputDescription>>>",
-                       0);
+OPENVINO_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>,
+                         "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::"
+                         "MultiSubGraphOp::InputDescription>>>");
 
-NGRAPH_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>,
-                       "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::"
-                       "MultiSubGraphOp::OutputDescription>>>",
-                       0);
+OPENVINO_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>,
+                         "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::"
+                         "MultiSubGraphOp::OutputDescription>>>");
 }  // namespace ov
