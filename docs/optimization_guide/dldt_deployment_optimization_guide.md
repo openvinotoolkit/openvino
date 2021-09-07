@@ -1,6 +1,6 @@
 # Deployment Optimization Guide {#openvino_docs_deployment_optimization_guide_dldt_optimization_guide}
 
-To optimize your performance results during runtime step it is possible to play with: 
+To optimize your performance results during runtime step it is possible to experiment with: 
 
 * preprocess 
 
