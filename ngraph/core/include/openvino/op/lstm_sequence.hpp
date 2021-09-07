@@ -28,9 +28,9 @@ namespace v0 {
 /// \sa         LSTMCell, RNNCell, GRUCell
 ///
 ///
-class NGRAPH_API LSTMSequence : public Op {
+class OPENVINO_API LSTMSequence : public Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI_DECLARATION;
     LSTMSequence();
 
     using direction = RecurrentSequenceDirection;
@@ -146,9 +146,9 @@ namespace v5 {
 /// \sa         LSTMCell, RNNCell, GRUCell
 ///
 ///
-class NGRAPH_API LSTMSequence : public util::RNNCellBase {
+class OPENVINO_API LSTMSequence : public util::RNNCellBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI_DECLARATION;
     LSTMSequence() = default;
 
     using direction = RecurrentSequenceDirection;

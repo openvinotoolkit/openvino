@@ -12,7 +12,6 @@ if(ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
 
-add_subdirectory(tools)
 add_subdirectory(samples)
 
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader ie_samples_utils)
