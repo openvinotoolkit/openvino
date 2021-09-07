@@ -7,6 +7,7 @@ from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_ar
     dynamic_dimension_value, dynamic_dimension
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error
 from mo.front.extractor import bool_to_str
@@ -79,6 +80,9 @@ class Pooling(Op):
             ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
 
             ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
+            'axis',
+
+            ('index_element_type', lambda node: np_data_type_to_destination_type(node.index_element_type))
         ]
 
     @staticmethod
@@ -115,6 +119,12 @@ class Pooling(Op):
 
         if not node.has_valid('dilation'):
             node['dilation'] = np.ones(len(input_shape))
+
+        if not node.has_valid('axis'):
+            node['axis'] = 0
+
+        if not node.has_valid('index_element_type'):
+            node['index_element_type'] = np.int64
 
         window_spatial_shape = node.window[node.spatial_dims]
         stride_spatial = node.stride[node.spatial_dims]
