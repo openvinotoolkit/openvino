@@ -142,3 +142,48 @@ ngraph::pass::HSwishFusionWithHSigmoid::HSwishFusionWithHSigmoid() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul_pattern, matcher_name);
     register_matcher(m, callback);
 }
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishFusionWithClampMul, "HSwishFusionWithClampMul", 0);
+
+ngraph::pass::HSwishFusionWithClampMul::HSwishFusionWithClampMul() {
+    MATCHER_SCOPE(HSwishFusionWithClampMul);
+    // Replaces a sub-graph (Clamp(x + 3, 0, 6) * x) with a HSwish * 6.
+    auto input = ngraph::pattern::any_input();
+    auto add_constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({input, add_constant});
+    auto clamp = ngraph::pattern::wrap_type<ngraph::op::v0::Clamp>({add});
+    auto mul = ngraph::pattern::wrap_type<ngraph::opset7::Multiply>({clamp, input});
+
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        auto &pattern_to_output = m.get_pattern_value_map();
+        auto x_output = pattern_to_output.at(input);
+
+        auto add_const_value = std::dynamic_pointer_cast<ngraph::opset7::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+
+        bool valid_constant_values = op::util::has_constant_value(add_const_value, 3.0);
+
+        if (!valid_constant_values) {
+            return false;
+        }
+
+        auto clamp_node = std::dynamic_pointer_cast<ngraph::opset7::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
+        if (!clamp_node || clamp_node->get_min() != 0 || clamp_node->get_max() != 6)
+            return false;
+
+        auto hswish = register_new_node<ngraph::opset7::HSwish>(x_output);
+        auto new_mul_const = register_new_node<ngraph::opset7::Constant>(add_const_value->get_element_type(), Shape{}, std::vector<float>{6.0});
+        auto new_mul = register_new_node<ngraph::opset7::Multiply>(hswish, new_mul_const);
+
+        new_mul->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ngraph::copy_runtime_info({ pattern_to_output.at(add).get_node_shared_ptr(),
+                                    pattern_to_output.at(clamp).get_node_shared_ptr(),
+                                    pattern_to_output.at(mul).get_node_shared_ptr()
+                                  },
+                                  {hswish, new_mul_const, new_mul});
+        ngraph::replace_node(m.get_match_root(), new_mul);
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+    register_matcher(m, callback);
+}
