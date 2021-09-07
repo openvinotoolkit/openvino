@@ -1045,9 +1045,8 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
                         "".format(proposal_nodes_ids))
         proposal = Node(graph, proposal_nodes_ids[0])
 
-        # check whether it is necessary to permute proposals coordinates before passing them to the DetectionOutput
-        # currently this parameter is set for the RFCN topologies
-        if 'swap_proposals' in custom_attributes and custom_attributes['swap_proposals']:
+        # Need to swap proposals coordinates before passing them to the DetectionOutput for the RFCN topologies
+        if len(matmul_or_conv_nodes) == 0:
             proposal = add_convolution_to_swap_xy_coordinates(graph, proposal, 4)
 
         # reshape priors boxes as Detection Output expects
@@ -1336,19 +1335,10 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         im_info = Parameter(graph, dict(shape=int64_array([1, 3]), fixed_batch=True)).create_node(
             [], dict(name='image_info'))
 
-        proposal_node = proposal_op.create_node([reshape_conf_initial, bboxes_offsets, im_info], dict(name='proposals'))
-        # models with use_matmul_crop_and_resize = True should not swap order of elements (YX to XY) after the Proposal
-        # also RFCN model does not require proposal swap since the input is already in proper layout
-        swap_proposals = not match.custom_replacement_desc.custom_attributes.get('do_not_swap_proposals', False) and \
-                         not pipeline_config.get_param('use_matmul_crop_and_resize')
-        if swap_proposals:
-            proposal_node = add_convolution_to_swap_xy_coordinates(graph, proposal_node, 5)
-
-        # need to post-process output from the Proposal operation ([batch, x1, y1, x2, y2]) to return it to the
-        # TensorFlow output format [y1, x1, y2, x2] and reshape to an appropriate shape
-        return {'proposal_node': ObjectDetectionAPIProposalReplacement.ie_to_tf_proposals(graph, proposal_node, match,
-                                                                                          max_proposals,
-                                                                                          swap_proposals)}
+        proposal = proposal_op.create_node([reshape_conf_initial, bboxes_offsets, im_info], dict(name='proposals'))
+        return {'proposal_node': ObjectDetectionAPIProposalReplacement.ie_to_tf_proposals(graph, proposal, match,
+                                                                                          pipeline_config,
+                                                                                          max_proposals)}
 
     @staticmethod
     def insert_detection_output_instead_of_proposal(graph: Graph, match: SubgraphMatch,
@@ -1467,55 +1457,50 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         do_split = create_op_node_with_second_input(graph, Split, int64_array(2), {'num_splits': 7,
                                                                                    'name': do.name + '/Split'}, do_3d)
 
-        xyxy_coord = Concat(graph, {'axis': -1, 'nchw_layout': True, 'in_ports_count': 4,
-                                    'name': do_split.name + '/xyxy'}).create_node()
-        # change output from YXYX to XYXY order
-        do_split.out_port(3).connect(xyxy_coord.in_port(1))
-        do_split.out_port(4).connect(xyxy_coord.in_port(0))
-        do_split.out_port(5).connect(xyxy_coord.in_port(3))
-        do_split.out_port(6).connect(xyxy_coord.in_port(2))
+        coords = Concat(graph, {'axis': -1, 'in_ports_count': 4, 'name': do_split.name + '/coords'}).create_node()
+        # concat bounding boxes with the same order (XYXY) as Proposal produces
+        for port_idx in range(4):
+            do_split.out_port(3 + port_idx).connect(coords.in_port(port_idx))
 
-        clamped_xyxy_coord = AttributedClamp(graph, {'min': 0.0, 'max': 1.0, 'name': 'clamped_xyxy'}).create_node(
-            [xyxy_coord])
+        clamped_coords = AttributedClamp(graph, {'min': 0.0, 'max': 1.0, 'name': 'clamped_xyxy'}).create_node([coords])
 
         # prepare final proposal boxes [batch_id, x1, y1, x2, y2]
         proposal_node = Concat(graph, {'axis': -1, 'in_ports_count': 2, 'name': 'proposals'}).create_node()
         do_split.out_port(0).connect(proposal_node.in_port(0))
-        clamped_xyxy_coord.out_port(0).connect(proposal_node.in_port(1))
+        clamped_coords.out_port(0).connect(proposal_node.in_port(1))
         return {'proposal_node': ObjectDetectionAPIProposalReplacement.ie_to_tf_proposals(graph, proposal_node, match,
-                                                                                          max_proposals, True)}
+                                                                                          pipeline_config,
+                                                                                          max_proposals)}
 
     @staticmethod
-    def ie_to_tf_proposals(graph: Graph, proposal: Node, match: SubgraphMatch, max_proposals: int,
-                           swapped_proposals: bool = False):
+    def ie_to_tf_proposals(graph: Graph, proposal: Node, match: SubgraphMatch, pipeline_config: PipelineConfig,
+                           max_proposals: int):
         """
         Builds a graph which converts the proposals data in IE format to the format of TensorFlow. This includes
         cropping the IE output of format [batch, x1, y1, x2, y2] to simply [x1, y1, x2, y2] and reshaping tensor to an
-        appropriate shape.
+        appropriate shape. Swapping of the Proposal output is performed when necessary.
 
         :param graph: the graph to operate on
         :param proposal: the node producing IE proposals
         :param match: the object containing information about matched sub-graph
+        :param pipeline_config: object containing information from the pipeline.config file of the model
         :param max_proposals: maximum number of proposal boxes. Needed for the reshaping of the tensor
-        :param swapped_proposals: flag that specified if proposals were swapped already
         :return: the node producing output in the TF format.
         """
+        # models with use_matmul_crop_and_resize = True should not swap order of elements (YX to XY) after the Proposal
+        # because the TF output has XYXY layout originally.
+        # Also old version of RFCN model (1.9) does not require proposal swap since the output has proper layout
+        # already. The swap is controlled with the 'do_not_swap_proposals' parameter from the transformation file
+        swap_proposals = not match.custom_replacement_desc.custom_attributes.get('do_not_swap_proposals', False) and \
+                         not pipeline_config.get_param('use_matmul_crop_and_resize')
+        if swap_proposals:
+            proposal = add_convolution_to_swap_xy_coordinates(graph, proposal, 5)
+
+        # the "reshape_swap_proposals_2d" is used in the ObjectDetectionAPIPSROIPoolingReplacement transformation. It
+        # is important that this input may be swapped several lines above
         proposal_reshape_2d = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 5]),
                                                                dict(name="reshape_swap_proposals_2d"), proposal)
         mark_input_as_in_correct_layout(proposal_reshape_2d, 0)
-
-        crop_and_resize_nodes_ids = [node_id for node_id in bfs_search(graph, [match.single_input_node(0)[0].id]) if
-                                     graph.nodes[node_id]['op'] == 'CropAndResize']
-        if len(crop_and_resize_nodes_ids) != 0 and swapped_proposals:
-            # feed the CropAndResize node with a correct boxes information produced with the Proposal layer
-            # find the first CropAndResize node in the BFS order. This is needed in the case when we already swapped
-            # box coordinates data after the Proposal node
-            crop_and_resize_node = Node(graph, crop_and_resize_nodes_ids[0])
-            # set a marker that an input with box coordinates has been pre-processed so the CropAndResizeReplacement
-            # transform doesn't try to merge the second and the third inputs
-            crop_and_resize_node['inputs_preprocessed'] = True
-            crop_and_resize_node.in_port(1).disconnect()
-            proposal_reshape_2d.out_port(0).connect(crop_and_resize_node.in_port(1))
 
         tf_proposal_reshape_4d = create_op_node_with_second_input(graph, Reshape,
                                                                   int64_array([-1, 1, max_proposals, 5]),
@@ -1779,15 +1764,12 @@ class ObjectDetectionAPIPSROIPoolingReplacement(FrontReplacementFromConfigFileSu
             raise Error('Different "crop_height" and "crop_width" parameters from the pipeline config are not '
                         'supported: {} vs {}'.format(crop_height, crop_width))
 
-        # if there is a node which produces flattened swapped output from the Proposal operation then use it
-        if 'reshape_swap_proposals_2d' in graph.nodes():
-            reshape_swap_proposals_node = Node(graph, 'reshape_swap_proposals_2d')
-        else:
-            swap_proposals_node = add_convolution_to_swap_xy_coordinates(graph, Node(graph, 'proposals'), 5)
-            reshape_swap_proposals_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 5]),
-                                                                           {'name': 'reshape_swap_proposals_2d'},
-                                                                           swap_proposals_node)
-            mark_input_as_in_correct_layout(reshape_swap_proposals_node, 0)
+        proposal_nodes = graph.get_op_nodes(name='reshape_swap_proposals_2d')
+        if len(proposal_nodes) != 1:
+            raise Error("Found the following nodes '{}' with name 'reshape_swap_proposals_2d' but there should be "
+                        "exactly 1. Looks like ObjectDetectionAPIProposalReplacement transformation didn't work."
+                        "".format(proposal_nodes))
+        reshape_swap_proposals_node = proposal_nodes[0]
 
         psroipooling_node = PSROIPoolingOp(graph, {'name': input_node.soft_get('name') + '/PSROIPooling',
                                                    'output_dim': psroipooling_output_dim,
@@ -1798,6 +1780,7 @@ class ObjectDetectionAPIPSROIPoolingReplacement(FrontReplacementFromConfigFileSu
                                                    'spatial_scale': 1,
                                                    }).create_node([input_node, reshape_swap_proposals_node])
 
+        # add Reduce operation which is a part of the graph being removed
         reduce_node = create_op_node_with_second_input(graph, ReduceMean, int64_array([1, 2]),
                                                        {'name': 'mean', 'keep_dims': True}, psroipooling_node)
 
