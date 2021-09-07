@@ -29,7 +29,8 @@ import pytest
 import yaml
 from jsonschema import validate, ValidationError
 
-UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
+# add utils folder to imports
+UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
 sys.path.insert(0, str(UTILS_DIR))
 
 from plugins.conftest import *

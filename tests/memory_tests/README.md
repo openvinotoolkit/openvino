@@ -19,26 +19,19 @@ mkdir build && cd build
 cmake .. && make memory_tests
 ```
 
-If you don't have OpenVINO™ installed you need to have the `build` folder, which
-is created when you configure and build OpenVINO™ from sources:
-
-``` bash
-cmake .. -DInferenceEngine_DIR=$(realpath ../../../build) && make memory_tests
-```
-
 2. Install tests:
 ``` bash
-make install tests
+make install tests --prefix <install_path>
 ```
 
 3. Run test:
 ``` bash
-./scripts/run_memorytest.py tests/memtest_infer -m model.xml -d CPU
+./scripts/run_memorytest.py <install_path>/tests/memtest_infer -m model.xml -d CPU
 ```
 
 4. Run several configurations using `pytest`:
 ``` bash
-pytest ./test_runner/test.py --exe tests/memorytest_infer
+pytest ./test_runner/test.py --exe <install_path>/tests/memorytest_infer
 # For parse_stat testing:
 pytest ./scripts/run_memorytest.py
 ```
