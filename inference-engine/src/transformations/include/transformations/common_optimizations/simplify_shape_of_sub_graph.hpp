@@ -22,6 +22,7 @@ class TRANSFORMATIONS_API SharedShapeOf;
 class TRANSFORMATIONS_API GroupedGatherElimination;
 class TRANSFORMATIONS_API GatherNopElimination;
 class TRANSFORMATIONS_API SimplifyGatherShapeOf;
+class TRANSFORMATIONS_API SimplifySecondInputOfReshape;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -81,4 +82,15 @@ class ngraph::pass::SimplifyGatherShapeOf: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SimplifyGatherShapeOf();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief SimplifySecondInputOfReshape optimizes `shapeof->gather` into zero values for
+ * reshape pattern values if possible.
+ */
+class ngraph::pass::SimplifySecondInputOfReshape : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    SimplifySecondInputOfReshape();
 };

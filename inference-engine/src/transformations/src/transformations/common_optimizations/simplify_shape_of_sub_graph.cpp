@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
@@ -191,6 +192,112 @@ ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
     this->register_matcher(m, callback);
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifySecondInputOfReshape, "SimplifySecondInputOfReshape", 0);
+
+ngraph::pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
+    MATCHER_SCOPE(SimplifySecondInputOfReshape);
+    const auto input = pattern::any_input();
+    const auto concat = pattern::wrap_type<opset8::Concat>();
+    const auto reshape_pattern = pattern::wrap_type<opset8::Reshape>({ input, concat });
+
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto node = m.get_match_root();
+        const auto reshape = as_type_ptr<opset8::Reshape>(node);
+        if (!reshape || reshape->get_special_zero() == false) {
+            return false;
+        }
+
+        const auto concat = as_type_ptr<opset8::Concat>(reshape->get_input_node_shared_ptr(1));
+        const auto concat_axis = concat->get_axis();
+        if (!concat || concat_axis != 0) {
+            return false;
+        }
+
+        OutputVector concat_inputs = concat->input_values();
+        std::int64_t gather_dims_expected_location = 0;
+        size_t gather_idx = 0;
+        std::shared_ptr<Node> gather;
+
+        auto data = m.get_pattern_value_map().at(input);
+        if (is_type<opset8::FakeQuantize>(data.get_node_shared_ptr())) {
+            data = data.get_node_shared_ptr()->input_value(0);
+        }
+
+        auto check_shape_of_gather = [&](const std::shared_ptr<Node>& gather) {
+            auto shape_of = gather->get_input_node_shared_ptr(0);
+            if (!is_type<opset8::ShapeOf>(shape_of) || shape_of->get_output_target_inputs(0).size() > 1) {
+                return false;
+            }
+
+            if (shape_of->input_value(0) != data) {
+                return false;
+            }
+
+            return true;
+        };
+
+        // We need this check to avoid sequences shapeOf -> gather -> concat
+        // that change the arrangement of dimensions in the reshape pattern
+        for (size_t input_idx = 0; input_idx < concat_inputs.size(); ++input_idx) {
+            if (is_type<op::util::GatherBase>(concat_inputs[input_idx].get_node_shared_ptr())) {
+                gather = concat_inputs[input_idx].get_node_shared_ptr();
+                auto indices_constant = as_type_ptr<opset8::Constant>(gather->get_input_node_shared_ptr(1));
+                if (!indices_constant || !check_shape_of_gather(gather)) {
+                    return false;
+                }
+
+                auto indices = indices_constant->cast_vector<std::int64_t>();
+                for (size_t i = 0; i < indices.size(); ++i) {
+                    if (indices[i] != gather_dims_expected_location) {
+                        return false;
+                    }
+                    gather_dims_expected_location++;
+                }
+
+                gather_idx = input_idx;
+                break;
+            } else {
+                auto input_rank = concat_inputs[input_idx].get_partial_shape().rank().get_length();
+                if (input_rank == 0) {
+                    gather_dims_expected_location += 1;
+                } else {
+                    gather_dims_expected_location += input_rank;
+                }
+            }
+        }
+
+        if (!gather) {
+            return false;
+        }
+
+        OutputVector new_concat_inputs = concat_inputs;
+        size_t num_of_unchanged_dimensions = gather->get_input_partial_shape(1)[0].get_length();
+        const auto subgraph_et = gather->get_input_element_type(0);
+        new_concat_inputs[gather_idx] = opset8::Constant::create(subgraph_et, Shape{ num_of_unchanged_dimensions }, { 0 });
+
+        // myriadx fix
+        for (auto& elem : new_concat_inputs) {
+            if (elem.get_element_type() != subgraph_et) {
+                elem = ngraph::op::util::make_try_fold<opset8::Convert>(elem, subgraph_et);
+            }
+        }
+
+        const auto new_concat = op::util::make_try_fold<opset8::Concat>(new_concat_inputs, concat_axis);
+        new_concat->set_friendly_name(concat->get_friendly_name());
+        copy_runtime_info({ concat, gather }, new_concat);
+
+        const auto new_reshape = reshape->clone_with_new_inputs({ reshape->input_value(0), new_concat });
+        new_reshape->set_friendly_name(reshape->get_friendly_name());
+
+        copy_runtime_info(reshape, new_reshape);
+        replace_node(reshape, new_reshape);
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_pattern, matcher_name);
+    this->register_matcher(m, callback);
+}
+
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyShapeOfSubGraph, "SimplifyShapeOfSubGraph", 0);
 
 bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_function(std::shared_ptr<ngraph::Function> f) {
@@ -201,6 +308,7 @@ bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_function(std::shared_ptr<ngra
     manager.register_pass<ngraph::pass::GroupedGatherElimination>();
     manager.register_pass<ngraph::pass::GatherNopElimination>();
     manager.register_pass<ngraph::pass::SimplifyGatherShapeOf>();
+    manager.register_pass<ngraph::pass::SimplifySecondInputOfReshape>();
     manager.run_passes(f);
     return false;
 }
