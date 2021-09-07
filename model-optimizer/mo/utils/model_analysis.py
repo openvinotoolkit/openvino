@@ -112,7 +112,7 @@ class AnalysisCollectorAnchor(AnalyzeAction):
         pass
 
 
-def graph_contains_scope(graph: Graph, scope):
+def graph_contains_scope(graph: Graph, scope: [str, tuple]):
     """
     Checks whether the graph contains node(s) which name includes "scope" string.
     :param graph: graph to check
