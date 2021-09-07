@@ -6,6 +6,7 @@ $(document).ready(function() {
     init_col_sections();
     init_switchers();
     handleSwitcherParam();
+    initViewerJS();
 });
 
 (function() {
@@ -21,6 +22,16 @@ $(document).ready(function() {
         prevScroll = curScroll;
     });
 }());
+
+function initViewerJS() {
+    try {
+        var imageContainer =document.querySelector('main');
+        new Viewer(imageContainer);
+    }
+    catch(err) {
+        console.log(err);
+    }
+}
 
 function hideSwitcherPanel() {
     $('.switcher-set').css('display', 'none');

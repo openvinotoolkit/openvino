@@ -34,3 +34,7 @@
     border-color: var(--tabs--border--active);
     border-color: var(--switcher-border-active);
 }
+
+main img {
+    cursor: pointer;
+}
