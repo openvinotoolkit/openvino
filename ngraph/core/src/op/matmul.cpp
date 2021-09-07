@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::MatMul, "MatMul", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::MatMul, "MatMul", 0);
 
 op::MatMul::MatMul(const Output<Node>& A, const Output<Node>& B, const bool& transpose_a, const bool& transpose_b)
     : Op(OutputVector{A, B}),
