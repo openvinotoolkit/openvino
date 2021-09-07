@@ -10,18 +10,18 @@ Usage: ./scrips/memcheck_upload.py https://ci.intel.com/job/memchek/1234/ \
     --artifact_root ./gtest-parallel-logs --dryrun
 """
 
+import argparse
+import hashlib
 import json
 import logging
-from types import SimpleNamespace
 import os
 import re
 import sys
-import argparse
-from inspect import getsourcefile
-from glob import glob
 import xml.etree.ElementTree as ET
-import hashlib
-from pathlib import Path
+from glob import glob
+from inspect import getsourcefile
+from types import SimpleNamespace
+
 import yaml
 from pymongo import MongoClient
 
