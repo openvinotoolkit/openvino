@@ -106,8 +106,8 @@ AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransfor
 }
 
 bool AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<opset1::Add> op = ov::as_type_ptr<opset1::Add>(m.get_match_root());
-    if ((op == nullptr) || (!canBeTransformed(context, op))) {
+    std::shared_ptr<Node> op = m.get_match_root();
+    if (!canBeTransformed(context, op)) {
         return false;
     }
 
@@ -200,24 +200,34 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         //     newMultiply
 
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
-        inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
-            newSubtractFullPathValues == nullptr ?
-                fullPathInput :
-                std::make_shared<opset1::Subtract>(
-                    // precision on branch with dequantization operations can be different with dequantization precision,
-                    // for example: FP16 model with FP32 dequantization
-                    fullPathInput.get_element_type() != newSubtractFullPathValues->get_element_type() ?
-                        std::make_shared<opset1::Convert>(fullPathInput, newSubtractFullPathValues->get_element_type()) :
-                        fullPathInput,
-                    newSubtractFullPathValues),
-            newMultiplyFullPathValues);
+
+        Output<Node> dataFullPath;
+        if (newSubtractFullPathValues != nullptr) {
+            const auto newSubFullPathPrecision = newSubtractFullPathValues->get_element_type();
+
+            if (fullPathInput.get_element_type() != newSubFullPathPrecision) {
+                // Precision on branch with dequantization operations can be different with dequantization precision.
+                // For example: FP16 model with FP32 dequantization
+                const auto convertedFullPathInput = std::make_shared<opset1::Convert>(fullPathInput, newSubFullPathPrecision);
+                dataFullPath = std::make_shared<opset1::Subtract>(convertedFullPathInput, newSubtractFullPathValues);
+            } else {
+                dataFullPath = std::make_shared<opset1::Subtract>(fullPathInput, newSubtractFullPathValues);
+            }
+        } else {
+            dataFullPath = fullPathInput;
+        }
+
+        inputs[fullPathIndex] = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+            element::TypeVector{ element::f32, element::f32 }, element::TypeVector{ element::f32 },
+            ngraph::op::TemporaryReplaceOutputType(dataFullPath, element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(newMultiplyFullPathValues, element::f32).get());
 
         newAddOrSubtract = std::make_shared<op::TypeRelaxed<opset1::Add>>(
-            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
+            element::TypeVector{element::f32, element::f32}, element::TypeVector{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
-            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ add->get_output_element_type(0) },
+            element::TypeVector{element::f32, element::f32}, element::TypeVector{ add->get_output_element_type(0) },
             ngraph::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());
 
@@ -237,12 +247,16 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
 }
 
 bool AddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, 0ul);
+    if (!is_type<opset1::Add>(layer)) {
+        return false;
+    }
+
+    const FakeQuantizeDequantization dequantization1 = NetworkHelper::getDequantization(layer, 0ul);
     if (dequantization1.multiplyHasZeroOrDenormal()) {
         return false;
     }
 
-    const FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, 1ul);
+    const FakeQuantizeDequantization dequantization2 = NetworkHelper::getDequantization(layer, 1ul);
     if (dequantization2.multiplyHasZeroOrDenormal()) {
         return false;
     }

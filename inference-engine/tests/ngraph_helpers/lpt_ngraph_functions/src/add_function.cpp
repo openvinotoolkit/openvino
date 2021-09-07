@@ -127,8 +127,6 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
 
     const auto add = std::make_shared<ngraph::opset1::Add>(dequantizationOp1, dequantizationOp2);
     add->set_friendly_name("output");
-    auto& rtInfo = add->get_rt_info();
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("add");
 
     std::shared_ptr<Node> output = add;
     if (additional_output != nullptr) {
@@ -307,8 +305,6 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
             ngraph::op::TemporaryReplaceOutputType(dequantizationOp2, element::f32).get());
 
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(add, dequantizationAfter.empty() ? precision : element::f32);
-    auto& rtInfo = add->get_rt_info();
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("add");
 
     auto dequantizationStructureAfter = dequantizationAfter;
     dequantizationStructureAfter.multiply.outPrecision = precision;

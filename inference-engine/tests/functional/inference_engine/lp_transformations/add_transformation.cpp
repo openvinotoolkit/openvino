@@ -1178,4 +1178,46 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValues)),
         AddTransformation::getTestCaseName);
 } // namespace oneBranchQuantizationFp32DontUpdatePrecision
+
+namespace constantSubgraphCases {
+const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes4D = {
+    {{1, 4, 16, 16}, {1, 4, 16, 16}},
+    {{Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()}, {Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()}},
+};
+
+const std::vector<AddTransformationTestValues> testValues = {
+    {
+        ngraph::element::i32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i32,
+            {
+                {}, {{0}, element::i32}, {{384}, element::i32}
+            },
+            ngraph::element::i32,
+            {},
+        },
+        {
+            ngraph::element::i32,
+            { {}, {}, DequantizationOperations::Multiply{384}.setConstantPrecision(element::f32)},
+            ngraph::element::i32,
+            { },
+            { {},  {}, { 1.f } },
+            { -3.f },
+        },
+        ""
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    AddTransformation,
+    ::testing::Combine(
+        ::testing::Values(element::i32),
+        ::testing::ValuesIn(inputShapes4D),
+        ::testing::ValuesIn(testValues)),
+    AddTransformation::getTestCaseName);
+} // namespace constantSubgraphCases
 } // namespace
