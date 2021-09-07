@@ -18,9 +18,9 @@ To optimize your performance results during runtime step it is possible to play 
 
 * Basic Interoperability with Other APIs 
 
-**Preprocess**
+## Preprocess
 
-## Letting the Inference Engine Accelerate Image Pre-processing/Conversion <a name="image-preprocessing"></a>
+### Letting the Inference Engine Accelerate Image Pre-processing/Conversion <a name="image-preprocessing"></a>
 
 In many cases, a network expects a pre-processed image, so make sure you do not perform unnecessary steps in your code:
 - Model Optimizer can efficiently bake the mean and normalization (scale) values into the model (for example, weights of the first convolution). See <a href="#mo-knobs-related-to-performance">Model Optimizer Knobs Related to Performance</a>.
