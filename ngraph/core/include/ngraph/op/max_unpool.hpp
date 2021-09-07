@@ -5,13 +5,13 @@
 namespace ngraph {
 namespace op {
 namespace v8 {
-class NGRAPH_API MaxPoolGrad : public Op {
+class NGRAPH_API MaxUnpool : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
-    MaxPoolGrad() = default;
+    MaxUnpool() = default;
 
-    MaxPoolGrad(const ngraph::Output<ngraph::Node>& poolInp,
+    MaxUnpool(const ngraph::Output<ngraph::Node>& poolInp,
                 const ngraph::Output<ngraph::Node>& poolOut,
                 const ngraph::Output<ngraph::Node>& inp,
                 const ngraph::Output<ngraph::Node>& shape);

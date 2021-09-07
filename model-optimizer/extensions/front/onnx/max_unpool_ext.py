@@ -1,8 +1,8 @@
-from extensions.ops.MaxPoolGrad import MaxPoolGrad
+from extensions.ops.MaxUnpool import MaxUnpool
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
 
-class MaxUnpool(FrontReplacementSubgraph):
+class MaxUnpoolExtractor(FrontReplacementSubgraph):
     enabled = True
 
     def pattern(self):
@@ -33,7 +33,7 @@ class MaxUnpool(FrontReplacementSubgraph):
         # Inputs: [max_pool_input, max_pool_output, unpool_input, shape]
         inputs = [max_pool_input, max_pool, unpool_input]
 
-        res = MaxPoolGrad(graph, dict(name=unpool.name + '/fused')).create_node(inputs)
+        res = MaxUnpool(graph, dict(name=unpool.name + '/fused')).create_node(inputs)
         unpool.out_port(0).get_connection().set_source(res.out_port(0))
 
         if len(unpool.in_ports()) == 3:

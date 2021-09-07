@@ -8,8 +8,8 @@ def shape_infer(node):
     node.out_node(0).shape[2] = node.in_node(3).shape[2]
     node.out_node(0).shape[3] = node.in_node(3).shape[3]
 
-class MaxPoolGrad(Op):
-    op = 'MaxPoolGrad'
+class MaxUnpool(Op):
+    op = 'MaxUnpool'
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):

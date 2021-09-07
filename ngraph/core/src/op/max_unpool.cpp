@@ -3,9 +3,9 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v8::MaxPoolGrad, "MaxPoolGrad", 1);
+NGRAPH_RTTI_DEFINITION(op::v8::MaxUnpool, "MaxUnpool", 1);
 
-op::v8::MaxPoolGrad::MaxPoolGrad(const ngraph::Output<ngraph::Node>& poolInp,
+op::v8::MaxUnpool::MaxUnpool(const ngraph::Output<ngraph::Node>& poolInp,
                                  const ngraph::Output<ngraph::Node>& poolOut,
                                  const ngraph::Output<ngraph::Node>& inp,
                                  const ngraph::Output<ngraph::Node>& shape)
@@ -13,18 +13,18 @@ op::v8::MaxPoolGrad::MaxPoolGrad(const ngraph::Output<ngraph::Node>& poolInp,
     constructor_validate_and_infer_types();
 }
 
-bool op::v8::MaxPoolGrad::visit_attributes(ngraph::AttributeVisitor& visitor) {
+bool op::v8::MaxUnpool::visit_attributes(ngraph::AttributeVisitor& visitor) {
     return true;
 }
 
-std::shared_ptr<ngraph::Node> op::v8::MaxPoolGrad::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
+std::shared_ptr<ngraph::Node> op::v8::MaxUnpool::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
     if (new_args.size() != 4) {
         throw ngraph::ngraph_error("Incorrect number of new arguments");
     }
-    return std::make_shared<MaxPoolGrad>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
+    return std::make_shared<MaxUnpool>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-void op::v8::MaxPoolGrad::validate_and_infer_types() {
+void op::v8::MaxUnpool::validate_and_infer_types() {
     auto outShape = get_input_partial_shape(3);
     auto poolInpShape = get_input_partial_shape(0);
     if (poolInpShape.is_static()) { // need to fix it
@@ -35,9 +35,7 @@ void op::v8::MaxPoolGrad::validate_and_infer_types() {
     }
 }
 
-bool op::v8::MaxPoolGrad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    std::cout << "Unpool EVALUATE" << std::endl;
-
+bool op::v8::MaxUnpool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     const float* poolInp = inputs[0]->get_data_ptr<float>();
     const float* poolOut = inputs[1]->get_data_ptr<float>();
     const float* inp = inputs[2]->get_data_ptr<float>();
@@ -80,6 +78,6 @@ bool op::v8::MaxPoolGrad::evaluate(const HostTensorVector& outputs, const HostTe
     return true;
 }
 
-bool op::v8::MaxPoolGrad::has_evaluate() const {
+bool op::v8::MaxUnpool::has_evaluate() const {
     return true;
 }
