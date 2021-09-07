@@ -168,10 +168,6 @@ def test_reshape():
     ([1, 3, -1, 25], [1, 3, 22, -1])
 ])
 def test_reshape_with_partial_shape(device, shape, p_shape):
-    ie = IECore()
-    if device == "CPU":
-        if ie.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to ngraph")
     from conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function(shape)
@@ -191,10 +187,6 @@ def test_reshape_with_partial_shape(device, shape, p_shape):
 
 @pytest.mark.ngraph_dependent_test
 def test_incorrect_reshape(device):
-    ie = IECore()
-    if device == "CPU":
-        if ie.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to ngraph")
     from conftest import create_ngraph_function
     import ngraph as ng
     function = create_ngraph_function([1, 3, 22, 22])
