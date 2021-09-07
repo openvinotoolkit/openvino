@@ -347,6 +347,9 @@ void LayerTestsCommon::ConfigureNetwork() {
 }
 
 void LayerTestsCommon::LoadNetwork() {
+    for (const auto& n : function->get_ordered_ops()) {
+        printf("%s\n", n->get_friendly_name().c_str());
+    }
     auto& e_t = ExternalNetworkTool::getInstance();
     if (e_t.getMode() == ExternalNetworkMode::EXPORT) {
         e_t.dumpNetworkToFile(function, GetTestCaseName() + "_" + GetTestName());
@@ -354,7 +357,7 @@ void LayerTestsCommon::LoadNetwork() {
 
     if (e_t.getMode() == ExternalNetworkMode::IMPORT) {
         cnnNetwork = e_t.loadNetworkFromFile(getCore(), GetTestCaseName() + "_" + GetTestName());
-        function = cnnNetwork.getFunction();
+        // function = cnnNetwork.getFunction();
     } else {
         cnnNetwork = InferenceEngine::CNNNetwork{function};
     }
