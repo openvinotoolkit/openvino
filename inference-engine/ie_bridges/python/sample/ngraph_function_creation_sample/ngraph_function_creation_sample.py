@@ -11,6 +11,7 @@ from functools import reduce
 
 import cv2
 import ngraph
+from ngraph.opset1 import max_pool
 import numpy as np
 from openvino.inference_engine import IECore, IENetwork
 
@@ -85,7 +86,7 @@ def create_ngraph_function(args: argparse.Namespace) -> ngraph.impl.Function:
     add_1_node = ngraph.add(conv_1_node, add_1_kernel)
 
     # maxpool 1
-    maxpool_1_node = ngraph.max_pool(add_1_node, [2, 2], [1, 1], padding_begin, padding_end, [2, 2], 'ceil')
+    maxpool_1_node = max_pool(add_1_node, [2, 2], padding_begin, padding_end, [2, 2], 'ceil')
 
     # convolution 2
     conv_2_kernel_shape, conv_2_kernel_length = shape_and_length([50, 20, 5, 5])
@@ -93,7 +94,7 @@ def create_ngraph_function(args: argparse.Namespace) -> ngraph.impl.Function:
         weights[weights_offset : weights_offset + conv_2_kernel_length].reshape(conv_2_kernel_shape),
     )
     weights_offset += conv_2_kernel_length
-    conv_2_node = ngraph.convolution(maxpool_1_node.output(0), conv_2_kernel, [1, 1], padding_begin, padding_end, [1, 1])
+    conv_2_node = ngraph.convolution(maxpool_1_node, conv_2_kernel, [1, 1], padding_begin, padding_end, [1, 1])
 
     # add 2
     add_2_kernel_shape, add_2_kernel_length = shape_and_length([1, 50, 1, 1])
@@ -104,7 +105,7 @@ def create_ngraph_function(args: argparse.Namespace) -> ngraph.impl.Function:
     add_2_node = ngraph.add(conv_2_node, add_2_kernel)
 
     # maxpool 2
-    maxpool_2_node = ngraph.max_pool(add_2_node, [2, 2], [1, 1], padding_begin, padding_end, [2, 2], 'ceil')
+    maxpool_2_node = max_pool(add_2_node, [2, 2], padding_begin, padding_end, [2, 2], 'ceil')
 
     # reshape 1
     reshape_1_dims, reshape_1_length = shape_and_length([2])
@@ -115,7 +116,7 @@ def create_ngraph_function(args: argparse.Namespace) -> ngraph.impl.Function:
     )
     reshape_1_kernel = ngraph.constant(dtype_weights)
     weights_offset += 2 * reshape_1_length
-    reshape_1_node = ngraph.reshape(maxpool_2_node.output(0), reshape_1_kernel, True)
+    reshape_1_node = ngraph.reshape(maxpool_2_node, reshape_1_kernel, True)
 
     # matmul 1
     matmul_1_kernel_shape, matmul_1_kernel_length = shape_and_length([500, 800])
