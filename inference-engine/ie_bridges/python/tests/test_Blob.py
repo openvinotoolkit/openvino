@@ -100,6 +100,7 @@ def test_incompatible_input_precision():
 
 
 # issue 49903
+@pytest.mark.ngraph_dependent_test
 @pytest.mark.skip(reason="Test will enable when CPU fix will be merge")
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_buffer_values_after_add_outputs(device):

@@ -134,12 +134,10 @@ def test_batch_size_after_reshape():
     assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
 
 
-def test_serialize(device):
-    ie = IECore()
-    if device == "CPU":
-        if ie.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to ngraph")
+@pytest.mark.ngraph_dependent_test
+def test_serialize():
     import ngraph as ng
+    ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.serialize("./serialized_net.xml", "./serialized_net.bin")
     serialized_net = ie.read_network(model="./serialized_net.xml", weights="./serialized_net.bin")

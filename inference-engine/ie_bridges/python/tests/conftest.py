@@ -38,3 +38,10 @@ def plugins_path():
 @pytest.fixture(scope='session')
 def device():
     return os.environ.get("TEST_DEVICE") if os.environ.get("TEST_DEVICE") else "CPU"
+
+
+def pytest_configure(config):
+    # register an additional marker for ngraph dependent tests
+    config.addinivalue_line(
+        "markers", "ngraph_dependent_test"
+    )
