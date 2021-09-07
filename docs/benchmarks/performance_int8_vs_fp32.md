@@ -20,25 +20,25 @@ The table below illustrates the speed-up factor for the performance gain by swit
     <td>bert-large-<br>uncased-whole-word-<br>masking-squad-0001</td>
     <td>SQuAD</td>
     <td>1.6</td>
-    <td>3.0</td>
-    <td>1.6</td>
-    <td>2.3</td>
+    <td>3.1</td>
+    <td>1.5</td>
+    <td>2.5</td>
   </tr>
   <tr>
     <td>brain-tumor-<br>segmentation-<br>0001-MXNET</td>
     <td>BraTS</td>
     <td>1.6</td>
-    <td>1.9</td>
-    <td>1.7</td>
-    <td>1.7</td>
+    <td>2.0</td>
+    <td>1.8</td>
+    <td>1.8</td>
   </tr>
   <tr>
     <td>deeplabv3-TF</td>
     <td>VOC 2012<br>Segmentation</td>
-    <td>2.1</td>
-    <td>3.1</td>
-    <td>3.1</td>
+    <td>1.9</td>
     <td>3.0</td>
+    <td>2.8</td>
+    <td>3.1</td>
   </tr>
   <tr>
     <td>densenet-121-TF</td>
@@ -51,7 +51,7 @@ The table below illustrates the speed-up factor for the performance gain by swit
   <tr>
     <td>facenet-<br>20180408-<br>102900-TF</td>
     <td>LFW</td>
-    <td>2.0</td>
+    <td>2.1</td>
     <td>3.6</td>
     <td>2.2</td>
     <td>3.7</td>
@@ -60,17 +60,9 @@ The table below illustrates the speed-up factor for the performance gain by swit
     <td>faster_rcnn_<br>resnet50_coco-TF</td>
     <td>MS COCO</td>
     <td>1.9</td>
-    <td>3.8</td>
+    <td>3.7</td>
     <td>2.0</td>
-    <td>3.5</td>
-  </tr>
-  <tr>
-    <td>googlenet-v1-TF</td>
-    <td>ImageNet</td>
-    <td>1.8</td>
-    <td>3.6</td>
-    <td>2.0</td>
-    <td>3.9</td>
+    <td>3.4</td>
   </tr>
   <tr>
     <td>inception-v3-TF</td>
@@ -78,23 +70,15 @@ The table below illustrates the speed-up factor for the performance gain by swit
     <td>1.9</td>
     <td>3.8</td>
     <td>2.0</td>
-    <td>4.0</td>
+    <td>4.1</td>
   </tr>
   <tr>
     <td>mobilenet-<br>ssd-CF</td>
     <td>VOC2012</td>
-    <td>1.7</td>
+    <td>1.6</td>
     <td>3.1</td>
-    <td>1.8</td>
+    <td>1.9</td>
     <td>3.6</td>
-  </tr>
-  <tr>
-    <td>mobilenet-v1-1.0-<br>224-TF</td>
-    <td>ImageNet</td>
-    <td>1.7</td>
-    <td>3.1</td>
-    <td>1.8</td>
-    <td>4.1</td>
   </tr>
   <tr>
     <td>mobilenet-v2-1.0-<br>224-TF</td>
@@ -107,10 +91,10 @@ The table below illustrates the speed-up factor for the performance gain by swit
   <tr>
     <td>mobilenet-v2-<br>pytorch</td>
     <td>ImageNet</td>
-    <td>1.6</td>
+    <td>1.7</td>
     <td>2.4</td>
     <td>1.9</td>
-    <td>3.9</td>
+    <td>4.0</td>
   </tr>
   <tr>
     <td>resnet-18-<br>pytorch</td>
@@ -124,7 +108,7 @@ The table below illustrates the speed-up factor for the performance gain by swit
     <td>resnet-50-<br>pytorch</td>
     <td>ImageNet</td>
     <td>1.9</td>
-    <td>3.7</td>
+    <td>3.6</td>
     <td>2.0</td>
     <td>3.9</td>
   </tr>
@@ -147,16 +131,16 @@ The table below illustrates the speed-up factor for the performance gain by swit
   <tr>
     <td>ssd_mobilenet_<br>v1_coco-tf</td>
     <td>VOC2012</td>
-    <td>1.7</td>
-    <td>3.0</td>
-    <td>1.9</td>
+    <td>1.8</td>
+    <td>3.1</td>
+    <td>2.0</td>
     <td>3.6</td>
   </tr>
   <tr>
     <td>ssd300-CF</td>
     <td>MS COCO</td>
     <td>1.8</td>
-    <td>4.4</td>
+    <td>4.2</td>
     <td>1.9</td>
     <td>3.9</td>
   </tr>
@@ -165,32 +149,56 @@ The table below illustrates the speed-up factor for the performance gain by swit
     <td>MS COCO</td>
     <td>1.7</td>
     <td>2.5</td>
-    <td>2.2</td>
-    <td>3.4</td>
-  </tr>
-  <tr>
-    <td>yolo_v3-TF</td>
-    <td>MS COCO</td>
-    <td>1.8</td>
-    <td>4.0</td>
-    <td>1.9</td>
-    <td>3.9</td>
+    <td>2.4</td>
+    <td>3.5</td>
   </tr>
   <tr>
     <td>yolo_v4-TF</td>
     <td>MS COCO</td>
-    <td>1.7</td>
+    <td>1.9</td>
+    <td>3.6</td>
+    <td>2.0</td>
     <td>3.4</td>
-    <td>1.7</td>
-    <td>2.8</td>
   </tr>
   <tr>
     <td>unet-camvid-onnx-0001</td>
     <td>MS COCO</td>
-    <td>1.6</td>
-    <td>3.8</td>
-    <td>1.6</td>
+    <td>1.7</td>
+    <td>3.9</td>
+    <td>1.7</td>
     <td>3.7</td>
+  </tr>
+  <tr>
+    <td>ssd-resnet34-<br>1200-onnx</td>
+    <td>MS COCO</td>
+    <td>1.7</td>
+    <td>4.0</td>
+    <td>1.7</td>
+    <td>3.4</td>
+  </tr>
+  <tr>
+    <td>googlenet-v4-tf</td>
+    <td>ImageNet</td>
+    <td>1.9</td>
+    <td>3.9</td>
+    <td>2.0</td>
+    <td>4.1</td>
+  </tr>
+  <tr>
+    <td>vgg19-caffe</td>
+    <td>ImageNet</td>
+    <td>1.9</td>
+    <td>4.7</td>
+    <td>2.0</td>
+    <td>4.5</td>
+  </tr>
+  <tr>
+    <td>yolo-v3-tiny-tf</td>
+    <td>MS COCO</td>
+    <td>1.7</td>
+    <td>3.4</td>
+    <td>1.9</td>
+    <td>3.5</td>
   </tr>
 </table>
 
@@ -217,18 +225,18 @@ The following table shows the absolute accuracy drop that is calculated as the d
     <td>SQuAD</td>
     <td>F1</td>
     <td>0.62</td>
-    <td>0.88</td>
-    <td>0.52</td>
+    <td>0.71</td>
+    <td>0.62</td>
     <td>0.62</td>
   </tr>
   <tr>
     <td>brain-tumor-<br>segmentation-<br>0001-MXNET</td>
     <td>BraTS</td>
     <td>Dice-index@ <br>Mean@ <br>Overall Tumor</td>
-    <td>0.09</td>
+    <td>0.08</td>
     <td>0.10</td>
-    <td>0.11</td>
-    <td>0.09</td>
+    <td>0.10</td>
+    <td>0.08</td>
   </tr>
   <tr>
     <td>deeplabv3-TF</td>
@@ -243,10 +251,10 @@ The following table shows the absolute accuracy drop that is calculated as the d
     <td>densenet-121-TF</td>
     <td>ImageNet</td>
     <td>acc@top-1</td>
-    <td>0.54</td>
-    <td>0.57</td>
-    <td>0.57</td>
-    <td>0.54</td>
+    <td>0.49</td>
+    <td>0.56</td>
+    <td>0.56</td>
+    <td>0.49</td>
   </tr>
   <tr>
     <td>facenet-<br>20180408-<br>102900-TF</td>
@@ -261,46 +269,28 @@ The following table shows the absolute accuracy drop that is calculated as the d
     <td>faster_rcnn_<br>resnet50_coco-TF</td>
     <td>MS COCO</td>
     <td>coco_<br>precision</td>
-    <td>0.04</td>
-    <td>0.04</td>
-    <td>0.04</td>
-    <td>0.04</td>
-  </tr>
-  <tr>
-    <td>googlenet-v1-TF</td>
-    <td>ImageNet</td>
-    <td>acc@top-1</td>
-    <td>0.01</td>
-    <td>0.00</td>
-    <td>0.00</td>
-    <td>0.01</td>
+    <td>0.09</td>
+    <td>0.09</td>
+    <td>0.09</td>
+    <td>0.09</td>
   </tr>
   <tr>
     <td>inception-v3-TF</td>
     <td>ImageNet</td>
     <td>acc@top-1</td>
-    <td>0.04</td>
-    <td>0.00</td>
-    <td>0.00</td>
-    <td>0.04</td>
+    <td>0.02</td>
+    <td>0.01</td>
+    <td>0.01</td>
+    <td>0.02</td>
   </tr>
   <tr>
     <td>mobilenet-<br>ssd-CF</td>
     <td>VOC2012</td>
     <td>mAP</td>
-    <td>0.77</td>
-    <td>0.77</td>
-    <td>0.77</td>
-    <td>0.77</td>
-  </tr>
-  <tr>
-    <td>mobilenet-v1-1.0-<br>224-TF</td>
-    <td>ImageNet</td>
-    <td>acc@top-1</td>
-    <td>0.26</td>
-    <td>0.28</td>
-    <td>0.28</td>
-    <td>0.26</td>
+    <td>0.06</td>
+    <td>0.04</td>
+    <td>0.04</td>
+    <td>0.06</td>
   </tr>
   <tr>
     <td>mobilenet-v2-1.0-<br>224-TF</td>
@@ -342,37 +332,37 @@ The following table shows the absolute accuracy drop that is calculated as the d
     <td>resnet-50-<br>TF</td>
     <td>ImageNet</td>
     <td>acc@top-1</td>
-    <td>0.10</td>
-    <td>0.08</td>
-    <td>0.08</td>
-    <td>0.10</td>
+    <td>0.11</td>
+    <td>0.11</td>
+    <td>0.11</td>
+    <td>0.11</td>
   </tr>
   <tr>
     <td>squeezenet1.1-<br>CF</td>
     <td>ImageNet</td>
     <td>acc@top-1</td>
-    <td>0.63</td>
+    <td>0.64</td>
     <td>0.66</td>
     <td>0.66</td>
-    <td>0.63</td>
+    <td>0.64</td>
   </tr>
   <tr>
     <td>ssd_mobilenet_<br>v1_coco-tf</td>
     <td>VOC2012</td>
     <td>COCO mAp</td>
-    <td>0.18</td>
-    <td>3.06</td>
-    <td>3.06</td>
-    <td>0.18</td>
+    <td>0.17</td>
+    <td>2.96</td>
+    <td>2.96</td>
+    <td>0.17</td>
   </tr>
   <tr>
     <td>ssd300-CF</td>
     <td>MS COCO</td>
     <td>COCO mAp</td>
-    <td>0.05</td>
-    <td>0.05</td>
-    <td>0.05</td>
-    <td>0.05</td>
+    <td>0.18</td>
+    <td>3.06</td>
+    <td>3.06</td>
+    <td>0.18</td>
   </tr>
   <tr>
     <td>ssdlite_<br>mobilenet_<br>v2-TF</td>
@@ -384,31 +374,58 @@ The following table shows the absolute accuracy drop that is calculated as the d
     <td>0.11</td>
   </tr>
   <tr>
-    <td>yolo_v3-TF</td>
-    <td>MS COCO</td>
-    <td>COCO mAp</td>
-    <td>0.11</td>
-    <td>0.24</td>
-    <td>0.24</td>
-    <td>0.11</td>
-  </tr>
-  <tr>
     <td>yolo_v4-TF</td>
     <td>MS COCO</td>
     <td>COCO mAp</td>
-    <td>0.01</td>
-    <td>0.09</td>
-    <td>0.09</td>
-    <td>0.01</td>
+    <td>0.06</td>
+    <td>0.03</td>
+    <td>0.03</td>
+    <td>0.06</td>
   </tr>
   <tr>
     <td>unet-camvid-<br>onnx-0001</td>
     <td>MS COCO</td>
     <td>COCO mAp</td>
+    <td>0.29</td>
+    <td>0.29</td>
     <td>0.31</td>
-    <td>0.31</td>
-    <td>0.31</td>
-    <td>0.31</td>
+    <td>0.29</td>
+  </tr>
+  <tr>
+    <td>ssd-resnet34-<br>1200-onnx</td>
+    <td>MS COCO</td>
+    <td>COCO mAp</td>
+    <td>0.02</td>
+    <td>0.03</td>
+    <td>0.03</td>
+    <td>0.02</td>
+  </tr>
+  <tr>
+    <td>googlenet-v4-tf</td>
+    <td>ImageNet</td>
+    <td>COCO mAp</td>
+    <td>0.08</td>
+    <td>0.06</td>
+    <td>0.06</td>
+    <td>0.06</td>
+  </tr>
+  <tr>
+    <td>vgg19-caffe</td>
+    <td>ImageNet</td>
+    <td>COCO mAp</td>
+    <td>0.02</td>
+    <td>0.04</td>
+    <td>0.04</td>
+    <td>0.02</td>
+  </tr>
+  <tr>
+    <td>yolo-v3-tiny-tf</td>
+    <td>MS COCO</td>
+    <td>COCO mAp</td>
+    <td>0.02</td>
+    <td>0.6</td>
+    <td>0.6</td>
+    <td>0.02</td>
   </tr>
 </table>
 
