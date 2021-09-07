@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string LrnLayerTest::getTestCaseName(testing::TestParamInfo<lrnLayerTestParamsSet> obj) {
+std::string LrnLayerTest::getTestCaseName(const testing::TestParamInfo<lrnLayerTestParamsSet>& obj) {
     double alpha, beta, bias;
     size_t size;
     std::vector<int64_t> axes;
