@@ -26,7 +26,7 @@ TEST(FrontEndConvertModelTest, throw_in_conversion) {
     ASSERT_THROW(function = frontEnd->convert(inputModel), OpConversionFailure);
 }
 
-TEST(FrontEndConvertModelTest, unspported_version) {
+TEST(FrontEndConvertModelTest, unsupported_version) {
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
     InputModel::Ptr inputModel;
