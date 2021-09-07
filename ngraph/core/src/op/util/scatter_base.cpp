@@ -10,19 +10,18 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-constexpr NodeTypeInfo op::util::ScatterBase::type_info;
+OPENVINO_RTTI_DEFINITION(ov::op::util::ScatterBase, "ScatterBase", 0);
 
-op::util::ScatterBase::ScatterBase(const Output<Node>& data,
-                                   const Output<Node>& indices,
-                                   const Output<Node>& updates,
-                                   const Output<Node>& axis)
+ov::op::util::ScatterBase::ScatterBase(const Output<Node>& data,
+                                       const Output<Node>& indices,
+                                       const Output<Node>& updates,
+                                       const Output<Node>& axis)
     : Op({data, indices, updates, axis}) {
     constructor_validate_and_infer_types();
 }
 
-void op::util::ScatterBase::validate_and_infer_types() {
+void ov::op::util::ScatterBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_ScatterBase_validate_and_infer_types);
     const auto& data_et = get_input_element_type(DATA);
     const auto& indices_et = get_input_element_type(INDICES);
@@ -74,7 +73,7 @@ void op::util::ScatterBase::validate_and_infer_types() {
     if (const auto& axis_const_input = get_constant_from_source(input_value(AXIS))) {
         bool compatible = true;
         int64_t axis = axis_const_input->cast_vector<int64_t>().at(0);
-        axis = normalize_axis(this, axis, data_shape.rank().get_length());
+        axis = ngraph::normalize_axis(this, axis, data_shape.rank().get_length());
 
         if (indices_shape.rank().is_static() && updates_shape.rank().is_static()) {
             for (int64_t i = 0; i < indices_shape.rank().get_length(); ++i) {
@@ -106,7 +105,7 @@ void op::util::ScatterBase::validate_and_infer_types() {
     }
 }
 
-bool op::util::ScatterBase::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::ScatterBase::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(util_ScatterBase_visit_attributes);
     return true;
 }
