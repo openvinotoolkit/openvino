@@ -127,7 +127,7 @@ DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::des
     }
 }
 
-size_t MKLDNNExtensionUtils::getMemSizeForOneDnnDesc(mkldnn::memory::desc desc) {
+size_t MKLDNNExtensionUtils::getMemSizeForDnnlDesc(mkldnn::memory::desc desc) {
     const auto offset0 = desc.data.offset0;
     desc.data.offset0 = 0;
     size_t size = desc.get_size();

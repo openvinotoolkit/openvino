@@ -219,7 +219,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
                 if (inInfo->second->getInputData()->isDynamic())
-                    isDynamicGraph = true;
+                    graphHasDynamicInput = true;
             }
         }
 
@@ -609,11 +609,11 @@ void MKLDNNGraph::AllocateWithReuse() {
             int e_start = edge->getParent()->execIndex;
             int e_finish = edge->getChild()->execIndex;
 
-            int64_t e_size = edge->getDesc().getMaxMemSize();  // size in bytes (from the beginning of data to the last element)
-            if (e_size == MemoryDesc::UNDEFINED_SIZE) {
+            if (!edge->hasDefinedMaxSize()) {
                 IE_THROW() << "Can not allocate memory since the size is undefined.";
             }
 
+            int64_t e_size = edge->getDesc().getMaxMemSize();  // size in bytes (from the beginning of data to the last element)
             box.start = std::min(e_start, box.start);
             box.finish = std::max(e_finish, box.finish);
             box.size =  std::max(e_size, box.size);
@@ -665,7 +665,7 @@ void MKLDNNGraph::AllocateWithReuse() {
                 // TODO: WA for some test (like strided_slice_test) which use tensors with
                 //       shapes {0}. And it is implisitly converted into {1} tensor.
                 //       Zeroing of input data allow pass tests.
-                if (edge->getParent()->type == Input && edge->getMemoryPtr()->getDesc().getMaxMemSize() != MemoryDesc::UNDEFINED_SIZE)
+                if (edge->getParent()->type == Input && edge->hasDefinedMaxSize())
                     edge->getMemoryPtr()->FillZero();
 
                 count++;

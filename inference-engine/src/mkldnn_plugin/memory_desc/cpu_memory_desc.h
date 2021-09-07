@@ -97,6 +97,10 @@ public:
         return retVal;
     }
 
+    bool hasDefinedMaxSize() const {
+        return getMaxMemSize() != MemoryDesc::UNDEFINED_SIZE;
+    }
+
     template <typename T,
             typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
             typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>

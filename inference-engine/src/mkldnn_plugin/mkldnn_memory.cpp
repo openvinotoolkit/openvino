@@ -105,11 +105,11 @@ void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroin
     } else {
         //delayed dynamic allocation
         size_t maxMemSize = pMemDesc->getMaxMemSize();
-        VectorDims dummySize{MemoryDesc::UNDEFINED_SIZE == maxMemSize ? 0 : maxMemSize};
+        VectorDims dummySize{!pMemDesc->hasDefinedMaxSize() ? 0 : maxMemSize};
         DnnlBlockedMemoryDesc dummyDesc(InferenceEngine::Precision::U8, Shape(dummySize));
         Create(dummyDesc.getDnnlDesc(), data, false);  // no pads zeroing
     }
-    size_t newUpperBound = MKLDNNExtensionUtils::getMemSizeForOneDnnDesc(prim->get_desc());
+    size_t newUpperBound = MKLDNNExtensionUtils::getMemSizeForDnnlDesc(prim->get_desc());
     if (newUpperBound > memUpperBound) {
         memUpperBound = newUpperBound;
     }
@@ -151,10 +151,11 @@ void MKLDNNMemory::redefineDesc(MemoryDescPtr desc, void *data) {
     if (data != nullptr) {
         this->Create(std::move(desc), data, false);
     } else if (useExternalStorage) {
-        size_t descMaxSize = desc->getMaxMemSize();
-        if (MemoryDesc::UNDEFINED_SIZE == descMaxSize) {
+        if (!desc->hasDefinedMaxSize()) {
             IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";
         }
+
+        size_t descMaxSize = desc->getMaxMemSize();
         if (descMaxSize <= memUpperBound) {
             this->Create(std::move(desc), prim->get_data_handle(), false);
         } else {

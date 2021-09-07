@@ -34,7 +34,7 @@ public:
      * @return pointer to DnnlBlockedMemoryDesc or DnnlMemoryDesc
      */
     static std::shared_ptr<DnnlMemoryDesc> makeDescriptor(const mkldnn::memory::desc &desc);
-    static size_t getMemSizeForOneDnnDesc(mkldnn::memory::desc desc);
+    static size_t getMemSizeForDnnlDesc(mkldnn::memory::desc desc);
 };
 
 }  // namespace MKLDNNPlugin

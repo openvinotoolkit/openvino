@@ -16,7 +16,7 @@ DnnlMemoryDesc::DnnlMemoryDesc(const mkldnn::memory::desc& desc) :
 }
 
 size_t DnnlMemoryDesc::getCurrentMemSizeImp() const {
-    return MKLDNNExtensionUtils::getMemSizeForOneDnnDesc(desc);
+    return MKLDNNExtensionUtils::getMemSizeForDnnlDesc(desc);
 }
 
 size_t DnnlMemoryDesc::getElementOffset(size_t elemNumber) const {

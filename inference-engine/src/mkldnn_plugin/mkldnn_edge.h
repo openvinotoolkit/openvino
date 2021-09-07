@@ -67,8 +67,8 @@ public:
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
-    bool hasDefinedMaxSize() {
-        return getDesc().getMaxMemSize() != MemoryDesc::UNDEFINED_SIZE;
+    bool hasDefinedMaxSize() const {
+        return getDesc().hasDefinedMaxSize();
     }
 
 private:

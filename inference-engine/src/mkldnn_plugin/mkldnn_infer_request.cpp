@@ -186,7 +186,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
 
     ThrowIfCanceled();
 
-    if (graph->isDynamic())
+    if (graph->hasDynamicInput())
         redefineMemoryForInputNodes();
 
     execDataPreprocessing(_inputs);

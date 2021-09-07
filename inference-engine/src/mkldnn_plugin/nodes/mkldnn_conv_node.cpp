@@ -309,7 +309,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 createDescriptor({ in_candidate }, { out_candidate });
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nCsp8c);
                 out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nCsp8c);
-                createDescriptor({ in_candidate }, { out_candidate });;
+                createDescriptor({ in_candidate }, { out_candidate });
             }
 
             in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, ncsp);
@@ -318,8 +318,8 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
 
             if (inputDataType != memory::data_type::bf16 && isNspcAvailable()) {
                 in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inputShape, inputDataType, nspc);
-                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);;
-                createDescriptor({ in_candidate }, { out_candidate });;
+                out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outputShape, outputDataType, nspc);
+                createDescriptor({ in_candidate }, { out_candidate });
             }
         }
     }

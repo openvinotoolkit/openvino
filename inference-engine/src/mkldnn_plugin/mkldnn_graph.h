@@ -186,8 +186,8 @@ public:
         return isQuantizedFlag;
     }
 
-    bool isDynamic() const {
-        return isDynamicGraph;
+    bool hasDynamicInput() const {
+        return graphHasDynamicInput;
     }
 
 protected:
@@ -221,7 +221,7 @@ protected:
     std::string _name;
 
     bool isQuantizedFlag = false;
-    bool isDynamicGraph = false;
+    bool graphHasDynamicInput = false;
 
     static mkldnn::engine eng;
 
