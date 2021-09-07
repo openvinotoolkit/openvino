@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Sinh, "Sinh", 0, util::UnaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(op::v0::Sinh, "Sinh", 0, util::UnaryElementwiseArithmetic);
 
 op::Sinh::Sinh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

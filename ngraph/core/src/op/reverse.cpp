@@ -19,7 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::Reverse, "Reverse", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::Reverse, "Reverse", 1);
 
 op::v1::Reverse::Reverse(const Output<Node>& data, const Output<Node>& reversed_axes, const std::string& mode)
     : Op({data, reversed_axes}),
@@ -197,7 +197,7 @@ bool op::v1::Reverse::has_evaluate() const {
     }
 }
 
-std::ostream& ngraph::operator<<(std::ostream& s, const op::v1::Reverse::Mode& type) {
+std::ostream& ov::operator<<(std::ostream& s, const op::v1::Reverse::Mode& type) {
     return s << as_string(type);
 }
 

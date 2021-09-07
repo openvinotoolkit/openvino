@@ -19,7 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Squeeze, "Squeeze", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Squeeze, "Squeeze", 0);
 
 op::Squeeze::Squeeze() : Op() {}
 
@@ -268,8 +268,8 @@ bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVec
 
     const auto& shape = get_output_shape(0);
 
-    if (auto data_const = std::dynamic_pointer_cast<op::Constant>(inputs_values[0].get_node_shared_ptr())) {
-        output_values[0] = std::make_shared<op::Constant>(*data_const, shape);
+    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
+        output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);
         return true;
     }
     return false;

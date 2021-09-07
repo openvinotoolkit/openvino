@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v7::Roll, "Roll", 7);
+OPENVINO_RTTI_DEFINITION(op::v7::Roll, "Roll", 7);
 
 op::v7::Roll::Roll(const Output<Node>& data, const Output<Node>& shift, const Output<Node>& axes)
     : Op({data, shift, axes}) {
@@ -47,7 +47,7 @@ void op::v7::Roll::validate_and_infer_types() {
 
     // If shift is a scalar, than axes can be arbitrary 1d tensor and we don't need
     // to check shift shape consistency with axes, otherwise the check is needed.
-    if (!(shift_pshape.is_static() && is_scalar(shift_pshape.to_shape()))) {
+    if (!(shift_pshape.is_static() && ngraph::is_scalar(shift_pshape.to_shape()))) {
         NODE_VALIDATION_CHECK(this,
                               shift_pshape.compatible(axes_pshape),
                               "If shift is a 1D vector, axes must be a 1D tensor of the same size.");

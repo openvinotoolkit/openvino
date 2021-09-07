@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Sqrt, "Sqrt", 0, util::UnaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(op::v0::Sqrt, "Sqrt", 0, util::UnaryElementwiseArithmetic);
 
 op::Sqrt::Sqrt(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

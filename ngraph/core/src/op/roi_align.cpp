@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::ROIAlign::type_info;
+OPENVINO_RTTI_DEFINITION(op::v3::ROIAlign, "ROIAlign", 3);
 
 op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const Output<Node>& rois,

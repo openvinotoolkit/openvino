@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::ShuffleChannels, "ShuffleChannels", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::ShuffleChannels, "ShuffleChannels", 0);
 
 op::ShuffleChannels::ShuffleChannels(const Output<Node>& data, const int64_t axis, const int64_t group)
     : Op({data}),

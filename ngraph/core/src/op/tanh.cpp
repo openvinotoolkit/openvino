@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Tanh, "Tanh", 0, op::util::UnaryElementwiseArithmetic);
+OPENVINO_RTTI_DEFINITION(op::v0::Tanh, "Tanh", 0, op::util::UnaryElementwiseArithmetic);
 
 op::Tanh::Tanh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
