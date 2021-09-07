@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string NormalizeL2LayerTest::getTestCaseName(testing::TestParamInfo<NormalizeL2LayerTestParams> obj) {
+std::string NormalizeL2LayerTest::getTestCaseName(const testing::TestParamInfo<NormalizeL2LayerTestParams>& obj) {
     std::vector<int64_t> axes;
     float eps;
     ngraph::op::EpsMode epsMode;
