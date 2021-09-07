@@ -322,12 +322,13 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             reverse_channels_out_nodes = [destination.node for destination in
                                           reverse_channels.out_port(0).get_connection().get_destinations()]
             reverse_channels.out_port(0).disconnect()
-
+            reverse_channels.in_port(0).disconnect()
             src = node_input_port_0.get_connection().get_source()
             node_input_port_0.get_connection().set_source(reverse_channels.out_port(0))
             src.connect(reverse_channels.in_port(0))
             for reverse_channels_out_node in reverse_channels_out_nodes:
-                node.out_port(0).get_connection().set_destination(reverse_channels_out_node.in_port(0))
+                node.out_port(0).connect(reverse_channels_out_node.in_port(0))
+
             return True, [reverse_channels]
         return False, []
 

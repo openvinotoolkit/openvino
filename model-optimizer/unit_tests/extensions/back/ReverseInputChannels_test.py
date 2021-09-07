@@ -32,6 +32,7 @@ nodes2 = {
     **regular_op_with_shaped_data('pad', [1, 3, 10, 10], {'type': 'Pad'}),
     **regular_op_with_shaped_data('reverse_channels', [1, 3, 10, 10], {'type': 'ReverseChannels', 'axis': 1}),
     **result('result'),
+    **result('result2'),
 }
 
 class ReverseInputChannelsTest(unittest.TestCase):
@@ -69,6 +70,22 @@ class ReverseInputChannelsTest(unittest.TestCase):
                                      *connect('mul', '0:pad'), *connect('pad_const_1', '1:pad'),
                                      *connect('pad_const_2', '2:pad'), *connect('pad', 'reverse_channels'),
                                      *connect('reverse_channels', 'result')])
+        self.set_graph_attrs(graph, ['placeholder'])
+
+        node = Node(graph, 'pad')
+        reverse_channels = Node(graph, 'reverse_channels')
+
+        keep_moving_up, new_reverses = ReverseChannelsPropagationUp.lift_up_through_pad(node, reverse_channels)
+        self.assertTrue(keep_moving_up is True)
+        self.assertTrue(len(new_reverses) == 1)
+        self.check_graph_attrs(graph, ['placeholder'])
+
+
+    def test_lift_up_through_pad2(self):
+        graph = build_graph(nodes2, [*connect('placeholder', '0:mul'), *connect('mul_const', '1:mul'),
+                                     *connect('mul', '0:pad'), *connect('pad_const_1', '1:pad'),
+                                     *connect('pad_const_2', '2:pad'), *connect('pad', 'reverse_channels'),
+                                     *connect('reverse_channels:0', '0:result'),  *connect('reverse_channels:0', '0:result2')])
         self.set_graph_attrs(graph, ['placeholder'])
 
         node = Node(graph, 'pad')
