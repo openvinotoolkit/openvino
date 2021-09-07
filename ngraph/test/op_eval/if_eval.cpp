@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-// Move these tests when dynamism will be support in template plugin
+// Move these tests when dynamism will be supported in the template plugin
 TEST(op_eval, if_constant_folding) {
     auto cond = std::make_shared<ngraph::opset5::Constant>(element::boolean, Shape{1}, false);
     auto A1 = std::make_shared<ngraph::opset5::Constant>(element::f32, Shape{1}, 37.0);

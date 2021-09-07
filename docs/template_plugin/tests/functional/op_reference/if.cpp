@@ -26,8 +26,8 @@ struct IfFunctionalBase {
 struct IfCondConst : public IfFunctionalBase {
     std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 2, "Incorrect test case! Number of inputs is not 2!");
-        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1!");
+        NGRAPH_CHECK(if_inputs.size() == 2, "Incorrect test case! Number of inputs is not 2.");
+        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
         auto X = std::make_shared<op::Parameter>(if_inputs[0].type, if_inputs[0].shape);
         auto Y = std::make_shared<op::Parameter>(if_inputs[1].type, if_inputs[1].shape);
@@ -51,15 +51,15 @@ struct IfCondConst : public IfFunctionalBase {
         return fun;
     }
 
-    IfCondConst(bool value) : cond_value(value) {}
+    explicit IfCondConst(bool value) : cond_value(value) {}
     bool cond_value;
 };
 
 struct IfCondIsNonConst : public IfFunctionalBase {
     std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3!");
-        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1!");
+        NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
+        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
         auto X = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
         auto Y = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
@@ -92,8 +92,8 @@ struct IfCondIsNonConst : public IfFunctionalBase {
 struct IfWithoutAdditionalInputs : IfFunctionalBase {
     std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 1, "Incorrect test case! Number of inputs is not 1!");
-        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1!");
+        NGRAPH_CHECK(if_inputs.size() == 1, "Incorrect test case! Number of inputs is not 1.");
+        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
         auto cond = std::make_shared<op::Parameter>(element::boolean, Shape{1});
         auto A = std::make_shared<op::Constant>(element::f32, Shape{1}, 8.0);
@@ -114,8 +114,8 @@ struct IfWithoutAdditionalInputs : IfFunctionalBase {
 struct IfDynamismCaseWithStaticInputs : public IfFunctionalBase {
     std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 4, "Incorrect test case! Number of inputs is not 4!");
-        NGRAPH_CHECK(results.size() == 2, "Incorrect test case! Number of outputs is not 2!");
+        NGRAPH_CHECK(if_inputs.size() == 4, "Incorrect test case! Number of inputs is not 4.");
+        NGRAPH_CHECK(results.size() == 2, "Incorrect test case! Number of outputs is not 2.");
 
         auto X = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
         auto Y = std::make_shared<op::Parameter>(element::f32, Shape{4, 2, 2});
@@ -156,8 +156,8 @@ struct IfDynamismCaseWithStaticInputs : public IfFunctionalBase {
 struct IfConditionIsScalar : public IfFunctionalBase {
     std::shared_ptr<Function> create_function(const std::vector<Tensor>& if_inputs,
                                               const std::vector<Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3!");
-        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1!");
+        NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
+        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
         auto X = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
         auto Y = std::make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
@@ -225,25 +225,6 @@ public:
     }
 };
 
-std::vector<float> y_gen() {
-    std::vector<float> result;
-    for (auto c_ind = 0; c_ind < 4; ++c_ind) {
-        for (auto d_ind = 0; d_ind < 4; ++d_ind) {
-            result.push_back(static_cast<float>(c_ind * d_ind));
-        }
-    }
-    return result;
-}
-
-std::vector<float> z_gen() {
-    std::vector<float> result;
-    for (auto c_ind = 0; c_ind < 8; ++c_ind) {
-        for (auto d_ind = 0; d_ind < 64; ++d_ind) {
-            result.push_back(static_cast<float>(c_ind * d_ind));
-        }
-    }
-    return result;
-}
 TEST_P(ReferenceIfLayerTest, IfWithHardcodedRefs) {
     Exec();
 }
