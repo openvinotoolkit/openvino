@@ -162,7 +162,7 @@ public:
     }
     void validate_and_infer_types() override{};
 
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& /* new_args */) const override {
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& /* new_args */) const override {
         return make_shared<NewOp>();
     };
 };
@@ -173,6 +173,7 @@ TEST(opset, new_op) {
     // Copy opset1; don't bash the real thing in a test
     OpSet opset1_copy(get_opset1());
     opset1_copy.insert<NewOp>();
+    ASSERT_TRUE(opset1_copy.contains_type<NewOp>());
     {
         shared_ptr<Node> op(opset1_copy.create(NewOp::type_info.name));
         ASSERT_TRUE(op);
@@ -193,6 +194,7 @@ TEST(opset, new_op) {
     EXPECT_TRUE(fred);
     // Fred should not be in the registry
     ASSERT_FALSE(get_opset1().contains_type(NewOp::type_info));
+    ASSERT_FALSE(get_opset1().contains_type<NewOp>());
 }
 
 TEST(opset, dump) {
