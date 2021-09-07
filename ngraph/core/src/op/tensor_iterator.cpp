@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::TensorIterator, "TensorIterator", 0, op::util::SubGraphOp);
+OPENVINO_RTTI_DEFINITION(op::v0::TensorIterator, "TensorIterator", 0, op::util::SubGraphOp);
 
 op::v0::TensorIterator::TensorIterator(const OutputVector& values) : op::util::SubGraphOp(values) {}
 
