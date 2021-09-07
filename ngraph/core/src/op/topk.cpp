@@ -136,7 +136,7 @@ size_t read_k_from_host_tensor(const HostTensorPtr& arg_k) {
 }  // namespace topk
 
 // v1 version starts
-NGRAPH_RTTI_DEFINITION(op::v1::TopK, "TopK", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::TopK, "TopK", 1);
 
 static const std::uint64_t UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();
 
@@ -196,7 +196,7 @@ void op::v1::TopK::validate_and_infer_types() {
                           "Index element type attribute should be either \'i32\' or \'i64\'. Got: ",
                           m_index_element_type);
 
-    if (op::is_constant(input_value(1).get_node())) {
+    if (ov::op::util::is_constant(input_value(1).get_node())) {
         // Check k value
         read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
     }
@@ -281,7 +281,7 @@ size_t op::v1::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
         k_element_type,
         ").");
 
-    const auto k_constant = ov::as_type_ptr<op::Constant>(node);
+    const auto k_constant = ov::as_type_ptr<op::v0::Constant>(node);
 
     size_t k = 0;
 
@@ -303,7 +303,7 @@ size_t op::v1::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
 }
 
 template <typename T>
-size_t op::v1::TopK::validate_and_get_k(const shared_ptr<op::Constant>& k_constant) const {
+size_t op::v1::TopK::validate_and_get_k(const shared_ptr<op::v0::Constant>& k_constant) const {
     const auto k_const_contents = k_constant->get_vector<T>();
 
     NODE_VALIDATION_CHECK(this,
@@ -334,7 +334,7 @@ shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_arg
 
 size_t op::v1::TopK::get_k() const {
     size_t k = 0;
-    if (op::is_constant(input_value(1).get_node())) {
+    if (op::util::is_constant(input_value(1).get_node())) {
         k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
     }
 
@@ -345,7 +345,7 @@ size_t op::v1::TopK::get_k() const {
 }
 
 void op::v1::TopK::set_k(size_t k) {
-    this->input(1).replace_source_output(op::Constant::create(element::i64, Shape{}, {k})->output(0));
+    this->input(1).replace_source_output(op::v0::Constant::create(element::i64, Shape{}, {k})->output(0));
 }
 
 bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -358,7 +358,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
 
     // 2. get value of k - from constant node or from HT
     size_t k = 0;
-    if (op::is_constant(input_value(1).get_node())) {
+    if (op::util::is_constant(input_value(1).get_node())) {
         k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
         NGRAPH_CHECK(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
     } else {
@@ -400,7 +400,7 @@ bool op::v1::TopK::has_evaluate() const {
         return false;
     }
 
-    if (op::is_constant(input_value(1).get_node())) {
+    if (op::util::is_constant(input_value(1).get_node())) {
         switch (get_input_element_type(1)) {
         case ngraph::element::i8:
         case ngraph::element::i32:
@@ -429,7 +429,7 @@ bool op::v1::TopK::has_evaluate() const {
 }
 
 // v3 version starts
-constexpr NodeTypeInfo op::v3::TopK::type_info;
+OPENVINO_RTTI_DEFINITION(op::v3::TopK, "TopK", 3);
 
 op::v3::TopK::TopK(const Output<Node>& data,
                    const Output<Node>& k,
@@ -471,7 +471,7 @@ void op::v3::TopK::validate_and_infer_types() {
 
 size_t op::v3::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
                                                const element::Type& k_element_type) const {
-    const auto k_constant = ov::as_type_ptr<op::Constant>(node);
+    const auto k_constant = ov::as_type_ptr<op::v0::Constant>(node);
 
     size_t k = 0;
 
@@ -536,7 +536,7 @@ bool op::v3::TopK::has_evaluate() const {
         return false;
     }
 
-    if (op::is_constant(input_value(1).get_node())) {
+    if (op::util::is_constant(input_value(1).get_node())) {
         switch (get_input_element_type(1)) {
         case ngraph::element::i8:
         case ngraph::element::i32:

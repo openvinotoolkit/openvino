@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::ReorgYolo, "ReorgYolo", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::ReorgYolo, "ReorgYolo", 0);
 
 op::ReorgYolo::ReorgYolo(const Output<Node>& input, const Strides& strides) : Op({input}), m_strides(strides) {
     constructor_validate_and_infer_types();

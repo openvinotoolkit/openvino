@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::RNNCell, "RNNCell", 0, util::RNNCellBase);
+OPENVINO_RTTI_DEFINITION(op::v0::RNNCell, "RNNCell", 0, util::RNNCellBase);
 
 op::v0::RNNCell::RNNCell() {
     m_activations = {"tanh"};

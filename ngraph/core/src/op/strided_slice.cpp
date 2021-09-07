@@ -23,7 +23,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::StridedSlice, "StridedSlice", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::StridedSlice, "StridedSlice", 1);
 
 op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                                    const Output<Node>& begin,

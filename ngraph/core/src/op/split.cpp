@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::Split, "Split", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::Split, "Split", 1);
 
 op::v1::Split::Split(const Output<Node>& data, const Output<Node>& axis, const size_t num_splits)
     : Op({data, axis}),

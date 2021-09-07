@@ -37,7 +37,7 @@ void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_
 }
 }  // namespace reshapeop
 
-NGRAPH_RTTI_DEFINITION(op::v1::Reshape, "Reshape", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::Reshape, "Reshape", 1);
 
 op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_pattern, bool zero_flag)
     : Op({arg, shape_pattern}),
@@ -78,8 +78,8 @@ void op::v1::Reshape::validate_and_infer_types() {
     HostTensorPtr lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(1));
     if (lb && ub) {
-        const auto lower_bound = std::make_shared<op::Constant>(lb)->cast_vector<int64_t>();
-        const auto upper_bound = std::make_shared<op::Constant>(ub)->cast_vector<int64_t>();
+        const auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
+        const auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
         shape_can_be_calculated = true;
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
@@ -206,8 +206,8 @@ bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVec
 
     const auto& shape = get_output_shape(0);
 
-    if (auto data_const = std::dynamic_pointer_cast<op::Constant>(inputs_values[0].get_node_shared_ptr())) {
-        output_values[0] = std::make_shared<op::Constant>(*data_const, shape);
+    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
+        output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);
         return true;
     }
     return false;
