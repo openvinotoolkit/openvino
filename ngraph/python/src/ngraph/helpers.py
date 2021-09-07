@@ -21,5 +21,6 @@ def function_to_cnn(ng_function: Function) -> Function:
 
 
 def partial_shape_from_data(data: [DataPtr, CDataPtr]):
+    """Get nGraph PartialShape from Inference Engine Data."""
     capsule = data._get_partial_shape_capsule()
     return PartialShape.from_capsule(capsule)
