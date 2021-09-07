@@ -38,6 +38,13 @@
 #include "ngraph/variant.hpp"
 #include "openvino/core/node.hpp"
 
+namespace ov {
+namespace op {
+namespace v0 {
+class Result;
+}
+}  // namespace op
+}  // namespace ov
 namespace ngraph {
 
 using ov::Node;
@@ -52,7 +59,7 @@ using HostTensorVector = std::vector<HostTensorPtr>;
 namespace op {
 
 namespace v0 {
-class Result;
+using ov::op::v0::Result;
 }
 }  // namespace op
 

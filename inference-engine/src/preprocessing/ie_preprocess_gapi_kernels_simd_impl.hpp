@@ -156,7 +156,6 @@ CV_ALWAYS_INLINE void splitRowC3_Impl(const T in[], T out0[],
 
 #if MANUAL_SIMD
     constexpr int nlanes = VecT::nlanes;
-    GAPI_DbgAssert(length >= nlanes);
 
     VecT r0, r1, r2;
     for (; length >= nlanes;) {

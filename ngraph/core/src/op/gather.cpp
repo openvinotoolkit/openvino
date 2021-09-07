@@ -13,6 +13,7 @@ using namespace std;
 using namespace ngraph;
 
 OPENVINO_RTTI_DEFINITION(op::v1::Gather, "Gather", "opset1", op::util::GatherBase, 1);
+
 op::v1::Gather::Gather(const Output<Node>& params, const Output<Node>& indices, const Output<Node>& axes)
     : GatherBase(params, indices, axes) {
     constructor_validate_and_infer_types();
@@ -36,6 +37,7 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
 }
 
 OPENVINO_RTTI_DEFINITION(op::v7::Gather, "Gather", "opset7", op::util::GatherBase, 7);
+
 op::v7::Gather::Gather(const Output<Node>& data,
                        const Output<Node>& indices,
                        const Output<Node>& axis,

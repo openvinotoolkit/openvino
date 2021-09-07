@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::Concat, "Concat", "opset1", op::Op, 0);
+OPENVINO_RTTI_DEFINITION(ov::op::v0::Concat, "Concat", "opset1", op::Op, 0);
 
 op::Concat::Concat(const OutputVector& args, int64_t axis) : Op(args), m_axis(axis) {
     constructor_validate_and_infer_types();
