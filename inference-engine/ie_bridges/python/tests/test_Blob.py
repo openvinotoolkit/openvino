@@ -136,6 +136,7 @@ def test_set_shape():
     assert blob.buffer.shape == (1, 4, 128, 128)
 
 
+@pytest.mark.ngraph_dependent_test
 @pytest.mark.template_plugin
 def test_blob_set_shape_after_async_infer():
     from conftest import create_ngraph_function
