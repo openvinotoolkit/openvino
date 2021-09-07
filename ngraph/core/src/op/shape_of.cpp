@@ -20,7 +20,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::ShapeOf::type_info;
+OPENVINO_RTTI_DEFINITION(op::v3::ShapeOf, "ShapeOf", 3);
 
 op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type) : Op({arg}), m_output_type(output_type) {
     constructor_validate_and_infer_types();
@@ -180,7 +180,7 @@ bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
 }
 
 // op::v0::ShapeOf
-NGRAPH_RTTI_DEFINITION(op::v0::ShapeOf, "ShapeOf", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::ShapeOf, "ShapeOf", 0);
 
 op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
