@@ -1502,6 +1502,19 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
                                                                dict(name="reshape_swap_proposals_2d"), proposal)
         mark_input_as_in_correct_layout(proposal_reshape_2d, 0)
 
+        crop_and_resize_nodes_ids = [node_id for node_id in bfs_search(graph, [match.single_input_node(0)[0].id]) if
+                                     graph.nodes[node_id]['op'] == 'CropAndResize']
+        if len(crop_and_resize_nodes_ids) != 0 and swap_proposals:
+            # feed the CropAndResize node with a correct boxes information produced with the Proposal layer
+            # find the first CropAndResize node in the BFS order. This is needed in the case when we already swapped
+            # box coordinates data after the Proposal node
+            crop_and_resize_node = Node(graph, crop_and_resize_nodes_ids[0])
+            # set a marker that an input with box coordinates has been pre-processed so the CropAndResizeReplacement
+            # transform doesn't try to merge the second and the third inputs
+            crop_and_resize_node['inputs_preprocessed'] = True
+            crop_and_resize_node.in_port(1).disconnect()
+            proposal_reshape_2d.out_port(0).connect(crop_and_resize_node.in_port(1))
+
         tf_proposal_reshape_4d = create_op_node_with_second_input(graph, Reshape,
                                                                   int64_array([-1, 1, max_proposals, 5]),
                                                                   dict(name="reshape_proposal_4d"), proposal)
