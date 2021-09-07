@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/pre_post_process/pre_post_process.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset7.hpp"
@@ -64,7 +64,7 @@ struct PreProcessStepsImpl {
             return convert;
         });
     }
-    std::vector<PreProcessSteps::CustomPreprocessOp> m_actions;
+    std::list<PreProcessSteps::CustomPreprocessOp> m_actions;
 };
 
 /// \brief InputInfoImpl - internal data structure
@@ -161,7 +161,6 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
             node = action(node);
         }
 
-        // 3. Apply 'network()' data
         // Check final type
         if (node->get_element_type() != param->get_element_type()) {
             throw ngraph::ngraph_error(

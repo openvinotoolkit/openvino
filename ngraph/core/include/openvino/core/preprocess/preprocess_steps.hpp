@@ -85,7 +85,9 @@ public:
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
     PreProcessSteps&& mean(float value) &&;
 
-    /// \brief Signature for custom preprocessing operation
+    /// \brief Signature for custom preprocessing operation. Custom preprocessing operation takes one input node and
+    /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Function
+    /// directly
     ///
     /// \param node Input node for custom preprocessing operation
     ///

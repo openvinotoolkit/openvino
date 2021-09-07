@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/pre_post_process/pre_post_process.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 #include <ngraph/pass/visualize_tree.hpp>
 
@@ -74,10 +74,10 @@ TEST(pre_post_process, convert_element_type_and_scale) {
 
     auto result = std::make_shared<HostTensor>();
     f->evaluate({result},
-                {make_host_tensor<ngraph::element::i32>(ngraph::Shape{1, 3, 2, 2},
-                                                        {2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 1000000, 200})});
+                {make_host_tensor<ngraph::element::i16>(ngraph::Shape{1, 3, 2, 2},
+                                                        {2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 10000, 200})});
     auto result_val = read_vector<int8_t>(result);
-    EXPECT_TRUE(all_close(std::vector<int8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, (int8_t)500000, 100}, result_val));
+    EXPECT_TRUE(all_close(std::vector<int8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, (int8_t)5000, 100}, result_val));
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::i16);
 
     ASSERT_EQ(f->get_output_element_type(0), element::i8);

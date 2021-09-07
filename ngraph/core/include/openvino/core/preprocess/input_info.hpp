@@ -5,8 +5,8 @@
 #pragma once
 
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/pre_post_process/input_tensor_info.hpp"
-#include "openvino/core/pre_post_process/preprocess_steps.hpp"
+#include "openvino/core/preprocess/input_tensor_info.hpp"
+#include "openvino/core/preprocess/preprocess_steps.hpp"
 
 namespace ov {
 namespace preprocess {

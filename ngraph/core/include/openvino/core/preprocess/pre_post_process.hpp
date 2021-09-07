@@ -6,7 +6,7 @@
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/function.hpp"
-#include "openvino/core/pre_post_process/input_info.hpp"
+#include "openvino/core/preprocess/input_info.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -18,6 +18,13 @@ class PrePostProcessorImpl;
 /// \code{.cpp}
 /// auto proc = PrePostProcessor().input(<for input1>).input(<input2>);
 /// \endcode
+///
+/// This is a helper class for writing easy pre- and post- processing operations on ov::Function object assuming that
+/// any preprocess operation takes one input and produces one output.
+///
+/// For advanced preprocessing scenarios, like combining several functions with multiple inputs/outputs into one,
+/// client's code can use transformation passes over ov::Function
+///
 class OPENVINO_API PrePostProcessor final {
     std::unique_ptr<PrePostProcessorImpl> m_impl;
 
@@ -42,8 +49,8 @@ public:
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     PrePostProcessor& input(InputInfo&& builder) &;
 
-    /// \brief Adds pre-processing information and steps to input of model. This method can be used only if ov::Function
-    /// passed on `build` has only one input This version allows chaining if object represents Rvalue
+    /// \brief Adds pre-processing information and steps to input of model - Rvalue version. This method can be used
+    /// only if ov::Function passed on `build` has only one input.
     ///
     /// \param builder Pre-processing data for input tensor of model.
     ///
