@@ -1,26 +1,5 @@
 # OpenVINO™ Low Precision Transformations {#openvino_docs_IE_DG_lpt}
 
-## Table of Contents
-
-1. [Introduction](#introduction)  
-2. [Input model requirements](#input-model-requirements)  
-3. [Low precision tools](#low-precision-tools)  
-4. [Quantization approaches](#quantization-approaches)  
-   4.1. [FakeQuantize operation](#fakequantize-operation)  
-   4.2. [Quantize and dequantization operations](#quantize-and-dequantization-operations)  
-5. [Low precision transformations pipeline](#low-precision-transformations-pipeline)  
-      5.1. [Step #1. Prerequisites](#step-1-prerequisites)  
-      5.2. [Step #2. Markup](#step-2-markup)  
-      5.3. [Step #3. Main transformations: FakeQuantize decomposition and dequantization operations handling](#step-3-main-transformations-fakequantize-decomposition-and-dequantization-operations-handling)  
-      5.4. [Step #4. Cleanup result model](#step-4-cleanup-result-model)  
-6. [Low precision transformations in plugin transformation pipeline](#low-precision-transformations-in-plugin-transformation-pipeline)  
-      [Step #1. Common optimizations](#step-1-common-optimizations)  
-      [Step #2. Low precision transformations execution](#step-2-low-precision-transformations-execution)  
-      [Step #3. Plugin specific transformations](#step-3-plugin-specific-transformations)
-7. [Result model overview](#result-model-overview)
-8. [Mixed precision](#mixed-precision)
-9. [Customization](#customization)
-
 ## Introduction
 The goal of `Low Precision Transformations` (LPT transformations) is transform quantized model from original precisions (FP16 or FP32) to low precision (INT8: `signed int8` or `unsigned int8`) model to prepare model for low precision inference in OpenVINO™ plugin. It achieved by two main principles:
 1. `FakeQuantize` operation decomposition to two parts:  
@@ -68,7 +47,7 @@ If operation is not supported by LPT then dequantization operation will be not p
 
 For example, if you would like to infer `Convolution` operation in low precision then your model can look as on picture below:
 
-![Quantized Convolution](img/fq_and_convolution.common.svg)
+![Quantized Convolution](img/fq_and_convolution.common.png)
 
 > There are several supported quantization approaches on activations and on weights. All supported approaches are described in [Quantization approaches](#quantization-approaches) section below. In demonstrated model [FakeQuantize operation quantization](#fakequantize-operation) approach is used.
 
@@ -88,12 +67,12 @@ Let's explore both approaches in details on `Convolution` operation.
 ### FakeQuantize operation  
 In this case `FakeQuantize` operation is used on activations and quantized constant on weights. Original input model:  
 
-![](img/fq_and_convolution.common.svg)
+![](img/fq_and_convolution.common.png)
 
 ### Quantize and dequantization operations  
 In this case `FakeQuantize` operation and `Convert` are used as quantize operation and return quantized low precision tensor. After quantize operation on activations there are `Convert` and dequantization operations to compensate decomposition. Original input model:
 
-![](img/qdq_and_convolution.common.svg)
+![](img/qdq_and_convolution.common.png)
 
 In both cases result is the same. In LPT result model you can see, that:
 1. if neccessary, `FakeQuantize` operations on activations were decomposed to two part: 
@@ -104,12 +83,12 @@ In both cases result is the same. In LPT result model you can see, that:
 
 LPT result model:  
 
-![](img/fq_and_convolution.transformed.svg)
+![](img/fq_and_convolution.transformed.png)
 
 ### Low precision transformations pipeline
 LPT transformation pipeline has several steps. For each transformation inside one step pattern matcher is unique per transformation, but each operation can be assigned to several transformations.
 
-![](img/low_precision_transformation_pipeline.svg)
+![](img/low_precision_transformation_pipeline.png)
 
 <details>
 <summary>Click to explore all LPT transformations by steps in one table</summary>
@@ -221,11 +200,11 @@ Decomposition transformations decompose `FakeQuantize` operation to quantize (`F
 
 
 Original `FakeQuantize`:  
-![FakeQuantize operation before LPT](quantization/img/fq.common.svg)  
+![FakeQuantize operation before LPT](quantization/img/fq.common.png)
 
 
 `FakeQuantize` after decomposition to quantization and dequantization operations:   
-![FakeQuantize operation after LPT](quantization/img/fq.transformed.svg)  
+![FakeQuantize operation after LPT](quantization/img/fq.transformed.png)
 
 
 #### Dequantization operations handling transformations
@@ -233,19 +212,19 @@ Original `FakeQuantize`:
 In this step LPT transformations fuse or move dequantization operations through existing model operations as more as possible.
 
 Original `Convolution` operation in FP32 with dequantization operations before:  
-![Convolution operation before LPT](img/fq_and_convolution.common.svg)
+![Convolution operation before LPT](img/fq_and_convolution.common.png)
 
 `Convolution` operation in INT8 after decomposition and dequantization operations handling:   
-![Convolution operation after LPT](img/fq_and_convolution.transformed.svg)
+![Convolution operation after LPT](img/fq_and_convolution.transformed.png)
 
 ### Step #4: Cleanup result model
 LPT cleanup transformations is final stage in LPT pipeline. In this step LPT transformations clean up the result model to avoid not handled dequantization operations: fuse dequantization operations if possible (fuse at least `Convert` operations if not) to other model operations to cleanup result model. 
 
 `FakeQuantize` operation with not handled dequantization operations:  
-![TODO: FakeQuantize operation with dequantization operations before LPT](quantization/img/fq.transformed.svg)
+![TODO: FakeQuantize operation with dequantization operations before LPT](quantization/img/fq.transformed.png)
 
 `FakeQuantize` operation with fused dequantization operations:  
-![TODO: FakeQuantize operation with fused operations after LPT](quantization/img/fq.common.svg)
+![TODO: FakeQuantize operation with fused operations after LPT](quantization/img/fq.common.png)
 
 
 
