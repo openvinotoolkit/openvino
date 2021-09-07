@@ -37,4 +37,4 @@ To understand when to use each development optimization tool, follow this diagra
 
 POT is the easiest way to get optimized models and it is also really fast and usually takes several minutes depending on the model size and used HW. NNCF can be considered as an alternative or an addition when the first does not give accurate results. 
 
-![](../img/select_optimization.png)
+![](../img/select_optimization_1.png)
