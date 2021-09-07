@@ -14,6 +14,7 @@ namespace op {
 namespace set_1 {
 OutputVector if_op(const Node& node) {
     const auto& ng_inputs = node.get_ng_inputs();
+    NGRAPH_CHECK(ng_inputs.size() == 1, "If operator takes only one input");
 
     const auto& subgraphs = node.get_subgraphs();
     NGRAPH_CHECK(subgraphs.count("then_branch") == 1, "Missing 'then_branch' attribute");
@@ -30,13 +31,16 @@ OutputVector if_op(const Node& node) {
     auto if_node = std::make_shared<ngraph::opset8::If>(ng_inputs.at(0));
     if_node->set_then_body(then_branch);
     if_node->set_else_body(else_branch);
+
     const auto then_branch_inputs_from_parent = then_subgraph->get_inputs_from_parent();
+    NGRAPH_CHECK(then_branch_inputs_from_parent.size() == then_params.size());
     auto then_param = then_params.cbegin();
     for (const auto& from_parent : then_branch_inputs_from_parent) {
         if_node->set_input(from_parent, *then_param, nullptr);
         then_param++;
     }
     const auto else_branch_inputs_from_parent = else_subgraph->get_inputs_from_parent();
+    NGRAPH_CHECK(else_branch_inputs_from_parent.size() == else_params.size());
     auto else_param = else_params.cbegin();
     for (const auto& from_parent : else_branch_inputs_from_parent) {
         if_node->set_input(from_parent, nullptr, *else_param);

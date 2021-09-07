@@ -28,7 +28,6 @@ public:
             if (attribute.is_graph())
                 m_subgraphs.insert({attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(m_graph))});
         }
-        m_has_subgraphs = m_subgraphs.size() > 0;
     }
 
     Impl(const ONNX_NAMESPACE::NodeProto& node_proto,
@@ -40,7 +39,6 @@ public:
           m_graph{&graph},
           m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())},
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())},
-          m_has_subgraphs(subgraphs.size() > 0),
           m_subgraphs(subgraphs) {}
 
     const std::vector<Attribute>& attributes() const;
@@ -80,7 +78,6 @@ private:
     std::vector<std::reference_wrapper<const std::string>> m_output_names;
     mutable std::string m_description;
 
-    bool m_has_subgraphs;
     std::unordered_map<std::string, std::shared_ptr<Subgraph>> m_subgraphs;
 };
 
@@ -131,7 +128,7 @@ Subgraph Node::Impl::get_subgraph_from_attribute(const std::string& name) const 
 }
 
 bool Node::Impl::has_subgraphs() const {
-    return m_has_subgraphs;
+    return m_subgraphs.size() > 0;
 }
 
 const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& Node::Impl::get_subgraphs() const {
