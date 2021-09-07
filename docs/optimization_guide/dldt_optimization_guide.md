@@ -13,7 +13,7 @@ Latency measures inference time (ms) required to process a single input.
 
 When it comes to batch input need to measure throughput (images per second or frames per second, FPS). To calculate throughput, divide number of frames that were processed by the processing time.   
 
->**NOTE**: To get performance numbers for OpenVINO, as well as tips how to measure it and compare with native framework, check Getting performance numbers page.
+> **NOTE**: To get performance numbers for OpenVINO, as well as tips how to measure it and compare with native framework, check Getting performance numbers page.
  
 ### How to Improve Performance 
 
