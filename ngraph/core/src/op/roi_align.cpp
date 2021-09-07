@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::ROIAlign::type_info;
+OPENVINO_RTTI_DEFINITION(op::v3::ROIAlign, "ROIAlign", 3);
 
 op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const Output<Node>& rois,
@@ -161,21 +161,22 @@ shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new
                                  m_mode);
 }
 
-namespace ngraph {
-constexpr DiscreteTypeInfo AttributeAdapter<op::v3::ROIAlign::PoolingMode>::type_info;
+namespace ov {
+constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v3::ROIAlign::PoolingMode>::type_info;
 
 template <>
-NGRAPH_API EnumNames<op::v3::ROIAlign::PoolingMode>& EnumNames<op::v3::ROIAlign::PoolingMode>::get() {
-    static auto enum_names = EnumNames<op::v3::ROIAlign::PoolingMode>(
+NGRAPH_API EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>& EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>(
         "op::v3::ROIAlign::PoolingMode",
-        {{"avg", op::v3::ROIAlign::PoolingMode::AVG}, {"max", op::v3::ROIAlign::PoolingMode::MAX}});
+        {{"avg", ngraph::op::v3::ROIAlign::PoolingMode::AVG}, {"max", ngraph::op::v3::ROIAlign::PoolingMode::MAX}});
     return enum_names;
 }
+
+}  // namespace ov
 
 std::ostream& operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& type) {
     return s << as_string(type);
 }
-}  // namespace ngraph
 
 namespace roi_alinop {
 template <element::Type_t ET>

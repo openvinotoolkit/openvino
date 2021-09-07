@@ -5,14 +5,31 @@
 #include "input_model.hpp"
 
 #include <frontend_manager/frontend_exceptions.hpp>
+#include <ngraph/file_util.hpp>
 
 #include "place.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 InputModelONNX::InputModelONNX(const std::string& path)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+InputModelONNX::InputModelONNX(const std::wstring& path)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
+#endif
+
+InputModelONNX::InputModelONNX(std::istream& model_stream)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream)} {}
+
+InputModelONNX::InputModelONNX(std::istream& model_stream, const std::string& path)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path)} {}
+
+InputModelONNX::InputModelONNX(std::istream& model_stream, const std::wstring& path)
+    : InputModelONNX(model_stream, file_util::wstring_to_string(path)) {}
 
 std::vector<Place::Ptr> InputModelONNX::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();

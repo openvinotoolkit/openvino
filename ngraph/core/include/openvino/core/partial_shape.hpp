@@ -12,14 +12,10 @@
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rank.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace op {
 struct AutoBroadcastSpec;
 }
-
-}  // namespace ngraph
-
-namespace ov {
 
 /// \brief Class representing a shape that may be partially or totally dynamic.
 ///
@@ -375,9 +371,6 @@ PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
 OPENVINO_API
 std::ostream& operator<<(std::ostream& str, const PartialShape& shape);
 
-}  // namespace ov
-namespace ngraph {
-
 template <>
 class OPENVINO_API AttributeAdapter<ov::PartialShape> : public ValueAccessor<std::vector<int64_t>> {
 public:
@@ -398,4 +391,4 @@ protected:
     std::vector<int64_t> m_buffer;
     bool m_buffer_valid{false};
 };
-}  // namespace ngraph
+}  // namespace ov

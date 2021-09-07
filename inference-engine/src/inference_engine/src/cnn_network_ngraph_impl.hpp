@@ -74,6 +74,8 @@ public:
 
     StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                        ResponseDesc* resp) noexcept override;
+    StatusCode reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
+                       ResponseDesc* resp) noexcept override;
 
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;

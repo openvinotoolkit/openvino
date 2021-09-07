@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v8::AdaptiveAvgPool, "AdaptiveAvgPool", 8);
+OPENVINO_RTTI_DEFINITION(ov::op::v8::AdaptiveAvgPool, "AdaptiveAvgPool", 8);
 
 op::v8::AdaptiveAvgPool::AdaptiveAvgPool(const Output<Node>& data, const Output<Node>& output_shape)
     : Op({data, output_shape}) {

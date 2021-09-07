@@ -22,10 +22,10 @@ using namespace ngraph;
 //                        v1::GroupConvolution
 //------------------------------------------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::GroupConvolution, "GroupConvolution", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::GroupConvolution, "GroupConvolution", 1);
 
 shared_ptr<Node> op::v1::GroupConvolution::get_default_value() const {
-    return op::Constant::create(get_element_type(), get_shape(), {0});
+    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
 }
 
 op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
@@ -249,7 +249,7 @@ shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVec
 //                        v1::GroupConvolutionBackpropData
 //------------------------------------------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::GroupConvolutionBackpropData, "GroupConvolutionBackpropData", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::GroupConvolutionBackpropData, "GroupConvolutionBackpropData", 1);
 
 op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData()
     : Op(),
@@ -371,7 +371,7 @@ const PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_output_
 
 void op::v1::GroupConvolutionBackpropData::set_output_shape(const Shape& shape) {
     this->input(2).replace_source_output(
-        op::Constant::create(this->get_input_element_type(2), Shape{shape.size()}, shape)->output(0));
+        op::v0::Constant::create(this->get_input_element_type(2), Shape{shape.size()}, shape)->output(0));
 }
 
 void op::v1::GroupConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
@@ -393,7 +393,7 @@ void op::v1::GroupConvolutionBackpropData::infer_conv_backprop_output_spatial_sh
             int64_t val = strides[i] * (input_data_shape[i].get_length() - 1) +
                           dilations[i] * (filters_shape[i].get_length() - 1) + 1 - pads_begin[i] - pads_end[i] +
                           output_padding[i];
-            output_spatial_shape.push_back(val);
+            output_spatial_shape.emplace_back(val);
         } else {
             output_spatial_shape.push_back(Dimension::dynamic());
         }

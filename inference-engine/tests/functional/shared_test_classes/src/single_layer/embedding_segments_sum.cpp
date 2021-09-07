@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(testing::TestParamInfo<embeddingSegmentsSumLayerTestParamsSet> obj) {
+std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(const testing::TestParamInfo<embeddingSegmentsSumLayerTestParamsSet>& obj) {
     embeddingSegmentsSumParams params;
     InferenceEngine::Precision netPrecision, indPrecision;
     std::string targetDevice;
