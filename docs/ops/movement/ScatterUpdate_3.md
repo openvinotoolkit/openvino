@@ -7,8 +7,8 @@
 **Short description**: *ScatterUpdate* creates a copy of the first input tensor with updated elements specified with second and third input tensors.
 
 **Detailed description**: *ScatterUpdate* creates a copy of the first input tensor with updated elements in positions specified with `indices` input
-and values specified with `updates` tensor starting from the dimension with index `axis`. For the `data` tensor of shape \f$[d_0, d_1, \dots, d_n]\f$,
-`indices` tensor of shape \f$[i_0, i_1, \dots, i_k]\f$ and `updates` tensor of shape
+and values specified with `updates` tensor starting from the dimension with index `axis`. For the `data` tensor of shape \f$[d_0,\;d_1,\;\dots,\;d_n]\f$,
+`indices` tensor of shape \f$[i_0,\;i_1,\;\dots,\;i_k]\f$ and `updates` tensor of shape
 \f$[d_0,\;d_1,\;\dots,\;d_{axis - 1},\;i_0,\;i_1,\;\dots,\;i_k,\;d_{axis + 1},\;\dots, d_n]\f$ the operation computes
 for each `m, n, ..., p` of the `indices` tensor indices:
 
@@ -19,7 +19,7 @@ where first \f$\dots\f$ in the `data` corresponds to \f$[d_0,\;\dots,\;d_{axis -
 `rank(data) - (axis + 1)` dimensions.
 
 Several examples for case when `axis = 0`:
-1. `indices` is a \f$0\f$D tensor: \f$data[indices, \dots] = updates[\dots]\f$
+1. `indices` is a \f$0\f$D tensor: \f$data[indices,\;\dots] = updates[\dots]\f$
 2. `indices` is a \f$1\f$D tensor (\f$\forall_{i}\f$): \f$data[indices[i],\;\dots] = updates[i,\;\dots]\f$
 3. `indices` is a \f$N\f$D tensor (\f$\forall_{i,\;\dots,\;j}\f$): \f$data[indices[i],\;\dots,\;j],\;\dots] = updates[i,\;\dots,\;j,\;\dots]\f$
 
