@@ -4,16 +4,11 @@
 
 #include <vector>
 
-#include "behavior/infer_request_dynamic.hpp"
+#include "behavior/infer_request/infer_request_dynamic.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
 namespace {
-
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16
-};
 
 const std::vector<std::map<std::string, std::string>> configs = {
     {}
@@ -21,7 +16,6 @@ const std::vector<std::map<std::string, std::string>> configs = {
 
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestDynamicTests,
                         ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
                                 ::testing::ValuesIn(configs)),
                         InferRequestDynamicTests::getTestCaseName);

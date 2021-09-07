@@ -29,18 +29,24 @@
 
 namespace BehaviorTestsDefinitions {
 
-class InferRequestDynamicTests : public BehaviorTestsUtils::BehaviorTestsBasic {
-public:
-    void SetUp()  override {
-        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+class InferRequestDynamicTests : public BehaviorTestsUtils::InferRequestTests {
+    void SetUp() override {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        std::tie(targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeSplitConvConcat();
     }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+        function.reset();
+    };
 };
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
     const std::string param_name = "Param_1";
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -57,8 +63,6 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
     const std::string param_name = "Param_1";
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -78,8 +82,6 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetBlob) {
     const std::string param_name = "Param_1";
     const InferenceEngine::SizeVector refShape = {1, 4, 20, 20};
     const InferenceEngine::SizeVector refOutShape = {1, 10, 18, 18};
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -108,8 +110,6 @@ TEST_P(InferRequestDynamicTests, InferUpperBoundNetworkWithGetBlob) {
     const std::string param_name = "Param_1";
     const InferenceEngine::SizeVector refShape = {1, 4, 20, 20};
     const InferenceEngine::SizeVector refOutShape = {1, 10, 18, 18};
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -138,8 +138,6 @@ TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetBlobLower) {
     const std::string param_name = "Param_1";
     const InferenceEngine::SizeVector refShape = {1, 4, 20, 20};
     const InferenceEngine::SizeVector refOutShape = {1, 10, 18, 18};
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -161,8 +159,6 @@ TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetBlobUpper) {
     const std::string param_name = "Param_1";
     const InferenceEngine::SizeVector refShape = {1, 4, 20, 20};
     const InferenceEngine::SizeVector refOutShape = {1, 10, 18, 18};
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -186,8 +182,6 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetBlob2times) {
     const InferenceEngine::SizeVector refShape2 = {2, 4, 20, 20};
     const InferenceEngine::SizeVector refOutShape = {1, 10, 18, 18};
     const InferenceEngine::SizeVector refOutShape2 = {2, 10, 18, 18};
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -225,8 +219,6 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetBlob2times) {
 TEST_P(InferRequestDynamicTests, GetSameBlob2times) {
     const std::string param_name = "Param_1";
     const InferenceEngine::SizeVector refShape = {1, 4, 20, 20};
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -249,8 +241,6 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetBlob) {
     const std::string param_name = "Param_1";
     const InferenceEngine::SizeVector refShape = {1, 4, 20, 20};
     const InferenceEngine::SizeVector refOutShape = {1, 10, 18, 18};
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     std::map<std::string, ngraph::PartialShape> shapes;
@@ -280,8 +270,6 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithSetBlob2times) {
     const InferenceEngine::SizeVector refShape2 = {2, 4, 20, 20};
     const InferenceEngine::SizeVector refOutShape = {1, 10, 18, 18};
     const InferenceEngine::SizeVector refOutShape2 = {2, 10, 18, 18};
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     std::map<std::string, ngraph::PartialShape> shapes;
