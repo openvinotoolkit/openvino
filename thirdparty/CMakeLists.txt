@@ -119,33 +119,46 @@ endif()
 #
 # oneDNN for GPU plugin
 #
-set(ENABLE_ONEDNN_FOR_GPU ON CACHE BOOL "")
+if (ANDROID OR (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
+    # oneDNN doesn't support old compilers and android builds for now, so we'll build GPU plugin without oneDNN
+    set(ENABLE_ONEDNN_FOR_GPU OFF CACHE BOOL "")
+else()
+    set(ENABLE_ONEDNN_FOR_GPU ON CACHE BOOL "")
+endif()
+
 if(ENABLE_ONEDNN_FOR_GPU)
     function(build_onednn_gpu)
-        set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
-        set(DNNL_ENABLE_PRIMITIVE_CACHE ON CACHE BOOL "" FORCE)
-        set(DNNL_USE_RT_OBJECTS_IN_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE)
-        set(DNNL_ENABLE_MAX_CPU_ISA OFF CACHE BOOL "" FORCE)
-        set(DNNL_LIBRARY_TYPE STATIC CACHE BOOL "" FORCE)
-        set(DNNL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(DNNL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-        set(DNNL_GPU_RUNTIME "OCL" CACHE STRING "" FORCE)
-        set(DNNL_CPU_RUNTIME "NONE" CACHE STRING "" FORCE)
-        set(DNNL_BLAS_VENDOR "NONE" CACHE STRING "" FORCE)
-        set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
-        if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND NOT (THREADING STREQUAL "OMP")))
-            set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
-        endif()
-
-        # Workaround for TBB headers imported from IE
-        if(NOT WIN32)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-undef")
-            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-undef")
-        endif()
-
-        set(DNNL_LIBRARY_NAME onednn_gpu CACHE STRING "" FORCE)
-        add_subdirectory(onednn_gpu "${DNNL_LIBRARY_NAME}" EXCLUDE_FROM_ALL)
-        set_property(GLOBAL PROPERTY DNNL_LIB_DEPS "")
+        include(ExternalProject)
+        set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build/")
+        set(ONEDNN_INSTALL_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+        set(ONEDNN_LIBRARY "${ONEDNN_BUILD_DIR}/src/${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        set(ONEDNN_OUTPUT_LIBRARY "${ONEDNN_INSTALL_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        ExternalProject_Add(onednn_gpu_build
+            SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
+            BINARY_DIR "${ONEDNN_BUILD_DIR}"
+            INSTALL_DIR "${ONEDNN_INSTALL_DIR}"
+            PREFIX onednn_gpu_build
+            EXCLUDE_FROM_ALL ON
+            CMAKE_ARGS "-DDNNL_CPU_RUNTIME=NONE"
+                       "-DDNNL_GPU_RUNTIME=OCL"
+                       "-DDNNL_LIBRARY_NAME=onednn_gpu"
+                       "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+                       "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+                       "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
+                       "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
+                       "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
+                       "-DDNNL_BUILD_TESTS=OFF"
+                       "-DDNNL_BUILD_EXAMPLES=OFF"
+                       "-DDNNL_BLAS_VENDOR=NONE"
+                       "-DDNNL_LIBRARY_TYPE=STATIC"
+                       "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
+                       "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
+                       "-DOPENCL_VERSION_2_2=${OPENCL_VERSION_2_2}"
+            BUILD_COMMAND ${CMAKE_COMMAND} --build . --config ${CMAKE_BUILD_TYPE} --target onednn_gpu --parallel
+            INSTALL_COMMAND ${CMAKE_COMMAND} -E copy ${ONEDNN_LIBRARY} ${ONEDNN_OUTPUT_LIBRARY}
+            COMMAND ${CMAKE_COMMAND} -E echo "OneDNN $<CONFIG> build for GPU complete"
+            BUILD_BYPRODUCTS ${ONEDNN_OUTPUT_LIBRARY}
+        )
     endfunction()
 
     build_onednn_gpu()

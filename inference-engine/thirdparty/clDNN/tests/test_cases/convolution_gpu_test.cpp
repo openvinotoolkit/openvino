@@ -8911,7 +8911,7 @@ struct convolution_gpu_onednn : public ::testing::TestWithParam<TestParamType_co
     }
 };
 
-INSTANTIATE_TEST_CASE_P(conv_onednn_cases,
+INSTANTIATE_TEST_SUITE_P(conv_onednn_cases,
                         convolution_gpu_onednn,
                         ::testing::Values(
                             // Input X size, Input Y size, Input Z size, Input features, Output features,

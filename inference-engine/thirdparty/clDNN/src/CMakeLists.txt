@@ -123,7 +123,8 @@ target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
 )
 
 if(ENABLE_ONEDNN_FOR_GPU)
-  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC ${ONEDNN_TARGET_NAME})
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC ${ONEDNN_LIBRARY})
+  target_include_directories("${CLDNN_BUILD__PROJ}" PUBLIC ${ONEDNN_INCLUDE_DIRS})
   target_compile_definitions("${CLDNN_BUILD__PROJ}" PUBLIC ENABLE_ONEDNN_FOR_GPU)
 endif()
 

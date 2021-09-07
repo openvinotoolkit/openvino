@@ -133,7 +133,7 @@ void program::init_primitives() {
         common::register_implementations();
         cpu::register_implementations();
         ocl::register_implementations();
-#if ENABLE_ONEDNN_FOR_GPU
+#ifdef ENABLE_ONEDNN_FOR_GPU
         onednn::register_implementations();
 #endif
         is_initialized = true;
