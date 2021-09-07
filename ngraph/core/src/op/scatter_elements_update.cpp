@@ -13,7 +13,7 @@
 using namespace ngraph;
 using namespace std;
 
-constexpr NodeTypeInfo op::v3::ScatterElementsUpdate::type_info;
+OPENVINO_RTTI_DEFINITION(op::v3::ScatterElementsUpdate, "ScatterElementsUpdate", 3);
 
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                      const Output<Node>& indices,

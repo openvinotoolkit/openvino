@@ -7,7 +7,6 @@
 #include <ngraph_ops/type_relaxed.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 
 namespace ngraph {

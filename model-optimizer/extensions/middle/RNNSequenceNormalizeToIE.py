@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_delete
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
@@ -142,7 +142,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
         for i in rnn_layer.out_nodes():
             old_data_node = rnn_layer.out_node(i)
             old_shape = old_data_node.shape.copy()
-            new_shape = np.delete(old_shape, direction_dim[i])
+            new_shape = shape_delete(old_shape, direction_dim[i])
 
             data = Op._create_data_node(graph, name=rnn_layer.name + '/Out/{}/'.format(i), attrs={'shape': new_shape})
             graph.remove_edge(rnn_layer.id, old_data_node.id)
