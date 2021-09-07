@@ -28,7 +28,7 @@ const PartialShape& Input<Node>::get_partial_shape() const {
 
 Output<Node> Input<Node>::get_source_output() const {
     auto& output_descriptor = m_node->m_inputs.at(m_index).get_output();
-    return Output<Node>(output_descriptor.get_node(), output_descriptor.get_index());
+    return Output<Node>(output_descriptor.get_node().get(), output_descriptor.get_index());
 }
 
 descriptor::Tensor& Input<Node>::get_tensor() const {
@@ -104,7 +104,7 @@ const PartialShape& Input<const Node>::get_partial_shape() const {
 
 Output<Node> Input<const Node>::get_source_output() const {
     auto& output_descriptor = m_node->m_inputs.at(m_index).get_output();
-    return Output<Node>(output_descriptor.get_node(), output_descriptor.get_index());
+    return Output<Node>(output_descriptor.get_node().get(), output_descriptor.get_index());
 }
 
 descriptor::Tensor& Input<const Node>::get_tensor() const {

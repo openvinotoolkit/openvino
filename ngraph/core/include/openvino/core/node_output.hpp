@@ -33,13 +33,6 @@ public:
     /// \param index The index of the output.
     Output(Node* node, size_t index);
 
-    /// \brief Constructs a Output.
-    /// \param node A `shared_ptr` to the node for the output handle.
-    /// \param index The index of the output.
-    ///
-    /// TODO: Make a plan to deprecate this.
-    Output(const std::shared_ptr<Node>& node, size_t index);
-
     /// \brief Constructs a Output, referencing the zeroth output of the node.
     /// \param node A `shared_ptr` to the node for the output handle.
     template <typename T>
@@ -56,7 +49,6 @@ public:
     Node* get_node() const;
     /// \return A `shared_ptr` to the node referred to by this output handle.
     ///
-    /// TODO: Make a plan to deprecate this.
     std::shared_ptr<Node> get_node_shared_ptr() const;
 
     /// \return The index of the output referred to by this output handle.
@@ -110,13 +102,6 @@ public:
     /// \param index The index of the output.
     Output(const Node* node, size_t index);
 
-    /// \brief Constructs a Output.
-    /// \param node A `shared_ptr` to the node for the output handle.
-    /// \param index The index of the output.
-    ///
-    /// TODO: Make a plan to deprecate this.
-    Output(const std::shared_ptr<const Node>& node, size_t index);
-
     /// \brief Constructs a Output, referencing the zeroth output of the node.
     /// \param node A `shared_ptr` to the node for the output handle.
     template <typename T>
@@ -134,7 +119,6 @@ public:
     const Node* get_node() const;
     /// \return A `shared_ptr` to the node referred to by this output handle.
     ///
-    /// TODO: Make a plan to deprecate this.
     std::shared_ptr<const Node> get_node_shared_ptr() const;
     /// \return The index of the output referred to by this output handle.
     size_t get_index() const;

@@ -120,7 +120,7 @@ ov::op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args, size_t 
 ov::Input<ov::Node> ov::op::util::MultiSubGraphOp::input_for_value(const Output<Node>& value) {
     auto input_index = get_input_size();
     set_argument(input_index, value);
-    return ov::Input<Node>(this, input_index);
+    return {this, input_index};
 }
 
 void ov::op::util::MultiSubGraphOp::set_invariant_inputs(const Output<Node>& value,
@@ -149,7 +149,7 @@ ov::Output<ov::Node> ov::op::util::MultiSubGraphOp::set_body_outputs(const Resul
         }
     }
     set_output_size(output_index + 1);
-    return Output<Node>(shared_from_this(), output_index);
+    return Output<Node>(this, output_index);
 }
 
 namespace ov {

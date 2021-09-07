@@ -748,7 +748,7 @@ vector<ov::Output<ov::Node>> ov::Node::outputs() {
     vector<Output<Node>> result;
 
     for (size_t i = 0; i < get_output_size(); i++) {
-        result.emplace_back(shared_from_this(), i);
+        result.emplace_back(this, i);
     }
 
     return result;
@@ -758,7 +758,7 @@ vector<ov::Output<const ov::Node>> ov::Node::outputs() const {
     vector<Output<const Node>> result;
 
     for (size_t i = 0; i < get_output_size(); i++) {
-        result.emplace_back(shared_from_this(), i);
+        result.emplace_back(this, i);
     }
 
     return result;

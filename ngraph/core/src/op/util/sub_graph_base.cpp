@@ -41,7 +41,7 @@ ov::Output<ov::Node> ov::op::util::SubGraphOp::get_iter_value(const Output<Node>
         std::make_shared<BodyOutputDescription>(body->get_result_index(body_value), output_index, iteration));
     set_output_size(output_index + 1);
     validate_and_infer_types();
-    return Output<Node>(shared_from_this(), output_index);
+    return Output<Node>(this, output_index);
 }
 
 ov::Output<ov::Node> ov::op::util::SubGraphOp::get_concatenated_slices(const Output<Node>& body_value,
@@ -61,7 +61,7 @@ ov::Output<ov::Node> ov::op::util::SubGraphOp::get_concatenated_slices(const Out
                                                                                  axis));
     set_output_size(output_index + 1);
     validate_and_infer_types();
-    return Output<Node>(shared_from_this(), output_index);
+    return Output<Node>(this, output_index);
 }
 
 void ov::op::util::SubGraphOp::set_sliced_input(const std::shared_ptr<ngraph::op::Parameter>& parameter,
