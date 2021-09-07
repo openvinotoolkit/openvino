@@ -8,6 +8,9 @@
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {
+
+class Node;
+
 namespace preprocess {
 
 class PreProcessStepsImpl;

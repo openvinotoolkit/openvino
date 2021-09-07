@@ -4,8 +4,8 @@
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
 
-#include "ngraph/opsets/opset.hpp"
-#include "ngraph/opsets/opset7.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "openvino/core/function.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -13,9 +13,9 @@ namespace preprocess {
 /// \brief InputTensorInfoImpl - internal data structure
 struct InputTensorInfoImpl {
     InputTensorInfoImpl() = default;
-    explicit InputTensorInfoImpl(const ov::element::Type& type) : m_type(type) {}
+    explicit InputTensorInfoImpl(const element::Type& type) : m_type(type) {}
 
-    ov::element::Type m_type = ov::element::dynamic;
+    element::Type m_type = element::dynamic;
 };
 
 /// \brief PreProcessStepsImpl - internal data structure
@@ -28,10 +28,10 @@ struct PreProcessStepsImpl {
             } else {
                 // TODO: implement when Layout API is available
             }
-            auto constant = ngraph::op::v0::Constant::create(ngraph::element::f32, shape, values);
+            auto constant = op::v0::Constant::create(element::f32, shape, values);
             constant->set_friendly_name(node->get_friendly_name() + "/scale/Divide_Factor");
 
-            auto new_op = std::make_shared<ngraph::op::v1::Divide>(node, constant);
+            auto new_op = std::make_shared<op::v1::Divide>(node, constant);
             new_op->set_friendly_name(node->get_friendly_name() + "/scale/Divide");
             return new_op;
         });
@@ -45,21 +45,21 @@ struct PreProcessStepsImpl {
             } else {
                 // TODO: implement when Layout API is available
             }
-            auto constant = ngraph::op::v0::Constant::create(ngraph::element::f32, shape, values);
+            auto constant = op::v0::Constant::create(element::f32, shape, values);
             constant->set_friendly_name(node->get_friendly_name() + "/mean/Mean_Const");
 
-            auto new_op = std::make_shared<ngraph::op::v1::Subtract>(node, constant);
+            auto new_op = std::make_shared<op::v1::Subtract>(node, constant);
             new_op->set_friendly_name(node->get_friendly_name() + "/mean/Subtract");
             return new_op;
         });
     }
 
-    void add_convert_impl(const ov::element::Type& type) {
+    void add_convert_impl(const element::Type& type) {
         m_actions.emplace_back([type](const std::shared_ptr<Node>& node) {
             if (node->get_element_type().is_dynamic()) {
                 throw ngraph::ngraph_error("Can't insert 'convert_element_type' for dynamic source tensor type.");
             }
-            auto convert = std::make_shared<ngraph::op::v0::Convert>(node, type);
+            auto convert = std::make_shared<op::v0::Convert>(node, type);
             convert->set_friendly_name(node->get_friendly_name() + "/convert_element_type");
             return convert;
         });
@@ -112,7 +112,7 @@ InputInfo& InputInfo::preprocess(PreProcessSteps&& builder) & {
 // ------------------------ PrePostProcessor --------------------
 struct PrePostProcessorImpl {
 public:
-    std::vector<std::unique_ptr<InputInfoImpl>> in_contexts;
+    std::list<std::unique_ptr<InputInfoImpl>> in_contexts;
 };
 
 PrePostProcessor::PrePostProcessor() : m_impl(std::unique_ptr<PrePostProcessorImpl>(new PrePostProcessorImpl())) {}
@@ -132,7 +132,7 @@ PrePostProcessor&& PrePostProcessor::input(InputInfo&& builder) && {
 
 std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function>& function) {
     for (const auto& input : m_impl->in_contexts) {
-        std::shared_ptr<ngraph::op::Parameter> param;
+        std::shared_ptr<op::v0::Parameter> param;
         OV_CHECK(input, "Internal error: Invalid preprocessing input, please report a problem");
         if (input->has_index()) {
             param = function->get_parameters().at(input->m_index);
@@ -151,10 +151,10 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
                 std::unique_ptr<InputTensorInfoImpl>(new InputTensorInfoImpl(param->get_element_type()));
         }
         auto new_param_shape = param->get_partial_shape();
-        auto new_param = std::make_shared<ngraph::op::v0::Parameter>(input->m_tensor_data->m_type, new_param_shape);
+        auto new_param = std::make_shared<op::v0::Parameter>(input->m_tensor_data->m_type, new_param_shape);
         // Old param will be removed, so friendly name can be reused
         new_param->set_friendly_name(param->get_friendly_name());
-        std::shared_ptr<ngraph::Node> node = new_param;
+        std::shared_ptr<Node> node = new_param;
 
         // 2. Apply preprocessing
         for (const auto& action : input->m_preprocess->m_actions) {
@@ -189,12 +189,12 @@ InputTensorInfo::InputTensorInfo(InputTensorInfo&&) noexcept = default;
 InputTensorInfo& InputTensorInfo::operator=(InputTensorInfo&&) noexcept = default;
 InputTensorInfo::~InputTensorInfo() = default;
 
-InputTensorInfo& InputTensorInfo::set_element_type(const ov::element::Type& type) & {
+InputTensorInfo& InputTensorInfo::set_element_type(const element::Type& type) & {
     m_impl->m_type = type;
     return *this;
 }
 
-InputTensorInfo&& InputTensorInfo::set_element_type(const ov::element::Type& type) && {
+InputTensorInfo&& InputTensorInfo::set_element_type(const element::Type& type) && {
     m_impl->m_type = type;
     return std::move(*this);
 }
@@ -226,12 +226,12 @@ PreProcessSteps&& PreProcessSteps::mean(float value) && {
     return std::move(*this);
 }
 
-PreProcessSteps& PreProcessSteps::convert_element_type(const ov::element::Type& type) & {
+PreProcessSteps& PreProcessSteps::convert_element_type(const element::Type& type) & {
     m_impl->add_convert_impl(type);
     return *this;
 }
 
-PreProcessSteps&& PreProcessSteps::convert_element_type(const ov::element::Type& type) && {
+PreProcessSteps&& PreProcessSteps::convert_element_type(const element::Type& type) && {
     m_impl->add_convert_impl(type);
     return std::move(*this);
 }
