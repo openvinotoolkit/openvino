@@ -47,7 +47,7 @@ set "PATH=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader;%PATH%"
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\hddl"
-set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin;%HDDL_INSTALL_DIR%\bin;%OPENVINO_LIB_PATHS%"
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\Release;%HDDL_INSTALL_DIR%\bin;%OPENVINO_LIB_PATHS%"
 
 :: TBB
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
