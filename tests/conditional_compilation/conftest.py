@@ -92,13 +92,17 @@ def pytest_generate_tests(metafunc):
         test_id_list = []
         for model in test:
             extra_args = {}
-            model_path = model["model"]["path"]
-            model = model["model"]
             if "marks" in test:
                 extra_args["marks"] = test["marks"]
-            model["path"] = Path(expand_env_vars(model["path"]))
+            model = model["model"]
+            is_omz = model.get("type") == "omz"
+            if is_omz:
+                test_id_list.append(f'{model["name"]}_{model["precision"]}')
+            else:
+                model_path = model["path"]
+                model["path"] = Path(expand_env_vars(model["path"]))
+                test_id_list.append(model_path.split("/")[-1])
             model_list.append(model)
-            test_id_list.append(model_path.split("/")[-1])
         ids = ids + ['-'.join(test_id_list)]
         params.append(pytest.param('-'.join(test_id_list), model_list), **extra_args)
 
@@ -222,18 +226,18 @@ def omz_cache_dir(request):
 
 
 @pytest.fixture(scope="function")
-def prepared_models(openvino_ref, models, omz_path, omz_cache_dir):
+def prepared_models(openvino_ref, models, omz_path, omz_cache_dir, tmpdir):
     """
     Process models: prepare Open Model Zoo models, skip non-OMZ models.
     """
     for model in models:
         if model.get("type") == "omz":
-            model["path"] = prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir)
+            model["path"] = prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir, tmpdir)
     models = [model["path"] for model in models]
     return models
 
 
-def prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir):
+def prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir, tmpdir):
     """
     Download and convert Open Model Zoo model to Intermediate Representation,
     get path to model XML.
@@ -243,7 +247,7 @@ def prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir):
 
     python_executable = sys.executable
     downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
-    model_path_root = Path(model["path"].parent).resolve()
+    model_path_root = tmpdir
 
     cmd = f'{python_executable} {downloader_path} --name {model["name"]}' \
           f' --precisions={model["precision"]}' \
