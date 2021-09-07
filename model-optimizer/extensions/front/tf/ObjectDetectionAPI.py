@@ -7,8 +7,8 @@ the https://github.com/tensorflow/models/blob/master/research/object_detection/ 
 OpenVINO document describing overall procedure of conversion these models with the Model Optimizer:
 https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models.html
 
-Conversion of most of the TD OD API models requires execution of several transformations defined in this file. The list
-of transformation to be executed for a particular model type (meta-architecture) is defined in the transformation
+Conversion of most of the TF OD API models requires execution of several transformations defined in this file. The list
+of transformations to be executed for a particular model type (meta-architecture) is defined in the transformation
 configuration JSON file located in the "extensions/front/tf/" directory. A file should be specified using the
 "--transformations_config" command line parameter. An additional parameter
 "--tensorflow_object_detection_api_pipeline_config" should be specified with the path to the pipeline.config used for
@@ -577,7 +577,7 @@ class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
     This is a anchor transformation which is used to separate TF OD API models related transformations.
     All transformations have a dependency to be executed before this transformation (or some other TF OD API
     transformation which is executed before this one).
-    1. This anchor transformation is executed before some other standard MO transformations which may break the model
+    1. This anchor transformation is executed before any other standard MO transformations which may break the model
     conversion. For example, PadTFToPad replaces PadTF operation nodes with the Pad operation nodes and re-uses an
     input node defining the pad value. The scope pattern matcher will remove the node defining the pad value and the
     newly created Pad operation become invalid.
@@ -655,8 +655,8 @@ def get_preprocessing_ops(graph: Graph, start_node_id_suffix: str, end_node_id_s
 
 
 """ 
-Object Detection API models contain the sub-graph that performs some (possibly not all) of the following tasks (possibly
-in different order):
+Object Detection API models contain the sub-graph that performs some (not necessarily all) of the following tasks
+(possibly in different order):
 * Resizes image according to the constraints defined in the pipeline.config file.
 * Applies mean and scale values.
 * Pads the resized image to the size specified in the pipeline.config file.
@@ -671,7 +671,7 @@ was the only option to convert the model and avoid dynamism which occurs when ke
 user should resize the image the same way as it is implemented in the model before feeding the data to the Inference
 Engine.
 
-TODO: If the "keep_aspect_ratio" resizer with "pad_to_max_dimension" parameter equal to "true" is used and mean/scale
+If the "keep_aspect_ratio" resizer with "pad_to_max_dimension" parameter equal to "true" is used and mean/scale
 operations are applied before the resize like this:
 
 input_tensor -> mean/scale -> resize -> pad -> ... 
@@ -682,15 +682,15 @@ model like this:
 resized_padded_input_data -> mean/scale -> ...
 
 because the output results will be different because mean/scale operations will be applied for padding area as well. So
-the only option in this case is to remove mean/scale operations from the model as well and expect that user perform them
-as well before feeding the model.
+the only option in this case is to remove all pre-processing operations from the model and expect that user perform them
+before feeding the model.
 """
 
 
 class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSubGraph):
     """
-    The transformation is triggered for the pre-processing block resizing input image and applying mean/scale values in
-    the TF1 OD API models.
+    The transformation is triggered for the pre-processing block which resizes the input image and applies mean/scale
+    values in the TF1 OD API models.
     """
     replacement_id = 'ObjectDetectionAPIPreprocessorReplacement'
     run_not_recursively = True
@@ -773,8 +773,8 @@ class ObjectDetectionAPIPreprocessorReplacement(FrontReplacementFromConfigFileSu
 
 class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileGeneral):
     """
-    The transformation is triggered for the pre-processing block resizing input image and applying mean/scale values in
-    the TF2 OD API model. Only nodes related to applying mean/scaling values are kept.
+    The transformation is triggered for the pre-processing block which resizes the input image and applies mean/scale
+    values in the TF2 OD API model. Only nodes related to applying mean/scaling values are kept.
     If the mean/scale values are applied before the resize and the pre-processing includes padding then mean/scale
     values are removed as well. Refer to the comments section before the ObjectDetectionAPIPreprocessorReplacement
     transformation.
@@ -815,7 +815,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
         pad_to_max_dimension = pipeline_config.get_param('pad_to_max_dimension')
 
         # update the model Parameter node shape based on MO command line parameters and values in the pipeline.config
-        _, __ = update_parameter_shape(graph, None)
+        update_parameter_shape(graph, None)
 
         # NOTE: this transformation can be implemented as a "scope" or "points" transformation since we need to match
         # some sub-graph between specific nodes
@@ -1534,8 +1534,8 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 """
 An important part of many object detection models is an operation DetectionOutput which decodes final detection boxes
 using predicted bounding boxes shape offsets and prior boxes inputs. And finally performs non-maximum-suppression based
-on decoded boxes and their confidences (scores). There is no operation DetectionOutput in TensorFlow, instead it is
-implemented as a sub-graph of primitive operations. There are two transformations which replace the sub-graph
+on decoded boxes and their confidences (scores). There is no DetectionOutput operation in TensorFlow operation set, it
+is implemented as a sub-graph of primitive operations instead. There are two transformations which replace the sub-graph
 implementing DetectionOutput operation in this file: ObjectDetectionAPISSDPostprocessorReplacement and 
 ObjectDetectionAPIDetectionOutputReplacement. The first one is used for SSD models, the second one for Faster-RCNN,
 Mask-RCNN and RFCN models. These transformations also prepare input data for the DetectionOutput operation because the
@@ -1737,7 +1737,7 @@ class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral)
 
 class ObjectDetectionAPIPSROIPoolingReplacement(FrontReplacementFromConfigFileSubGraph):
     """
-    RFCN models contains a unique block ("SecondStageBoxPredictor") performing bounding boxes predictions which is
+    RFCN models contain a unique block ("SecondStageBoxPredictor") performing bounding boxes predictions which is
     called Position Sensitive ROI Pooling (PSROIPooling). The combination of "CropAndResize operations located in the
     "while" loop forms a single PSROIPooling operation with bilinear interpolation. The transformation matches two
     "while" loops with PSROIPooling layers applied to the tensors with box coordinates and classes predictions. The
