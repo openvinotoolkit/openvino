@@ -71,6 +71,9 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior_Multi.*InferRequestSetBlobByType.*Batched.*)",
             R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
             // TODO: until issue is xxx-59670 is resolved
-            R"(.*Gather8LayerTest.*)"
+            R"(.*Gather8LayerTest.*)",
+            // Not implemented yet:
+            R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+            R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
     };
 }

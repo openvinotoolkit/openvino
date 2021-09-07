@@ -17,5 +17,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
         // CVS-58963: Not implemented yet
         R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
+        //Not Implemented
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetAndCheckConfigAndCheck).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution|CheckExecGraphInfoSerialization).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
     };
 }

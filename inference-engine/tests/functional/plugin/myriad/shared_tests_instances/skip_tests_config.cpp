@@ -50,5 +50,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)",
         // CVS-58963: Not implemented yet
         R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
+        // Not implemented yet:
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
     };
 }

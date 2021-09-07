@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/common_utils.hpp>
-#include "behavior/add_output.hpp"
+#include "common_test_utils/common_utils.hpp"
+
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+
+#include "behavior/executable_network/add_output.hpp"
 
 std::string AddOutputsTest::getTestCaseName(const testing::TestParamInfo<addOutputsParams> &obj) {
     std::ostringstream results;
@@ -18,12 +20,11 @@ std::string AddOutputsTest::getTestCaseName(const testing::TestParamInfo<addOutp
 }
 
 void AddOutputsTest::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::tie(net, outputsToAdd, deviceName) = GetParam();
 }
 
 TEST_P(AddOutputsTest, smoke_CheckOutputExist) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     std::vector<std::string> expectedOutputs = outputsToAdd;
     for (const auto &out : net.getOutputsInfo()) {
         expectedOutputs.push_back(out.first);

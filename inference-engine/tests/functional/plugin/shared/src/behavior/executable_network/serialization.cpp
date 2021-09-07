@@ -3,7 +3,7 @@
 //
 
 #include <common_test_utils/file_utils.hpp>
-#include "execution_graph_tests/exec_graph_serialization.hpp"
+#include "behavior/executable_network/serialization.hpp"
 
 namespace ExecutionGraphTests {
 
@@ -256,7 +256,7 @@ void ExecGraphSerializationTest::SetUp() {
 
     std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
     test_name.erase(std::remove(test_name.begin(), test_name.end(), '/'), test_name.end());
-    test_name += getTimestamp();
+    test_name += CommonTestUtils::GetTimestamp();
 
     m_out_xml_path = test_name + XML_EXT;
     m_out_bin_path = test_name + BIN_EXT;
@@ -266,13 +266,6 @@ void ExecGraphSerializationTest::SetUp() {
 
 void ExecGraphSerializationTest::TearDown() {
     CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
-}
-
-std::string ExecGraphSerializationTest::getTimestamp() {
-    auto now = std::chrono::system_clock::now();
-    auto epoch = now.time_since_epoch();
-    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch);
-    return std::to_string(ns.count());
 }
 
 bool ExecGraphSerializationTest::exec_graph_walker::for_each(pugi::xml_node &node) {
@@ -289,7 +282,7 @@ std::pair<bool, std::string> ExecGraphSerializationTest::compare_nodes(const pug
     const std::string node1_name{node1.name()};
     const std::string node2_name{node2.name()};
     if (node1_name != node2_name) {
-        return {false, "Node name differ: " + node1_name + " != " + node2_name};
+        return {false, "Node name is different: " + node1_name + " != " + node2_name};
     }
 
     // node attribute count must be the same
@@ -298,7 +291,7 @@ std::pair<bool, std::string> ExecGraphSerializationTest::compare_nodes(const pug
     const auto attr1_size = std::distance(attr1.begin(), attr1.end());
     const auto attr2_size = std::distance(attr2.begin(), attr2.end());
     if (attr1_size != attr2_size) {
-        return {false, "Attribute count differ in <" + node1_name + "> :" +
+        return {false, "Attribute count is different in <" + node1_name + "> :" +
                        std::to_string(attr1_size) + " != " +
                        std::to_string(attr2_size)};
     }
@@ -312,7 +305,11 @@ std::pair<bool, std::string> ExecGraphSerializationTest::compare_nodes(const pug
         const std::string a1_value{a1->value()};
         const std::string a2_value{a2->value()};
         if (a1_name != a2_name || (a1_name == "type" && a1_value != a2_value)) {
-            return {false, "Attributes differ in <" + node1_name + "> : " +
+            // TODO: Remove temporary w/a later
+            if (a1_value == "Output" && a2_value == "Result") {
+                continue;
+            }
+            return {false, "Attributes are different in <" + node1_name + "> : " +
                            a1_name + "=" + a1_value + " != " + a2_name +
                            "=" + a2_value};
         }
