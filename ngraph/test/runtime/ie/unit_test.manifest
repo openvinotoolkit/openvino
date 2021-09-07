@@ -390,14 +390,12 @@ tile_3d_few_repeats
 # Result mismatch
 sum_large_1d_to_scalar
 sum_stable_acc
-max_pool_3d
 avg_pool_2d_2channel_2image_padded_only_above_include_in_computation
 avg_pool_3d_uneven_strided_padded
 multiple_result
 lrn_across_all_dims
 elu
 elu_negative_alpha
-max_pool_2d_1channel_1image_overpadded
 grn_2d_with_bias
 erf
 divide_adjoint_stability
@@ -405,8 +403,6 @@ notequal
 less
 sum_3d_to_scalar_int32
 sum_2d_to_scalar_int8
-max_pool_uint8
-max_pool_int8
 avg_pool_uint8
 avg_pool_int8
 max_to_scalar_int8
@@ -578,9 +574,6 @@ product_to_scalar_int8
 min_to_scalar_int8
 
 # Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.
-max_pool_1d_1channel_1image
-max_pool_1d_1channel_2image
-max_pool_1d_2channel_2image
 avg_pool_1d_1channel_1image
 avg_pool_1d_1channel_2image
 avg_pool_1d_2channel_2image
