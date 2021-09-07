@@ -91,7 +91,7 @@ private:
 // Then, we define the macro NODE_VALIDATION_CHECK as follows:
 //
 // #define NODE_VALIDATION_CHECK(node, cond, ...) <backslash>
-//     OV_CHECK_HELPER(::ov::NodeValidationFailure, (node), (cond), ##__VA_ARGS__)
+//     OPENVINO_CHECK_HELPER(::ov::NodeValidationFailure, (node), (cond), ##__VA_ARGS__)
 //
 // The macro NODE_VALIDATION_CHECK can now be called on any condition, with a Node* pointer
 // supplied to generate an informative error message via node_validation_failure_loc_string().
@@ -101,7 +101,7 @@ private:
 // The "..." may be filled with expressions of any type that has an "operator<<" overload for
 // insertion into std::ostream.
 //
-#define OV_CHECK_HELPER2(exc_class, ctx, check, ...)                                               \
+#define OPENVINO_CHECK_HELPER2(exc_class, ctx, check, ...)                                         \
     do {                                                                                           \
         if (!(check)) {                                                                            \
             ::std::stringstream ss___;                                                             \
@@ -110,7 +110,7 @@ private:
         }                                                                                          \
     } while (0)
 
-#define OV_CHECK_HELPER1(exc_class, ctx, check)                                           \
+#define OPENVINO_CHECK_HELPER1(exc_class, ctx, check)                                     \
     do {                                                                                  \
         if (!(check)) {                                                                   \
             throw exc_class((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ""); \
@@ -123,14 +123,14 @@ private:
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ov::CheckFailure if `cond` is false.
-#define OV_CHECK(...) OV_CHECK_HELPER(::ov::CheckFailure, "", __VA_ARGS__)
+#define OPENVINO_CHECK(...) OPENVINO_CHECK_HELPER(::ov::CheckFailure, "", __VA_ARGS__)
 
 /// \brief Macro to signal a code path that is unreachable in a successful execution. It's
-/// implemented with OV_CHECK macro.
+/// implemented with OPENVINO_CHECK macro.
 /// \param ... Additional error message that should describe why that execution path is unreachable.
 /// \throws ::ov::CheckFailure if the macro is executed.
-#define OV_UNREACHABLE(...)                  OV_CHECK(false, "Unreachable: ", __VA_ARGS__)
-#define OV_CHECK_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(OV_CHECK_HELPER, exc_class, ctx, __VA_ARGS__)
+#define OPENVINO_UNREACHABLE(...)                  OPENVINO_CHECK(false, "Unreachable: ", __VA_ARGS__)
+#define OPENVINO_CHECK_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(OPENVINO_CHECK_HELPER, exc_class, ctx, __VA_ARGS__)
 
 #define GLUE(x, y) x y
 
