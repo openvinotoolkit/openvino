@@ -13,8 +13,6 @@ class Function;
 
 namespace preprocess {
 
-class PrePostProcessorImpl;
-
 /// \brief Main class for adding pre- and post- processing steps to existing ov::Function
 /// API has Builder-like style to allow chaining calls in client's code, like
 /// \code{.cpp}
@@ -28,6 +26,7 @@ class PrePostProcessorImpl;
 /// client's code can use transformation passes over ov::Function
 ///
 class OPENVINO_API PrePostProcessor final {
+    class PrePostProcessorImpl;
     std::unique_ptr<PrePostProcessorImpl> m_impl;
 
 public:

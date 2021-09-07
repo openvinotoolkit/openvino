@@ -10,8 +10,6 @@
 namespace ov {
 namespace preprocess {
 
-class InputTensorInfoImpl;
-
 /// \brief Information about user's input tensor. By default, it will be initialized to same data (type/shape/etc) as
 /// network's input parameter User application can override particular parameters (like 'element_type') according to
 /// application's data and specify appropriate conversions in pre-processing steps
@@ -26,6 +24,7 @@ class InputTensorInfoImpl;
 ///     );
 /// \endcode
 class OPENVINO_API InputTensorInfo final {
+    class InputTensorInfoImpl;
     std::unique_ptr<InputTensorInfoImpl> m_impl;
     friend class InputInfo;
 

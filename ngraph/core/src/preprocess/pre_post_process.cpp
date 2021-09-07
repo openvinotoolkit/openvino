@@ -11,7 +11,7 @@ namespace ov {
 namespace preprocess {
 
 /// \brief InputTensorInfoImpl - internal data structure
-struct InputTensorInfoImpl {
+struct InputTensorInfo::InputTensorInfoImpl {
     InputTensorInfoImpl() = default;
     explicit InputTensorInfoImpl(const element::Type& type) : m_type(type) {}
 
@@ -19,56 +19,62 @@ struct InputTensorInfoImpl {
 };
 
 /// \brief PreProcessStepsImpl - internal data structure
-struct PreProcessStepsImpl {
+struct PreProcessSteps::PreProcessStepsImpl {
     void add_scale_impl(const std::vector<float>& values) {
-        m_actions.emplace_back([values](const std::shared_ptr<Node>& node) {
-            ngraph::Shape shape;
-            if (values.size() == 1) {
-                shape = ngraph::Shape{1};
-            } else {
-                // TODO: implement when Layout API is available
-            }
-            auto constant = op::v0::Constant::create(element::f32, shape, values);
-            constant->set_friendly_name(node->get_friendly_name() + "/scale/Divide_Factor");
+        m_actions.emplace_back(std::make_tuple(
+            [values](const std::shared_ptr<Node>& node) {
+                ngraph::Shape shape;
+                if (values.size() == 1) {
+                    shape = ngraph::Shape{1};
+                } else {
+                    // TODO: implement when Layout API is available
+                }
+                auto constant = op::v0::Constant::create(element::f32, shape, values);
+                constant->set_friendly_name(node->get_friendly_name() + "/scale/Divide_Factor");
 
-            auto new_op = std::make_shared<op::v1::Divide>(node, constant);
-            new_op->set_friendly_name(node->get_friendly_name() + "/scale/Divide");
-            return new_op;
-        });
+                auto new_op = std::make_shared<op::v1::Divide>(node, constant);
+                new_op->set_friendly_name(node->get_friendly_name() + "/scale/Divide");
+                return new_op;
+            },
+            false));
     }
 
     void add_mean_impl(const std::vector<float>& values) {
-        m_actions.emplace_back([values](const std::shared_ptr<Node>& node) {
-            ngraph::Shape shape;
-            if (values.size() == 1) {
-                shape = ngraph::Shape{1};
-            } else {
-                // TODO: implement when Layout API is available
-            }
-            auto constant = op::v0::Constant::create(element::f32, shape, values);
-            constant->set_friendly_name(node->get_friendly_name() + "/mean/Mean_Const");
+        m_actions.emplace_back(std::make_tuple(
+            [values](const std::shared_ptr<Node>& node) {
+                ngraph::Shape shape;
+                if (values.size() == 1) {
+                    shape = ngraph::Shape{1};
+                } else {
+                    // TODO: implement when Layout API is available
+                }
+                auto constant = op::v0::Constant::create(element::f32, shape, values);
+                constant->set_friendly_name(node->get_friendly_name() + "/mean/Mean_Const");
 
-            auto new_op = std::make_shared<op::v1::Subtract>(node, constant);
-            new_op->set_friendly_name(node->get_friendly_name() + "/mean/Subtract");
-            return new_op;
-        });
+                auto new_op = std::make_shared<op::v1::Subtract>(node, constant);
+                new_op->set_friendly_name(node->get_friendly_name() + "/mean/Subtract");
+                return new_op;
+            },
+            false));
     }
 
     void add_convert_impl(const element::Type& type) {
-        m_actions.emplace_back([type](const std::shared_ptr<Node>& node) {
-            if (node->get_element_type().is_dynamic()) {
-                throw ngraph::ngraph_error("Can't insert 'convert_element_type' for dynamic source tensor type.");
-            }
-            auto convert = std::make_shared<op::v0::Convert>(node, type);
-            convert->set_friendly_name(node->get_friendly_name() + "/convert_element_type");
-            return convert;
-        });
+        m_actions.emplace_back(std::make_tuple(
+            [type](const std::shared_ptr<Node>& node) {
+                if (node->get_element_type().is_dynamic()) {
+                    throw ngraph::ngraph_error("Can't insert 'convert_element_type' for dynamic source tensor type.");
+                }
+                auto convert = std::make_shared<op::v0::Convert>(node, type);
+                convert->set_friendly_name(node->get_friendly_name() + "/convert_element_type");
+                return convert;
+            },
+            true));
     }
-    std::list<PreProcessSteps::CustomPreprocessOp> m_actions;
+    std::list<std::tuple<PreProcessSteps::CustomPreprocessOp, bool>> m_actions;
 };
 
 /// \brief InputInfoImpl - internal data structure
-struct InputInfoImpl {
+struct InputInfo::InputInfoImpl {
     InputInfoImpl() = default;
     explicit InputInfoImpl(size_t idx) : m_has_index(true), m_index(idx) {}
 
@@ -76,10 +82,15 @@ struct InputInfoImpl {
         return m_has_index;
     }
 
+    void create_tensor_data(const element::Type& type) {
+        m_tensor_data =
+            std::unique_ptr<InputTensorInfo::InputTensorInfoImpl>(new InputTensorInfo::InputTensorInfoImpl(type));
+    }
+
     bool m_has_index = false;
     size_t m_index = 0;
-    std::unique_ptr<InputTensorInfoImpl> m_tensor_data;
-    std::unique_ptr<PreProcessStepsImpl> m_preprocess;
+    std::unique_ptr<InputTensorInfo::InputTensorInfoImpl> m_tensor_data;
+    std::unique_ptr<PreProcessSteps::PreProcessStepsImpl> m_preprocess;
 };
 
 //-------------- InputInfo ------------------
@@ -110,9 +121,9 @@ InputInfo& InputInfo::preprocess(PreProcessSteps&& builder) & {
 }
 
 // ------------------------ PrePostProcessor --------------------
-struct PrePostProcessorImpl {
+struct PrePostProcessor::PrePostProcessorImpl {
 public:
-    std::list<std::unique_ptr<InputInfoImpl>> in_contexts;
+    std::list<std::unique_ptr<InputInfo::InputInfoImpl>> in_contexts;
 };
 
 PrePostProcessor::PrePostProcessor() : m_impl(std::unique_ptr<PrePostProcessorImpl>(new PrePostProcessorImpl())) {}
@@ -131,6 +142,7 @@ PrePostProcessor&& PrePostProcessor::input(InputInfo&& builder) && {
 }
 
 std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function>& function) {
+    bool tensor_data_updated = false;
     for (const auto& input : m_impl->in_contexts) {
         std::shared_ptr<op::v0::Parameter> param;
         OV_CHECK(input, "Internal error: Invalid preprocessing input, please report a problem");
@@ -147,8 +159,7 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         }
         auto consumers = param->output(0).get_target_inputs();
         if (!input->m_tensor_data) {
-            input->m_tensor_data =
-                std::unique_ptr<InputTensorInfoImpl>(new InputTensorInfoImpl(param->get_element_type()));
+            input->create_tensor_data(param->get_element_type());
         }
         auto new_param_shape = param->get_partial_shape();
         auto new_param = std::make_shared<op::v0::Parameter>(input->m_tensor_data->m_type, new_param_shape);
@@ -158,7 +169,8 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
 
         // 2. Apply preprocessing
         for (const auto& action : input->m_preprocess->m_actions) {
-            node = action(node);
+            node = std::get<0>(action)(node);
+            tensor_data_updated |= std::get<1>(action);
         }
 
         // Check final type
@@ -179,7 +191,9 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
             function->replace_parameter(0, new_param);
         }
     }
-    function->validate_nodes_and_infer_types();
+    if (tensor_data_updated) {
+        function->validate_nodes_and_infer_types();
+    }
     return function;
 }
 
@@ -237,12 +251,14 @@ PreProcessSteps&& PreProcessSteps::convert_element_type(const element::Type& typ
 }
 
 PreProcessSteps& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) & {
-    m_impl->m_actions.emplace_back(preprocess_cb);
+    // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
+    m_impl->m_actions.emplace_back(std::make_tuple(preprocess_cb, true));
     return *this;
 }
 
 PreProcessSteps&& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_cb) && {
-    m_impl->m_actions.emplace_back(preprocess_cb);
+    // 'true' indicates that custom preprocessing step will trigger validate_and_infer_types
+    m_impl->m_actions.emplace_back(std::make_tuple(preprocess_cb, true));
     return std::move(*this);
 }
 

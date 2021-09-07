@@ -11,14 +11,13 @@
 namespace ov {
 namespace preprocess {
 
-class InputInfoImpl;
-
 /// \brief Class holding preprocessing information for one input
 /// API has Builder-like style to allow chaining calls in client's code, like
 /// \code{.cpp}
 /// auto proc = PrePostProcessor().input(InputInfo().tensor(...).preprocess(...);
 /// \endcode
 class OPENVINO_API InputInfo final {
+    class InputInfoImpl;
     std::unique_ptr<InputInfoImpl> m_impl;
     friend class PrePostProcessor;
 

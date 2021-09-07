@@ -13,8 +13,6 @@ class Node;
 
 namespace preprocess {
 
-class PreProcessStepsImpl;
-
 /// \brief Preprocessing steps. Each step typically intends adding of some operation to input parameter
 /// User application can specify sequence of preprocessing steps in a builder-like manner
 /// \code{.cpp}
@@ -26,6 +24,7 @@ class PreProcessStepsImpl;
 ///     );
 /// \endcode
 class OPENVINO_API PreProcessSteps final {
+    class PreProcessStepsImpl;
     std::unique_ptr<PreProcessStepsImpl> m_impl;
     friend class InputInfo;
 

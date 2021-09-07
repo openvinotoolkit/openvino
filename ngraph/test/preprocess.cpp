@@ -86,7 +86,7 @@ TEST(pre_post_process, convert_element_type_from_unknown) {
         f = PrePostProcessor()
                 .input(InputInfo().preprocess(
                     PreProcessSteps().convert_element_type(element::dynamic).convert_element_type(element::i32)))
-                .build(f););
+                .build(f));
 }
 
 TEST(pre_post_process, convert_element_type_no_match) {
@@ -95,7 +95,23 @@ TEST(pre_post_process, convert_element_type_no_match) {
                              .input(InputInfo()
                                         .tensor(InputTensorInfo().set_element_type(element::i32))
                                         .preprocess(PreProcessSteps().convert_element_type(element::f32).scale(2.0f)))
-                             .build(f););
+                             .build(f));
+}
+
+TEST(pre_post_process, scale_not_float) {
+    auto f = create_simple_function(element::i32, ngraph::Shape{1, 3, 224, 224});
+    ASSERT_ANY_THROW(
+        f = PrePostProcessor()
+                .input(InputInfo().preprocess(PreProcessSteps().convert_element_type(element::f32).scale(2.0f)))
+                .build(f));
+}
+
+TEST(pre_post_process, mean_not_float) {
+    auto f = create_simple_function(element::i32, ngraph::Shape{1, 3, 224, 224});
+    ASSERT_ANY_THROW(
+        f = PrePostProcessor()
+                .input(InputInfo().preprocess(PreProcessSteps().convert_element_type(element::f32).mean(2.0f)))
+                .build(f));
 }
 
 TEST(pre_post_process, tensor_element_type_and_scale) {
