@@ -6,9 +6,9 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(op::v8::MaxUnpool, "MaxUnpool", 1);
 
 op::v8::MaxUnpool::MaxUnpool(const ngraph::Output<ngraph::Node>& poolInp,
-                                 const ngraph::Output<ngraph::Node>& poolOut,
-                                 const ngraph::Output<ngraph::Node>& inp,
-                                 const ngraph::Output<ngraph::Node>& shape)
+                             const ngraph::Output<ngraph::Node>& poolOut,
+                             const ngraph::Output<ngraph::Node>& inp,
+                             const ngraph::Output<ngraph::Node>& shape)
     : Op({poolInp, poolOut, inp, shape}) {
     constructor_validate_and_infer_types();
 }
@@ -27,7 +27,7 @@ std::shared_ptr<ngraph::Node> op::v8::MaxUnpool::clone_with_new_inputs(const ngr
 void op::v8::MaxUnpool::validate_and_infer_types() {
     auto outShape = get_input_partial_shape(3);
     auto poolInpShape = get_input_partial_shape(0);
-    if (poolInpShape.is_static()) { // need to fix it
+    if (poolInpShape.is_static()) {  // need to fix it
         auto inpShape = poolInpShape.to_shape();
         outShape[0] = inpShape[0];  // Use only spatial dimensions from shape
         outShape[1] = inpShape[1];  // and restore batch and channels

@@ -12,9 +12,9 @@ public:
     MaxUnpool() = default;
 
     MaxUnpool(const ngraph::Output<ngraph::Node>& poolInp,
-                const ngraph::Output<ngraph::Node>& poolOut,
-                const ngraph::Output<ngraph::Node>& inp,
-                const ngraph::Output<ngraph::Node>& shape);
+              const ngraph::Output<ngraph::Node>& poolOut,
+              const ngraph::Output<ngraph::Node>& inp,
+              const ngraph::Output<ngraph::Node>& shape);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
