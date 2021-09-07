@@ -219,7 +219,7 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
 }
 }  // namespace
 
-prior_box_node::typed_program_node(std::shared_ptr<prior_box> prim, program_impl& prog) : parent(prim, prog) {
+prior_box_node::typed_program_node(std::shared_ptr<prior_box> prim, program& prog) : parent(prim, prog) {
     constant = true;
 }
 
@@ -452,7 +452,7 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
     return primitive_description.str();
 }
 
-prior_box_inst::typed_primitive_inst(network_impl& network, prior_box_node const& node) : parent(network, node) {
+prior_box_inst::typed_primitive_inst(network& network, prior_box_node const& node) : parent(network, node) {
     CLDNN_ERROR_MESSAGE(node.id(), "Prior box primitive instance should not be created!");
 }
 

@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../shared/include/cut_specific_model.hpp"
+#include "cut_specific_model.hpp"
+
+#include "paddle_utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-static const auto PDPD = "pdpd";
-
 using PDPDCutTest = FrontEndCutModelTest;
 
-static CutModelParam getTestData_2in_2out()
-{
+static CutModelParam getTestData_2in_2out() {
     CutModelParam res;
-    res.m_frontEndName = PDPD;
-    res.m_modelsPath = std::string(TEST_PDPD_MODELS);
+    res.m_frontEndName = PADDLE_FE;
+    res.m_modelsPath = std::string(TEST_PADDLE_MODELS_DIRNAME);
     res.m_modelName = "2in_2out/2in_2out.pdmodel";
     res.m_oldInputs = {"inputX1", "inputX2"};
     res.m_newInputs = {"add1.tmp_0"};
@@ -28,6 +27,6 @@ static CutModelParam getTestData_2in_2out()
 }
 
 INSTANTIATE_TEST_SUITE_P(PDPDCutTest,
-                        FrontEndCutModelTest,
-                        ::testing::Values(getTestData_2in_2out()),
-                        FrontEndCutModelTest::getTestCaseName);
+                         FrontEndCutModelTest,
+                         ::testing::Values(getTestData_2in_2out()),
+                         FrontEndCutModelTest::getTestCaseName);

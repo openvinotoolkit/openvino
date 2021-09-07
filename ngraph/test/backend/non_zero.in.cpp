@@ -14,8 +14,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, non_zero)
-{
+NGRAPH_TEST(${BACKEND_NAME}, non_zero) {
     PartialShape p_shape = PartialShape::dynamic();
     auto p = make_shared<op::Parameter>(element::f32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i32);
@@ -39,8 +38,7 @@ NGRAPH_TEST(${BACKEND_NAME}, non_zero)
     ASSERT_EQ(result_data, expected_result);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_1s)
-{
+NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_1s) {
     PartialShape p_shape = PartialShape::dynamic();
     auto p = make_shared<op::Parameter>(element::i32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i64);
@@ -66,8 +64,7 @@ NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_1s)
     ASSERT_EQ(result_data, expected_result);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_0s)
-{
+NGRAPH_TEST(${BACKEND_NAME}, non_zero_all_0s) {
     PartialShape p_shape = PartialShape::dynamic();
     auto p = make_shared<op::Parameter>(element::i32, p_shape);
     auto non_zero = make_shared<op::v3::NonZero>(p, element::i64);

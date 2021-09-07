@@ -4,16 +4,15 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
-
 #include <gtest/gtest.h>
 
-using FuzzyOpTestParam = std::tuple<std::string,  // FrontEnd name
-                                    std::string,  // Base path to models
-                                    std::string>; // Model name
+#include <frontend_manager/frontend_manager.hpp>
 
-class FrontEndFuzzyOpTest : public ::testing::TestWithParam<FuzzyOpTestParam>
-{
+using FuzzyOpTestParam = std::tuple<std::string,   // FrontEnd name
+                                    std::string,   // Base path to models
+                                    std::string>;  // Model name
+
+class FrontEndFuzzyOpTest : public ::testing::TestWithParam<FuzzyOpTestParam> {
 public:
     std::string m_feName;
     std::string m_pathToModels;

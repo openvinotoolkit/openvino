@@ -349,7 +349,7 @@ template <typename typelist, typename default_t, typename pred_t, typename type_
 namespace {
 struct cv_type_id {
     template <typename type>
-    const int operator()(type_to_type<type>) { return cv_type_to_depth<type>::depth; }
+    int operator()(type_to_type<type>) { return cv_type_to_depth<type>::depth; }
 };
 
 }  // namespace

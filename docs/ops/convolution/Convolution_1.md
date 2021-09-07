@@ -2,7 +2,7 @@
 
 **Versioned name**: *Convolution-1*
 
-**Category**: Convolution
+**Category**: *Convolution*
 
 **Short description**: Computes 1D, 2D or 3D convolution (cross-correlation to be precise) of input and kernel tensors.
 
@@ -16,15 +16,15 @@ n_{out} = \left ( \frac{n_{in} + 2p - k}{s} \right ) + 1
 The receptive field in each layer is calculated using the formulas:
 *   Jump in the output feature map:
   \f[
-  j_{out} = j_{in} * s
+  j_{out} = j_{in} \cdot s
   \f]
 *   Size of the receptive field of output feature:
   \f[
-  r_{out} = r_{in} + ( k - 1 ) * j_{in}
+  r_{out} = r_{in} + ( k - 1 ) \cdot j_{in}
   \f]
 *   Center position of the receptive field of the first output feature:
   \f[
-  start_{out} = start_{in} + ( \frac{k - 1}{2} - p ) * j_{in}
+  start_{out} = start_{in} + ( \frac{k - 1}{2} - p ) \cdot j_{in}
   \f]
 *   Output is calculated using the following formula:
   \f[
@@ -77,8 +77,8 @@ The receptive field in each layer is calculated using the formulas:
 
 **Inputs**:
 
-*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is `[N, C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). Required.
-*   **2**: Kernel tensor of type *T* and rank 3, 4 or 5. Layout is `[C_OUT, C_IN, Z, Y, X]` (number of output channels, number of input channels, spatial axes Z, Y, X). Required.
+*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is `[N, C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). **Required.**
+*   **2**: Kernel tensor of type *T* and rank 3, 4 or 5. Layout is `[C_OUT, C_IN, Z, Y, X]` (number of output channels, number of input channels, spatial axes Z, Y, X). **Required.**
 *   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
       * 1D convolution (input tensors rank 3) means that there is only one spatial axis X
       * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X

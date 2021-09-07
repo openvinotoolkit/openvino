@@ -53,7 +53,7 @@ Computation algorithm for mode *xnor-popcount*:
     * *xnor-popcount*
   * **Type**: `string`
   * **Required**: *yes*
-  *  **Note**: value `0` in inputs is interpreted as `-1`, value `1` as `1`
+  * **Note**: value `0` in inputs is interpreted as `-1`, value `1` as `1`
 
 * *pad_value*
 
@@ -76,8 +76,8 @@ Computation algorithm for mode *xnor-popcount*:
 
 **Inputs**:
 
-*   **1**: Input tensor of type *T1* and rank 4. Layout is `[N, C_IN, Y, X]` (number of batches, number of channels, spatial axes Y, X). Required.
-*   **2**: Kernel tensor of type *T2* and rank 4. Layout is `[C_OUT, C_IN, Y, X]` (number of output channels, number of input channels, spatial axes Y, X). Required.
+*   **1**: Input tensor of type *T1* and rank 4. Layout is `[N, C_IN, Y, X]` (number of batches, number of channels, spatial axes Y, X). **Required.**
+*   **2**: Kernel tensor of type *T2* and rank 4. Layout is `[C_OUT, C_IN, Y, X]` (number of output channels, number of input channels, spatial axes Y, X). **Required.**
 *   **Note**: Interpretation of tensor values is defined by *mode* attribute.
 
 **Outputs**:

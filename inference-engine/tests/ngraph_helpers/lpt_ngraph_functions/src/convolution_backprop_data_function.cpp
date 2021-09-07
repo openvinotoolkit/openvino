@@ -13,7 +13,6 @@
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph::pass::low_precision;
@@ -82,7 +81,7 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
         dequantizationStructure.subtract.constantPrecision = dequantizationOnWeights.subtract.constantPrecision;
     }
     if (weights->get_element_type().is_real()) {
-        weights = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(weights, netPrecision));
+        weights = ov::as_type_ptr<opset1::Constant>(fold<opset1::Convert>(weights, netPrecision));
     }
     const auto dq = makeDequantization(weights, dequantizationStructure);
 

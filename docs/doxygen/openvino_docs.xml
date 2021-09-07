@@ -158,6 +158,9 @@ limitations under the License.
             <xi:include href="omz_docs.xml" xpointer="omz_models">
                 <xi:fallback/>
             </xi:include>
+            <tab type="user" title="Dataset Preparation Guide" url="@ref omz_data_datasets"/>
+            <tab type="user" title="Intel's Pre-Trained Models Device Support" url="@ref omz_models_intel_device_support"/>
+            <tab type="user" title="Public Pre-Trained Models Device Support" url="@ref omz_models_public_device_support"/>
             <xi:include href="omz_docs.xml" xpointer="omz_demos">
                 <xi:fallback/>
             </xi:include>
@@ -186,15 +189,6 @@ limitations under the License.
                 <tab type="user" title="Benchmark C++ Tool" url="@ref openvino_inference_engine_samples_benchmark_app_README"/>
                 <tab type="user" title="Benchmark Python* Tool" url="@ref openvino_inference_engine_tools_benchmark_tool_README"/>
             </tab>
-            <!-- Reference Implementations -->
-            <tab type="usergroup" title="Reference Implementations" url="">
-                <tab type="usergroup" title="Speech Library and Speech Recognition Demos" url="@ref openvino_inference_engine_samples_speech_libs_and_demos_Speech_libs_and_demos">
-                    <tab type="user" title="Speech Library" url="@ref openvino_inference_engine_samples_speech_libs_and_demos_Speech_library"/>
-                    <tab type="user" title="Offline Speech Recognition Demo" url="@ref openvino_inference_engine_samples_speech_libs_and_demos_Offline_speech_recognition_demo"/>
-                    <tab type="user" title="Live Speech Recognition Demo" url="@ref openvino_inference_engine_samples_speech_libs_and_demos_Live_speech_recognition_demo"/>
-                    <tab type="user" title="Kaldi* Statistical Language Model Conversion Tool" url="@ref openvino_inference_engine_samples_speech_libs_and_demos_Kaldi_SLM_conversion_tool"/>
-                </tab>    
-            </tab>
             <!-- DL Streamer Examples -->
             <tab type="usergroup" title="DL Streamer Examples" url="@ref gst_samples_README">
                 <tab type="usergroup" title="Command Line Samples" url="">
@@ -205,6 +199,8 @@ limitations under the License.
                         <tab type="user" title="MetaPublish Listeners" url="@ref gst_samples_gst_launch_metapublish_listener"/>
                     </tab>
                     <tab type="user" title="gvapython Sample" url="@ref gst_samples_gst_launch_gvapython_face_detection_and_classification_README"/>
+                    <tab type="user" title="Action Recognition Sample" url="@ref gst_samples_gst_launch_action_recognition_README"/>
+                    <tab type="user" title="Human Pose Estimation Sample" url="@ref gst_samples_gst_launch_human_pose_estimation_README"/>
                 </tab>
                 <tab type="user" title="Draw Face Attributes C++ Sample" url="@ref gst_samples_cpp_draw_face_attributes_README"/>
                 <tab type="user" title="Draw Face Attributes Python Sample" url="@ref gst_samples_python_draw_face_attributes_README"/>

@@ -10,11 +10,13 @@
 
 #include "dnn_types.h"
 #include "gna_types.h"
+#include "gna/gna_config.hpp"
 
 #include "gna_plugin_log.hpp"
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
+#include <gna/gna_config.hpp>
 #endif
 
 namespace GNAPluginNS {
@@ -152,6 +154,10 @@ public:
             (void*&)ptr_filters,
             (void*&)ptr_biases);
     }
+
+    // Checks whether operation is Convolution and its parameters makes it specific to GNA1/GNA2 targets
+    // It does not guarantee that operation fully compatible to GNA1/GNA2, but for sure is not comaptible with GNA3 target
+    static bool isOperationCnnLegacySpecific(const Gna2Operation& operation);
 #endif
 
     template<class A, class B>
@@ -293,7 +299,7 @@ public:
 
 
 #if GNA_LIB_VER == 2
-    void InitGNAStruct(Gna2Model *gnaModel);
+    void InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget = InferenceEngine::GNAConfigParams::GNA_TARGET_2_0);
     void DestroyGNAStruct(Gna2Model *gnaModel);
 #else
 

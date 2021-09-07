@@ -28,7 +28,7 @@ using roiPoolingParamsTuple = std::tuple<
 class ROIPoolingLayerTest : public testing::WithParamInterface<roiPoolingParamsTuple>,
                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<roiPoolingParamsTuple> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<roiPoolingParamsTuple>& obj);
     void GenerateInputs() override;
 
 protected:

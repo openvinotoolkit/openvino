@@ -25,7 +25,7 @@ with the shape and type from the 1 input.
 
 **Inputs**
 
-*   **1**: `init_value` - input tensor with constant values of any supported type. **Required**.
+*   **1**: `init_value` - input tensor with constant values of any supported type. **Required.**
 
 **Outputs**
 

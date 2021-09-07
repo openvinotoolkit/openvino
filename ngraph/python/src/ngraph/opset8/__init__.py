@@ -5,6 +5,8 @@ from ngraph.opset1.ops import absolute
 from ngraph.opset1.ops import absolute as abs
 from ngraph.opset1.ops import acos
 from ngraph.opset4.ops import acosh
+from ngraph.opset8.ops import adaptive_avg_pool
+from ngraph.opset8.ops import adaptive_max_pool
 from ngraph.opset1.ops import add
 from ngraph.opset1.ops import asin
 from ngraph.opset4.ops import asinh
@@ -51,7 +53,7 @@ from ngraph.opset1.ops import exp
 from ngraph.opset1.ops import fake_quantize
 from ngraph.opset1.ops import floor
 from ngraph.opset1.ops import floor_mod
-from ngraph.opset7.ops import gather
+from ngraph.opset8.ops import gather
 from ngraph.opset6.ops import gather_elements
 from ngraph.opset5.ops import gather_nd
 from ngraph.opset1.ops import gather_tree

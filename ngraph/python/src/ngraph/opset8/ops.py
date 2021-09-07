@@ -102,6 +102,43 @@ def deformable_convolution(
 
 
 @nameable_op
+def adaptive_avg_pool(
+        data: NodeInput,
+        output_shape: NodeInput
+) -> Node:
+    """Return a node which performs AdaptiveAvgPool operation.
+
+    @param data: The list of input nodes
+    @param output_shape: the shape of spatial dimentions after operation
+    @return: The new node performing AdaptiveAvgPool operation on the data
+    """
+    inputs = as_nodes(data, output_shape)
+    return _get_node_factory_opset8().create("AdaptiveAvgPool", inputs)
+
+
+@nameable_op
+def adaptive_max_pool(
+        data: NodeInput,
+        output_shape: NodeInput,
+        index_element_type: str = "i64"
+) -> Node:
+    """Return a node which performs AdaptiveMaxPool operation.
+
+    @param data: The list of input nodes
+    @param output_shape: the shape of spatial dimentions after operation
+    @param index_element_type: Type of indices output.
+    @return: The new node performing AdaptiveMaxPool operation on the data
+    """
+    inputs = as_nodes(data, output_shape)
+
+    attributes = {
+        "index_element_type": index_element_type,
+    }
+
+    return _get_node_factory_opset8().create("AdaptiveMaxPool", inputs, attributes)
+
+
+@nameable_op
 def multiclass_nms(
     boxes: NodeInput,
     scores: NodeInput,
@@ -216,3 +253,26 @@ def matrix_nms(
     }
 
     return _get_node_factory_opset8().create("MatrixNms", inputs, attributes)
+
+
+@nameable_op
+def gather(
+        data: NodeInput,
+        indices: NodeInput,
+        axis: NodeInput,
+        batch_dims: Optional[int] = 0,
+) -> Node:
+    """Return a node which performs Gather with support of negative indices.
+
+    @param data:         N-D tensor with data for gathering
+    @param indices:      N-D tensor with indices by which data is gathered. Negative indices
+    indicate reverse indexing from the end
+    @param axis:         axis along which elements are gathered
+    @param batch_dims:   number of batch dimensions
+    @return:             The new node which performs Gather
+    """
+    inputs = as_nodes(data, indices, axis)
+    attributes = {
+        "batch_dims": batch_dims
+    }
+    return _get_node_factory_opset8().create("Gather", inputs, attributes)

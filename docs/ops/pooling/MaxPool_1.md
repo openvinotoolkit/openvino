@@ -63,14 +63,14 @@
 
 **Inputs**:
 
-*   **1**: 3D, 4D or 5D input tensor of type *T*. Required.
+*   **1**: 3D, 4D or 5D input tensor of type *T*. **Required.**
 
 **Outputs**:
   * **1**: Input shape can be either `[N, C, H]`, `[N, C, H, W]` or `[N, C, H, W, D]`. Then the corresponding output shape will be `[N, C, H_out]`, `[N, C, H_out, W_out]` or `[N, C, H_out, W_out, D_out]`. Output tensor has the same data type as input tensor.
 
 **Types**
 
-* *T*: floating point or integer type.
+* *T*: floating-point or integer type.
 
 **Mathematical Formulation**
 Output shape calculation based on `auto_pad` and `rounding_type`:
@@ -163,7 +163,7 @@ strides = [1, 1]
 kernel = [2, 2]
 rounding_type = "floor"
 auto_pad = "same_upper"
-output = [[[[5, 5, -6],
+output = [[[[5, 5, 3],
             [8, 9, 9]
             [8, 9, 9]],
            [[6, 5, 5],

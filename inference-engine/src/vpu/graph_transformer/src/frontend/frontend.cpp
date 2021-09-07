@@ -33,6 +33,7 @@
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
+#include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/convert_precision.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
@@ -156,6 +157,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICo
         {"ExpGatherElements",                                  LAYER_PARSER(parseGatherElements)},
         {"Round",                                              LAYER_PARSER(parseRound)},
         {"CTCGreedyDecoderSeqLen",                             LAYER_PARSER(parseCTCGreedyDecoderSeqLen)},
+        {"Abs",                                                LAYER_PARSER(parseAbs)}
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -180,6 +182,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
     manager.register_pass<vpu::MergeGatherGatherElements>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
 
@@ -477,10 +480,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
     if (!customLayers.empty()) {
         env.log->trace("Parse custom layers : %s", customLayers);
         VPU_LOGGER_SECTION(env.log);
-
-        if (env.platform != ncDevicePlatform_t::NC_MYRIAD_X) {
-            VPU_THROW_FORMAT("Custom layers are not supported for %v platforms", env.platform);
-        }
 
         _customLayers = CustomLayer::loadFromFile(customLayers);
     }

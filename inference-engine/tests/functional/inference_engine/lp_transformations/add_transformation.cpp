@@ -65,7 +65,7 @@ public:
     ngraph::element::Type precision;
     bool broadcast;
     int constInput;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
     std::string additionalLayer;
@@ -76,19 +76,6 @@ typedef std::tuple <
     std::pair<ngraph::PartialShape, ngraph::PartialShape>, // PShapes for each input
     AddTransformationTestValues
 > AddTransformationParams;
-
-template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
 
 class AddTransformation : public LayerTransformation, public testing::WithParamInterface<AddTransformationParams> {
 public:
@@ -102,7 +89,7 @@ public:
             inputShapes.first,
             inputShapes.second,
             testValues.broadcast,
-            testValues.params,
+            TestTransformationParams::toParams(testValues.params),
             testValues.actual.precision1,
             testValues.actual.dequantization1,
             testValues.actual.precision2,
@@ -112,8 +99,7 @@ public:
             testValues.additionalLayer);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(
-                low_precision::LayerTransformation::Params(testValues.params));
+        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         auto inputShape1Ref = inputShapes.first;
@@ -127,7 +113,7 @@ public:
             inputShape1Ref,
             inputShape2Ref,
             testValues.broadcast,
-            testValues.params,
+            TestTransformationParams::toParams(testValues.params),
             testValues.expected.precision1,
             testValues.expected.dequantization1,
             testValues.expected.precision2,
@@ -157,14 +143,15 @@ public:
             testValues.actual.dequantization2 << "_" <<
             testValues.constInput << "_" <<
             testValues.actual.constValues << "_" <<
-            testValues.additionalLayer;
+            testValues.additionalLayer << "_" <<
+            (testValues.params.updatePrecisions ? "true" : "false");
         return result.str();
     }
 };
 
 TEST_P(AddTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -777,7 +764,7 @@ INSTANTIATE_TEST_SUITE_P(
     AddTransformation::getTestCaseName);
 } // namespace testValues3
 
-namespace testValues4 {
+namespace spatialDimensions {
 const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes4D = {
     {{1, 2, 2, 2}, {1, 2, 2, 2}},
 };
@@ -785,7 +772,7 @@ const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputSh
 const std::vector<AddTransformationTestValues> specialTestValues = {
     // constant input: Add -> Subtract
     {
-    ngraph::element::f32,
+        ngraph::element::f32,
         false,
         1,
         LayerTransformation::createParamsU8I8(),
@@ -843,10 +830,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(inputShapes4D),
         ::testing::ValuesIn(specialTestValues)),
     AddTransformation::getTestCaseName);
-} // namespace testValues4
+} // namespace spatialDimensions
 
-namespace testValues5 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes4D = {
+namespace tensor2D {
+const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapes = {
     {{4, 1}, {4, 1}},
 };
 
@@ -880,22 +867,26 @@ INSTANTIATE_TEST_SUITE_P(
     AddTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecision),
-        ::testing::ValuesIn(inputShapes4D),
+        ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(specialTestValues)),
     AddTransformation::getTestCaseName);
-} // namespace testValues5
+} // namespace tensor2D
 
-namespace testValues6 {
+namespace oneBranchQuantizationFp16 {
+const std::vector<ngraph::element::Type> netPrecision = {
+    element::f16
+};
+
 const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapesWithDynamicChannels = {
+    {{1, 4, 16, 16}, {1, 4, 16, 16}},
     {{1, 4, 16, 16}, {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}},
     {
         {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
         {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}
-    },
-    { PartialShape::dynamic(), PartialShape::dynamic() }
+    }
 };
 
-const std::vector<AddTransformationTestValues> specialTestValues = {
+const std::vector<AddTransformationTestValues> testValues = {
     {
         ngraph::element::f32,
         false,
@@ -910,14 +901,37 @@ const std::vector<AddTransformationTestValues> specialTestValues = {
         },
         {
             ngraph::element::f32,
-            { },
+            { {ngraph::element::f32},  { 508.f }, { 0.25f } },
             ngraph::element::u8,
-            { {ngraph::element::f32},  { 127.f }, { 4.f }},
             { },
+            { {},  {}, { 4.f }},
             { }
         },
         ""
     },
+    {
+        ngraph::element::f32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 127.f }, { 4.f }},
+            ngraph::element::f32,
+            { },
+            { }
+        },
+        {
+            ngraph::element::u8,
+            { },
+            ngraph::element::f32,
+            { {ngraph::element::f32},  { 508.f }, { 0.25f } },
+            { {},  {}, { 4.f }},
+            { }
+        },
+        ""
+    },
+    // multiply with zero
     {
         ngraph::element::f32,
         false,
@@ -948,7 +962,220 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(netPrecision),
         ::testing::ValuesIn(inputShapesWithDynamicChannels),
-        ::testing::ValuesIn(specialTestValues)),
+        ::testing::ValuesIn(testValues)),
     AddTransformation::getTestCaseName);
-} // namespace testValues6
+} // namespace oneBranchQuantizationFp16
+
+namespace oneBranchQuantizationFp32 {
+const std::vector<ngraph::element::Type> netPrecision = {
+    element::f32,
+};
+
+const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapesWithDynamicChannels = {
+    {{1, 4, 16, 16}, {1, 4, 16, 16}},
+    {{1, 4, 16, 16}, {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}},
+    {
+        {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+        {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}
+    }
+};
+
+const std::vector<AddTransformationTestValues> testValues = {
+    {
+        ngraph::element::f32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 127.f }, { 4.f }},
+            { }
+        },
+        {
+            ngraph::element::f32,
+            { {},  { 508.f }, { 0.25f } },
+            ngraph::element::u8,
+            { },
+            { {},  {}, { 4.f }},
+            { }
+        },
+        ""
+    },
+    {
+        ngraph::element::f32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 127.f }, { 4.f }},
+            ngraph::element::f32,
+            { },
+            { }
+        },
+        {
+            ngraph::element::u8,
+            { },
+            ngraph::element::f32,
+            { {},  { 508.f }, { 0.25f } },
+            { {},  {}, { 4.f }},
+            { }
+        },
+        ""
+    },
+    // multiply with zero
+    {
+        ngraph::element::f32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { {7.f, 8.f, 9.f, 10.f} }, { {1.f, 0.f, 2.f, 3.f} }},
+            { }
+        },
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { {7.f, 8.f, 9.f, 10.f} }, { {1.f, 0.f, 2.f, 3.f} }},
+            { },
+            { }
+        },
+        ""
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    AddTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecision),
+        ::testing::ValuesIn(inputShapesWithDynamicChannels),
+        ::testing::ValuesIn(testValues)),
+        AddTransformation::getTestCaseName);
+} // namespace oneBranchQuantizationFp32
+
+namespace oneBranchQuantizationFp32DontUpdatePrecision {
+const std::vector<ngraph::element::Type> netPrecision = {
+    element::f32,
+};
+
+const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapesWithDynamicChannels = {
+    {{1, 4, 16, 16}, {1, 4, 16, 16}},
+    {{1, 4, 16, 16}, {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}},
+    {
+        {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+        {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}
+    }
+};
+
+const std::vector<AddTransformationTestValues> testValues = {
+    // FP32 model, quantized branch: 1
+    {
+        ngraph::element::f32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::f32,
+            { {ngraph::element::f32},  { 127.f }, { 4.f }},
+            { }
+        },
+        {
+            ngraph::element::f32,
+            { {},  { 508.f }, { 0.25f } },
+            ngraph::element::f32,
+            { },
+            { {},  {}, { 4.f }},
+            { }
+        },
+        ""
+    },
+    // FP32 model, quantized branch: 0
+    {
+        ngraph::element::f32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ngraph::element::f32,
+            { {ngraph::element::f32},  { 127.f }, { 4.f }},
+            ngraph::element::f32,
+            { },
+            { }
+        },
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::f32,
+            { {},  { 508.f }, { 0.25f } },
+            { {},  {}, { 4.f }},
+            { }
+        },
+        ""
+    },
+    // INT8 model (FQ decomposition before LPT), quantized branch: 1
+    {
+        ngraph::element::f32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 127.f }, { 4.f }},
+            { }
+        },
+        {
+            ngraph::element::f32,
+            { {},  { 508.f }, { 0.25f } },
+            ngraph::element::u8,
+            { },
+            { {},  {}, { 4.f }},
+            { }
+        },
+        ""
+    },
+    // INT8 model (FQ decomposition before LPT), quantized branch: 0
+    {
+        ngraph::element::f32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 127.f }, { 4.f }},
+            ngraph::element::f32,
+            { },
+            { }
+        },
+        {
+            ngraph::element::u8,
+            { },
+            ngraph::element::f32,
+            { {},  { 508.f }, { 0.25f } },
+            { {},  {}, { 4.f }},
+            { }
+        },
+        ""
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    AddTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecision),
+        ::testing::ValuesIn(inputShapesWithDynamicChannels),
+        ::testing::ValuesIn(testValues)),
+        AddTransformation::getTestCaseName);
+} // namespace oneBranchQuantizationFp32DontUpdatePrecision
 } // namespace

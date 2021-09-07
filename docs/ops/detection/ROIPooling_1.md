@@ -2,7 +2,7 @@
 
 **Versioned name**: *ROIPooling-1*
 
-**Category**: Object detection
+**Category**: *Object detection*
 
 **Short description**: *ROIPooling* is a *pooling layer* used over feature maps of non-uniform input sizes and outputs a feature map of a fixed size.
 
@@ -52,9 +52,9 @@ The box height and width have different representation based on **method** attri
 
 **Inputs**:
 
-*   **1**: 4D input tensor of shape `[N, C, H, W]` with feature maps of type *T*. Required.
+*   **1**: 4D input tensor of shape `[N, C, H, W]` with feature maps of type *T*. **Required.**
 
-*   **2**: 2D input tensor of shape `[NUM_ROIS, 5]` describing region of interest box consisting of 5 element tuples of type *T*: `[batch_id, x_1, y_1, x_2, y_2]`. Required.
+*   **2**: 2D input tensor of shape `[NUM_ROIS, 5]` describing region of interest box consisting of 5 element tuples of type *T*: `[batch_id, x_1, y_1, x_2, y_2]`. **Required.**
 Batch indices must be in the range of `[0, N-1]`.
 
 
@@ -64,7 +64,7 @@ Batch indices must be in the range of `[0, N-1]`.
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 

@@ -42,7 +42,7 @@ public:
         DequantizationOperations dequantization2;
     };
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
@@ -56,9 +56,9 @@ class FuseSubtractToFakeQuantizeTransformation : public LayerTransformation,
     public testing::WithParamInterface<FuseSubtractToFakeQuantizeTransformationTestParams> {
 public:
     void SetUp() override {
-        const size_t quantizationLevel = get<0>(GetParam());
-        const ngraph::PartialShape inputShape = get<1>(GetParam());
-        FuseSubtractToFakeQuantizeTransformationTestValues testValues = get<2>(GetParam());
+        const size_t quantizationLevel = std::get<0>(GetParam());
+        const ngraph::PartialShape inputShape = std::get<1>(GetParam());
+        FuseSubtractToFakeQuantizeTransformationTestValues testValues = std::get<2>(GetParam());
 
         if (!testValues.actual.fakeQuantizeOnData.empty()) {
             testValues.actual.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
@@ -103,9 +103,9 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationTestParams> obj) {
-        const size_t quantizationLevel = get<0>(obj.param);
-        const ngraph::PartialShape inputShape = get<1>(obj.param);
-        FuseSubtractToFakeQuantizeTransformationTestValues testValues = get<2>(obj.param);
+        const size_t quantizationLevel = std::get<0>(obj.param);
+        const ngraph::PartialShape inputShape = std::get<1>(obj.param);
+        FuseSubtractToFakeQuantizeTransformationTestValues testValues = std::get<2>(obj.param);
 
         if (!testValues.actual.fakeQuantizeOnData.empty()) {
             testValues.actual.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
@@ -256,6 +256,7 @@ INSTANTIATE_TEST_SUITE_P(
 namespace testValues2 {
 const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
     {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+    PartialShape::dynamic()
 };
 
 const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
@@ -300,37 +301,4 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValues)),
     FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues2
-
-namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
-    PartialShape::dynamic()
-};
-
-const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {element::f32}, { 128.f }, {} },
-            {},
-            {}
-        },
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {element::f32}, { 128.f }, {} },
-            {},
-            {}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    FuseSubtractToFakeQuantizeTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(quantizationLevels),
-        ::testing::ValuesIn(inputShapesWithDynamicRank),
-        ::testing::ValuesIn(testValues)),
-    FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
-} // namespace testValues3
 } // namespace

@@ -11,14 +11,12 @@ namespace py = pybind11;
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-static void register_mock_frontend_stat(py::module m)
-{
+static void register_mock_frontend_stat(py::module m) {
     m.def(
         "get_fe_stat",
         [](const std::shared_ptr<FrontEnd>& fe) {
             std::shared_ptr<FrontEndMockPy> ptr = std::dynamic_pointer_cast<FrontEndMockPy>(fe);
-            if (ptr)
-            {
+            if (ptr) {
                 auto stat = ptr->get_stat();
                 return stat;
             }
@@ -27,24 +25,22 @@ static void register_mock_frontend_stat(py::module m)
         py::arg("frontend"));
 
     py::class_<FeStat> feStat(m, "FeStat", py::dynamic_attr());
-    feStat.def_property_readonly("load_flags", &FeStat::load_flags);
     feStat.def_property_readonly("load_paths", &FeStat::load_paths);
     feStat.def_property_readonly("convert_model", &FeStat::convert_model);
     feStat.def_property_readonly("convert", &FeStat::convert);
     feStat.def_property_readonly("convert_partially", &FeStat::convert_partially);
     feStat.def_property_readonly("decode", &FeStat::decode);
     feStat.def_property_readonly("normalize", &FeStat::normalize);
+    feStat.def_property_readonly("get_name", &FeStat::get_name);
+    feStat.def_property_readonly("supported", &FeStat::supported);
 }
 
-static void register_mock_model_stat(py::module m)
-{
+static void register_mock_model_stat(py::module m) {
     m.def(
         "get_mdl_stat",
         [](const std::shared_ptr<InputModel>& mdl) {
-            std::shared_ptr<InputModelMockPy> ptr =
-                std::dynamic_pointer_cast<InputModelMockPy>(mdl);
-            if (ptr)
-            {
+            std::shared_ptr<InputModelMockPy> ptr = std::dynamic_pointer_cast<InputModelMockPy>(mdl);
+            if (ptr) {
                 auto stat = ptr->get_stat();
                 return stat;
             }
@@ -56,8 +52,7 @@ static void register_mock_model_stat(py::module m)
     mdlStat.def_property_readonly("get_inputs", &ModelStat::get_inputs);
     mdlStat.def_property_readonly("get_outputs", &ModelStat::get_outputs);
     mdlStat.def_property_readonly("get_place_by_tensor_name", &ModelStat::get_place_by_tensor_name);
-    mdlStat.def_property_readonly("get_place_by_operation_name",
-                                  &ModelStat::get_place_by_operation_name);
+    mdlStat.def_property_readonly("get_place_by_operation_name", &ModelStat::get_place_by_operation_name);
     mdlStat.def_property_readonly("get_place_by_operation_and_input_port",
                                   &ModelStat::get_place_by_operation_and_input_port);
     mdlStat.def_property_readonly("get_place_by_operation_and_output_port",
@@ -90,14 +85,12 @@ static void register_mock_model_stat(py::module m)
     mdlStat.def_property_readonly("lastArgPartialShape", &ModelStat::get_lastArgPartialShape);
 }
 
-static void register_mock_place_stat(py::module m)
-{
+static void register_mock_place_stat(py::module m) {
     m.def(
         "get_place_stat",
         [](const Place::Ptr& fe) {
             std::shared_ptr<PlaceMockPy> ptr = std::dynamic_pointer_cast<PlaceMockPy>(fe);
-            if (ptr)
-            {
+            if (ptr) {
                 auto stat = ptr->get_stat();
                 return stat;
             }
@@ -112,8 +105,7 @@ static void register_mock_place_stat(py::module m)
     placeStat.def_property_readonly("lastArgPlace", &PlaceStat::get_lastArgPlace);
 
     placeStat.def_property_readonly("get_names", &PlaceStat::get_names);
-    placeStat.def_property_readonly("get_consuming_operations",
-                                    &PlaceStat::get_consuming_operations);
+    placeStat.def_property_readonly("get_consuming_operations", &PlaceStat::get_consuming_operations);
     placeStat.def_property_readonly("get_target_tensor", &PlaceStat::get_target_tensor);
     placeStat.def_property_readonly("get_producing_operation", &PlaceStat::get_producing_operation);
     placeStat.def_property_readonly("get_producing_port", &PlaceStat::get_producing_port);
@@ -127,8 +119,7 @@ static void register_mock_place_stat(py::module m)
     placeStat.def_property_readonly("get_source_tensor", &PlaceStat::get_source_tensor);
 }
 
-PYBIND11_MODULE(pybind_mock_frontend, m)
-{
+PYBIND11_MODULE(pybind_mock_frontend, m) {
     m.doc() = "Mock frontend call counters for testing Pyngraph frontend bindings";
     register_mock_frontend_stat(m);
     register_mock_model_stat(m);

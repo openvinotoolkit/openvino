@@ -5,7 +5,7 @@ import re
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.broadcasting import bi_directional_shape_broadcasting
@@ -137,7 +137,8 @@ class Einsum(Op):
         return labels
 
     @staticmethod
-    def adjust_equation_with_NCHW_layout(node_name: str, equation: str, input_ranks: list, output_rank: int) -> (
+    def adjust_equation_with_NCHW_layout(node_name: str, equation: str, input_ranks: list, output_rank: int,
+                                         input_correct_layout_mask: list, output_correct_layout_mask: bool) -> (
             str, list, bool):
         """
         In order to satisfy NCHW layout, subscripts for tensors with rank greater than three must be adjusted by moving labels
@@ -151,11 +152,13 @@ class Einsum(Op):
         :param output_rank: output rank
         :return: adjusted equation, boolean mask for inputs, and boolean flag if output subscript is adjusted
         """
-        is_inputs_permuted = []
+        is_inputs_adjusted = []
         input_subscripts, output_subscript = Einsum.parse_equation(node_name, equation)
         num_inputs = len(input_ranks)
         assert len(input_subscripts) == num_inputs, "The number of inputs must match a number " \
                                                     "of input subscripts"
+        assert len(input_correct_layout_mask) == num_inputs, "The number of inputs must match a number " \
+                                                             "elements in input_correct_layout_mask list"
 
         # permute labels in input subscripts and mark inputs for which inference in NCHW layout is acceptable
         # in case ellipsis covering multiple dimensions in the end, the permutation is impossible
@@ -166,31 +169,35 @@ class Einsum(Op):
             input_rank = input_ranks[input_ind]
             labels = Einsum.extract_subscript_labels(node_name, input_subscript)
             num_broadcasted_dims = input_rank - len(labels) + 1
-            if input_rank > 3 and (labels[-1] != "..." or labels[-1] == "..." and num_broadcasted_dims == 1):
-                is_inputs_permuted.append(True)
+            if input_correct_layout_mask[input_ind]:
+                is_inputs_adjusted.append(True)
+            elif input_rank > 3 and (labels[-1] != "..." or labels[-1] == "..." and num_broadcasted_dims == 1):
+                is_inputs_adjusted.append(True)
                 labels.insert(1, labels[-1])
                 del labels[-1]
             else:
-                is_inputs_permuted.append(False)
+                is_inputs_adjusted.append(False)
             permuted_input_subscript = ''.join(labels)
             permuted_input_subscripts.append(permuted_input_subscript)
 
         # perform the same procedure for the output subscript as for the inputs subscripts
         labels = Einsum.extract_subscript_labels(node_name, output_subscript)
         num_broadcasted_dims = output_rank - len(labels) + 1
-        if output_rank > 3 and (labels[-1] != "..." or labels[-1] == "..." and num_broadcasted_dims == 1):
-            is_output_permuted = True
+        if output_correct_layout_mask:
+            is_output_adjusted = True
+        elif output_rank > 3 and (labels[-1] != "..." or labels[-1] == "..." and num_broadcasted_dims == 1):
+            is_output_adjusted = True
             labels.insert(1, labels[-1])
             del labels[-1]
         else:
-            is_output_permuted = False
+            is_output_adjusted = False
         permuted_output_subscript = ''.join(labels)
 
         # concatenate the left and right hands of the resulted equation
         left_hand = ','.join(permuted_input_subscripts)
         right_hand = permuted_output_subscript
         permuted_equation = left_hand + "->" + right_hand
-        return permuted_equation, is_inputs_permuted, is_output_permuted
+        return permuted_equation, is_inputs_adjusted, is_output_adjusted
 
     @staticmethod
     def infer(node: Node):
@@ -233,7 +240,7 @@ class Einsum(Op):
                     dim_ind += num_broadcasted_dims
                 else:
                     dim_size = input_shape[dim_ind]
-                    sub_shape = int64_array([dim_size])
+                    sub_shape = shape_array([dim_size])
                     assert label not in label_to_shape.keys() or np.array_equal(label_to_shape[label], sub_shape), \
                         "Sizes of dimensions with the same label of Einsum node {} " \
                         "must be compatible".format(node_name)
@@ -242,12 +249,12 @@ class Einsum(Op):
                 label_ind += 1
 
         # generate output shape based on the output subscript
-        output_shape = int64_array([])
+        output_shape = shape_array([])
         labels = Einsum.extract_subscript_labels(node_name, output_subscript)
         for label in labels:
             assert label in label_to_shape.keys(), "The label in the output subscript must appear" \
                                                    " in input subscripts in equation {} " \
                                                    "of Einsum node {}".format(equation, node_name)
-            output_shape = np.concatenate((output_shape, label_to_shape[label]))
+            output_shape = np.ma.concatenate((output_shape, label_to_shape[label]))
 
         node.out_port(0).data.set_shape(output_shape)

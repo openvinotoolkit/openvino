@@ -24,7 +24,7 @@ public:
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
     LoadNetwork(const InferenceEngine::CNNNetwork& network,
                 const std::map<std::string, std::string>& config,
-                const std::shared_ptr<InferenceEngine::RemoteContext>& context) override;
+                const std::shared_ptr<InferenceEngine::IRemoteContext>& context) override;
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
@@ -40,13 +40,13 @@ public:
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
     ImportNetwork(std::istream& networkModel,
-        const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+        const std::shared_ptr<InferenceEngine::IRemoteContext>& context,
         const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::Parameter GetMetric(const std::string& name,
                         const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
-    std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(const InferenceEngine::ParamMap& params) override;
+    std::shared_ptr<InferenceEngine::IRemoteContext> GetDefaultContext(const InferenceEngine::ParamMap& params) override;
 
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
