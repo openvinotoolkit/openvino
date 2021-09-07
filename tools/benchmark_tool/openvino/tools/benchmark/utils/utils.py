@@ -30,7 +30,7 @@ def next_step(additional_info='', step_id=0):
         5: "Resizing network to match image sizes and given batch",
         6: "Configuring input of the model",
         7: "Loading the model to the device",
-        8: "Setting optimal runtime parameters",
+        8: "Querying optimal runtime parameters",
         9: "Creating infer requests and filling input blobs with images",
         10: "Measuring performance",
         11: "Dumping statistics report",
