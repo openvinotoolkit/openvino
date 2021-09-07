@@ -33,7 +33,7 @@ If a model has a hard-coded batch dimension, use `InferenceEngine::CNNNetwork::s
 
 Inference Engine takes three kinds of a model description as an input, which are converted into an `InferenceEngine::CNNNetwork` object:
 1. [Intermediate Representation (IR)](../MO_DG/IR_and_opsets.md) through `InferenceEngine::Core::ReadNetwork`
-2. [ONNX model](../IE_DG/OnnxImporterTutorial.md) through `InferenceEngine::Core::ReadNetwork`
+2. [ONNX model](../IE_DG/ONNX_Support.md) through `InferenceEngine::Core::ReadNetwork`
 3. [nGraph function](../nGraph_DG/nGraph_dg.md) through the constructor of `InferenceEngine::CNNNetwork`
 
 `InferenceEngine::CNNNetwork` keeps an `ngraph::Function` object with the model description internally.

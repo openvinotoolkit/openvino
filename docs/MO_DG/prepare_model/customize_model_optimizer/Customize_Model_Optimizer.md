@@ -34,7 +34,7 @@
 
 <a name="model-optimizer-extensibility"></a>Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described in the 
 [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../../IR_and_opsets.md). This
-mechanism is a core part of the Model Optimizer. The Model Optimizer itself uses it under the hood, being a huge set of examples on how to add custom logic to support your model.
+mechanism is a core part of the Model Optimizer, which uses it under the hood, so the Model Optimizer itself is a huge set of examples for adding custom logic to support your model.
 
 There are several cases when the customization is needed:
 

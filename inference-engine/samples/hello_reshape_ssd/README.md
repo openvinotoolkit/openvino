@@ -56,7 +56,7 @@ You can use the following command to do inference on CPU of an image using a tra
 ```
 
 ### Example
-1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
 ```
 python <path_to_omz_tools>/downloader.py --name person-detection-retail-0013
 ```

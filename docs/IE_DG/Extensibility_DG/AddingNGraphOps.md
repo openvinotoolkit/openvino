@@ -1,6 +1,6 @@
 # Custom nGraph Operation {#openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps}
 
-Inference Engine Extension API allows you to register operation sets (opsets) with custom nGraph operations to support models with operations which OpenVINO™ does not support out-of-the-box.
+The Inference Engine Extension API allows you to register operation sets (opsets) with custom nGraph operations to support models with operations that OpenVINO™ does not support out-of-the-box.
 
 ## Operation Class
 

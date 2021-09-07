@@ -67,7 +67,11 @@ git checkout ed60b90
 ```
 3. Download [coco.names](https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names) file from the DarkNet website **OR** use labels that fit your task.
 4. Download the [yolov3.weights](https://pjreddie.com/media/files/yolov3.weights) (for the YOLOv3 model) or [yolov3-tiny.weights](https://pjreddie.com/media/files/yolov3-tiny.weights) (for the YOLOv3-tiny model) file **OR** use your pre-trained weights with the same structure
-5. Run a converter:
+5. Install PIL, which is used by the conversion script in the repo:
+```sh
+pip install PIL
+```
+6. Run a converter:
 - for YOLO-v3:
 ```sh
 python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weights_file yolov3.weights
