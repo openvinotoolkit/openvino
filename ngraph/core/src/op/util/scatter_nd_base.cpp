@@ -10,7 +10,7 @@
 
 using namespace std;
 
-constexpr ov::NodeTypeInfo ov::op::util::ScatterNDBase::type_info;
+OPENVINO_RTTI_DEFINITION(ov::op::util::ScatterNDBase, "ScatterNDBase", 0);
 constexpr int ov::op::util::ScatterNDBase::INPUTS;
 constexpr int ov::op::util::ScatterNDBase::INDICES;
 constexpr int ov::op::util::ScatterNDBase::UPDATES;
