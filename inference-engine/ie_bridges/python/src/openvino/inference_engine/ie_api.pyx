@@ -52,10 +52,9 @@ cdef c_map_to_dict(map[string, string] c_map):
     return py_dict
 
 
-cdef expand_dims_to_corresponding_layout(array, layout):
-    for i in range(len(layout) - len(array.shape)):
-        array = np.expand_dims(array, 0)
-    return array
+cdef expand_dims_to_corresponding_layout(shape, layout):
+    single_axes = [1 for i in range(len(layout) - len(shape))]
+    return single_axes + list(shape)
 
 
 def get_version():
@@ -1337,8 +1336,8 @@ cdef class InferRequest:
         for k, v in inputs.items():
             assert k in self._inputs_list, f"No input with name {k} found in network"
             if self._inputs_is_dynamic[k]:
-                v = expand_dims_to_corresponding_layout(v, self.input_blobs[k].tensor_desc.layout)
-                self.input_blobs[k].set_shape(v.shape)
+                shape = expand_dims_to_corresponding_layout(v.shape, self.input_blobs[k].tensor_desc.layout)
+                self.input_blobs[k].set_shape(shape)
             if self.input_blobs[k].tensor_desc.precision == "FP16":
                 self.input_blobs[k].buffer[:] = v.view(dtype=np.int16)
             else:
