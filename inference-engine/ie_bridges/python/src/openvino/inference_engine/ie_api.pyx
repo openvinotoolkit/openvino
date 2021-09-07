@@ -53,7 +53,7 @@ cdef c_map_to_dict(map[string, string] c_map):
 
 
 cdef expand_dims_to_corresponding_layout(shape, layout):
-    single_axes = [1 for i in range(len(layout) - len(shape))]
+    single_axes = [1] * (len(layout) - len(shape))
     return single_axes + list(shape)
 
 
