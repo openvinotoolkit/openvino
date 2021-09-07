@@ -32,7 +32,8 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concatenation",
-        "U8"
+        "U8",
+        1
     },
     {
         {},
@@ -46,8 +47,24 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concatenation",
-        "U8"
+        "U8",
+        1
     },
+    /*{
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        "",
+        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+        {},
+        {},
+        "Concatenation",
+        "FP32",
+        0
+    },*/
 };
 
 const std::vector<ngraph::Shape> shapes = {

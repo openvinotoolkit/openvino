@@ -12,6 +12,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/or.hpp>
 
+#include "low_precision/concat.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -66,6 +67,9 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
         concat = operation->get_input_node_shared_ptr(0);
         only_concat = false;
     }
+    if (!ConcatTransformation::isQuantizedStatic(concat)) {
+        return false;
+    }
     std::vector<std::shared_ptr<ngraph::Node>> fqs;
     size_t input_size = concat->get_input_size();
     for (size_t i{ 0 }; i < input_size; ++i) {
@@ -89,6 +93,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     auto newConcat = concat->clone_with_new_inputs(ngraph::OutputVector(fqs.begin(), fqs.end()));
     newConcat->set_friendly_name(concat->get_friendly_name());
     replace_node(fq, newConcat);
+    NetworkHelper::copyInfo(concat, newConcat);
     updateOutput(context, newConcat, fq);
     return true;
 }

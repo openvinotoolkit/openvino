@@ -31,6 +31,7 @@ public:
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     std::string layerName;
     std::string expectedKernelType;
+    std::int64_t axis;
 };
 
 typedef std::tuple <

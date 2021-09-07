@@ -145,6 +145,9 @@ public:
         if (!testValues.actual.dequantizationBefore2.multiply.empty()) {
             testValues.actual.dequantizationBefore2.multiply.outPrecision = precision;
         }
+
+        IntervalsAlignmentSharedValue::Interval interval{ -1.28f, 2.55f };
+
         actualFunction = ngraph::builder::subgraph::MoveFakeQuantize::get(
             precision,
             shape,
@@ -158,6 +161,11 @@ public:
             testValues.actual.fakeQuantizeAfter,
             testValues.actual.convertAfter,
             testValues.actual.dequantizationAfter,
+            {
+                ngraph::builder::subgraph::make_shared_attribute_ptr<PrecisionPreservedAttribute>(true),
+                ngraph::builder::subgraph::make_shared_attribute_ptr<IntervalsAlignmentAttribute>(interval, 256),
+                ngraph::builder::subgraph::make_shared_attribute_ptr<QuantizationAlignmentAttribute>(false)
+            },
             ngraph::element::undefined,
             {},
             testValues.axis);
@@ -172,9 +180,9 @@ public:
                 });
 
         const auto params = TestTransformationParams::toParams(testValues.params);
-        SimpleLowPrecisionTransformer transformer(supportedPrecisionsOnActivation, quantizationRestrictions);
-        transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::MoveFakeQuantize>(params);
-        transformer.transform(actualFunction);
+        ov::pass::Manager manager;
+        manager.register_pass<ngraph::pass::low_precision::MoveFakeQuantize>(params);
+        manager.run_passes(actualFunction);
         // dequantization output precision depends on input precision
         // to avoid huge amount of tests cases let's define dequantization output precision as input precision
         if (!testValues.result.dequantizationAfter.multiply.empty()) {
@@ -200,6 +208,11 @@ public:
             testValues.result.fakeQuantizeAfter,
             testValues.result.convertAfter,
             testValues.result.dequantizationAfter,
+            {
+                ngraph::builder::subgraph::make_shared_attribute_ptr<PrecisionPreservedAttribute>(true),
+                ngraph::builder::subgraph::make_shared_attribute_ptr<IntervalsAlignmentAttribute>(interval, 256),
+                ngraph::builder::subgraph::make_shared_attribute_ptr<QuantizationAlignmentAttribute>(false)
+            },
             testValues.result.precisionAfterOperation,
             {},
             testValues.axis);
@@ -223,7 +236,7 @@ public:
 
 TEST_P(MoveFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, false, true, false);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 
     const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
@@ -242,7 +255,6 @@ const std::vector<ngraph::PartialShape> shapes = {
     { 4, 3, 9, 9 },
     { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
 };
-
 const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
     // U8: concat
     {
@@ -306,7 +318,38 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
         },
         false,
         false
-     }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        false,
+        0,
+        {
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            "",
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            {},
+            {}
+        },
+        {
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            "",
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            {},
+            {}
+        },
+        false,
+        false
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

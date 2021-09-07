@@ -54,6 +54,7 @@ void MoveFakeQuantizeTransformation::SetUp() {
         param.dequantizationAfter,
         {},
         {},
+        {},
         1ul);
 }
 
