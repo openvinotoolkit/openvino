@@ -20,6 +20,9 @@
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
 
+namespace ov {
+class Function;
+}  // namespace ov
 namespace InferenceEngine {
 
 class ICore;
@@ -301,6 +304,14 @@ protected:
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const ConstInputsDataMap& inputs,
                            const ConstOutputsDataMap& outputs);
+
+    /**
+     * @brief Set input and output information to executable network. This method is used to
+     * set additional information to InferenceEngine::IExecutableNetworkInternal create by device plugin.
+     * @param function Function with initial execution info
+     */
+    void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+                           const std::shared_ptr<ov::Function>& function);
 
     std::string _pluginName;                     //!< A device name that plugins enables
     std::map<std::string, std::string> _config;  //!< A map config keys -> values
