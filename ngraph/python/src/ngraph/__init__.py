@@ -27,6 +27,7 @@ from ngraph.frontend import OpValidationFailure
 from ngraph.frontend import Place
 from ngraph.helpers import function_from_cnn
 from ngraph.helpers import function_to_cnn
+from ngraph.helpers import partial_shape_from_data
 from ngraph.opset8 import absolute
 from ngraph.opset8 import absolute as abs
 from ngraph.opset8 import acos
