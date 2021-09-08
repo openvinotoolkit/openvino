@@ -293,11 +293,18 @@ def run(args):
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
-        if not is_flag_set_in_command_line('hint'):
-            # Update number of streams
-            for device in device_number_streams.keys():
-                key = device + '_THROUGHPUT_STREAMS'
-                device_number_streams[device] = benchmark.ie.get_config(device, key)
+        if is_flag_set_in_command_line('hint'):
+            ## actual device-deduced settings for the hint
+            for device in devices:
+                keys = benchmark.ie.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                logger.info(f'DEVICE: {device}')
+                for k in keys:
+                    logger.info(f'  {k}  , {exe_network.get_config(k)}')
+
+        # Update number of streams
+        for device in device_number_streams.keys():
+            key = device + '_THROUGHPUT_STREAMS'
+            device_number_streams[device] = exe_network.get_config(key)
 
         # Number of requests
         infer_requests = exe_network.requests
@@ -335,7 +342,7 @@ def run(args):
 
         # ------------------------------------ 10. Measuring performance -----------------------------------------------
 
-        output_string = process_help_inference_string(benchmark)
+        output_string = process_help_inference_string(benchmark, exe_network)
 
         next_step(additional_info=output_string)
         progress_bar_total_count = 10000

@@ -25,16 +25,18 @@ From this perspective, the most portable way is experimenting only the performan
 
 ### Latency and Throughput-focused Inference Modes
 In many cases the primary performance metric is the time (in milliseconds) for an individual inference request.
-For conventional devices the best latency is usually achieved when the application operates single inference request ('-nireq 1').
+For conventional devices the best latency is usually achieved when the application operates single inference request.
+Similarly, while for some devices the synchronous API (`Infer` method) was slightly better for the latency.
 However, advanced devices like multi-socket CPUs, modern GPUs and so on, are capable to run multiple inference requests,
-while delivering the same latency (as with single request).
-Similarly, while for some devices the synchronous API (`Infer` method, triggered by '-api sync') was slightly better for the latency,
-the asynchronous API is more general/flexible (with respect to handling multiple inference requests).
+while delivering the same latency (as with the single request). Also, the asynchronous API is more general/flexible
+(with respect to handling multiple inference requests).
+Overall, the legacy way of measuring latency (triggered by '-api sync') with a single request and synchronous API is discouraged
+in favor of the dedicated '-hint latency' that lets the _device_ to apply the right settings to minimize the time to request.
 
-Throughput-oriented scenarios, in contrast, are  focused on fully saturating the machine with enough data to crunch,
+Throughput-oriented scenarios, in contrast, are focused on fully saturating the machine with enough data to crunch,
 as opposite to the time of the individual request. So, the primary performance metric is rather FPS (frames per second).
 Yet, just like with the latency case, the optimal execution parameters may differ between machines and devices.
-So, again, as explained in the previous section, the most portable way is to use performance hints, rather than playing individual parameters.
+So, again, as explained in the previous section, the most portable way is to use the dedicated performance hint, rather than playing individual parameters.
 The hints allow the device to configure actual settings for the specified mode. The sample then queries/executes the optimal number of inference requests.
 
 During the execution, the application collects/reports two types of metrics:
@@ -42,7 +44,7 @@ During the execution, the application collects/reports two types of metrics:
 * Duration of all inference executions and resulting throughput
 By default, the reported latency value is always calculated as the median (i.e. 50th percentile) value of all collected latencies from individual requests.
 Notice that you can change the desired percentile with the command-line flag.
-The throughput value is a derived from the overall inference execution time and number of completed requests (respecting the batch size).
+The throughput value is derived from the overall inference execution time and number of completed requests (respecting the batch size).
 
 ### Defining the Number of Inference Executions
 A number of executions is defined by one of the two values:
