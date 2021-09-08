@@ -97,9 +97,9 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize(outputShapes.size(), outDataConfig);
 
     bool dimRanksAreEqual = true;
-    for (size_t i = 0; dimRanksAreEqual && i < getParentEdges().size(); i++) {
-        for (size_t j = 0; dimRanksAreEqual && j < getChildEdges().size(); j++) {
-            if (getParentEdgeAt(i)->getShape().getRank() != getChildEdgeAt(j)->getShape().getRank())
+    for (size_t i = 0; dimRanksAreEqual && i < inputShapes.size(); i++) {
+        for (size_t j = 0; dimRanksAreEqual && j < outputShapes.size(); j++) {
+            if (inputShapes[i].getRank() != outputShapes[j].getRank())
                 dimRanksAreEqual = false;
         }
     }
@@ -123,10 +123,10 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (auto type : tdCreatorTypes) {
         for (auto k = 0; k < inputShapes.size(); k++)
-            config.inConfs[k].desc = creatorsMap.at(type)->createUniqueDesc(prec, inputShapes[k].getStaticDims());
+            config.inConfs[k].desc = creatorsMap.at(type)->createSharedDesc(prec, inputShapes[k]);
 
         for (auto k = 0; k < outputShapes.size(); k++)
-            config.outConfs[k].desc = creatorsMap.at(type)->createUniqueDesc(prec, outputShapes[k].getStaticDims());
+            config.outConfs[k].desc = creatorsMap.at(type)->createSharedDesc(prec, outputShapes[k]);
 
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -191,8 +191,7 @@ bool MKLDNNSnippetNode::created() const {
 
 static size_t argmax_rank(const std::vector<MKLDNNEdgeWeakPtr> &childEdges) {
     auto getOutBlockedDims = [childEdges](int i) {
-        //return getChildEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>().getBlockDims();
-        return childEdges[i].lock()->getMemory().GetDescWithType<BlockedMemoryDesc>().getBlockDims();
+        return (childEdges[i].lock()->getMemory().GetDescWithType<BlockedMemoryDesc>())->getBlockDims();
     };
     auto getOutRank = [getOutBlockedDims](int i) {
         return getOutBlockedDims(i).size();
@@ -256,7 +255,7 @@ void MKLDNNSnippetNode::define_shedule() {
     max_rank_out_desc_idx = argmax_rank(getChildEdges());
     const auto outBlockingDesc_maxRank = getChildEdgeAt(max_rank_out_desc_idx)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     // initialize by maximum output dimension. Dimensions of outputs should be broadcastable
-    tensorRank = std::max(static_cast<size_t>(rank6D), outBlockingDesc_maxRank.getBlockDims().size());
+    tensorRank = std::max(static_cast<size_t>(rank6D), outBlockingDesc_maxRank->getBlockDims().size());
 
     auto initDims = [this, config, &outBlockingDesc_maxRank](size_t tensorRank) {
         // assume all input sizes are even
@@ -267,19 +266,19 @@ void MKLDNNSnippetNode::define_shedule() {
             dims_in[i].resize(tensorRank, 1);
         }
 
-        const auto outOrder = outBlockingDesc_maxRank.getOrder();
+        const auto outOrder = outBlockingDesc_maxRank->getOrder();
         for (int i = 0; i < inputNum; i++) {
             auto inBlockingDesc = getParentEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-            size_t rank = inBlockingDesc.getBlockDims().size();
+            size_t rank = inBlockingDesc->getBlockDims().size();
 
             // WA to normalize blocked and planar layouts
             // not actual thought, since [§] doesn't support mixed layouts yet
-            auto inOrder = inBlockingDesc.getOrder();
-            size_t startOff = outOrder.size() != outBlockingDesc_maxRank.getShape().getRank() &&
+            auto inOrder = inBlockingDesc->getOrder();
+            size_t startOff = outOrder.size() != outBlockingDesc_maxRank->getShape().getRank() &&
                               outOrder.back() != inOrder.back() ? 1 : 0;
             for (int j = 0; j < rank; j++) {
                 dims_in[i][dims_in[i].size() - 1 - j - startOff]
-                = inBlockingDesc.getBlockDims()[rank - 1 - j];
+                = inBlockingDesc->getBlockDims()[rank - 1 - j];
             }
         }
 
@@ -293,11 +292,11 @@ void MKLDNNSnippetNode::define_shedule() {
 
         for (int i = 0; i < outputNum; i++) {
             auto outBlockingDesc = getChildEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-            size_t rank = outBlockingDesc.getBlockDims().size();
+            size_t rank = outBlockingDesc->getBlockDims().size();
 
             for (int j = 0; j < rank; j++) {
                 dims_out[i][dims_out[i].size() - 1 - j]
-                = outBlockingDesc.getBlockDims()[rank - 1 - j];
+                = outBlockingDesc->getBlockDims()[rank - 1 - j];
             }
         }
     };
@@ -317,7 +316,8 @@ void MKLDNNSnippetNode::define_shedule() {
 
         start_offset_in.resize(inputNum);
         for (size_t i = 0; i < inputNum; i++) {
-            start_offset_in[i] = getParentEdgeAt(i)->getMemory().GetDescriptor().data.offset0 * dataSize;
+            const auto desc = getParentEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+            start_offset_in[i] =  desc->getOffsetPadding() * dataSize;
         }
 
         // outputs
@@ -335,7 +335,8 @@ void MKLDNNSnippetNode::define_shedule() {
 
         start_offset_out.resize(outputNum);
         for (int i = 0; i < outputNum; i++) {
-            start_offset_out[i] = getChildEdgeAt(i)->getMemory().GetDescriptor().data.offset0 * dataSize;
+            const auto desc = getChildEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+            start_offset_out[i] = desc->getOffsetPadding() * dataSize;
         }
     };
 
@@ -346,7 +347,7 @@ void MKLDNNSnippetNode::define_shedule() {
         size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx].back();
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
                // we shouldn't collapse batch dimension in case dynamic batch is enabled
-               (!isDynBatchEnabled || (outBlockingDesc_maxRank.getBlockDims().size() - collapsedDims > 2))) {
+               (!isDynBatchEnabled || (outBlockingDesc_maxRank->getBlockDims().size() - collapsedDims > 2))) {
             if (dims_out[max_rank_out_desc_idx].size() - collapsedDims - 2 < 0)
                 break;
 
@@ -424,7 +425,7 @@ void MKLDNNSnippetNode::define_shedule() {
     isDynBatchEnabled = config.dynBatchSupport;
 
     const int collapsedDims = find_dims_to_collapse();
-    batchDimIdx = tensorRank - outBlockingDesc_maxRank.getBlockDims().size() + collapsedDims;
+    batchDimIdx = tensorRank - outBlockingDesc_maxRank->getBlockDims().size() + collapsedDims;
     // Fixme: likely is not correct for the 2d-tile case
     schedulerWorkAmount = fullWorkAmount / dims_out[max_rank_out_desc_idx].back();
 
@@ -446,9 +447,9 @@ void MKLDNNSnippetNode::generate() {
     std::transform(input_first_row.begin(), input_first_row.end(), std::back_inserter(input_shapes),
                 [](const MKLDNNEdgePtr& edge) -> ngraph::snippets::op::Subgraph::BlockedShape {
         const auto blockedDesc = edge->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        ngraph::Shape shape(blockedDesc.getBlockDims());
-        ngraph::AxisVector blocking(blockedDesc.getOrder());
-        ngraph::element::Type precision = (blockedDesc.getPrecision() == Precision::FP32) ? ngraph::element::f32 : ngraph::element::undefined;
+        ngraph::Shape shape(blockedDesc->getBlockDims());
+        ngraph::AxisVector blocking(blockedDesc->getOrder());
+        ngraph::element::Type precision = (blockedDesc->getPrecision() == Precision::FP32) ? ngraph::element::f32 : ngraph::element::undefined;
         return std::make_tuple(shape, blocking, precision);
     });
 
@@ -463,9 +464,9 @@ void MKLDNNSnippetNode::generate() {
     std::transform(output_first_row.begin(), output_first_row.end(), std::back_inserter(output_shapes),
                 [](const MKLDNNEdgePtr& edge) -> ngraph::snippets::op::Subgraph::BlockedShape {
         const auto blockedDesc = edge->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        ngraph::Shape shape(blockedDesc.getBlockDims());
-        ngraph::AxisVector blocking(blockedDesc.getOrder());
-        ngraph::element::Type precision = (blockedDesc.getPrecision() == Precision::FP32) ? ngraph::element::f32 : ngraph::element::undefined;
+        ngraph::Shape shape(blockedDesc->getBlockDims());
+        ngraph::AxisVector blocking(blockedDesc->getOrder());
+        ngraph::element::Type precision = (blockedDesc->getPrecision() == Precision::FP32) ? ngraph::element::f32 : ngraph::element::undefined;
         return std::make_tuple(shape, blocking, precision);
     });
 
