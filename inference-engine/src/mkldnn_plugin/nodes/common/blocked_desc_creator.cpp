@@ -13,21 +13,21 @@ constexpr size_t channelsPos = 1lu;
 
 class PlainFormatCreator : public BlockedDescCreator {
 public:
-    BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const override {
-        SizeVector order(srcDims.size());
+    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
+        SizeVector order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
-        return BlockedMemoryDesc(precision, srcDims, srcDims, order);
+        return CpuBlockedMemoryDesc(precision, srcShape, srcShape.getDims(), order);
     }
     size_t getMinimalRank() const override { return 0lu; }
 };
 
 class PerChannelCreator : public BlockedDescCreator {
 public:
-    BlockedMemoryDesc createDesc(const InferenceEngine::Precision &precision, const InferenceEngine::SizeVector &srcDims) const override {
-        SizeVector order(srcDims.size());
+    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision &precision, const Shape& srcShape) const override {
+        SizeVector order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
-        SizeVector blkDims = srcDims;
-        if (srcDims.size() > 2) {
+        SizeVector blkDims = srcShape.getDims();
+        if (srcShape.getRank() > 2) {
             auto moveElementBack = [](SizeVector& vector, size_t indx) {
                 auto itr = vector.begin() + indx;
                 std::rotate(itr, itr + 1, vector.end());
@@ -37,7 +37,7 @@ public:
             moveElementBack(blkDims, channelsPos);
         }
 
-        return BlockedMemoryDesc(precision, srcDims, blkDims, order);
+        return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
     }
     size_t getMinimalRank() const override { return 3lu; }
 };
@@ -45,22 +45,22 @@ public:
 class ChannelBlockedCreator : public BlockedDescCreator {
 public:
     ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
-    BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const override {
-        if (srcDims.size() < 2) {
+    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
+        if (srcShape.getRank() < 2) {
             IE_THROW() << "Can't create blocked tensor descriptor!";
         }
 
-        SizeVector order(srcDims.size());
+        SizeVector order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
         order.push_back(channelsPos);
 
-        SizeVector blkDims = srcDims;
+        SizeVector blkDims = srcShape.getDims();
         if (Shape::UNDEFINED_DIM != blkDims[channelsPos]) {
             blkDims[channelsPos] = blkDims[channelsPos] / _blockSize + (blkDims[channelsPos] % _blockSize ? 1 : 0);
         }
         blkDims.push_back(_blockSize);
 
-        return BlockedMemoryDesc(precision, srcDims, blkDims, order);
+        return CpuBlockedMemoryDesc(precision, srcShape, blkDims, order);
     }
     size_t getMinimalRank() const override { return 3lu; }
 
