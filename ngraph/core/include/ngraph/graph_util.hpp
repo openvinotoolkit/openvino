@@ -18,11 +18,18 @@
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 
+namespace ov {
+namespace op {
+namespace v0 {
+class Parameter;
+}
+}  // namespace op
+}  // namespace ov
 namespace ngraph {
 
 namespace op {
 namespace v0 {
-class Parameter;
+using ov::op::v0::Parameter;
 }
 }  // namespace op
 
@@ -456,3 +463,6 @@ bool replace_output_update_name(Output<Node> node, const Output<Node>& node_inpu
 NGRAPH_API
 bool replace_node_update_name(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement);
 }  // namespace ngraph
+
+using ngraph::replace_node;
+using ngraph::replace_output_update_name;

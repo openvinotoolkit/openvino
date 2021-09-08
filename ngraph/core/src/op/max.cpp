@@ -41,7 +41,7 @@ bool evaluate_max(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
 }
 }  // namespace maxop
 
-NGRAPH_RTTI_DEFINITION(op::v1::ReduceMax, "ReduceMax", 1, util::ArithmeticReductionKeepDims);
+OPENVINO_RTTI_DEFINITION(op::v1::ReduceMax, "ReduceMax", 1, util::ArithmeticReductionKeepDims);
 
 op::v1::ReduceMax::ReduceMax(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {

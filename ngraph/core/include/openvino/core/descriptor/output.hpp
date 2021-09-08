@@ -10,37 +10,35 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/node_output.hpp"
+#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/variant.hpp"
 
-namespace ngraph {
+namespace ov {
 // The forward declaration of Node is needed here because Node has a deque of
 // Outputs, and Output is an incomplete type at this point. STL containers of
 // incomplete type have undefined behavior according to the C++11 standard, and
 // in practice including node.hpp here was causing compilation errors on some
 // systems (namely macOS).
 class Node;
-}  // namespace ngraph
-
-namespace ov {
 namespace descriptor {
 // Describes an output tensor of an op
-class NGRAPH_API Output {
+class OPENVINO_API Output {
 public:
     Output() : m_node(nullptr), m_index(0), m_tensor(nullptr), m_inputs() {}
 
     /// \param node Node that owns this output.
     /// \param index Position of the output tensor in all output tensors
     /// \param tensor The tensor where the value will be written
-    Output(ngraph::Node* node, size_t index, const std::shared_ptr<Tensor>& tensor);
+    Output(Node* node, size_t index, const std::shared_ptr<Tensor>& tensor);
 
-    std::shared_ptr<ngraph::Node> get_node() const;
+    std::shared_ptr<Node> get_node() const;
     size_t get_index() const {
         return m_index;
     }
-    ngraph::Output<ngraph::Node> get_output() const;
+    ov::Output<Node> get_output() const;
     std::shared_ptr<Tensor> get_tensor_ptr() const {
         return m_tensor;
     }
@@ -61,10 +59,10 @@ public:
         return m_rt_info;
     }
     /// \return the shape of the output
-    const ngraph::Shape& get_shape() const;
+    const StaticShape& get_shape() const;
 
     /// \return the partial shape of the output
-    const PartialShape& get_partial_shape() const;
+    const Shape& get_partial_shape() const;
 
     /// \return the element type of the output
     const element::Type& get_element_type() const;
@@ -74,7 +72,7 @@ public:
     Output& operator=(const Output&) = default;
 
 protected:
-    ngraph::Node* m_node;
+    Node* m_node;
     size_t m_index;
     std::shared_ptr<Tensor> m_tensor;
     RTMap m_rt_info;
