@@ -8,7 +8,7 @@ from _pyngraph import NodeFactory as _NodeFactory
 
 from ngraph.impl import Node, Output
 
-from ngraph.exceptions import UserInputError
+import warnings
 
 DEFAULT_OPSET = "opset8"
 
@@ -45,11 +45,9 @@ class NodeFactory(object):
             node._attr_cache_valid = False
             return node
 
-        if arguments is None and attributes is not None:
-            raise UserInputError(
-                'Cannot create "{}" op without arguments. Provide arguments along with attributes.'.format(
-                    op_type_name)
-            )
+        if arguments is None:
+            warnings.warn("Arguments are missing, please use set_arguments() before running validate().")
+            arguments = {}
 
         if attributes is None:
             attributes = {}
@@ -71,7 +69,7 @@ class NodeFactory(object):
         #   node.get_some_metric_attr_name()
         #   node.set_some_metric_attr_name()
         # Please see test_dyn_attributes.py for more usage examples.
-        all_attributes = node._get_attributes()
+        all_attributes = node.get_attributes()
         for attr_name in all_attributes.keys():
             setattr(
                 node,
@@ -145,7 +143,7 @@ class NodeFactory(object):
         @return   The node attribute value.
         """
         if not node._attr_cache_valid:
-            node._attr_cache = node._get_attributes()
+            node._attr_cache = node.get_attributes()
             node._attr_cache_valid = True
         return node._attr_cache[attr_name]
 
@@ -157,5 +155,5 @@ class NodeFactory(object):
         @param      attr_name:  The attribute name.
         @param      value:      The new attribute value.
         """
-        node._set_attribute(attr_name, value)
+        node.set_attribute(attr_name, value)
         node._attr_cache[attr_name] = value
