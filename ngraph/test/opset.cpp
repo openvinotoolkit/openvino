@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/opsets/opset.hpp"
+
 #include <gtest/gtest.h>
 
 #include "openvino/opsets/opset1.hpp"
@@ -12,7 +14,6 @@
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "openvino/opsets/opset.hpp"
 
 TEST(opset, opset1) {
     auto op = std::make_shared<ov::opset1::Parameter>();
