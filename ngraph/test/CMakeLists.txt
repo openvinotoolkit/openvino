@@ -49,6 +49,7 @@ set(SRC
     misc.cpp
     node_input_output.cpp
     op.cpp
+    opset.cpp
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/clamp.cpp
