@@ -13,6 +13,7 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
+#include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset6.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph/pass/manager.hpp"
@@ -236,7 +237,7 @@ TEST(graph_util, clone_multiple_results) {
     auto copy = clone_function(*f);
 }
 
-TEST(graph_util, clone_function_variables) {
+TEST(graph_util, clone_function_variables_dynamic) {
     auto c_fp16 = make_shared<opset8::Constant>(element::f16, Shape{3}, std::vector<float>{0});
     auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "var_1"});
     auto read_value = make_shared<opset8::ReadValue>(c_fp16, variable);
@@ -251,6 +252,19 @@ TEST(graph_util, clone_function_variables) {
     }
     copy->validate_nodes_and_infer_types();
     copy = clone_function(*f);
+}
+
+TEST(graph_util, clone_function_variables_validate_partially) {
+    auto c_fp16 = make_shared<opset8::Constant>(element::f16, Shape{3}, std::vector<float>{0});
+
+    auto read_value = make_shared<opset3::ReadValue>(c_fp16, "var_1");
+    auto assign = make_shared<opset3::Assign>(read_value, "var_1");
+    auto res = make_shared<opset3::Result>(read_value);
+    auto f = make_shared<Function>(ResultVector{res}, SinkVector{assign}, ParameterVector{});
+    f->validate_nodes_and_infer_types();
+    NodeMap nm;
+    auto copy = clone_function(*f, nm);
+    nm[assign.get()]->validate_and_infer_types();
 }
 
 TEST(graph_util, clone_rt_info) {

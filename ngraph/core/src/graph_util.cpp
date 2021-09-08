@@ -348,8 +348,7 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     VariableVector cloned_vars;
     std::map<std::string, std::shared_ptr<Variable>> var_map;
     for (const auto& var : variables) {
-        auto cloned_var = std::make_shared<Variable>(
-            VariableInfo{PartialShape::dynamic(), element::dynamic, var->get_info().variable_id});
+        auto cloned_var = std::make_shared<Variable>(var->get_info());
         cloned_vars.push_back(cloned_var);
         var_map[cloned_var->get_info().variable_id] = cloned_var;
     }
