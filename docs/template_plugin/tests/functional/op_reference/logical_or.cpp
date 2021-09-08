@@ -24,18 +24,18 @@ std::vector<RefLogicalParams> generateLogicalParams() {
     std::vector<RefLogicalParams> logicalParams {
         Builder {}
             .opType(LogicalTypes::LOGICAL_OR)
-            .input1({{2, 2}, element::boolean, std::vector<char> {true, false, true, false}})
-            .input2({{2, 2}, element::boolean, std::vector<char> {false, true, true, false}})
+            .inputs({{{2, 2}, element::boolean, std::vector<char> {true, false, true, false}},
+                     {{2, 2}, element::boolean, std::vector<char> {false, true, true, false}}})
             .expected({{2, 2}, element::boolean, std::vector<char> {true, true, true, false}}),
         Builder {}
             .opType(LogicalTypes::LOGICAL_OR)
-            .input1({{2, 1, 2, 1}, element::boolean, std::vector<char> {true, false, true, false}})
-            .input2({{1, 1, 2, 1}, element::boolean, std::vector<char> {true, false}})
+            .inputs({{{2, 1, 2, 1}, element::boolean, std::vector<char> {true, false, true, false}},
+                     {{1, 1, 2, 1}, element::boolean, std::vector<char> {true, false}}})
             .expected({{2, 1, 2, 1}, element::boolean, std::vector<char> {true, false, true, false}}),
         Builder {}
             .opType(LogicalTypes::LOGICAL_OR)
-            .input1({{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, false, true, false, false, true, true, true}})
-            .input2({{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, true, true, false, false, true, true, false}})
+            .inputs({{{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, false, true, false, false, true, true, true}},
+                     {{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, true, true, false, false, true, true, false}}})
             .expected({{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, true, true, false, false, true, true, true}})};
     return logicalParams;
 }

@@ -5,32 +5,12 @@
 #pragma once
 
 #include "ngraph/op/op.hpp"
+#include "openvino/op/convert_like.hpp"
 
 namespace ngraph {
 namespace op {
 namespace v1 {
-/// \brief Elementwise type conversion operation.
-class NGRAPH_API ConvertLike : public Op {
-public:
-    NGRAPH_RTTI_DECLARATION;
-
-    /// \brief Constructs a conversion operation.
-    ConvertLike() = default;
-    /// \brief Constructs a conversion operation.
-    /// \param data  Node that produces the input tensor.
-    /// \param like  Node which provides the target type information for the conversion.
-    ConvertLike(const Output<Node>& data, const Output<Node>& like);
-
-    void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
-};
-
+using ov::op::v1::ConvertLike;
 }  // namespace v1
-
 }  // namespace op
-
 }  // namespace ngraph

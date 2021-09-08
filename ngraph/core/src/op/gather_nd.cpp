@@ -12,7 +12,7 @@ using namespace ngraph;
 
 // ------------------------------ V5 ------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v5::GatherND, "GatherND", 5);
+OPENVINO_RTTI_DEFINITION(op::v5::GatherND, "GatherND", 5);
 
 op::v5::GatherND::GatherND(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims)
     : Op({data, indices}),
@@ -105,9 +105,9 @@ void op::v5::GatherND::validate_and_infer_types() {
             output_shape[output_indices_length + dim + delta_output_rank] =
                 data_pshape[m_batch_dims + indices_tuple_length + dim];
         }
-        set_output_type(0, data_type, PartialShape(output_shape));
+        set_output_type(0, data_type, ov::Shape(output_shape));
     } else {
-        set_output_type(0, data_type, PartialShape::dynamic());
+        set_output_type(0, data_type, ov::Shape::dynamic());
     }
 }
 

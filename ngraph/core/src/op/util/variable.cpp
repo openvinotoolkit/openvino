@@ -4,4 +4,4 @@
 
 #include <ngraph/op/util/variable.hpp>
 
-constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<std::shared_ptr<ngraph::Variable>>::type_info;
+constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>::type_info;

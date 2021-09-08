@@ -10,12 +10,12 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Proposal, "Proposal", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Proposal, "Proposal", 0);
 
 op::v0::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& bbox_deltas,
                            const Output<Node>& image_shape,
-                           const ProposalAttrs& attrs)
+                           const Attributes& attrs)
     : Op({class_probs, bbox_deltas, image_shape}),
       m_attrs(attrs) {
     constructor_validate_and_infer_types();
@@ -100,7 +100,7 @@ void op::v0::Proposal::validate_and_infer_types() {
     }
 
     // intersect the batch size
-    set_output_type(0, get_input_element_type(0), PartialShape{out_dim * m_attrs.post_nms_topn, 5});
+    set_output_type(0, get_input_element_type(0), ov::Shape{out_dim * m_attrs.post_nms_topn, 5});
 }
 
 shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -128,12 +128,12 @@ bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-NGRAPH_RTTI_DEFINITION(op::v4::Proposal, "Proposal", 4);
+OPENVINO_RTTI_DEFINITION(op::v4::Proposal, "Proposal", 4);
 
 op::v4::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& class_bbox_deltas,
                            const Output<Node>& image_shape,
-                           const op::ProposalAttrs& attrs)
+                           const op::v0::Proposal::Attributes& attrs)
     : v0::Proposal(class_probs, class_bbox_deltas, image_shape, attrs) {
     constructor_validate_and_infer_types();
 }
@@ -143,9 +143,9 @@ void op::v4::Proposal::validate_and_infer_types() {
     v0::Proposal::validate_and_infer_types();
     // Output shape was inferred in v0's validate_and_infer_types
     const auto proposals_ps = get_output_partial_shape(0);
-    auto out_ps = PartialShape{Dimension::dynamic()};
+    auto out_ps = ov::Shape{Dimension::dynamic()};
     if (proposals_ps.rank().is_static() && proposals_ps.rank().compatible(2)) {
-        out_ps = PartialShape{proposals_ps[0]};
+        out_ps = ov::Shape{proposals_ps[0]};
     }
     set_output_type(1, get_input_element_type(0), out_ps);
 }

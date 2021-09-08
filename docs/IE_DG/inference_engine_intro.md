@@ -46,10 +46,10 @@ This library contains the classes to:
 Starting from 2020.4 release, Inference Engine introduced a concept of `CNNNetwork` reader plugins. Such plugins can be automatically dynamically loaded by Inference Engine in runtime depending on file format:
 * Unix* OS:
     - `libinference_engine_ir_reader.so` to read a network from IR
-    - `libinference_engine_onnx_reader.so` to read a network from ONNX model format
+    - `onnx_ngraph_frontend.so` to read a network from ONNX model format
 * Windows* OS:
     - `inference_engine_ir_reader.dll` to read a network from IR
-    - `inference_engine_onnx_reader.dll` to read a network from ONNX model format
+    - `onnx_ngraph_frontend.dll` to read a network from ONNX model format
 
 ### Device-specific Plugin Libraries ###
 

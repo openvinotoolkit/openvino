@@ -1,12 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import logging as log
-
 from extensions.ops.BatchNormInference import BatchNormInference
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
-
 
 
 class BatchNormalizationExtractor(FrontExtractorOp):

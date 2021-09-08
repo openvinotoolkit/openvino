@@ -8,21 +8,21 @@
 
 using namespace std;
 
-ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
+ov::descriptor::Tensor::Tensor(const element::Type& element_type, const Shape& pshape, const std::string& name)
     : m_element_type(element_type),
       m_partial_shape(pshape),
       m_name(name),
       m_shape_changed(true) {}
 
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
-                               const PartialShape& pshape,
+                               const Shape& pshape,
                                ngraph::Node* node,
                                size_t node_output_number)
     : m_element_type(element_type),
       m_partial_shape(pshape),
       m_shape_changed(true) {}
 
-void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, const PartialShape& pshape) {
+void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, const Shape& pshape) {
     set_element_type(element_type);
     set_partial_shape(pshape);
 }
@@ -31,7 +31,7 @@ void ov::descriptor::Tensor::set_element_type(const element::Type& element_type)
     m_element_type = element_type;
 }
 
-void ov::descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape) {
+void ov::descriptor::Tensor::set_partial_shape(const Shape& partial_shape) {
     m_partial_shape = partial_shape;
     m_shape_changed = true;
 }

@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
 from mo.graph.graph import Node, Graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 
@@ -223,6 +224,8 @@ class IREngine(object):
                     output_shape = []
                     for dim in port:
                         output_shape.append(int(dim.text))
+
+                    output_shape = shape_array([d if d != -1 else dynamic_dimension_value for d in output_shape])
 
                     out_tensor_names = None
                     if 'names' in port.attrib:

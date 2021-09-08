@@ -140,44 +140,43 @@ NGRAPH_API EnumNames<ngraph::op::RecurrentSequenceDirection>& EnumNames<ngraph::
          {"bidirectional", ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL}});
     return enum_names;
 }
-}  // namespace ov
 
-const ngraph::op::AutoBroadcastSpec ngraph::op::AutoBroadcastSpec::NUMPY(AutoBroadcastType::NUMPY, 0);
-const ngraph::op::AutoBroadcastSpec ngraph::op::AutoBroadcastSpec::NONE{AutoBroadcastType::NONE, 0};
+const op::AutoBroadcastSpec op::AutoBroadcastSpec::NUMPY(AutoBroadcastType::NUMPY, 0);
+const op::AutoBroadcastSpec op::AutoBroadcastSpec::NONE{AutoBroadcastType::NONE, 0};
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::PadMode& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::PadMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::PadType& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::PadType& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::RoundingType& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::RoundingType& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::BroadcastType& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::BroadcastType& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::AutoBroadcastType& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::AutoBroadcastType& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::EpsMode& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::EpsMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::TopKSortType& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::TopKSortType& type) {
     return s << as_string(type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::TopKMode& type) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::TopKMode& type) {
     return s << as_string(type);
 }
 
-ngraph::op::AutoBroadcastType ngraph::op::AutoBroadcastSpec::type_from_string(const std::string& type) const {
+op::AutoBroadcastType op::AutoBroadcastSpec::type_from_string(const std::string& type) const {
     auto lowercase_type = type;
     std::transform(lowercase_type.begin(), lowercase_type.end(), lowercase_type.begin(), [](char c) {
         return std::tolower(c);
@@ -193,6 +192,7 @@ ngraph::op::AutoBroadcastType ngraph::op::AutoBroadcastSpec::type_from_string(co
     return allowed_values.at(lowercase_type);
 }
 
-std::ostream& ngraph::op::operator<<(std::ostream& s, const ngraph::op::RecurrentSequenceDirection& direction) {
+std::ostream& op::operator<<(std::ostream& s, const ngraph::op::RecurrentSequenceDirection& direction) {
     return s << as_string(direction);
 }
+}  // namespace ov

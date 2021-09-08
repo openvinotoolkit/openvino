@@ -12,7 +12,6 @@ if(ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
 
-add_subdirectory(tools)
 add_subdirectory(samples)
 
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader ie_samples_utils)
@@ -80,15 +79,3 @@ install(DIRECTORY ie_bridges/c/samples/
 install(FILES samples/CMakeLists.txt
         DESTINATION ${IE_CPACK_IE_DIR}/samples/c
         COMPONENT c_samples)
-
-# install speech demo files
-
-if(SPEECH_LIBS_AND_DEMOS)
-    ie_cpack_add_component(speech_demo_files)
-
-    install(DIRECTORY ${TEMP}/deployment_tools
-                      ${TEMP}/data_processing
-            DESTINATION .
-            USE_SOURCE_PERMISSIONS
-            COMPONENT speech_demo_files)
-endif()

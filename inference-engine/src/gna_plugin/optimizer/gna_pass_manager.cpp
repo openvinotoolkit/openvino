@@ -1841,8 +1841,8 @@ void FuseFQIntoWeightsPass::run() {
             layers_connected_to_fq_count = inputTo.size();
         }
         for (int index = 0; index < layers_connected_to_fq_count; index++) {
-            auto weightableLayer = CNNNetGetNextLayerSkipCertain(layerBeforeWeightable, 0, index, isNonFunctional).first;
-            if (!LayerInfo(weightableLayer).isWeightable()) {
+            auto weightableLayer = CNNNetCheckNextLayerSkipCertain(layerBeforeWeightable, 0, index, true, isNonFunctional).first;
+            if (!weightableLayer || !LayerInfo(weightableLayer).isWeightable()) {
                 continue;
             }
             if (weightableLayer->insData.size() < 2) {

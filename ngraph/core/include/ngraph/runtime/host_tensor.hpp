@@ -7,14 +7,23 @@
 #include <memory>
 
 #include "ngraph/descriptor/output.hpp"
+#include "ngraph/partial_shape.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
-namespace ngraph {
+namespace ov {
+class Node;
 namespace op {
 namespace v0 {
 class Constant;
+}
+}  // namespace op
+}  // namespace ov
+namespace ngraph {
+namespace op {
+namespace v0 {
+using ov::op::v0::Constant;
 }
 }  // namespace op
 namespace runtime {
@@ -24,7 +33,7 @@ public:
     HostTensor(const element::Type& element_type, const Shape& shape);
     HostTensor(const element::Type& element_type, const PartialShape& partial_shape);
     HostTensor();
-    explicit HostTensor(const Output<Node>&);
+    explicit HostTensor(const Output<ov::Node>&);
     explicit HostTensor(const std::shared_ptr<op::v0::Constant>& constant);
     virtual ~HostTensor() override;
 
