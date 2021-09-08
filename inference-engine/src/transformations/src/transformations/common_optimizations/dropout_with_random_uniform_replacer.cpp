@@ -58,7 +58,7 @@ ngraph::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer
             return false;
 
         const auto broadcast_const = opset8::Constant::create(ru->get_out_type(), Shape{}, {0.5});
-        const auto broadcast = register_new_node<opset8::Broadcast>(broadcast_const, shape_of);
+        const auto broadcast = std::make_shared<opset8::Broadcast>(broadcast_const, shape_of);
 
         broadcast->set_friendly_name(ru->get_friendly_name());
         copy_runtime_info(ru, broadcast);
