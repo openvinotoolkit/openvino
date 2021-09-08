@@ -8,7 +8,6 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common.hpp"
 #include "ngraph/type.hpp"
 
 namespace py = pybind11;
@@ -18,14 +17,6 @@ void regclass_pyngraph_DiscreteTypeInfo(py::module m) {
         m,
         "DiscreteTypeInfo");
     discrete_type_info.doc() = "ngraph.impl.DiscreteTypeInfo wraps ngraph::DiscreteTypeInfo";
-    discrete_type_info.def(
-        py::init([](const std::string& _name, uint64_t version, const ngraph::DiscreteTypeInfo* parent) {
-            const char* name = Common::string_to_char_arr(_name);
-            return new ngraph::DiscreteTypeInfo(name, version, parent);
-        }),
-        py::arg("name"),
-        py::arg("version"),
-        py::arg("parent") = nullptr);
     discrete_type_info.def(
         "__lt__",
         [](const ngraph::DiscreteTypeInfo& self, const ngraph::DiscreteTypeInfo& other) {
@@ -64,30 +55,28 @@ void regclass_pyngraph_DiscreteTypeInfo(py::module m) {
             return self.version != other.version || strcmp(self.name, other.name) != 0;
         },
         py::is_operator());
+    discrete_type_info.def("__repr__", [](const ngraph::DiscreteTypeInfo& self) {
+           std::string name = std::string(self.name);
+           std::string version = std::to_string(self.version);
+           std::string parent_name = self.parent != nullptr ? self.parent->name  : "None";
+           std::string parent_version = self.parent != nullptr ? std::to_string(self.parent->version) : "";
 
-    discrete_type_info.def_property(
+           return "<'" + name + version + " Parent('" + parent_name + parent_version + "')" + "'>";
+        });
+
+    discrete_type_info.def_property_readonly(
         "name",
         [](const ngraph::DiscreteTypeInfo& self) {
             return self.name;
-        },
-        [](ngraph::DiscreteTypeInfo& self, const std::string& _name) {
-            const char* name = Common::string_to_char_arr(_name);
-            self.name = name;
         });
-    discrete_type_info.def_property(
+    discrete_type_info.def_property_readonly(
         "version",
         [](const ngraph::DiscreteTypeInfo& self) {
             return self.version;
-        },
-        [](ngraph::DiscreteTypeInfo& self, const uint64_t _version) {
-            self.version = _version;
         });
-    discrete_type_info.def_property(
+    discrete_type_info.def_property_readonly(
         "parent",
         [](const ngraph::DiscreteTypeInfo& self) {
             return self.parent;
-        },
-        [](ngraph::DiscreteTypeInfo& self, const ngraph::DiscreteTypeInfo* other) {
-            self.parent = other;
         });
 }
