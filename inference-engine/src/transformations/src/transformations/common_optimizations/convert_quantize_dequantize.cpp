@@ -140,10 +140,10 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         auto data_shape = data.get_partial_shape();
         if (data_shape.rank().is_dynamic())
             return false;
-        auto out_low_shape = new_out_low->get_output_partial_shape(0);
+        auto out_low_shape = new_out_low->output_shape(0);
         if (out_low_shape.rank().is_dynamic() || out_low_shape.rank().get_length() > data_shape.rank().get_length())
             return false;
-        auto out_high_shape = new_out_high->get_output_partial_shape(0);
+        auto out_high_shape = new_out_high->output_shape(0);
         if (out_high_shape.rank().is_dynamic() || out_high_shape.rank().get_length() > data_shape.rank().get_length())
             return false;
 

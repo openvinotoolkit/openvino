@@ -101,9 +101,9 @@ ngraph::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_co
             }
         }
 
-        auto shape_input = reshape_before->get_input_shape(0);
-        auto shape_reshape_before = reshape_before->get_output_shape(0);
-        auto shape_reshape_after = reshape_after->get_output_shape(0);
+        auto shape_input = reshape_before->input_shape(0).to_shape();
+        auto shape_reshape_before = reshape_before->output_shape(0).to_shape();
+        auto shape_reshape_after = reshape_after->output_shape(0).to_shape();
 
         auto transpose_constant = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_map.at(transpose_const_pattern).get_node_shared_ptr());
         auto transpose_constant_values = transpose_constant->get_axis_vector_val();

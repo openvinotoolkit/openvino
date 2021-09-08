@@ -35,7 +35,7 @@ ngraph::pass::ConvertConvolution::ConvertConvolution() {
                                                                    conv->get_dilations(),
                                                                    conv->get_pads_begin(),
                                                                    conv->get_pads_end(),
-                                                                   conv->get_output_element_type(0),
+                                                                   conv->output_element_type(0),
                                                                    1 /* groups */,
                                                                    conv->get_auto_pad());
         ngraph::copy_runtime_info(conv, conv_ie);
@@ -82,7 +82,7 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
                                                                    gconv->get_dilations(),
                                                                    gconv->get_pads_begin(),
                                                                    gconv->get_pads_end(),
-                                                                   gconv->get_output_element_type(0),
+                                                                   gconv->output_element_type(0),
                                                                    group,
                                                                    gconv->get_auto_pad());
         conv_ie->set_friendly_name(gconv->get_friendly_name());
@@ -113,7 +113,7 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
                                                                        deconv->get_dilations(),
                                                                        deconv->get_pads_begin(),
                                                                        deconv->get_pads_end(),
-                                                                       deconv->get_output_element_type(0),
+                                                                       deconv->output_element_type(0),
                                                                        1 /* groups */,
                                                                        deconv->get_auto_pad(),
                                                                        deconv->get_output_padding(),
@@ -159,7 +159,7 @@ ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
                                                                      gconv->get_dilations(),
                                                                      gconv->get_pads_begin(),
                                                                      gconv->get_pads_end(),
-                                                                     gconv->get_output_element_type(0),
+                                                                     gconv->output_element_type(0),
                                                                      group,
                                                                      gconv->get_auto_pad(),
                                                                      gconv->get_output_padding(),

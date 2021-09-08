@@ -29,7 +29,7 @@ ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
         if (!tiles_node) return false;
 
         auto tiles = tiles_node->cast_vector<int64_t>();
-        auto input_shape_rank = tile->get_input_partial_shape(0).rank().get_length();
+        auto input_shape_rank = tile->input_shape(0).rank().get_length();
         int64_t cur_dim_id = tiles.size() - 1;
 
         if (static_cast<int64_t>(tiles.size()) != input_shape_rank) return false;

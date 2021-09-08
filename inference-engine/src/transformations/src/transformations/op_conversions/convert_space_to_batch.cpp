@@ -51,7 +51,7 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         //      pads_begin[i] + pads_end[i]
         std::shared_ptr<Node> flat_node = std::make_shared<opset3::Pad>(data, pads_begin_const, pads_end_const,
                 ngraph::op::PadMode::CONSTANT);
-        auto out_shape = flat_node->get_shape();
+        auto out_shape = flat_node->output_shape(0).to_shape();
         new_ops.push_back(flat_node);
 
         // First we have to disperse the data from spatial dimensions, then
@@ -155,7 +155,7 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
 
         std::shared_ptr<Node> flat_node = std::make_shared<opset3::Pad>(data, pads_begin_const, pads_end_const, ngraph::op::PadMode::CONSTANT);
         new_ops.push_back(flat_node);
-        auto out_shape = flat_node->get_shape();
+        auto out_shape = flat_node->output_shape(0).to_shape();
 
         std::vector<int64_t> dispersed_shape(block_values.size() + 1);
         std::vector<size_t> axes_order(block_values.size() + 1);

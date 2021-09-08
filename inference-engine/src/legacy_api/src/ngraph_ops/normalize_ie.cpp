@@ -21,10 +21,10 @@ op::NormalizeIE::NormalizeIE(const Output<Node>& data, const Output<Node>& weigh
 }
 
 void op::NormalizeIE::validate_and_infer_types() {
-    PartialShape arg_shape = get_input_partial_shape(0);
+    PartialShape arg_shape = input_shape(0);
     set_output_type(0, m_output_type, arg_shape);
 
-    const PartialShape& input_shape = get_input_partial_shape(0);
+    const PartialShape& input_shape = this->input_shape(0);
 
     NODE_VALIDATION_CHECK(this,
                           input_shape.rank().is_dynamic() || (input_shape.rank().get_length() >= 2 && input_shape.rank().get_length() <= 4),

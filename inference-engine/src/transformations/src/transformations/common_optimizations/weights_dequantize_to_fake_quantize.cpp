@@ -38,14 +38,14 @@ ngraph::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize()
         }
 
         const auto *data = weights_node->get_data_ptr<int8_t>();
-        const int8_t weights_minimum = *std::min_element(data, data + shape_size(weights_node->get_shape()));
+        const int8_t weights_minimum = *std::min_element(data, data + shape_size(weights_node->output_shape(0).to_shape()));
         int64_t levels = (weights_minimum == static_cast<int8_t>(-128)) ? 256 : 255;
         int64_t in_low = -(levels / 2), in_high = levels + in_low - 1;
 
-        const auto &input_low = opset6::Constant::create(convert_node->get_element_type(), {}, {in_low});
-        const auto &input_high = opset6::Constant::create(convert_node->get_element_type(), {}, {in_high});
+        const auto &input_low = opset6::Constant::create(convert_node->output_element_type(0), {}, {in_low});
+        const auto &input_high = opset6::Constant::create(convert_node->output_element_type(0), {}, {in_high});
 
-        auto &zero_point = pattern_map.count(sub_c) ? pattern_map.at(sub_c) : opset6::Constant::create(convert_node->get_element_type(), {}, {0});
+        auto &zero_point = pattern_map.count(sub_c) ? pattern_map.at(sub_c) : opset6::Constant::create(convert_node->output_element_type(0), {}, {0});
 
         const auto &output_low = op::util::eltwise_fold<opset6::Multiply>(
                 op::util::eltwise_fold<opset6::Subtract>(input_low, zero_point), scale_node);

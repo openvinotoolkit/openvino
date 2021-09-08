@@ -48,11 +48,11 @@ ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
         Output<Node> element_output;
         Output<Node> index_output;
         // insert Convert if index element type not equal to i32 and output #1 of TopK has consumers
-        if (topk->get_index_element_type() == element::i32 || topk->get_output_target_inputs(1).size() == 0) {
+        if (topk->get_index_element_type() == element::i32 || topk->output(1).get_target_inputs().size() == 0) {
             element_output = topk_ie->output(0);
             index_output = topk_ie->output(1);
             topk_ie->set_friendly_name(topk->get_friendly_name());
-        } else if (topk->get_output_target_inputs(0).size() == 0) {
+        } else if (topk->output(0).get_target_inputs().size() == 0) {
             index_output = std::make_shared<opset1::Convert>(topk_ie->output(1), topk->get_index_element_type());
             new_ops.push_back(index_output.get_node_shared_ptr());
 
@@ -60,7 +60,7 @@ ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
             index_output.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".1");
         } else {
             // create fake convert for 0 output, it is a workaround in purpose of correct output names preserving
-            element_output = std::make_shared<opset1::Convert>(topk_ie->output(0), topk->get_output_element_type(0));
+            element_output = std::make_shared<opset1::Convert>(topk_ie->output(0), topk->output_element_type(0));
             index_output = std::make_shared<opset1::Convert>(topk_ie->output(1), topk->get_index_element_type());
             new_ops.push_back(element_output.get_node_shared_ptr());
             new_ops.push_back(index_output.get_node_shared_ptr());

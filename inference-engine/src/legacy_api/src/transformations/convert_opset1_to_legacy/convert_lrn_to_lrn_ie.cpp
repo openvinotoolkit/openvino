@@ -37,7 +37,7 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
         if (axis_value.size() == 1 && axis_value[0] == 1) {
             region = "across";
         } else {
-            std::vector<bool> norm(lrn->get_output_partial_shape(0).rank().get_length(), false);
+            std::vector<bool> norm(lrn->output_shape(0).rank().get_length(), false);
             for (auto & axis : axis_value) {
                 if (axis < 0 || static_cast<size_t>(axis) >= norm.size()) {
                     return false;

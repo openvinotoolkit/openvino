@@ -20,7 +20,7 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
                                  const ngraph::PartialShape& shape) {
     if (!constant || shape.rank().is_dynamic()) return CONVERSION_RESULT::NONE;
 
-    auto const_shape = constant->get_shape();
+    auto const_shape = constant->output_shape(0).to_shape();
     std::vector<ngraph::Dimension> input_shape(shape);
 
     // In case of scalar we will convert it to Power
@@ -73,7 +73,7 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
             return false;
         }
 
-        if (!add_node->get_element_type().is_real()) {
+        if (!add_node->output_element_type(0).is_real()) {
             return false;
         }
 

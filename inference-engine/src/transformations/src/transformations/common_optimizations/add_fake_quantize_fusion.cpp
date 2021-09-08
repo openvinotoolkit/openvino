@@ -42,7 +42,7 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         if (!add_const)
             return false;
         std::shared_ptr<Node> new_const = add_const;
-        auto const_shape = add_const->get_shape();
+        auto const_shape = add_const->output_shape(0).to_shape();
         size_t const_shape_size = shape_size(const_shape);
         bool is_single_value = const_shape_size == 1;
 
@@ -50,7 +50,7 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             float v;
             is_single_value = op::util::get_single_value(add_const, v);
             if (is_single_value) {
-                new_const = std::make_shared<opset5::Constant>(add_const->get_element_type(), Shape{1}, v);
+                new_const = std::make_shared<opset5::Constant>(add_const->output_element_type(0), Shape{1}, v);
             }
         }
 
@@ -84,7 +84,7 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
                                                  });
             if (fq_user_is_concat)
                 return false;
-            auto diff = fq->get_input_partial_shape(0).rank().get_length() - static_cast<Dimension::value_type>(const_shape.size());
+            auto diff = fq->input_shape(0).rank().get_length() - static_cast<Dimension::value_type>(const_shape.size());
             if (diff > 0) {
                 // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
                 const_shape.insert(const_shape.begin(), diff, 1);

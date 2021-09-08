@@ -23,8 +23,8 @@ op::LRN_IE::LRN_IE(const ngraph::Output<ngraph::Node>& arg, double alpha, double
 }
 
 void op::LRN_IE::validate_and_infer_types() {
-    element::Type arg_type = get_input_element_type(0);
-    PartialShape arg_shape = get_input_partial_shape(0);
+    element::Type arg_type = input_element_type(0);
+    PartialShape arg_shape = input_shape(0);
     set_output_type(0, arg_type, arg_shape);
 }
 

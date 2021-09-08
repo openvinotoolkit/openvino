@@ -23,15 +23,15 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
             return false;
         }
 
-        if (decoder_seq_len->get_input_size() > 2) {
-            const auto data_pshape = decoder_seq_len->get_input_partial_shape(0);
+        if (decoder_seq_len->input_size() > 2) {
+            const auto data_pshape = decoder_seq_len->input_shape(0);
             auto blank_index = std::dynamic_pointer_cast<ngraph::opset6::Constant>(decoder_seq_len->input_value(2).get_node_shared_ptr());
             if (!blank_index || data_pshape.rank().is_dynamic() || data_pshape[2].is_dynamic()) {
                 return false;
             }
 
             const std::vector<int64_t> &blank_index_values = blank_index->cast_vector<int64_t>();
-            const auto num_classes = decoder_seq_len->get_input_partial_shape(0)[2].get_length();
+            const auto num_classes = decoder_seq_len->input_shape(0)[2].get_length();
             if (blank_index_values[0] != (num_classes - 1)) {
                 return false;
             }

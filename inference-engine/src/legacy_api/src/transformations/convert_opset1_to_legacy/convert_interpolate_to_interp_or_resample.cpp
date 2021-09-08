@@ -147,7 +147,7 @@ ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToI
                 auto output_shape = out_spatial_shape;
                 output_shape.insert(output_shape.begin(), input_shape[0]);
                 output_shape.insert(output_shape.begin() + 1, input_shape[1]);
-                auto constant = std::make_shared<ngraph::opset1::Constant>(out_shape_node->get_element_type(), Shape{output_shape.size()}, output_shape);
+                auto constant = std::make_shared<ngraph::opset1::Constant>(out_shape_node->output_element_type(0), Shape{output_shape.size()}, output_shape);
                 resample = std::make_shared<ngraph::op::ResampleV2>(data_node, constant, attrs);
             }
 

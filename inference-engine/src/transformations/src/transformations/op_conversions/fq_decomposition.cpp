@@ -108,8 +108,8 @@ ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         decomp_ops.push_back(after_osc_apply);
         decomp_ops.push_back(result);
 
-        if (result->get_output_element_type(0) != fake_quantize_node->get_output_element_type(0)) {
-            result = std::make_shared<ngraph::opset1::Convert>(result, fake_quantize_node->get_output_element_type(0));
+        if (result->output_element_type(0) != fake_quantize_node->output_element_type(0)) {
+            result = std::make_shared<ngraph::opset1::Convert>(result, fake_quantize_node->output_element_type(0));
             decomp_ops.push_back(result);
         }
 

@@ -20,8 +20,8 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
 
     matcher_pass_callback callback = [](pattern::Matcher &m) -> bool {
         const auto & squeeze = m.get_match_root();
-        const auto & const_axes = std::dynamic_pointer_cast<ngraph::opset5::Constant>(squeeze->get_input_node_shared_ptr(1));
-        auto slice = std::dynamic_pointer_cast<ngraph::opset5::StridedSlice>(squeeze->get_input_node_shared_ptr(0));
+        const auto & const_axes = std::dynamic_pointer_cast<ngraph::opset5::Constant>(squeeze->input_node_shared_ptr(1));
+        auto slice = std::dynamic_pointer_cast<ngraph::opset5::StridedSlice>(squeeze->input_node_shared_ptr(0));
         if (!const_axes || !slice)
             return false;
 
@@ -46,7 +46,7 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
         if (!std::all_of(strides_vec.begin(), strides_vec.end(), [](const int64_t& i){ return i == 1; }))
             return false;
 
-        const auto & axes = normalize_axes(squeeze->description(), const_axes->cast_vector<int64_t>(), squeeze->get_input_partial_shape(0).rank());
+        const auto & axes = normalize_axes(squeeze->description(), const_axes->cast_vector<int64_t>(), squeeze->input_shape(0).rank());
         for (const auto & axis : axes) {
             if (begin_mask[axis]) { // corresponding dimension of the begin input is ignored. starting from 0
                 begin_vec[axis] = 0;
@@ -89,8 +89,8 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
 
     matcher_pass_callback callback = [](pattern::Matcher &m) -> bool {
         auto slice = std::dynamic_pointer_cast<ngraph::opset5::StridedSlice>(m.get_match_root());
-        auto squeeze = slice->get_input_node_shared_ptr(0);
-        const auto & const_axes = std::dynamic_pointer_cast<ngraph::opset5::Constant>(squeeze->get_input_node_shared_ptr(1));
+        auto squeeze = slice->input_node_shared_ptr(0);
+        const auto & const_axes = std::dynamic_pointer_cast<ngraph::opset5::Constant>(squeeze->input_node_shared_ptr(1));
         if (!const_axes || !slice)
             return false;
 
@@ -115,7 +115,7 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
         if (!std::all_of(strides_vec.begin(), strides_vec.end(), [](const int64_t& i){ return i == 1; }))
             return false;
 
-        auto axes = normalize_axes(squeeze->description(), const_axes->cast_vector<int64_t>(), squeeze->get_input_partial_shape(0).rank());
+        auto axes = normalize_axes(squeeze->description(), const_axes->cast_vector<int64_t>(), squeeze->input_shape(0).rank());
         std::sort(axes.begin(), axes.end());
         for (const auto & axis : axes) {
             begin_vec.insert(begin_vec.begin() + axis, 0);
@@ -129,7 +129,7 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
         }
 
         auto new_slice = std::make_shared<opset5::StridedSlice>(
-                slice->get_input_node_shared_ptr(0)->input_value(0),
+                slice->input_node_shared_ptr(0)->input_value(0),
                 opset5::Constant::create(element::i64, {begin_vec.size()}, begin_vec),
                 opset5::Constant::create(element::i64, {end_vec.size()}, end_vec),
                 opset5::Constant::create(element::i64, {strides_vec.size()}, strides_vec),
@@ -146,17 +146,17 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedSqueeze, "ngraph::pass::SharedSqueeze", 0);
 
-bool squeezes_perform_the_same(std::shared_ptr<ngraph::opset5::Squeeze> lhs, std::shared_ptr<ngraph::opset5::Squeeze> rhs) {
+bool squeezes_perform_the_same(const std::shared_ptr<ngraph::opset5::Squeeze>& lhs, const std::shared_ptr<ngraph::opset5::Squeeze>& rhs) {
     size_t l_input_size = lhs->inputs().size(), r_input_size = rhs->inputs().size();
     if (l_input_size != r_input_size)
         return false;
     if (lhs->inputs().size() == 1 && rhs->inputs().size() == 1)
         return true;
-    const auto rank = lhs->get_input_partial_shape(0).rank();
+    const auto rank = lhs->input_shape(0).rank();
     if (rank.is_dynamic())
         return false;
-    const auto l_axes = std::dynamic_pointer_cast<ngraph::opset5::Constant>(lhs->get_input_node_shared_ptr(1));
-    const auto r_axes = std::dynamic_pointer_cast<ngraph::opset5::Constant>(rhs->get_input_node_shared_ptr(1));
+    const auto l_axes = std::dynamic_pointer_cast<ngraph::opset5::Constant>(lhs->input_node_shared_ptr(1));
+    const auto r_axes = std::dynamic_pointer_cast<ngraph::opset5::Constant>(rhs->input_node_shared_ptr(1));
     if (l_axes && r_axes)
         return ngraph::normalize_axes(lhs->description(), l_axes->cast_vector<int64_t>(), rank) ==
                ngraph::normalize_axes(rhs->description(), r_axes->cast_vector<int64_t>(), rank);

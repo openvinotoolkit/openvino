@@ -161,7 +161,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
             auto result = res_op->input(0).get_source_output();
 
             std::string name = result.get_node()->get_friendly_name();
-            if (result.get_node()->get_output_size() > 1) {
+            if (result.get_node()->output_size() > 1) {
                 name += "." + std::to_string(result.get_index());
             }
             return name;
@@ -177,7 +177,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
         body = InferenceEngine::NetPass::CopyTIBody(temp_body);
 
         // Check if data is really const layer holder
-        auto is_constant_holder = [] (const DataPtr data) {
+        auto is_constant_holder = [] (const DataPtr& data) {
             return data->getPrecision() == Precision::UNSPECIFIED;
         };
 
@@ -234,7 +234,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
         for (size_t i = 0; i < results.size(); i++) {
             auto result = results[i];
             auto output = body.outputs[i];
-            if (result->get_element_type() == ngraph::element::u8) {
+            if (result->output_element_type(0) == ngraph::element::u8) {
                 output->setPrecision(InferenceEngine::Precision::U8);
             }
         }
@@ -242,7 +242,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
 
     // Create Inference Engine representation of TensorIterator
     LayerParams params = {layer->get_friendly_name(), "TensorIterator",
-                          details::convertPrecision(layer->get_output_element_type(0))};
+                          details::convertPrecision(layer->output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::TensorIterator>(params);
     if (res == nullptr) {
         IE_THROW() << "Can't create TensorIterator";
@@ -333,7 +333,7 @@ public:
     }
 
     void addSpecificCreator(const std::vector<std::string>& forTypes, const CreatorFor& creator) {
-        for (const auto type : forTypes) {
+        for (const auto& type : forTypes) {
             creators[type] = creator;
         }
     }
@@ -443,7 +443,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"Parameter"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Input",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<CNNLayer>(attrs);
         return res;
     });
@@ -452,7 +452,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                         "LogicalAnd", "LogicalXor", "GreaterEq", "Less", "LessEqual", "Equal", "NotEqual", "Multiply", "Add"},
                         [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
             LayerParams attrs = {node->get_friendly_name(), "Eltwise",
-                details::convertPrecision(node->get_output_element_type(0))};
+                details::convertPrecision(node->output_element_type(0))};
             auto res = std::make_shared<EltwiseLayer>(attrs);
             res->params = params;
             if (node->description() == "Maximum") {
@@ -516,17 +516,17 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"Concat"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<ConcatLayer>(attrs);
         res->params = params;
         auto axis = std::stoi(res->params["axis"]);
-        res->params["axis"] = Builder::asString(axis < 0 ? axis + node->get_input_shape(0).size() : axis);
+        res->params["axis"] = Builder::asString(axis < 0 ? axis + node->input_shape(0).to_shape().size() : axis);
         return res;
     });
     addSpecificCreator({"AvgPool", "MaxPool"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                   const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Pooling",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<PoolingLayer>(attrs);
         res->params = params;
         if (res->params.find("auto_pad") != res->params.end() &&
@@ -548,7 +548,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"Select"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<SelectLayer>(attrs);
         res->params = params;
         return res;
@@ -556,7 +556,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"BinaryConvolution"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<BinaryConvolutionLayer>(attrs);
 
         // todo: investigate difference between ngraph parameters for BinConvolution and the implementation above
@@ -610,7 +610,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["dilations"] = value;
 
         // Restore kernel size and output
-        const auto& shape = castedLayer->get_input_shape(1);
+        const auto& shape = castedLayer->input_shape(1).to_shape();
         res->params["output"] = Builder::asString(shape[0]);
 
         value.clear();
@@ -640,7 +640,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"SpaceToBatch"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<SpaceToBatchLayer>(attrs);
         res->params = params;
         return res;
@@ -649,7 +649,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"BatchToSpace"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<BatchToSpaceLayer>(attrs);
         res->params = params;
         return res;
@@ -658,7 +658,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"Assign"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                             const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Memory",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params["id"] = params.at("variable_id");
         res->params["index"] = "0";
@@ -669,7 +669,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"ReadValue"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                             const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Memory",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params["id"] = params.at("variable_id");
         res->params["index"] = "1";
@@ -680,7 +680,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"DepthToSpace"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                             const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<DepthToSpaceLayer>(attrs);
         res->params = params;
         return res;
@@ -689,7 +689,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"SpaceToDepth"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                             const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<SpaceToDepthLayer>(attrs);
         res->params = params;
         return res;
@@ -699,11 +699,11 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node> &node,
                           const std::map<std::string, std::string> &params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Deconvolution",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<DeconvolutionLayer>(attrs);
 
         res->params = params;
-        const auto& shape = node->get_input_shape(1);
+        const auto& shape = node->input_shape(1).to_shape();
         res->params["output"] = Builder::asString(shape[1]);
         std::string kernel_value;
         for (size_t i = 2; i < shape.size(); i++) {
@@ -726,7 +726,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node> &node,
                           const std::map<std::string, std::string> &params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "DetectionOutput",
-                            details::convertPrecision(node->get_output_element_type(0))};
+                            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
 
@@ -746,9 +746,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"LogicalNot"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
-                          const std::map<std::string, std::string> params) -> CNNLayerPtr {
+                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Activation",
-                              details::convertPrecision(node->get_output_element_type(0))};
+                              details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params["type"] = "not";
         return res;
@@ -756,9 +756,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"LSTMCellIE"},
                         [](const std::shared_ptr<::ngraph::Node>& node,
-                           const std::map<std::string, std::string> params) -> CNNLayerPtr {
+                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "LSTMCell",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<LSTMCell>(attrs);
         res->params = params;
         const auto weightsNode = node->input_value(3).get_node_shared_ptr();
@@ -774,7 +774,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "RNNCell",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<RNNCell>(attrs);
         res->params = params;
 
@@ -791,7 +791,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "GRUCell",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<GRUCell>(attrs);
         res->params = params;
 
@@ -808,7 +808,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "PReLU",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<PReLULayer>(attrs);
         res->params = params;
 
@@ -822,7 +822,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Tile",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<TileLayer>(attrs);
         res->params = params;
         return res;
@@ -832,7 +832,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "PriorBox",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
 
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params = params;
@@ -842,11 +842,11 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
         auto scale_all_sizes = std::stoi(res->params["scale_all_sizes"]);
         if (!scale_all_sizes) {
-            auto data_pshape = node->get_input_partial_shape(0);
+            auto data_pshape = node->input_shape(0);
             if (data_pshape.is_dynamic()) IE_THROW() << "Dynamic 0-port input of PriorBox is not supported";
             auto data_shape = data_pshape.to_shape();
             if (data_shape.size() != 4) IE_THROW() << "PriorBox has " << data_shape.size() << " items in 0-port input, 4 expected";
-            auto img_pshape = node->get_input_partial_shape(1);
+            auto img_pshape = node->input_shape(1);
             if (img_pshape.is_dynamic()) IE_THROW() << "Dynamic 1-port input of PriorBox is not supported";
             auto img_shape = img_pshape.to_shape();
             if (img_shape.size() != 4) IE_THROW() << "PriorBox has " << data_shape.size() << " items in 1-port input, 4 expected";
@@ -875,7 +875,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "PriorBoxClustered",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params = params;
         res->params["clip"] =
@@ -893,7 +893,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Proposal",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params = params;
         res->params["clip_before_nms"] =
@@ -908,7 +908,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "ReLU",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<ReLULayer>(attrs);
         res->params = params;
         return res;
@@ -918,7 +918,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Reshape",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<ReshapeLayer>(attrs);
         return res;
     });
@@ -927,7 +927,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "ReverseSequence",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<ReverseSequenceLayer>(attrs);
         res->params = params;
         return res;
@@ -937,7 +937,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Selu",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params = params;
         return res;
@@ -947,7 +947,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "SoftMax",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<SoftMaxLayer>(attrs);
         res->params = params;
         return res;
@@ -957,7 +957,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Split",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<SplitLayer>(attrs);
 
         auto axis_node = node->input_value(1).get_node_shared_ptr();
@@ -967,7 +967,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         }
         auto axis = axis_node_const->cast_vector<int64_t>()[0];
         if (axis < 0) {
-            axis += node->get_input_shape(0).size();
+            axis += node->input_shape(0).to_shape().size();
         }
         res->params["axis"] = Builder::asString(axis);
 
@@ -978,7 +978,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "TanH",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<CNNLayer>(attrs);
         res->params = params;
         return res;
@@ -987,7 +987,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"ScatterElementsUpdate"}, [](const std::shared_ptr<::ngraph::Node>& node,
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<ScatterElementsUpdateLayer>(attrs);
         res->params = params;
         return res;
@@ -996,7 +996,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"ScatterUpdate"}, [](const std::shared_ptr<::ngraph::Node>& node,
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<ScatterUpdateLayer>(attrs);
         res->params = params;
         return res;
@@ -1005,7 +1005,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"StaticShapeTopK"}, [](const std::shared_ptr<::ngraph::Node>& node,
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "TopK",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<TopKLayer>(attrs);
         res->params = params;
         return res;
@@ -1014,7 +1014,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"StridedSlice"}, [](const std::shared_ptr<::ngraph::Node> &node,
         const std::map<std::string, std::string> &params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "StridedSlice",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::StridedSliceLayer>(attrs);
         auto stridedSliceInvertMaskStr = [](const std::string& str) -> std::string {
             std::string value;
@@ -1038,7 +1038,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"TopK", "TopKIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "TopK",
-                          details::convertPrecision(node->get_output_element_type(0))};
+                          details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::TopKLayer>(attrs);
         res->params = params;
         return res;
@@ -1047,7 +1047,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"Transpose"}, [](const std::shared_ptr<::ngraph::Node>& node,
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Permute",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
         if (auto transpose_const = std::dynamic_pointer_cast<ngraph::op::Constant>(node->input_value(1).get_node_shared_ptr())) {
@@ -1059,7 +1059,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"SwishIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Swish",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
         return res;
@@ -1068,7 +1068,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"NonMaxSuppressionIE3"}, [](const std::shared_ptr<::ngraph::Node>& node,
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
 
         auto castedLayer = ::ngraph::as_type_ptr<::ngraph::op::NonMaxSuppressionIE3>(node);
         IE_ASSERT(castedLayer) << " Operation " << node->description() << " with name "
@@ -1100,7 +1100,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"NonMaxSuppression"}, [](const std::shared_ptr<::ngraph::Node>& node,
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression",
-            details::convertPrecision(node->get_output_element_type(0))};
+            details::convertPrecision(node->output_element_type(0))};
 
         auto castedLayer = ::ngraph::as_type_ptr<::ngraph::op::v5::NonMaxSuppression>(node);
         IE_ASSERT(castedLayer) << " Operation " << node->description() << " with name "
@@ -1144,7 +1144,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"NonMaxSuppressionIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                  const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(attrs);
         res->params = params;
         return res;
@@ -1153,7 +1153,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"GRUSequenceIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                     const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "GRUSequence",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<RNNSequenceLayer>(attrs);
         res->params = params;
         res->axis = std::stoi(res->params["axis"]);
@@ -1181,7 +1181,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"RNNSequenceIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                     const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "RNNSequence",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<RNNSequenceLayer>(attrs);
         res->params = params;
 
@@ -1206,7 +1206,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"LSTMSequenceIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                     const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "LSTMSequence",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<RNNSequenceLayer>(attrs);
         res->params = params;
 
@@ -1247,7 +1247,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"ReduceMin", "ReduceMax", "ReduceMean", "ReduceProd", "ReduceSum", "ReduceL1", "ReduceL2"},
                        [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), node->description(), details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), node->description(), details::convertPrecision(node->output_element_type(0))};
         auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(node);
         if (reduce_node == nullptr)
             IE_THROW() << "Node '" << node->get_name() << "' is not an instance of ArithmeticReductionKeepDims.";
@@ -1258,7 +1258,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"ReduceLogicalAnd"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "ReduceAnd", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "ReduceAnd", details::convertPrecision(node->output_element_type(0))};
         auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(node);
         if (reduce_node == nullptr)
             IE_THROW() << "Node '" << node->get_name() << "' is not an instance of LogicalReductionKeepDims.";
@@ -1269,7 +1269,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"ReduceLogicalOr"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "ReduceOr", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "ReduceOr", details::convertPrecision(node->output_element_type(0))};
         auto reduce_node = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(node);
         if (reduce_node == nullptr)
             IE_THROW() << "Node '" << node->get_name() << "' is not an instance of LogicalReductionKeepDims.";
@@ -1280,7 +1280,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"Constant"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Const", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Const", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         auto castedLayer = ngraph::as_type_ptr<ngraph::op::Constant>(node);
         if (!res) IE_THROW() << "Cannot get " << attrs.type << " layer " << attrs.name;
@@ -1293,10 +1293,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"Convert"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                        const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Convert",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
 
-        auto p = details::convertPrecision(node->get_output_element_type(0));
+        auto p = details::convertPrecision(node->output_element_type(0));
         std::string precision_str;
         switch (p) {
         case Precision::FP16:
@@ -1349,7 +1349,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"MVN"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                    const std::map<std::string, std::string> &params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "MVN",
-                            details::convertPrecision(node->get_output_element_type(0))};
+                            details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::MVNLayer>(attrs);
 
         res->params["normalize_variance"] = params.at("normalize_variance");
@@ -1366,7 +1366,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"NormalizeIE"}, [](const std::shared_ptr<::ngraph::Node> &node,
                                            const std::map<std::string, std::string> &params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Normalize",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::NormLayer>(attrs);
 
         res->params = params;
@@ -1382,7 +1382,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"Clamp"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                      const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Clamp", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Clamp", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::ClampLayer>(attrs);
         res->params = params;
         return res;
@@ -1390,7 +1390,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"LRN_IE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Norm", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Norm", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::NormLayer>(attrs);
         res->params = params;
         return res;
@@ -1398,7 +1398,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"Elu"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                    const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "elu", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "elu", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
         return res;
@@ -1406,7 +1406,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"MatMul"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Gemm", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Gemm", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::GemmLayer>(attrs);
         res->params = params;
         return res;
@@ -1414,7 +1414,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"GatherIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                         const std::map<std::string, std::string>& params) ->CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Gather", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Gather", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::GatherLayer>(attrs);
 
         auto castedLayer = std::dynamic_pointer_cast<ngraph::op::GatherIE>(node);
@@ -1427,14 +1427,14 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"GatherTreeIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                             const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "GatherTree", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "GatherTree", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         return res;
     });
 
     addSpecificCreator({"GRN"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                    const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "GRN", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "GRN", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::GRNLayer>(attrs);
         res->params = params;
         return res;
@@ -1442,7 +1442,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"OneHotIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "OneHot", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "OneHot", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::OneHotLayer>(attrs);
         res->params = params;
         return res;
@@ -1450,7 +1450,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"HardSigmoid_IE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                               const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "HardSigmoid", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "HardSigmoid", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
 
         auto castedLayer = std::dynamic_pointer_cast<ngraph::op::HardSigmoid_IE>(node);
@@ -1464,7 +1464,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"Interp"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Interp", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Interp", details::convertPrecision(node->output_element_type(0))};
         auto castedLayer = std::dynamic_pointer_cast<ngraph::op::Interp>(node);
         if (!castedLayer) IE_THROW() << "Cannot get " << attrs.type << " layer " << attrs.name;
 
@@ -1485,7 +1485,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"PadIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                      const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Pad", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Pad", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::PadLayer>(attrs);
 
         res->params["pad_mode"] = params.at("pad_mode");
@@ -1502,7 +1502,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"Subtract"}, [](const std::shared_ptr<::ngraph::Node> &node,
                                         const std::map<std::string, std::string> &params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Eltwise",
-                             details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::EltwiseLayer>(attrs);
         res->params["operation"] = "sub";
         return res;
@@ -1510,7 +1510,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"FakeQuantize"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                             const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "FakeQuantize", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "FakeQuantize", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::QuantizeLayer>(attrs);
         res->params = params;
         return res;
@@ -1518,7 +1518,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"ConvolutionIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                              const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Convolution", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Convolution", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::ConvolutionLayer>(attrs);
         res->params = params;
 
@@ -1529,11 +1529,11 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         }
 
         // Restore output and kernel size
-        auto shape = node->get_input_shape(1);
+        auto shape = node->input_shape(1).to_shape();
         shape.erase(shape.begin(), shape.begin() + 2);
 
         res->params["kernel"] = Builder::asString(static_cast<std::vector<size_t>&>(shape));
-        res->params["output"] = Builder::asString(node->get_shape()[1]);
+        res->params["output"] = Builder::asString(node->output_shape(0).to_shape()[1]);
 
         // forward auto_pad only when its value is different than explicit
         if (params.at("auto_pad") == "explicit") {
@@ -1552,12 +1552,12 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"DeformableConvolution"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                      const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "DeformableConvolution", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "DeformableConvolution", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::DeformableConvolutionLayer>(attrs);
 
         res->params = params;
 
-        auto shape = node->get_input_shape(2);
+        auto shape = node->input_shape(2).to_shape();
         std::string value;
 
         res->params["output"] = Builder::asString(shape[0]);
@@ -1580,10 +1580,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"DeformablePSROIPooling"}, [](const std::shared_ptr<::ngraph::Node> &node,
                                                       const std::map<std::string, std::string> &params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "PSROIPooling", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "PSROIPooling", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
-        res->params["no_trans"] = node->get_input_size() == 2 ? "1" : "0";
+        res->params["no_trans"] = node->input_size() == 2 ? "1" : "0";
         // v1::DeformablePRSOIPooling treats group_size attribute as pooled sizes
         res->params["pooled_height"] = params.at("group_size");
         res->params["pooled_width"] = params.at("group_size");
@@ -1592,7 +1592,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"CTCGreedyDecoder"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                 const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "CTCGreedyDecoder", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "CTCGreedyDecoder", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
         res->params["ctc_merge_repeated"] = res->getBoolStrParamAsIntStr("ctc_merge_repeated");
@@ -1615,7 +1615,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"SquaredDifference"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                  const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Eltwise", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Eltwise", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::EltwiseLayer>(attrs);
         res->params["operation"] = "squared_diff";
         return res;
@@ -1623,7 +1623,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"RegionYolo"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "RegionYolo", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "RegionYolo", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
         res->params["do_softmax"] = res->getBoolStrParamAsIntStr("do_softmax");
@@ -1632,7 +1632,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"VariadicSplit"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                              const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Split", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Split", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::SplitLayer>(attrs);
         auto castedLayer = std::dynamic_pointer_cast<ngraph::op::VariadicSplit>(node);
         if (!castedLayer) IE_THROW() << "Cannot get " << attrs.type << " layer " << attrs.name;
@@ -1645,7 +1645,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
         auto axis = axis_node_const->cast_vector<int64_t>()[0];
         if (axis < 0) {
-            axis += castedLayer->get_input_shape(0).size();
+            axis += castedLayer->input_shape(0).to_shape().size();
         }
 
         res->params["axis"] = Builder::asString(axis);
@@ -1654,7 +1654,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"Interpolate"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                            const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Interpolate", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Interpolate", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
         return res;
@@ -1662,7 +1662,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"CropIE"}, [](const std::shared_ptr<::ngraph::Node> &node,
                                       const std::map<std::string, std::string> &params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Crop", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Crop", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CropLayer>(attrs);
         res->params = params;
         return res;
@@ -1670,7 +1670,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"ScaleShiftIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                             const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "ScaleShift", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "ScaleShift", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::ScaleShiftLayer>(attrs);
         res->params = params;
         const auto weightsNode = node->input_value(1).get_node_shared_ptr();
@@ -1697,7 +1697,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
         LayerParams attrs = {node->get_friendly_name(),
                             getStringValue(rtInfo[ExecGraphInfoSerialization::LAYER_TYPE]),
-                            details::convertPrecision(node->get_output_element_type(0))};
+                            details::convertPrecision(node->output_element_type(0))};
         rtInfo.erase(ExecGraphInfoSerialization::LAYER_TYPE);
 
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
@@ -1715,7 +1715,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"ResampleV2"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Resample", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Resample", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
 
@@ -1734,7 +1734,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"FullyConnected"}, [](const std::shared_ptr<::ngraph::Node> &node,
                                               const std::map<std::string, std::string> &params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "FullyConnected", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "FullyConnected", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::FullyConnectedLayer>(attrs);
         res->params = params;
 
@@ -1753,7 +1753,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"ShuffleChannels"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "ShuffleChannels", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "ShuffleChannels", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::ShuffleChannelsLayer>(attrs);
         res->params = params;
         return res;
@@ -1761,7 +1761,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"PowerIE"}, [](const std::shared_ptr<::ngraph::Node> &node,
                                        const std::map<std::string, std::string> &params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Power", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Power", details::convertPrecision(node->output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::PowerLayer>(attrs);
 
         auto castedLayer = ngraph::as_type_ptr<ngraph::op::PowerIE>(node);
@@ -1775,7 +1775,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
     LayerParams attrs = {node->get_friendly_name(), node->description(),
-                         details::convertPrecision(node->get_output_element_type(0))};
+                         details::convertPrecision(node->output_element_type(0))};
     if (creators.find(node->description()) != creators.end())
         return creators[node->description()](node, params);
 
@@ -1806,7 +1806,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
         if (!result)
             IE_THROW() << "Cannot cast ngraph node " << node->get_friendly_name() << " to CNNLayer!";
-        NGraphCNNLayer * layer = reinterpret_cast<NGraphCNNLayer*>(result.get());
+        auto * layer = reinterpret_cast<NGraphCNNLayer*>(result.get());
         layer->setNode(node);
         return result;
     };
@@ -1909,7 +1909,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     IE_SUPPRESS_DEPRECATED_START
     const auto & icnnnetwork = static_cast<const ICNNNetwork &>(network);
     IE_SUPPRESS_DEPRECATED_END
-    const CNNNetworkNGraphImpl* nGraphImpl = dynamic_cast<const CNNNetworkNGraphImpl*>(&icnnnetwork);
+    const auto* nGraphImpl = dynamic_cast<const CNNNetworkNGraphImpl*>(&icnnnetwork);
 
     InputsDataMap thisInputDataMap = network.getInputsInfo();
 
@@ -1935,7 +1935,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         return true;
     };
 
-    auto generate_unique_name = [&unique_names](std::string name) -> std::string {
+    auto generate_unique_name = [&unique_names](const std::string& name) -> std::string {
         size_t suffix = 1;
         while (unique_names.count(name + "/" + std::to_string(suffix))) {
             ++suffix;
@@ -2001,7 +2001,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         }
 
         size_t inputCount(0);
-        for (size_t i = 0; i < layer->get_input_size(); i++) {
+        for (size_t i = 0; i < layer->input_size(); i++) {
             const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(layer->input(i).get_source_output().get_node_shared_ptr());
             if (constant && isInternalConstLayer(constant, layer, keep_constants)) {
                 continue;
@@ -2015,7 +2015,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
         cnnLayer->insData.resize(inputCount);
 
-        for (size_t i = 0; i < layer->get_output_size(); i++) {
+        for (size_t i = 0; i < layer->output_size(); i++) {
             // Memory node with index = 1 has no inputs according to the specification.
             // For proper conversion, we must cut off all the layers and data nodes above ReadValue,
             // if they are connected only with this layer.
@@ -2042,14 +2042,14 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
 
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
-            IE_ASSERT(layer->get_output_partial_shape(i).is_static()) << " nGraph "
+            IE_ASSERT(layer->output_shape(i).is_static()) << " nGraph "
                 << layer->description() << " operation with name: "
                 << layer->get_friendly_name() << " cannot be converted to " << cnnLayer->type
                 << " layer with name: " << cnnLayer->name << " because output with index "
-                << i << " contains dynamic shapes: " << layer->get_output_partial_shape(i)
+                << i << " contains dynamic shapes: " << layer->output_shape(i)
                 << ". Try to use CNNNetwork::reshape() method in order to specialize shapes "
                 << "before the conversion.";
-            SizeVector dims = layer->get_output_shape(i);
+            SizeVector dims = layer->output_shape(i).to_shape();
             for (const auto &dim : dims) {
                 if (!dim)
                     IE_THROW() << cnnLayer->type << " layer " << cnnLayer->name
@@ -2070,7 +2070,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
             if (!ptr) {
                 ptr.reset(new Data(outName,
-                                   {details::convertPrecision(layer->get_output_element_type(i)), dims,
+                                   {details::convertPrecision(layer->output_element_type(i)), dims,
                                     TensorDesc::getLayoutByDims(dims)}));
             }
 
@@ -2088,7 +2088,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (std::dynamic_pointer_cast<::ngraph::op::ReadValueBase>(layer))
             continue;
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-            IE_ASSERT(layer->get_input_size() == 1);
+            IE_ASSERT(layer->input_size() == 1);
             const auto &input = layer->input_value(0);
             NGRAPH_SUPPRESS_DEPRECATED_START
             auto name = input.get_tensor().get_name();
@@ -2101,7 +2101,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         }
 
         uint64_t count_of_skipped = 0;
-        for (size_t i = 0; i < layer->get_input_size(); i++) {
+        for (size_t i = 0; i < layer->input_size(); i++) {
             const auto &output_port = layer->input_value(i);
             const auto &input = output_port.get_node_shared_ptr();
 

@@ -35,13 +35,13 @@ bool is_subscript_applicable(const std::string& subscript) {
 /// \return     a vector of pairs with input indices assuming that the intermediate result is
 /// appended in the tail
 ///
-std::vector<std::pair<size_t, size_t>> compute_einsum_path(std::shared_ptr<const ngraph::opset7::Einsum> einsum_node) {
+std::vector<std::pair<size_t, size_t>> compute_einsum_path(const std::shared_ptr<const ngraph::opset7::Einsum>& einsum_node) {
     // TODO: implement algorithm for finding (pseudo-)optimal einsum_path
     std::vector<std::pair<size_t, size_t>> einsum_path;
-    const size_t num_inputs = einsum_node->get_input_size();
+    const size_t num_inputs = einsum_node->input_size();
     NGRAPH_CHECK(num_inputs > 0);
     for (size_t input_ind = num_inputs - 1; input_ind > 0; --input_ind) {
-        einsum_path.push_back(std::make_pair(0, input_ind));
+        einsum_path.emplace_back(0, input_ind);
     }
     return einsum_path;
 }
@@ -58,7 +58,7 @@ std::vector<std::pair<size_t, size_t>> compute_einsum_path(std::shared_ptr<const
 /// \return     true - a dimension to reduce, false - otherwise
 ///
 bool is_dimension_reduced(const std::vector<std::string>& input_subscripts, const std::string& output_subscript,
-    const std::string label_to_check, const std::vector<size_t>& excluded_indices) {
+    const std::string& label_to_check, const std::vector<size_t>& excluded_indices) {
     for (size_t input_ind = 0; input_ind < input_subscripts.size(); ++input_ind) {
         const auto& input_subscript = input_subscripts[input_ind];
         // the subscript is checked only if its index is not in excluded indices list
@@ -169,8 +169,8 @@ void update_operands(ngraph::OutputVector& input_nodes, std::vector<std::string>
 ///
 ngraph::OutputVector compute_sub_shape(const ngraph::Output<ngraph::Node>& data_shape, size_t s_begin, size_t s_end, ngraph::NodeVector& subgraph_nodes,
                                        bool is_product = false) {
-    int64_t begin = static_cast<int64_t>(s_begin);
-    int64_t end = static_cast<int64_t>(s_end);
+    auto begin = static_cast<int64_t>(s_begin);
+    auto end = static_cast<int64_t>(s_end);
     ngraph::OutputVector sub_shape_vector;
     if (end <= begin) {
         return sub_shape_vector;

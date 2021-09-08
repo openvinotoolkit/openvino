@@ -18,7 +18,7 @@ namespace op {
 namespace util {
 
 bool get_single_value(const std::shared_ptr<op::Constant>& const_node, float& value) {
-    switch (const_node->get_element_type()) {
+    switch (const_node->output_element_type(0)) {
     case element::Type_t::f16:
         return util::normalize_single_value(const_node->get_vector<float16>(), value);
     case element::Type_t::f32:
@@ -50,7 +50,7 @@ bool get_single_value(const std::shared_ptr<op::Constant>& const_node, float& va
 
 std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::Constant>& constant,
                                          const PartialShape& shape) {
-    auto const_shape = constant->get_shape();
+    auto const_shape = constant->output_shape(0).to_shape();
     if (static_cast<int64_t>(const_shape.size()) == shape.rank().get_length()) {
         return constant;
     }
@@ -131,7 +131,7 @@ bool is_seq_len_provided(const std::shared_ptr<Node> &seq_len_input, int64_t max
 }
 
 std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node) {
-    const auto& num_outputs = node->get_output_size();
+    const auto& num_outputs = node->output_size();
     NGRAPH_CHECK(num_outputs == 1, "Unary has unexpected number of outputs:" + std::to_string(num_outputs));
     OutputVector output(num_outputs);
     return node->constant_fold(output, node->input_values()) ? output[0].get_node_shared_ptr() : node;
@@ -144,7 +144,7 @@ std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<Node>& node, const Ou
 
 std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node) {
     std::vector<Input<Node>> result;
-    for (auto output : node->outputs()) {
+    for (const auto& output : node->outputs()) {
         for (auto input : output.get_target_inputs()) {
             result.push_back(input);
         }

@@ -73,7 +73,7 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
             return false;
 
         auto bin_weights = binarize_weights(weights);
-        auto bin_weights_constant = std::make_shared<opset5::Constant>(element::u1, weights_constant->get_shape(), bin_weights.data());
+        auto bin_weights_constant = std::make_shared<opset5::Constant>(element::u1, weights_constant->output_shape(0).get_shape(), bin_weights.data());
 
         if (output_low_is_zero && output_high_is_one) {
             auto new_conv = std::make_shared<opset5::BinaryConvolution>(conv->input_value(0), bin_weights_constant,
@@ -87,14 +87,14 @@ ngraph::pass::ConvToBinaryConv::ConvToBinaryConv() {
             new_conv->set_friendly_name(conv->get_friendly_name());
             std::vector<int64_t> axes;
             std::vector<int64_t> weights_reduced_shape = {-1};
-            for (size_t i = 1; i < weights_constant->get_shape().size(); i++) {
+            for (size_t i = 1; i < weights_constant->output_shape(0).get_shape().size(); i++) {
                 axes.push_back(i);
             }
-            for (size_t i = 2; i < weights_constant->get_shape().size(); i++) {
+            for (size_t i = 2; i < weights_constant->output_shape(0).get_shape().size(); i++) {
                 weights_reduced_shape.push_back(1);
             }
             auto weights_reduced = std::make_shared<opset5::ReduceSum>(
-                    op::Constant::create(element::f32, weights_constant->get_shape(), weights),
+                    op::Constant::create(element::f32, weights_constant->output_shape(0).get_shape(), weights),
                     op::Constant::create(element::i64, Shape{axes.size()}, axes), false);
             std::shared_ptr<Node> weights_reduced_reshaped = std::make_shared<opset5::Reshape>(weights_reduced,
                                                                               op::Constant::create(element::i64,

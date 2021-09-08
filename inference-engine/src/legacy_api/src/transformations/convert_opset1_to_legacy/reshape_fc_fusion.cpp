@@ -28,8 +28,8 @@ ngraph::pass::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
 
         // Check that Reshape reshapes 4D tensor to 2D or input shape = output shape
         auto shape_in = reshape->input_value(0).get_shape();
-        auto shape_out = reshape->get_shape();
-        if (!((shape_in.size() == 4 && reshape->get_shape().size() == 2) || (shape_in == shape_out && !shape_in.empty()))) {
+        auto shape_out = reshape->output_shape(0).to_shape();
+        if (!((shape_in.size() == 4 && reshape->output_shape(0).to_shape().size() == 2) || (shape_in == shape_out && !shape_in.empty()))) {
             return false;
         }
 
@@ -42,7 +42,7 @@ ngraph::pass::ReshapeFullyConnectedFusion::ReshapeFullyConnectedFusion() {
         auto new_fc = std::make_shared<op::FullyConnected>(reshape->input_value(0),
                                                             fc->input_value(1),
                                                             fc->input_value(2),
-                                                            fc->get_shape(),
+                                                            fc->output_shape(0).to_shape(),
                                                             fc->output(0).get_element_type());
 
         new_fc->set_friendly_name(fc->get_friendly_name());

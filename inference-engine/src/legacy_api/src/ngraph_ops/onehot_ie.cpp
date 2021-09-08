@@ -17,7 +17,7 @@ op::OneHotIE::OneHotIE(const Output<ngraph::Node>& input, int axis, int depth, f
 }
 
 void op::OneHotIE::validate_and_infer_types() {
-    const PartialShape& arg_shape = get_input_partial_shape(0);
+    const PartialShape& arg_shape = input_shape(0);
 
     if (arg_shape.rank().is_dynamic()) {
         set_output_type(0, m_type, PartialShape::dynamic());

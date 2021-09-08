@@ -46,16 +46,16 @@ std::shared_ptr<Node> op::ScaleShiftIE::clone_with_new_inputs(const OutputVector
 
 void op::ScaleShiftIE::validate_and_infer_types() {
     //  Check that weights and biases has the same type
-    element::Type data_et = output_type == element::undefined ? get_input_element_type(0) : output_type;
-    element::Type weights_et = get_input_element_type(1);
-    element::Type biases_et = get_input_element_type(2);
+    element::Type data_et = output_type == element::undefined ? input_element_type(0) : output_type;
+    element::Type weights_et = input_element_type(1);
+    element::Type biases_et = input_element_type(2);
 
     element::Type et_result;
     NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, weights_et, biases_et),
                           "Element types for bias and weights do not match (biases element type: ", biases_et,
                           ", weights element type: ", weights_et, ").");
 
-    set_output_type(0, data_et, get_input_partial_shape(0));
+    set_output_type(0, data_et, input_shape(0));
 }
 
 bool ngraph::op::ScaleShiftIE::visit_attributes(AttributeVisitor& visitor) {

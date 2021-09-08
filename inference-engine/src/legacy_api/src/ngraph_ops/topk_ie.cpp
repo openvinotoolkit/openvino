@@ -26,14 +26,14 @@ std::shared_ptr<Node> op::TopKIE::clone_with_new_inputs(const ngraph::OutputVect
 }
 
 void op::TopKIE::validate_and_infer_types() {
-    const auto& input_partial_shape = get_input_partial_shape(0);
+    const auto& input_partial_shape = input_shape(0);
     const auto input_rank = input_partial_shape.rank();
 
     NODE_VALIDATION_CHECK(this,
                           input_rank.is_dynamic() || input_rank.get_length() > 0,
                           "Input rank must be greater than 0.");
 
-    const auto& k_partial_shape = get_input_partial_shape(1);
+    const auto& k_partial_shape = input_shape(1);
     NODE_VALIDATION_CHECK(
         this, k_partial_shape.rank().compatible(1), "The 'K' input must be a 1D tensor.");
 
@@ -51,8 +51,8 @@ void op::TopKIE::validate_and_infer_types() {
     }
 
     set_output_size(2);
-    set_output_type(0, topk->get_output_element_type(0), topk->get_output_partial_shape(0));
-    set_output_type(1, topk->get_output_element_type(1), topk->get_output_partial_shape(1));
+    set_output_type(0, topk->output_element_type(0), topk->output_shape(0));
+    set_output_type(1, topk->output_element_type(1), topk->output_shape(1));
 }
 
 bool op::TopKIE::visit_attributes(AttributeVisitor& visitor) {

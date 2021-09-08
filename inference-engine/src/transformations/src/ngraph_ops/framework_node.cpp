@@ -20,15 +20,15 @@ shared_ptr<Node> op::FrameworkNode::clone_with_new_inputs(const OutputVector& ne
     INTERNAL_OP_SCOPE(FrameworkNode_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto node = std::make_shared<op::FrameworkNode>(new_args);
-    for (size_t i = 0; i < get_output_size(); ++i) {
-        node->set_output_type(i, get_output_element_type(i), get_output_partial_shape(i));
+    for (size_t i = 0; i < output_size(); ++i) {
+        node->set_output_type(i, output_element_type(i), output_shape(i));
     }
     return node;
 }
 
 void op::FrameworkNode::cache_output_descriptor() {
-    for (size_t i = 0; i < get_output_size(); ++i) {
-        m_output_desc.emplace_back(get_output_partial_shape(i), get_output_element_type(i));
+    for (size_t i = 0; i < output_size(); ++i) {
+        m_output_desc.emplace_back(output_shape(i), output_element_type(i));
     }
 }
 
@@ -38,10 +38,10 @@ void op::FrameworkNode::validate_and_infer_types() {
     bool initialize_input_desc = m_inputs_desc.empty();
     bool reset_output_shape_to_dynamic = false;
     bool reset_output_shape_to_original = false;
-    for (uint64_t i = 0; i < get_input_size(); i++) {
+    for (uint64_t i = 0; i < input_size(); i++) {
         // TODO: store constant values
-        const auto& input_pshape = get_input_partial_shape(i);
-        const auto& input_type = get_input_element_type(i);
+        const auto& input_pshape = input_shape(i);
+        const auto& input_type = input_element_type(i);
         const auto& rank = input_pshape.rank();
 
         const auto & get_error_message = [&]() {
@@ -81,15 +81,15 @@ void op::FrameworkNode::validate_and_infer_types() {
 
     if (reset_output_shape_to_dynamic) {
         cache_output_descriptor();
-        for (size_t i = 0; i < get_output_size(); ++i) {
-            if (get_output_partial_shape(i).rank().is_static()) {
-                set_output_type(i, get_output_element_type(i), PartialShape::dynamic());
+        for (size_t i = 0; i < output_size(); ++i) {
+            if (output_shape(i).rank().is_static()) {
+                set_output_type(i, output_element_type(i), PartialShape::dynamic());
             }
         }
     }
 
     if (reset_output_shape_to_original && !m_output_desc.empty()) {
-        for (size_t i = 0; i < get_output_size(); ++i) {
+        for (size_t i = 0; i < output_size(); ++i) {
             set_output_type(i, std::get<1>(m_output_desc[i]), std::get<0>(m_output_desc[i]));
         }
     }

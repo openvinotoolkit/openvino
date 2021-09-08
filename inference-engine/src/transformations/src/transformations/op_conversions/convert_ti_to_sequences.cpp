@@ -49,7 +49,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         bool match = false;
         auto func = ti->get_body();
         for (const auto& res : func->get_results()) {
-            match = matcher.match((res->get_input_source_output(0)));
+            match = matcher.match((res->input_source_output(0)));
             if (match)
                 break;
         }
@@ -62,7 +62,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
             matcher.clear_state();
             matcher.m_pattern_node = unsqueeze;
             for (const auto& res : func->get_results()) {
-                match = matcher.match((res->get_input_source_output(0)));
+                match = matcher.match((res->input_source_output(0)));
                 if (match)
                     break;
             }
@@ -99,7 +99,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
                 if (!(slice_axis == 0 || slice_axis == 1)) {
                     return false;
                 }
-                batch_size = param->get_shape()[slice_axis == 0 ? 1 : 0];
+                batch_size = param->output_shape(0).to_shape()[slice_axis == 0 ? 1 : 0];
                 ordered_in_descs[0] = input_desc;
             } else if (param == pattern_map[input_H_state]) {
                 ordered_in_descs[1] = input_desc;
@@ -114,7 +114,7 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         std::vector<std::shared_ptr<ngraph::opset5::TensorIterator::OutputDescription>> ordered_out_descs(3);
         for (const auto& output_desc : ti->get_output_descriptions()) {
             std::shared_ptr<opset5::Result> res = results[output_desc->m_body_value_index];
-            if (res->get_input_source_output(0) == pattern_map[unsqueeze]) {
+            if (res->input_source_output(0) == pattern_map[unsqueeze]) {
                 auto concat_output
                         = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator::ConcatOutputDescription>(output_desc);
                 if (!concat_output)
@@ -122,9 +122,9 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
 
                 stride = concat_output->m_stride;
                 ordered_out_descs[0] = output_desc;
-            } else if (res->get_input_source_output(0) == found_cell->output(0)) {
+            } else if (res->input_source_output(0) == found_cell->output(0)) {
                 ordered_out_descs[1] = output_desc;
-            } else if (res->get_input_source_output(0) == found_cell->output(1)) {
+            } else if (res->input_source_output(0) == found_cell->output(1)) {
                 ordered_out_descs[2] = output_desc;
             } else {
                 return false;
@@ -226,7 +226,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         bool match = false;
         auto func = ti->get_body();
         for (const auto& res : func->get_results()) {
-            match = matcher.match((res->get_input_source_output(0)));
+            match = matcher.match((res->input_source_output(0)));
             if (match)
                 break;
         }
@@ -258,7 +258,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
                 if (!(slice_axis == 0 || slice_axis == 1)) {
                     return false;
                 }
-                batch_size = param->get_shape()[slice_axis == 0 ? 1 : 0];
+                batch_size = param->output_shape(0).to_shape()[slice_axis == 0 ? 1 : 0];
                 ordered_in_descs[0] = input_desc;
             } else if (param == pattern_map[input_H_state]) {
                 ordered_in_descs[1] = input_desc;
@@ -273,7 +273,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         std::vector<std::shared_ptr<ngraph::opset5::TensorIterator::OutputDescription>> ordered_out_descs(2);
         for (const auto& output_desc : ti->get_output_descriptions()) {
             std::shared_ptr<opset5::Result> res = results[output_desc->m_body_value_index];
-            if (res->get_input_source_output(0) == pattern_map[unsqueeze]) {
+            if (res->input_source_output(0) == pattern_map[unsqueeze]) {
                 auto concat_output
                         = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator::ConcatOutputDescription>(output_desc);
                 if (!concat_output)
@@ -281,7 +281,7 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
 
                 stride = concat_output->m_stride;
                 ordered_out_descs[0] = output_desc;
-            } else if (res->get_input_source_output(0) == pattern_map[cell]->output(0)) {
+            } else if (res->input_source_output(0) == pattern_map[cell]->output(0)) {
                 ordered_out_descs[1] = output_desc;
             } else {
                 return false;
@@ -382,7 +382,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         bool match = false;
         auto func = ti->get_body();
         for (const auto& res : func->get_results()) {
-            match = matcher.match((res->get_input_source_output(0)));
+            match = matcher.match((res->input_source_output(0)));
             if (match)
                 break;
         }
@@ -414,7 +414,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
                 if (!(slice_axis == 0 || slice_axis == 1)) {
                     return false;
                 }
-                batch_size = param->get_shape()[slice_axis == 0 ? 1 : 0];
+                batch_size = param->output_shape(0).to_shape()[slice_axis == 0 ? 1 : 0];
                 ordered_in_descs[0] = input_desc;
             } else if (param == pattern_map[input_H_state]) {
                 ordered_in_descs[1] = input_desc;
@@ -429,7 +429,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         std::vector<std::shared_ptr<ngraph::opset5::TensorIterator::OutputDescription>> ordered_out_descs(2);
         for (const auto& output_desc : ti->get_output_descriptions()) {
             std::shared_ptr<opset5::Result> res = results[output_desc->m_body_value_index];
-            if (res->get_input_source_output(0) == pattern_map[unsqueeze]) {
+            if (res->input_source_output(0) == pattern_map[unsqueeze]) {
                 auto concat_output
                         = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator::ConcatOutputDescription>(output_desc);
                 if (!concat_output)
@@ -437,7 +437,7 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
 
                 stride = concat_output->m_stride;
                 ordered_out_descs[0] = output_desc;
-            } else if (res->get_input_source_output(0) == pattern_map[cell]->output(0)) {
+            } else if (res->input_source_output(0) == pattern_map[cell]->output(0)) {
                 ordered_out_descs[1] = output_desc;
             } else {
                 return false;

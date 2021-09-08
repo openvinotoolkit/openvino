@@ -30,8 +30,8 @@ std::shared_ptr<Node> op::Eltwise::clone_with_new_inputs(const OutputVector& new
 
 void op::Eltwise::validate_and_infer_types() {
     //  Check that weights and biases has the same type
-    element::Type data1_et = get_input_element_type(0);
-    element::Type data2_et = get_input_element_type(1);
+    element::Type data1_et = input_element_type(0);
+    element::Type data2_et = input_element_type(1);
 
     element::Type et_result;
     if (m_output_type == element::undefined) {
@@ -41,14 +41,14 @@ void op::Eltwise::validate_and_infer_types() {
         et_result = m_output_type;
     }
 
-    if (get_input_partial_shape(0).rank().is_dynamic() ||
-        get_input_partial_shape(1).rank().is_dynamic()) {
+    if (input_shape(0).rank().is_dynamic() ||
+        input_shape(1).rank().is_dynamic()) {
         set_output_type(0, et_result, PartialShape::dynamic());
         return;
     }
 
-    std::vector<Dimension> shape1(get_input_partial_shape(0));
-    std::vector<Dimension> shape2(get_input_partial_shape(1));
+    std::vector<Dimension> shape1(input_shape(0));
+    std::vector<Dimension> shape2(input_shape(1));
 
     std::vector<Dimension> output_shape(PartialShape::dynamic(std::max(shape1.size(), shape2.size())));
     auto output_shape_it = output_shape.rbegin();

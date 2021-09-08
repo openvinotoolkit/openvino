@@ -46,7 +46,7 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
             return false;
 
         std::shared_ptr<Node> new_const = mul_const;
-        auto const_shape = mul_const->get_shape();
+        auto const_shape = mul_const->output_shape(0).to_shape();
         size_t const_shape_size = shape_size(const_shape);
         bool is_single_value = const_shape_size == 1;
 
@@ -54,7 +54,7 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
             float v;
             is_single_value = op::util::get_single_value(mul_const, v);
             if (is_single_value) {
-                new_const = std::make_shared<opset5::Constant>(mul_const->get_element_type(), Shape{1}, v);
+                new_const = std::make_shared<opset5::Constant>(mul_const->output_element_type(0), Shape{1}, v);
                 const_shape = Shape{1};
             }
         }
@@ -65,7 +65,7 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
                 !(const_shape.size() > 1 && const_shape[1] == const_shape_size)) {
                 return false;
             }
-            const auto& rank = fq->get_input_partial_shape(0).rank();
+            const auto& rank = fq->input_shape(0).rank();
             if (rank.is_dynamic())
                 return false;
             auto fq_users = fq->get_users();

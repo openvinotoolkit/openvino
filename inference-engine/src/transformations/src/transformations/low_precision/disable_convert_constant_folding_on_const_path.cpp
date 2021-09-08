@@ -45,7 +45,7 @@ ngraph::pass::DisableConvertConstantFoldingOnConstPath::DisableConvertConstantFo
         //           \      /
         //           Multiply
         //
-        auto parent = convert->get_input_node_ptr(0);
+        auto parent = convert->input_node_ptr(0);
         auto target_inputs = convert->output(0).get_target_inputs();
         if (target_inputs.empty()) {
             return false;

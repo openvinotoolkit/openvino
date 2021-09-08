@@ -58,9 +58,9 @@ enum BlobType {
 
 inline Blob::Ptr shareWeights(const std::shared_ptr<ngraph::op::Constant>& constLayer) {
     if (!constLayer) IE_THROW() << "Cannot share weights! Constant operation is empty!";
-    auto dataPrecision = convertPrecision(constLayer->get_element_type());
+    auto dataPrecision = convertPrecision(constLayer->output_element_type(0));
 
-    size_t shapeSize = ngraph::shape_size(constLayer->get_shape());
+    size_t shapeSize = ngraph::shape_size(constLayer->output_shape(0).to_shape());
     constexpr size_t byte_size{8};
     if (dataPrecision == Precision::BIN) {
         shapeSize = (shapeSize + (byte_size - 1)) / byte_size;

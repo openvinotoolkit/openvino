@@ -90,7 +90,7 @@ ngraph::pass::GRUCellDecomposition::GRUCellDecomposition() {
         auto h_t = ngraph::op::util::activation(gru_cell->get_activations()[1], clamp_h);
 
         // Ht = (1 - zt) (.) ht + zt (.) Ht-1
-        auto one = opset4::Constant::create(z_t->get_element_type(), Shape{1}, {1.f});
+        auto one = opset4::Constant::create(z_t->output_element_type(0), Shape{1}, {1.f});
         auto sub = std::make_shared<opset4::Subtract>(one, z_t);
         auto mul_1 = std::make_shared<opset4::Multiply>(sub, h_t);
         auto mul_2 = std::make_shared<opset4::Multiply>(z_t, H_t);

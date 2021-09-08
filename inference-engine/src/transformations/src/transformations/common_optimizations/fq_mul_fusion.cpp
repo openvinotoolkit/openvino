@@ -63,7 +63,7 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         const auto & original_output_low = pattern_map.at(fq_output_low_p);
         const auto & original_output_high = pattern_map.at(fq_output_high_p);
         auto mul_constant = pattern_map.at(mul_constant_p).get_node_shared_ptr();
-        auto mul_constant_shape = mul_constant->get_shape();
+        auto mul_constant_shape = mul_constant->output_shape(0).to_shape();
         bool is_single_value = shape_size(mul_constant_shape) == 1;
 
         if (!is_single_value) {
@@ -73,7 +73,7 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
                 is_single_value = op::util::get_single_value(constant, v);
                 if (is_single_value) {
                     mul_constant_shape = Shape{1};
-                    mul_constant = std::make_shared<opset4::Constant>(mul_constant->get_element_type(), mul_constant_shape, v);
+                    mul_constant = std::make_shared<opset4::Constant>(mul_constant->output_element_type(0), mul_constant_shape, v);
                 }
             }
         }
@@ -129,11 +129,11 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
             return false;
         }
         if (fq_casted->get_auto_broadcast() == op::AutoBroadcastType::NUMPY) {
-            if (fq_casted->get_output_partial_shape(0).is_dynamic() ||
-                mul_node->get_output_partial_shape(0).is_dynamic()) {
+            if (fq_casted->output_shape(0).is_dynamic() ||
+                mul_node->output_shape(0).is_dynamic()) {
                 return false;
             }
-            if (fq_casted->get_shape() != mul_node->get_shape()) {
+            if (fq_casted->output_shape(0).to_shape() != mul_node->output_shape(0).to_shape()) {
                 return false;
             }
         }

@@ -178,8 +178,8 @@ ngraph::pass::ConvertRNNSequenceToTensorIterator::ConvertRNNSequenceToTensorIter
             // create initial values for body_parameters in outer graph
             // aggregated Y_h - concatenation of the last non-zero values for each batch
             auto aggregated_Y_h = std::make_shared<ngraph::opset5::Constant>(H_body_param->get_element_type(),
-                                                                             H_body_param->get_shape(),
-                                                                             std::vector<float>(shape_size(H_body_param->get_shape()),
+                                                                             H_body_param->output_shape(0).to_shape(),
+                                                                             std::vector<float>(shape_size(H_body_param->output_shape(0).to_shape()),
                                                                                                 0.f));
             auto init_val_curr_iter = std::make_shared<ngraph::opset5::Constant>(seq_lengths.get_element_type(),
                                                                                  ngraph::Shape{1},
@@ -337,8 +337,8 @@ ngraph::pass::ConvertGRUSequenceToTensorIterator::ConvertGRUSequenceToTensorIter
             // create initial values for body_parameters in outer graph
             // aggregated Y_h - concatenation of the last non-zero values for each batch
             auto aggregated_Y_h = std::make_shared<ngraph::opset5::Constant>(H_body_param->get_element_type(),
-                                                                             H_body_param->get_shape(),
-                                                                             std::vector<float>(shape_size(H_body_param->get_shape()),
+                                                                             H_body_param->output_shape(0).to_shape(),
+                                                                             std::vector<float>(shape_size(H_body_param->output_shape(0).to_shape()),
                                                                                                 0.f));
             auto init_val_curr_iter = std::make_shared<ngraph::opset5::Constant>(seq_lengths.get_element_type(),
                                                                                  ngraph::Shape{1},
@@ -510,12 +510,12 @@ ngraph::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIt
             // create initial values for body_parameters in outer graph
             // aggregated Y_h - concatenation of the last non-zero values for each batch
             auto aggregated_Y_h = std::make_shared<ngraph::opset5::Constant>(H_body_param->get_element_type(),
-                                                                             H_body_param->get_shape(),
-                                                                             std::vector<float>(shape_size(H_body_param->get_shape()),
+                                                                             H_body_param->output_shape(0).to_shape(),
+                                                                             std::vector<float>(shape_size(H_body_param->output_shape(0).to_shape()),
                                                                                                 0.f));
             auto aggregated_Y_c = std::make_shared<ngraph::opset5::Constant>(C_body_param->get_element_type(),
-                                                                             C_body_param->get_shape(),
-                                                                             std::vector<float>(shape_size(C_body_param->get_shape()),
+                                                                             C_body_param->output_shape(0).to_shape(),
+                                                                             std::vector<float>(shape_size(C_body_param->output_shape(0).to_shape()),
                                                                                                 0.f));
             auto init_val_curr_iter = std::make_shared<ngraph::opset5::Constant>(seq_lengths.get_element_type(),
                                                                                  ngraph::Shape{1},

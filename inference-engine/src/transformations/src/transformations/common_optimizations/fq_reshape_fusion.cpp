@@ -39,7 +39,7 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         if (fq_node->is_dynamic())
             return false;
         const auto &reshape_node = pattern_map.at(reshape_node_p).get_node_shared_ptr();
-        const auto &original_data_rank = fq_node->get_input_shape(0).size();
+        const auto &original_data_rank = fq_node->input_shape(0).to_shape().size();
         OutputVector renewed_inputs = {reshape_node->clone_with_new_inputs({fq_node->input_value(0), reshape_node->input_value(1)})};
         for (auto i = 1; i < 5; ++i) {
             Output<Node> limit_input = fq_node->input_value(i);
@@ -51,7 +51,7 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
             const auto &limit_size = shape_size(limit_shape);
             const auto &max_element = *std::max_element(limit_shape.begin(), limit_shape.end());
             if (max_element == limit_size) { // per-tensor / per-channel limit
-                auto new_limit_shape = reshape_node->get_output_shape(0);
+                auto new_limit_shape = reshape_node->output_shape(0).to_shape();
                 std::transform(new_limit_shape.begin(), new_limit_shape.end(), new_limit_shape.begin(),
                                [max_element](size_t &dim) { return dim == max_element ? max_element : 1; });
                 const auto &new_limit_size = shape_size(new_limit_shape);

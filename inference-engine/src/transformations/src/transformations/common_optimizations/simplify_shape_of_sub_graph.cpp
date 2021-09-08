@@ -39,7 +39,7 @@ bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Functi
             continue;
         const auto& root_ss = pair.second[0];
         for (const auto& child_ss : pair.second)
-            if (root_ss->get_instance_id() != child_ss->get_instance_id() && root_ss->get_output_element_type(0) == root_ss->get_output_element_type(0))
+            if (root_ss->get_instance_id() != child_ss->get_instance_id() && root_ss->output_element_type(0) == root_ss->output_element_type(0))
                 graph_rewritten |= replace_output_update_name(child_ss->output(0), root_ss->output(0));
     }
     return graph_rewritten;
@@ -106,8 +106,8 @@ ngraph::pass::GatherNopElimination::GatherNopElimination() {
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto gather = m.get_match_root();
-        const auto& number_of_indices = shape_size(gather->get_input_shape(1));
-        if (gather->get_input_shape(0) != gather->get_output_shape(0) || shape_size(gather->get_input_shape(2)) != 1 || number_of_indices > 10)
+        const auto& number_of_indices = shape_size(gather->input_shape(1).to_shape());
+        if (gather->input_shape(0) != gather->output_shape(0) || shape_size(gather->input_shape(2).to_shape()) != 1 || number_of_indices > 10)
             return false;
         std::vector<int64_t> expected_vector(number_of_indices);
         std::iota(expected_vector.begin(), expected_vector.end(), 0);
@@ -135,8 +135,8 @@ ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
         if (!gather) {
             return false;
         }
-        auto gather_in_rank = gather->get_input_partial_shape(0).rank();
-        auto indices_rank = gather->get_input_partial_shape(1).rank();
+        auto gather_in_rank = gather->input_shape(0).rank();
+        auto indices_rank = gather->input_shape(1).rank();
         auto axis = gather->get_axis();
         if (gather_in_rank.is_dynamic() || indices_rank.is_dynamic() ||
             axis == opset3::Gather::AXIS_NOT_SET_VALUE) {
@@ -145,7 +145,7 @@ ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
 
         auto zero_axis = opset3::Constant::create<int64_t>(element::i64, Shape{}, {0});
         NodeVector new_ops;
-        auto new_shapeof = std::make_shared<opset3::ShapeOf>(gather->input_value(0), node->get_output_element_type(0));
+        auto new_shapeof = std::make_shared<opset3::ShapeOf>(gather->input_value(0), node->output_element_type(0));
         new_ops.push_back(new_shapeof);
         std::shared_ptr<Node> replace_op;
         if (indices_rank.get_length() == 0) {
@@ -165,7 +165,7 @@ ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
                 new_ops.push_back(new_gather);
                 concat_inputs.push_back(new_gather);
             }
-            auto shapeof_indices = std::make_shared<opset3::ShapeOf>(gather->input_value(1), node->get_output_element_type(0));
+            auto shapeof_indices = std::make_shared<opset3::ShapeOf>(gather->input_value(1), node->output_element_type(0));
             new_ops.push_back(shapeof_indices);
 
             concat_inputs.push_back(shapeof_indices);

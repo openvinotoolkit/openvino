@@ -49,7 +49,7 @@ ngraph::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
         if (!is_square_pow) {
             return false;
         }
-        if (shape_size(eps_attr->get_shape()) > 1) {
+        if (shape_size(eps_attr->output_shape(0).to_shape()) > 1) {
             return false;
         }
         const auto eps_attr_value = eps_attr->cast_vector<float>()[0];

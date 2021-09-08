@@ -25,11 +25,11 @@ ngraph::pass::NormalizeL2Decomposition::NormalizeL2Decomposition() {
         }
 
         auto power = std::make_shared<opset8::Power>(normalize_l2->input_value(0),
-                                                     opset8::Constant::create(normalize_l2->get_input_element_type(0), Shape{}, {2.0}));
+                                                     opset8::Constant::create(normalize_l2->input_element_type(0), Shape{}, {2.0}));
         auto reduce_sum = std::make_shared<opset8::ReduceSum>(power, normalize_l2->input_value(1), true);
 
         std::shared_ptr<Node> eps_node;
-        auto eps_const_node = opset8::Constant::create(normalize_l2->get_input_element_type(0), Shape{}, {normalize_l2->get_eps()});
+        auto eps_const_node = opset8::Constant::create(normalize_l2->input_element_type(0), Shape{}, {normalize_l2->get_eps()});
         switch (normalize_l2->get_eps_mode()) {
             case op::EpsMode::ADD:
                 eps_node = std::make_shared<opset8::Add>(reduce_sum, eps_const_node);

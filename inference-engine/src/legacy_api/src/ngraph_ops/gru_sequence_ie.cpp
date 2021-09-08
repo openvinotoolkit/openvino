@@ -37,17 +37,17 @@ op::GRUSequenceIE::GRUSequenceIE(const Output<Node>& X,
 void op::GRUSequenceIE::validate_and_infer_types() {
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
-            set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+            set_output_type(0, input_element_type(0), PartialShape::dynamic());
+            set_output_type(1, input_element_type(0), PartialShape::dynamic());
             return;
         }
     }
     // rank validation
-    auto x_pshape = get_input_partial_shape(0);
-    auto h_state_pshape = get_input_partial_shape(1);
-    auto seq_lengths_pshape = get_input_partial_shape(2);
-    auto wr_pshape = get_input_partial_shape(3);
-    auto b_pshape = get_input_partial_shape(4);
+    auto x_pshape = input_shape(0);
+    auto h_state_pshape = input_shape(1);
+    auto seq_lengths_pshape = input_shape(2);
+    auto wr_pshape = input_shape(3);
+    auto b_pshape = input_shape(4);
     std::vector<ngraph::PartialShape> pshapes = {x_pshape, h_state_pshape, seq_lengths_pshape, wr_pshape, b_pshape};
 
     std::vector<std::string> in_names = {"X", "H", "seq_lengths", "WR", "B"};
@@ -60,12 +60,12 @@ void op::GRUSequenceIE::validate_and_infer_types() {
                      " input rank is not correct.");
     }
 
-    element::Type arg_type = get_input_element_type(0);
+    element::Type arg_type = input_element_type(0);
     PartialShape output_shape_0{PartialShape::dynamic(3)};
     PartialShape output_shape_1{PartialShape::dynamic(2)};
-    if (get_input_partial_shape(0).is_static()) {
-        size_t batch_size = get_input_partial_shape(0).get_shape()[1 - m_seq_axis];
-        size_t seq_length = get_input_partial_shape(0).get_shape()[m_seq_axis];
+    if (input_shape(0).is_static()) {
+        size_t batch_size = input_shape(0).get_shape()[1 - m_seq_axis];
+        size_t seq_length = input_shape(0).get_shape()[m_seq_axis];
         if (m_seq_axis == 1)
             output_shape_0 = Shape{batch_size, seq_length, m_hidden_size};
         else

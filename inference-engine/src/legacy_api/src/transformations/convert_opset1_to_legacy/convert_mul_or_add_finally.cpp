@@ -52,10 +52,10 @@ ngraph::matcher_pass_callback get_callback() {
         const auto output_shape = lin_op->output(0).get_partial_shape();
         const auto output_shape_rank = output_shape.rank().get_length();
 
-        const auto intInputs = !lin_op->get_input_element_type(0).is_real() &&
-                               !lin_op->get_input_element_type(1).is_real();
+        const auto intInputs = !lin_op->input_element_type(0).is_real() &&
+                               !lin_op->input_element_type(1).is_real();
 
-        if (!lin_op->get_element_type().is_real() || intInputs) {
+        if (!lin_op->output_element_type(0).is_real() || intInputs) {
             return convert_to_eltwise<T>(lin_op,
                                          lin_op->input(0).get_source_output(),
                                          lin_op->input(1).get_source_output());
@@ -116,7 +116,7 @@ ngraph::matcher_pass_callback get_callback() {
         // Check that eltwise is not useless and do not broadcast output otherwise we remove it
         if (((std::is_same<T, ngraph::opset1::Add>() && ngraph::op::util::constantIsEqualTo(const_node, 0)) ||
             (std::is_same<T, ngraph::opset1::Multiply>() && ngraph::op::util::constantIsEqualTo(const_node, 1))) &&
-            !constant_broadcast_output(data_node.get_partial_shape(), const_node->get_shape())) {
+            !constant_broadcast_output(data_node.get_partial_shape(), const_node->output_shape(0).to_shape())) {
             bool ret_status = ngraph::replace_output_update_name(lin_op->output(0), data_node);
             if (ret_status) {
                 return true;
@@ -133,8 +133,8 @@ ngraph::matcher_pass_callback get_callback() {
 
         // TODO: if all values in Constant are equal the best way is to convert this Eltwise to Power
         if (res == CONVERSION_RESULT::SCALE_SHIFT) {
-            auto weights_et = const_node->get_element_type();
-            auto weights_shape = const_node->get_shape();
+            auto weights_et = const_node->output_element_type(0);
+            auto weights_shape = const_node->output_shape(0).to_shape();
 
             // In case of Add we create fake weights with 1, in case of Multiply we create fake bias with 0
             std::shared_ptr<ngraph::op::ScaleShiftIE> scaleshift;
@@ -173,11 +173,11 @@ ngraph::matcher_pass_callback get_callback() {
             // In case Add we create fake scale equal to 1, in case of Multiply we create fake shift equal to 0
             std::shared_ptr<ngraph::op::PowerIE> power;
             if (std::is_same<T, ngraph::opset1::Add>()) {
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, 1.0f, value, lin_op->get_output_element_type(0));
+                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, 1.0f, value, lin_op->output_element_type(0));
             } else if (std::is_same<T, ngraph::opset1::Multiply>()) {
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, value, 0.0f, lin_op->get_output_element_type(0));
+                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, value, 0.0f, lin_op->output_element_type(0));
             } else if (std::is_same<T, ngraph::opset1::Subtract>()) {
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, 1.0f, -value, lin_op->get_output_element_type(0));
+                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, 1.0f, -value, lin_op->output_element_type(0));
             } else {
                 return false;
             }

@@ -144,9 +144,9 @@ pass::BinarizeWeights::BinarizeWeights() {
         const std::shared_ptr<Node>& weights_norm_factor = weights_output_high_const;
 
         // Create new FQ on activations with new output low/high
-        auto output_low_normalized = op::Constant::create(element::f32, activations_output_low_const->get_shape(), activations_output_low);
+        auto output_low_normalized = op::Constant::create(element::f32, activations_output_low_const->output_shape(0).get_shape(), activations_output_low);
         output_low_normalized->set_friendly_name(activations_output_low_const->get_friendly_name());
-        auto output_high_normalized = op::Constant::create(element::f32, activations_output_high_const->get_shape(), activations_output_high);
+        auto output_high_normalized = op::Constant::create(element::f32, activations_output_high_const->output_shape(0).get_shape(), activations_output_high);
         output_high_normalized->set_friendly_name(activations_output_high_const->get_friendly_name());
         auto new_activations_fq = activations_fq->clone_with_new_inputs({activations_fq->input_value(0),
                                                                          activations_fq->input_value(1),
@@ -159,16 +159,16 @@ pass::BinarizeWeights::BinarizeWeights() {
         auto weights = weights_const->cast_vector<float>();
         auto weights_input_low = weights_input_low_const->cast_vector<float>();
         auto weights_input_high = weights_input_high_const->cast_vector<float>();
-        auto quantized_weights = quantize_weights(weights_const->get_shape(), weights,
-                                                  weights_input_low_const->get_shape(), weights_input_low, weights_input_high,
-                                                  weights_output_low_const->get_shape(), weights_output_low, weights_output_high);
-        auto quantized_weights_const = op::Constant::create(element::f32, weights_const->get_shape(), quantized_weights);
+        auto quantized_weights = quantize_weights(weights_const->output_shape(0).get_shape(), weights,
+                                                  weights_input_low_const->output_shape(0).get_shape(), weights_input_low, weights_input_high,
+                                                  weights_output_low_const->output_shape(0).get_shape(), weights_output_low, weights_output_high);
+        auto quantized_weights_const = op::Constant::create(element::f32, weights_const->output_shape(0).get_shape(), quantized_weights);
         quantized_weights_const->set_friendly_name(weights_const->get_friendly_name());
         auto new_conv = conv->clone_with_new_inputs({new_activations_fq, quantized_weights_const});
         new_conv->set_friendly_name(conv->get_friendly_name());
 
         std::vector<int64_t> norm_factor_shape = {-1};
-        for (size_t i = 2; i < weights_const->get_shape().size(); i++)
+        for (size_t i = 2; i < weights_const->output_shape(0).get_shape().size(); i++)
             norm_factor_shape.push_back(1);
         auto norm_factor_shape_const = opset5::Constant::create(element::i64, Shape{norm_factor_shape.size()}, norm_factor_shape);
 

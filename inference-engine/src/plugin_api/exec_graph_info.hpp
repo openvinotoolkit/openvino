@@ -119,11 +119,11 @@ public:
 
         cloned->set_arguments(inputs);
 
-        for (auto kvp : get_rt_info())
+        for (const auto& kvp : get_rt_info())
             cloned->get_rt_info()[kvp.first] = kvp.second;
 
-        for (size_t i = 0; i < get_output_size(); ++i)
-            cloned->set_output_type(i, get_output_element_type(i), get_output_partial_shape(i));
+        for (size_t i = 0; i < output_size(); ++i)
+            cloned->set_output_type(i, output_element_type(i), output_shape(i));
 
         return cloned;
     }

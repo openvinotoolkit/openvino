@@ -27,10 +27,10 @@ op::LSTMCellIE::LSTMCellIE(const Output<Node>& X, const Output<Node>& H_t, const
 }
 
 void op::LSTMCellIE::validate_and_infer_types() {
-    element::Type arg_type = get_input_element_type(0);
+    element::Type arg_type = input_element_type(0);
     PartialShape output_shape{PartialShape::dynamic(2)};
-    if (get_input_partial_shape(0).is_static()) {
-        int64_t batch_size = get_input_partial_shape(0).get_shape()[0];
+    if (input_shape(0).is_static()) {
+        int64_t batch_size = input_shape(0).get_shape()[0];
         output_shape = {batch_size, m_hidden_size};
     }
     set_output_type(0, arg_type, output_shape);

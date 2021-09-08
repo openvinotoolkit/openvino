@@ -27,10 +27,10 @@ shared_ptr<Node> op::GatherTreeIE::clone_with_new_inputs(const OutputVector& new
 }
 
 void op::GatherTreeIE::validate_and_infer_types() {
-    const auto& step_ids_rank = get_input_partial_shape(0);
-    const auto& parent_idx_rank = get_input_partial_shape(1);
-    const auto& max_seq_len_rank = get_input_partial_shape(2);
-    const auto& end_token_rank = get_input_partial_shape(3);
+    const auto& step_ids_rank = input_shape(0);
+    const auto& parent_idx_rank = input_shape(1);
+    const auto& max_seq_len_rank = input_shape(2);
+    const auto& end_token_rank = input_shape(3);
 
     NODE_VALIDATION_CHECK(this,
                           step_ids_rank.rank().is_dynamic() ||
@@ -60,7 +60,7 @@ void op::GatherTreeIE::validate_and_infer_types() {
                           end_token_rank.rank().get_length(),
                           ")");
 
-    const auto& step_ids_et = get_input_element_type(0);
+    const auto& step_ids_et = input_element_type(0);
     set_output_type(0, step_ids_et, step_ids_rank);
 }
 

@@ -25,7 +25,7 @@ bool replace_transpose_with_reshape(const std::shared_ptr<Node>& transpose) {
     const size_t input_shape_rank = input_shape.rank().get_length();
 
     auto order = ov::as_type_ptr<opset6::Constant>(transpose->input_value(1).get_node_shared_ptr());
-    if (!order || !ngraph::shape_size(order->get_shape())) {
+    if (!order || !ngraph::shape_size(order->output_shape(0).to_shape())) {
         return false;
     }
 

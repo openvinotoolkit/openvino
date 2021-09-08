@@ -17,7 +17,7 @@ bool check_beta_value(const std::shared_ptr<ngraph::opset4::Constant>& constant)
     if (!constant) {
         return false;
     }
-    if (constant->get_element_type() == ngraph::element::f32 || constant->get_element_type() == ngraph::element::f16) {
+    if (constant->output_element_type(0) == ngraph::element::f32 || constant->output_element_type(0) == ngraph::element::f16) {
         auto data = constant->cast_vector<float>();
         if (!std::equal(data.begin() + 1, data.end(), data.begin())) {
             return false;

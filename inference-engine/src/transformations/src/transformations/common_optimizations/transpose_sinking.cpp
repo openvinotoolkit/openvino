@@ -80,13 +80,13 @@ ngraph::pass::TransposeReduction::TransposeReduction() {
         else if (arithmetic_reduce)
             keep_dims = arithmetic_reduce->get_keep_dims();
 
-        auto transpose_order = std::dynamic_pointer_cast<ngraph::opset6::Constant>(transpose->get_input_node_shared_ptr(1));
-        auto reduction_axes = std::dynamic_pointer_cast<ngraph::opset6::Constant>(reduction->get_input_node_shared_ptr(1));
+        auto transpose_order = std::dynamic_pointer_cast<ngraph::opset6::Constant>(transpose->input_node_shared_ptr(1));
+        auto reduction_axes = std::dynamic_pointer_cast<ngraph::opset6::Constant>(reduction->input_node_shared_ptr(1));
         if (!transpose_order || !reduction_axes)
             return false;
 
         const auto& non_negative_axes = ngraph::normalize_axes(
-                reduction->get_friendly_name(), reduction_axes->cast_vector<int64_t>(), reduction->get_input_partial_shape(0).rank());
+                reduction->get_friendly_name(), reduction_axes->cast_vector<int64_t>(), reduction->input_shape(0).rank());
         reduction_axes = ngraph::opset6::Constant::create(ngraph::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ngraph::NodeVector new_ops;
@@ -129,7 +129,7 @@ ngraph::pass::TransposeFQReduction::TransposeFQReduction() {
         auto &pattern_to_output = m.get_pattern_value_map();
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
-        auto transpose_order = std::dynamic_pointer_cast<opset6::Constant>(transpose->get_input_node_shared_ptr(1));
+        auto transpose_order = std::dynamic_pointer_cast<opset6::Constant>(transpose->input_node_shared_ptr(1));
         auto fq = pattern_to_output.at(fq_label).get_node_shared_ptr();
         if (!transpose || !transpose_order || !fq)
             return false;
@@ -139,7 +139,7 @@ ngraph::pass::TransposeFQReduction::TransposeFQReduction() {
         const auto& reverse_order_constant = get_reversed_order_constant(transpose_order);
         new_ops.push_back(reverse_order_constant);
 
-        const auto& input_rank = fq->get_input_partial_shape(0).rank().get_length();
+        const auto& input_rank = fq->input_shape(0).rank().get_length();
         ngraph::OutputVector fq_inputs = {transpose->input_value(0)};
         for (size_t i = 1; i < fq->inputs().size(); ++i) {
             auto input = fq->input_value(i);
@@ -189,8 +189,8 @@ ngraph::pass::TransposeFuse::TransposeFuse() {
         auto transpose2 = pattern_to_output.at(transpose_2).get_node_shared_ptr();
         auto input = transpose1->input_value(0);
 
-        auto transpose1_order = std::dynamic_pointer_cast<ngraph::opset7::Constant>(transpose1->get_input_node_shared_ptr(1));
-        auto transpose2_order = std::dynamic_pointer_cast<ngraph::opset7::Constant>(transpose2->get_input_node_shared_ptr(1));
+        auto transpose1_order = std::dynamic_pointer_cast<ngraph::opset7::Constant>(transpose1->input_node_shared_ptr(1));
+        auto transpose2_order = std::dynamic_pointer_cast<ngraph::opset7::Constant>(transpose2->input_node_shared_ptr(1));
         if (!transpose1_order || !transpose2_order)
             return false;
 

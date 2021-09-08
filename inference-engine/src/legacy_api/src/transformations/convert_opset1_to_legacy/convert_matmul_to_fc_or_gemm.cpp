@@ -37,7 +37,7 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         auto shape_a = input_a.get_shape();
         auto shape_b = input_b.get_shape();
-        auto output_shape = matmul->get_shape();
+        auto output_shape = matmul->output_shape(0).to_shape();
 
         // Transformation to FC is not supported for 1D second input
         if (shape_b.size() == 1) {
@@ -88,7 +88,7 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
          */
 
         auto create_transpose = [this](Output<Node> node, const std::string& transpose_name) -> std::shared_ptr<Node> {
-            Shape output_shape = node.get_node_shared_ptr()->get_shape();
+            Shape output_shape = node.get_node_shared_ptr()->output_shape(0).to_shape();
 
             std::vector<size_t> transpose_order(output_shape.size());
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
@@ -150,7 +150,7 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
 
             // Create FullyConnected
             std::vector<float> bias_value(O, 0);
-            auto fc_bias = opset1::Constant::create(matmul->get_output_element_type(0), Shape {O}, bias_value);
+            auto fc_bias = opset1::Constant::create(matmul->output_element_type(0), Shape {O}, bias_value);
 
             auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, fc_bias, output_shape, matmul->output(0).get_element_type());
             fc->set_friendly_name(matmul->get_friendly_name());
@@ -185,7 +185,7 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
 
         auto shape_a = input_a.get_shape();
         auto shape_b = input_b.get_shape();
-        auto output_shape = matmul->get_shape();
+        auto output_shape = matmul->output_shape(0).to_shape();
 
         auto fc_input_a = input_a, fc_input_b = input_b;
         NodeVector new_ops;
@@ -234,12 +234,12 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
         auto gemm = matmul->copy_with_new_inputs({ fc_input_a, fc_input_b });
         new_ops.push_back(gemm);
 
-        if (gemm->get_shape() != output_shape) {
+        if (gemm->output_shape(0).to_shape() != output_shape) {
             // This case is possible when one of the inputs has exactly 1 dimension (that is not supported by GEMM operation)
             // So to preserve output shape we insert additional reshape operation
             std::shared_ptr<ngraph::Node> reshape_output;
             if (output_shape.size() == 0) {
-                std::vector<int64_t> dim_indices(gemm->get_shape().size());
+                std::vector<int64_t> dim_indices(gemm->output_shape(0).to_shape().size());
                 std::iota(dim_indices.begin(), dim_indices.end(), 0);
                 reshape_output = std::make_shared<ngraph::opset1::Squeeze>(gemm,
                     ngraph::opset1::Constant::create(element::i64, Shape{dim_indices.size()}, dim_indices));

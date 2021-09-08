@@ -81,7 +81,7 @@ ngraph::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
 
         auto transpose_order = ngraph::opset7::Constant::create(element::i64, { (size_t)rank.get_length() }, order);
         auto transpose = register_new_node<ngraph::opset7::Transpose>(input, transpose_order);
-        auto shape_after = ngraph::opset7::Constant::create(element::i64, { (size_t)rank.get_length() - 1 }, concat->get_output_shape(0));
+        auto shape_after = ngraph::opset7::Constant::create(element::i64, { (size_t)rank.get_length() - 1 }, concat->output_shape(0).to_shape());
         auto reshape = std::make_shared<ngraph::opset7::Reshape>(transpose, shape_after, false);
 
         reshape->set_friendly_name(m.get_match_root()->get_friendly_name());

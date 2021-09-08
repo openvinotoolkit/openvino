@@ -42,8 +42,8 @@ public:
 
 template <typename BaseNmsOp>
 void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
-    const auto boxes_ps = this->get_input_partial_shape(0);
-    const auto scores_ps = this->get_input_partial_shape(1);
+    const auto boxes_ps = this->input_shape(0);
+    const auto scores_ps = this->input_shape(1);
 
     auto first_dim_shape = Dimension::dynamic();
 

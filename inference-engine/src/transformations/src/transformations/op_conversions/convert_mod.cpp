@@ -26,7 +26,7 @@ ngraph::pass::ConvertMod::ConvertMod() {
 
         const auto dividend = std::make_shared<opset1::Abs>(mod->input_value(0));
         const auto dividend_sign = std::make_shared<opset1::Sign>(mod->input_value(0));
-        const auto dividend_et = dividend->get_element_type();
+        const auto dividend_et = dividend->output_element_type(0);
         const auto divisor = std::make_shared<opset1::Abs>(mod->input_value(1));
 
         // truncated(a / b)

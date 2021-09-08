@@ -47,7 +47,7 @@ bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
     }
 
     auto isLowPrecision = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
-        const ngraph::element::Type inputType = node->get_input_element_type(index);
+        const ngraph::element::Type inputType = node->input_element_type(index);
         return (inputType == ngraph::element::i8) || (inputType == ngraph::element::u8);
     };
 
@@ -57,7 +57,7 @@ bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
         return true;
     }
 
-    const std::shared_ptr<ngraph::opset1::Subtract> subtract = ngraph::as_type_ptr<ngraph::opset1::Subtract>(conv->get_input_node_shared_ptr(0));
+    const std::shared_ptr<ngraph::opset1::Subtract> subtract = ngraph::as_type_ptr<ngraph::opset1::Subtract>(conv->input_node_shared_ptr(0));
     if (subtract == nullptr) {
         return false;
     }
@@ -78,8 +78,8 @@ bool conv_callback(ngraph::pattern::Matcher &m) {
         return false;
     }
 
-    const auto & const_shape = m_const->get_shape();
-    const auto & output_pshape = m_conv->get_output_partial_shape(0);
+    const auto & const_shape = m_const->output_shape(0).to_shape();
+    const auto & output_pshape = m_conv->output_shape(0);
 
     if (output_pshape.rank().is_dynamic() || output_pshape[1].is_dynamic()) {
         return false;

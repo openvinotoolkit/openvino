@@ -88,7 +88,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                     const auto& cur_param = body_functions[j]->get_parameters()[merged_desc->m_body_parameter_index];
                     const auto& prev_val = body_functions[j - 1]->get_results()[merged_desc->m_body_value_index];
                     for (auto &output : cur_param->outputs()) {
-                        output.replace(prev_val->get_input_source_output(0));
+                        output.replace(prev_val->input_source_output(0));
                     }
                 }
             } else if (const auto &invariant_desc = std::dynamic_pointer_cast<ngraph::opset6::TensorIterator::InvariantInputDescription>(
@@ -127,7 +127,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                     for (int64_t j = 0; j < num_iter; j++) {
                         auto idx = stride > 0 ? j : num_iter - j - 1;
                         std::shared_ptr<opset6::Result> result = body_functions[idx]->get_results()[concat_desc->m_body_value_index];
-                        auto input_to_res = result->get_input_source_output(0);
+                        auto input_to_res = result->input_source_output(0);
                         to_concat[j] = input_to_res;
                     }
                     auto concat = std::make_shared<ngraph::opset6::Concat>(to_concat, concat_desc->m_axis);
@@ -146,7 +146,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                     // Connect outputs of the bodies to the corresponding TI outputs
                     std::shared_ptr<opset6::Result> result = body_functions[0]->get_results().at(
                             concat_desc->m_body_value_index);
-                    const auto& input_to_res = result->get_input_source_output(0);
+                    const auto& input_to_res = result->input_source_output(0);
                     // set output name to Tensor to store it for ngraph to cnn conversion
                     NGRAPH_SUPPRESS_DEPRECATED_START
                     input_to_res.get_tensor().set_name(
@@ -170,7 +170,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
                         op::util::create_ie_output_name(sub_graph_op->output(output_desc->m_output_index)));
                 NGRAPH_SUPPRESS_DEPRECATED_END
                 for (const auto &input : sub_graph_op->output(output_desc->m_output_index).get_target_inputs()) {
-                    input.replace_source_output(result->get_input_source_output(0));
+                    input.replace_source_output(result->input_source_output(0));
                 }
             } else {
                 // "Incorrect type of the output description."

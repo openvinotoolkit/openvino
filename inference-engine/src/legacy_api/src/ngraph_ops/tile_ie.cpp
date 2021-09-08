@@ -26,7 +26,7 @@ std::shared_ptr<Node> op::TileIE::clone_with_new_inputs(const OutputVector& new_
 }
 
 void op::TileIE::validate_and_infer_types() {
-    const auto & input_pshape = get_input_partial_shape(0);
+    const auto & input_pshape = input_shape(0);
     auto output_pshape = PartialShape::dynamic();
     if (input_pshape.rank().is_static()) {
         const auto & rank = input_pshape.rank().get_length();
@@ -39,7 +39,7 @@ void op::TileIE::validate_and_infer_types() {
         }
     }
 
-    set_output_type(0, get_input_element_type(0), output_pshape);
+    set_output_type(0, input_element_type(0), output_pshape);
 }
 
 bool op::TileIE::visit_attributes(AttributeVisitor& visitor) {

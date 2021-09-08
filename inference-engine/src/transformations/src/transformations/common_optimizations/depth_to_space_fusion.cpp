@@ -101,19 +101,19 @@ ngraph::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
         }
 
         auto permute = std::dynamic_pointer_cast<ngraph::opset3::Transpose>(reshape_after->input_value(0).get_node_shared_ptr());
-        if (!permute || permute->get_output_target_inputs(0).size() != 1) {
+        if (!permute || permute->output(0).get_target_inputs().size() != 1) {
             return false;
         }
 
         auto reshape_before = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(permute->input_value(0).get_node_shared_ptr());
-        if (!reshape_before || reshape_before->get_output_target_inputs(0).size() != 1) {
+        if (!reshape_before || reshape_before->output(0).get_target_inputs().size() != 1) {
             return false;
         }
 
-        auto p_shape_input = reshape_before->get_input_partial_shape(0);
-        auto p_shape_reshape_before = reshape_before->get_output_partial_shape(0);
-        auto p_shape_permute = permute->get_output_partial_shape(0);
-        auto p_shape_reshape_after = reshape_after->get_output_partial_shape(0);
+        auto p_shape_input = reshape_before->input_shape(0);
+        auto p_shape_reshape_before = reshape_before->output_shape(0);
+        auto p_shape_permute = permute->output_shape(0);
+        auto p_shape_reshape_after = reshape_after->output_shape(0);
 
         if (p_shape_input.is_dynamic() || p_shape_reshape_before.is_dynamic() ||
             p_shape_permute.is_dynamic() || p_shape_reshape_after.is_dynamic()) {

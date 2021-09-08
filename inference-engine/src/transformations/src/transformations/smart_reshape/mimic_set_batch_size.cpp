@@ -19,11 +19,11 @@ bool ngraph::pass::MimicSetBatchSize::run_on_function(std::shared_ptr<ngraph::Fu
     std::map<std::string, float> scale;
     for (const auto & node : specialized_function->get_ops()) {
         if (const auto & reshape = std::dynamic_pointer_cast<opset5::Reshape>(node)) {
-            const auto in_pshape = reshape->get_input_partial_shape(0), out_pshape = reshape->get_output_partial_shape(0);
+            const auto in_pshape = reshape->input_shape(0), out_pshape = reshape->output_shape(0);
             if (in_pshape.rank().is_dynamic() || in_pshape.rank().get_length() <= 1 || in_pshape[0].is_dynamic() ||
                 out_pshape.rank().is_dynamic() || out_pshape.rank().get_length() <= 1 || out_pshape[0].is_dynamic())
                 continue;
-            const auto & pattern = std::dynamic_pointer_cast<opset5::Constant>(reshape->get_input_node_shared_ptr(1));
+            const auto & pattern = std::dynamic_pointer_cast<opset5::Constant>(reshape->input_node_shared_ptr(1));
             if (pattern && pattern->cast_vector<int64_t>()[0] > 0) {
                 scale[reshape->get_friendly_name()] = static_cast<float>(out_pshape[0].get_length()) / static_cast<float>(in_pshape[0].get_length());
             }
@@ -32,10 +32,10 @@ bool ngraph::pass::MimicSetBatchSize::run_on_function(std::shared_ptr<ngraph::Fu
     // apply transformation to original function
     bool transformed = false;
     for (auto & reshape : f->get_ops()) {
-        if (!is_type<opset5::Reshape>(reshape) || !scale.count(reshape->get_friendly_name()) || reshape->get_output_partial_shape(0).rank().is_dynamic())
+        if (!is_type<opset5::Reshape>(reshape) || !scale.count(reshape->get_friendly_name()) || reshape->output_shape(0).rank().is_dynamic())
             continue;
 
-        const auto & shape_of = std::make_shared<opset5::ShapeOf>(reshape->get_input_source_output(0), reshape->get_input_element_type(1));
+        const auto & shape_of = std::make_shared<opset5::ShapeOf>(reshape->input_source_output(0), reshape->input_element_type(1));
         const auto & new_input_batch = std::make_shared<ngraph::opset5::Gather>(
                 shape_of, ngraph::opset5::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{0}),
                 ngraph::opset5::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0}));
@@ -45,9 +45,9 @@ bool ngraph::pass::MimicSetBatchSize::run_on_function(std::shared_ptr<ngraph::Fu
                         std::make_shared<opset5::Multiply>(
                                 std::make_shared<opset5::Convert>(new_input_batch, element::f32),
                                 opset5::Constant::create(element::f32, {1}, {scale[reshape->get_friendly_name()]}))),
-                reshape->get_input_element_type(1));
+                reshape->input_element_type(1));
 
-        std::vector<int64_t> non_batch_dims(reshape->get_output_partial_shape(0).rank().get_length() - 1);
+        std::vector<int64_t> non_batch_dims(reshape->output_shape(0).rank().get_length() - 1);
         std::iota(non_batch_dims.begin(), non_batch_dims.end(), 1);
         const auto & non_batch_dims_node = std::make_shared<ngraph::opset5::Gather>(
                 reshape->input_value(1),

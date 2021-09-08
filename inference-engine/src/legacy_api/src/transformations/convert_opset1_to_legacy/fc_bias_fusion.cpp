@@ -15,7 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::FullyConnectedBiasFusion, "FullyConnectedBiasFusion", 0);
 
 ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
-    auto m_fc = ngraph::pattern::wrap_type<op::FullyConnected>([](Output<Node> output) {
+    auto m_fc = ngraph::pattern::wrap_type<op::FullyConnected>([](const Output<Node>& output) {
         return pattern::consumers_count(1)(output) &&
                pattern::has_static_shape()(output);
     });
@@ -40,8 +40,8 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
             return false;
         }
 
-        Shape bias_shape(bias->get_shape());
-        Shape output_shape(fc->get_shape());
+        Shape bias_shape(bias->output_shape(0).to_shape());
+        Shape output_shape(fc->output_shape(0).to_shape());
         size_t bias_size = std::accumulate(bias_shape.begin(), bias_shape.end(), size_t{1}, std::multiplies<int64_t>());
         if (bias_shape.empty() ||
             (bias_shape.back() != output_shape.back() && bias_shape.back() != 1) ||
@@ -54,7 +54,7 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         auto new_bias = std::make_shared<opset1::Add>(fc->input(2).get_source_output(), bias);
         new_ops.push_back(new_bias);
         std::shared_ptr<Node> final_bias = new_bias;
-        if (new_bias->get_shape().size() >= 2) {
+        if (new_bias->output_shape(0).to_shape().size() >= 2) {
             final_bias = std::make_shared<opset1::Reshape>(final_bias, opset1::Constant::create(element::i64, Shape{1}, {-1}), true);
             new_ops.push_back(final_bias);
         }
@@ -62,7 +62,7 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         auto new_fc = std::make_shared<op::FullyConnected>(fc->input(0).get_source_output(),
                                                            fc->input(1).get_source_output(),
                                                            final_bias,
-                                                           fc->get_shape(),
+                                                           fc->output_shape(0).to_shape(),
                                                            fc->get_output_type());
         new_ops.push_back(new_fc);
 

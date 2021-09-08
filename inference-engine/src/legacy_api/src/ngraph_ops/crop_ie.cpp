@@ -31,7 +31,7 @@ std::shared_ptr<Node> op::CropIE::clone_with_new_inputs(const OutputVector& new_
 }
 
 void op::CropIE::validate_and_infer_types() {
-    auto input_shape = get_input_partial_shape(0).to_shape();
+    auto input_shape = this->input_shape(0).to_shape();
     NODE_VALIDATION_CHECK(this, axes.size() == dim.size(), "axes and dim needs to have same number of values");
 
     NODE_VALIDATION_CHECK(this, axes.size() == offset.size(), "axes and offset needs to have same number of values");
@@ -43,7 +43,7 @@ void op::CropIE::validate_and_infer_types() {
         output_shape[axes[i]] = dim[i];
     }
 
-    set_output_type(0, get_input_element_type(0), PartialShape(output_shape));
+    set_output_type(0, input_element_type(0), PartialShape(output_shape));
 }
 
 bool op::CropIE::visit_attributes(AttributeVisitor &visitor) {

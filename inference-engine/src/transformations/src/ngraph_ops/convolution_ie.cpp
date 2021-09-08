@@ -101,8 +101,8 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
 
 void op::ConvolutionIE::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(ConvolutionIE_validate_and_infer_types);
-    PartialShape data_batch_shape = get_input_partial_shape(0);
-    PartialShape filters_shape = get_input_partial_shape(1);
+    PartialShape data_batch_shape = input_shape(0);
+    PartialShape filters_shape = input_shape(1);
 
     PartialShape result_shape{PartialShape::dynamic()};
 

@@ -103,7 +103,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
         //          crop(D_2 * B_2, crops_begin[2], crops_end[2]), ... ,
         //          crop(D_{N - 1} * B_{N - 1}, crops_begin[N - 1], crops_end[N - 1])]`
         std::vector<int64_t> upperbounds_values;
-        auto flat_node_shape = flat_node->get_shape();
+        auto flat_node_shape = flat_node->output_shape(0).to_shape();
         for (size_t i = 0; i < flat_node_shape.size(); ++i) {
             upperbounds_values.push_back(flat_node_shape.at(i) - crops_end_values.at(i));
         }
@@ -204,7 +204,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         }
 
         std::vector<int64_t> upperbounds_values;
-        auto flat_node_shape = flat_node->get_shape();
+        auto flat_node_shape = flat_node->output_shape(0).to_shape();
         for (size_t i = 0; i < flat_node_shape.size(); ++i) {
             upperbounds_values.push_back(flat_node_shape.at(i) - crops_end_values.at(i));
         }

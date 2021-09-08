@@ -6,7 +6,7 @@
 
 #include <functional>
 #include <memory>
-#include <assert.h>
+#include <cassert>
 #include <vector>
 #include <limits>
 
@@ -30,7 +30,7 @@ bool normalize_single_value(std::vector<T> vec, float & value) {
         if (val != *vec.begin()) return false;
     }
 
-    float ref_val = static_cast<float>(*vec.begin());
+    auto ref_val = static_cast<float>(*vec.begin());
 
     if (ref_val < std::numeric_limits<float>::lowest() || ref_val > std::numeric_limits<float>::max()) {
         return false;
@@ -53,7 +53,7 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
 inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
     const auto& prev_layer = output.get_node_shared_ptr();
     std::string out_name = prev_layer->get_friendly_name();
-    if (prev_layer->get_output_size() != 1)
+    if (prev_layer->output_size() != 1)
         out_name += "." + std::to_string(output.get_index());
     return out_name;
 }
@@ -66,16 +66,16 @@ bool has_constant_value(const std::shared_ptr<ngraph::opset4::Constant>& constan
         return false;
     }
 
-    const bool is_scalar_or_single_elem = is_scalar(constant->get_shape()) ||
-                                          shape_size(constant->get_shape()) == 1;
+    const bool is_scalar_or_single_elem = is_scalar(constant->output_shape(0).to_shape()) ||
+                                          shape_size(constant->output_shape(0).to_shape()) == 1;
     if (!is_scalar_or_single_elem) {
         return false;
     }
 
-    if (constant->get_element_type() == ngraph::element::f16 ||
-        constant->get_element_type() == ngraph::element::f32 ||
-        constant->get_element_type() == ngraph::element::f64 ||
-        constant->get_element_type() == ngraph::element::bf16) {
+    if (constant->output_element_type(0) == ngraph::element::f16 ||
+        constant->output_element_type(0) == ngraph::element::f32 ||
+        constant->output_element_type(0) == ngraph::element::f64 ||
+        constant->output_element_type(0) == ngraph::element::bf16) {
             const auto data = constant->cast_vector<T>();
             if (std::fabs(data[0] - value) > epsilon) {
                 return false;
@@ -123,7 +123,7 @@ std::shared_ptr<Node> make_try_fold(Args&&... args) {
 template <class T>
 Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & input1) {
     auto eltwise = std::make_shared<T>(input0, input1);
-    OutputVector output(eltwise->get_output_size());
+    OutputVector output(eltwise->output_size());
     if (!eltwise->constant_fold(output, {input0, input1})) {
         throw ngraph_error("Can not constant fold eltwise node");
     }

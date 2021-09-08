@@ -11,6 +11,7 @@
 #include <unordered_set>
 
 #include <ngraph/variant.hpp>
+#include <utility>
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -61,7 +62,7 @@ std::string translate_type_name(const std::string& name) {
 
 size_t hash_combine(const void* v, int64_t size) {
     constexpr auto cel_size = sizeof(size_t);
-    size_t seed = static_cast<size_t>(size);
+    auto seed = static_cast<size_t>(size);
     const auto data = static_cast<const size_t*>(v);
     const auto d_end = std::next(data, size / cel_size);
     // The constant value used as a magic number has been
@@ -189,7 +190,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
         std::vector<std::string> output;
         for (pugi::xml_node node : xml_node.child("body").child("layers")) {
             if (!map_type.compare(node.attribute("type").value())) {
-                output.push_back(node.attribute("id").value());
+                output.emplace_back(node.attribute("id").value());
             }
         }
 
@@ -449,7 +450,7 @@ const std::vector<Edge> create_edge_mapping(
             Edge e{};
             e.from_layer = layer_ids.find(source_node)->second;
             e.from_port =
-                source_node->get_input_size() + source_output.get_index();
+                source_node->input_size() + source_output.get_index();
             e.to_layer = layer_ids.find(current_node)->second;
             e.to_port = i.get_index();
             edges.push_back(e);
@@ -548,7 +549,7 @@ std::string escape_delim(const std::string& name, const char delim = ',') {
 }
 
 std::string generate_unique_name(
-    const std::unordered_set<std::string>& unique_names, std::string base_name,
+    const std::unordered_set<std::string>& unique_names, const std::string& base_name,
     int suffix) {
     std::string new_name = base_name + std::to_string(suffix);
     if (unique_names.find(new_name) == unique_names.end()) {
@@ -598,9 +599,9 @@ bool is_exec_graph(const ngraph::Function& f) {
     return false;
 }
 
-bool has_dynamic_output(std::shared_ptr<Node> n) {
-    for (size_t i = 0; i < n->get_output_size(); i++) {
-        if (n->get_output_partial_shape(i).is_dynamic()) {
+bool has_dynamic_output(const std::shared_ptr<Node>& n) {
+    for (size_t i = 0; i < n->output_size(); i++) {
+        if (n->output_shape(i).is_dynamic()) {
             return true;
         }
     }
@@ -610,7 +611,7 @@ bool has_dynamic_output(std::shared_ptr<Node> n) {
 bool resolve_dynamic_shapes(const ngraph::Function& f) {
     const auto & f_ops = f.get_ordered_ops();
     if (std::all_of(f_ops.begin(), f_ops.end(),
-            [](std::shared_ptr<Node> results) {
+            [](const std::shared_ptr<Node>& results) {
                 return !results->is_dynamic() && !has_dynamic_output(results); })) {
         return false;
     }
@@ -645,16 +646,16 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
             return out_shape;
         };
 
-        OutputVector replacements(clone_op->get_output_size());
+        OutputVector replacements(clone_op->output_size());
         if (!clone_op->constant_fold(replacements, clone_op->input_values())) {
-            for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
+            for (size_t output_id = 0; output_id < clone_op->output_size(); ++output_id) {
                 clone_op->set_output_type(output_id, clone_op->output(output_id).get_element_type(),
                         dynamic_to_static(clone_op->output(output_id).get_partial_shape()));
                 op->set_output_type(output_id, clone_op->output(output_id).get_element_type(),
                         clone_op->output(output_id).get_partial_shape());
             }
         } else {
-            for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
+            for (size_t output_id = 0; output_id < clone_op->output_size(); ++output_id) {
                 op->set_output_type(output_id, replacements[output_id].get_element_type(),
                         replacements[output_id].get_partial_shape());
             }
@@ -707,7 +708,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
 
         int port_id = 0;
         // <layers/input>
-        if (node->get_input_size() > 0) {
+        if (node->input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
             for (const auto & i : node->inputs()) {
                 // WA for LSTMCellv0, peephole input shall not be serialized
@@ -736,7 +737,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
             }
         }
         // <layers/output>
-        if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
+        if ((node->output_size() > 0) && !ngraph::op::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
             for (const auto & o : node->outputs()) {
                 pugi::xml_node port = output.append_child("port");
@@ -903,7 +904,7 @@ pass::Serialize::Serialize(std::ostream& xmlFile,
     , m_xmlPath{}
     , m_binPath{}
     , m_version{version}
-    , m_custom_opsets{custom_opsets}
+    , m_custom_opsets{std::move(custom_opsets)}
 {
 }
 
@@ -916,7 +917,7 @@ pass::Serialize::Serialize(const std::string& xmlPath,
     , m_xmlPath{valid_xml_path(xmlPath)}
     , m_binPath{provide_bin_path(xmlPath, binPath)}
     , m_version{version}
-    , m_custom_opsets{custom_opsets}
+    , m_custom_opsets{std::move(custom_opsets)}
 {
 }
 // ! [function_pass:serialize_cpp]

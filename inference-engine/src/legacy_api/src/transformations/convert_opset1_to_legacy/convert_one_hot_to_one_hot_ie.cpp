@@ -44,8 +44,8 @@ ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
         one_hot_ie->set_friendly_name(one_hot->get_friendly_name());
 
         // insert Convert layer to cast output to a correct data type defined by the on/off values
-        if (on_value_node->get_element_type() != m_output_type) {
-            auto convert = std::make_shared<ngraph::opset1::Convert>(one_hot_ie, on_value_node->get_element_type());
+        if (on_value_node->output_element_type(0) != m_output_type) {
+            auto convert = std::make_shared<ngraph::opset1::Convert>(one_hot_ie, on_value_node->output_element_type(0));
             convert->set_friendly_name(one_hot->get_friendly_name());
             ngraph::copy_runtime_info(one_hot, {one_hot_ie, convert});
             ngraph::replace_node(m.get_match_root(), convert);

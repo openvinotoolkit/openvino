@@ -20,13 +20,13 @@ op::PriorBoxClusteredIE::PriorBoxClusteredIE(const Output<Node>& input, const Ou
 }
 
 void op::PriorBoxClusteredIE::validate_and_infer_types() {
-    if (get_input_partial_shape(0).is_dynamic() || get_input_partial_shape(1).is_dynamic()) {
+    if (input_shape(0).is_dynamic() || input_shape(1).is_dynamic()) {
         set_output_type(0, element::f32, PartialShape::dynamic(3));
         return;
     }
 
-    auto input_shape = get_input_shape(0);
-    auto image_shape = get_input_shape(1);
+    auto input_shape = this->input_shape(0).to_shape();
+    auto image_shape = this->input_shape(1).to_shape();
 
     size_t num_priors = m_attrs.widths.size();
 

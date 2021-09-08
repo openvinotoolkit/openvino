@@ -83,8 +83,8 @@ int64_t op::internal::NonMaxSuppressionIEInternal::max_boxes_output_from_input()
 
 void op::internal::NonMaxSuppressionIEInternal::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_NonMaxSuppressionIEInternal_validate_and_infer_types);
-    const auto boxes_ps = get_input_partial_shape(boxes_port);
-    const auto scores_ps = get_input_partial_shape(scores_port);
+    const auto boxes_ps = input_shape(boxes_port);
+    const auto scores_ps = input_shape(scores_port);
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]

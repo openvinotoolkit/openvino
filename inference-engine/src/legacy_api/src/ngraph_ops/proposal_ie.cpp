@@ -20,9 +20,9 @@ op::ProposalIE::ProposalIE(const Output<Node>& class_probs, const Output<Node>& 
 }
 
 void op::ProposalIE::validate_and_infer_types() {
-    const auto& class_probs_pshape = get_input_partial_shape(0);
-    const auto& class_bbox_deltas_pshape = get_input_partial_shape(1);
-    const auto& image_shape_pshape = get_input_partial_shape(2);
+    const auto& class_probs_pshape = input_shape(0);
+    const auto& class_bbox_deltas_pshape = input_shape(1);
+    const auto& image_shape_pshape = input_shape(2);
 
     if (class_probs_pshape.is_static() && class_bbox_deltas_pshape.is_static() && image_shape_pshape.is_static()) {
         const Shape class_probs_shape {class_probs_pshape.to_shape()};
@@ -46,13 +46,13 @@ void op::ProposalIE::validate_and_infer_types() {
                               image_shape_shape[1], ").");
 
         auto batch_size = class_probs_shape[0];
-        set_output_type(0, get_input_element_type(0), Shape {batch_size * m_attrs.post_nms_topn, 5});
+        set_output_type(0, input_element_type(0), Shape {batch_size * m_attrs.post_nms_topn, 5});
         if (m_attrs.infer_probs)
-            set_output_type(1, get_input_element_type(0), Shape {batch_size * m_attrs.post_nms_topn});
+            set_output_type(1, input_element_type(0), Shape {batch_size * m_attrs.post_nms_topn});
     } else {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+        set_output_type(0, input_element_type(0), PartialShape::dynamic());
         if (m_attrs.infer_probs)
-            set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+            set_output_type(1, input_element_type(0), PartialShape::dynamic());
     }
 }
 

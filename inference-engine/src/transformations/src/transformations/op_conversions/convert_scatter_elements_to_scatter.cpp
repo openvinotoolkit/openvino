@@ -53,7 +53,7 @@ ngraph::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter()
 
 
         // Check that axis Constant has {} or {1} shape
-        if (shape_size(axis_const->get_shape()) > 1) {
+        if (shape_size(axis_const->output_shape(0).to_shape()) > 1) {
             return false;
         }
 

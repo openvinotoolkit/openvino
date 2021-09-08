@@ -24,8 +24,8 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
             return false;
         }
 
-        auto& inp_partial_shape = interpolationV0->get_input_partial_shape(0);
-        auto& out_shape = interpolationV0->get_output_shape(0);
+        auto& inp_partial_shape = interpolationV0->input_shape(0);
+        auto out_shape = interpolationV0->output_shape(0).to_shape();
         auto attrsV0 = interpolationV0->get_attrs();
 
         std::vector<float> scales(attrsV0.axes.size(), 1.0f);

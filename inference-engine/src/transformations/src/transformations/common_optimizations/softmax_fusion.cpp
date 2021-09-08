@@ -34,10 +34,10 @@ ngraph::pass::SoftmaxFusion::SoftmaxFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto reduce_max_axes = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(reduce_max_axes_pattern).get_node_shared_ptr());
-        if (!reduce_max_axes || shape_size(reduce_max_axes->get_shape()) != 1)
+        if (!reduce_max_axes || shape_size(reduce_max_axes->output_shape(0).to_shape()) != 1)
             return false;
         auto reduce_sum_axes = std::dynamic_pointer_cast<opset6::Constant>(pattern_map.at(reduce_sum_axes_pattern).get_node_shared_ptr());
-        if (!reduce_sum_axes || shape_size(reduce_sum_axes->get_shape()) != 1)
+        if (!reduce_sum_axes || shape_size(reduce_sum_axes->output_shape(0).to_shape()) != 1)
             return false;
 
         int64_t reduce_max_axis = reduce_max_axes->cast_vector<int64_t>()[0];

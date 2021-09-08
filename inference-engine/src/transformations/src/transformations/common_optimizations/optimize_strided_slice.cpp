@@ -26,7 +26,7 @@ bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ng
             }
         }
         auto ss = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice>(node);
-        if (!ss || ss->get_output_partial_shape(0).is_dynamic() || ss->get_input_partial_shape(0).is_dynamic())
+        if (!ss || ss->output_shape(0).is_dynamic() || ss->input_shape(0).is_dynamic())
             continue;
         if (ss->input(0).get_shape() != ss->output(0).get_shape())
             continue;

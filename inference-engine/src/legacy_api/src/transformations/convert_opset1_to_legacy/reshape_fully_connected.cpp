@@ -29,7 +29,7 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
         }
 
         auto input_shape = fc->input_value(0).get_shape();
-        auto output_shape = fc->get_shape();
+        auto output_shape = fc->output_shape(0).to_shape();
 
         if (input_shape.size() == 2) {
             return false;
@@ -46,7 +46,7 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
 
         // Calculate output shape for new FullyConnected layer
         // [I, K] * [O, K] = [I, O]
-        auto I = reshape->get_shape()[0];
+        auto I = reshape->output_shape(0).to_shape()[0];
         auto O = fc->input_value(1).get_shape()[0];
         Shape output_shape_new{I, O};
 
