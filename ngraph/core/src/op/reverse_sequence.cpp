@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::ReverseSequence, "ReverseSequence", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::ReverseSequence, "ReverseSequence", 0);
 
 op::ReverseSequence::ReverseSequence(const Output<Node>& arg,
                                      const Output<Node>& seq_indices,
