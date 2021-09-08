@@ -290,7 +290,6 @@ zero_sized_lesseq
 zero_sized_maximum
 zero_sized_minimum
 zero_sized_multiply
-zero_sized_not_equal
 zero_sized_power
 zero_sized_subtract
 sum_trivial
