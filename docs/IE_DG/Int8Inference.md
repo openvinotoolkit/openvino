@@ -1,12 +1,5 @@
 # Low-Precision 8-bit Integer Inference {#openvino_docs_IE_DG_Int8Inference}
 
-## Table of Contents
-1. [Supported devices](#supported-devices)
-2. [Low-Precision 8-bit Integer Inference Workflow](#low-precision-8-bit-integer-inference-workflow)
-3. [Prerequisites](#prerequisites)
-4. [Inference](#inference)
-5. [Results analysis](#results-analysis)
-
 ## Supported devices
 
 Low-precision 8-bit inference is optimized for:
@@ -24,34 +17,35 @@ Low-precision 8-bit inference is optimized for:
 
 ## Low-Precision 8-bit Integer Inference Workflow
 
-8-bit computations (referred to as `int8`) offer better performance compared to the results of inference in higher precision (for example, `fp32`), because they allow loading more data into a single processor instruction. Usually the cost for significant boost is a reduced accuracy. However, it is proved that an accuracy drop can be negligible and depends on task requirements, so that the application engineer can set up the maximum accuracy drop that is acceptable.
+8-bit computations (referred to as `int8`) offer better performance compared to the results of inference in higher precision (for example, `fp32`), because they allow loading more data into a single processor instruction. Usually the cost for significant boost is reduced accuracy. However, it is proved that an accuracy drop can be negligible and depends on task requirements, so that the application engineer can set up the maximum accuracy drop that is acceptable.
 
 For 8-bit integer computations, a model must be quantized. Quantized models can be downloaded from [Overview of OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_group_intel). If the model is not quantized, you can use the [Post-Training Optimization Tool](@ref pot_README) to quantize the model. The quantization process adds [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers on activations and weights for most layers. Read more about mathematical computations in the [Uniform Quantization with Fine-Tuning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md).
 
 When you pass the quantized IR to the OpenVINO™ plugin, the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note, if you pass a quantized model to another plugin that does not support 8-bit inference but supports all operations from the model, the model is inferred in precision that this plugin supports.
 
-In *Runtime stage* stage, the quantized model is loaded to the plugin. The plugin uses `Low Precision Transformation` component to update the model to infer it in low precision:
-   - Update `FakeQuantize` layers to have quantized output tensors in low precision range and add dequantization layers to compensate the update. Dequantization layers are pushed through as many layers as possible to have more layers in low precision. After that, most layers have quantized input tensors in low precision range and can be inferred in low precision. Ideally, dequantization layers should be fused in the next `FakeQuantize` layer.
-   - Weights are quantized and stored in `Constant` layers. 
+In *Runtime stage*, the quantized model is loaded to the plugin. The plugin uses the `Low Precision Transformation` component to update the model to infer it in low precision:
+   - Update `FakeQuantize` layers to have quantized output tensors in a low precision range and add dequantization layers to compensate the update. Dequantization layers are pushed through as many layers as possible to have more layers in low precision. After that, most layers quantized input tensors in the low precision range and can be inferred in low precision. Ideally, dequantization layers should be fused in the next `FakeQuantize` layer.
+   - Quantize weights and store them in `Constant` layers. 
 
 ## Prerequisites
 
-Let's explore quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use [Model Downloader](@ref omz_tools_downloader) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
+Let's explore the quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use the [Model Downloader](@ref omz_tools_downloader) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
 ```sh
-./downloader.py --name resnet-50-tf --precisions FP16-INT8
+cd $INTEL_OPENVINO_DIR/deployment_tools/tools/model_downloader
+./downloader.py --name resnet-50-tf --precisions FP16-INT8 --output_dir <your_model_directory>
 ```
-After that you should quantize model by the [Model Quantizer](@ref omz_tools_downloader) tool.
+After that, you should quantize the model by the [Model Quantizer](@ref omz_tools_downloader) tool. For the dataset, you can choose to download the ImageNet dataset from [here](https://www.image-net.org/download.php).
 ```sh
-./quantizer.py --model_dir public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
+./quantizer.py --model_dir --name public/resnet-50-tf --dataset_dir <DATASET_DIR> --precisions=FP16-INT8
 ```
 
 ## Inference
 
-The simplest way to infer the model and collect performance counters is [C++ Benchmark Application](../../inference-engine/samples/benchmark_app/README.md). 
+The simplest way to infer the model and collect performance counters is the [C++ Benchmark Application](../../inference-engine/samples/benchmark_app/README.md). 
 ```sh
 ./benchmark_app -m resnet-50-tf.xml -d CPU -niter 1 -api sync -report_type average_counters  -report_folder pc_report_dir
 ```
-If you infer the model with the OpenVINO™ CPU plugin and collect performance counters, all operations (except last not quantized SoftMax) are executed in INT8 precision.  
+If you infer the model with the Inference Engine CPU plugin and collect performance counters, all operations (except the last non-quantized SoftMax) are executed in INT8 precision.  
 
 ## Results analysis
 

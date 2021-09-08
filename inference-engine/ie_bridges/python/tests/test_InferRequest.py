@@ -365,7 +365,7 @@ def test_async_infer_callback_wait_in_callback(device):
 
 def test_async_infer_wait_while_callback_will_not_finish(device):
     def callback(status, callback_status):
-        time.sleep(0.5)
+        time.sleep(0.01)
         callback_status['finished'] = True
 
     ie_core = ie.IECore()
@@ -381,11 +381,9 @@ def test_async_infer_wait_while_callback_will_not_finish(device):
     assert callback_status['finished'] == True
 
 
+@pytest.mark.ngraph_dependent_test
 def test_get_perf_counts(device):
     ie_core = ie.IECore()
-    if device == "CPU":
-        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to ngraph")
     net = ie_core.read_network(test_net_xml, test_net_bin)
     ie_core.set_config({"PERF_COUNT": "YES"}, device)
     exec_net = ie_core.load_network(net, device)
@@ -532,6 +530,7 @@ def test_resize_algorithm_work(device):
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
 
 
+@pytest.mark.ngraph_dependent_test
 @pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
 @pytest.mark.parametrize("data_type", ["FP32", "FP16", "I32"])
 @pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
