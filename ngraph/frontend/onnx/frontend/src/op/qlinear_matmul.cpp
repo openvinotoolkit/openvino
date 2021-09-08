@@ -11,9 +11,9 @@
 #include <memory>
 #include <vector>
 
-#include "matmul.hpp"
 #include "dequantize_linear.hpp"
 #include "exceptions.hpp"
+#include "matmul.hpp"
 #include "ngraph/opsets/opset6.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "quantize_linear.hpp"
