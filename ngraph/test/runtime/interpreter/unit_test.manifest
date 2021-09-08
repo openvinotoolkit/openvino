@@ -12,8 +12,6 @@ INTERPRETER.onnx_resize10_down_scales_const_nearest
 INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
 
 # nGraph does not support the following ONNX operations
-INTERPRETER.onnx_model_qlinear_matmul
-INTERPRETER.onnx_model_qlinear_matmul_3d
 INTERPRETER.onnx_model_matmul_integer
 INTERPRETER.onnx_model_matmul_integer_zero_point_zero
 INTERPRETER.onnx_model_matmul_integer_no_zero_point
