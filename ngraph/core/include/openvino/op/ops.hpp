@@ -83,6 +83,7 @@
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lrn.hpp"
 #include "openvino/op/lstm_cell.hpp"
