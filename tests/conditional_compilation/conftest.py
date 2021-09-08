@@ -197,12 +197,12 @@ def save_session_info(pytestconfig, artifacts):
 
 
 @pytest.fixture(scope="session")
-def omz_path(request):
+def omz_repo(request):
     """Fixture function for command-line option."""
-    omz_path = request.config.getoption("omz_repo", skip=True)
-    validate_path_arg(omz_path, is_dir=True)
+    omz_repo = request.config.getoption("omz_repo", skip=True)
+    validate_path_arg(omz_repo, is_dir=True)
 
-    return omz_path
+    return omz_repo
 
 
 @pytest.fixture(scope="session")
@@ -220,18 +220,18 @@ def omz_cache_dir(request):
 
 
 @pytest.fixture(scope="function")
-def prepared_models(openvino_ref, models, omz_path, omz_cache_dir, tmpdir):
+def prepared_models(openvino_ref, models, omz_repo, omz_cache_dir, tmpdir):
     """
     Process models: prepare Open Model Zoo models, skip non-OMZ models.
     """
     for model in models:
         if model.get("type") == "omz":
-            model["path"] = prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir, tmpdir)
+            model["path"] = prepare_omz_model(openvino_ref, model, omz_repo, omz_cache_dir, tmpdir)
     models = [model["path"] for model in models]
     return models
 
 
-def prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir, tmpdir):
+def prepare_omz_model(openvino_ref, model, omz_repo, omz_cache_dir, tmpdir):
     """
     Download and convert Open Model Zoo model to Intermediate Representation,
     get path to model XML.
@@ -240,7 +240,7 @@ def prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir, tmpdir):
     omz_log = logging.getLogger("prepare_omz_model")
 
     python_executable = sys.executable
-    downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
+    downloader_path = omz_repo / "tools" / "downloader" / "downloader.py"
     model_path_root = tmpdir
 
     cmd = f'{python_executable} {downloader_path} --name {model["name"]}' \
@@ -254,7 +254,7 @@ def prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir, tmpdir):
     cmd_exec(cmd, log=omz_log)
 
     # Step 2: converter
-    converter_path = omz_path / "tools" / "downloader" / "converter.py"
+    converter_path = omz_repo / "tools" / "downloader" / "converter.py"
     ir_path = model_path_root / "_IR"
     # Note: remove --precisions if both precisions (FP32 & FP16) are required
     cmd = f'{python_executable} {converter_path} --name {model["name"]}' \
@@ -267,7 +267,7 @@ def prepare_omz_model(openvino_ref, model, omz_path, omz_cache_dir, tmpdir):
     cmd_exec(cmd, env=get_openvino_environment(openvino_ref), log=omz_log)
 
     # Step 3: info_dumper
-    info_dumper_path = omz_path / "tools" / "downloader" / "info_dumper.py"
+    info_dumper_path = omz_repo / "tools" / "downloader" / "info_dumper.py"
     cmd = f'"{python_executable}" "{info_dumper_path}" --name {model["name"]}'
 
     return_code, output = cmd_exec(cmd, log=omz_log)
