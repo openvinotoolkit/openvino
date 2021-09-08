@@ -41,20 +41,29 @@ if(NOT TARGET ngraph)
     include("${CMAKE_CURRENT_LIST_DIR}/ngraphTargets.cmake")
 
     # create targets with old names for compatibility
-    set(core ngraph)
-    set(frontendXmanager frontend_manager)
-    set(frontendXonnx onnx_ngraph_frontend)
-    set(frontendXpaddlepaddle paddlepaddle_ngraph_frontend)
+    if(TARGET ngraph::core AND NOT TARGET ngraph::ngraph)
+        add_library(ngraph::ngraph INTERFACE IMPORTED)
+        set_target_properties(ngraph::ngraph PROPERTIES
+            INTERFACE_LINK_LIBRARIES ngraph::core)
+    endif()
 
-    foreach(target core frontend_manager frontendXonnx frontendXpaddlepaddle)
-        string(REPLACE "X" "::" patched_target ${target})
-        set(new_target ngraph::${target})
-        if(TARGET ngraph::${patched_target} AND NOT TARGET ${new_target})
-            add_library(${new_target} INTERFACE IMPORTED)
-            set_target_properties(${new_target} PROPERTIES
-                INTERFACE_LINK_LIBRARIES ngraph::${patched_target})
-        endif()
-    endforeach()
+    if(TARGET ngraph::frontend::manager AND NOT TARGET ngraph::frontend_manager)
+        add_library(ngraph::frontend_manager INTERFACE IMPORTED)
+        set_target_properties(ngraph::frontend_manager PROPERTIES
+            INTERFACE_LINK_LIBRARIES ngraph::frontend::manager)
+    endif()
+
+    if(TARGET ngraph::frontend::onnx AND NOT TARGET ngraph::onnx_ngraph_frontend)
+        add_library(ngraph::onnx_ngraph_frontend INTERFACE IMPORTED)
+        set_target_properties(ngraph::onnx_ngraph_frontend PROPERTIES
+            INTERFACE_LINK_LIBRARIES ngraph::frontend::onnx)
+    endif()
+
+    if(TARGET ngraph::frontend::paddlepaddle AND NOT TARGET ngraph::paddlepaddle_ngraph_frontend)
+        add_library(ngraph::paddlepaddle_ngraph_frontend INTERFACE IMPORTED)
+        set_target_properties(ngraph::paddlepaddle_ngraph_frontend PROPERTIES
+            INTERFACE_LINK_LIBRARIES ngraph::frontend::paddlepaddle)
+    endif()
 endif()
 
 set(ngraph_ngraph_FOUND ON)
