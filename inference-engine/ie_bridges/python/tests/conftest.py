@@ -42,9 +42,9 @@ def device():
 
 
 def pytest_configure(config):
-    # register an additional marker
+    # register an additional markers
     config.addinivalue_line(
-        "markers", "template_plugin"
+        "markers", "template_plugin", "ngraph_dependent_test"
     )
 
 
