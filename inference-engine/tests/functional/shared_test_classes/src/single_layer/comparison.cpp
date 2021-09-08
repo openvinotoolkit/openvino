@@ -8,7 +8,7 @@
 using namespace LayerTestsDefinitions::ComparisonParams;
 
 namespace LayerTestsDefinitions {
-std::string ComparisonLayerTest::getTestCaseName(testing::TestParamInfo<ComparisonTestParams> obj) {
+std::string ComparisonLayerTest::getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj) {
     InputShapesTuple inputShapes;
     InferenceEngine::Precision ngInputsPrecision;
     ngraph::helpers::ComparisonTypes comparisonOpType;

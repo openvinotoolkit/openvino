@@ -1,7 +1,5 @@
 # Inference Engine Developer Guide {#openvino_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide}
 
-> **NOTE:** [Intel® System Studio](https://software.intel.com/content/www/us/en/develop/tools/oneapi/commercial-base-iot.html) (click "Intel® System Studio Users" tab) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
-
 This Guide provides an overview of the Inference Engine describing the typical workflow for performing inference of a pre-trained and optimized deep learning model and a set of sample applications.
 
 > **NOTE:** Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in runtime using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_group_intel).
@@ -43,10 +41,10 @@ This library contains the classes to:
 Starting from 2020.4 release, Inference Engine introduced a concept of `CNNNetwork` reader plugins. Such plugins can be automatically dynamically loaded by Inference Engine in runtime depending on file format:
 * Linux* OS:
     - `libinference_engine_ir_reader.so` to read a network from IR
-    - `libinference_engine_onnx_reader.so` to read a network from ONNX model format
+    - `onnx_ngraph_frontend.so` to read a network from ONNX model format
 * Windows* OS:
     - `inference_engine_ir_reader.dll` to read a network from IR
-    - `inference_engine_onnx_reader.dll` to read a network from ONNX model format
+    - `onnx_ngraph_frontend.dll` to read a network from ONNX model format
 
 ### Device-Specific Plugin Libraries
 
@@ -111,10 +109,8 @@ The common workflow contains the following steps:
 8. **Get the output** - After inference is completed, get the output memory or read the memory you provided earlier. Do this with the `InferenceEngine::IInferRequest::GetBlob()` method.
 
 ## Video: Inference Engine Concept
-[![](https://img.youtube.com/vi/e6R13V8nbak/0.jpg)](https://www.youtube.com/watch?v=e6R13V8nbak)
-\htmlonly
+
 <iframe width="560" height="315" src="https://www.youtube.com/embed/e6R13V8nbak" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-\endhtmlonly
 
 ## Further Reading
 

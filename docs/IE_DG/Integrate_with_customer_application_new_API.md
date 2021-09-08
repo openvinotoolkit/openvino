@@ -35,7 +35,7 @@ Integration process includes the following steps:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part1
 
-**Or read the model from ONNX format** (.onnx and .prototxt are supported formats). You can find more information about the ONNX format support in the document [ONNX format support in the OpenVINO™](./ONNX_Support.md).
+**Or read the model from ONNX format**. You can find more information about the ONNX format support in the document [ONNX format support in the OpenVINO™](./ONNX_Support.md).
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part2
 

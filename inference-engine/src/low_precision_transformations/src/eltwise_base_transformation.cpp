@@ -41,12 +41,6 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    if ((ov::as_type_ptr<ngraph::opset1::Constant>(operation->get_input_node_shared_ptr(0)) ||
-        ov::as_type_ptr<ngraph::opset1::Constant>(operation->get_input_node_shared_ptr(1))) &&
-        !FakeQuantizeDequantization::checkElementwise(operation)) {
-        NetworkHelper::cleanRunTimeInfo(operation);
-    }
-
     FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(operation, 0ul);
     FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(operation, 1ul);
     if ((dequantization1.empty() || ((dequantization1.multiply != nullptr) && !FakeQuantizeDequantization::checkElementwise(dequantization1.multiply))) &&

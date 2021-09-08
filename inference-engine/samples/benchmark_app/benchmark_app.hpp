@@ -19,7 +19,7 @@ static const char input_message[] =
 
 /// @brief message for model argument
 static const char model_message[] =
-    "Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with "
+    "Required. Path to an .xml/.onnx file with a trained model or to a .blob files with "
     "a trained compiled model.";
 
 /// @brief message for execution mode

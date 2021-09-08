@@ -22,7 +22,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Asin::type_info;
+OPENVINO_RTTI_DEFINITION(ov::op::v0::Asin, "Asin", 0, util::BinaryElementwiseArithmetic);
 
 op::Asin::Asin(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

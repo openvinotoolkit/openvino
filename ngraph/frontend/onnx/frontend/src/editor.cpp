@@ -11,6 +11,7 @@
 
 #include "detail/subgraph_extraction.hpp"
 #include "edge_mapper.hpp"
+#include "ngraph/file_util.hpp"
 #include "ngraph/log.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
@@ -18,6 +19,8 @@
 
 using namespace ngraph;
 using namespace ngraph::onnx_editor;
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace {
 using namespace ONNX_NAMESPACE;
@@ -191,11 +194,33 @@ struct onnx_editor::ONNXModelEditor::Impl {
 
     Impl(const std::string& model_path)
         : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_file(model_path))} {}
+
+    Impl(std::istream& model_stream)
+        : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(model_stream))} {}
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    Impl(const std::wstring& model_path)
+        : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_file(model_path))} {}
+#endif
 };
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
     : m_model_path{model_path},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
+                  delete impl;
+              }} {}
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path)
+    : m_model_path{file_util::wstring_to_string(model_path)},
+      m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
+                  delete impl;
+              }} {}
+#endif
+
+onnx_editor::ONNXModelEditor::ONNXModelEditor(std::istream& model_stream, const std::string& model_path)
+    : m_model_path{model_path},
+      m_pimpl{new ONNXModelEditor::Impl{model_stream}, [](Impl* impl) {
                   delete impl;
               }} {}
 

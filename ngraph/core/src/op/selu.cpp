@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Selu, "Selu", 0);
+OPENVINO_RTTI_DEFINITION(op::v0::Selu, "Selu", 0);
 
 op::v0::Selu::Selu(const Output<Node>& data, const Output<Node>& alpha, const Output<Node>& lambda)
     : Op({data, alpha, lambda}) {

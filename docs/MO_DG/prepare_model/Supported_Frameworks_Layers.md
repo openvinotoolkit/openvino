@@ -179,6 +179,7 @@ Standard TensorFlow\* operations:
 | BroadcastTo | No |
 | Cast | No |
 | Ceil | No |
+| ClipByValue | No |
 | Concat | No |
 | ConcatV2 | No |
 | Const | No |
@@ -253,6 +254,7 @@ Standard TensorFlow\* operations:
 | Min | No |
 | Minimum | No |
 | MirrorPad | No |
+| Mod | No |
 | Mul | No |
 | Neg | No |
 | NextIteration | Supported only when it is fused to the TensorIterator layer |

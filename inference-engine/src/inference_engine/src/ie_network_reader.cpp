@@ -96,6 +96,11 @@ namespace {
 // Extension to plugins creator
 std::multimap<std::string, Reader::Ptr> readers;
 
+static ngraph::frontend::FrontEndManager& get_frontend_manager() {
+    static ngraph::frontend::FrontEndManager manager;
+    return manager;
+}
+
 void registerReaders() {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "registerReaders");
     static bool initialized = false;
@@ -114,14 +119,6 @@ void registerReaders() {
             return std::shared_ptr<Reader>();
         return std::make_shared<Reader>(name, library_name);
     };
-
-    // try to load ONNX reader if library exists
-    auto onnxReader =
-        create_if_exists("ONNX", std::string("inference_engine_onnx_reader") + std::string(IE_BUILD_POSTFIX));
-    if (onnxReader) {
-        readers.emplace("onnx", onnxReader);
-        readers.emplace("prototxt", onnxReader);
-    }
 
     // try to load IR reader v10 if library exists
     auto irReaderv10 =
@@ -174,10 +171,6 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 #endif
     // Try to open model file
     std::ifstream modelStream(model_path, std::ios::binary);
-    // save path in extensible array of stream
-    // notice: lifetime of path pointed by pword(0) is limited by current scope
-    const std::string path_to_save_in_stream = modelPath;
-    modelStream.pword(0) = const_cast<char*>(path_to_save_in_stream.c_str());
     if (!modelStream.is_open())
         IE_THROW() << "Model file " << modelPath << " cannot be opened!";
 
@@ -240,7 +233,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         }
     }
     // Try to load with FrontEndManager
-    static ngraph::frontend::FrontEndManager manager;
+    auto& manager = get_frontend_manager();
     ngraph::frontend::FrontEnd::Ptr FE;
     ngraph::frontend::InputModel::Ptr inputModel;
     if (!binPath.empty()) {
@@ -259,10 +252,11 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     }
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
-        return CNNNetwork(ngFunc);
+        return CNNNetwork(ngFunc, exts);
     }
-    IE_THROW() << "Unknown model format! Cannot find reader for model format: " << fileExt
-               << " and read the model: " << modelPath << ". Please check that reader library exists in your PATH.";
+    IE_THROW(NetworkNotRead) << "Unable to read the model: " << modelPath
+                             << " Please check that model format: " << fileExt
+                             << " is supported and the model is correct.";
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model,
@@ -270,7 +264,8 @@ CNNNetwork details::ReadNetwork(const std::string& model,
                                 const std::vector<IExtensionPtr>& exts) {
     // Register readers if it is needed
     registerReaders();
-    std::istringstream modelStream(model);
+    std::istringstream modelStringStream(model);
+    std::istream& modelStream = modelStringStream;
 
     assertIfIRv7LikeModel(modelStream);
 
@@ -282,8 +277,21 @@ CNNNetwork details::ReadNetwork(const std::string& model,
             return reader->read(modelStream, exts);
         }
     }
-    IE_THROW() << "Unknown model format! Cannot find reader for the model and read it. Please check that reader "
-                  "library exists in your PATH.";
+    // Try to load with FrontEndManager
+    // NOTE: weights argument is ignored
+    auto& manager = get_frontend_manager();
+    ngraph::frontend::FrontEnd::Ptr FE;
+    ngraph::frontend::InputModel::Ptr inputModel;
+    FE = manager.load_by_model(&modelStream);
+    if (FE)
+        inputModel = FE->load(&modelStream);
+    if (inputModel) {
+        auto ngFunc = FE->convert(inputModel);
+        return CNNNetwork(ngFunc, exts);
+    }
+
+    IE_THROW(NetworkNotRead)
+        << "Unable to read the model. Please check if the model format is supported and model is correct.";
 }
 
 }  // namespace InferenceEngine

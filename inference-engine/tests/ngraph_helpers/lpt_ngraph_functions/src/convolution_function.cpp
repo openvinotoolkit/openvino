@@ -13,7 +13,6 @@
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph::pass::low_precision;
@@ -106,7 +105,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginalWithIncorrectW
             fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
 
-    const auto subtract = isCorrect ? nullptr : std::make_shared<DequantizationSubtract>(fqOnWeights,
+    const auto subtract = isCorrect ? nullptr : std::make_shared<opset1::Subtract>(fqOnWeights,
         std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{1, 1, 1, 1}, 3.0f));
 
     const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
@@ -148,7 +147,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginalWithIncorrectW
             fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
 
-    const auto subtract = isCorrect ? nullptr : std::make_shared<DequantizationSubtract>(fqOnWeights,
+    const auto subtract = isCorrect ? nullptr : std::make_shared<opset1::Subtract>(fqOnWeights,
         std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, 3.0f));
 
     const auto convolution = std::make_shared<ngraph::opset1::Convolution>(

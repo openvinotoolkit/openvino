@@ -23,7 +23,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::StridedSlice, "StridedSlice", 1);
+OPENVINO_RTTI_DEFINITION(op::v1::StridedSlice, "StridedSlice", 1);
 
 op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                                    const Output<Node>& begin,
@@ -61,7 +61,7 @@ shared_ptr<Node> calculate_default_strides(const Output<Node>& begin, const Outp
                                                    std::make_shared<op::ShapeOf>(begin));
     }
 
-    return op::Constant::create(element::i64, Shape{strides_length}, vector<int64_t>(strides_length, 1));
+    return op::Constant::create(element::i64, ov::StaticShape{strides_length}, vector<int64_t>(strides_length, 1));
 }
 }  // namespace
 
@@ -173,7 +173,7 @@ void op::v1::StridedSlice::validate_and_infer_types() {
                                           convert_mask_to_axis_set(get_shrink_axis_mask()),
                                           convert_mask_to_axis_set(get_ellipsis_mask())));
     } else {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic(data_rank));
+        set_output_type(0, get_input_element_type(0), ov::Shape::dynamic(data_rank));
     }
 }
 
