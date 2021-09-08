@@ -4,7 +4,7 @@
 import numpy as np
 
 import ngraph as ng
-from ngraph.impl import Dimension, Function, PartialShape, Shape, DiscreteTypeInfo
+from ngraph.impl import Dimension, Function, PartialShape, Shape
 
 
 def test_dimension():
@@ -236,50 +236,27 @@ def test_repr_dynamic_shape():
         assert "{?,2}" in repr(op)
 
 
-def test_discrete_type_info_init():
-    parent2 = DiscreteTypeInfo("parent2", 4)
-    parent1 = DiscreteTypeInfo("parent1", 1, parent2)
-    child2 = DiscreteTypeInfo("child", 0, parent1)
-    child1 = DiscreteTypeInfo("child", 0, parent1)
-    child0 = DiscreteTypeInfo("chil", 0, parent1)
+def test_discrete_type_info():
+    data_shape = [6, 12, 10, 24]
+    data_parameter = ng.parameter(data_shape, name="Data", dtype=np.float32)
+    K = np.int32(3)
+    axis = np.int32(1)
+    n1 = ng.topk(data_parameter, K, axis, "max", "value")
+    n2 = ng.topk(data_parameter, K, axis, "max", "value")
+    n3 = ng.sin(0.2)
 
-    child1.name = "children"
-    assert child1.name == "children"
-    assert child1.version == 0
-    assert child1.parent == parent1
-
-    child1.parent.name = "parent1"
-    assert child1.parent.name == "parent1"
-    assert parent1.name == "parent1"
-
-    parent1.name = "parent3"
-    assert child1.parent.name == "parent3"
-    assert parent1.name == "parent3"
-
-    child1.parent.version = 2
-    assert child1.parent.version == 2
-    assert parent1.version == 2
-
-    parent1.version = 3
-    assert child1.parent.version == 3
-    assert parent1.version == 3
-
-    assert child1.parent.parent.name == "parent2"
-    assert child1.parent.parent.version == 4
-
-    parent1.parent = child1
-    assert parent1.parent == child1
-    assert child1.parent == parent1
-
-    child1.name = "child"
-
-    assert child1 < parent1
-    assert child1 < parent2
-    assert child1 <= parent1
-    assert child1 <= parent2
-    assert child1 == child2
-    assert child1 > child0
-    assert child1 >= child0
-    assert child1 >= child2
-    assert child1 <= child2
-    assert child1 != child0
+    assert n1.type_info.name == "TopK"
+    assert n3.type_info.name == "Sin"
+    assert n1.get_type_info().name == "TopK"
+    assert n3.get_type_info().name == "Sin"
+    assert n1.type_info.name == n2.type_info.name
+    assert n1.type_info.version == n2.type_info.version
+    assert n1.type_info.parent == n2.type_info.parent
+    assert n1.get_type_info().name == n2.get_type_info().name
+    assert n1.get_type_info().version == n2.get_type_info().version
+    assert n1.get_type_info().parent == n2.get_type_info().parent
+    assert n1.get_type_info().name != n3.get_type_info().name
+    assert n1.get_type_info().name > n3.get_type_info().name
+    assert n1.get_type_info().name >= n3.get_type_info().name
+    assert n3.get_type_info().name < n1.get_type_info().name
+    assert n3.get_type_info().name <= n1.get_type_info().name
