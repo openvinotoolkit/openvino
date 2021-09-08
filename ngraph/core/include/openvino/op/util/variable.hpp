@@ -42,7 +42,6 @@ private:
     VariableInfo m_info;
 };
 using VariableVector = std::vector<Variable::Ptr>;
-
 }  // namespace util
 }  // namespace op
 template <>

@@ -85,4 +85,13 @@ INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
  */
 INFERENCE_ENGINE_API_CPP(void) lowLatency2(InferenceEngine::CNNNetwork& network, bool use_const_initializer = true);
 
+/**
+ * @brief The transformation replaces the provided pairs of Parameter and Results with ngraph Memory layers
+ * ReadValue and Assign
+ * @param network A network to apply LowLatency transformation
+ * @param in_out_names Parameter/Result node names to replace.
+ */
+INFERENCE_ENGINE_API_CPP(void)
+replaceInputsOutputsWithMemory(InferenceEngine::CNNNetwork& network,
+                               std::vector<std::pair<std::string, std::string>>& in_out_names);
 }  // namespace InferenceEngine
