@@ -179,7 +179,7 @@ endif()
 foreach(target openvino::runtime openvino::runtime::c openvino::core
                openvino::frontend::manager openvino::frontend::onnx
                openvino::frontend::paddlepaddle)
-    if(TARGET ${target})
+    if(TARGET ${target} AND _ov_as_external_package)
         _ov_target_no_deprecation_error(${target})
     endif()
 endforeach()
