@@ -59,6 +59,13 @@ protected:
     Shape m_padding_above;
     ngraph::op::PadType m_auto_pad;
     ngraph::op::RoundingType m_rounding_type;
+
+    enum class StorageOrder : int64_t {
+        ROW_MAJOR = 0,
+        COLUMN_MAJOR = 1
+    };
+
+    StorageOrder m_storage_order;
 };
 }  // namespace pooling
 }  // namespace onnx_import

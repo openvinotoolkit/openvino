@@ -321,8 +321,10 @@ shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_
 bool op::v8::MaxPool::has_evaluate() const {
     NGRAPH_OP_SCOPE(v8_MaxPool_has_evaluate);
     switch (get_input_element_type(0)) {
+    case ngraph::element::i8:
     case ngraph::element::i32:
     case ngraph::element::i64:
+    case ngraph::element::u8:
     case ngraph::element::u32:
     case ngraph::element::u64:
     case ngraph::element::f16:

@@ -149,6 +149,8 @@ struct Coord : public std::vector<T> {
         }
     }
 
+    Coord(const size_t dims) : std::vector<T>(dims, T{0}) {}
+
     Coord(std::initializer_list<T>&& values) : std::vector<T>{std::move(values)} {}
 };
 
@@ -166,22 +168,14 @@ bool elem_in_padding_area(const Coord<int>& kernel_position,
 }
 
 template <typename T>
-Coord<T> next_kernel_position_2D(Coord<T> kernel_position,
-                                 const Shape& kernel,
-                                 const Strides& kernel_strides,
-                                 const Strides& kernel_dilations,
-                                 const Shape& data_shape,
-                                 const Shape& pads_begin,
-                                 const Shape& pads_end) {
-    // move the kernel horizontally one stride to the right
-    kernel_position[1] += kernel_strides[1];
+Coord<T> kernel_position_2D(const size_t out_row,
+                            const size_t out_col,
+                            const Strides& kernel_strides,
+                            const Shape& pads_begin) {
+    Coord<T> kernel_position(2);
 
-    // if the top-right corner of the kernel is outside of the padding area,
-    // move it back to the left and one stride down
-    if (kernel_position[1] + (kernel[1] - 1) * kernel_dilations[1] >= data_shape[3] + pads_end[1]) {
-        kernel_position[1] = 0 - pads_begin[1];
-        kernel_position[0] += kernel_strides[0];
-    }
+    kernel_position[0] = out_row * kernel_strides[0] - pads_begin[0];
+    kernel_position[1] = out_col * kernel_strides[1] - pads_begin[1];
 
     return kernel_position;
 }
@@ -255,43 +249,40 @@ void max_pool_2d(const Values_t* data,
                  const size_t indices_offset) {
     validate_max_pool_kernel_params(2, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
 
-    Coord<int> kernel_position{pads_begin};
-
     // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
-    for (size_t out_idx = 0; out_idx < out_shape[2] * out_shape[3]; ++out_idx) {
-        Values_t max_elem = std::numeric_limits<Values_t>::lowest();
-        Indices_t max_elem_idx = Indices_t{0};
+    size_t out_idx = 0u;
+    for (size_t out_row = 0u; out_row < out_shape[2]; ++out_row) {
+        for (size_t out_col = 0u; out_col < out_shape[3]; ++out_col) {
+            Values_t max_elem = std::numeric_limits<Values_t>::lowest();
+            Indices_t max_elem_idx = Indices_t{0};
 
-        // find the max element in the area covered by a current position of the kernel
-        for (size_t kernel_row = 0; kernel_row < kernel[0]; ++kernel_row) {
-            for (size_t kernel_col = 0; kernel_col < kernel[1]; ++kernel_col) {
-                // offset from the top-left corner of the kernel for a given row and col
-                const Coord<size_t> kernel_offset{kernel_row * kernel_dilations[0], kernel_col * kernel_dilations[1]};
+            const auto kernel_position = kernel_position_2D<int>(out_row, out_col, kernel_strides, pads_begin);
+            // find the max element in the area covered by a current position of the kernel
+            for (size_t kernel_row = 0; kernel_row < kernel[0]; ++kernel_row) {
+                for (size_t kernel_col = 0; kernel_col < kernel[1]; ++kernel_col) {
+                    // offset from the top-left corner of the kernel for a given row and col
+                    const Coord<size_t> kernel_offset{kernel_row * kernel_dilations[0],
+                                                      kernel_col * kernel_dilations[1]};
 
-                // ignore the elements in the padding area
-                if (!elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
-                    // index of the flattened tensor element under the current row & column of the kernel
-                    const size_t data_elem_index =
-                        data_shape[2] * (kernel_offset[0] + kernel_position[0]) + kernel_offset[1] + kernel_position[1];
+                    // ignore the elements in the padding area
+                    if (!elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
+                        // index of the flattened tensor element under the current row & column of the kernel
+                        const size_t data_elem_index = data_shape[2] * (kernel_offset[0] + kernel_position[0]) +
+                                                       kernel_offset[1] + kernel_position[1];
 
-                    if (data[data_elem_index] > max_elem) {
-                        max_elem = data[data_elem_index];
-                        max_elem_idx = data_elem_index;
+                        if (data[data_elem_index] > max_elem) {
+                            max_elem = data[data_elem_index];
+                            max_elem_idx = data_elem_index;
+                        }
                     }
                 }
             }
+
+            values[out_idx] = max_elem;
+            indices[out_idx] = max_elem_idx + indices_offset;
+
+            ++out_idx;
         }
-
-        values[out_idx] = max_elem;
-        indices[out_idx] = max_elem_idx + indices_offset;
-
-        kernel_position = next_kernel_position_2D(kernel_position,
-                                                  kernel,
-                                                  kernel_strides,
-                                                  kernel_dilations,
-                                                  data_shape,
-                                                  pads_begin,
-                                                  pads_end);
     }
 }
 
