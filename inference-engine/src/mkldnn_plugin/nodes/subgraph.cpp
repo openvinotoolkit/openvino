@@ -482,7 +482,7 @@ void MKLDNNSnippetNode::shedule_6d(const std::vector<uint8_t *>& outputs, const 
     for (const auto& d : sch_dims)
         sch.push(d);
 
-    // OffsetInfo
+    // SchduleInfo/ Offsets
     CallArgs off;
     for (const auto& offset : sch_offsets_in)
         off.push(offset);
@@ -501,7 +501,7 @@ void MKLDNNSnippetNode::shedule_6d(const std::vector<uint8_t *>& outputs, const 
                 ca.push(outputs[i] + d0*offsets_out[i][0] + d1*offsets_out[i][1] + d2*offsets_out[i][2] + d3*offsets_out[i][3] + d4*offsets_out[i][4]);
             }
 
-            schedule.get_callable<kernel>()(ca.raw(), off.raw(), sch.raw());
+            schedule.get_callable<kernel>()(ca.raw(), sch.raw(), off.raw());
         });
 }
 
