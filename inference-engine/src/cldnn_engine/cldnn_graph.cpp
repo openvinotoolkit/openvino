@@ -2,23 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cldnn/graph/network.hpp>
+#include <cldnn/runtime/profiling.hpp>
+
+#include "cldnn_graph.h"
+#include "simple_math.h"
+#include <cldnn/cldnn_config.hpp>
+#include "cldnn_infer_request.h"
+
+#include <description_buffer.hpp>
+#include <threading/ie_executor_manager.hpp>
+#include <exec_graph_info.hpp>
+
+#include <ie_ngraph_utils.hpp>
+#include <ngraph/variant.hpp>
+
 #include <list>
 #include <set>
 #include <unordered_set>
 #include <sstream>
-#include <api/cldnn.hpp>
-#include <api/network.hpp>
-#include <api/profiling.hpp>
-#include <api/custom_gpu_primitive.hpp>
 #include <chrono>
 #include <cmath>
 #include <algorithm>
-#include "cldnn_graph.h"
-#include "simple_math.h"
-#include <description_buffer.hpp>
-#include <cldnn/cldnn_config.hpp>
-#include "cldnn_infer_request.h"
-#include <threading/ie_executor_manager.hpp>
 #include <fstream>
 #include <utility>
 #include <sys/types.h>
@@ -72,12 +77,10 @@ void CLDNNGraph::Build() {
         for (int b = m_bv_sz - 1; b >= 0; b--) {
             auto network = BuildNetwork(m_program->GetCompiledProgram(b));
             m_networks.insert(m_networks.begin(), network);
-            GetEngine()->release_pending_memory(network->get_id());
         }
     } else {
         auto network = BuildNetwork(m_program->GetCompiledProgram());
         m_networks.emplace_back(network);
-        GetEngine()->release_pending_memory(network->get_id());
     }
 
     UpdateImplementationsMap();
@@ -85,11 +88,11 @@ void CLDNNGraph::Build() {
 
 std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::BuildNetwork");
-    auto network = std::make_shared<cldnn::network>(*program, m_stream_id);
+    auto network = std::make_shared<cldnn::network>(program, m_stream_id);
 
     if (!m_config.graph_dumps_dir.empty() && m_stream_id == 0) {
         static int net_id = 0;
-        auto steps_info = network->get_optimization_steps_info();
+        auto steps_info = network->get_optimizer_passes_info();
         size_t step_idx = 0;
         for (auto& step : steps_info) {
             CNNNetwork net(GetExecGraphInfoByPrimitivesInfo(step.second, true));
@@ -103,7 +106,7 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
     return network;
 }
 
-InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
+std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                                bool filter_const_primitives) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::GetExecGraphInfoByPrimitivesInfo");
     if (m_config.useProfiling) {
@@ -464,12 +467,10 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         create_ngraph_node(pi);
     }
 
-    auto function = std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
-    InferenceEngine::CNNNetwork net(function);
-    return net;
+    return std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
 }
 
-InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfo() {
+std::shared_ptr<ngraph::Function> CLDNNGraph::GetExecGraphInfo() {
     auto primitives_info = GetNetwork()->get_primitives_info();
     return GetExecGraphInfoByPrimitivesInfo(primitives_info, true);
 }
@@ -500,7 +501,7 @@ void CLDNNGraph::UpdatePerfStatistics() {
         }
     };
 
-    std::map<cldnn::primitive_id, cldnn::event> executedPrimitives = GetNetwork()->get_executed_primitives();
+    std::map<cldnn::primitive_id, cldnn::event::ptr> executedPrimitives = GetNetwork()->get_executed_primitives();
     auto allPrimitives = GetNetwork()->get_all_primitives();
 
     // Get profiling info for all layers
@@ -522,7 +523,7 @@ void CLDNNGraph::UpdatePerfStatistics() {
         auto event = execIter->second;
         executedPrimitives.erase(execIter);
 
-        cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event.get_profiling_info()};
+        cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event->get_profiling_info()};
 
         collectTimings(cldnnInfo, perfCount);
         perfCount.num++;
@@ -535,7 +536,7 @@ void CLDNNGraph::UpdatePerfStatistics() {
             pcIter = perfMap.find(executedID.first);
             auto& perfCount = pcIter->second.second;
 
-            cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second.get_profiling_info()};
+            cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second->get_profiling_info()};
 
             collectTimings(cldnnInfo, perfCount);
             perfCount.num++;
@@ -676,7 +677,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
             executedPrimitives.find(primId) != executedPrimitives.end()) {
             auto event = executedPrimitives.at(primId);
 
-            cldnn::instrumentation::profiling_info cldnnInfo{primId, event.get_profiling_info()};
+            cldnn::instrumentation::profiling_info cldnnInfo{primId, event->get_profiling_info()};
 
             // Collect timings
             long long cpuTime = 0;

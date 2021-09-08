@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import compatible_shapes, strict_compare_tensors, is_fully_defined
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -46,15 +46,18 @@ class ScatterNDBase(Op):
             'The node "{}" input and indices ranks must be at least 1'.format(node_name)
 
         # 2. the last dimension of indices shape must be at most a rank of input
-        assert indices_shape[-1] <= len(input_shape), \
+        assert not is_fully_defined(indices_shape[-1]) or indices_shape[-1] <= len(input_shape), \
             'The last dimension of indices shape must be at most a rank of input for the node "{}"'.format(node_name)
 
         # 3. updates is a tensor of shape indices_shape[:-1] + input_shape[indices_shape[-1]:]
-        # if expected updates shape is scalar, updates can be tensor with the single element (for example, of shape [1], [[1]], etc.)
-        expected_updates_shape = np.concatenate((indices_shape[:-1], input_shape[indices_shape[-1]:]), axis=0)
-        assert np.array_equal(updates_shape, expected_updates_shape) or\
-               np.array_equal(expected_updates_shape, []) and np.array_equal(updates_shape, np.ones(len(updates_shape))), \
-            'The updates shape must be equal to indices_shape[:-1] + input_shape[indices_shape[-1]:] for the node "{}"'.format(node_name)
+        # if expected updates shape is scalar, updates can be tensor with the single element (for example, of shape
+        # [1], [[1]], etc.)
+        expected_updates_shape = np.ma.concatenate((indices_shape[:-1], input_shape[indices_shape[-1]:]), axis=0)
+        assert compatible_shapes(updates_shape, expected_updates_shape) or \
+               (strict_compare_tensors(expected_updates_shape, []) and
+                strict_compare_tensors(updates_shape, np.ones(len(updates_shape)))), \
+            'The updates shape must be equal to indices_shape[:-1] + input_shape[indices_shape[-1]:] for the node ' \
+            '"{}"'.format(node_name)
 
         node.out_port(0).data.set_shape(input_shape)
 
@@ -79,9 +82,9 @@ class ScatterNDUpdate(ScatterNDBase):
         updates_value = node.in_port(2).data.get_value()
 
         # compute output value if all inputs are constant
-        if input_value is not None and indices_value is not None and updates_value is not None:
+        if input_value is not None and is_fully_defined(indices_value) and updates_value is not None:
             output_value = input_value.copy()
-            indx_range = int64_array(indices_shape[:-1])
+            indx_range = indices_shape[:-1]
             for indx in np.ndindex(tuple(indx_range)):
                 if indx == ():
                     # a case when updates is a scalar

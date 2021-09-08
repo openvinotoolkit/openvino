@@ -14,10 +14,10 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 
 | Options                    | Values                                                                                                                                                                                                                                                                                |
 | :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Validated Models           | [mobilenet-ssd](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/mobilenet-ssd/mobilenet-ssd.md), [face-detection-0206](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/face-detection-0206/description/face-detection-0206.md) |
+| Validated Models           | [mobilenet-ssd](@ref omz_models_model_mobilenet_ssd), [face-detection-0206](@ref omz_models_model_face_detection_0206) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                                                                                                                                                                                                              |
 | Supported devices          | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                                                                                                                                                                                                               |
-| Other language realization | [C++](../../../../samples/object_detection_sample_ssd), [C](../../../c/samples/object_detection_sample_ssd)                                                                                                                                                                           |
+| Other language realization | [C++](../../../../samples/object_detection_sample_ssd/README.md), [C](../../../c/samples/object_detection_sample_ssd/README.md)                                                                                                                                                                           |
 
 ## How It Works
 
@@ -29,15 +29,15 @@ each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with
 
 ## Running
 
-Run the application with the <code>-h</code> option to see the usage message:
+Run the application with the `-h` option to see the usage message:
 
-```sh
-python object_detection_sample_ssd.py -h
+```
+python <path_to_sample>/object_detection_sample_ssd.py -h
 ```
 
 Usage message:
 
-```sh
+```
 usage: object_detection_sample_ssd.py [-h] -m MODEL -i INPUT [-l EXTENSION]
                                       [-c CONFIG] [-d DEVICE]
                                       [--labels LABELS]
@@ -67,7 +67,7 @@ Options:
 
 To run the sample, you need specify a model and image:
 
-- you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
+- you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 > **NOTES**:
@@ -78,23 +78,37 @@ To run the sample, you need specify a model and image:
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-You can do inference of an image using a pre-trained model on a GPU using the following command:
+### Example
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader):
+```
+python <path_to_omz_tools>/downloader.py --name mobilenet-ssd
+```
 
-```sh
-python object_detection_sample_ssd.py -m <path_to_model>/mobilenet-ssd.xml -i <path_to_image>/cat.bmp -d GPU
+2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+
+```
+python <path_to_omz_tools>/converter.py --name mobilenet-ssd
+```
+
+3. Perform inference of `car.bmp` using `mobilenet-ssd` model on a `GPU`, for example:
+
+```
+python <path_to_sample>/object_detection_sample_ssd.py -m <path_to_model>/mobilenet-ssd.xml -i <path_to_image>/car.bmp -d GPU
 ```
 
 ## Sample Output
 
 The sample application logs each step in a standard output stream and creates an output image, drawing bounding boxes for inference results with an over 50% confidence.
 
-```sh
+```
 [ INFO ] Creating Inference Engine
-[ INFO ] Reading the network: models\mobilenet-ssd.xml
+[ INFO ] Reading the network: c:\openvino\deployment_tools\open_model_zoo\tools\downloader\public\mobilenet-ssd\FP32\mobilenet-ssd.xml        
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
+[ WARNING ] Image c:\images\car.bmp is resized from (637, 749) to (300, 300)
 [ INFO ] Starting inference in synchronous mode
-[ INFO ] Found: label = 8, confidence = 1.00, coords = (115, 64), (189, 182)
+[ INFO ] Found: label = 7, confidence = 1.00, coords = (228, 120), (502, 460)
+[ INFO ] Found: label = 7, confidence = 0.95, coords = (637, 233), (743, 608)
 [ INFO ] Image out.bmp created!
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
@@ -103,7 +117,7 @@ The sample application logs each step in a standard output stream and creates an
 
 - [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
 - [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
-- [Model Downloader](@ref omz_tools_downloader_README)
+- [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [IECore]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IECore.html

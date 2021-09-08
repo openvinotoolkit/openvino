@@ -17,8 +17,8 @@
 #include "ie_blob.h"
 #include "cpp/ie_cnn_network.h"
 
-#include <api/network.hpp>
-#include <api/topology.hpp>
+#include <cldnn/graph/network.hpp>
+#include <cldnn/graph/topology.hpp>
 
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include "cldnn_custom_layer.h"
@@ -34,7 +34,7 @@ public:
 
     CLDNNGraph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
     explicit CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id = 0);
-    InferenceEngine::CNNNetwork GetExecGraphInfo();
+    std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     bool IsLoaded() const;
 
@@ -43,7 +43,7 @@ public:
 
     const Config& getConfig() const { return m_config; }
     InferenceEngine::gpu::ClContext::Ptr GetContext() { return m_context; }
-    std::shared_ptr<const cldnn::engine> GetEngine() const { return getContextImpl(m_context)->GetEngine(); }
+    std::shared_ptr<cldnn::engine> GetEngine() const { return getContextImpl(m_context)->GetEngine(); }
     int GetMaxDynamicBatchSize() const { return getConfig().max_dynamic_batch; }
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return m_program->GetInputLayouts(); }
     size_t GetNetworksCount() const { return m_networks.size(); }
@@ -51,8 +51,10 @@ public:
     InferenceEngine::SizeVector GetOutputSize(std::string outName) const;
     std::string MapOutputName(std::string outName) const;
     std::string getName() const { return m_networkName; }
+    std::mutex& get_mutex() { return m_infer_mutex; }
 
 protected:
+    std::mutex m_infer_mutex;
     std::string m_networkName;
     Config m_config;
 
@@ -76,8 +78,8 @@ protected:
     void Build();
     void UpdateLayersMaps();
     void UpdateImplementationsMap();
-    InferenceEngine::CNNNetwork GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& pi,
-                                                                 bool filter_const_primitives = true);
+    std::shared_ptr<ngraph::Function> GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& pi,
+                                                                       bool filter_const_primitives = true);
 };
 
 }  // namespace CLDNNPlugin

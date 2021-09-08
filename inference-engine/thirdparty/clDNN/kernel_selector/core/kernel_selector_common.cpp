@@ -156,6 +156,8 @@ std::string toString(KernelType kt) {
                                           return "FUSED_CONV_ELTWISE";
         case KernelType::BINARY_CONVOLUTION:
                                           return "BINARY_CONVOLUTION";
+        case KernelType::NON_MAX_SUPPRESSION:
+                                          return "NON_MAX_SUPPRESSION";
         default: return "";
     }
 }
@@ -402,6 +404,8 @@ std::string toString(GatherAxis a) {
     switch (a) {
         case GatherAxis::X:       return "X";
         case GatherAxis::Y:       return "Y";
+        case GatherAxis::Z:       return "Z";
+        case GatherAxis::W:       return "W";
         case GatherAxis::FEATURE: return "FEATURE";
         case GatherAxis::BATCH:   return "BATCH";
         default: return "";

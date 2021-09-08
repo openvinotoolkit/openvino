@@ -959,11 +959,11 @@ class TransformChecker(unittest.TestCase):
     def test_check_low_latency_is_available(self, available_transformations):
         available_transformations.return_value = {"LowLatency2": None}
         try:
-            check_available_transforms([("LowLatency2", "")], True)
+            check_available_transforms([("LowLatency2", "")])
         except Error as e:
             self.assertTrue(False, "Exception \"{}\" is unexpected".format(e))
 
     @patch("mo.back.offline_transformations.get_available_transformations")
     def test_check_dummy_pass_is_available(self, available_transformations):
         available_transformations.return_value = {"LowLatency2": None}
-        self.assertRaises(Error, check_available_transforms, [("DummyPass", "")], True)
+        self.assertRaises(Error, check_available_transforms, [("DummyPass", "")])

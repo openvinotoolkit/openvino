@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <ie_blob.h>
-#include <details/ie_so_pointer.hpp>
-
 #include <memory>
 #include <string>
+
+#include "details/ie_so_pointer.hpp"
+#include "ie_blob.h"
 
 namespace InferenceEngine {
 
@@ -49,14 +49,6 @@ public:
      * @return The value of the variable state
      */
     virtual Blob::CPtr GetState() const;
-
-    /**
-     * @deprecated Use IVariableStateInternal::GetState method instead
-     * @brief Returns the value of the variable state.
-     * @return The value of the variable state
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use IVariableStateInternal::GetState method instead")
-    virtual Blob::CPtr GetLastState() const;
 
 protected:
     /**

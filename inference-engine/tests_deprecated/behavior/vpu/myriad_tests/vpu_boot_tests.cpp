@@ -45,7 +45,7 @@ class MYRIADBoot : public MyriadDevicesInfo,
      * @brief Boot any free device
      */
     void bootOneDevice() {
-        ASSERT_NO_ERROR(ncDeviceLoadFirmware(NC_ANY_PLATFORM, firmwareDir));
+        ASSERT_NO_ERROR(ncDeviceLoadFirmware(firmwareDir));
     }
 
 };
@@ -96,4 +96,4 @@ const BehTestParams vpuValues[] = {
         BEH_MYRIAD,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, MYRIADBoot, ValuesIn(vpuValues), getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, MYRIADBoot, ValuesIn(vpuValues), getTestCaseName);

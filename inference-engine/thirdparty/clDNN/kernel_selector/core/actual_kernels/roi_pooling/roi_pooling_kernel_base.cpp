@@ -50,14 +50,14 @@ KernelsData ROIPoolingKernelBase::GetCommonKernelsData(const Params& params,
     KernelData kd = KernelData::Default<roi_pooling_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
-    kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     if (orgParams.mode == PoolType::DEFORMABLE_BILINEAR && !orgParams.no_trans)
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
 
     return {kd};
 }

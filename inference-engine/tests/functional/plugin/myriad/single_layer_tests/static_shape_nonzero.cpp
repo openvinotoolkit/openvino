@@ -111,7 +111,7 @@ std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::I32,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_accuracy, StaticShapeNonZeroLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_accuracy, StaticShapeNonZeroLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputDims),
                                 ::testing::ValuesIn(inputPrecisions),

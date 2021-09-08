@@ -42,7 +42,7 @@ class TestCropExt(unittest.TestCase):
         CropFrontExtractor.extract(fake_node)
 
         exp_res = {
-            'type': 'Crop',
+            'op': 'Crop',
             'axis': 0,
             'offset': 0,
             'dim': None,  # set in infer

@@ -9,7 +9,7 @@
 #include <map>
 #include <vector>
 #include <ngraph/op/util/attr_types.hpp>
-#include <cldnn/cldnn_config.hpp>
+#include <gpu/gpu_config.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include "common_test_utils/test_constants.hpp"
 #include "ie_api.h"
@@ -268,7 +268,7 @@ TEST_P(TensorIteratorWithConfigTest, CompareWithRefs) {
 using namespace LayerTestsDefinitions;
 
 namespace {
-    INSTANTIATE_TEST_CASE_P(smoke_TensorIteratorCommon, TensorIteratorWithConfigTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_TensorIteratorCommon, TensorIteratorWithConfigTest,
         ::testing::Combine(
             ::testing::ValuesIn(std::vector<size_t> {2, 4}), // seq lengths
             ::testing::ValuesIn(std::vector<size_t> {1}), // only single batch supported
@@ -289,8 +289,8 @@ namespace {
                 InferenceEngine::Precision::FP16,
             }), // precision
             ::testing::ValuesIn(std::vector<Config> {
-                {CommonTestUtils::DEVICE_GPU, {{CLDNNConfigParams::KEY_CLDNN_ENABLE_LOOP_UNROLLING, PluginConfigParams::YES}}},
-                {CommonTestUtils::DEVICE_GPU, {{CLDNNConfigParams::KEY_CLDNN_ENABLE_LOOP_UNROLLING, PluginConfigParams::NO}}}
+                {CommonTestUtils::DEVICE_GPU, {{GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, PluginConfigParams::YES}}},
+                {CommonTestUtils::DEVICE_GPU, {{GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING, PluginConfigParams::NO}}}
             })), // configuration
         TensorIteratorWithConfigTest::getTestCaseName);
 }  // namespace

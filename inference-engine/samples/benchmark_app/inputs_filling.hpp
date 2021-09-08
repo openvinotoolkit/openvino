@@ -11,5 +11,7 @@
 #include "infer_request_wrap.hpp"
 #include "utils.hpp"
 
-void fillBlobs(const std::vector<std::string>& inputFiles, const size_t& batchSize, benchmark_app::InputsInfo& app_inputs_info,
+void fillBlobs(const std::vector<std::string>& inputFiles,
+               const size_t& batchSize,
+               benchmark_app::InputsInfo& app_inputs_info,
                std::vector<InferReqWrap::Ptr> requests);

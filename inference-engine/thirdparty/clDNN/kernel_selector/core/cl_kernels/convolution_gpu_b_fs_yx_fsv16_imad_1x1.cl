@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
+#include "include/fetch_weights.cl"
 #include "include/imad.cl"
-#include "include/mmad.cl"
 #include "include/data_types.cl"
 
 #define TYPE_N_(type, n) type##n
@@ -107,7 +106,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
     for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
         uint out_yx_shuffle = out_yx_sg + sglid + os * SIMD;
         uint out_yx_clamp = max_out_yx % OUT_BLOCK_SPATIAL == 0
-                          ? out_yx_shuffle 
+                          ? out_yx_shuffle
                           : min(out_yx_shuffle, max_local_yx - 1);
         out_x_shuffle[os] = out_yx_clamp % OUTPUT_SIZE_X;
         out_y_shuffle[os] = out_yx_clamp / OUTPUT_SIZE_X;

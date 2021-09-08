@@ -36,7 +36,7 @@ namespace SubgraphTestsDefinitions {
         {"GNA_SCALE_FACTOR_0", "1638.4"},
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_MemoryLSTMCellTest, MemoryLSTMCellTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_MemoryLSTMCellTest, MemoryLSTMCellTest,
         ::testing::Combine(
             ::testing::ValuesIn(transformation),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

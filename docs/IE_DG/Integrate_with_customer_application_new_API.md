@@ -35,7 +35,7 @@ Integration process includes the following steps:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part1
 
-**Or read the model from ONNX format** (.onnx and .prototxt are supported formats). You can find more information about the ONNX format support in the document [ONNX format support in the OpenVINO™](./ONNX_Support.md).
+**Or read the model from ONNX format**. You can find more information about the ONNX format support in the document [ONNX format support in the OpenVINO™](./ONNX_Support.md).
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part2
 
@@ -210,11 +210,6 @@ It's allowed to specify additional build options (e.g. to build CMake project on
 
 ### Run Your Application
 
-> **NOTE**: Before running, make sure you completed **Set the Environment Variables** section in [OpenVINO Installation](../../inference-engine/samples/hello_nv12_input_classification/README.md) document so that the application can find the libraries.
-
-To run compiled applications on Microsoft* Windows* OS, make sure that Microsoft* Visual C++ 2017
-Redistributable and Intel® C++ Compiler 2017 Redistributable packages are installed and
-`<INSTALL_DIR>/bin/intel64/Release/*.dll` files are placed to the
-application folder or accessible via `%PATH%` environment variable.
+Before running, make sure you completed **Set the Environment Variables** section in [OpenVINO Installation](../../inference-engine/samples/hello_nv12_input_classification/README.md) document so that the application can find the libraries.
 
 [integration_process]: img/integration_process.png

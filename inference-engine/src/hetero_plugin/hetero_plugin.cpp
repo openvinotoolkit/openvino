@@ -34,6 +34,11 @@ Engine::Configs mergeConfigs(Engine::Configs config, const Engine::Configs & loc
     }
     return config;
 }
+std::vector<std::string> supported_configKeys {
+    HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
+    "TARGET_FALLBACK",
+    CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)
+};
 
 }  // namespace
 
@@ -57,13 +62,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(cons
     return std::make_shared<HeteroExecutableNetwork>(network, mergeConfigs(_config, config), this);
 }
 
-InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& heteroModel, const Configs& config) {
-    if (GetCore() == nullptr) {
-        IE_THROW() << "Please, work with HETERO device via InferencEngine::Core object";
-    }
-
-    return std::make_shared<HeteroExecutableNetwork>(heteroModel,
-        mergeConfigs(_config, config), this);
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& heteroModel, const std::map<std::string, std::string>& config) {
+    return std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeConfigs(_config, config), this);
 }
 
 Engine::Configs Engine::GetSupportedConfig(const Engine::Configs& config, const std::string & deviceName) const {
@@ -106,8 +106,12 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
 }
 
 void Engine::SetConfig(const Configs &configs) {
-    for (auto&& config : configs) {
-        _config[config.first] = config.second;
+    for (auto && kvp : configs) {
+        const auto& name = kvp.first;
+        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
+            _config[name] = kvp.second;
+        else
+            IE_THROW() << "Unsupported config key: " << name;
     }
 }
 
@@ -162,10 +166,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
             METRIC_KEY(DEVICE_ARCHITECTURE),
             METRIC_KEY(IMPORT_EXPORT_SUPPORT)});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{
-            HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
-            "TARGET_FALLBACK",
-            CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)});
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, supported_configKeys);
     } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, std::string{"HETERO"});
     } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {

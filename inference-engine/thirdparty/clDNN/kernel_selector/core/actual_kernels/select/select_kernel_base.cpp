@@ -36,7 +36,7 @@ JitConstants SelectKernelBase::GetJitConstantsCommon(const select_params& params
         std::string const_str = "const";
 
         inputs_decls +=
-            const_str + " __global " + toCLType(params.inputs[i].GetDType()) + "* input" + std::to_string(i) + ", ";
+            const_str + " __global " + toCLType(params.inputs[i].GetDType()) + "* input" + toCodeString(i) + ", ";
     }
 
     jit.AddConstant(MakeJitConstant("INPUTS_DECLS", inputs_decls));
@@ -123,7 +123,7 @@ KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params, const o
     KernelData kd = KernelData::Default<select_params>(params);
     select_params& newParams = *static_cast<select_params*>(kd.params.get());
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -131,11 +131,11 @@ KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params, const o
 
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = dispatchData.gws;
-    kernel.workGroups.local = dispatchData.lws;
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local = dispatchData.lws;
 
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
 
     return {kd};
 }

@@ -5,7 +5,7 @@
 #include "reduce_inst.h"
 
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "data_inst.h"
 #include <vector>
@@ -96,6 +96,6 @@ std::string reduce_inst::to_string(reduce_node const& node) {
     return primitive_description.str();
 }
 
-reduce_inst::typed_primitive_inst(network_impl& network, reduce_node const& node) : parent(network, node) {}
+reduce_inst::typed_primitive_inst(network& network, reduce_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn

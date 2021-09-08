@@ -35,14 +35,14 @@ protected:
     ResponseDesc dsc;
     StatusCode sts;
 
-    virtual void TearDown() {
+    void TearDown() override {
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mock_plugin_impl.get()));
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockIExeNetworkInternal.get()));
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockExeNetworkTS.get()));
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockInferRequestInternal.get()));
     }
 
-    virtual void SetUp() {
+    void SetUp() override {
         pluginId = "TEST";
         mock_plugin_impl.reset(new MockInferencePluginInternal());
         mock_plugin_impl->SetName(pluginId);
@@ -148,29 +148,6 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetNotAllocatedBlob) {
             << "\n\tActual: " << ex.what();
     }
 }
-
-TEST_F(InferenceEnginePluginInternalTest, executableNetworkInternalExportsMagicAndName) {
-    std::stringstream strm;
-    ASSERT_NO_THROW(mockIExeNetworkInternal->WrapOstreamExport(strm));
-    ExportMagic actualMagic = {};
-    strm.read(actualMagic.data(), actualMagic.size());
-    ASSERT_EQ(exportMagic, actualMagic);
-    std::string pluginName;
-    std::getline(strm, pluginName);
-    ASSERT_EQ(pluginId, pluginName);
-    std::string exportedString;
-    std::getline(strm, exportedString);
-    ASSERT_EQ(mockIExeNetworkInternal->exportString, exportedString);
-}
-
-TEST_F(InferenceEnginePluginInternalTest, pluginInternalEraseMagicAndNameWhenImports) {
-    std::stringstream strm;
-    ASSERT_NO_THROW(mockIExeNetworkInternal->WrapOstreamExport(strm));
-    ASSERT_NO_THROW(mock_plugin_impl->ImportNetwork(strm, {}));
-    ASSERT_EQ(mockIExeNetworkInternal->exportString, mock_plugin_impl->importedString);
-    mock_plugin_impl->importedString = {};
-}
-
 
 TEST(InferencePluginTests, throwsOnUninitializedGetVersion) {
     InferencePlugin plg;

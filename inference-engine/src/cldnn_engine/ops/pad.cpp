@@ -8,7 +8,7 @@
 
 #include "ngraph/op/pad.hpp"
 
-#include "api/border.hpp"
+#include "cldnn/primitives/border.hpp"
 
 namespace CLDNNPlugin {
 

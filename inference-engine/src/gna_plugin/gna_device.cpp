@@ -24,6 +24,7 @@
 #include "gna-api.h"
 #endif
 
+#include "backend/am_intel_dnn.hpp"
 #include "gna/gna_config.hpp"
 #include "gna_plugin_log.hpp"
 
@@ -96,14 +97,12 @@ void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t l
     const auto status = Gna2RequestConfigEnableActiveList(requestConfigId, layerIndex, num_active_indices, ptr_active_indices);
     checkGna2Status(status, "Gna2RequestConfigEnableActiveList");
 }
-void GNADeviceHelper::propagateSync(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
-    wait(propagate(requestConfigId, gna2AccelerationMode));
-}
 
 uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqId{};
-    if (gna2AccelerationMode == Gna2AccelerationModeHardware &&
+    if ((gna2AccelerationMode == Gna2AccelerationModeHardware ||
+         gna2AccelerationMode == Gna2AccelerationModeHardwareWithSoftwareFallback) &&
         detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
         gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
     }
@@ -117,13 +116,26 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
     return reqId;
 }
 
+void enforceLegacyCnn(Gna2Operation& operation) {
+    snprintf(
+        const_cast<char*>(operation.Operands[1]->Layout),
+        sizeof(operation.Operands[1]->Layout) / sizeof(char),
+        "GNA1");
+}
+
 void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
         if (gnaModel.Operations[i].Type == Gna2OperationTypeConvolution) {
-            snprintf(
-                const_cast<char*>(gnaModel.Operations[i].Operands[1]->Layout),
-                sizeof(gnaModel.Operations[i].Operands[1]->Layout) / sizeof(char),
-                "GNA1");
+            enforceLegacyCnn(gnaModel.Operations[i]);
+        }
+    }
+}
+
+void GNADeviceHelper::enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel) {
+    for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
+        auto& op = gnaModel.Operations[i];
+        if (GNAPluginNS::backend::AMIntelDNN::isOperationCnnLegacySpecific(op)) {
+            enforceLegacyCnn(op);
         }
     }
 }
@@ -134,6 +146,7 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     if (enforceLegacyCnnNeeded()) {
         enforceLegacyCnns(gnaModel);
     }
+    enforceLegacyCnnsWhenNeeded(gnaModel);
 #if GNA_LIB_VER == 2 && defined MODEL_DUMP
     std::string path =
 #ifdef _WIN32
@@ -541,6 +554,8 @@ void GNADeviceHelper::updateGnaPerfCounters() {
 #if GNA_LIB_VER == 2
     instrumentationTotal[0] = instrumentationResults[0];
     instrumentationTotal[1] = instrumentationResults[1];
+    instrumentationResults[0] = 0;
+    instrumentationResults[1] = 0;
 #else
     nGNAPerfResultsTotal.hw.stall = nGNAPerfResults.hw.stall;
     nGNAPerfResultsTotal.hw.total = nGNAPerfResults.hw.total;
@@ -580,4 +595,15 @@ void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::
     info.realTime_uSec = instrumentationTotal[1];
 #endif
     retPerfCounters["1.2 Stall scoring time in HW"] = info;
+}
+
+std::string GNADeviceHelper::getEffectiveGnaCompileTarget() const {
+#if GNA_LIB_VER == 1
+    return InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
+#else
+    if (getTargetDevice(false) == Gna2DeviceVersion3_0) {
+        return InferenceEngine::GNAConfigParams::GNA_TARGET_3_0;
+    }
+    return InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
+#endif
 }

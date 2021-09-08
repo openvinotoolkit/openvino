@@ -6,13 +6,13 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/op/op.hpp>
-#include <ngraph/op/util/fused_op.hpp>
 
 namespace MKLDNNPlugin {
 
 class FullyConnectedNode : public ngraph::op::Op {
 public:
     static constexpr ngraph::NodeTypeInfo type_info{"FullyConnected", 0};
+    static constexpr const ::ngraph::Node::type_info_t& get_type_info_static() { return type_info; }
     const ngraph::NodeTypeInfo& get_type_info() const override { return type_info; }
 
     FullyConnectedNode() = default;

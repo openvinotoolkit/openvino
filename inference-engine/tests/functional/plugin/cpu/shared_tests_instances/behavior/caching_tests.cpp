@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/caching_tests.hpp"
+#include "behavior/caching/caching_tests.hpp"
 
 using namespace LayerTestsDefinitions;
 
@@ -22,7 +22,7 @@ namespace {
             1, 2
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_CachingSupportCase_CPU, LoadNetworkCacheTestBase,
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU, LoadNetworkCacheTestBase,
                             ::testing::Combine(
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(precisionsCPU),

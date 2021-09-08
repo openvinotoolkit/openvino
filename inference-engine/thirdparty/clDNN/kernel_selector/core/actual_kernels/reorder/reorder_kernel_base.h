@@ -26,7 +26,7 @@ struct reorder_params : public base_params {
     bool winograd = false;
     bool has_padded_output = false;
 
-    virtual ParamsKey GetParamsKey() const {
+    ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
 
         if (winograd) {
@@ -44,6 +44,17 @@ struct reorder_optional_params : optional_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// reorder_fuse_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct reorder_fuse_params : fuse_params {
+    DataLayout input_layout;
+    DataLayout output_layout;
+
+    reorder_fuse_params(DataLayout input_layout, DataLayout output_layout) :
+        fuse_params(KernelType::REORDER), input_layout(input_layout), output_layout(output_layout) {}
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // reorder_weights_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct reorder_weights_params : public Params {
@@ -54,7 +65,7 @@ struct reorder_weights_params : public Params {
     bool winograd = false;
     bool rotate_180 = false;
 
-    virtual ParamsKey GetParamsKey() const {
+    ParamsKey GetParamsKey() const override {
         ParamsKey k;
         k.EnableInputWeightsType(input.GetDType());
         k.EnableOutputWeightsType(output.GetDType());
@@ -95,7 +106,7 @@ protected:
     virtual JitConstants GetJitConstants(const reorder_params& params) const;
     virtual DispatchData SetDefault(const reorder_weights_params& params) const;
     virtual DispatchData SetDefault(const reorder_params& params) const;
-    virtual bool Validate(const Params&, const optional_params&) const { return true; }
+    bool Validate(const Params&, const optional_params&) const override { return true; }
     KernelsData GetCommonKernelsData(const reorder_weights_params& params,
                                      const optional_params&) const;
     KernelsData GetCommonKernelsData(const reorder_params& params, const optional_params&) const;

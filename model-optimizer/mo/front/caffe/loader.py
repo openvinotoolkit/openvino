@@ -130,10 +130,16 @@ def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] =
                 map = mmap.mmap(infile.fileno(), 0, access=mmap.ACCESS_READ)
                 model.MergeFromString(map)
     except Exception as e:
+        third_point = ''
+        if api_implementation._implementation_type == 'python':
+            third_point = '      3. Python protobuf implementation was used. Some models can\'t be converted ' + \
+                          ' in this configuration. Please, use Python version with existing cpp implementation of ' + \
+                          'protobuf library or build it by yourself\n' + refer_to_faq_msg(103)
         log.error('Exception message: {}\n\n'.format(e) +
                   '    Possible reasons:\n' +
                   '      1. {} does not exist\n'.format(model_path) +
-                  '      2. {} does not have a valid structure\n'.format(model_path), extra={'framework_error': True})
+                  '      2. {} does not have a valid structure\n'.format(model_path) + third_point,
+                  extra={'framework_error': True})
         raise FrameworkError('Model Optimizer is not able to parse {}'.format(model_path)) from e
 
     return proto, model

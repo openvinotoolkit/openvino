@@ -4,19 +4,31 @@
 
 set(TARGET_NAME myriadFuncTests)
 
+disable_deprecated_warnings()
+
+include(${XLINK_DIR}/XLink.cmake)
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
-            ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
+            ${IE_MAIN_SOURCE_DIR}/tests_deprecated/behavior/vpu/myriad_tests/helpers
+            ${XLINK_INCLUDE}
+            ${XLINK_PLATFORM_INCLUDE}
         DEPENDENCIES
             myriadPlugin
         LINK_LIBRARIES
             vpu_common_lib
             vpu_graph_transformer
             funcSharedTests
+            mvnc
         ADD_CPPLINT
+        DEFINES
+            __PC__
+        OBJECT_FILES
+            ${IE_MAIN_SOURCE_DIR}/tests_deprecated/behavior/vpu/myriad_tests/helpers/myriad_devices.hpp
+            ${IE_MAIN_SOURCE_DIR}/tests_deprecated/behavior/vpu/myriad_tests/helpers/myriad_devices.cpp
         LABELS
             VPU
             MYRIAD

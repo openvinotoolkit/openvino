@@ -16,6 +16,20 @@ test_net_xml, test_net_bin = model_path(is_myriad)
 path_to_img = image_path()
 
 
+def create_function_with_memory(input_shape, data_type):
+    import ngraph as ng
+    from ngraph.impl import Function, Type
+
+    input_data = ng.parameter(input_shape, name="input_data", dtype=data_type)
+    rv = ng.read_value(input_data, "var_id_667")
+    add = ng.add(rv, input_data, name="MemoryAdd")
+    node = ng.assign(add, "var_id_667")
+    res = ng.result(add, "res")
+    func = Function(results=[res], sinks=[node], parameters=[input_data], name="name")
+    caps = Function.to_capsule(func)
+    return caps
+
+
 def read_image():
     import cv2
     n, c, h, w = (1, 3, 32, 32)
@@ -50,32 +64,6 @@ def test_output_blobs(device):
     executable_network = ie_core.load_network(net, device, num_requests=2)
     td = ie.TensorDesc("FP32", (1, 10), "NC")
     assert executable_network.requests[0].output_blobs['fc_out'].tensor_desc == td
-
-
-def test_inputs_deprecated(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    executable_network = ie_core.load_network(net, device, num_requests=2)
-    with warnings.catch_warnings(record=True) as w:
-        inputs = executable_network.requests[0].inputs
-    assert "'inputs' property of InferRequest is deprecated. " \
-           "Please instead use 'input_blobs' property." in str(w[-1].message)
-    del executable_network
-    del ie_core
-    del net
-
-
-def test_outputs_deprecated(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    executable_network = ie_core.load_network(net, device, num_requests=2)
-    with warnings.catch_warnings(record=True) as w:
-        outputs = executable_network.requests[0].outputs
-    assert "'outputs' property of InferRequest is deprecated. Please instead use 'output_blobs' property." in str(
-        w[-1].message)
-    del executable_network
-    del ie_core
-    del net
 
 
 def test_inputs_list(device):
@@ -374,11 +362,9 @@ def test_async_infer_callback_wait_in_callback(device):
     del ie_core
 
 
+@pytest.mark.ngraph_dependent_test
 def test_get_perf_counts(device):
     ie_core = ie.IECore()
-    if device == "CPU":
-        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to ngraph")
     net = ie_core.read_network(test_net_xml, test_net_bin)
     ie_core.set_config({"PERF_COUNT": "YES"}, device)
     exec_net = ie_core.load_network(net, device)
@@ -525,28 +511,56 @@ def test_resize_algorithm_work(device):
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
 
 
-# issue 56653
-@pytest.mark.skip(reason="Test will enable when nGraph Python API allows to create network with memory")
-def test_query_state(device):
-    import ngraph as ng
-    from ngraph.impl import Function
-    input_data = ng.parameter([5, 7], name="input_data", dtype=np.float32)
-    rv = ng.read_value(input_data, "var_id_667")
-    #a = ng.add(rv, input_data)
-    node = ng.assign(rv, "var_id_667")
-    res = ng.result(rv, "res")
-    func = Function([res], sinks=[node], parameters=[input_data], name='test')
-    caps = Function.to_capsule(func)
+@pytest.mark.ngraph_dependent_test
+@pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
+@pytest.mark.parametrize("data_type", ["FP32", "FP16", "I32"])
+@pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+                    "Memory layers fully supported only on CPU")
+def test_query_state_write_buffer(device, input_shape, data_type, mode):
+    ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin")
 
-    net = ie.IENetwork(caps)
+    layout = ["C", "HW", "CHW", "NCHW"]
+
+    from openvino.inference_engine import TensorDesc, Blob, format_map
+
+    net = ie.IENetwork(create_function_with_memory(input_shape, format_map[data_type]))
     ie_core = ie.IECore()
     exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
     request = exec_net.requests[0]
     mem_states = request.query_state()
     mem_state = mem_states[0]
-    with pytest.raises(ValueError) as e:
-        ones_arr = np.ones(shape=(1, 800), dtype=np.float32)
-        mem_state.state.buffer[:] = ones_arr
-    assert "assignment destination is read-only" in str(e.value)
-    assert mem_state.name == 'id_1'
-    assert mem_state.state.tensor_desc.precision == 'FP32'
+
+    assert mem_state.name == 'var_id_667'
+    # todo: Uncomment after fix 45611,
+    #  CPU plugin returns outputs and memory state in FP32 in case of FP16 original precision
+    #assert mem_state.state.tensor_desc.precision == data_type
+
+    for i in range(1, 10):
+        if mode == "set_init_memory_state":
+            # create initial value
+            const_init = 5
+            init_array = np.full(input_shape, const_init, dtype=format_map[mem_state.state.tensor_desc.precision])
+            tensor_desc = TensorDesc(mem_state.state.tensor_desc.precision, input_shape, layout[len(input_shape) - 1])
+            blob = Blob(tensor_desc, init_array)
+            mem_state.state = blob
+
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=format_map[data_type])})
+            expected_res = np.full(input_shape, 1 + const_init, dtype=format_map[data_type])
+        elif mode == "reset_memory_state":
+            # reset initial state of ReadValue to zero
+            mem_state.reset()
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=format_map[data_type])})
+
+            # always ones
+            expected_res = np.full(input_shape, 1, dtype=format_map[data_type])
+        else:
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=format_map[data_type])})
+            expected_res = np.full(input_shape, i, dtype=format_map[data_type])
+
+        assert np.allclose(res['MemoryAdd'], expected_res, atol=1e-6), \
+            "Expected values: {} \n Actual values: {} \n".format(expected_res, res)

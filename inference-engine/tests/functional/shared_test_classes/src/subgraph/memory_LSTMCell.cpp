@@ -104,7 +104,7 @@ namespace SubgraphTestsDefinitions {
         // TI construction
         auto tensor_iterator = std::make_shared<TensorIterator>();
         tensor_iterator->set_body(body);
-        tensor_iterator->set_invariant_input(X, permute_in);
+        tensor_iterator->set_sliced_input(X, permute_in, 0, 1, 1, -1, 0);
         tensor_iterator->set_merged_input(H_t, hidden_memory_read, H_o);
         tensor_iterator->set_merged_input(C_t, cell_memory_read, C_o);
 
@@ -130,6 +130,7 @@ namespace SubgraphTestsDefinitions {
                                               SinkVector{cell_memory_write, hidden_memory_write},
                                               input_parameter,
                                               "TI_with_memory");
+        tensor_iterator->validate_and_infer_types();
     }
 
     void MemoryLSTMCellTest::switchToNgraphFriendlyModel() {
@@ -280,11 +281,11 @@ namespace SubgraphTestsDefinitions {
         for (auto& state : states) {
             auto name = state.GetName();
             if (name.find("cell_state_1") != std::string::npos) {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            cell_memory_init.data(), cell_memory_init.size());
                 state.SetState(blob);
             } else if (name.find("hidden_state_1") != std::string::npos) {
-                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetState()->getTensorDesc(),
                                                                            hidden_memory_init.data(), hidden_memory_init.size());
                 state.SetState(blob);
             } else {

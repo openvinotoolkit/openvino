@@ -19,17 +19,13 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
         message(FATAL_ERROR "In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected InelSEAPI statistics.\
  Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv")
     endif()
-    find_package (PythonInterp REQUIRED)
-    if(NOT PYTHON_VERSION_MAJOR EQUAL 3)
-        message(FATAL_ERROR " Python3 wasn't found!")
-    endif()
+    find_package (PythonInterp 3 REQUIRED)
 
     file(GLOB STAT_FILES ${SELECTIVE_BUILD_STAT})
 
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD)
 
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
-        OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         # After disabling a block of code, some variables might be unused.
         target_compile_options(${TARGET_NAME} INTERFACE
                                 -Wno-unused-function

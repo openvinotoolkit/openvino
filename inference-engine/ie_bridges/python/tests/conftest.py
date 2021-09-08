@@ -21,11 +21,6 @@ def model_onnx_path():
     test_onnx = os.path.join(path_to_repo, "models", "test_model", 'test_model.onnx')
     return test_onnx
 
-def model_prototxt_path():
-    path_to_repo = os.environ["MODELS_PATH"]
-    test_prototxt = os.path.join(path_to_repo, "models", "test_model", 'test_model.prototxt')
-    return test_prototxt
-
 def image_path():
     path_to_repo = os.environ["DATA_PATH"]
     path_to_img = os.path.join(path_to_repo, 'validation_set', '224x224', 'dog.bmp')
@@ -43,3 +38,10 @@ def plugins_path():
 @pytest.fixture(scope='session')
 def device():
     return os.environ.get("TEST_DEVICE") if os.environ.get("TEST_DEVICE") else "CPU"
+
+
+def pytest_configure(config):
+    # register an additional marker for ngraph dependent tests
+    config.addinivalue_line(
+        "markers", "ngraph_dependent_test"
+    )

@@ -2,51 +2,46 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <locale>
-
-#include "gtest/gtest.h"
-
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset.hpp"
 #include "ngraph/opsets/opset1.hpp"
 
+#include <locale>
 #include <memory>
 #include <type_traits>
+
+#include "gtest/gtest.h"
+#include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-namespace
-{
-    string capitulate(string name)
-    {
-        locale loc;
-        string munged_name(name);
-        if (munged_name.size() >= 2)
-        {
-            munged_name[1] = std::toupper(munged_name[1], loc);
-        }
-        return munged_name;
+namespace {
+string capitulate(string name) {
+    locale loc;
+    string munged_name(name);
+    if (munged_name.size() >= 2) {
+        munged_name[1] = std::toupper(munged_name[1], loc);
     }
+    return munged_name;
 }
+}  // namespace
 
-#define CHECK_OPSET(op1, op2)                                                                      \
-    EXPECT_TRUE(is_type<op1>(make_shared<op2>()));                                                 \
-    EXPECT_TRUE((std::is_same<op1, op2>::value));                                                  \
-    EXPECT_TRUE((get_opset1().contains_type<op2>()));                                              \
-    {                                                                                              \
-        shared_ptr<Node> op(get_opset1().create(op2::type_info.name));                             \
-        ASSERT_TRUE(op);                                                                           \
-        EXPECT_TRUE(is_type<op2>(op));                                                             \
-        shared_ptr<Node> opi(get_opset1().create_insensitive(capitulate(op2::type_info.name)));    \
-        ASSERT_TRUE(opi);                                                                          \
-        EXPECT_TRUE(is_type<op2>(opi));                                                            \
+#define CHECK_OPSET(op1, op2)                                                                   \
+    EXPECT_TRUE(is_type<op1>(make_shared<op2>()));                                              \
+    EXPECT_TRUE((std::is_same<op1, op2>::value));                                               \
+    EXPECT_TRUE((get_opset1().contains_type<op2>()));                                           \
+    {                                                                                           \
+        shared_ptr<Node> op(get_opset1().create(op2::type_info.name));                          \
+        ASSERT_TRUE(op);                                                                        \
+        EXPECT_TRUE(is_type<op2>(op));                                                          \
+        shared_ptr<Node> opi(get_opset1().create_insensitive(capitulate(op2::type_info.name))); \
+        ASSERT_TRUE(opi);                                                                       \
+        EXPECT_TRUE(is_type<op2>(opi));                                                         \
     }
 
-TEST(opset, check_opset1)
-{
+TEST(opset, check_opset1) {
     CHECK_OPSET(op::v0::Abs, opset1::Abs)
     CHECK_OPSET(op::v0::Acos, opset1::Acos)
     // TODO: CHECK_OPSET(op::v0::Acosh, opset1::Acosh)
@@ -158,28 +153,27 @@ TEST(opset, check_opset1)
     CHECK_OPSET(op::v0::Xor, opset1::Xor)
 }
 
-class NewOp : public op::Op
-{
+class NewOp : public op::Op {
 public:
     NewOp() = default;
     static constexpr NodeTypeInfo type_info{"NewOp", 0};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    const NodeTypeInfo& get_type_info() const override {
+        return type_info;
+    }
     void validate_and_infer_types() override{};
 
-    virtual std::shared_ptr<Node>
-        clone_with_new_inputs(const OutputVector& /* new_args */) const override
-    {
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& /* new_args */) const override {
         return make_shared<NewOp>();
     };
 };
 
 constexpr NodeTypeInfo NewOp::type_info;
 
-TEST(opset, new_op)
-{
+TEST(opset, new_op) {
     // Copy opset1; don't bash the real thing in a test
     OpSet opset1_copy(get_opset1());
     opset1_copy.insert<NewOp>();
+    ASSERT_TRUE(opset1_copy.contains_type<NewOp>());
     {
         shared_ptr<Node> op(opset1_copy.create(NewOp::type_info.name));
         ASSERT_TRUE(op);
@@ -200,14 +194,13 @@ TEST(opset, new_op)
     EXPECT_TRUE(fred);
     // Fred should not be in the registry
     ASSERT_FALSE(get_opset1().contains_type(NewOp::type_info));
+    ASSERT_FALSE(get_opset1().contains_type<NewOp>());
 }
 
-TEST(opset, dump)
-{
+TEST(opset, dump) {
     OpSet opset1_copy(get_opset1());
     cout << "All opset1 operations: ";
-    for (const auto& t : opset1_copy.get_types_info())
-    {
+    for (const auto& t : opset1_copy.get_types_info()) {
         std::cout << t.name << " ";
     }
     cout << endl;

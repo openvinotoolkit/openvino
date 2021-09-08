@@ -12,6 +12,10 @@
 #include<stdexcept>
 #include <regex>
 
+#define assert_throw(expression)         \
+    if (!(expression))                   \
+        throw std::runtime_error(#expression)
+
 char cnpy::BigEndianTest() {
     int x = 1;
     return (((char *)&x)[0]) ? '<' : '>';
@@ -90,11 +94,13 @@ void cnpy::parse_npy_header(unsigned char* buffer,size_t& word_size, std::vector
     //byte order code | stands for not applicable. 
     //not sure when this applies except for byte array
     loc1 = header.find("descr")+9;
-    bool littleEndian = (header[loc1] == '<' || header[loc1] == '|' ? true : false);
-    assert(littleEndian);
+    bool littleEndian = false;
+    if (loc1 < header.size())
+        littleEndian = (header[loc1] == '<' || header[loc1] == '|' ? true : false);
+    assert_throw(littleEndian);
 
     //char type = header[loc1+1];
-    //assert(type == map_type(T));
+    //assert_throw(type == map_type(T));
 
     std::string str_ws = header.substr(loc1+2);
     loc2 = str_ws.find("'");
@@ -114,7 +120,7 @@ void cnpy::parse_npy_header(FILE* fp, size_t& word_size, std::vector<size_t>& sh
     else {
         header = "";
     }
-    assert(header[header.size()-1] == '\n');
+    assert_throw(header[header.size()-1] == '\n');
 
     size_t loc1, loc2;
 
@@ -148,11 +154,13 @@ void cnpy::parse_npy_header(FILE* fp, size_t& word_size, std::vector<size_t>& sh
     if (loc1 == std::string::npos)
         throw std::runtime_error("parse_npy_header: failed to find header keyword: 'descr'");
     loc1 += 9;
-    bool littleEndian = (header[loc1] == '<' || header[loc1] == '|' ? true : false);
-    assert(littleEndian);
+    bool littleEndian = false;
+    if (loc1 < header.size())
+        littleEndian = (header[loc1] == '<' || header[loc1] == '|' ? true : false);
+    assert_throw(littleEndian);
 
     //char type = header[loc1+1];
-    //assert(type == map_type(T));
+    //assert_throw(type == map_type(T));
 
     std::string str_ws = header.substr(loc1+2);
     loc2 = str_ws.find("'");
@@ -176,16 +184,16 @@ void cnpy::parse_zip_footer(FILE* fp, uint16_t& nrecs, size_t& global_header_siz
     global_header_offset = *(uint32_t*) &footer[16];
     comment_len = *(uint16_t*) &footer[20];
 
-    assert(disk_no == 0);
-    assert(disk_start == 0);
-    assert(nrecs_on_disk == nrecs);
-    assert(comment_len == 0);
+    assert_throw(disk_no == 0);
+    assert_throw(disk_start == 0);
+    assert_throw(nrecs_on_disk == nrecs);
+    assert_throw(comment_len == 0);
 }
 
 cnpy::NpyArray load_the_npy_file(FILE* fp) {
-    std::vector<size_t> shape;
-    size_t word_size;
-    bool fortran_order;
+    std::vector<size_t> shape(0);
+    size_t word_size = 0;
+    bool fortran_order = false;
     cnpy::parse_npy_header(fp,word_size,shape,fortran_order);
     if (word_size >= 0 && word_size < ULLONG_MAX) {
         cnpy::NpyArray arr(shape, word_size, fortran_order);
@@ -225,9 +233,9 @@ cnpy::NpyArray load_the_npz_array(FILE* fp, uint32_t compr_bytes, uint32_t uncom
     err = inflate(&d_stream, Z_FINISH);
     err = inflateEnd(&d_stream);
 
-    std::vector<size_t> shape;
-    size_t word_size;
-    bool fortran_order;
+    std::vector<size_t> shape(0);
+    size_t word_size = 0;
+    bool fortran_order = false;
     cnpy::parse_npy_header(&buffer_uncompr[0],word_size,shape,fortran_order);
     if (word_size >= 0 && word_size < ULLONG_MAX) {
         cnpy::NpyArray array(shape, word_size, fortran_order);
@@ -352,11 +360,15 @@ cnpy::NpyArray cnpy::npy_load(std::string fname) {
 
     if(!fp) throw std::runtime_error("npy_load: Unable to open file "+fname);
 
-    NpyArray arr = load_the_npy_file(fp);
+    try {
+        NpyArray arr = load_the_npy_file(fp);
+        fclose(fp);
+        return arr;
+    } catch (...) {
+        fclose(fp);
+        throw;
+    }
 
-    fclose(fp);
-    return arr;
 }
-
 
 

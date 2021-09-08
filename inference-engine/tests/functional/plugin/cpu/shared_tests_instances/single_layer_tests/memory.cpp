@@ -32,13 +32,13 @@ const std::vector<int64_t> iterationCount {
         10
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MemoryTest, MemoryTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest, MemoryTest,
         ::testing::Combine(
                 ::testing::ValuesIn(transformation),
                 ::testing::ValuesIn(iterationCount),
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(inputPrecisions),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU, "HETERO:CPU")),
         MemoryTest::getTestCaseName);
 
 } // namespace
