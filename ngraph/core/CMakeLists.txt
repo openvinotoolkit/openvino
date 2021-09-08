@@ -103,8 +103,8 @@ install(TARGETS ngraph EXPORT ngraphTargets
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         INCLUDES DESTINATION ${NGRAPH_INSTALL_INCLUDE})
 
-# ngraph needs to be in export list of InferenceEngineTargets
-# this is a cmake limitation
+# because ngraph is exported in multiple export list
+# it needs to be exported in each list it's used
 install(TARGETS ngraph EXPORT InferenceEngineTargets
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph

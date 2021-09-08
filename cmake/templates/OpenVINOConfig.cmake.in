@@ -176,17 +176,11 @@ endif()
 # Apply common functions
 #
 
-unset(_openvino_libraries)
-foreach(comp IN LISTS ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS)
-    # check if the component is available
-    if(${CMAKE_FIND_PACKAGE_NAME}_${comp}_FOUND)
-        set(pcomp ${comp})
-        if(_ov_as_external_package)
-            set(pcomp openvino::${comp})
-        endif()
-
-        list(APPEND _openvino_libraries ${pcomp})
-        _ov_target_no_deprecation_error(${_openvino_libraries})
+foreach(target openvino::runtime openvino::runtime::c openvino::core
+               openvino::frontend::manager openvino::frontend::onnx
+               openvino::frontend::paddlepaddle)
+    if(TARGET ${target})
+        _ov_target_no_deprecation_error(${target})
     endif()
 endforeach()
 unset(_ov_as_external_package)

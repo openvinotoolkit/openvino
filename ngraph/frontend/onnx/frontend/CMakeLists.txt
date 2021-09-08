@@ -55,10 +55,16 @@ if(NGRAPH_USE_PROTOBUF_LITE)
     target_compile_definitions(onnx_ngraph_frontend PRIVATE NGRAPH_USE_PROTOBUF_LITE)
 endif()
 
-# install(TARGETS onnx_ngraph_frontend EXPORT ngraphTargets
-#         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-#         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-#         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+install(TARGETS onnx_ngraph_frontend EXPORT ngraphTargets
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+
+set_target_properties(onnx_ngraph_frontend PROPERTIES EXPORT_NAME frontend::onnx)
+install(TARGETS onnx_ngraph_frontend EXPORT OpenVINOTargets
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 
 install(DIRECTORY ${ONNX_FRONTEND_INCLUDE_DIR}/onnx_frontend
                   ${ONNX_FRONTEND_INCLUDE_DIR}/onnx_import

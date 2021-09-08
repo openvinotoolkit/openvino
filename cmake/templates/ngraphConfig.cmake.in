@@ -42,25 +42,19 @@ if(NOT TARGET ngraph)
 
     # create targets with old names for compatibility
     set(core ngraph)
-    set(frontend_manager frontend_manager)
+    set(frontendXmanager frontend_manager)
     set(frontendXonnx onnx_ngraph_frontend)
     set(frontendXpaddlepaddle paddlepaddle_ngraph_frontend)
 
-    #foreach(target core frontend_manager frontendXonnx frontendXpaddlepaddle)
-    #    string(REPLACE "X" "::" patched_target ${target})
-    #    if(TARGET ngraph::${patched_target})
-    #        set(new_target ngraph::${target})
-    #        add_library(${new_target} INTERFACE IMPORTED)
-    #        set_target_properties(${new_target} PROPERTIES
-    #            INTERFACE_LINK_LIBRARIES ngraph::${patched_target})
-    #    endif()
-    #endforeach()
-
-    if(TARGET ngraph::core AND NOT TARGET ngraph::ngraph)
-        add_library(ngraph::ngraph INTERFACE IMPORTED)
-        set_target_properties(ngraph::ngraph PROPERTIES
-            INTERFACE_LINK_LIBRARIES ngraph::core)
-    endif()
+    foreach(target core frontend_manager frontendXonnx frontendXpaddlepaddle)
+        string(REPLACE "X" "::" patched_target ${target})
+        set(new_target ngraph::${target})
+        if(TARGET ngraph::${patched_target} AND NOT TARGET ${new_target})
+            add_library(${new_target} INTERFACE IMPORTED)
+            set_target_properties(${new_target} PROPERTIES
+                INTERFACE_LINK_LIBRARIES ngraph::${patched_target})
+        endif()
+    endforeach()
 endif()
 
 set(ngraph_ngraph_FOUND ON)
