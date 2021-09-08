@@ -219,6 +219,14 @@ set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
+# Export for build tree
+
+export(TARGETS ${TARGET_NAME} NAMESPACE IE::
+       APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
+
+export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+
 # Export for developer package
 
 openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME}_plugin_api)

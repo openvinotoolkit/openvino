@@ -125,9 +125,9 @@ if(NOT TARGET inference_engine)
             INTERFACE_LINK_LIBRARIES IE::core)
     endif()
 
-    if(TARGET IE::runtime::c AND NOT TARGET IE::inference_engine_c)
-        add_library(IE::inference_engine_c INTERFACE IMPORTED)
-        set_target_properties(IE::inference_engine_c PROPERTIES
+    if(TARGET IE::runtime::c AND NOT TARGET IE::inference_engine_c_api)
+        add_library(IE::inference_engine_c_api INTERFACE IMPORTED)
+        set_target_properties(IE::inference_engine_c_api PROPERTIES
             INTERFACE_LINK_LIBRARIES IE::runtime::c)
     endif()
 endif()
