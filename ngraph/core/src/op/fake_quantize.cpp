@@ -37,24 +37,23 @@ op::FakeQuantize::FakeQuantize(const Output<Node>& data,
 
 void op::FakeQuantize::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_FakeQuantize_validate_and_infer_types);
-    ov::Shape data_pshape = get_input_partial_shape(0);
+    ov::Shape data_pshape = input_shape(0);
 
     for (auto i = 1; i <= 4; i++) {
         if (m_auto_broadcast.m_type == op::AutoBroadcastType::NONE) {
             NODE_VALIDATION_CHECK(this,
-                                  ov::Shape::merge_into(data_pshape, get_input_partial_shape(i)),
+                                  ov::Shape::merge_into(data_pshape, input_shape(i)),
                                   "Argument shapes are inconsistent.");
         } else if (m_auto_broadcast.m_type == op::AutoBroadcastType::NUMPY ||
                    m_auto_broadcast.m_type == op::AutoBroadcastType::PDPD) {
-            NODE_VALIDATION_CHECK(
-                this,
-                ov::Shape::broadcast_merge_into(data_pshape, get_input_partial_shape(i), m_auto_broadcast),
-                "Argument shapes are inconsistent.");
+            NODE_VALIDATION_CHECK(this,
+                                  ov::Shape::broadcast_merge_into(data_pshape, input_shape(i), m_auto_broadcast),
+                                  "Argument shapes are inconsistent.");
         } else {
             NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");
         }
     }
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 bool ngraph::op::v0::FakeQuantize::visit_attributes(AttributeVisitor& visitor) {
@@ -93,11 +92,11 @@ bool evaluate(const HostTensorPtr& arg0,
                                          arg3->get_data_ptr<const T>(),
                                          arg4->get_data_ptr<const T>(),
                                          out->get_data_ptr<T>(),
-                                         parent->get_input_shape(0),
-                                         parent->get_input_shape(1),
-                                         parent->get_input_shape(2),
-                                         parent->get_input_shape(3),
-                                         parent->get_input_shape(4),
+                                         parent->input_shape(0).to_shape(),
+                                         parent->input_shape(1).to_shape(),
+                                         parent->input_shape(2).to_shape(),
+                                         parent->input_shape(3).to_shape(),
+                                         parent->input_shape(4).to_shape(),
                                          parent->get_levels(),
                                          parent->get_auto_broadcast());
     return true;
@@ -139,7 +138,7 @@ bool ngraph::op::FakeQuantize::evaluate(const HostTensorVector& outputs, const H
 
 bool ngraph::op::FakeQuantize::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_FakeQuantize_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

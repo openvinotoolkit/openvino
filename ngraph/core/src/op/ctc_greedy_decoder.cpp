@@ -21,9 +21,9 @@ op::CTCGreedyDecoder::CTCGreedyDecoder(const Output<Node>& input,
 
 void op::CTCGreedyDecoder::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_CTCGreedyDecoder_validate_and_infer_types);
-    const auto& logits_pshape = get_input_partial_shape(0);
-    const auto& seq_mask_pshape = get_input_partial_shape(1);
-    auto input_et = get_input_element_type(0);
+    const auto& logits_pshape = input_shape(0);
+    const auto& seq_mask_pshape = input_shape(1);
+    auto input_et = input_element_type(0);
 
     // output dynamic rank tensor if all inputs are of dynamic rank
     if (logits_pshape.rank().is_dynamic() && seq_mask_pshape.rank().is_dynamic()) {

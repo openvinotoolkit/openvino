@@ -160,7 +160,7 @@ static shared_ptr<Node> numpy_broadcast_node(const Output<Node>& value,
 /// \return     The broadcasted Node.
 ///
 static shared_ptr<Node> broadcast_value_pdpd_style(const Output<Node>& value, const Shape& output_shape, int64_t axis) {
-    auto value_shape = value.get_shape();
+    const auto& value_shape = value.get_shape();
 
     // If node already has the required shape, return original node
     if (output_shape == value_shape) {
@@ -373,7 +373,7 @@ Output<Node> get_axes_mapping_output(const PartialShape& output_shape,
 
     // workaround for GPU plugin type incompatibility
     const auto range_node_converted =
-        std::make_shared<opset7::Convert>(range_node, start_match_axis_node->get_element_type());
+        std::make_shared<opset7::Convert>(range_node, start_match_axis_node->output_element_type(0));
     // end of workaround
 
     const auto result = std::make_shared<opset7::Add>(range_node_converted, start_match_axis_node);

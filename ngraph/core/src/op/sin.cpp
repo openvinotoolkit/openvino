@@ -60,12 +60,12 @@ bool evaluate_sin(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
 
 bool op::Sin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Sin_evaluate);
-    return sinop::evaluate_sin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return sinop::evaluate_sin(inputs[0], outputs[0], shape_size(output_shape(0).to_shape()));
 }
 
 bool op::Sin::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Sin_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:

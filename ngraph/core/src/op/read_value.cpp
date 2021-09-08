@@ -22,8 +22,8 @@ op::v3::ReadValue::ReadValue(const Output<Node>& init_value, const std::string& 
 
 void op::v3::ReadValue::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_ReadValue_validate_and_infer_types);
-    auto arg_t = get_input_element_type(0);
-    auto output_shape = get_input_partial_shape(0);
+    auto arg_t = input_element_type(0);
+    auto output_shape = input_shape(0);
 
     VariableInfo info = {output_shape, arg_t, m_variable_id};
     if (m_variable == nullptr)
@@ -53,8 +53,8 @@ op::v6::ReadValue::ReadValue(const Output<Node>& init_value, const shared_ptr<Va
 
 void op::v6::ReadValue::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_ReadValue_validate_and_infer_types);
-    const auto arg_t = get_input_element_type(0);
-    auto output_shape = get_input_partial_shape(0);
+    const auto arg_t = input_element_type(0);
+    auto output_shape = input_shape(0);
     NGRAPH_CHECK(m_variable, "Variable is not initialized.");
     VariableInfo var_info = {output_shape, element::dynamic, m_variable->get_info().variable_id};
     NODE_VALIDATION_CHECK(this,

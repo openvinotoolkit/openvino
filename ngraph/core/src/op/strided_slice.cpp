@@ -95,8 +95,8 @@ bool op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::StridedSlice::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_StridedSlice_validate_and_infer_types);
-    const auto& begin_mask_et = get_input_element_type(1);
-    const auto& end_mask_et = get_input_element_type(2);
+    const auto& begin_mask_et = input_element_type(1);
+    const auto& end_mask_et = input_element_type(2);
     NODE_VALIDATION_CHECK(this,
                           begin_mask_et.is_integral_number(),
                           "Begin mask must be an integral number, but is: ",
@@ -128,8 +128,8 @@ void op::v1::StridedSlice::validate_and_infer_types() {
     });
     NODE_VALIDATION_CHECK(this, are_attr_sizes_eq, "All masks of StridedSlice must have the same size");
 
-    const auto& data_rank = get_input_partial_shape(0).rank();
-    const auto& begin_shape = get_input_partial_shape(1);
+    const auto& data_rank = input_shape(0).rank();
+    const auto& begin_shape = input_shape(1);
     if (begin_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,
                               begin_shape.rank().get_length() == 1,
@@ -137,7 +137,7 @@ void op::v1::StridedSlice::validate_and_infer_types() {
                               begin_shape.rank(),
                               ").");
     }
-    const auto& end_shape = get_input_partial_shape(2);
+    const auto& end_shape = input_shape(2);
     if (end_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,
                               end_shape.rank().get_length() == 1,
@@ -147,8 +147,8 @@ void op::v1::StridedSlice::validate_and_infer_types() {
     }
 
     // Fill up strides input with default strides if not set by this point.
-    if (get_input_size() < 4) {
-        set_argument(3, calculate_default_strides(get_input_node_ptr(1)->output(0), get_input_node_ptr(2)->output(0)));
+    if (input_size() < 4) {
+        set_argument(3, calculate_default_strides(input_node_ptr(1)->output(0), input_node_ptr(2)->output(0)));
     }
 
     set_input_is_relevant_to_shape(1);
@@ -161,9 +161,9 @@ void op::v1::StridedSlice::validate_and_infer_types() {
 
     if (begin_const && end_const && strides) {
         set_output_type(0,
-                        get_input_element_type(0),
+                        input_element_type(0),
                         infer_slice_shape(this,
-                                          get_input_partial_shape(0),
+                                          input_shape(0),
                                           begin_const->cast_vector<int64_t>(),
                                           end_const->cast_vector<int64_t>(),
                                           strides->cast_vector<int64_t>(),
@@ -173,7 +173,7 @@ void op::v1::StridedSlice::validate_and_infer_types() {
                                           convert_mask_to_axis_set(get_shrink_axis_mask()),
                                           convert_mask_to_axis_set(get_ellipsis_mask())));
     } else {
-        set_output_type(0, get_input_element_type(0), ov::Shape::dynamic(data_rank));
+        set_output_type(0, input_element_type(0), ov::Shape::dynamic(data_rank));
     }
 }
 
@@ -260,7 +260,7 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values, const
 
 bool op::v1::StridedSlice::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_StridedSlice_has_evaluate);
-    return get_input_size() == 4;
+    return input_size() == 4;
 }
 
 bool op::v1::StridedSlice::evaluate_lower(const HostTensorVector& output_values) const {

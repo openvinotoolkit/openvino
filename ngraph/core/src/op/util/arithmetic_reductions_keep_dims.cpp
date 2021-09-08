@@ -29,9 +29,9 @@ bool ov::op::util::ArithmeticReductionKeepDims::visit_attributes(AttributeVisito
 void ov::op::util::ArithmeticReductionKeepDims::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_util_ArithmeticReductionKeepDims_validate_and_infer_types);
 
-    const element::Type& data_et = get_input_element_type(0);
-    const Shape& axes_shape = get_input_partial_shape(1);
-    const element::Type& axes_et = get_input_element_type(1);
+    const element::Type& data_et = input_element_type(0);
+    const Shape& axes_shape = input_shape(1);
+    const element::Type& axes_et = input_element_type(1);
 
     NODE_VALIDATION_CHECK(this,
                           data_et.is_real() || data_et.is_integral_number(),

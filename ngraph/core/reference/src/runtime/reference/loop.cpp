@@ -40,9 +40,10 @@ void loop(const std::shared_ptr<Function>& func,
             cur_iter->validate_and_infer_types();
         }
 
-        auto init = std::make_shared<opset5::Constant>(func->get_parameters().at(cur_iter_idx)->get_element_type(),
-                                                       func->get_parameters().at(cur_iter_idx)->get_shape(),
-                                                       0);
+        auto init =
+            std::make_shared<opset5::Constant>(func->get_parameters().at(cur_iter_idx)->get_element_type(),
+                                               func->get_parameters().at(cur_iter_idx)->output_shape(0).to_shape(),
+                                               0);
         inputs_to_body.at(cur_iter_idx)->initialize(init);
         // reinterpret_cast<int64_t*>(inputs_to_body.at(cur_iter_idx).data())[0] = 0;
     }
@@ -155,7 +156,7 @@ void loop(const std::shared_ptr<Function>& func,
                 if (cur_iter_param->get_element_type() == element::i64)
                     inputs_to_body.at(cur_iter_idx)->write(&iter_num, cur_iter_param->get_element_type().size());
                 else if (cur_iter_param->get_element_type() == element::i32) {
-                    int32_t iter_num_i32 = static_cast<int32_t>(iter_num);
+                    auto iter_num_i32 = static_cast<int32_t>(iter_num);
                     inputs_to_body.at(cur_iter_idx)->write(&iter_num_i32, cur_iter_param->get_element_type().size());
                 } else
                     NGRAPH_CHECK(false,
@@ -179,7 +180,7 @@ void loop(const std::shared_ptr<Function>& func,
         // Concatenate and copy all values stored in values_to_concat vector to outputs
         for (size_t i = 0; i < concat_outputs.size(); ++i) {
             const auto& concat_desc = concat_outputs[i];
-            auto shape = func->get_results().at(concat_desc->m_body_value_index)->get_shape();
+            auto shape = func->get_results().at(concat_desc->m_body_value_index)->output_shape(0).to_shape();
             std::vector<Shape> shapes_to_concat(values_to_concat[i].size(), shape);
             shape.at(concat_desc->m_axis) = values_to_concat[i].size();
             out[concat_desc->m_output_index]->set_shape(shape);

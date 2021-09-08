@@ -30,17 +30,17 @@ bool op::Concat::visit_attributes(AttributeVisitor& visitor) {
 
 void op::Concat::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Concat_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
+    NODE_VALIDATION_CHECK(this, input_size() >= 1, "At least one argument required.");
 
     ov::Shape inputs_shape_scheme{ov::Shape::dynamic()};
     element::Type inputs_et{element::dynamic};
     Dimension concatenation_axis_output_dim{0};
 
-    for (uint64_t i = 0; i < get_input_size(); i++) {
+    for (uint64_t i = 0; i < input_size(); i++) {
         NODE_VALIDATION_CHECK(this,
-                              element::Type::merge(inputs_et, inputs_et, get_input_element_type(i)),
+                              element::Type::merge(inputs_et, inputs_et, input_element_type(i)),
                               "Argument element types are inconsistent.");
-        ov::Shape this_input_shape = get_input_partial_shape(i);
+        ov::Shape this_input_shape = input_shape(i);
         Dimension this_input_rank = this_input_shape.rank();
         if (this_input_rank.is_static()) {
             if (get_concatenation_axis() < 0) {

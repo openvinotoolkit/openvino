@@ -31,39 +31,37 @@ void op::v1::Select::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Select_validate_and_infer_types);
     // Condition element type check
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).is_dynamic() || get_input_element_type(0) == element::boolean,
+                          input_element_type(0).is_dynamic() || input_element_type(0) == element::boolean,
                           "Argument 0 must have boolean element type (element type: ",
-                          get_input_element_type(0),
+                          input_element_type(0),
                           ").");
 
     // Then/Else element type check
     element::Type result_et;
     NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
+                          element::Type::merge(result_et, input_element_type(1), input_element_type(2)),
                           "Argument 1 and 2 element types must match.");
 
     ov::Shape result_shape;
     if (get_auto_broadcast().m_type == op::AutoBroadcastType::PDPD) {
-        result_shape = get_input_partial_shape(1);  // 'then' tensor
-        NODE_VALIDATION_CHECK(
-            this,
-            ov::Shape::broadcast_merge_into(result_shape, get_input_partial_shape(2), get_auto_broadcast()),
-            "'Else' tensor shape is not broadcastable.");
-        NODE_VALIDATION_CHECK(
-            this,
-            ov::Shape::broadcast_merge_into(result_shape, get_input_partial_shape(0), get_auto_broadcast()),
-            "'Cond' tensor shape is not broadcastable.");
+        result_shape = input_shape(1);  // 'then' tensor
+        NODE_VALIDATION_CHECK(this,
+                              ov::Shape::broadcast_merge_into(result_shape, input_shape(2), get_auto_broadcast()),
+                              "'Else' tensor shape is not broadcastable.");
+        NODE_VALIDATION_CHECK(this,
+                              ov::Shape::broadcast_merge_into(result_shape, input_shape(0), get_auto_broadcast()),
+                              "'Cond' tensor shape is not broadcastable.");
     } else {
-        result_shape = get_input_partial_shape(2);
+        result_shape = input_shape(2);
         for (int i = 1; i >= 0; i--) {
             if (get_auto_broadcast().m_type == op::AutoBroadcastType::NONE) {
                 NODE_VALIDATION_CHECK(this,
-                                      ov::Shape::merge_into(result_shape, get_input_partial_shape(i)),
+                                      ov::Shape::merge_into(result_shape, input_shape(i)),
                                       "Argument shapes are inconsistent.");
             } else if (get_auto_broadcast().m_type == op::AutoBroadcastType::NUMPY) {
                 NODE_VALIDATION_CHECK(
                     this,
-                    ov::Shape::broadcast_merge_into(result_shape, get_input_partial_shape(i), get_auto_broadcast()),
+                    ov::Shape::broadcast_merge_into(result_shape, input_shape(i), get_auto_broadcast()),
                     "Argument shapes are inconsistent.");
             } else {
                 NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");
@@ -148,7 +146,7 @@ bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostT
 
 bool op::v1::Select::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Select_has_evaluate);
-    switch (get_output_element_type(0)) {
+    switch (output_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
     case ngraph::element::i32:

@@ -43,10 +43,10 @@ op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
 void op::v4::CTCLoss::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_CTCLoss_validate_and_infer_types);
     // check types of input tensors
-    const auto& logits_type = get_input_element_type(0);
-    const auto& logit_length_type = get_input_element_type(1);
-    const auto& labels_type = get_input_element_type(2);
-    const auto& label_length_type = get_input_element_type(3);
+    const auto& logits_type = input_element_type(0);
+    const auto& logit_length_type = input_element_type(1);
+    const auto& labels_type = input_element_type(2);
+    const auto& label_length_type = input_element_type(3);
 
     NODE_VALIDATION_CHECK(this,
                           logits_type.is_real(),
@@ -69,8 +69,8 @@ void op::v4::CTCLoss::validate_and_infer_types() {
                           label_length_type);
 
     // check optional input type: blank index
-    if (get_input_size() == 5) {
-        const auto& blank_index_type = get_input_element_type(4);
+    if (input_size() == 5) {
+        const auto& blank_index_type = input_element_type(4);
         NODE_VALIDATION_CHECK(this,
                               blank_index_type.is_integral_number(),
                               "The blank index type is expected to be an integer type. Got: ",
@@ -78,10 +78,10 @@ void op::v4::CTCLoss::validate_and_infer_types() {
     }
 
     // check ranks of input tensors
-    const auto& logits_pshape = get_input_partial_shape(0);
-    const auto& logit_length_pshape = get_input_partial_shape(1);
-    const auto& labels_pshape = get_input_partial_shape(2);
-    const auto& label_length_pshape = get_input_partial_shape(3);
+    const auto& logits_pshape = input_shape(0);
+    const auto& logit_length_pshape = input_shape(1);
+    const auto& labels_pshape = input_shape(2);
+    const auto& label_length_pshape = input_shape(3);
 
     NODE_VALIDATION_CHECK(this,
                           logits_pshape.rank().compatible(3),
@@ -104,8 +104,8 @@ void op::v4::CTCLoss::validate_and_infer_types() {
                           label_length_pshape);
 
     // check optional input shape: blank index
-    if (get_input_size() == 5) {
-        const auto& blank_index_pshape = get_input_partial_shape(4);
+    if (input_size() == 5) {
+        const auto& blank_index_pshape = input_shape(4);
         NODE_VALIDATION_CHECK(this,
                               blank_index_pshape.rank().compatible(0),
                               "Expected a scalar for blank index. Got: ",

@@ -64,7 +64,7 @@ bool op::v4::HSwish::evaluate(const HostTensorVector& outputs, const HostTensorV
 
 bool op::v4::HSwish::has_evaluate() const {
     NGRAPH_OP_SCOPE(v4_HSwish_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:

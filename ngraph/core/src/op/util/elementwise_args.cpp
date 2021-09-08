@@ -10,22 +10,22 @@ std::tuple<ov::element::Type, ov::Shape> ov::op::util::validate_and_infer_elemen
     Node* node,
     const op::AutoBroadcastSpec& autob) {
     NGRAPH_CHECK(node != nullptr, "nGraph node is empty! Cannot validate eltwise arguments.");
-    element::Type element_type = node->get_input_element_type(0);
-    Shape pshape = node->get_input_partial_shape(0);
+    element::Type element_type = node->input_element_type(0);
+    Shape pshape = node->input_shape(0);
 
-    if (node->get_input_size() > 1) {
-        for (size_t i = 1; i < node->get_input_size(); ++i) {
+    if (node->input_size() > 1) {
+        for (size_t i = 1; i < node->input_size(); ++i) {
             NODE_VALIDATION_CHECK(node,
-                                  element::Type::merge(element_type, element_type, node->get_input_element_type(i)),
+                                  element::Type::merge(element_type, element_type, node->input_element_type(i)),
                                   "Argument element types are inconsistent.");
 
             if (autob.m_type == op::AutoBroadcastType::NONE) {
                 NODE_VALIDATION_CHECK(node,
-                                      Shape::merge_into(pshape, node->get_input_partial_shape(i)),
+                                      Shape::merge_into(pshape, node->input_shape(i)),
                                       "Argument shapes are inconsistent.");
             } else if (autob.m_type == op::AutoBroadcastType::NUMPY || autob.m_type == op::AutoBroadcastType::PDPD) {
                 NODE_VALIDATION_CHECK(node,
-                                      Shape::broadcast_merge_into(pshape, node->get_input_partial_shape(i), autob),
+                                      Shape::broadcast_merge_into(pshape, node->input_shape(i), autob),
                                       "Argument shapes are inconsistent.");
             } else {
                 NODE_VALIDATION_CHECK(node, false, "Unsupported auto broadcast specification");

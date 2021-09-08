@@ -22,16 +22,16 @@ op::v6::GatherElements::GatherElements(const Output<Node>& data, const Output<No
 
 void op::v6::GatherElements::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_GatherElements_validate_and_infer_types);
-    const auto& data_type = get_input_element_type(0);
-    const auto& indices_type = get_input_element_type(1);
+    const auto& data_type = input_element_type(0);
+    const auto& indices_type = input_element_type(1);
 
     NODE_VALIDATION_CHECK(this,
                           indices_type == element::Type_t::i32 || indices_type == element::Type_t::i64,
                           "indices must be of int32 or int64 type. But instead got: ",
                           indices_type);
 
-    const auto& data_pshape = get_input_partial_shape(0);
-    const auto& indices_pshape = get_input_partial_shape(1);
+    const auto& data_pshape = input_shape(0);
+    const auto& indices_pshape = input_shape(1);
     auto data_rank = data_pshape.rank();
     auto indices_rank = indices_pshape.rank();
 

@@ -59,12 +59,12 @@ bool evaluate_tanh(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 
 bool op::Tanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Tanh_evaluate);
-    return tanhop::evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return tanhop::evaluate_tanh(inputs[0], outputs[0], shape_size(output_shape(0).to_shape()));
 }
 
 bool op::Tanh::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Tanh_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

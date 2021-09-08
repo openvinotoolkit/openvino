@@ -18,7 +18,7 @@ ov::op::util::ReductionBase::ReductionBase(const Output<Node>& arg, const Output
     : Op({arg, reduction_axes}) {}
 
 ov::Shape ov::op::util::ReductionBase::infer_reduction_output_shape(const bool keep_dims) {
-    const Shape& data_ps = get_input_partial_shape(0);
+    const Shape& data_ps = input_shape(0);
     Shape result_ps{Shape::dynamic()};
     Rank data_rank = data_ps.rank();
 

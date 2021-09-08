@@ -47,7 +47,7 @@ void op::v3::NonZero::validate_and_infer_types() {
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
     // For scalar non-zero value case, onnx test case expects output shape {1, 1}
-    const ov::Shape& input_shape = get_input_partial_shape(0);
+    const ov::Shape& input_shape = this->input_shape(0);
     if (input_shape.rank().compatible(0)) {
         set_output_type(0, m_output_type, ov::Shape{Dimension::dynamic(), Dimension::dynamic()});
     } else {
@@ -61,12 +61,12 @@ void op::v3::NonZero::validate_and_infer_types() {
     if (const auto& input_constant =
             get_constant_from_source(input_value(0))) {  // input_value is available to calculate output shape
         const auto& input_data = std::make_shared<HostTensor>(input_constant);
-        auto output = std::make_shared<HostTensor>(m_output_type, get_output_partial_shape(0));
+        auto output = std::make_shared<HostTensor>(m_output_type, output_shape(0));
         if (!evaluate({output}, {input_data}))
             return;
         set_output_type(0, m_output_type, output->get_partial_shape());
-        get_output_tensor(0).set_lower_value(output);
-        get_output_tensor(0).set_upper_value(output);
+        output_tensor(0).set_lower_value(output);
+        output_tensor(0).set_upper_value(output);
     }
 }
 
@@ -154,7 +154,7 @@ bool op::v3::NonZero::evaluate(const HostTensorVector& outputs, const HostTensor
 
 bool op::v3::NonZero::has_evaluate() const {
     NGRAPH_OP_SCOPE(v3_NonZero_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
     case ngraph::element::i32:

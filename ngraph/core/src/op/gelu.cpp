@@ -37,8 +37,8 @@ shared_ptr<Node> op::v0::Gelu::clone_with_new_inputs(const OutputVector& new_arg
 
 void op::v0::Gelu::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Gelu_validate_and_infer_types);
-    element::Type input_element_type = get_input_element_type(0);
-    ov::Shape input_pshape = get_input_partial_shape(0);
+    element::Type input_element_type = this->input_element_type(0);
+    ov::Shape input_pshape = input_shape(0);
 
     NODE_VALIDATION_CHECK(this,
                           input_element_type.is_dynamic() || input_element_type.is_real(),
@@ -90,8 +90,8 @@ shared_ptr<Node> op::v7::Gelu::clone_with_new_inputs(const OutputVector& new_arg
 
 void op::v7::Gelu::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v7_Gelu_validate_and_infer_types);
-    element::Type input_element_type = get_input_element_type(0);
-    ov::Shape input_pshape = get_input_partial_shape(0);
+    element::Type input_element_type = this->input_element_type(0);
+    ov::Shape input_pshape = input_shape(0);
 
     NODE_VALIDATION_CHECK(this,
                           input_element_type.is_dynamic() || input_element_type.is_real(),
@@ -141,7 +141,7 @@ bool op::v7::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVec
 
 bool op::v7::Gelu::has_evaluate() const {
     NGRAPH_OP_SCOPE(v7_Gelu_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::f16:
     case ngraph::element::f32:
         return true;

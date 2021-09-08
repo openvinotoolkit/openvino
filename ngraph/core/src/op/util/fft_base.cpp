@@ -24,21 +24,21 @@ bool ov::op::util::FFTBase::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void ov::op::util::FFTBase::validate() {
-    size_t num_of_inputs = get_input_size();
+    size_t num_of_inputs = input_size();
 
     NODE_VALIDATION_CHECK(this, num_of_inputs == 2 || num_of_inputs == 3, "FFT op must have 2 or 3 inputs.");
 
-    element::Type input_et = get_input_element_type(0);
+    element::Type input_et = input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           input_et == element::f32 || input_et == element::f16 || input_et == element::bf16,
                           "FFT op input element type must be f32, f16, or bf16");
 
-    element::Type axes_et = get_input_element_type(1);
+    element::Type axes_et = input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           axes_et == element::i64 || axes_et == element::i32,
                           "FFT op axes element type must be i32 or i64");
 
-    const auto& input_shape = Shape(get_input_partial_shape(0));
+    const auto& input_shape = Shape(this->input_shape(0));
     if (input_shape.rank().is_static()) {
         const auto input_rank = input_shape.rank().get_length();
         NODE_VALIDATION_CHECK(this,
@@ -53,7 +53,7 @@ void ov::op::util::FFTBase::validate() {
                               input_shape[input_rank - 1]);
     }
 
-    const auto& axes_shape = Shape(get_input_partial_shape(1));
+    const auto& axes_shape = Shape(this->input_shape(1));
     if (axes_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,
                               axes_shape.rank().get_length() == 1,
@@ -105,12 +105,12 @@ void ov::op::util::FFTBase::validate() {
     }
 
     if (num_of_inputs == 3) {
-        element::Type signal_size_et = get_input_element_type(2);
+        element::Type signal_size_et = input_element_type(2);
         NODE_VALIDATION_CHECK(this,
                               signal_size_et == element::i64 || signal_size_et == element::i32,
                               "FFT op signal_size element type must be i32 or i64");
 
-        const auto& signal_size_shape = Shape(get_input_partial_shape(2));
+        const auto& signal_size_shape = Shape(this->input_shape(2));
         if (signal_size_shape.rank().is_static()) {
             NODE_VALIDATION_CHECK(this,
                                   signal_size_shape.rank().get_length() == 1,
@@ -135,11 +135,11 @@ void ov::op::util::FFTBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_FFTBase_validate_and_infer_types);
     validate();
 
-    const auto& input_shape = Shape(get_input_partial_shape(0));
-    const auto& axes_shape = Shape(get_input_partial_shape(1));
+    const auto& input_shape = Shape(this->input_shape(0));
+    const auto& axes_shape = Shape(this->input_shape(1));
     Shape output_shape = input_shape;
     if (input_shape.rank().is_dynamic()) {
-        set_output_type(0, get_input_element_type(0), output_shape);
+        set_output_type(0, input_element_type(0), output_shape);
         return;
     }
 
@@ -149,18 +149,18 @@ void ov::op::util::FFTBase::validate_and_infer_types() {
         for (int64_t i = 0; i < input_rank - 1; ++i) {
             output_shape[i] = Dimension::dynamic();
         }
-        set_output_type(0, get_input_element_type(0), output_shape);
+        set_output_type(0, input_element_type(0), output_shape);
         return;
     }
 
     if (input_values().size() == 2) {
-        set_output_type(0, get_input_element_type(0), output_shape);
+        set_output_type(0, input_element_type(0), output_shape);
         return;
     }
 
-    const auto& signal_size_shape = Shape(get_input_partial_shape(2));
+    const auto& signal_size_shape = Shape(this->input_shape(2));
     if (signal_size_shape.rank().is_dynamic()) {
-        set_output_type(0, get_input_element_type(0), output_shape);
+        set_output_type(0, input_element_type(0), output_shape);
         return;
     }
 
@@ -182,7 +182,7 @@ void ov::op::util::FFTBase::validate_and_infer_types() {
         for (int64_t axis : axes) {
             output_shape[axis] = Dimension::dynamic();
         }
-        set_output_type(0, get_input_element_type(0), output_shape);
+        set_output_type(0, input_element_type(0), output_shape);
         return;
     }
 
@@ -197,5 +197,5 @@ void ov::op::util::FFTBase::validate_and_infer_types() {
         output_shape[axes[i]] = Dimension(signal_size[i]);
     }
 
-    set_output_type(0, get_input_element_type(0), output_shape);
+    set_output_type(0, input_element_type(0), output_shape);
 }

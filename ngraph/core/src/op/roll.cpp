@@ -21,19 +21,19 @@ op::v7::Roll::Roll(const Output<Node>& data, const Output<Node>& shift, const Ou
 void op::v7::Roll::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v7_Roll_validate_and_infer_types);
 
-    const auto& shift_et = get_input_element_type(1);
+    const auto& shift_et = input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           shift_et.is_dynamic() || shift_et == element::i32 || shift_et == element::i64,
                           "Shift must have int32 or int64 element type.");
 
-    const auto& axes_et = get_input_element_type(2);
+    const auto& axes_et = input_element_type(2);
     NODE_VALIDATION_CHECK(this,
                           axes_et.is_dynamic() || axes_et == element::i32 || axes_et == element::i64,
                           "Axes must have int32 or int64 element type.");
 
-    const auto& data_pshape = get_input_partial_shape(0);
-    const auto& shift_pshape = get_input_partial_shape(1);
-    const auto& axes_pshape = get_input_partial_shape(2);
+    const auto& data_pshape = input_shape(0);
+    const auto& shift_pshape = input_shape(1);
+    const auto& axes_pshape = input_shape(2);
 
     if (shift_pshape.is_static()) {
         const auto& shift_rank = shift_pshape.rank().get_length();
@@ -78,7 +78,7 @@ void op::v7::Roll::validate_and_infer_types() {
         }
     }
 
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 bool op::v7::Roll::visit_attributes(AttributeVisitor& visitor) {

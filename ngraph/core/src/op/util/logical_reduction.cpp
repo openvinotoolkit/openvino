@@ -47,8 +47,8 @@ void op::util::LogicalReduction::set_reduction_axes(const AxisSet& reduction_axe
 void op::util::LogicalReduction::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_LogicalReduction_validate_and_infer_types);
 
-    const element::Type& data_et = get_input_element_type(0);
-    const Shape& axes_shape = get_input_partial_shape(1);
+    const element::Type& data_et = input_element_type(0);
+    const Shape& axes_shape = input_shape(1);
 
     NODE_VALIDATION_CHECK(this, data_et.compatible(element::boolean), "Element type of data input must be boolean.");
 

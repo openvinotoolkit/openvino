@@ -78,7 +78,7 @@ bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVe
 
 bool op::v0::Clamp::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Clamp_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
     case ngraph::element::i32:
@@ -107,7 +107,7 @@ op::Clamp::Clamp(const Output<Node>& data, const double min, const double max) :
 
 void op::Clamp::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Clamp_validate_and_infer_types);
-    const element::Type& input_et = get_input_element_type(0);
+    const element::Type& input_et = input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           input_et.is_integral_number() || input_et.is_real(),
                           "Input element type must be numeric. Got: ",
@@ -118,7 +118,7 @@ void op::Clamp::validate_and_infer_types() {
                           m_min,
                           " and ",
                           m_max);
-    set_output_type(0, input_et, get_input_partial_shape(0));
+    set_output_type(0, input_et, input_shape(0));
 }
 
 shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) const {

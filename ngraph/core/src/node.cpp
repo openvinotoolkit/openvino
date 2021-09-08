@@ -116,8 +116,8 @@ std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(
     for (auto& cdep : control_dependencies) {
         clone->add_control_dependency(cdep);
     }
-    for (size_t i = 0; i < get_output_size(); i++) {
-        clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
+    for (size_t i = 0; i < output_size(); i++) {
+        clone->output_tensor(i).set_names(output_tensor(i).get_names());
     }
     return clone;
 }
@@ -366,18 +366,30 @@ void ov::Node::transfer_provenance_tags(const shared_ptr<Node>& replacement) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-ov::Node* ov::Node::get_input_node_ptr(size_t index) const {
+ov::Node* ov::Node::input_node_ptr(size_t index) const {
     NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
     return m_inputs[index].get_output().get_node().get();
 }
 
-std::shared_ptr<ov::Node> ov::Node::get_input_node_shared_ptr(size_t index) const {
+ov::Node* ov::Node::get_input_node_ptr(size_t index) const {
+    return input_node_ptr(index);
+}
+
+std::shared_ptr<ov::Node> ov::Node::input_node_shared_ptr(size_t index) const {
     NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
     return m_inputs[index].get_output().get_node();
 }
 
-ov::Output<ov::Node> ov::Node::get_input_source_output(size_t i) const {
+std::shared_ptr<ov::Node> ov::Node::get_input_node_shared_ptr(size_t index) const {
+    return input_node_shared_ptr(index);
+}
+
+ov::Output<ov::Node> ov::Node::input_source_output(size_t i) const {
     return input(i).get_source_output();
+}
+
+ov::Output<ov::Node> ov::Node::get_input_source_output(size_t i) const {
+    return input_source_output(i);
 }
 
 const std::vector<std::shared_ptr<ov::Node>>& ov::Node::get_control_dependencies() const {
@@ -472,8 +484,8 @@ std::ostream& ov::Node::write_description(std::ostream& out, uint32_t depth) con
         }
         out << ") -> (";
         sep = "";
-        for (size_t i = 0; i < get_output_size(); i++) {
-            out << sep << get_output_element_type(i) << get_output_partial_shape(i);
+        for (size_t i = 0; i < output_size(); i++) {
+            out << sep << output_element_type(i) << output_shape(i);
             sep = ", ";
         }
         out << ")";
@@ -481,13 +493,20 @@ std::ostream& ov::Node::write_description(std::ostream& out, uint32_t depth) con
     return out;
 }
 
-size_t ov::Node::get_output_size() const {
+size_t ov::Node::output_size() const {
     return m_outputs.size();
 }
 
-const ov::element::Type& ov::Node::get_output_element_type(size_t i) const {
+size_t ov::Node::get_output_size() const {
+    return output_size();
+}
+
+const ov::element::Type& ov::Node::output_element_type(size_t i) const {
     NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_element_type(size_t i)");
     return m_outputs[i].get_element_type();
+}
+const ov::element::Type& ov::Node::get_output_element_type(size_t i) const {
+    return output_element_type(i);
 }
 
 const ov::element::Type& ov::Node::get_element_type() const {
@@ -497,14 +516,17 @@ const ov::element::Type& ov::Node::get_element_type() const {
     return get_output_element_type(0);
 }
 
+const ov::Shape& ov::Node::output_shape(size_t i) const {
+    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in output_shape(size_t i)");
+    return m_outputs[i].get_partial_shape();
+}
 const ov::StaticShape& ov::Node::get_output_shape(size_t i) const {
     NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_shape(size_t i)");
     return m_outputs[i].get_shape();
 }
 
 const ov::Shape& ov::Node::get_output_partial_shape(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_partial_shape(size_t i)");
-    return m_outputs[i].get_partial_shape();
+    return output_shape(i);
 }
 
 const ov::StaticShape& ov::Node::get_shape() const {
@@ -522,24 +544,45 @@ std::set<ov::Input<ov::Node>> ov::Node::get_output_target_inputs(size_t i) const
     return result;
 }
 
-ov::descriptor::Tensor& ov::Node::get_output_tensor(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor(size_t i)");
+ov::descriptor::Tensor& ov::Node::output_tensor(size_t i) const {
+    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in output_tensor(size_t i)");
     return m_outputs[i].get_tensor();
 }
 
-ov::descriptor::Tensor& ov::Node::get_input_tensor(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_tensor(size_t i)");
+ov::descriptor::Tensor& ov::Node::get_output_tensor(size_t i) const {
+    return output_tensor(i);
+}
+
+ov::descriptor::Tensor& ov::Node::input_tensor(size_t i) const {
+    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in input_tensor(size_t i)");
     descriptor::Input input = m_inputs[i];
     return input.get_tensor();
 }
 
-size_t ov::Node::get_input_size() const {
+ov::descriptor::Tensor& ov::Node::get_input_tensor(size_t i) const {
+    return input_tensor(i);
+}
+
+size_t ov::Node::input_size() const {
     return m_inputs.size();
 }
 
-const ov::element::Type& ov::Node::get_input_element_type(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_element_type(size_t i)");
+size_t ov::Node::get_input_size() const {
+    return input_size();
+}
+
+const ov::element::Type& ov::Node::input_element_type(size_t i) const {
+    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in input_element_type(size_t i)");
     return m_inputs[i].get_element_type();
+}
+
+const ov::element::Type& ov::Node::get_input_element_type(size_t i) const {
+    return input_element_type(i);
+}
+
+const ov::Shape& ov::Node::input_shape(size_t i) const {
+    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in input_shape(size_t i)");
+    return m_inputs[i].get_partial_shape();
 }
 
 const ov::StaticShape& ov::Node::get_input_shape(size_t i) const {
@@ -548,8 +591,7 @@ const ov::StaticShape& ov::Node::get_input_shape(size_t i) const {
 }
 
 const ov::Shape& ov::Node::get_input_partial_shape(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_partial_shape(size_t i)");
-    return m_inputs[i].get_partial_shape();
+    return input_shape(i);
 }
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -565,12 +607,11 @@ const string& ov::Node::get_output_tensor_name(size_t i) const {
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 bool ov::Node::has_same_type(std::shared_ptr<const Node> node) const {
-    if (get_output_size() != node->get_output_size()) {
+    if (output_size() != node->output_size()) {
         return false;
     }
-    for (size_t i = 0; i < get_output_size(); ++i) {
-        if (get_output_element_type(i) != node->get_output_element_type(i) ||
-            get_output_shape(i) != node->get_output_shape(i)) {
+    for (size_t i = 0; i < output_size(); ++i) {
+        if (output_element_type(i) != node->output_element_type(i) || output_shape(i) != node->output_shape(i)) {
             return false;
         }
     }
@@ -597,7 +638,7 @@ std::string ov::node_validation_failure_loc_string(const Node* node) {
 }
 
 const std::shared_ptr<ov::Node>& ov::check_single_output_arg(const std::shared_ptr<Node>& node, size_t i) {
-    NGRAPH_CHECK(node->get_output_size() == 1, "Argument ", i, node, " must produce exactly one value.");
+    NGRAPH_CHECK(node->output_size() == 1, "Argument ", i, node, " must produce exactly one value.");
     return node;
 }
 
@@ -668,8 +709,8 @@ bool ov::Node::match_node(ngraph::pattern::Matcher* matcher, const Output<Node>&
 // we will override this method, for the Op's which depends on additional shape
 // attribute to determine if node contains partial shape or not
 bool ov::Node::is_dynamic() const {
-    for (size_t i = 0; i < get_input_size(); i++) {
-        if (get_input_partial_shape(i).is_dynamic()) {
+    for (size_t i = 0; i < input_size(); i++) {
+        if (input_shape(i).is_dynamic()) {
             return true;
         }
     }
@@ -717,7 +758,7 @@ ov::Output<const ov::Node> ov::Node::output(size_t output_index) const {
 vector<ov::Input<ov::Node>> ov::Node::inputs() {
     vector<Input<Node>> result;
 
-    for (size_t i = 0; i < get_input_size(); i++) {
+    for (size_t i = 0; i < input_size(); i++) {
         result.emplace_back(this, i);
     }
 
@@ -727,7 +768,7 @@ vector<ov::Input<ov::Node>> ov::Node::inputs() {
 vector<ov::Output<ov::Node>> ov::Node::input_values() const {
     vector<Output<Node>> result;
 
-    for (size_t i = 0; i < get_input_size(); i++) {
+    for (size_t i = 0; i < input_size(); i++) {
         result.emplace_back(input(i).get_source_output());
     }
 
@@ -737,7 +778,7 @@ vector<ov::Output<ov::Node>> ov::Node::input_values() const {
 vector<ov::Input<const ov::Node>> ov::Node::inputs() const {
     vector<Input<const Node>> result;
 
-    for (size_t i = 0; i < get_input_size(); i++) {
+    for (size_t i = 0; i < input_size(); i++) {
         result.emplace_back(this, i);
     }
 
@@ -747,7 +788,7 @@ vector<ov::Input<const ov::Node>> ov::Node::inputs() const {
 vector<ov::Output<ov::Node>> ov::Node::outputs() {
     vector<Output<Node>> result;
 
-    for (size_t i = 0; i < get_output_size(); i++) {
+    for (size_t i = 0; i < output_size(); i++) {
         result.emplace_back(shared_from_this(), i);
     }
 
@@ -757,7 +798,7 @@ vector<ov::Output<ov::Node>> ov::Node::outputs() {
 vector<ov::Output<const ov::Node>> ov::Node::outputs() const {
     vector<Output<const Node>> result;
 
-    for (size_t i = 0; i < get_output_size(); i++) {
+    for (size_t i = 0; i < output_size(); i++) {
         result.emplace_back(shared_from_this(), i);
     }
 

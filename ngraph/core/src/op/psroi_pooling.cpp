@@ -43,8 +43,8 @@ bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor) {
 
 void ov::op::v0::PSROIPooling::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_PSROIPooling_validate_and_infer_types);
-    auto feat_maps_et = get_input_element_type(0);
-    auto coords_et = get_input_element_type(1);
+    auto feat_maps_et = input_element_type(0);
+    auto coords_et = input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           feat_maps_et.is_real(),
                           "Feature maps' data type must be floating point. Got " + feat_maps_et.get_type_name());
@@ -60,8 +60,8 @@ void ov::op::v0::PSROIPooling::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this, m_spatial_bins_y > 0, "spatial_bins_y has to be greater than 0");
     }
 
-    const ov::Shape& feat_map_pshape = get_input_partial_shape(0);
-    const ov::Shape& coords_pshape = get_input_partial_shape(1);
+    const ov::Shape& feat_map_pshape = input_shape(0);
+    const ov::Shape& coords_pshape = input_shape(1);
     if (feat_map_pshape.rank().is_dynamic() || coords_pshape.rank().is_dynamic()) {
         set_output_type(0, feat_maps_et, ov::Shape::dynamic());
     } else {

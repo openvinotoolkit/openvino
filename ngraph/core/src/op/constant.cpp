@@ -235,7 +235,7 @@ string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
 #    pragma GCC diagnostic error "-Wswitch-enum"
 #endif
     using Type_t = element::Type_t;
-    switch (get_element_type()) {
+    switch (output_element_type(0)) {
     case Type_t::boolean:
         rc = to_string(get_element_value<Type_t::boolean>(index));
         break;
@@ -303,7 +303,7 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
 #    pragma GCC diagnostic error "-Wswitch"
 #    pragma GCC diagnostic error "-Wswitch-enum"
 #endif
-    switch (get_element_type()) {
+    switch (output_element_type(0)) {
     case element::Type_t::boolean:
         for (int value : get_vector<char>()) {
             rc.push_back(to_string(value));

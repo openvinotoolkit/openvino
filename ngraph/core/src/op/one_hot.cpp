@@ -27,10 +27,10 @@ op::v1::OneHot::OneHot(const Output<Node>& indices,
 
 void op::v1::OneHot::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_OneHot_validate_and_infer_types);
-    const auto& indices_et = get_input_element_type(0);
-    const auto& depth_et = get_input_element_type(1);
-    const auto& on_value_et = get_input_element_type(2);
-    const auto& off_value_et = get_input_element_type(3);
+    const auto& indices_et = input_element_type(0);
+    const auto& depth_et = input_element_type(1);
+    const auto& on_value_et = input_element_type(2);
+    const auto& off_value_et = input_element_type(3);
 
     NODE_VALIDATION_CHECK(this,
                           indices_et.is_dynamic() || indices_et.is_integral(),
@@ -44,10 +44,10 @@ void op::v1::OneHot::validate_and_infer_types() {
                           on_value_et.compatible(off_value_et),
                           "on_value element type must be compatible with off_value element type.");
 
-    const auto& indices_shape = get_input_partial_shape(0);
-    const auto& depth_shape = get_input_partial_shape(1);
-    const auto& on_value_shape = get_input_partial_shape(2);
-    const auto& off_value_shape = get_input_partial_shape(3);
+    const auto& indices_shape = input_shape(0);
+    const auto& depth_shape = input_shape(1);
+    const auto& on_value_shape = input_shape(2);
+    const auto& off_value_shape = input_shape(3);
 
     NODE_VALIDATION_CHECK(this,
                           depth_shape.is_dynamic() || ngraph::is_scalar(depth_shape.to_shape()),
@@ -69,7 +69,7 @@ void op::v1::OneHot::validate_and_infer_types() {
         const auto indices_rank = indices_shape.rank().get_length();
         m_axis = ngraph::normalize_axis(this, m_axis, indices_rank + 1, -indices_rank - 1, indices_rank);
 
-        auto depth_element_type = depth->get_output_element_type(0);
+        auto depth_element_type = depth->output_element_type(0);
         NODE_VALIDATION_CHECK(this,
                               depth_element_type.is_integral(),
                               "'depth' input element type must be an integer (got ",
@@ -77,10 +77,10 @@ void op::v1::OneHot::validate_and_infer_types() {
                               ").");
 
         NODE_VALIDATION_CHECK(this,
-                              ngraph::is_scalar(depth->get_shape()),
+                              ngraph::is_scalar(depth->output_shape(0).to_shape()),
                               "A scalar input should be provided as 'depth' to OneHot",
                               " (got ",
-                              depth->get_shape(),
+                              depth->output_shape(0).to_shape(),
                               " elements).");
 
         int64_t depth_val = depth_constant->cast_vector<int64_t>()[0];
@@ -161,7 +161,7 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostT
 
 bool op::v1::OneHot::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_OneHot_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
         return true;

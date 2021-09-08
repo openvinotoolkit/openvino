@@ -95,7 +95,7 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs, const Host
 bool op::v3::ScatterUpdate::has_evaluate() const {
     NGRAPH_OP_SCOPE(v3_ScatterUpdate_has_evaluate);
 
-    switch (get_input_element_type(1)) {
+    switch (input_element_type(1)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
     case ngraph::element::i32:

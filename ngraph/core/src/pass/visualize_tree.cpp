@@ -106,8 +106,8 @@ const int ngraph::pass::VisualizeTree::max_jump_distance = 20;
 
 class HeightMap {
 public:
-    HeightMap() {}
-    HeightMap(std::set<Node*> initials) {
+    HeightMap() = default;
+    HeightMap(const std::set<Node*>& initials) {
         for (auto& n : initials) {
             m_heights[n] = 0;
         }
@@ -376,15 +376,15 @@ static std::string pretty_value(const vector<T>& values, size_t max_elements) {
 
 std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements) {
     std::stringstream ss;
-    ss << "{" << node->get_element_type().get_type_name() << "}";
-    ss << pretty_partial_shape(node->get_output_partial_shape(0));
+    ss << "{" << node->output_element_type(0).get_type_name() << "}";
+    ss << pretty_partial_shape(node->output_shape(0));
 
     if (!ngraph::op::is_constant(node))
         return ss.str();
 
     ss << "\nvalue: ";
     const auto constant = ov::as_type_ptr<ngraph::op::Constant>(node);
-    switch (constant->get_output_element_type(0)) {
+    switch (constant->output_element_type(0)) {
     case element::Type_t::undefined:
         ss << "[ undefined value ]";
         break;
@@ -452,7 +452,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node) {
                         label << "{" << input.get_element_type().get_type_name() << "}";
                     if (nvtos)
                         label << pretty_partial_shape(input.get_partial_shape());
-                    label << ": " << node->get_input_node_ptr(input.get_index())->get_name() << ": out"
+                    label << ": " << node->input_node_ptr(input.get_index())->get_name() << ": out"
                           << input.get_source_output().get_index();
 
                     if (nvtrti) {

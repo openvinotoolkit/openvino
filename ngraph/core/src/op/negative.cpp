@@ -64,7 +64,7 @@ bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVec
 
 bool op::Negative::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Negative_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::f16:

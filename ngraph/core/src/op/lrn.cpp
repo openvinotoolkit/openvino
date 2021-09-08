@@ -40,16 +40,16 @@ AxisSet op::LRN::get_reduction_axes() const {
 
 void op::LRN::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_LRN_validate_and_infer_types);
-    element::Type arg_type = get_input_element_type(0);
-    ov::Shape arg_shape = get_input_partial_shape(0);
+    element::Type arg_type = input_element_type(0);
+    ov::Shape arg_shape = input_shape(0);
     set_output_type(0, arg_type, arg_shape);
 
-    const ov::Shape& input_shape = get_input_partial_shape(0);
+    const ov::Shape& input_shape = this->input_shape(0);
     const auto input_shape_rank = input_shape.rank();
 
     ov::Shape axes_shape{ov::Shape::dynamic()};
-    if (get_input_partial_shape(1).is_static()) {
-        axes_shape = get_input_partial_shape(1);
+    if (this->input_shape(1).is_static()) {
+        axes_shape = this->input_shape(1);
     }
 
     auto axes_rank = axes_shape.rank();
@@ -82,7 +82,7 @@ void op::LRN::validate_and_infer_types() {
         }
     }
 
-    const auto& axes_type = get_input_element_type(1);
+    const auto& axes_type = input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           axes_type.is_integral_number(),
                           "Axes input must be integral numbers, but are: ",

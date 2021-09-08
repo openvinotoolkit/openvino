@@ -59,7 +59,7 @@ bool op::v3::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVe
 
 bool op::v3::Atanh::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Atanh_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

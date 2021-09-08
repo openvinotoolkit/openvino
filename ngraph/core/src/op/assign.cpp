@@ -25,8 +25,8 @@ op::v3::Assign::Assign(const Output<Node>& new_value, const std::string& variabl
 void op::v3::Assign::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_Assign_validate_and_infer_types);
     auto value = input_value(0);
-    auto arg_t = get_input_element_type(0);
-    auto output_shape = get_input_partial_shape(0);
+    auto arg_t = input_element_type(0);
+    auto output_shape = input_shape(0);
     if (!m_variable) {
         NodeVector start_nodes;
         for (const auto& input : inputs()) {
@@ -77,8 +77,8 @@ op::v6::Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<Vari
 
 void op::v6::Assign::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_Assign_validate_and_infer_types);
-    m_variable->update({get_input_partial_shape(0), get_input_element_type(0), m_variable->get_info().variable_id});
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    m_variable->update({input_shape(0), input_element_type(0), m_variable->get_info().variable_id});
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 shared_ptr<Node> op::v6::Assign::clone_with_new_inputs(const OutputVector& new_args) const {

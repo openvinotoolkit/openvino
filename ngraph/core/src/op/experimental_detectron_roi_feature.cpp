@@ -40,10 +40,10 @@ bool op::v6::ExperimentalDetectronROIFeatureExtractor::visit_attributes(Attribut
 
 void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronROIFeatureExtractor_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this, get_input_size() >= 2, "At least two argument required.");
+    NODE_VALIDATION_CHECK(this, input_size() >= 2, "At least two argument required.");
 
-    auto rois_shape = get_input_partial_shape(0);
-    auto input_et = get_input_element_type(0);
+    auto rois_shape = input_shape(0);
+    auto input_et = input_element_type(0);
 
     ov::Shape out_shape = {Dimension::dynamic(), Dimension::dynamic(), m_attrs.output_size, m_attrs.output_size};
 
@@ -62,11 +62,11 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
         out_rois_shape[0] = rois_shape[0];
     }
 
-    size_t num_of_inputs = get_input_size();
+    size_t num_of_inputs = input_size();
     Dimension channels_intersection;
 
     for (size_t i = 1; i < num_of_inputs; i++) {
-        auto current_shape = get_input_partial_shape(i);
+        auto current_shape = input_shape(i);
         auto current_rank = current_shape.rank();
 
         if (current_rank.is_static()) {

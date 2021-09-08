@@ -30,11 +30,11 @@ bool op::v3::Bucketize::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v3::Bucketize::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_Bucketize_validate_and_infer_types);
-    const ov::Shape& data_pshape = get_input_partial_shape(0);
-    const ov::Shape& buckets_pshape = get_input_partial_shape(1);
+    const ov::Shape& data_pshape = input_shape(0);
+    const ov::Shape& buckets_pshape = input_shape(1);
 
-    const auto data_et = get_input_element_type(0);
-    const auto buckets_et = get_input_element_type(1);
+    const auto data_et = input_element_type(0);
+    const auto buckets_et = input_element_type(1);
 
     NODE_VALIDATION_CHECK(this,
                           data_et.is_real() || data_et.is_integral_number(),

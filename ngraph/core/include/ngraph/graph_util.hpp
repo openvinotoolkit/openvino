@@ -249,9 +249,9 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
         Node* node = nodes_to_do.top();
         if (nodes_done.count(node) == 0) {
             bool can_add = true;
-            size_t arg_count = node->get_input_size();
+            size_t arg_count = node->input_size();
             for (size_t i = 0; i < arg_count; ++i) {
-                Node* dep = node->get_input_node_ptr(arg_count - i - 1);
+                Node* dep = node->input_node_ptr(arg_count - i - 1);
                 if (nodes_done.count(dep) == 0) {
                     can_add = false;
                     nodes_to_do.push(dep);
@@ -294,9 +294,9 @@ std::vector<std::shared_ptr<Node>> subgraph_topological_sort(T nodes) {
         Node* node = nodes_to_do.top();
         if (nodes_done.count(node) == 0) {
             bool can_add = true;
-            size_t arg_count = node->get_input_size();
+            size_t arg_count = node->input_size();
             for (size_t i = 0; i < arg_count; ++i) {
-                Node* dep = node->get_input_node_ptr(arg_count - i - 1);
+                Node* dep = node->input_node_ptr(arg_count - i - 1);
                 if (nodes_done.count(dep) == 0 && nodes_to_emit.count(node) != 0) {
                     can_add = false;
                     nodes_to_do.push(dep);

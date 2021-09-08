@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "openvino/core/deprecated.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -35,9 +36,11 @@ public:
 
     using direction = RecurrentSequenceDirection;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     size_t get_default_output_index() const override {
         return no_default_index();
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     explicit LSTMSequence(const Output<Node>& X,
                           const Output<Node>& initial_hidden_state,
                           const Output<Node>& initial_cell_state,
@@ -153,9 +156,11 @@ public:
 
     using direction = RecurrentSequenceDirection;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     size_t get_default_output_index() const override {
         return no_default_index();
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     explicit LSTMSequence(const Output<Node>& X,
                           const Output<Node>& initial_hidden_state,
                           const Output<Node>& initial_cell_state,

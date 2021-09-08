@@ -63,7 +63,7 @@ bool ngraph::op::v1::Softmax::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Softmax::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Softmax_validate_and_infer_types);
-    const ov::Shape& input_shape = get_input_partial_shape(0);
+    const ov::Shape& input_shape = this->input_shape(0);
     if (input_shape.rank().is_static())
         NODE_VALIDATION_CHECK(this,
                               m_axis < static_cast<size_t>(input_shape.rank().get_length()),
@@ -73,7 +73,7 @@ void op::v1::Softmax::validate_and_infer_types() {
                               input_shape,
                               ").");
 
-    set_output_type(0, get_input_element_type(0), input_shape);
+    set_output_type(0, input_element_type(0), input_shape);
 }
 
 shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -91,7 +91,7 @@ bool op::v1::Softmax::evaluate(const HostTensorVector& outputs, const HostTensor
 
 bool op::v1::Softmax::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Softmax_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:

@@ -66,7 +66,7 @@ bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs, const HostTen
 
 bool op::v1::LogicalXor::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_LogicalXor_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::boolean:
         return true;
     default:
@@ -95,7 +95,7 @@ bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVect
 
 bool op::v0::Xor::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Xor_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::boolean:
         return true;
     default:

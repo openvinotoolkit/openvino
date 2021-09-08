@@ -421,7 +421,7 @@ pair<shared_ptr<op::Result>, shared_ptr<op::Parameter>> ngraph::insert_result_pa
 
     // Make parameter node
     shared_ptr<op::Parameter> par_node =
-        make_shared<op::Parameter>(src_node->get_output_element_type(0), src_node->get_output_shape(0));
+        make_shared<op::Parameter>(src_node->output_element_type(0), src_node->get_output_shape(0));
 
     // Fix input / output among src, dst and par
     std::vector<Input<Node>> dst_inputs = get_inputs_from(*src_node, *dst_node);

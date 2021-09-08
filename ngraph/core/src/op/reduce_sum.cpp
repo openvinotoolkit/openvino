@@ -27,7 +27,7 @@ op::v1::ReduceSum::ReduceSum(const Output<Node>& arg, const Output<Node>& reduct
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 shared_ptr<Node> op::v1::ReduceSum::get_default_value() const {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
+    return ngraph::make_constant_from_string("0", output_element_type(0), get_shape());
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
@@ -75,7 +75,7 @@ bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs, const HostTens
 
 bool op::v1::ReduceSum::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_ReduceSum_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

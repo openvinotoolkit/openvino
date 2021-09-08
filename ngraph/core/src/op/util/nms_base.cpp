@@ -41,8 +41,8 @@ inline bool is_float_type_admissible(const ov::element::Type& t) {
 void ov::op::util::NmsBase::validate() {
     NGRAPH_OP_SCOPE(util_NmsBase_validate);
 
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
+    const auto boxes_ps = input_shape(0);
+    const auto scores_ps = input_shape(1);
 
     NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
@@ -53,11 +53,11 @@ void ov::op::util::NmsBase::validate() {
     }
 
     NODE_VALIDATION_CHECK(this,
-                          is_float_type_admissible(get_input_element_type(0)),
+                          is_float_type_admissible(input_element_type(0)),
                           "Expected bf16, fp16 or fp32 as element type for the 'boxes' input.");
 
     NODE_VALIDATION_CHECK(this,
-                          is_float_type_admissible(get_input_element_type(1)),
+                          is_float_type_admissible(input_element_type(1)),
                           "Expected bf16, fp16 or fp32 as element type for the 'scores' input.");
 
     NODE_VALIDATION_CHECK(this,
@@ -102,8 +102,8 @@ void ov::op::util::NmsBase::validate() {
 
 void ov::op::util::NmsBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_NmsBase_validate_and_infer_types);
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
+    const auto boxes_ps = input_shape(0);
+    const auto scores_ps = input_shape(1);
 
     auto first_dim_shape = Dimension::dynamic();
 

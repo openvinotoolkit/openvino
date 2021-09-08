@@ -25,7 +25,7 @@ bool ngraph::op::v0::PRelu::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void ngraph::op::v0::PRelu::validate_and_infer_types() {
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 shared_ptr<ov::Node> ov::op::v0::PRelu::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -72,7 +72,7 @@ bool ov::op::v0::PRelu::evaluate(const HostTensorVector& outputs, const HostTens
 
 bool ov::op::v0::PRelu::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_PRelu_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::bf16:
     case ngraph::element::f16:

@@ -101,7 +101,7 @@ void UnrollSingleIteration(const shared_ptr<ngraph::op::util::SubGraphOp>& sub_g
     // before: Layer1 -> TI [input -> bodyParameter -> Layer2 -> ...]
     // after:  Layer1 -> Layer2 ->...
     for (const auto& in : sub_graph_op->get_input_descriptions()) {
-        const auto& connect_to = sub_graph_op->get_input_source_output(in->m_input_index);
+        const auto& connect_to = sub_graph_op->input_source_output(in->m_input_index);
         for (auto& output : params.at(in->m_body_parameter_index)->outputs()) {
             output.replace(connect_to);
         }
@@ -111,11 +111,11 @@ void UnrollSingleIteration(const shared_ptr<ngraph::op::util::SubGraphOp>& sub_g
     // after:  ...-> Layer1 -> Layer2 -> ...
     ov::NodeVector new_ops;
     for (const auto& out : sub_graph_op->get_output_descriptions()) {
-        const auto& connect_to = results.at(out->m_body_value_index)->get_input_source_output(0);
+        const auto& connect_to = results.at(out->m_body_value_index)->input_source_output(0);
         for (auto& input_to : sub_graph_op->output(out->m_output_index).get_target_inputs()) {
             // create IE output name
             std::string out_name = sub_graph_op->get_friendly_name();
-            if (sub_graph_op->get_output_size() != 1)
+            if (sub_graph_op->output_size() != 1)
                 out_name += "." + std::to_string(out->m_output_index);
 
             // IECompatibility: insert identity (Unsqueeze + Squeeze) to store the TensorIterator

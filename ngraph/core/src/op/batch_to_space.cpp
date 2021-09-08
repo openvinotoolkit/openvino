@@ -36,10 +36,10 @@ ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& d
 void op::v1::BatchToSpace::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_BatchToSpace_validate_and_infer_types);
 
-    const auto& data_et = get_input_element_type(0);
-    const auto& block_shape_et = get_input_element_type(1);
-    const auto& crops_begin_et = get_input_element_type(2);
-    const auto& crops_end_et = get_input_element_type(3);
+    const auto& data_et = input_element_type(0);
+    const auto& block_shape_et = input_element_type(1);
+    const auto& crops_begin_et = input_element_type(2);
+    const auto& crops_end_et = input_element_type(3);
 
     element::Type inputs_integer_et{};
     NODE_VALIDATION_CHECK(this,
@@ -57,10 +57,10 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
                           "block_shape and crops inputs must have integer element type. Got: ",
                           inputs_integer_et);
 
-    const ov::Shape& data_pshape = get_input_partial_shape(0);
-    const ov::Shape& block_shape_ps = get_input_partial_shape(1);
-    const ov::Shape& crops_begin_ps = get_input_partial_shape(2);
-    const ov::Shape& crops_end_ps = get_input_partial_shape(3);
+    const ov::Shape& data_pshape = input_shape(0);
+    const ov::Shape& block_shape_ps = input_shape(1);
+    const ov::Shape& crops_begin_ps = input_shape(2);
+    const ov::Shape& crops_end_ps = input_shape(3);
 
     ov::Shape inputs_same_ps{ov::Shape::dynamic()};
     NODE_VALIDATION_CHECK(this,
@@ -311,6 +311,6 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs, con
 
 bool ngraph::op::v1::BatchToSpace::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_BatchToSpace_has_evaluate);
-    return !get_input_partial_shape(0).is_dynamic() && get_input_shape(0).size() >= 2 &&
-           get_input_shape(0).size() <= shape_size(get_input_shape(1));
+    return !input_shape(0).is_dynamic() && input_shape(0).to_shape().size() >= 2 &&
+           input_shape(0).to_shape().size() <= shape_size(input_shape(1).to_shape());
 }

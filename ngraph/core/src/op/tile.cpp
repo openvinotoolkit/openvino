@@ -26,20 +26,20 @@ bool ngraph::op::v0::Tile::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v0::Tile::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Tile_validate_and_infer_types);
-    auto arg_et = get_input_element_type(0);
+    auto arg_et = input_element_type(0);
 
     // Repeats should have integer data type. For now we only allow i64
-    auto repeats_et = get_input_element_type(1);
+    auto repeats_et = input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           repeats_et.is_integral(),
                           "Tile repeats must have any integer element type, but has ",
                           repeats_et);
 
-    auto arg_shape = get_input_partial_shape(0);
-    auto repeats_shape = get_input_partial_shape(1);
+    auto arg_shape = input_shape(0);
+    auto repeats_shape = input_shape(1);
     NODE_VALIDATION_CHECK(this, repeats_shape.rank().compatible(1), "Shape of repeats must be of rank 1");
     ov::Shape repeats_as_pshape;
-    bool repeats_are_known = evaluate_as_partial_shape(get_input_source_output(1), repeats_as_pshape);
+    bool repeats_are_known = evaluate_as_partial_shape(input_source_output(1), repeats_as_pshape);
     std::vector<Dimension> repeats_value(repeats_as_pshape);
     if (repeats_are_known && !repeats_value.empty() && arg_shape.rank().is_static()) {
         std::vector<Dimension> data_shape(arg_shape);

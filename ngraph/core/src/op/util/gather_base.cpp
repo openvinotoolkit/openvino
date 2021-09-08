@@ -29,11 +29,11 @@ ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
 
 void ov::op::util::GatherBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_GatherBase_validate_and_infer_types);
-    const auto& data_type = get_input_element_type(0);
+    const auto& data_type = input_element_type(0);
 
-    const auto& data_pshape = get_input_partial_shape(0);
-    const auto& indices_pshape = get_input_partial_shape(1);
-    const auto& axis_pshape = get_input_partial_shape(2);
+    const auto& data_pshape = input_shape(0);
+    const auto& indices_pshape = input_shape(1);
+    const auto& axis_pshape = input_shape(2);
     auto data_rank = data_pshape.rank();
     auto indices_rank = indices_pshape.rank();
     auto axis_rank = axis_pshape.rank();
@@ -135,7 +135,7 @@ int64_t ov::op::util::GatherBase::get_axis() const {
 
     int64_t axis = const_op->cast_vector<int64_t>()[0];
     if (axis < 0) {
-        const auto& data_rank = get_input_partial_shape(0).rank();
+        const auto& data_rank = input_shape(0).rank();
         if (data_rank.is_static()) {
             axis += data_rank.get_length();
         }
@@ -236,21 +236,21 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
         return false;
     }
     // only single indices are accepted
-    const auto indices_shape = indices->get_shape();
+    const auto indices_shape = indices->output_shape(0).to_shape();
     if (indices_shape.size() > 1 || (indices_shape.size() == 1 && indices_shape[0] > 1)) {
         return false;
     }
     // concat inputs are 1D and their count is equal to Concat output shape
-    if (concat->get_output_partial_shape(0).is_dynamic()) {
+    if (concat->output_shape(0).is_dynamic()) {
         return false;
     }
     const auto concat_inputs = concat->inputs();
     // concat inputs must be single elements
-    if (concat_inputs.size() != shape_size(concat->get_shape())) {
+    if (concat_inputs.size() != shape_size(concat->output_shape(0).to_shape())) {
         return false;
     }
 
-    const int64_t rank = concat->get_shape()[0];
+    const int64_t rank = concat->output_shape(0).to_shape()[0];
     const int64_t raw_index = indices->cast_vector<int64_t>()[0];
     const int64_t positive_index = raw_index < 0 ? rank + raw_index : raw_index;
     NGRAPH_CHECK(positive_index >= 0 && positive_index < rank);
@@ -307,14 +307,14 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
     }
 
     if (axis < 0) {
-        const auto& input_rank = get_input_partial_shape(0).rank();
+        const auto& input_rank = input_shape(0).rank();
         if (input_rank.is_static()) {
             axis += input_rank.get_length();
         }
     }
 
     int64_t batch_dims = m_batch_dims;
-    const auto& indices_rank = get_input_partial_shape(1).rank();
+    const auto& indices_rank = input_shape(1).rank();
     if (batch_dims < 0 && indices_rank.is_static())
         batch_dims += indices_rank.get_length();
 
@@ -338,6 +338,6 @@ bool ov::op::util::GatherBase::constant_fold(OutputVector& output_values, const 
     if (Node::constant_fold(output_values, input_values)) {
         return true;
     } else {
-        return gather::cf_gather_with_subgraph(output_values, input_values, get_output_partial_shape(0));
+        return gather::cf_gather_with_subgraph(output_values, input_values, output_shape(0));
     }
 }

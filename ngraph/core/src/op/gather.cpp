@@ -49,19 +49,19 @@ op::v7::Gather::Gather(const Output<Node>& data,
 void op::v7::Gather::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v7_Gather_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(1).is_integral_number(),
+                          input_element_type(1).is_integral_number(),
                           "Indices element type must be of an integral number type.");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(2).is_integral_number(),
+                          input_element_type(2).is_integral_number(),
                           "Axis element type must be of an integral number type.");
 
     op::util::GatherBase::validate_and_infer_types();
 }
 
 int64_t op::v7::Gather::get_batch_dims() const {
-    if (m_batch_dims < 0 && get_input_partial_shape(1).rank().is_static())
-        return m_batch_dims + get_input_partial_shape(1).rank().get_length();
+    if (m_batch_dims < 0 && input_shape(1).rank().is_static())
+        return m_batch_dims + input_shape(1).rank().get_length();
     else
         return m_batch_dims;
 }
@@ -91,19 +91,19 @@ op::v8::Gather::Gather(const Output<Node>& data,
 void op::v8::Gather::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v8_Gather_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(1).is_integral_number(),
+                          input_element_type(1).is_integral_number(),
                           "Indices element type must be of an integral number type.");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(2).is_integral_number(),
+                          input_element_type(2).is_integral_number(),
                           "Axis element type must be of an integral number type.");
 
     op::util::GatherBase::validate_and_infer_types();
 }
 
 int64_t op::v8::Gather::get_batch_dims() const {
-    if (m_batch_dims < 0 && get_input_partial_shape(1).rank().is_static())
-        return m_batch_dims + get_input_partial_shape(1).rank().get_length();
+    if (m_batch_dims < 0 && input_shape(1).rank().is_static())
+        return m_batch_dims + input_shape(1).rank().get_length();
     else
         return m_batch_dims;
 }

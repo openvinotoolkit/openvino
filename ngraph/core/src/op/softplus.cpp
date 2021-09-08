@@ -27,7 +27,7 @@ bool op::v4::SoftPlus::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v4::SoftPlus::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_SoftPlus_validate_and_infer_types);
-    const element::Type& input_et = get_input_element_type(0);
+    const element::Type& input_et = input_element_type(0);
 
     NODE_VALIDATION_CHECK(this,
                           input_et.is_dynamic() || input_et.is_real(),
@@ -35,7 +35,7 @@ void op::v4::SoftPlus::validate_and_infer_types() {
                           input_et);
 
     set_output_size(1);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 shared_ptr<Node> op::v4::SoftPlus::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -77,7 +77,7 @@ bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs, const HostTenso
 
 bool op::v4::SoftPlus::has_evaluate() const {
     NGRAPH_OP_SCOPE(v4_SoftPlus_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:

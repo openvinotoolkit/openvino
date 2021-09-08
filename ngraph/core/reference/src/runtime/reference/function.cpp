@@ -21,7 +21,7 @@ static bool call(const HostTensorVector& func_outputs,
     std::unordered_map<descriptor::Tensor*, std::shared_ptr<HostTensor>> tensor_map;
     size_t input_count = 0;
     for (const auto& param : function->get_parameters()) {
-        for (size_t i = 0; i < param->get_output_size(); ++i) {
+        for (size_t i = 0; i < param->output_size(); ++i) {
             descriptor::Tensor* tensor = &param->output(i).get_tensor();
             tensor_map.insert({tensor, func_inputs[input_count++]});
         }
@@ -30,7 +30,7 @@ static bool call(const HostTensorVector& func_outputs,
     // map function outputs -> HostTensor
     for (size_t output_count = 0; output_count < function->get_results().size(); ++output_count) {
         auto output = function->get_results()[output_count];
-        descriptor::Tensor* tensor = &output->get_output_tensor(0);
+        descriptor::Tensor* tensor = &output->output_tensor(0);
         tensor_map.insert({tensor, func_outputs[output_count]});
     }
 
@@ -49,7 +49,7 @@ static bool call(const HostTensorVector& func_outputs,
 
         // get op outputs from map or create
         std::vector<std::shared_ptr<HostTensor>> op_outputs;
-        for (size_t i = 0; i < op->get_output_size(); ++i) {
+        for (size_t i = 0; i < op->output_size(); ++i) {
             descriptor::Tensor* tensor = &op->output(i).get_tensor();
             std::shared_ptr<HostTensor> host_tensor;
             auto it = tensor_map.find(tensor);
@@ -86,7 +86,7 @@ void function(const std::shared_ptr<ngraph::Function>& function,
 
     for (const auto& parameter : parameters) {
         const auto& parameterIndex = function->get_parameter_index(parameter);
-        const auto& parameterShape = parameter->get_shape();
+        const auto& parameterShape = parameter->output_shape(0).to_shape();
         const auto& parameterType = parameter->get_element_type();
         const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
 

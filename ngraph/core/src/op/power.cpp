@@ -73,7 +73,7 @@ bool op::v1::Power::evaluate(const HostTensorVector& outputs, const HostTensorVe
 
 bool op::v1::Power::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Power_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::i32:
     case ngraph::element::i64:

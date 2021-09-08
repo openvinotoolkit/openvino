@@ -116,7 +116,7 @@ bool convert_precision(pass::PassBase& pass,
     };
 
     auto convert_node_output_precision = [&](const std::shared_ptr<ngraph::Node>& node) {
-        for (auto output : node->outputs()) {
+        for (const auto& output : node->outputs()) {
             if (output.get_element_type() == from) {
                 // Handle case with Constants as they can have consumers from other nGraph
                 // Function object
@@ -197,7 +197,7 @@ bool convert_precision(pass::PassBase& pass,
                     if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node)) {
                         // WA for topK, dont remove fake convert
                         if (convert->input(0).get_element_type() == convert->get_convert_element_type() &&
-                            convert->input_value(0).get_node_shared_ptr()->get_output_size() == 1) {
+                            convert->input_value(0).get_node_shared_ptr()->output_size() == 1) {
                             replace_output_update_name(convert->output(0), convert->input_value(0));
                         }
                     }
@@ -463,9 +463,9 @@ std::shared_ptr<ngraph::Node> change_constant_precision(std::shared_ptr<opset4::
     using dst_type = typename element_type_traits<PREC_TO>::value_type;
 
     const auto* src_data = constant->get_data_ptr<src_type>();
-    const auto size = shape_size(constant->get_shape());
+    const auto size = shape_size(constant->output_shape(0).to_shape());
 
-    auto new_constant = std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape());
+    auto new_constant = std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->output_shape(0).to_shape());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
         throw ngraph_error("Can't get destination data pointer");
@@ -483,9 +483,10 @@ std::shared_ptr<Node> change_constant_precision<element::Type_t::f16, element::T
     using dst_type = typename element_type_traits<element::Type_t::f32>::value_type;
 
     const auto* src_data = constant->get_data_ptr<src_type>();
-    const auto size = shape_size(constant->get_shape());
+    const auto size = shape_size(constant->output_shape(0).to_shape());
 
-    auto new_constant = std::make_shared<ngraph::opset4::Constant>(element::Type_t::f32, constant->get_shape());
+    auto new_constant =
+        std::make_shared<ngraph::opset4::Constant>(element::Type_t::f32, constant->output_shape(0).to_shape());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
         throw ngraph_error("Can't get destination data pointer");
@@ -581,7 +582,7 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
     // Supported integer precisions
     static const precisions_set_t supported_integer_precisions = {element::i4, element::u4, element::u1};
     // Get source element type and source data
-    auto src_type = constant->get_element_type();
+    auto src_type = constant->output_element_type(0);
     const auto* src_data = reinterpret_cast<const uint8_t*>(constant->get_data_ptr());
 
     // We support conversion only if several elements can be represented in one instance of some
@@ -589,18 +590,18 @@ std::shared_ptr<Node> convert_low_precisions_int(std::shared_ptr<opset4::Constan
     // source and destination data type should be real
     if (!supported_integer_precisions.count(src_type) || (src_type.size() * 8) % src_type.bitwidth() ||
         (to.size() * 8) % to.bitwidth() || to.is_real() || to.bitwidth() < src_type.bitwidth())
-        throw ngraph_error("Convert low precision for " + constant->get_element_type().get_type_name() + " to " +
+        throw ngraph_error("Convert low precision for " + constant->output_element_type(0).get_type_name() + " to " +
                            to.get_type_name() + " is not implemented!");
 
     // Create a new constant operation and get destination data
-    auto new_constant = std::make_shared<ngraph::opset4::Constant>(to, constant->get_shape());
+    auto new_constant = std::make_shared<ngraph::opset4::Constant>(to, constant->output_shape(0).to_shape());
     auto* dst_data = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_constant->get_data_ptr()));
     // Check pointers
     if (src_data == nullptr || dst_data == nullptr)
         throw ngraph_error("Can't get data pointer");
 
     // Convert values
-    const auto size = shape_size(constant->get_shape());
+    const auto size = shape_size(constant->output_shape(0).to_shape());
     size_t src_idx(0), dst_idx(0), dst_off(0), src_off(0);
     if (src_type.bitwidth() < 8) {
         src_off = 8 - src_type.bitwidth();
@@ -683,7 +684,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ngraph::Node>& node,
                            element::Type to,
                            const std::vector<Input<Node>>& consumers) {
     if (auto constant = ov::as_type_ptr<opset4::Constant>(node)) {
-        auto from = constant->get_element_type();
+        auto from = constant->output_element_type(0);
         std::shared_ptr<ngraph::Node> new_const;
         if (from == element::u64 && to == element::i32) {
             new_const = change_constant_precision<element::Type_t::u64, element::Type_t::i32>(constant);

@@ -51,37 +51,37 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
 void op::v3::ROIAlign::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_ROIAlign_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
+                          input_element_type(0).is_real() && input_element_type(1).is_real(),
                           "The data type for input and ROIs is expected to be a floating point type. Got: ",
-                          get_input_element_type(0),
+                          input_element_type(0),
                           " and: ",
-                          get_input_element_type(1));
+                          input_element_type(1));
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0) == get_input_element_type(1),
+                          input_element_type(0) == input_element_type(1),
                           "Type of feature maps (inputs) and rois is expected to be the same. Got: ",
-                          get_input_element_type(0),
+                          input_element_type(0),
                           " and: ",
-                          get_input_element_type(1));
+                          input_element_type(1));
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(2).is_integral_number(),
+                          input_element_type(2).is_integral_number(),
                           "The data type for batch indices is expected to be an integer. Got: ",
-                          get_input_element_type(2));
+                          input_element_type(2));
 
-    const auto& input_ps = get_input_partial_shape(0);
+    const auto& input_ps = input_shape(0);
     NODE_VALIDATION_CHECK(this,
                           input_ps.rank().compatible(4),
                           "Expected a 4D tensor for the input data. Got: ",
                           input_ps);
 
-    const auto& rois_ps = get_input_partial_shape(1);
+    const auto& rois_ps = input_shape(1);
     NODE_VALIDATION_CHECK(this,
                           rois_ps.rank().compatible(2),
                           "Expected a 2D tensor for the ROIs input. Got: ",
                           rois_ps);
 
-    const auto& batch_indices_ps = get_input_partial_shape(2);
+    const auto& batch_indices_ps = input_shape(2);
     NODE_VALIDATION_CHECK(this,
                           batch_indices_ps.rank().compatible(1),
                           "Expected a 1D tensor for the batch indices input. Got: ",
@@ -121,7 +121,7 @@ void op::v3::ROIAlign::validate_and_infer_types() {
     }
 
     set_output_size(1);
-    set_output_type(0, get_input_element_type(0), output_shape);
+    set_output_type(0, input_element_type(0), output_shape);
 
     // if the channels dimension is not known
     // the first input should be used during the function specialization
@@ -279,7 +279,7 @@ bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs, const HostTenso
 
 bool op::v3::ROIAlign::has_evaluate() const {
     NGRAPH_OP_SCOPE(v3_ROIAlign_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:

@@ -25,15 +25,15 @@ bool ngraph::op::v1::Transpose::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Transpose::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Transpose_validate_and_infer_types);
-    const auto& input_order_et = get_input_element_type(1);
+    const auto& input_order_et = input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           input_order_et.is_dynamic() || input_order_et.is_integral_number(),
                           "Input order must have an integral number element type.");
 
-    const auto& input_order_shape = get_input_partial_shape(1);
+    const auto& input_order_shape = input_shape(1);
     NODE_VALIDATION_CHECK(this, input_order_shape.rank().compatible(1), "Input order must be a vector.");
 
-    const auto& arg_shape = get_input_partial_shape(0);
+    const auto& arg_shape = input_shape(0);
     NODE_VALIDATION_CHECK(
         this,
         input_order_shape.compatible(ov::Shape{arg_shape.rank()}) ||
@@ -55,9 +55,9 @@ void op::v1::Transpose::validate_and_infer_types() {
                               permutation,
                               " is not valid for input shape ",
                               arg_shape);
-        set_output_type(0, get_input_element_type(0), ngraph::apply_permutation(arg_shape, permutation));
+        set_output_type(0, input_element_type(0), ngraph::apply_permutation(arg_shape, permutation));
     } else {
-        set_output_type(0, get_input_element_type(0), ov::Shape::dynamic(arg_shape.rank()));
+        set_output_type(0, input_element_type(0), ov::Shape::dynamic(arg_shape.rank()));
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
@@ -110,5 +110,5 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const Ho
 
 bool op::v1::Transpose::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Transpose_has_evaluate);
-    return get_input_element_type(1).is_integral_number();
+    return input_element_type(1).is_integral_number();
 }

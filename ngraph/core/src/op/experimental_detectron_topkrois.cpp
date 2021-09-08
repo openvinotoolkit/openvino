@@ -36,10 +36,10 @@ shared_ptr<Node> op::v6::ExperimentalDetectronTopKROIs::clone_with_new_inputs(co
 
 void op::v6::ExperimentalDetectronTopKROIs::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronTopKROIs_validate_and_infer_types);
-    const auto input_rois_shape = get_input_partial_shape(0);
-    const auto rois_probs_shape = get_input_partial_shape(1);
+    const auto input_rois_shape = input_shape(0);
+    const auto rois_probs_shape = input_shape(1);
 
-    set_output_type(0, get_input_element_type(0), ov::StaticShape{m_max_rois, 4});
+    set_output_type(0, input_element_type(0), ov::StaticShape{m_max_rois, 4});
 
     if (input_rois_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,

@@ -59,12 +59,12 @@ bool evaluate_erf(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
 
 bool op::Erf::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Erf_evaluate);
-    return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(output_shape(0).to_shape()));
 }
 
 bool op::Erf::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Erf_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

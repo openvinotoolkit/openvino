@@ -49,8 +49,8 @@ void op::v5::GRUSequence::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_GRUSequence_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), ov::Shape::dynamic());
-            set_output_type(1, get_input_element_type(0), ov::Shape::dynamic());
+            set_output_type(0, input_element_type(0), ov::Shape::dynamic());
+            set_output_type(1, input_element_type(0), ov::Shape::dynamic());
             return;
         }
     }
@@ -61,22 +61,22 @@ void op::v5::GRUSequence::validate_and_infer_types() {
     auto merged_num_directions = Dimension::dynamic();
     auto result_et = element::dynamic;
 
-    auto x_pshape = get_input_partial_shape(0);
-    auto ht_pshape = get_input_partial_shape(1);
-    auto sl_pshape = get_input_partial_shape(2);
-    auto w_pshape = get_input_partial_shape(3);
-    auto r_pshape = get_input_partial_shape(4);
-    auto b_pshape = get_input_partial_shape(5);
+    auto x_pshape = input_shape(0);
+    auto ht_pshape = input_shape(1);
+    auto sl_pshape = input_shape(2);
+    auto w_pshape = input_shape(3);
+    auto r_pshape = input_shape(4);
+    auto b_pshape = input_shape(5);
 
     ngraph::op::util::validate_seq_input_rank_dimension({x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape});
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(5)),
+                          element::Type::merge(result_et, result_et, input_element_type(0)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(1)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(3)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(4)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(5)),
                           "Element types for X, initial_hidden_state, W, R and B inputs do not "
                           "match.");
 

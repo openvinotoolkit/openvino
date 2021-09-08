@@ -33,7 +33,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
     set_input_is_relevant_to_value(1);
     set_input_is_relevant_to_value(2);
 
-    auto split_lengths_pshape = get_input_partial_shape(2);
+    auto split_lengths_pshape = input_shape(2);
 
     if (split_lengths_pshape.is_static()) {
         NODE_VALIDATION_CHECK(this,
@@ -46,7 +46,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
         const auto data = input_value(0);
         const auto axis_source = input_value(1);
         const auto split_lengths_source = input_value(2);
-        const auto data_shape = data.get_partial_shape();
+        const auto& data_shape = data.get_partial_shape();
         const auto& data_type = data.get_element_type();
 
         set_output_size(num_outputs);
@@ -183,5 +183,5 @@ bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs, const Host
 
 bool op::v1::VariadicSplit::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_VariadicSplit_has_evaluate);
-    return get_input_element_type(1).is_integral_number() && get_input_element_type(2).is_integral_number();
+    return input_element_type(1).is_integral_number() && input_element_type(2).is_integral_number();
 }

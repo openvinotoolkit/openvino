@@ -46,13 +46,13 @@ bool ov::op::util::DeformableConvolutionBase::visit_attributes(AttributeVisitor&
 
 void ov::op::util::DeformableConvolutionBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_DeformableConvolutionBase_validate_and_infer_types);
-    const Shape& data_batch_pshape = get_input_partial_shape(0);
-    const Shape& offsets_pshape = get_input_partial_shape(1);
-    const Shape& filters_pshape = get_input_partial_shape(2);
+    const Shape& data_batch_pshape = input_shape(0);
+    const Shape& offsets_pshape = input_shape(1);
+    const Shape& filters_pshape = input_shape(2);
 
-    element::Type data_batch_et = get_input_element_type(0);
-    element::Type offsets_et = get_input_element_type(1);
-    element::Type filters_et = get_input_element_type(2);
+    element::Type data_batch_et = input_element_type(0);
+    element::Type offsets_et = input_element_type(1);
+    element::Type filters_et = input_element_type(2);
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(this,

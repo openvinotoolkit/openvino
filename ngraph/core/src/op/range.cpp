@@ -71,28 +71,22 @@ void op::v4::Range::validate_and_infer_types() {
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(0).compatible(ov::StaticShape{}),
-                          "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(1).compatible(ov::StaticShape{}),
-                          "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(2).compatible(ov::StaticShape{}),
-                          "'step' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, input_shape(0).compatible(ov::StaticShape{}), "'start' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, input_shape(1).compatible(ov::StaticShape{}), "'stop' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, input_shape(2).compatible(ov::StaticShape{}), "'step' input is not a scalar");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).is_integral_number() || get_input_element_type(0).is_real(),
+                          input_element_type(0).is_integral_number() || input_element_type(0).is_real(),
                           "'start' input scalar should be a numeric type. Got: ",
-                          get_input_element_type(0));
+                          input_element_type(0));
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(1).is_integral_number() || get_input_element_type(1).is_real(),
+                          input_element_type(1).is_integral_number() || input_element_type(1).is_real(),
                           "'stop' input scalar should be a numeric type. Got: ",
-                          get_input_element_type(1));
+                          input_element_type(1));
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(2).is_integral_number() || get_input_element_type(2).is_real(),
+                          input_element_type(2).is_integral_number() || input_element_type(2).is_real(),
                           "'step' input scalar should be a numeric type. Got: ",
-                          get_input_element_type(2));
+                          input_element_type(2));
 
     auto const_start = get_constant_from_source(input_value(0));
     auto const_stop = get_constant_from_source(input_value(1));
@@ -128,13 +122,13 @@ void op::v4::Range::validate_and_infer_types() {
     if (const_start != nullptr && const_stop != nullptr && const_step != nullptr) {
         // all inputs must be casted to output_type before
         // the rounding for casting values are done towards zero
-        if (m_output_type.is_integral_number() && get_input_element_type(0).is_real()) {
+        if (m_output_type.is_integral_number() && input_element_type(0).is_real()) {
             start = std::trunc(start);
         }
-        if (m_output_type.is_integral_number() && get_input_element_type(1).is_real()) {
+        if (m_output_type.is_integral_number() && input_element_type(1).is_real()) {
             stop = std::trunc(stop);
         }
-        if (m_output_type.is_integral_number() && get_input_element_type(2).is_real()) {
+        if (m_output_type.is_integral_number() && input_element_type(2).is_real()) {
             step = std::trunc(step);
         }
 
@@ -272,7 +266,7 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
 
 bool op::v4::Range::has_evaluate() const {
     NGRAPH_OP_SCOPE(v4_Range_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:
@@ -395,24 +389,18 @@ void op::v0::Range::validate_and_infer_types() {
     auto result_et = element::dynamic;
 
     NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(2)),
+                          element::Type::merge(result_et, result_et, input_element_type(0)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(1)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(2)),
                           "Element types for start, stop, and step do not match.");
 
     NODE_VALIDATION_CHECK(this,
                           result_et != element::boolean,
                           "Element type for start, stop, and step, must not be boolean.");
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(0).compatible(ov::StaticShape{}),
-                          "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(1).compatible(ov::StaticShape{}),
-                          "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(2).compatible(ov::StaticShape{}),
-                          "'step' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, input_shape(0).compatible(ov::StaticShape{}), "'start' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, input_shape(1).compatible(ov::StaticShape{}), "'stop' input is not a scalar");
+    NODE_VALIDATION_CHECK(this, input_shape(2).compatible(ov::StaticShape{}), "'step' input is not a scalar");
 
     ov::Shape result_shape;
 
@@ -496,7 +484,7 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
 
 bool op::v0::Range::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Range_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:

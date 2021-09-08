@@ -94,7 +94,7 @@ public:
     ngraph::Output<ngraph::Node> output(size_t i) const;
 
     /// Return the element type of output i
-    const ngraph::element::Type& get_output_element_type(size_t i) const;
+    const ngraph::element::Type& output_element_type(size_t i) const;
 
     /// Return the shape of element i
     const StaticShape& get_output_shape(size_t i) const;

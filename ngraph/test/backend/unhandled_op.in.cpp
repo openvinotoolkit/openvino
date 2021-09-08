@@ -25,7 +25,7 @@ public:
 
 protected:
     void validate_and_infer_types() override {
-        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        set_output_type(0, get_input_element_type(0), input_shape(0));
     }
 
     static constexpr NodeTypeInfo type_info{"UnhandledOp", 0};

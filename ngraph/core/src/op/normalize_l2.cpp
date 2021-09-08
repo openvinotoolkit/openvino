@@ -34,8 +34,8 @@ bool op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor) {
 void op::v0::NormalizeL2::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_NormalizeL2_validate_and_infer_types);
     auto axes_node = input_value(1).get_node_shared_ptr();
-    const auto& input_pshape = get_input_partial_shape(0);
-    const auto& axes_pshape = get_input_partial_shape(1);
+    const auto& input_pshape = input_shape(0);
+    const auto& axes_pshape = input_shape(1);
     const auto& input_rank = input_pshape.rank();
     const auto& axes_rank = axes_pshape.rank();
 
@@ -62,7 +62,7 @@ void op::v0::NormalizeL2::validate_and_infer_types() {
             }
         }
     }
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 AxisSet op::v0::NormalizeL2::get_reduction_axes() const {

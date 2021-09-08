@@ -46,94 +46,89 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_EmbeddingSegmentsSum_validate_and_infer_types);
     NODE_VALIDATION_CHECK(
         this,
-        get_input_element_type(SEGMENT_IDS) == element::i64 || get_input_element_type(SEGMENT_IDS) == element::i32,
+        input_element_type(SEGMENT_IDS) == element::i64 || input_element_type(SEGMENT_IDS) == element::i32,
         "SEGMENT_IDS type must be i32 or i64");
 
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_element_type(INDICES) == element::i64 || get_input_element_type(INDICES) == element::i32,
-        "INDICES type must be i32 or i64");
+    NODE_VALIDATION_CHECK(this,
+                          input_element_type(INDICES) == element::i64 || input_element_type(INDICES) == element::i32,
+                          "INDICES type must be i32 or i64");
 
     NODE_VALIDATION_CHECK(
         this,
-        get_input_element_type(NUM_SEGMENTS) == element::i64 || get_input_element_type(NUM_SEGMENTS) == element::i32,
+        input_element_type(NUM_SEGMENTS) == element::i64 || input_element_type(NUM_SEGMENTS) == element::i32,
         "NUM_SEGMENTS type must be i32 or i64");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(INDICES).compatible(get_input_element_type(SEGMENT_IDS)),
+                          input_element_type(INDICES).compatible(input_element_type(SEGMENT_IDS)),
                           "Segment_ids element type (",
-                          get_input_element_type(SEGMENT_IDS),
+                          input_element_type(SEGMENT_IDS),
                           ") must match indices element type (",
-                          get_input_element_type(INDICES),
+                          input_element_type(INDICES),
                           ")");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(SEGMENT_IDS).compatible(get_input_element_type(NUM_SEGMENTS)),
+                          input_element_type(SEGMENT_IDS).compatible(input_element_type(NUM_SEGMENTS)),
                           "Num_segments element type (",
-                          get_input_element_type(NUM_SEGMENTS),
+                          input_element_type(NUM_SEGMENTS),
                           ") must match Segment_ids element type (",
-                          get_input_element_type(SEGMENT_IDS),
+                          input_element_type(SEGMENT_IDS),
                           ")");
 
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(INDICES).is_dynamic() || get_input_partial_shape(INDICES).to_shape().size() == 1,
-        "INDICES must be 1D");
+    NODE_VALIDATION_CHECK(this,
+                          input_shape(INDICES).is_dynamic() || input_shape(INDICES).to_shape().size() == 1,
+                          "INDICES must be 1D");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(SEGMENT_IDS).is_dynamic() ||
-                              get_input_partial_shape(SEGMENT_IDS).to_shape().size() == 1,
+                          input_shape(SEGMENT_IDS).is_dynamic() || input_shape(SEGMENT_IDS).to_shape().size() == 1,
                           "SEGMENT_IDS must be 1D");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(INDICES).compatible(get_input_partial_shape(SEGMENT_IDS)),
+                          input_shape(INDICES).compatible(input_shape(SEGMENT_IDS)),
                           "INDICES and SEGMENT_IDS shape must be same");
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(NUM_SEGMENTS).compatible(ov::Shape{}),
-                          "NUM_SEGMENTS must be a scalar");
+    NODE_VALIDATION_CHECK(this, input_shape(NUM_SEGMENTS).compatible(ov::Shape{}), "NUM_SEGMENTS must be a scalar");
 
-    if (get_input_size() >= 5) {
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(DEFAULT_INDEX) == element::i64 ||
-                                  get_input_element_type(DEFAULT_INDEX) == element::i32,
-                              "DEFAULT_INDEX type must be i32 or i64");
+    if (input_size() >= 5) {
+        NODE_VALIDATION_CHECK(
+            this,
+            input_element_type(DEFAULT_INDEX) == element::i64 || input_element_type(DEFAULT_INDEX) == element::i32,
+            "DEFAULT_INDEX type must be i32 or i64");
 
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(INDICES).compatible(get_input_element_type(DEFAULT_INDEX)),
+                              input_element_type(INDICES).compatible(input_element_type(DEFAULT_INDEX)),
                               "Default_index element type (",
-                              get_input_element_type(DEFAULT_INDEX),
+                              input_element_type(DEFAULT_INDEX),
                               ") must match indices element type (",
-                              get_input_element_type(INDICES),
+                              input_element_type(INDICES),
                               ")");
 
         NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(DEFAULT_INDEX).compatible(ov::Shape{}),
+                              input_shape(DEFAULT_INDEX).compatible(ov::Shape{}),
                               "DEFAULT_INDEX must be a scalar");
     }
 
-    if (get_input_size() == 6) {
+    if (input_size() == 6) {
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(EMB_TABLE).compatible(get_input_element_type(PER_SAMPLE_WEIGHTS)),
+                              input_element_type(EMB_TABLE).compatible(input_element_type(PER_SAMPLE_WEIGHTS)),
                               "Per sample weight element type (",
-                              get_input_element_type(PER_SAMPLE_WEIGHTS),
+                              input_element_type(PER_SAMPLE_WEIGHTS),
                               ") must match embedding table element type (",
-                              get_input_element_type(EMB_TABLE),
+                              input_element_type(EMB_TABLE),
                               ")");
 
-        NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(PER_SAMPLE_WEIGHTS).is_dynamic() ||
-                                  get_input_partial_shape(PER_SAMPLE_WEIGHTS).to_shape().size() == 1,
-                              "PER_SAMPLE_WEIGHTS must be 1D");
+        NODE_VALIDATION_CHECK(
+            this,
+            input_shape(PER_SAMPLE_WEIGHTS).is_dynamic() || input_shape(PER_SAMPLE_WEIGHTS).to_shape().size() == 1,
+            "PER_SAMPLE_WEIGHTS must be 1D");
 
         NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(INDICES).compatible(get_input_partial_shape(PER_SAMPLE_WEIGHTS)),
+                              input_shape(INDICES).compatible(input_shape(PER_SAMPLE_WEIGHTS)),
                               "INDICES and PER_SAMPLE_WEIGHTS shape must be same");
     }
 
-    element::Type result_et = get_input_element_type(EMB_TABLE);
+    element::Type result_et = input_element_type(EMB_TABLE);
 
-    const ov::Shape& emb_table_shape = get_input_partial_shape(EMB_TABLE);
+    const ov::Shape& emb_table_shape = input_shape(EMB_TABLE);
 
     ov::Shape result_shape;
     if (emb_table_shape.rank().is_static()) {

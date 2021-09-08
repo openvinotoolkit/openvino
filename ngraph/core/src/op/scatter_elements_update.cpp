@@ -30,15 +30,15 @@ bool op::v3::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor) 
 
 void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_validate_and_infer_types);
-    element::Type data_et = get_input_element_type(0);
-    element::Type indices_et = get_input_element_type(1);
-    element::Type updates_et = get_input_element_type(2);
-    element::Type axis_et = get_input_element_type(3);
+    element::Type data_et = input_element_type(0);
+    element::Type indices_et = input_element_type(1);
+    element::Type updates_et = input_element_type(2);
+    element::Type axis_et = input_element_type(3);
 
-    const ov::Shape& data_shape = get_input_partial_shape(0);
-    const ov::Shape& indices_shape = get_input_partial_shape(1);
-    const ov::Shape& updates_shape = get_input_partial_shape(2);
-    const ov::Shape& axis_shape = get_input_partial_shape(3);
+    const ov::Shape& data_shape = input_shape(0);
+    const ov::Shape& indices_shape = input_shape(1);
+    const ov::Shape& updates_shape = input_shape(2);
+    const ov::Shape& axis_shape = input_shape(3);
 
     NODE_VALIDATION_CHECK(this,
                           indices_et.is_integral(),
@@ -106,9 +106,9 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
 shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
     NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
-                          inputs.size() == get_input_size(),
+                          inputs.size() == input_size(),
                           "clone_with_new_inputs() required inputs size: ",
-                          get_input_size(),
+                          input_size(),
                           "Got: ",
                           inputs.size());
 
@@ -236,7 +236,7 @@ bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(const HostTe
     NGRAPH_CHECK(inputs[3]->get_element_type().is_integral_number(), "axis element type is not integral data type");
 
     int64_t axis = host_tensor_2_vector<int64_t>(inputs[3])[0];
-    const auto& input_rank = get_input_partial_shape(0).rank();
+    const auto& input_rank = input_shape(0).rank();
     int64_t normalized_axis = axis;
 
     if (normalized_axis < 0) {
@@ -263,7 +263,7 @@ bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs, co
 bool op::v3::ScatterElementsUpdate::has_evaluate() const {
     NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_has_evaluate);
 
-    switch (get_output_element_type(0)) {
+    switch (output_element_type(0)) {
     case ngraph::element::i16:
     case ngraph::element::i32:
     case ngraph::element::i64:
@@ -275,7 +275,7 @@ bool op::v3::ScatterElementsUpdate::has_evaluate() const {
     default:
         return false;
     }
-    switch (get_input_element_type(1)) {
+    switch (input_element_type(1)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
     case ngraph::element::i32:

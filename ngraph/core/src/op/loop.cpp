@@ -149,7 +149,7 @@ void op::v5::Loop::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, input_offset >= 0, "External port id 0 or 1 is duplicated.");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == m_input_descriptions[0].size() + input_offset,
+                          input_size() == m_input_descriptions[0].size() + input_offset,
                           "Number of inputs must be the same as number of input descriptions");
 
     // Input
@@ -235,7 +235,7 @@ void op::v5::Loop::validate_and_infer_types() {
     }
 
     NODE_VALIDATION_CHECK(this,
-                          get_output_size() == m_output_descriptions[0].size(),
+                          output_size() == m_output_descriptions[0].size(),
                           "Number of outputs must be the same as number of output descriptions");
 }
 
@@ -274,7 +274,7 @@ bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVec
 
 bool op::v5::Loop::has_evaluate() const {
     NGRAPH_OP_SCOPE(v5_Loop_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
         return true;

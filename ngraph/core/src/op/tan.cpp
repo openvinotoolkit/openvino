@@ -61,12 +61,12 @@ bool evaluate_tan(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
 
 bool op::Tan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Tan_evaluate);
-    return tanop::evaluate_tan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return tanop::evaluate_tan(inputs[0], outputs[0], shape_size(output_shape(0).to_shape()));
 }
 
 bool op::Tan::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Tan_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:

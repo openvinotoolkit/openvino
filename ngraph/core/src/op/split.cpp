@@ -34,9 +34,9 @@ bool ngraph::op::v1::Split::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Split::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Split_validate_and_infer_types);
-    const ov::Shape& data_ps = get_input_partial_shape(0);
-    const ov::Shape& axis_ps = get_input_partial_shape(1);
-    const element::Type& axis_et = get_input_element_type(1);
+    const ov::Shape& data_ps = input_shape(0);
+    const ov::Shape& axis_ps = input_shape(1);
+    const element::Type& axis_et = input_element_type(1);
 
     NODE_VALIDATION_CHECK(this, axis_ps.rank().compatible(0), "'axis' input must be a scalar. Got: ", axis_ps);
 
@@ -91,7 +91,7 @@ void op::v1::Split::validate_and_infer_types() {
     }
 
     for (size_t i = 0; i < m_num_splits; ++i) {
-        set_output_type(i, get_input_element_type(0), each_output_shape);
+        set_output_type(i, input_element_type(0), each_output_shape);
     }
 
     set_input_is_relevant_to_shape(0);
@@ -149,5 +149,5 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
 
 bool op::v1::Split::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Split_has_evaluate);
-    return get_input_element_type(1).is_integral_number();
+    return input_element_type(1).is_integral_number();
 }

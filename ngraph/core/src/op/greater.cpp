@@ -70,7 +70,7 @@ bool op::v1::Greater::evaluate(const HostTensorVector& outputs, const HostTensor
 
 bool op::v1::Greater::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Greater_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:

@@ -145,13 +145,13 @@ void ov::op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_sh
 void ov::op::util::BroadcastBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_BroadcastBase_validate_and_infer_types);
     // shape node should have integer data type. For now we only allow i64
-    auto shape_et = get_input_element_type(1);
+    auto shape_et = input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           shape_et.is_integral_number(),
                           "Broadcast shape must be an integral number, but is: ",
                           shape_et);
     // shape node should produce a one dimensional shape.
-    auto broadcast_shape_rank = get_input_partial_shape(1).rank();
+    auto broadcast_shape_rank = input_shape(1).rank();
     NODE_VALIDATION_CHECK(this,
                           broadcast_shape_rank.compatible(1),
                           "Broadcast shape rank must be 1, but has ",
@@ -159,13 +159,13 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
 
     if (m_mode.m_type == BroadcastType::NONE) {
         // axes_mapping node should have integer data type. For now we only allow i64
-        auto axes_et = get_input_element_type(2);
+        auto axes_et = input_element_type(2);
         NODE_VALIDATION_CHECK(this,
                               axes_et.is_integral_number(),
                               "Broadcast axes must be integral numbers, but are: ",
                               axes_et);
         // axes_mapping node should produce a one dimensional shape.
-        auto axes_shape_rank = get_input_partial_shape(2).rank();
+        auto axes_shape_rank = input_shape(2).rank();
         NODE_VALIDATION_CHECK(this,
                               axes_shape_rank.compatible(1),
                               "Broadcast axes rank must be 1, but has ",
@@ -173,7 +173,7 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
     }
 
     Shape result_shape{Shape::dynamic()};
-    const auto& input_shape = get_input_partial_shape(0);
+    const auto& input_shape = this->input_shape(0);
     const auto input_rank = input_shape.rank();
     const auto& target_shape = input_value(1).get_partial_shape();
     const bool is_target_shape_known = target_shape.rank().is_static() && target_shape[0].is_static();
@@ -189,13 +189,14 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
     }
 
     Shape output_shape;
-    bool output_shape_defined = ngraph::evaluate_as_partial_shape(get_input_source_output(1), output_shape);
+    bool output_shape_defined = ngraph::evaluate_as_partial_shape(input_source_output(1), output_shape);
 
     if (auto concat = ov::as_type_ptr<ngraph::op::v0::Concat>(input_value(1).get_node_shared_ptr())) {
         auto concat_inputs = concat->inputs();
 
-        if (!output_shape_defined && concat->get_output_partial_shape(0).is_static() &&
-            concat->get_shape().size() == 1 && concat_inputs.size() == shape_size(concat->get_shape())) {
+        if (!output_shape_defined && concat->output_shape(0).is_static() &&
+            concat->output_shape(0).to_shape().size() == 1 &&
+            concat_inputs.size() == shape_size(concat->output_shape(0).to_shape())) {
             auto output_partial_shape = vector<Dimension>{};
             for (const auto& concat_input : concat_inputs) {
                 auto source_node_ptr = concat_input.get_source_output().get_node_shared_ptr();
@@ -215,10 +216,9 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
             result_shape = output_shape;
         }
         // Validate axes_mapping
-        if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static() &&
-            get_input_partial_shape(2).is_static()) {
-            auto arg_shape = get_input_shape(0);
-            auto axes_shape = get_input_shape(2);
+        if (this->input_shape(0).is_static() && this->input_shape(1).is_static() && this->input_shape(2).is_static()) {
+            auto arg_shape = this->input_shape(0).to_shape();
+            auto axes_shape = this->input_shape(2).to_shape();
             auto input_rank = (arg_shape.size() == 0 && shape_size(axes_shape) > 0) ? 1 : arg_shape.size();
 
             // Rank(arg_shape) == shape_size(axes_mapping)
@@ -244,7 +244,7 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
             result_shape = get_result_shape_pdpd(input_shape, output_shape, m_mode);
         }
     }
-    set_output_type(0, get_input_element_type(0), result_shape);
+    set_output_type(0, input_element_type(0), result_shape);
 }
 
 std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes_numpy_pdpd(
@@ -287,16 +287,16 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes() c
 
     if (m_mode.m_type == BroadcastType::NONE) {
         const auto axes_mapping_constant = get_constant_from_source(input_value(2));
-        if (get_input_partial_shape(1).is_static() && axes_mapping_constant) {
+        if (input_shape(1).is_static() && axes_mapping_constant) {
             auto axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
-            auto target_shape = get_input_shape(1);
+            auto target_shape = input_shape(1).to_shape();
             NGRAPH_CHECK(target_shape.size() == 1);
             return get_broadcast_axes_none(axes_mapping_val, target_shape[0]);
         }
     } else if (m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::PDPD) {
-        if (get_input_partial_shape(0).is_static() && get_output_partial_shape(0).is_static()) {
-            auto arg_shape = get_input_shape(0);
-            auto result_shape = get_output_shape(0);
+        if (input_shape(0).is_static() && output_shape(0).is_static()) {
+            auto arg_shape = input_shape(0).to_shape();
+            auto result_shape = output_shape(0).to_shape();
             return get_broadcast_axes_numpy_pdpd(arg_shape, result_shape, m_mode);
         }
     } else {
@@ -475,14 +475,14 @@ bool ov::op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, cons
 
 bool ov::op::util::BroadcastBase::evaluate_lower(const HostTensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound() ||
-        (get_input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
+        (input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
         return false;
     return ngraph::default_lower_bound_evaluator(this, output_values);
 }
 
 bool ov::op::util::BroadcastBase::evaluate_upper(const HostTensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound() ||
-        (get_input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
+        (input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
         return false;
     return ngraph::default_upper_bound_evaluator(this, output_values);
 }

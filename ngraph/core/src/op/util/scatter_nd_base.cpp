@@ -29,13 +29,13 @@ bool ov::op::util::ScatterNDBase::visit_attributes(AttributeVisitor& visitor) {
 
 void ov::op::util::ScatterNDBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_ScatterNDBase_validate_and_infer_types);
-    element::Type inputs_et = get_input_element_type(INPUTS);
-    element::Type indices_et = get_input_element_type(INDICES);
-    element::Type updates_et = get_input_element_type(UPDATES);
+    element::Type inputs_et = input_element_type(INPUTS);
+    element::Type indices_et = input_element_type(INDICES);
+    element::Type updates_et = input_element_type(UPDATES);
 
-    const Shape& inputs_shape = get_input_partial_shape(INPUTS);
-    const Shape& indices_shape = get_input_partial_shape(INDICES);
-    const Shape& updates_shape = get_input_partial_shape(UPDATES);
+    const Shape& inputs_shape = input_shape(INPUTS);
+    const Shape& indices_shape = input_shape(INDICES);
+    const Shape& updates_shape = input_shape(UPDATES);
 
     const auto& inputs_rank = inputs_shape.rank();
     const auto& indices_rank = indices_shape.rank();

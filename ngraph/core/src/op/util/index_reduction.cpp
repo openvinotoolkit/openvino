@@ -37,7 +37,7 @@ void ov::op::util::IndexReduction::set_index_element_type(const element::Type& i
 void ov::op::util::IndexReduction::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_IndexReduction_validate_and_infer_types);
     // TODO(amprocte): Should reject if size of reduction axis is zero.
-    const Shape& arg_shape = get_input_partial_shape(0);
+    const Shape& arg_shape = input_shape(0);
     Rank rank = arg_shape.rank();
 
     NODE_VALIDATION_CHECK(this, rank.is_dynamic() || rank.get_length() >= 1, "Argument rank is zero.");

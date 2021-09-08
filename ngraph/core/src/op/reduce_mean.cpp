@@ -68,7 +68,7 @@ bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs, const HostTen
 
 bool op::v1::ReduceMean::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_ReduceMean_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

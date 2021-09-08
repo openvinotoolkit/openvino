@@ -24,7 +24,7 @@ MatcherState::MatcherState(Matcher* matcher)
 
 namespace {
 Output<Node> make_node_output(const std::shared_ptr<Node>& node) {
-    return node->get_output_size() == 1 ? node->output(0) : std::make_shared<op::AnyOutput>(node)->output(0);
+    return node->output_size() == 1 ? node->output(0) : std::make_shared<op::AnyOutput>(node)->output(0);
 }
 }  // namespace
 

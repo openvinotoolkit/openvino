@@ -37,13 +37,15 @@ std::shared_ptr<descriptor::Tensor> Output<Node>::get_tensor_ptr() const {
     return m_node->m_outputs.at(m_index).get_tensor_ptr();
 }
 const element::Type& Output<Node>::get_element_type() const {
-    return m_node->get_output_element_type(m_index);
+    return m_node->output_element_type(m_index);
 }
 const StaticShape& Output<Node>::get_shape() const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return m_node->get_output_shape(m_index);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 const Shape& Output<Node>::get_partial_shape() const {
-    return m_node->get_output_partial_shape(m_index);
+    return m_node->output_shape(m_index);
 }
 
 std::set<Input<Node>> Output<Node>::get_target_inputs() const {
@@ -126,13 +128,15 @@ std::shared_ptr<descriptor::Tensor> Output<const Node>::get_tensor_ptr() const {
     return m_node->m_outputs.at(m_index).get_tensor_ptr();
 }
 const element::Type& Output<const Node>::get_element_type() const {
-    return m_node->get_output_element_type(m_index);
+    return m_node->output_element_type(m_index);
 }
 const StaticShape& Output<const Node>::get_shape() const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return m_node->get_output_shape(m_index);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 const Shape& Output<const Node>::get_partial_shape() const {
-    return m_node->get_output_partial_shape(m_index);
+    return m_node->output_shape(m_index);
 }
 
 std::set<Input<Node>> Output<const Node>::get_target_inputs() const {

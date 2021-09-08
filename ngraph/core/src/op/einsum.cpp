@@ -146,7 +146,7 @@ std::vector<std::string> op::v7::Einsum::extract_labels(const std::string& subsc
         if (std::isalpha(subscript[ch_idx])) {
             labels.push_back(subscript.substr(ch_idx, 1));
         } else if (((subscript_length - ch_idx) > 2) && (subscript.substr(ch_idx, 3).compare("...") == 0)) {
-            labels.push_back("...");
+            labels.emplace_back("...");
             // make additional increment since ellipsis consists of three dots.
             ch_idx += 2;
         } else {
@@ -161,16 +161,16 @@ void op::v7::Einsum::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v7_Einsum_validate_and_infer_types);
 
     // check that Einsum operation has at least one input
-    auto num_inputs = get_input_size();
+    auto num_inputs = input_size();
     NODE_VALIDATION_CHECK(this, num_inputs > 0, "Einsum must have at least one input.");
 
     // check that all inputs have the same type and the type is numeric
-    const auto& input_type_0 = get_input_element_type(0);
+    const auto& input_type_0 = input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           input_type_0.is_real() || input_type_0.is_integral_number(),
                           "The input type for Einsum operation must be numeric.");
     for (size_t input_idx = 1; input_idx < num_inputs; ++input_idx) {
-        const auto& input_type_i = get_input_element_type(input_idx);
+        const auto& input_type_i = input_element_type(input_idx);
         NODE_VALIDATION_CHECK(this,
                               input_type_0 == input_type_i,
                               "Inputs to Einsum operation must have the same type.");
@@ -192,7 +192,7 @@ void op::v7::Einsum::validate_and_infer_types() {
     label_to_shape.clear();
 
     for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-        const auto& pshape = get_input_partial_shape(input_idx);
+        const auto& pshape = input_shape(input_idx);
         std::vector<std::string> labels;
         labels = extract_labels(input_subscripts[input_idx]);
 

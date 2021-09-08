@@ -18,9 +18,9 @@ op::v0::Selu::Selu(const Output<Node>& data, const Output<Node>& alpha, const Ou
 
 void op::v0::Selu::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Selu_validate_and_infer_types);
-    auto data_et = get_input_element_type(0);
-    auto alpha_et = get_input_element_type(1);
-    auto lambda_et = get_input_element_type(2);
+    auto data_et = input_element_type(0);
+    auto alpha_et = input_element_type(1);
+    auto lambda_et = input_element_type(2);
     auto result_et = element::dynamic;
 
     NODE_VALIDATION_CHECK(this,
@@ -39,7 +39,7 @@ void op::v0::Selu::validate_and_infer_types() {
                           "Input element types must be floating-point. Got: ",
                           result_et);
 
-    set_output_type(0, result_et, get_input_partial_shape(0));
+    set_output_type(0, result_et, input_shape(0));
 }
 
 bool op::v0::Selu::visit_attributes(AttributeVisitor& visitor) {

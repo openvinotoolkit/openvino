@@ -35,7 +35,7 @@ void op::v8::AdaptiveMaxPool::validate_and_infer_types() {
                           m_index_element_type == element::i64 || m_index_element_type == element::i32,
                           "Index element type must be i32 or i64");
 
-    const ov::Shape& data_shape = get_input_partial_shape(0);
+    const ov::Shape& data_shape = input_shape(0);
 
     NODE_VALIDATION_CHECK(
         this,
@@ -62,7 +62,7 @@ void op::v8::AdaptiveMaxPool::validate_and_infer_types() {
             }
         }
     }
-    set_output_type(0, get_input_element_type(0), output_shape);
+    set_output_type(0, input_element_type(0), output_shape);
     set_output_type(1, m_index_element_type, output_shape);
 }
 

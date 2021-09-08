@@ -72,7 +72,7 @@ bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs, const HostTens
 
 bool op::v1::LessEqual::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_LessEqual_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:

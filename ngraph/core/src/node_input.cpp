@@ -16,14 +16,16 @@ size_t Input<Node>::get_index() const {
     return m_index;
 }
 const element::Type& Input<Node>::get_element_type() const {
-    return m_node->get_input_element_type(m_index);
+    return m_node->input_element_type(m_index);
 }
 
 const StaticShape& Input<Node>::get_shape() const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return m_node->get_input_shape(m_index);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 const Shape& Input<Node>::get_partial_shape() const {
-    return m_node->get_input_partial_shape(m_index);
+    return m_node->input_shape(m_index);
 }
 
 Output<Node> Input<Node>::get_source_output() const {
@@ -93,13 +95,15 @@ size_t Input<const Node>::get_index() const {
     return m_index;
 }
 const element::Type& Input<const Node>::get_element_type() const {
-    return m_node->get_input_element_type(m_index);
+    return m_node->input_element_type(m_index);
 }
 const StaticShape& Input<const Node>::get_shape() const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return m_node->get_input_shape(m_index);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 const Shape& Input<const Node>::get_partial_shape() const {
-    return m_node->get_input_partial_shape(m_index);
+    return m_node->input_shape(m_index);
 }
 
 Output<Node> Input<const Node>::get_source_output() const {

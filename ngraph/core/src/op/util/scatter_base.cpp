@@ -23,10 +23,10 @@ ov::op::util::ScatterBase::ScatterBase(const Output<Node>& data,
 
 void ov::op::util::ScatterBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_ScatterBase_validate_and_infer_types);
-    const auto& data_et = get_input_element_type(DATA);
-    const auto& indices_et = get_input_element_type(INDICES);
-    const auto& updates_et = get_input_element_type(UPDATES);
-    const auto& axis_et = get_input_element_type(AXIS);
+    const auto& data_et = input_element_type(DATA);
+    const auto& indices_et = input_element_type(INDICES);
+    const auto& updates_et = input_element_type(UPDATES);
+    const auto& axis_et = input_element_type(AXIS);
 
     NODE_VALIDATION_CHECK(this,
                           indices_et.is_integral_number(),
@@ -43,10 +43,10 @@ void ov::op::util::ScatterBase::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, axis_et.is_integral_number(), "Axis element type must be of an integral number type.");
 
-    const auto& data_shape = get_input_partial_shape(DATA);
-    const auto& indices_shape = get_input_partial_shape(INDICES);
-    const auto& updates_shape = get_input_partial_shape(UPDATES);
-    const auto& axis_shape = get_input_partial_shape(AXIS);
+    const auto& data_shape = input_shape(DATA);
+    const auto& indices_shape = input_shape(INDICES);
+    const auto& updates_shape = input_shape(UPDATES);
+    const auto& axis_shape = input_shape(AXIS);
 
     NODE_VALIDATION_CHECK(this,
                           axis_shape.compatible(Shape{}) || axis_shape.compatible(Shape{1}),

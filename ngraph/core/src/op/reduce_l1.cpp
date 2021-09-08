@@ -25,7 +25,7 @@ op::v4::ReduceL1::ReduceL1(const Output<Node>& arg, const Output<Node>& reductio
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 shared_ptr<Node> op::v4::ReduceL1::get_default_value() const {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
+    return ngraph::make_constant_from_string("0", output_element_type(0), get_shape());
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
@@ -72,7 +72,7 @@ bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs, const HostTenso
 
 bool op::v4::ReduceL1::has_evaluate() const {
     NGRAPH_OP_SCOPE(v4_ReduceL1_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::bf16:

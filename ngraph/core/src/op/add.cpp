@@ -80,7 +80,7 @@ bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVect
 
 bool op::v1::Add::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Add_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
     case ngraph::element::i32:

@@ -282,7 +282,7 @@ public:
     /// \return    Constant's data vector.
     template <typename T>
     std::vector<T> cast_vector() const {
-        auto source_type = get_element_type();
+        auto source_type = output_element_type(0);
         std::vector<T> rc;
         using Type_t = element::Type_t;
 #if defined(_MSC_VER)
@@ -361,7 +361,7 @@ public:
 
     template <element::Type_t ET>
     const typename element_type_traits<ET>::value_type* get_data_ptr() const {
-        NGRAPH_CHECK(ET == get_element_type(), "get_data_ptr() called for incorrect element type.");
+        NGRAPH_CHECK(ET == output_element_type(0), "get_data_ptr() called for incorrect element type.");
         return static_cast<const typename element_type_traits<ET>::value_type*>(get_data_ptr());
     }
 
@@ -527,7 +527,7 @@ private:
 
     template <element::Type_t ET>
     typename element_type_traits<ET>::value_type* get_data_ptr_nc() {
-        NGRAPH_CHECK(ET == get_element_type(), "get_data_ptr_nc() called for incorrect element type.");
+        NGRAPH_CHECK(ET == output_element_type(0), "get_data_ptr_nc() called for incorrect element type.");
         return static_cast<typename element_type_traits<ET>::value_type*>(get_data_ptr_nc());
     }
 

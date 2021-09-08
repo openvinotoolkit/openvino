@@ -79,8 +79,8 @@ bool ngraph::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
 
 void op::v1::NonMaxSuppression::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_NonMaxSuppression_validate_and_infer_types);
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
+    const auto boxes_ps = input_shape(0);
+    const auto scores_ps = input_shape(1);
 
     // the spec doesn't say what exact type should be used for the output of this op
     // that's why we're setting it to 64-bit integer to provide the maximum range of values
@@ -108,7 +108,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types() {
                           scores_ps);
 
     if (inputs().size() >= 3) {
-        const auto max_boxes_ps = get_input_partial_shape(2);
+        const auto max_boxes_ps = input_shape(2);
         NODE_VALIDATION_CHECK(this,
                               max_boxes_ps.is_dynamic() || ngraph::is_scalar(max_boxes_ps.to_shape()),
                               "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
@@ -116,7 +116,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types() {
     }
 
     if (inputs().size() >= 4) {
-        const auto iou_threshold_ps = get_input_partial_shape(3);
+        const auto iou_threshold_ps = input_shape(3);
         NODE_VALIDATION_CHECK(this,
                               iou_threshold_ps.is_dynamic() || ngraph::is_scalar(iou_threshold_ps.to_shape()),
                               "Expected a scalar for the 'iou_threshold' input. Got: ",
@@ -124,7 +124,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types() {
     }
 
     if (inputs().size() >= 5) {
-        const auto score_threshold_ps = get_input_partial_shape(4);
+        const auto score_threshold_ps = input_shape(4);
         NODE_VALIDATION_CHECK(this,
                               score_threshold_ps.is_dynamic() || ngraph::is_scalar(score_threshold_ps.to_shape()),
                               "Expected a scalar for the 'score_threshold' input. Got: ",
@@ -259,8 +259,8 @@ bool ngraph::op::v3::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
 }
 
 void op::v3::NonMaxSuppression::validate() {
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
+    const auto boxes_ps = input_shape(0);
+    const auto scores_ps = input_shape(1);
 
     NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
@@ -281,7 +281,7 @@ void op::v3::NonMaxSuppression::validate() {
                           scores_ps);
 
     if (inputs().size() >= 3) {
-        const auto max_boxes_ps = get_input_partial_shape(2);
+        const auto max_boxes_ps = input_shape(2);
         NODE_VALIDATION_CHECK(this,
                               max_boxes_ps.is_dynamic() || ngraph::is_scalar(max_boxes_ps.to_shape()),
                               "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
@@ -289,7 +289,7 @@ void op::v3::NonMaxSuppression::validate() {
     }
 
     if (inputs().size() >= 4) {
-        const auto iou_threshold_ps = get_input_partial_shape(3);
+        const auto iou_threshold_ps = input_shape(3);
         NODE_VALIDATION_CHECK(this,
                               iou_threshold_ps.is_dynamic() || ngraph::is_scalar(iou_threshold_ps.to_shape()),
                               "Expected a scalar for the 'iou_threshold' input. Got: ",
@@ -297,7 +297,7 @@ void op::v3::NonMaxSuppression::validate() {
     }
 
     if (inputs().size() >= 5) {
-        const auto score_threshold_ps = get_input_partial_shape(4);
+        const auto score_threshold_ps = input_shape(4);
         NODE_VALIDATION_CHECK(this,
                               score_threshold_ps.is_dynamic() || ngraph::is_scalar(score_threshold_ps.to_shape()),
                               "Expected a scalar for the 'score_threshold' input. Got: ",
@@ -331,8 +331,8 @@ void op::v3::NonMaxSuppression::validate() {
 
 void op::v3::NonMaxSuppression::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_NonMaxSuppression_validate_and_infer_types);
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
+    const auto boxes_ps = input_shape(0);
+    const auto scores_ps = input_shape(1);
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
@@ -445,8 +445,8 @@ std::shared_ptr<Node> op::v4::NonMaxSuppression::clone_with_new_inputs(const Out
 
 void op::v4::NonMaxSuppression::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_NonMaxSuppression_validate_and_infer_types);
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
+    const auto boxes_ps = input_shape(0);
+    const auto scores_ps = input_shape(1);
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
@@ -621,8 +621,8 @@ inline bool is_scalar_or_1d_tensor_with_1_element(const ov::Shape& p) {
 }  // namespace
 
 void op::v5::NonMaxSuppression::validate() {
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
+    const auto boxes_ps = input_shape(0);
+    const auto scores_ps = input_shape(1);
 
     NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
@@ -633,11 +633,11 @@ void op::v5::NonMaxSuppression::validate() {
     }
 
     NODE_VALIDATION_CHECK(this,
-                          is_float_type_admissible(get_input_element_type(0)),
+                          is_float_type_admissible(input_element_type(0)),
                           "Expected bf16, fp16 or fp32 as element type for the 'boxes' input.");
 
     NODE_VALIDATION_CHECK(this,
-                          is_float_type_admissible(get_input_element_type(1)),
+                          is_float_type_admissible(input_element_type(1)),
                           "Expected bf16, fp16 or fp32 as element type for the 'scores' input.");
 
     NODE_VALIDATION_CHECK(this,
@@ -651,7 +651,7 @@ void op::v5::NonMaxSuppression::validate() {
                           scores_ps);
 
     if (inputs().size() >= 3) {
-        const auto max_boxes_ps = get_input_partial_shape(2);
+        const auto max_boxes_ps = input_shape(2);
         NODE_VALIDATION_CHECK(this,
                               max_boxes_ps.is_dynamic() || is_scalar_or_1d_tensor_with_1_element(max_boxes_ps),
                               "Expected 0D or 1D tensor for the 'max_output_boxes_per_class' input. "
@@ -660,9 +660,9 @@ void op::v5::NonMaxSuppression::validate() {
     }
 
     if (inputs().size() >= 4) {
-        const auto iou_threshold_ps = get_input_partial_shape(3);
+        const auto iou_threshold_ps = input_shape(3);
         NODE_VALIDATION_CHECK(this,
-                              is_float_type_admissible(get_input_element_type(3)),
+                              is_float_type_admissible(input_element_type(3)),
                               "Expected bf16, fp16 or fp32 as element type for the "
                               "'iou_threshold' input.");
         NODE_VALIDATION_CHECK(this,
@@ -672,9 +672,9 @@ void op::v5::NonMaxSuppression::validate() {
     }
 
     if (inputs().size() >= 5) {
-        const auto score_threshold_ps = get_input_partial_shape(4);
+        const auto score_threshold_ps = input_shape(4);
         NODE_VALIDATION_CHECK(this,
-                              is_float_type_admissible(get_input_element_type(4)),
+                              is_float_type_admissible(input_element_type(4)),
                               "Expected bf16, fp16 or fp32 as element type for the "
                               "'score_threshold_ps' input.");
         NODE_VALIDATION_CHECK(
@@ -685,9 +685,9 @@ void op::v5::NonMaxSuppression::validate() {
     }
 
     if (inputs().size() >= 6) {
-        const auto soft_nms_sigma = get_input_partial_shape(5);
+        const auto soft_nms_sigma = input_shape(5);
         NODE_VALIDATION_CHECK(this,
-                              is_float_type_admissible(get_input_element_type(5)),
+                              is_float_type_admissible(input_element_type(5)),
                               "Expected bf16, fp16 or fp32 as element type for the "
                               "'soft_nms_sigma' input.");
         NODE_VALIDATION_CHECK(this,
@@ -792,8 +792,8 @@ bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
 
 void op::v5::NonMaxSuppression::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_NonMaxSuppression_validate_and_infer_types);
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
+    const auto boxes_ps = input_shape(0);
+    const auto scores_ps = input_shape(1);
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
@@ -801,7 +801,7 @@ void op::v5::NonMaxSuppression::validate_and_infer_types() {
 
     validate();
 
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static() && get_input_size() > 2) {
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static() && input_size() > 2) {
         const auto num_boxes_boxes = boxes_ps[1];
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
             has_and_set_equal_bounds(input_value(2))) {

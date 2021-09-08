@@ -23,8 +23,8 @@ op::v5::GatherND::GatherND(const Output<Node>& data, const Output<Node>& indices
 void op::v5::GatherND::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_GatherND_validate_and_infer_types);
     // check types of input tensors
-    const auto& data_type = get_input_element_type(0);
-    const auto& indices_type = get_input_element_type(1);
+    const auto& data_type = input_element_type(0);
+    const auto& indices_type = input_element_type(1);
 
     NODE_VALIDATION_CHECK(this,
                           indices_type.is_integral_number(),
@@ -32,8 +32,8 @@ void op::v5::GatherND::validate_and_infer_types() {
                           indices_type);
 
     // check ranks of input tensors
-    const auto& data_pshape = get_input_partial_shape(0);
-    const auto& indices_pshape = get_input_partial_shape(1);
+    const auto& data_pshape = input_shape(0);
+    const auto& indices_pshape = input_shape(1);
 
     if (data_pshape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this, data_pshape.rank().get_length() > 0, "Data rank must be at least 1.");

@@ -66,5 +66,5 @@ bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs, const H
 
 bool op::v1::ReduceLogicalAnd::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_ReduceLogicalAnd_has_evaluate);
-    return get_input_element_type(0) == element::boolean && get_input_element_type(1).is_integral_number();
+    return input_element_type(0) == element::boolean && input_element_type(1).is_integral_number();
 }

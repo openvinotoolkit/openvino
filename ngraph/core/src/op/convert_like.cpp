@@ -21,7 +21,7 @@ op::v1::ConvertLike::ConvertLike(const Output<Node>& data, const Output<Node>& l
 
 void op::v1::ConvertLike::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_ConvertLike_validate_and_infer_types);
-    set_output_type(0, get_input_element_type(1), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(1), input_shape(0));
 }
 
 bool op::v1::ConvertLike::visit_attributes(AttributeVisitor& visitor) {

@@ -50,16 +50,16 @@ bool op::v6::ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes
 void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_validate_and_infer_types);
     auto post_nms_count = static_cast<size_t>(m_attrs.post_nms_count);
-    auto input_et = get_input_element_type(0);
+    auto input_et = input_element_type(0);
 
     set_output_size(2);
     set_output_type(0, input_et, ov::StaticShape{post_nms_count, 4});
     set_output_type(1, input_et, ov::StaticShape{post_nms_count});
 
-    auto im_info_shape = get_input_partial_shape(0);
-    auto anchors_shape = get_input_partial_shape(1);
-    auto deltas_shape = get_input_partial_shape(2);
-    auto scores_shape = get_input_partial_shape(3);
+    auto im_info_shape = input_shape(0);
+    auto anchors_shape = input_shape(1);
+    auto deltas_shape = input_shape(2);
+    auto scores_shape = input_shape(3);
 
     if (im_info_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,

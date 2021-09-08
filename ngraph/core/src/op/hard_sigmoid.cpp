@@ -28,8 +28,8 @@ bool ngraph::op::v0::HardSigmoid::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v0::HardSigmoid::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_HardSigmoid_validate_and_infer_types);
-    const auto& alpha_pshape = get_input_partial_shape(1);
-    const auto& beta_pshape = get_input_partial_shape(2);
+    const auto& alpha_pshape = input_shape(1);
+    const auto& beta_pshape = input_shape(2);
 
     if (alpha_pshape.is_static()) {
         const auto alpha_shape = alpha_pshape.to_shape();
@@ -47,15 +47,15 @@ void op::v0::HardSigmoid::validate_and_infer_types() {
                               beta_shape);
     }
 
-    const auto& data_et = get_input_element_type(0);
-    const auto& alpha_et = get_input_element_type(1);
-    const auto& beta_et = get_input_element_type(2);
+    const auto& data_et = input_element_type(0);
+    const auto& alpha_et = input_element_type(1);
+    const auto& beta_et = input_element_type(2);
 
     NODE_VALIDATION_CHECK(this,
                           data_et == alpha_et && data_et == beta_et,
                           "The element types of both alpha and beta inputs must match the data input type.");
 
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 shared_ptr<Node> op::v0::HardSigmoid::clone_with_new_inputs(const OutputVector& new_args) const {

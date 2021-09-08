@@ -229,7 +229,7 @@ bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVecto
 
 bool op::MatMul::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_MatMul_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:
@@ -248,15 +248,15 @@ void ngraph::op::v0::MatMul::validate_and_infer_types() {
     element::Type result_et;
 
     NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
+                          element::Type::merge(result_et, input_element_type(0), input_element_type(1)),
                           "Arguments do not have the same element type (arg0 element type: ",
-                          get_input_element_type(0),
+                          input_element_type(0),
                           ", arg1 element type: ",
-                          get_input_element_type(1),
+                          input_element_type(1),
                           ").");
 
-    const auto& A_partial_shape = get_input_partial_shape(0);
-    const auto& B_partial_shape = get_input_partial_shape(1);
+    const auto& A_partial_shape = input_shape(0);
+    const auto& B_partial_shape = input_shape(1);
 
     if (A_partial_shape.rank().is_static() && B_partial_shape.rank().is_static()) {
         ov::Shape output_shape;

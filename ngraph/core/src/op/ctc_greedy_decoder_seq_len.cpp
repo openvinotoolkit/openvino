@@ -38,8 +38,8 @@ op::v6::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input
 
 void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_validate_and_infer_types);
-    const auto& logits_pshape = get_input_partial_shape(0);
-    const auto& seq_len_pshape = get_input_partial_shape(1);
+    const auto& logits_pshape = input_shape(0);
+    const auto& seq_len_pshape = input_shape(1);
     const bool logits_is_static_rank = logits_pshape.rank().is_static();
     const bool seq_len_is_static_rank = seq_len_pshape.rank().is_static();
 
@@ -56,14 +56,14 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
     }
 
     // check optional input type: blank index
-    if (get_input_size() == 3) {
-        const auto& blank_index_type = get_input_element_type(2);
+    if (input_size() == 3) {
+        const auto& blank_index_type = input_element_type(2);
         NODE_VALIDATION_CHECK(this,
                               blank_index_type.is_integral_number(),
                               "The blank index type is expected to be an integer type. Got: ",
                               blank_index_type);
 
-        const auto& blank_index_partial_shape = get_input_partial_shape(2);
+        const auto& blank_index_partial_shape = input_shape(2);
         if (blank_index_partial_shape.is_static()) {
             ov::StaticShape blank_index_shape = blank_index_partial_shape.to_shape();
             NODE_VALIDATION_CHECK(

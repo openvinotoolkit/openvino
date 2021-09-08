@@ -81,10 +81,10 @@ void op::v8::DeformableConvolution::validate_and_infer_types() {
 
     DeformableConvolutionBase::validate_and_infer_types();
     if (inputs().size() == 4) {
-        const ov::Shape& data_pshape = get_input_partial_shape(0);
-        const ov::Shape& filters_pshape = get_input_partial_shape(2);
-        const ov::Shape& mask_pshape = get_input_partial_shape(3);
-        element::Type mask_et = get_input_element_type(3);
+        const ov::Shape& data_pshape = input_shape(0);
+        const ov::Shape& filters_pshape = input_shape(2);
+        const ov::Shape& mask_pshape = input_shape(3);
+        element::Type mask_et = input_element_type(3);
 
         NODE_VALIDATION_CHECK(this,
                               mask_et.is_real() || mask_et.is_integral_number(),
@@ -132,7 +132,7 @@ void op::v8::DeformableConvolution::validate_and_infer_types() {
             }
         }
 
-        ov::Shape result_pshape = get_output_partial_shape(0);
+        ov::Shape result_pshape = output_shape(0);
         if (result_pshape.rank().is_static() && mask_pshape.rank().is_static()) {
             NODE_VALIDATION_CHECK(
                 this,
@@ -319,7 +319,7 @@ bool op::v8::DeformableConvolution::evaluate(const HostTensorVector& outputs, co
 
 bool op::v8::DeformableConvolution::has_evaluate() const {
     NGRAPH_OP_SCOPE(DeformableConvolution_v8_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::f16:
     case ngraph::element::i16:
     case ngraph::element::i32:

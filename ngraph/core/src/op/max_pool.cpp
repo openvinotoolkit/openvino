@@ -46,7 +46,7 @@ void op::v1::MaxPool::validate_and_infer_types() {
 
     const ov::Shape output_shape = infer_output_shape(Strides{});  // no dilations of the filter window
 
-    set_output_type(0, get_input_element_type(0), output_shape);
+    set_output_type(0, input_element_type(0), output_shape);
 }
 
 shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -62,7 +62,7 @@ shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_
 }
 
 shared_ptr<Node> op::v1::MaxPool::get_default_value() const {
-    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
+    return op::v0::Constant::create(output_element_type(0), output_shape(0).to_shape(), {0});
 }
 
 namespace maxpool {
@@ -144,7 +144,7 @@ bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensor
 
 bool op::v1::MaxPool::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_MaxPool_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:
@@ -288,14 +288,14 @@ void op::v8::MaxPool::validate_and_infer_types() {
 
     MaxPoolBase::validate_and_infer_types();
 
-    const auto input_shape = get_input_partial_shape(0);
+    const auto input_shape = this->input_shape(0);
     if (input_shape.rank().is_static()) {
         m_axis = ngraph::normalize_axis(this, m_axis, input_shape.rank());
     }
 
     const ov::Shape output_shape = infer_output_shape(m_dilations);
 
-    set_output_type(0, get_input_element_type(0), output_shape);
+    set_output_type(0, input_element_type(0), output_shape);
     set_output_type(1, m_index_element_type, output_shape);
 }
 
@@ -316,7 +316,7 @@ shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_
 
 bool op::v8::MaxPool::has_evaluate() const {
     NGRAPH_OP_SCOPE(v8_MaxPool_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

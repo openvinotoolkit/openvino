@@ -89,7 +89,7 @@ void op::v3::GRUCell::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_GRUCell_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), ov::Shape::dynamic());
+            set_output_type(0, input_element_type(0), ov::Shape::dynamic());
             return;
         }
     }
@@ -98,21 +98,21 @@ void op::v3::GRUCell::validate_and_infer_types() {
     auto result_et = element::dynamic;
 
     // Get input partial shape for all inputs
-    const auto& x_pshape = get_input_partial_shape(0);
-    const auto& ht_pshape = get_input_partial_shape(1);
-    const auto& w_pshape = get_input_partial_shape(2);
-    const auto& r_pshape = get_input_partial_shape(3);
-    const auto& b_pshape = get_input_partial_shape(4);
+    const auto& x_pshape = input_shape(0);
+    const auto& ht_pshape = input_shape(1);
+    const auto& w_pshape = input_shape(2);
+    const auto& r_pshape = input_shape(3);
+    const auto& b_pshape = input_shape(4);
 
     validate_input_rank_dimension({x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape});
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(4)),
+                          element::Type::merge(result_et, result_et, input_element_type(0)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(1)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(2)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(3)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(4)),
                           "Element types for X, initial_hidden_state, W, R and B inputs do not match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
@@ -172,7 +172,7 @@ void op::v3::GRUCell::validate_and_infer_types() {
 
 void op::v3::GRUCell::add_default_bias_input() {
     Output<Node> B =
-        op::v0::Constant::create(get_input_element_type(0),
+        op::v0::Constant::create(input_element_type(0),
                                  ov::StaticShape{(s_gates_count + m_linear_before_reset) * get_hidden_size()},
                                  vector<float>((s_gates_count + m_linear_before_reset) * get_hidden_size(), 0.f));
     set_argument(4, B);

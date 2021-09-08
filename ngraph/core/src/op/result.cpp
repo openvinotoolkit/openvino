@@ -30,9 +30,9 @@ bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor) {
 
 void op::Result::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Result_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
+    NODE_VALIDATION_CHECK(this, input_size() == 1, "Argument has ", input_size(), " outputs (1 expected).");
 
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args) const {

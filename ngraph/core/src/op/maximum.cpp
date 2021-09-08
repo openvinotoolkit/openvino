@@ -77,7 +77,7 @@ bool op::v1::Maximum::evaluate(const HostTensorVector& outputs, const HostTensor
 
 bool op::v1::Maximum::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Maximum_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

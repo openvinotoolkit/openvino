@@ -118,7 +118,7 @@ ov::op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args, size_t 
 }
 
 ov::Input<ov::Node> ov::op::util::MultiSubGraphOp::input_for_value(const Output<Node>& value) {
-    auto input_index = get_input_size();
+    auto input_index = input_size();
     set_argument(input_index, value);
     return ov::Input<Node>(this, input_index);
 }
@@ -138,7 +138,7 @@ void ov::op::util::MultiSubGraphOp::set_invariant_inputs(const Output<Node>& val
 }
 
 ov::Output<ov::Node> ov::op::util::MultiSubGraphOp::set_body_outputs(const ResultVector& bodies_results) {
-    auto output_index = get_output_size();
+    auto output_index = output_size();
     for (auto& body_result : bodies_results) {
         for (size_t body_index = 0; body_index < m_bodies.size(); body_index++) {
             auto body_result_index = m_bodies[body_index]->get_result_index(body_result);

@@ -30,7 +30,7 @@ bool op::v0::GRN::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v0::GRN::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_GRN_validate_and_infer_types);
-    const auto& data_pshape = get_input_partial_shape(0);
+    const auto& data_pshape = input_shape(0);
 
     if (data_pshape.is_static()) {
         const ov::StaticShape& data_shape{data_pshape.to_shape()};
@@ -43,7 +43,7 @@ void op::v0::GRN::validate_and_infer_types() {
                               data_shape,
                               ").");
     }
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 shared_ptr<Node> op::v0::GRN::clone_with_new_inputs(const OutputVector& new_args) const {

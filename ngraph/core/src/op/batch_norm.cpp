@@ -46,16 +46,16 @@ void op::v0::BatchNormInference::validate_and_infer_types() {
     set_output_size(1);
     std::tie(result_et, result_batch_shape, result_channel_shape) =
         infer_batch_norm_forward(this,
-                                 get_input_element_type(INPUT_DATA),
-                                 get_input_element_type(INPUT_GAMMA),
-                                 get_input_element_type(INPUT_BETA),
-                                 get_input_element_type(INPUT_MEAN),
-                                 get_input_element_type(INPUT_VARIANCE),
-                                 get_input_partial_shape(INPUT_DATA),
-                                 get_input_partial_shape(INPUT_GAMMA),
-                                 get_input_partial_shape(INPUT_BETA),
-                                 get_input_partial_shape(INPUT_MEAN),
-                                 get_input_partial_shape(INPUT_VARIANCE));
+                                 input_element_type(INPUT_DATA),
+                                 input_element_type(INPUT_GAMMA),
+                                 input_element_type(INPUT_BETA),
+                                 input_element_type(INPUT_MEAN),
+                                 input_element_type(INPUT_VARIANCE),
+                                 input_shape(INPUT_DATA),
+                                 input_shape(INPUT_GAMMA),
+                                 input_shape(INPUT_BETA),
+                                 input_shape(INPUT_MEAN),
+                                 input_shape(INPUT_VARIANCE));
 
     set_output_type(0, result_et, result_batch_shape);
 }
@@ -104,16 +104,16 @@ void op::v5::BatchNormInference::validate_and_infer_types() {
     set_output_size(1);
     std::tie(result_et, result_batch_shape, result_channel_shape) =
         infer_batch_norm_forward(this,
-                                 get_input_element_type(INPUT_DATA),
-                                 get_input_element_type(INPUT_GAMMA),
-                                 get_input_element_type(INPUT_BETA),
-                                 get_input_element_type(INPUT_MEAN),
-                                 get_input_element_type(INPUT_VARIANCE),
-                                 get_input_partial_shape(INPUT_DATA),
-                                 get_input_partial_shape(INPUT_GAMMA),
-                                 get_input_partial_shape(INPUT_BETA),
-                                 get_input_partial_shape(INPUT_MEAN),
-                                 get_input_partial_shape(INPUT_VARIANCE));
+                                 input_element_type(INPUT_DATA),
+                                 input_element_type(INPUT_GAMMA),
+                                 input_element_type(INPUT_BETA),
+                                 input_element_type(INPUT_MEAN),
+                                 input_element_type(INPUT_VARIANCE),
+                                 input_shape(INPUT_DATA),
+                                 input_shape(INPUT_GAMMA),
+                                 input_shape(INPUT_BETA),
+                                 input_shape(INPUT_MEAN),
+                                 input_shape(INPUT_VARIANCE));
 
     set_output_type(0, result_et, result_batch_shape);
 }

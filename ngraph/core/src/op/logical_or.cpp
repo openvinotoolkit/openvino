@@ -65,7 +65,7 @@ bool op::v1::LogicalOr::evaluate(const HostTensorVector& outputs, const HostTens
 
 bool op::v1::LogicalOr::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_LogicalOr_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::boolean:
         return true;
     default:

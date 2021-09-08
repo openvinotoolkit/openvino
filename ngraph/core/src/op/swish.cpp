@@ -39,9 +39,9 @@ void op::v4::Swish::validate_and_infer_types() {
                           inputs_count);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).is_real(),
+                          input_element_type(0).is_real(),
                           "Swish input tensor must be floating point type(",
-                          get_input_element_type(0),
+                          input_element_type(0),
                           ").");
 
     if (inputs_count == 2) {
@@ -51,8 +51,8 @@ void op::v4::Swish::validate_and_infer_types() {
                               input_value(0).get_element_type(),
                               " and ",
                               input_value(1).get_element_type());
-        if (get_input_partial_shape(1).rank().is_static()) {
-            auto beta_rank = get_input_partial_shape(1).rank().get_length();
+        if (input_shape(1).rank().is_static()) {
+            auto beta_rank = input_shape(1).rank().get_length();
             NODE_VALIDATION_CHECK(this,
                                   beta_rank == 0,
                                   "Swish input with beta must be scalar but it has rank: ",
@@ -60,7 +60,7 @@ void op::v4::Swish::validate_and_infer_types() {
         }
     }
     set_output_size(1);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -118,7 +118,7 @@ bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVe
 
 bool op::v4::Swish::has_evaluate() const {
     NGRAPH_OP_SCOPE(v4_Swish_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::f16:
     case ngraph::element::f32:
         return true;

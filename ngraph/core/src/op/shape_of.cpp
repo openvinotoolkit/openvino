@@ -32,7 +32,7 @@ void op::v3::ShapeOf::validate_and_infer_types() {
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
     set_input_is_relevant_to_value(0, false);
-    const auto input_partial_shape = get_input_partial_shape(0);
+    const auto input_partial_shape = input_shape(0);
     set_output_type(0, m_output_type, ov::Shape{input_partial_shape.rank()});
 }
 
@@ -74,10 +74,10 @@ bool evaluate_shape_of(const HostTensorPtr& output_value, const HostTensorPtr& i
 
 bool constant_fold_shape_of(Node* shape_of_node, Output<Node>& replacement, const Output<Node>& shape_of_input) {
     auto partial_shape = shape_of_input.get_partial_shape();
-    auto output_type = shape_of_node->get_output_element_type(0);
+    auto output_type = shape_of_node->output_element_type(0);
     if (partial_shape.is_static()) {
         auto arg_shape = shape_of_input.get_shape();
-        auto result_tensor = make_shared<HostTensor>(output_type, shape_of_node->get_output_shape(0));
+        auto result_tensor = make_shared<HostTensor>(output_type, shape_of_node->output_shape(0).to_shape());
         if (evaluate_shape_of(result_tensor, make_shared<HostTensor>(output_type, partial_shape))) {
             replacement = make_shared<op::Constant>(result_tensor);
             return true;
@@ -89,7 +89,7 @@ bool constant_fold_shape_of(Node* shape_of_node, Output<Node>& replacement, cons
 
 bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& output_values, bool is_upper) {
     NGRAPH_CHECK(shape_of_node, validate_host_tensor_vector(output_values, 1));
-    const auto& input_partial_shape = shape_of_node->get_input_partial_shape(0);
+    const auto& input_partial_shape = shape_of_node->input_shape(0);
     if (input_partial_shape.rank().is_dynamic())
         return false;
     const auto rank = input_partial_shape.rank().get_length();
@@ -101,26 +101,26 @@ bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& out
                                                                       : interval.get_max_val();
     }
     NGRAPH_CHECK(pshape_up.is_static() && pshape_low.is_static());
-    const auto input_et = shape_of_node->get_input_element_type(0);
-    const auto output_et = shape_of_node->get_output_element_type(0);
+    const auto input_et = shape_of_node->input_element_type(0);
+    const auto output_et = shape_of_node->output_element_type(0);
     if (pshape_low.to_shape() == pshape_up.to_shape()) {
         shape_of_node->evaluate(output_values, {std::make_shared<HostTensor>(input_et, pshape_low)});
-        shape_of_node->get_output_tensor(0).set_lower_value(output_values[0]);
-        shape_of_node->get_output_tensor(0).set_upper_value(output_values[0]);
+        shape_of_node->output_tensor(0).set_lower_value(output_values[0]);
+        shape_of_node->output_tensor(0).set_upper_value(output_values[0]);
     } else {
         HostTensorVector upper =
             is_upper
                 ? output_values
                 : HostTensorVector{std::make_shared<HostTensor>(output_et, ov::Shape{pshape_up.rank().get_length()})};
         shape_of_node->evaluate(upper, {std::make_shared<HostTensor>(input_et, pshape_up)});
-        shape_of_node->get_output_tensor(0).set_upper_value(upper[0]);
+        shape_of_node->output_tensor(0).set_upper_value(upper[0]);
 
         HostTensorVector lower =
             !is_upper
                 ? output_values
                 : HostTensorVector{std::make_shared<HostTensor>(output_et, ov::Shape{pshape_low.rank().get_length()})};
         shape_of_node->evaluate(lower, {std::make_shared<HostTensor>(input_et, pshape_low)});
-        shape_of_node->get_output_tensor(0).set_lower_value(lower[0]);
+        shape_of_node->output_tensor(0).set_lower_value(lower[0]);
 
         vector<bool> dynamic_mask;  // true if dimension is dynamic
         for (const auto& i : input_partial_shape)
@@ -152,7 +152,7 @@ bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values, const Host
 
 bool op::v3::ShapeOf::has_evaluate() const {
     NGRAPH_OP_SCOPE(v3_ShapeOf_has_evaluate);
-    switch (get_output_element_type(0)) {
+    switch (output_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:
@@ -189,7 +189,7 @@ op::v0::ShapeOf::ShapeOf(const Output<Node>& arg) : Op({arg}) {
 void op::v0::ShapeOf::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_ShapeOf_validate_and_infer_types);
     set_input_is_relevant_to_value(0, false);
-    set_output_type(0, element::i64, ov::Shape{get_input_partial_shape(0).rank()});
+    set_output_type(0, element::i64, ov::Shape{input_shape(0).rank()});
 }
 
 bool ngraph::op::v0::ShapeOf::visit_attributes(AttributeVisitor& visitor) {
@@ -219,7 +219,7 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values, const Host
 
 bool op::v0::ShapeOf::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_ShapeOf_has_evaluate);
-    switch (get_output_element_type(0)) {
+    switch (output_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

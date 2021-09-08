@@ -25,8 +25,8 @@ op::ROIPooling::ROIPooling(const Output<Node>& input,
 
 void op::ROIPooling::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_ROIPooling_validate_and_infer_types);
-    auto feat_maps_et = get_input_element_type(0);
-    auto coords_et = get_input_element_type(1);
+    auto feat_maps_et = input_element_type(0);
+    auto coords_et = input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           feat_maps_et.is_real() && coords_et.is_real(),
                           "The data type for input and ROIs is expected to be a floating point type. Got: ",
@@ -65,13 +65,13 @@ void op::ROIPooling::validate_and_infer_types() {
                           "Pooling method attribute should be either \'max\' or \'bilinear\'. Got: ",
                           m_method);
 
-    const auto& feat_maps_ps = get_input_partial_shape(0);
+    const auto& feat_maps_ps = input_shape(0);
     NODE_VALIDATION_CHECK(this,
                           feat_maps_ps.rank().compatible(4),
                           "Expected a 4D tensor for the feature maps input. Got: ",
                           feat_maps_ps);
 
-    const auto& coords_ps = get_input_partial_shape(1);
+    const auto& coords_ps = input_shape(1);
     NODE_VALIDATION_CHECK(this,
                           coords_ps.rank().compatible(2),
                           "Expected a 2D tensor for the ROIs input with box coordinates. Got: ",

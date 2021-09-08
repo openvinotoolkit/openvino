@@ -65,7 +65,7 @@ bool op::v5::HSigmoid::evaluate(const HostTensorVector& outputs, const HostTenso
 
 bool op::v5::HSigmoid::has_evaluate() const {
     NGRAPH_OP_SCOPE(v5_HSigmoid_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32:

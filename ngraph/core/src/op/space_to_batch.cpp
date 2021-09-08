@@ -33,11 +33,11 @@ ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& d
 
 void op::v1::SpaceToBatch::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_SpaceToBatch_validate_and_infer_types);
-    ov::Shape data_pshape = get_input_partial_shape(0);
-    const auto& data_type = get_input_element_type(0);
-    const auto& block_shape_type = get_input_element_type(1);
-    const auto& pads_begin_type = get_input_element_type(2);
-    const auto& pads_end_type = get_input_element_type(3);
+    ov::Shape data_pshape = input_shape(0);
+    const auto& data_type = input_element_type(0);
+    const auto& block_shape_type = input_element_type(1);
+    const auto& pads_begin_type = input_element_type(2);
+    const auto& pads_end_type = input_element_type(3);
 
     NODE_VALIDATION_CHECK(this,
                           block_shape_type.is_integral_number(),
@@ -237,6 +237,6 @@ bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs, con
 
 bool ngraph::op::v1::SpaceToBatch::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_SpaceToBatch_has_evaluate);
-    return !get_input_partial_shape(0).is_dynamic() &&
-           (get_input_shape(0).size() == 4 || get_input_shape(0).size() == 5);
+    return !input_shape(0).is_dynamic() &&
+           (input_shape(0).to_shape().size() == 4 || input_shape(0).to_shape().size() == 5);
 }

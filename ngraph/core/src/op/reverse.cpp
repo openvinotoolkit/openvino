@@ -43,14 +43,14 @@ void op::v1::Reverse::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Reverse_validate_and_infer_types);
     if (m_mode == Mode::MASK) {
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(1) == element::boolean,
+                              input_element_type(1) == element::boolean,
                               "In 'mask' mode the second input must contain boolean values.");
     }
 
-    const auto input_shape = get_input_partial_shape(0);
+    const auto input_shape = this->input_shape(0);
     const auto input_rank = input_shape.rank();
 
-    const auto rev_axes_shape = get_input_partial_shape(1);
+    const auto rev_axes_shape = this->input_shape(1);
     const auto rev_axes_rank = rev_axes_shape.rank();
 
     if (rev_axes_rank.is_static()) {
@@ -104,7 +104,7 @@ void op::v1::Reverse::validate_and_infer_types() {
         }
     }
 
-    set_output_type(0, get_input_element_type(0), input_shape);
+    set_output_type(0, input_element_type(0), input_shape);
 }
 
 shared_ptr<Node> op::v1::Reverse::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -178,7 +178,7 @@ bool op::v1::Reverse::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Reverse_has_evaluate);
 
     if (get_mode() == op::v1::Reverse::Mode::INDEX) {
-        switch (get_input_element_type(1)) {
+        switch (input_element_type(1)) {
         case ngraph::element::i8:
         case ngraph::element::i16:
         case ngraph::element::i32:

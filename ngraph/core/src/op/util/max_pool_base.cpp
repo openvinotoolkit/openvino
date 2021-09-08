@@ -45,7 +45,7 @@ void ov::op::util::MaxPoolBase::validate_and_infer_types() {
         m_pads_end = ngraph::Shape(m_kernel.size(), 0);
     }
 
-    const Shape& arg_shape = get_input_partial_shape(0);
+    const Shape& arg_shape = input_shape(0);
 
     NODE_VALIDATION_CHECK(
         this,
@@ -77,7 +77,7 @@ void ov::op::util::MaxPoolBase::validate_and_infer_types() {
 ov::Shape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& dilations) {
     NGRAPH_OP_SCOPE(util_MaxPoolBase_infer_output_shape);
 
-    const auto& arg_shape = get_input_partial_shape(0);
+    const auto& arg_shape = input_shape(0);
 
     bool update_auto_padding_succeed = true;
 
@@ -95,7 +95,7 @@ ov::Shape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& dilations
         CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
         CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
         output_shape = ngraph::infer_batched_pooling_forward(this,
-                                                             get_input_partial_shape(0),
+                                                             input_shape(0),
                                                              pads_begin,
                                                              pads_end,
                                                              m_kernel,

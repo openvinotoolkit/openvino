@@ -59,7 +59,7 @@ void ov::op::v1::AvgPool::validate_and_infer_types() {
         m_pads_end = StaticShape(m_kernel.size(), 0);
     }
 
-    const ov::Shape& arg_shape = get_input_partial_shape(0);
+    const ov::Shape& arg_shape = input_shape(0);
 
     NODE_VALIDATION_CHECK(
         this,
@@ -120,7 +120,7 @@ void ov::op::v1::AvgPool::validate_and_infer_types() {
     CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
     CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
     set_output_type(0,
-                    get_input_element_type(0),
+                    input_element_type(0),
                     update_auto_padding_succeed
                         ? ngraph::infer_batched_pooling_forward(this,
                                                                 arg_shape,
@@ -204,5 +204,5 @@ shared_ptr<ov::Node> ov::op::v1::AvgPool::clone_with_new_inputs(const OutputVect
 }
 
 shared_ptr<ov::Node> ov::op::v1::AvgPool::get_default_value() const {
-    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
+    return op::v0::Constant::create(output_element_type(0), output_shape(0).to_shape(), {0});
 }

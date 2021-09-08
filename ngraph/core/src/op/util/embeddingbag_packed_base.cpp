@@ -25,39 +25,37 @@ ov::op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>&
 
 void ov::op::util::EmbeddingBagPackedBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_EmbeddingBagPackedBase_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_element_type(INDICES) == element::i64 || get_input_element_type(INDICES) == element::i32,
-        "INDICES type must be i32 or i64");
+    NODE_VALIDATION_CHECK(this,
+                          input_element_type(INDICES) == element::i64 || input_element_type(INDICES) == element::i32,
+                          "INDICES type must be i32 or i64");
 
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(INDICES).is_dynamic() || get_input_partial_shape(INDICES).to_shape().size() == 2,
-        "INDICES must be 2D");
+    NODE_VALIDATION_CHECK(this,
+                          input_shape(INDICES).is_dynamic() || input_shape(INDICES).to_shape().size() == 2,
+                          "INDICES must be 2D");
 
-    if (get_input_size() == 3) {
+    if (input_size() == 3) {
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(EMB_TABLE).compatible(get_input_element_type(PER_SAMPLE_WEIGHTS)),
+                              input_element_type(EMB_TABLE).compatible(input_element_type(PER_SAMPLE_WEIGHTS)),
                               "Per sample weight element type (",
-                              get_input_element_type(PER_SAMPLE_WEIGHTS),
+                              input_element_type(PER_SAMPLE_WEIGHTS),
                               ") must match embedding table element type (",
-                              get_input_element_type(EMB_TABLE),
+                              input_element_type(EMB_TABLE),
                               ")");
 
-        NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(PER_SAMPLE_WEIGHTS).is_dynamic() ||
-                                  get_input_partial_shape(PER_SAMPLE_WEIGHTS).to_shape().size() == 2,
-                              "PER_SAMPLE_WEIGHTS must be 2D");
+        NODE_VALIDATION_CHECK(
+            this,
+            input_shape(PER_SAMPLE_WEIGHTS).is_dynamic() || input_shape(PER_SAMPLE_WEIGHTS).to_shape().size() == 2,
+            "PER_SAMPLE_WEIGHTS must be 2D");
 
         NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(INDICES).compatible(get_input_partial_shape(PER_SAMPLE_WEIGHTS)),
+                              input_shape(INDICES).compatible(input_shape(PER_SAMPLE_WEIGHTS)),
                               "INDICES and PER_SAMPLE_WEIGHTS shape must be same");
     }
 
-    element::Type result_et = get_input_element_type(EMB_TABLE);
+    element::Type result_et = input_element_type(EMB_TABLE);
 
-    const Shape& emb_table_shape = get_input_partial_shape(EMB_TABLE);
-    const Shape& indices_shape = get_input_partial_shape(INDICES);
+    const Shape& emb_table_shape = input_shape(EMB_TABLE);
+    const Shape& indices_shape = input_shape(INDICES);
 
     Shape result_shape;
     if (emb_table_shape.rank().is_static()) {

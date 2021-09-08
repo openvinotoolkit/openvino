@@ -28,16 +28,16 @@ bool op::v4::Mish::visit_attributes(AttributeVisitor& visitor) {
 void op::v4::Mish::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_Mish_validate_and_infer_types);
 
-    NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Only accepts one argument. Got: ", get_input_size());
+    NODE_VALIDATION_CHECK(this, input_size() == 1, "Only accepts one argument. Got: ", input_size());
 
-    element::Type data_batch_et = get_input_element_type(0);
+    element::Type data_batch_et = input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           data_batch_et.is_real(),
                           "Element must be of floating point type, Got: ",
                           data_batch_et);
 
     set_output_size(1);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 shared_ptr<Node> op::v4::Mish::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -78,7 +78,7 @@ bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVec
 
 bool op::v4::Mish::has_evaluate() const {
     NGRAPH_OP_SCOPE(v4_Mish_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::f16:
     case ngraph::element::f32:
         return true;

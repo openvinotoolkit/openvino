@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <list>
 #include <memory>
+#include <utility>
 
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
@@ -263,8 +264,8 @@ void ov::Function::map_unordered_ops(std::function<void(Node*)> f) const {
         remaining_ops.pop();
         if (unordered_ops.insert(op).second) {
             f(op);
-            for (size_t i = 0; i < op->get_input_size(); ++i) {
-                remaining_ops.push(op->get_input_node_ptr(i));
+            for (size_t i = 0; i < op->input_size(); ++i) {
+                remaining_ops.push(op->input_node_ptr(i));
             }
             for (auto& cdep : op->get_control_dependencies()) {
                 remaining_ops.push(cdep.get());
@@ -297,16 +298,18 @@ size_t ov::Function::get_output_size() const {
     return m_results.size();
 }
 
-const ov::element::Type& ov::Function::get_output_element_type(size_t i) const {
-    return m_results.at(i)->get_element_type();
+const ov::element::Type& ov::Function::output_element_type(size_t i) const {
+    return m_results.at(i)->output_element_type(0);
 }
 
 const ngraph::Shape& ov::Function::get_output_shape(size_t i) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return m_results.at(i)->get_shape();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 const ov::Shape& ov::Function::get_output_partial_shape(size_t i) const {
-    return m_results.at(i)->get_output_partial_shape(0);
+    return m_results.at(i)->output_shape(0);
 }
 
 shared_ptr<ov::Node> ov::Function::get_output_op(size_t i) const {
@@ -326,29 +329,31 @@ shared_ptr<ov::Node> ov::Function::get_result() const {
 
 std::vector<shared_ptr<ov::Node>> ov::Function::get_ops() const {
     std::vector<std::shared_ptr<Node>> ops;
-    ngraph::traverse_nodes(this, [&](shared_ptr<Node> node) {
+    ngraph::traverse_nodes(this, [&](const shared_ptr<Node>& node) {
         ops.push_back(node);
     });
     return ops;
 }
 
 void ov::Function::replace_node(std::shared_ptr<Node> old, std::shared_ptr<Node> repl) {
-    ngraph::replace_node(old, repl);
+    ngraph::replace_node(std::move(old), std::move(repl));
 }
 
 size_t ov::Function::get_graph_size() const {
     size_t total_size = 0;
-    for (auto node : get_ops()) {
+    for (const auto& node : get_ops()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         total_size += sizeof(*node);
         if (node->description() == "Constant") {
             const ngraph::Shape& shape = node->get_output_shape(0);
-            size_t const_size = node->get_output_element_type(0).size();
+            size_t const_size = node->output_element_type(0).size();
             if (shape.size() == 0) {
                 total_size += const_size;
             } else {
-                total_size += (const_size * shape_size(node->get_output_shape(0)));
+                total_size += (const_size * shape_size(node->output_shape(0).to_shape()));
             }
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     return total_size;
 }
@@ -356,7 +361,7 @@ size_t ov::Function::get_graph_size() const {
 bool ov::Function::is_dynamic() const {
     auto list_of_nodes = this->get_ops();
     for (auto& node : list_of_nodes) {
-        if (node->get_output_partial_shape(0).is_dynamic()) {
+        if (node->output_shape(0).is_dynamic()) {
             return true;
         }
     }
@@ -375,12 +380,12 @@ void ov::Function::replace_parameter(size_t parameter_index, const shared_ptr<ng
 }
 
 void ov::Function::set_topological_sort(topological_sort_t sorter) {
-    m_topological_sorter = sorter;
+    m_topological_sorter = std::move(sorter);
 }
 
 int64_t ov::Function::get_parameter_index(const std::shared_ptr<ngraph::op::Parameter>& parameter) const {
     int64_t pos = 0;
-    for (auto p : get_parameters()) {
+    for (const auto& p : get_parameters()) {
         if (p == parameter) {
             return pos;
         }
@@ -393,14 +398,14 @@ int64_t ov::Function::get_result_index(const Output<Node>& value) const {
     int64_t pos = 0;
     if (is_type<ngraph::op::Result>(value.get_node_shared_ptr())) {
         auto result = value.get_node_shared_ptr();
-        for (auto r : get_results()) {
+        for (const auto& r : get_results()) {
             if (r == result) {
                 return pos;
             }
             pos++;
         }
     } else {
-        for (auto r : get_results()) {
+        for (const auto& r : get_results()) {
             if (r->input_value(0) == value) {
                 return pos;
             }

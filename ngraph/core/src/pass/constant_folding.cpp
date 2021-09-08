@@ -22,9 +22,9 @@ bool ov::pass::ConstantFolding::run_on_function(std::shared_ptr<ov::Function> f)
             node->validate_and_infer_types();
         }
 
-        OutputVector replacements(node->get_output_size());
+        OutputVector replacements(node->output_size());
         if (node->constant_fold(replacements, node->input_values())) {
-            NGRAPH_CHECK(replacements.size() == node->get_output_size(),
+            NGRAPH_CHECK(replacements.size() == node->output_size(),
                          "constant_fold_default returned incorrect number of replacements for ",
                          node);
 
@@ -100,7 +100,7 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(const std::sha
                 auto input_node = input_value.get_node_shared_ptr();
                 auto replacement = std::make_shared<ngraph::op::Constant>(input_value.get_tensor().get_lower_value());
                 if (replacement && !ov::is_type<ngraph::op::Constant>(input_node)) {
-                    if (input_node->get_output_size() == 1) {
+                    if (input_node->output_size() == 1) {
                         replacement->set_friendly_name(input_node->get_friendly_name());
                     } else {
                         replacement->set_friendly_name(input_node->get_friendly_name() + "." +

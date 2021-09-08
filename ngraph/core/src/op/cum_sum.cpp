@@ -38,9 +38,9 @@ bool op::v0::CumSum::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v0::CumSum::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_CumSum_validate_and_infer_types);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 
-    const auto& axis_type = get_input_element_type(1);
+    const auto& axis_type = input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           axis_type == element::i32 || axis_type == element::i64,
                           "axis element type must be either int64_t or int32_t but got (",
@@ -62,6 +62,6 @@ shared_ptr<Node> op::v0::CumSum::clone_with_new_inputs(const OutputVector& new_a
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 shared_ptr<Node> op::v0::CumSum::get_default_value() const {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
+    return ngraph::make_constant_from_string("0", output_element_type(0), get_shape());
 }
 NGRAPH_SUPPRESS_DEPRECATED_END

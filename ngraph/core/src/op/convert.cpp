@@ -26,7 +26,7 @@ op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_t
 void op::Convert::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Convert_validate_and_infer_types);
 
-    set_output_type(0, m_destination_type, get_input_partial_shape(0));
+    set_output_type(0, m_destination_type, input_shape(0));
 }
 
 bool op::Convert::visit_attributes(AttributeVisitor& visitor) {
@@ -165,7 +165,7 @@ bool op::v0::Convert::evaluate(const HostTensorVector& output_values, const Host
 bool op::v0::Convert::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Convert_has_evaluate);
 
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::u1:
     case ngraph::element::u4:
     case ngraph::element::u8:
@@ -186,7 +186,7 @@ bool op::v0::Convert::has_evaluate() const {
     default:
         return false;
     }
-    switch (get_output_element_type(0)) {
+    switch (output_element_type(0)) {
     case ngraph::element::i4:
     case ngraph::element::i8:
     case ngraph::element::i16:

@@ -29,7 +29,7 @@ op::v3::ExtractImagePatches::ExtractImagePatches(const Output<Node>& image,
 
 void op::v3::ExtractImagePatches::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_ExtractImagePatches_validate_and_infer_types);
-    const ov::Shape input_pshape = get_input_partial_shape(0);
+    const ov::Shape input_pshape = input_shape(0);
 
     NODE_VALIDATION_CHECK(this, input_pshape.rank() == 4, "input tensor must be 4D tensor.");
 
@@ -61,7 +61,7 @@ void op::v3::ExtractImagePatches::validate_and_infer_types() {
     if (input_pshape[1].is_dynamic() || input_pshape[2].is_dynamic() || input_pshape[3].is_dynamic()) {
         set_input_is_relevant_to_shape(0);
         auto output_pshape = ov::Shape::dynamic(4);
-        set_output_type(0, get_input_element_type(0), output_pshape);
+        set_output_type(0, input_element_type(0), output_pshape);
     } else {
         int32_t input_depth = input_pshape[1].get_length();
         int32_t input_rows = input_pshape[2].get_length();
@@ -110,7 +110,7 @@ void op::v3::ExtractImagePatches::validate_and_infer_types() {
             output_pshape = input_pshape;
         }
 
-        set_output_type(0, get_input_element_type(0), output_pshape);
+        set_output_type(0, input_element_type(0), output_pshape);
     }
 }
 

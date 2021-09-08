@@ -37,7 +37,7 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops() {
         if (nodes_done.count(node) == 0) {
             NGRAPH_CHECK(ov::as_type_ptr<op::v0::TensorIterator>(node) == nullptr, "No nested TensorIterator");
             bool can_add = true;
-            size_t arg_count = node->get_input_size();
+            size_t arg_count = node->input_size();
             for (size_t i = 0; i < arg_count; ++i) {
                 auto dep = node->input(arg_count - i - 1).get_source_output().get_node()->shared_from_this();
                 if (nodes_done.count(dep) == 0) {
@@ -67,7 +67,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
                           "Loop contains output descriptions for other bodies");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == m_input_descriptions[0].size(),
+                          input_size() == m_input_descriptions[0].size(),
                           "Number of inputs must be the same as number of input descriptions");
 
     std::vector<std::shared_ptr<Node>> ends;
@@ -170,7 +170,7 @@ void op::v0::TensorIterator::validate_and_infer_types() {
     }
 
     NODE_VALIDATION_CHECK(this,
-                          get_output_size() == m_output_descriptions[0].size(),
+                          output_size() == m_output_descriptions[0].size(),
                           "Number of outputs must be the same as number of output descriptions");
 }
 

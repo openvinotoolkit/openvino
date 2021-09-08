@@ -41,12 +41,12 @@ bool op::v6::ExperimentalDetectronDetectionOutput::visit_attributes(AttributeVis
 void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronDetectionOutput_validate_and_infer_types);
     size_t rois_num = m_attrs.max_detections_per_image;
-    auto input_et = get_input_element_type(0);
+    auto input_et = input_element_type(0);
 
-    auto rois_shape = get_input_partial_shape(0);
-    auto deltas_shape = get_input_partial_shape(1);
-    auto scores_shape = get_input_partial_shape(2);
-    auto im_info_shape = get_input_partial_shape(3);
+    auto rois_shape = input_shape(0);
+    auto deltas_shape = input_shape(1);
+    auto scores_shape = input_shape(2);
+    auto im_info_shape = input_shape(3);
 
     set_output_size(3);
     set_output_type(0, input_et, ov::StaticShape{rois_num, 4});

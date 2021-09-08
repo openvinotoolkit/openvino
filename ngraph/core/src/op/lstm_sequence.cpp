@@ -216,7 +216,7 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const {
         X = make_shared<opset1::ReverseSequence>(X, seq_lengths, 0 /*batch_axis*/, 1 /*seq_axis*/);
     }
 
-    OutputVector in_seqs = builder::opset1::split(X, X->get_shape().at(1), 1);
+    OutputVector in_seqs = builder::opset1::split(X, X->output_shape(0).get_shape().at(1), 1);
 
     for (auto& in_x : in_seqs) {
         // Remove empty dim, after above split.
@@ -302,22 +302,22 @@ void op::v0::LSTMSequence::validate_and_infer_types() {
 
     // Copy all inputs without peephole and initial_cell_state information for further
     // validation
-    for (size_t i = 0; i < get_input_size() - 1; i++) {
+    for (size_t i = 0; i < input_size() - 1; i++) {
         // exclude initial_cell_state from the loop
         if (i != 2) {
-            input_param.push_back(get_input_partial_shape(i));
+            input_param.push_back(input_shape(i));
         }
     }
 
     // Get input partial shape for all inputs
-    const auto& x_pshape = get_input_partial_shape(0);
-    const auto& ht_pshape = get_input_partial_shape(1);
-    const auto& ct_pshape = get_input_partial_shape(2);
-    const auto& sl_pshape = get_input_partial_shape(3);
-    const auto& w_pshape = get_input_partial_shape(4);
-    const auto& r_pshape = get_input_partial_shape(5);
-    const auto& b_pshape = get_input_partial_shape(6);
-    const auto& p_pshape = get_input_partial_shape(7);
+    const auto& x_pshape = input_shape(0);
+    const auto& ht_pshape = input_shape(1);
+    const auto& ct_pshape = input_shape(2);
+    const auto& sl_pshape = input_shape(3);
+    const auto& w_pshape = input_shape(4);
+    const auto& r_pshape = input_shape(5);
+    const auto& b_pshape = input_shape(6);
+    const auto& p_pshape = input_shape(7);
 
     ngraph::op::util::validate_seq_input_rank_dimension(input_param);
 
@@ -339,12 +339,12 @@ void op::v0::LSTMSequence::validate_and_infer_types() {
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(6)),
+                          element::Type::merge(result_et, result_et, input_element_type(0)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(1)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(2)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(4)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(5)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(6)),
                           "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do "
                           "not "
                           "match.");
@@ -464,9 +464,9 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_LSTMSequence_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), ov::Shape::dynamic());
-            set_output_type(1, get_input_element_type(0), ov::Shape::dynamic());
-            set_output_type(2, get_input_element_type(0), ov::Shape::dynamic());
+            set_output_type(0, input_element_type(0), ov::Shape::dynamic());
+            set_output_type(1, input_element_type(0), ov::Shape::dynamic());
+            set_output_type(2, input_element_type(0), ov::Shape::dynamic());
             return;
         }
     }
@@ -479,21 +479,21 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
     auto result_et = element::dynamic;
 
     // Copy all inputs without initial_cell_state information for further validation
-    for (size_t i = 0; i < get_input_size(); i++) {
+    for (size_t i = 0; i < input_size(); i++) {
         // exclude initial_cell_state from the loop
         if (i != 2) {
-            input_param.push_back(get_input_partial_shape(i));
+            input_param.push_back(input_shape(i));
         }
     }
 
     // Get input partial shape for all inputs
-    const auto& x_pshape = get_input_partial_shape(0);
-    const auto& ht_pshape = get_input_partial_shape(1);
-    const auto& ct_pshape = get_input_partial_shape(2);
-    const auto& sl_pshape = get_input_partial_shape(3);
-    const auto& w_pshape = get_input_partial_shape(4);
-    const auto& r_pshape = get_input_partial_shape(5);
-    const auto& b_pshape = get_input_partial_shape(6);
+    const auto& x_pshape = input_shape(0);
+    const auto& ht_pshape = input_shape(1);
+    const auto& ct_pshape = input_shape(2);
+    const auto& sl_pshape = input_shape(3);
+    const auto& w_pshape = input_shape(4);
+    const auto& r_pshape = input_shape(5);
+    const auto& b_pshape = input_shape(6);
 
     ngraph::op::util::validate_seq_input_rank_dimension(input_param);
 
@@ -504,12 +504,12 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
 
     // Validate input types and save result for output type
     NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
-                              element::Type::merge(result_et, result_et, get_input_element_type(6)),
+                          element::Type::merge(result_et, result_et, input_element_type(0)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(1)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(2)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(4)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(5)) &&
+                              element::Type::merge(result_et, result_et, input_element_type(6)),
                           "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do "
                           "not "
                           "match.");

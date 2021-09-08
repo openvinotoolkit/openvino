@@ -42,23 +42,23 @@ void ov::op::v0::DetectionOutput::validate_and_infer_types() {
                           "code_type must be either \"caffe.PriorBoxParameter.CORNER\" or "
                           "\"caffe.PriorBoxParameter.CENTER_SIZE\"");
 
-    auto box_logits_et = get_input_element_type(0);
+    auto box_logits_et = input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           box_logits_et.is_real(),
                           "Box logits' data type must be floating point. Got " + box_logits_et.get_type_name());
-    auto class_preds_et = get_input_element_type(1);
+    auto class_preds_et = input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           class_preds_et == box_logits_et,
                           "Class predictions' data type must be the same as box logits type (" +
                               box_logits_et.get_type_name() + "). Got " + class_preds_et.get_type_name());
-    auto proposals_et = get_input_element_type(2);
+    auto proposals_et = input_element_type(2);
     NODE_VALIDATION_CHECK(this,
                           proposals_et.is_real(),
                           "Proposals' data type must be floating point. Got " + proposals_et.get_type_name());
 
-    const ov::Shape& box_logits_pshape = get_input_partial_shape(0);
-    const ov::Shape& class_preds_pshape = get_input_partial_shape(1);
-    const ov::Shape& proposals_pshape = get_input_partial_shape(2);
+    const ov::Shape& box_logits_pshape = input_shape(0);
+    const ov::Shape& class_preds_pshape = input_shape(1);
+    const ov::Shape& proposals_pshape = input_shape(2);
 
     int num_loc_classes = m_attrs.share_location ? 1 : m_attrs.num_classes;
     int prior_box_size = m_attrs.normalized ? 4 : 5;
@@ -161,21 +161,21 @@ void ov::op::v0::DetectionOutput::validate_and_infer_types() {
         }
     }
 
-    if (get_input_size() > 3) {
-        auto aux_class_preds_et = get_input_element_type(3);
+    if (input_size() > 3) {
+        auto aux_class_preds_et = input_element_type(3);
         NODE_VALIDATION_CHECK(this,
                               aux_class_preds_et == class_preds_et,
                               "Additional class predictions' data type must be the same as class "
                               "predictions data type (" +
                                   class_preds_et.get_type_name() + "). Got " + aux_class_preds_et.get_type_name());
-        auto aux_box_preds_et = get_input_element_type(4);
+        auto aux_box_preds_et = input_element_type(4);
         NODE_VALIDATION_CHECK(this,
                               aux_box_preds_et == box_logits_et,
                               "Additional box predictions' data type must be the same as box logits data type (" +
                                   box_logits_et.get_type_name() + "). Got " + aux_box_preds_et.get_type_name());
 
-        const ov::Shape& aux_class_preds_pshape = get_input_partial_shape(3);
-        const ov::Shape& aux_box_preds_pshape = get_input_partial_shape(4);
+        const ov::Shape& aux_class_preds_pshape = input_shape(3);
+        const ov::Shape& aux_box_preds_pshape = input_shape(4);
         if (aux_class_preds_pshape.rank().is_static()) {
             NODE_VALIDATION_CHECK(this,
                                   aux_class_preds_pshape[0].compatible(num_images),

@@ -87,9 +87,11 @@ public:
     ///       and returned. If the input is not constant(dynamic) this method returns 0
     size_t get_k() const;
     void set_k(size_t k);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     size_t get_default_output_index() const override {
         return no_default_index();
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     bool has_evaluate() const override;
 

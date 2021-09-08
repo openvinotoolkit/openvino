@@ -45,10 +45,10 @@ bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Convolution::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Convolution_validate_and_infer_types);
-    const ov::Shape& data_batch_pshape = get_input_partial_shape(0);
-    element::Type data_batch_et = get_input_element_type(0);
-    const ov::Shape& filters_pshape = get_input_partial_shape(1);
-    element::Type filters_et = get_input_element_type(1);
+    const ov::Shape& data_batch_pshape = input_shape(0);
+    element::Type data_batch_et = input_element_type(0);
+    const ov::Shape& filters_pshape = input_shape(1);
+    element::Type filters_et = input_element_type(1);
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(this,
@@ -98,7 +98,7 @@ shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& 
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 shared_ptr<Node> op::v1::Convolution::get_default_value() const {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
+    return ngraph::make_constant_from_string("0", output_element_type(0), get_shape());
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
@@ -162,8 +162,8 @@ bool op::v1::ConvolutionBackpropData::is_dynamic() const {
 }
 
 const ov::Shape op::v1::ConvolutionBackpropData::get_output_shape() const {
-    auto data_pshape = get_input_partial_shape(0);
-    auto filter_pshape = get_input_partial_shape(1);
+    auto data_pshape = input_shape(0);
+    auto filter_pshape = input_shape(1);
 
     ov::Shape shape;
     bool is_output_shape_present = inputs().size() == 3;
@@ -185,7 +185,7 @@ const ov::Shape op::v1::ConvolutionBackpropData::get_output_shape() const {
 
 void op::v1::ConvolutionBackpropData::set_output_shape(const ov::StaticShape& shape) {
     this->input(2).replace_source_output(
-        op::v0::Constant::create(this->get_input_element_type(2), ov::StaticShape{shape.size()}, shape)->output(0));
+        op::v0::Constant::create(this->input_element_type(2), ov::StaticShape{shape.size()}, shape)->output(0));
 }
 
 void op::v1::ConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
@@ -217,10 +217,10 @@ void op::v1::ConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
 
 void op::v1::ConvolutionBackpropData::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_ConvolutionBackpropData_validate_and_infer_types);
-    const ov::Shape& data_pshape = get_input_partial_shape(0);
-    element::Type delta_et = get_input_element_type(0);
-    const ov::Shape& filters_pshape = get_input_partial_shape(1);
-    element::Type filters_et = get_input_element_type(1);
+    const ov::Shape& data_pshape = input_shape(0);
+    element::Type delta_et = input_element_type(0);
+    const ov::Shape& filters_pshape = input_shape(1);
+    element::Type filters_et = input_element_type(1);
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(this,
@@ -260,8 +260,8 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types() {
 
     bool is_output_shape_present = inputs().size() == 3;
     if (is_output_shape_present) {
-        const ov::Shape& output_shape_pshape = get_input_partial_shape(2);
-        const element::Type output_shape_et = get_input_element_type(2);
+        const ov::Shape& output_shape_pshape = input_shape(2);
+        const element::Type output_shape_et = input_element_type(2);
 
         NODE_VALIDATION_CHECK(this,
                               output_shape_et.is_integral_number(),

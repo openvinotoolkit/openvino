@@ -25,7 +25,7 @@ using namespace ngraph;
 OPENVINO_RTTI_DEFINITION(op::v1::GroupConvolution, "GroupConvolution", 1);
 
 shared_ptr<Node> op::v1::GroupConvolution::get_default_value() const {
-    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
+    return op::v0::Constant::create(output_element_type(0), output_shape(0).to_shape(), {0});
 }
 
 op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
@@ -70,10 +70,10 @@ static Dimension infer_group_from_input_shapes(const ov::Shape& data_pshape, con
 
 void op::v1::GroupConvolution::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_GroupConvolution_validate_and_infer_types);
-    ov::Shape data_batch_pshape = get_input_partial_shape(0);
-    ov::Shape filters_pshape = get_input_partial_shape(1);
-    element::Type data_batch_et = get_input_element_type(0);
-    element::Type filters_et = get_input_element_type(1);
+    ov::Shape data_batch_pshape = input_shape(0);
+    ov::Shape filters_pshape = input_shape(1);
+    element::Type data_batch_et = input_element_type(0);
+    element::Type filters_et = input_element_type(1);
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(this,
@@ -348,8 +348,8 @@ static Dimension infer_backprop_group_from_input_shapes(const ov::Shape& data_ps
 }
 
 const ov::Shape op::v1::GroupConvolutionBackpropData::get_convolution_output_shape() const {
-    auto data_pshape = get_input_partial_shape(0);
-    auto filter_pshape = get_input_partial_shape(1);
+    auto data_pshape = input_shape(0);
+    auto filter_pshape = input_shape(1);
 
     ov::Shape shape;
     if (inputs().size() == 3) {
@@ -370,7 +370,7 @@ const ov::Shape op::v1::GroupConvolutionBackpropData::get_convolution_output_sha
 
 void op::v1::GroupConvolutionBackpropData::set_output_shape(const ov::StaticShape& shape) {
     this->input(2).replace_source_output(
-        op::v0::Constant::create(this->get_input_element_type(2), ov::StaticShape{shape.size()}, shape)->output(0));
+        op::v0::Constant::create(this->input_element_type(2), ov::StaticShape{shape.size()}, shape)->output(0));
 }
 
 void op::v1::GroupConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
@@ -401,10 +401,10 @@ void op::v1::GroupConvolutionBackpropData::infer_conv_backprop_output_spatial_sh
 
 void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_GroupConvolutionBackpropData_validate_and_infer_types);
-    const ov::Shape& data_pshape = get_input_partial_shape(0);
-    element::Type data_et = get_input_element_type(0);
-    const ov::Shape& filters_pshape = get_input_partial_shape(1);
-    element::Type filters_et = get_input_element_type(1);
+    const ov::Shape& data_pshape = input_shape(0);
+    element::Type data_et = input_element_type(0);
+    const ov::Shape& filters_pshape = input_shape(1);
+    element::Type filters_et = input_element_type(1);
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(this,
@@ -432,8 +432,8 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
 
     bool is_output_shape_present = inputs().size() == 3;
     if (is_output_shape_present) {
-        const ov::Shape& output_shape_pshape = get_input_partial_shape(2);
-        const element::Type output_shape_et = get_input_element_type(2);
+        const ov::Shape& output_shape_pshape = input_shape(2);
+        const element::Type output_shape_et = input_element_type(2);
 
         NODE_VALIDATION_CHECK(this,
                               output_shape_et.is_integral_number(),

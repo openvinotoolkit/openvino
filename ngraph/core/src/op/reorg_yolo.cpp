@@ -26,9 +26,9 @@ void op::ReorgYolo::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_ReorgYolo_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, !m_strides.empty(), "Stride attribute is required.");
 
-    auto input_et = get_input_element_type(0);
-    if (get_input_partial_shape(0).is_static()) {
-        auto input_shape = get_input_partial_shape(0).to_shape();
+    auto input_et = input_element_type(0);
+    if (input_shape(0).is_static()) {
+        auto input_shape = this->input_shape(0).to_shape();
         NODE_VALIDATION_CHECK(this, input_shape.size() == 4, "[N, C, H, W] input shape is required.");
 
         NODE_VALIDATION_CHECK(this,

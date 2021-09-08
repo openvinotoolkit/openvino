@@ -38,12 +38,10 @@ bool op::v0::Interpolate::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v0::Interpolate::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Interpolate_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(1).is_integral_number(),
-                          "output shape must be an integral number.");
+    NODE_VALIDATION_CHECK(this, input_element_type(1).is_integral_number(), "output shape must be an integral number.");
     set_input_is_relevant_to_shape(1);
 
-    ov::Shape output_shape = ov::Shape(get_input_partial_shape(0));
+    ov::Shape output_shape = ov::Shape(input_shape(0));
     if (output_shape.rank().is_static()) {
         for (auto axis : m_attrs.axes) {
             NGRAPH_CHECK(static_cast<int64_t>(axis) < output_shape.rank().get_length());
@@ -58,7 +56,7 @@ void op::v0::Interpolate::validate_and_infer_types() {
             output_shape[axis] = Dimension(out_shape[i++]);
         }
     }
-    set_output_type(0, get_input_element_type(0), output_shape);
+    set_output_type(0, input_element_type(0), output_shape);
 }
 
 shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -127,7 +125,7 @@ bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor) {
 std::vector<int64_t> op::v4::Interpolate::get_axes() const {
     auto inputs = input_values();
     if (inputs.size() <= 3) {
-        ov::Shape input_shape = ov::Shape(get_input_partial_shape(0));
+        ov::Shape input_shape = ov::Shape(this->input_shape(0));
         NODE_VALIDATION_CHECK(this,
                               input_shape.rank().is_static(),
                               "Could not define axes of interpolation because there are "
@@ -200,35 +198,35 @@ ov::Shape op::v4::Interpolate::get_padded_input_shape(const ov::Shape& input_sha
 
 void op::v4::Interpolate::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_Interpolate_validate_and_infer_types);
-    element::Type input_et = get_input_element_type(0);
+    element::Type input_et = input_element_type(0);
     NODE_VALIDATION_CHECK(
         this,
         input_et == element::f32 || input_et == element::f16 || input_et == element::i8 || input_et == element::bf16,
         "Input element type must be f32, f16, bf16 or i8");
 
-    element::Type sizes_et = get_input_element_type(1);
+    element::Type sizes_et = input_element_type(1);
     NODE_VALIDATION_CHECK(
         this,
         sizes_et == element::i32 || sizes_et == element::i64 || sizes_et == element::u32 || sizes_et == element::u64,
         "Sizes element type must be i32, i64, u32 or u64");
 
-    element::Type scales_et = get_input_element_type(2);
+    element::Type scales_et = input_element_type(2);
     NODE_VALIDATION_CHECK(this,
                           scales_et == element::f32 || scales_et == element::f16 || scales_et == element::bf16,
                           "Scales element type must be f32, f16 or bf16");
 
     if (input_values().size() == 4) {
-        element::Type axes_et = get_input_element_type(3);
+        element::Type axes_et = input_element_type(3);
         NODE_VALIDATION_CHECK(
             this,
             axes_et == element::i64 || axes_et == element::i32 || sizes_et == element::u32 || sizes_et == element::u64,
             "Axes element type must be i32, i64, u32 or u64");
     }
 
-    ov::Shape input_shape = ov::Shape(get_input_partial_shape(0));
+    ov::Shape input_shape = ov::Shape(this->input_shape(0));
 
     if (!input_shape.rank().is_static()) {
-        set_output_type(0, get_input_element_type(0), input_shape);
+        set_output_type(0, input_element_type(0), input_shape);
         return;
     }
 
@@ -238,7 +236,7 @@ void op::v4::Interpolate::validate_and_infer_types() {
     // of the output shape. Hence, all components of the output shape should be dynamic.
     if (input_values().size() == 4 && !has_and_set_equal_bounds(input_value(3))) {
         ov::Shape output_shape = std::vector<Dimension>(input_rank, Dimension::dynamic());
-        set_output_type(0, get_input_element_type(0), output_shape);
+        set_output_type(0, input_element_type(0), output_shape);
         return;
     }
 
@@ -267,7 +265,7 @@ void op::v4::Interpolate::validate_and_infer_types() {
         }
     }
 
-    set_output_type(0, get_input_element_type(0), output_shape);
+    set_output_type(0, input_element_type(0), output_shape);
 }
 
 shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -358,7 +356,7 @@ std::vector<T> correct_pad(const std::vector<T>& p, size_t rank) {
 }  // namespace
 
 void op::v4::Interpolate::correct_pads() {
-    ov::Shape input_shape = ov::Shape(get_input_partial_shape(0));
+    ov::Shape input_shape = ov::Shape(this->input_shape(0));
     if (input_shape.rank().is_dynamic()) {
         return;
     }
@@ -393,7 +391,7 @@ static void pad_input_data(const uint8_t* data_ptr,
 }
 
 bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    element::Type input_et = get_input_element_type(0);
+    element::Type input_et = input_element_type(0);
     size_t type_size = input_et.size();
 
     ov::StaticShape input_shape{inputs[data_port]->get_shape()};
@@ -468,7 +466,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTe
 
 bool op::v4::Interpolate::has_evaluate() const {
     NGRAPH_OP_SCOPE(v4_Interpolate_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::u8:
     case ngraph::element::f16:
     case ngraph::element::f32:

@@ -52,13 +52,13 @@ bool op::v1::Reshape::visit_attributes(AttributeVisitor& visitor) {
 }
 void op::v1::Reshape::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Reshape_validate_and_infer_types);
-    auto shape_pattern_et = get_input_element_type(1);
+    auto shape_pattern_et = input_element_type(1);
     // check data types
     NODE_VALIDATION_CHECK(this, shape_pattern_et.is_integral_number(), "Shape pattern must be an integral number.");
 
     // check shapes
-    const ov::Shape& input_pshape = get_input_partial_shape(0);
-    const ov::Shape& shape_pattern_shape = get_input_partial_shape(1);
+    const ov::Shape& input_pshape = input_shape(0);
+    const ov::Shape& shape_pattern_shape = input_shape(1);
     NODE_VALIDATION_CHECK(this,
                           shape_pattern_shape.rank().compatible(1) ||
                               (shape_pattern_shape.rank().is_static() && shape_pattern_shape.rank().get_length() == 0),
@@ -68,7 +68,7 @@ void op::v1::Reshape::validate_and_infer_types() {
     Rank output_rank = shape_pattern_shape.rank().is_dynamic()
                            ? Rank::dynamic()
                            : shape_pattern_shape.rank().get_length() == 0 ? 0 : shape_pattern_shape[0];
-    set_output_type(0, get_input_element_type(0), ov::Shape::dynamic(output_rank));
+    set_output_type(0, input_element_type(0), ov::Shape::dynamic(output_rank));
     set_input_is_relevant_to_shape(1);
 
     std::vector<Dimension> reshape_pattern;
@@ -76,7 +76,7 @@ void op::v1::Reshape::validate_and_infer_types() {
     int64_t minus_one_idx = -1;
 
     HostTensorPtr lb, ub;
-    std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(1));
+    std::tie(lb, ub) = evaluate_both_bounds(input_source_output(1));
     if (lb && ub) {
         const auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
         const auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
@@ -108,7 +108,7 @@ void op::v1::Reshape::validate_and_infer_types() {
     if (shape_can_be_calculated) {
         std::vector<Dimension> output_shape(output_rank.get_length());
         calculate_output_shape(reshape_pattern, minus_one_idx, input_pshape, output_shape);
-        set_output_type(0, get_input_element_type(0), output_shape);
+        set_output_type(0, input_element_type(0), output_shape);
     }
 }
 
@@ -171,7 +171,7 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensor
 
 bool op::v1::Reshape::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Reshape_has_evaluate);
-    switch (get_input_element_type(1)) {
+    switch (input_element_type(1)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
     case ngraph::element::i32:
@@ -200,11 +200,11 @@ bool op::v1::Reshape::evaluate_upper(const HostTensorVector& output_values) cons
 }
 
 bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    if (get_output_partial_shape(0).is_dynamic()) {
+    if (output_shape(0).is_dynamic()) {
         return false;
     }
 
-    const auto& shape = get_output_shape(0);
+    const auto& shape = output_shape(0).to_shape();
 
     if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
         output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);
@@ -310,13 +310,13 @@ void op::v1::Reshape::calculate_output_shape(vector<Dimension>& reshape_pattern,
         });
 
         bool backward_compatible_check = (zero_dims && get_special_zero()) || minus_one_idx != -1;
-        bool in_out_elements_equal = shape_size(get_input_shape(0)) == shape_size(output_pshape.to_shape());
+        bool in_out_elements_equal = shape_size(input_shape(0).to_shape()) == shape_size(output_pshape.to_shape());
 
         NODE_VALIDATION_CHECK(this,
                               backward_compatible_check || in_out_elements_equal,
                               "Requested output shape ",
                               output_shape,
                               " is incompatible with input shape ",
-                              get_input_shape(0));
+                              input_shape(0).to_shape());
     }
 }

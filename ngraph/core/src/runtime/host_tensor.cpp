@@ -74,8 +74,8 @@ runtime::HostTensor::HostTensor(const std::shared_ptr<op::v0::Constant>& constan
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 void runtime::HostTensor::initialize(const std::shared_ptr<op::v0::Constant>& constant) {
-    set_element_type(constant->get_output_element_type(0));
-    set_shape(constant->get_output_shape(0));
+    set_element_type(constant->output_element_type(0));
+    set_shape(constant->output_shape(0).to_shape());
     memcpy(get_data_ptr(), constant->get_data_ptr(), get_size_in_bytes());
 }
 

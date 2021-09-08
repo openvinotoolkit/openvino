@@ -38,8 +38,8 @@ size_t op::ShuffleChannels::get_zero_based_axis() const {
     if (m_axis >= 0) {
         return m_axis;
     } else {
-        if (!get_input_partial_shape(0).rank().is_dynamic()) {
-            return m_axis + get_input_partial_shape(0).rank().get_length();
+        if (!input_shape(0).rank().is_dynamic()) {
+            return m_axis + input_shape(0).rank().get_length();
         } else {
             throw ngraph_error("Cannot request zero-based axis with a input of unknown rank");
         }
@@ -48,9 +48,9 @@ size_t op::ShuffleChannels::get_zero_based_axis() const {
 
 void op::ShuffleChannels::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_ShuffleChannels_validate_and_infer_types);
-    const auto& data_type = get_input_element_type(0);
-    if (get_input_partial_shape(0).is_static()) {
-        const auto shape = get_input_shape(0);
+    const auto& data_type = input_element_type(0);
+    if (input_shape(0).is_static()) {
+        const auto shape = input_shape(0).to_shape();
         NODE_VALIDATION_CHECK(this, shape.size() >= 1, "The input tensor's shape is expected to be at least 1D.");
 
         size_t axis_zb = get_zero_based_axis();
@@ -66,7 +66,7 @@ void op::ShuffleChannels::validate_and_infer_types() {
                               channel_dim_size % m_group == 0,
                               "The channel dimension size has to be a multiple of the groups parameter value.");
     }
-    set_output_type(0, data_type, get_input_partial_shape(0));
+    set_output_type(0, data_type, input_shape(0));
 }
 
 shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& new_args) const {

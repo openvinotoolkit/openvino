@@ -70,7 +70,7 @@ bool op::v1::Less::evaluate(const HostTensorVector& outputs, const HostTensorVec
 
 bool op::v1::Less::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Less_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:

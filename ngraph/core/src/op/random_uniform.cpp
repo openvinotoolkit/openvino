@@ -30,13 +30,13 @@ op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape,
 void op::v8::RandomUniform::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v8_RandomUniform_validate_and_infer_types);
 
-    const auto& shape_et = get_input_element_type(0);
+    const auto& shape_et = input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           shape_et.is_dynamic() || shape_et == element::i32 || shape_et == element::i64,
                           "Type of the input should be int32 or int64.");
 
     ov::Shape output_shape = ov::Shape::dynamic();
-    const auto& input_shape = get_input_partial_shape(0);
+    const auto& input_shape = this->input_shape(0);
     if (input_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this,
                               input_shape.rank() == 1,
@@ -46,8 +46,8 @@ void op::v8::RandomUniform::validate_and_infer_types() {
         }
     }
 
-    const auto& min_pshape = get_input_partial_shape(1);
-    const auto& max_pshape = get_input_partial_shape(2);
+    const auto& min_pshape = this->input_shape(1);
+    const auto& max_pshape = this->input_shape(2);
     if (min_pshape.is_static()) {
         const auto& min_rank = min_pshape.rank().get_length();
         NODE_VALIDATION_CHECK(this, min_rank <= 1, "Min value must be a scalar or 1D tensor.");
@@ -66,8 +66,8 @@ void op::v8::RandomUniform::validate_and_infer_types() {
         }
     }
 
-    const element::Type& min_element_type = get_input_element_type(1);
-    element::Type max_element_type = get_input_element_type(2);
+    const element::Type& min_element_type = input_element_type(1);
+    element::Type max_element_type = input_element_type(2);
     NODE_VALIDATION_CHECK(this,
                           min_element_type == max_element_type,
                           "'min_val' should have the same type as 'max_val'.");
@@ -200,7 +200,7 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs, const Host
 
 bool op::v8::RandomUniform::has_evaluate() const {
     NGRAPH_OP_SCOPE(v8_RandomUniform_has_evaluate);
-    if (get_input_element_type(0) != ngraph::element::i32 && get_input_element_type(0) != ngraph::element::i64) {
+    if (input_element_type(0) != ngraph::element::i32 && input_element_type(0) != ngraph::element::i64) {
         return false;
     }
 

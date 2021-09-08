@@ -38,7 +38,7 @@ bool ngraph::op::v0::ReverseSequence::visit_attributes(AttributeVisitor& visitor
 
 void op::ReverseSequence::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_ReverseSequence_validate_and_infer_types);
-    const auto& data_pshape = get_input_partial_shape(0);
+    const auto& data_pshape = input_shape(0);
     const auto& data_rank = data_pshape.rank();
 
     NODE_VALIDATION_CHECK(this,
@@ -49,8 +49,8 @@ void op::ReverseSequence::validate_and_infer_types() {
     m_normalized_batch_axis = ngraph::normalize_axis(this, m_batch_axis, data_rank);
     m_normalized_seq_axis = ngraph::normalize_axis(this, m_seq_axis, data_rank);
 
-    const auto& seq_lengths_et = get_input_element_type(1);
-    const auto& seq_lengths_pshape = get_input_partial_shape(1);
+    const auto& seq_lengths_et = input_element_type(1);
+    const auto& seq_lengths_pshape = input_shape(1);
     const auto& seq_lengths_rank = seq_lengths_pshape.rank();
 
     NODE_VALIDATION_CHECK(this,
@@ -80,7 +80,7 @@ void op::ReverseSequence::validate_and_infer_types() {
             ").");
         output_pshape[m_normalized_batch_axis] = merged_sequence_length;
     }
-    set_output_type(0, get_input_element_type(0), output_pshape);
+    set_output_type(0, input_element_type(0), output_pshape);
 }
 
 shared_ptr<Node> op::ReverseSequence::clone_with_new_inputs(const OutputVector& new_args) const {

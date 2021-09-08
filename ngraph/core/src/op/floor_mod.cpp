@@ -70,7 +70,7 @@ bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs, const HostTenso
 
 bool op::v1::FloorMod::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_FloorMod_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i32:
     case ngraph::element::i64:

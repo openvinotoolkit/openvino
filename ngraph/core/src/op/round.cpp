@@ -75,9 +75,9 @@ bool ngraph::op::v5::Round::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v5::Round::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_Round_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Only accepts one argument. Got: ", get_input_size());
+    NODE_VALIDATION_CHECK(this, input_size() == 1, "Only accepts one argument. Got: ", input_size());
     set_output_size(1);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 shared_ptr<Node> op::v5::Round::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -88,12 +88,12 @@ shared_ptr<Node> op::v5::Round::clone_with_new_inputs(const OutputVector& new_ar
 
 bool op::v5::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v5_Round_evaluate);
-    return roundop::evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)), get_mode());
+    return roundop::evaluate_round(inputs[0], outputs[0], shape_size(output_shape(0).to_shape()), get_mode());
 }
 
 bool op::v5::Round::has_evaluate() const {
     NGRAPH_OP_SCOPE(v5_Round_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::boolean:
     case ngraph::element::i8:
     case ngraph::element::i16:

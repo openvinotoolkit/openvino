@@ -92,7 +92,7 @@ bool op::v3::ScatterNDUpdate::evaluate(const HostTensorVector& outputs, const Ho
 bool op::v3::ScatterNDUpdate::has_evaluate() const {
     NGRAPH_OP_SCOPE(v3_ScatterNDUpdate_has_evaluate);
 
-    switch (get_output_element_type(0)) {
+    switch (output_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:
@@ -104,7 +104,7 @@ bool op::v3::ScatterNDUpdate::has_evaluate() const {
     default:
         return false;
     }
-    switch (get_input_element_type(1)) {
+    switch (input_element_type(1)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
         break;

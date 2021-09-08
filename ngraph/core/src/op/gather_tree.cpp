@@ -33,10 +33,10 @@ bool ngraph::op::v1::GatherTree::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::GatherTree::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_GatherTree_validate_and_infer_types);
-    const auto& step_ids_rank = get_input_partial_shape(0);
-    const auto& parent_idx_rank = get_input_partial_shape(1);
-    const auto& max_seq_len_rank = get_input_partial_shape(2);
-    const auto& end_token_rank = get_input_partial_shape(3);
+    const auto& step_ids_rank = input_shape(0);
+    const auto& parent_idx_rank = input_shape(1);
+    const auto& max_seq_len_rank = input_shape(2);
+    const auto& end_token_rank = input_shape(3);
 
     NODE_VALIDATION_CHECK(this,
                           step_ids_rank.rank().is_dynamic() || step_ids_rank.rank().get_length() == 3,
@@ -62,6 +62,6 @@ void op::v1::GatherTree::validate_and_infer_types() {
                           end_token_rank.rank().get_length(),
                           ")");
 
-    const auto& step_ids_et = get_input_element_type(0);
+    const auto& step_ids_et = input_element_type(0);
     set_output_type(0, step_ids_et, step_ids_rank);
 }

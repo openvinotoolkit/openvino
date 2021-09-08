@@ -89,7 +89,7 @@ bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorV
 
 bool op::v1::Divide::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_Divide_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

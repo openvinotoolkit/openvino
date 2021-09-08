@@ -64,13 +64,13 @@ void op::v1::Pad::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Pad_validate_and_infer_types);
     element::Type result_et;
 
-    const auto& arg_element_type = get_input_element_type(0);
-    const auto& pads_begin_element_type = get_input_element_type(1);
-    const auto& pads_end_element_type = get_input_element_type(2);
+    const auto& arg_element_type = input_element_type(0);
+    const auto& pads_begin_element_type = input_element_type(1);
+    const auto& pads_end_element_type = input_element_type(2);
 
-    if (m_pad_mode == PadMode::CONSTANT && get_input_size() == 4) {
-        const auto& arg_pad_element_type = get_input_element_type(3);
-        const auto& arg_pad_shape = get_input_partial_shape(3);
+    if (m_pad_mode == PadMode::CONSTANT && input_size() == 4) {
+        const auto& arg_pad_element_type = input_element_type(3);
+        const auto& arg_pad_shape = input_shape(3);
         NODE_VALIDATION_CHECK(this,
                               element::Type::merge(result_et, arg_element_type, arg_pad_element_type),
                               "Argument element types do not match (input arg element type: ",
@@ -98,7 +98,7 @@ void op::v1::Pad::validate_and_infer_types() {
                           pads_end_element_type,
                           ").");
 
-    const auto& pads_begin_shape = get_input_partial_shape(1);
+    const auto& pads_begin_shape = input_shape(1);
     const auto& pads_begin_rank = pads_begin_shape.rank();
 
     NODE_VALIDATION_CHECK(this,
@@ -107,7 +107,7 @@ void op::v1::Pad::validate_and_infer_types() {
                           pads_begin_rank,
                           ").");
 
-    const auto& pads_end_shape = get_input_partial_shape(2);
+    const auto& pads_end_shape = input_shape(2);
     const auto& pads_end_rank = pads_end_shape.rank();
     NODE_VALIDATION_CHECK(this,
                           pads_end_rank.compatible(1),
@@ -115,7 +115,7 @@ void op::v1::Pad::validate_and_infer_types() {
                           pads_end_rank,
                           ").");
 
-    const auto& arg_shape = get_input_partial_shape(0);
+    const auto& arg_shape = input_shape(0);
     const auto& arg_shape_rank = arg_shape.rank();
     if (arg_shape_rank.is_static() && pads_begin_shape.is_static()) {
         NODE_VALIDATION_CHECK(this,
@@ -156,16 +156,16 @@ void op::v1::Pad::validate_and_infer_types() {
                 }
             }
         }
-        set_output_type(0, get_input_element_type(0), result_dims);
+        set_output_type(0, input_element_type(0), result_dims);
     } else {
-        set_output_type(0, get_input_element_type(0), ov::Shape::dynamic(arg_shape_rank));
+        set_output_type(0, input_element_type(0), ov::Shape::dynamic(arg_shape_rank));
     }
 }
 
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v1_Pad_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    if (get_input_size() == 4) {
+    if (input_size() == 4) {
         return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_pad_mode);
     } else {
         return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), m_pad_mode);
@@ -178,7 +178,7 @@ bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs, const HostTensor
 
     const char* pad_value = nullptr;
     const std::vector<char> pad_zero_value(elem_size, 0);
-    if (get_input_size() == 4) {
+    if (input_size() == 4) {
         pad_value = inputs[3]->get_data_ptr<char>();
     } else {
         pad_value = pad_zero_value.data();

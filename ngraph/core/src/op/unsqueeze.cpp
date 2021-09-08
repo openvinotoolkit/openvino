@@ -32,7 +32,7 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
     const auto data_rank = data_partial_shape.rank();
 
     const auto axes_constant = get_constant_from_source(input_value(1));
-    auto axes_pshape = get_input_partial_shape(1);
+    auto axes_pshape = input_shape(1);
 
     NODE_VALIDATION_CHECK(this,
                           axes_pshape.rank().compatible(0) || axes_pshape.rank().compatible(1),
@@ -40,7 +40,7 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
                           axes_pshape.rank().get_length());
 
     if (data_rank.is_dynamic() || !axes_constant) {
-        set_output_type(0, get_input_element_type(0), ov::Shape::dynamic());
+        set_output_type(0, input_element_type(0), ov::Shape::dynamic());
         return;
     }
 
@@ -58,7 +58,7 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
 
         output_shape.insert(next(begin(output_shape), axis), 1);
     }
-    set_output_type(0, get_input_element_type(0), ov::Shape{output_shape});
+    set_output_type(0, input_element_type(0), ov::Shape{output_shape});
 }
 
 bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {
@@ -133,7 +133,7 @@ bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTens
 
 bool op::v0::Unsqueeze::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Unsqueeze_has_evaluate);
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:
@@ -160,11 +160,11 @@ bool op::v0::Unsqueeze::evaluate_upper(const HostTensorVector& output_values) co
 }
 
 bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    if (get_output_partial_shape(0).is_dynamic()) {
+    if (output_shape(0).is_dynamic()) {
         return false;
     }
 
-    const auto& shape = get_output_shape(0);
+    const auto& shape = output_shape(0).to_shape();
 
     if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
         output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);

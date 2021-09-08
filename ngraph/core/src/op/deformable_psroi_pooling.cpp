@@ -71,10 +71,10 @@ bool op::v1::DeformablePSROIPooling::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::DeformablePSROIPooling::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_DeformablePSROIPooling_validate_and_infer_types);
-    const auto& input_et = get_input_element_type(0);
+    const auto& input_et = input_element_type(0);
 
-    const auto& input_pshape = get_input_partial_shape(0);
-    const auto& box_coords_pshape = get_input_partial_shape(1);
+    const auto& input_pshape = input_shape(0);
+    const auto& box_coords_pshape = input_shape(1);
 
     NODE_VALIDATION_CHECK(this,
                           input_pshape.rank().compatible(4),
@@ -87,9 +87,9 @@ void op::v1::DeformablePSROIPooling::validate_and_infer_types() {
                           box_coords_pshape.rank(),
                           ")");
 
-    if (get_input_size() == 3)  // offsets input is provided
+    if (input_size() == 3)  // offsets input is provided
     {
-        const auto& offsets_pshape = get_input_partial_shape(2);
+        const auto& offsets_pshape = input_shape(2);
         NODE_VALIDATION_CHECK(this,
                               offsets_pshape.rank().compatible(4),
                               "Third input rank must be compatible with 4 (input rank: ",

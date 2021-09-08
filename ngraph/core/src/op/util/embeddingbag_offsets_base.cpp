@@ -37,76 +37,70 @@ ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node
 
 void ov::op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_EmbeddingBagOffsetsBase_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_element_type(OFFSETS) == element::i64 || get_input_element_type(OFFSETS) == element::i32,
-        "OFFSETS type must be i32 or i64");
-
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_element_type(INDICES) == element::i64 || get_input_element_type(INDICES) == element::i32,
-        "INDICES type must be i32 or i64");
+    NODE_VALIDATION_CHECK(this,
+                          input_element_type(OFFSETS) == element::i64 || input_element_type(OFFSETS) == element::i32,
+                          "OFFSETS type must be i32 or i64");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(INDICES).compatible(get_input_element_type(OFFSETS)),
+                          input_element_type(INDICES) == element::i64 || input_element_type(INDICES) == element::i32,
+                          "INDICES type must be i32 or i64");
+
+    NODE_VALIDATION_CHECK(this,
+                          input_element_type(INDICES).compatible(input_element_type(OFFSETS)),
                           "Offsets element type (",
-                          get_input_element_type(OFFSETS),
+                          input_element_type(OFFSETS),
                           ") must match indices element type (",
-                          get_input_element_type(INDICES),
+                          input_element_type(INDICES),
                           ")");
 
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(INDICES).is_dynamic() || get_input_partial_shape(INDICES).to_shape().size() == 1,
-        "INDICES must be 1D");
+    NODE_VALIDATION_CHECK(this,
+                          input_shape(INDICES).is_dynamic() || input_shape(INDICES).to_shape().size() == 1,
+                          "INDICES must be 1D");
 
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(OFFSETS).is_dynamic() || get_input_partial_shape(OFFSETS).to_shape().size() == 1,
-        "OFFSETS must be 1D");
+    NODE_VALIDATION_CHECK(this,
+                          input_shape(OFFSETS).is_dynamic() || input_shape(OFFSETS).to_shape().size() == 1,
+                          "OFFSETS must be 1D");
 
-    if (get_input_size() >= 4) {
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(DEFAULT_INDEX) == element::i64 ||
-                                  get_input_element_type(DEFAULT_INDEX) == element::i32,
-                              "DEFAULT_INDEX type must be i32 or i64");
+    if (input_size() >= 4) {
+        NODE_VALIDATION_CHECK(
+            this,
+            input_element_type(DEFAULT_INDEX) == element::i64 || input_element_type(DEFAULT_INDEX) == element::i32,
+            "DEFAULT_INDEX type must be i32 or i64");
 
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(INDICES).compatible(get_input_element_type(DEFAULT_INDEX)),
+                              input_element_type(INDICES).compatible(input_element_type(DEFAULT_INDEX)),
                               "Default_index element type (",
-                              get_input_element_type(DEFAULT_INDEX),
+                              input_element_type(DEFAULT_INDEX),
                               ") must match indices element type (",
-                              get_input_element_type(INDICES),
+                              input_element_type(INDICES),
                               ")");
 
-        NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(DEFAULT_INDEX).compatible(Shape{}),
-                              "DEFAULT_INDEX must be a scalar");
+        NODE_VALIDATION_CHECK(this, input_shape(DEFAULT_INDEX).compatible(Shape{}), "DEFAULT_INDEX must be a scalar");
     }
 
-    if (get_input_size() == 5) {
+    if (input_size() == 5) {
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(EMB_TABLE).compatible(get_input_element_type(PER_SAMPLE_WEIGHTS)),
+                              input_element_type(EMB_TABLE).compatible(input_element_type(PER_SAMPLE_WEIGHTS)),
                               "Per sample weight element type (",
-                              get_input_element_type(PER_SAMPLE_WEIGHTS),
+                              input_element_type(PER_SAMPLE_WEIGHTS),
                               ") must match embedding table element type (",
-                              get_input_element_type(EMB_TABLE),
+                              input_element_type(EMB_TABLE),
                               ")");
 
-        NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(PER_SAMPLE_WEIGHTS).is_dynamic() ||
-                                  get_input_partial_shape(PER_SAMPLE_WEIGHTS).to_shape().size() == 1,
-                              "PER_SAMPLE_WEIGHTS must be 1D");
+        NODE_VALIDATION_CHECK(
+            this,
+            input_shape(PER_SAMPLE_WEIGHTS).is_dynamic() || input_shape(PER_SAMPLE_WEIGHTS).to_shape().size() == 1,
+            "PER_SAMPLE_WEIGHTS must be 1D");
 
         NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(INDICES).compatible(get_input_partial_shape(PER_SAMPLE_WEIGHTS)),
+                              input_shape(INDICES).compatible(input_shape(PER_SAMPLE_WEIGHTS)),
                               "INDICES and PER_SAMPLE_WEIGHTS shape must be same");
     }
 
-    element::Type result_et = get_input_element_type(EMB_TABLE);
+    element::Type result_et = input_element_type(EMB_TABLE);
 
-    const Shape& emb_table_shape = get_input_partial_shape(EMB_TABLE);
-    const Shape& offsets_shape = get_input_partial_shape(OFFSETS);
+    const Shape& emb_table_shape = input_shape(EMB_TABLE);
+    const Shape& offsets_shape = input_shape(OFFSETS);
 
     Shape result_shape;
     if (emb_table_shape.rank().is_static()) {

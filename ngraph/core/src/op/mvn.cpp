@@ -47,7 +47,7 @@ void op::v0::MVN::validate_and_infer_types() {
         set_reduction_axes(reduction_axes);
     }
 
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 shared_ptr<Node> op::v0::MVN::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -103,8 +103,8 @@ op::v6::MVN::MVN(const Output<Node>& data,
 
 void op::v6::MVN::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_MVN_validate_and_infer_types);
-    const auto data = get_input_partial_shape(0);
-    const auto axes = get_input_partial_shape(1);
+    const auto data = input_shape(0);
+    const auto axes = input_shape(1);
 
     if (axes.is_static()) {
         NODE_VALIDATION_CHECK(this, is_vector(axes.to_shape()), "Expected 1D tensor for the 'axes' input. Got: ", axes);
@@ -116,7 +116,7 @@ void op::v6::MVN::validate_and_infer_types() {
             data);
     }
 
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, input_element_type(0), input_shape(0));
 }
 
 shared_ptr<Node> op::v6::MVN::clone_with_new_inputs(const OutputVector& new_args) const {

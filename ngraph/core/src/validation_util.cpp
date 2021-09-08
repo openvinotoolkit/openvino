@@ -968,7 +968,7 @@ struct MaxValue {
 vector<MaxValue> exec_constant(Node* node, vector<MaxValue>& inputs) {
     auto result = MaxValue();
     auto op = ov::as_type<op::Constant>(node);
-    auto element_type = op->get_output_element_type(0);
+    auto element_type = op->output_element_type(0);
     if (element_type.is_integral()) {
         uint64_t max_val = 0;
         if (element_type.is_signed()) {
@@ -991,7 +991,7 @@ vector<MaxValue> exec_constant(Node* node, vector<MaxValue>& inputs) {
 
 vector<MaxValue> exec_minimum(Node* node, vector<MaxValue>& inputs) {
     uint64_t min_value = numeric_limits<uint64_t>::max();
-    switch (node->get_output_element_type(0)) {
+    switch (node->output_element_type(0)) {
     case element::Type_t::i8:
         min_value = numeric_limits<int8_t>::max();
         break;
@@ -1038,7 +1038,7 @@ vector<MaxValue> exec_reduce_min(Node* node, vector<MaxValue>& inputs) {
     auto data = inputs.at(0);
     if (data.m_slice_axis >= 0 && data.m_slices.size() > 1) {
         if (auto indices_const = ov::as_type<op::v0::Constant>(node->get_input_node_ptr(1))) {
-            if (indices_const->get_output_element_type(0).is_integral()) {
+            if (indices_const->output_element_type(0).is_integral()) {
                 auto indices_shape = indices_const->get_output_shape(0);
                 if (indices_shape == Shape{1}) {
                     auto indices = indices_const->cast_vector<int64_t>();
@@ -1055,7 +1055,7 @@ vector<MaxValue> exec_reduce_min(Node* node, vector<MaxValue>& inputs) {
 }
 
 vector<MaxValue> exec_shape_of(Node* node, vector<MaxValue>& inputs) {
-    const auto& inputPS = node->get_input_partial_shape(0);
+    const auto& inputPS = node->input_shape(0);
     std::vector<uint64_t> shapeDims;
     for (int64_t i = 0; i < inputPS.rank().get_length(); i++) {
         if (inputPS[i].is_static()) {

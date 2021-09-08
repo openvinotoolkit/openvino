@@ -46,9 +46,9 @@ std::shared_ptr<Node> ov::op::v0::SpaceToDepth::clone_with_new_inputs(const Outp
 
 void ngraph::op::v0::SpaceToDepth::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_SpaceToDepth_validate_and_infer_types);
-    ov::Shape data_pshape = get_input_partial_shape(0);
+    ov::Shape data_pshape = input_shape(0);
 
-    const auto& data_type = get_input_element_type(0);
+    const auto& data_type = input_element_type(0);
 
     auto data = input_value(0);
 
@@ -113,7 +113,7 @@ bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs, con
 
 bool ngraph::op::v0::SpaceToDepth::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_SpaceToDepth_has_evaluate);
-    return !get_input_partial_shape(0).is_dynamic();
+    return !input_shape(0).is_dynamic();
 }
 
 std::ostream& ov::operator<<(std::ostream& s, const op::v0::SpaceToDepth::SpaceToDepthMode& type) {

@@ -56,9 +56,9 @@ std::pair<bool, AxisSet> op::v3::Broadcast::get_broadcast_axes() const {
         AxisSet broadcast_axes;
         bool axes_known = false;
 
-        if (get_input_partial_shape(0).is_static() && get_output_partial_shape(0).is_static()) {
-            const auto arg_shape = get_input_shape(0);
-            const auto result_shape = get_output_shape(0);
+        if (input_shape(0).is_static() && output_shape(0).is_static()) {
+            const auto arg_shape = input_shape(0).to_shape();
+            const auto result_shape = output_shape(0).to_shape();
             return get_broadcast_axes_bidirectional(arg_shape, result_shape);
         }
         return std::make_pair(axes_known, broadcast_axes);
@@ -127,20 +127,20 @@ void op::v3::Broadcast::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_Broadcast_validate_and_infer_types);
     if (m_mode.m_type == BroadcastType::NONE) {
         NODE_VALIDATION_CHECK(this,
-                              get_input_size() == 3,
+                              input_size() == 3,
                               "axes_mapping input should be provided if explicit mode is used");
     } else {
         NODE_VALIDATION_CHECK(this,
-                              get_input_size() == 2,
+                              input_size() == 2,
                               "axes_mapping input should not be provided for mode other than explicit");
     }
 
     util::BroadcastBase::validate_and_infer_types();
 
-    auto result_shape = get_output_partial_shape(0);
+    auto result_shape = output_shape(0);
     if (m_mode.m_type == BroadcastType::BIDIRECTIONAL) {
-        if (get_input_partial_shape(0).rank().is_static() && get_input_partial_shape(1).is_static()) {
-            auto arg_shape = get_input_partial_shape(0);
+        if (input_shape(0).rank().is_static() && input_shape(1).is_static()) {
+            auto arg_shape = input_shape(0);
 
             const auto shape_constant = get_constant_from_source(input_value(1));
             if (shape_constant) {
@@ -151,10 +151,10 @@ void op::v3::Broadcast::validate_and_infer_types() {
     }
     set_input_is_relevant_to_shape(0);  // arg - Result element type
     set_input_is_relevant_to_shape(1);  // target_shape - Result shape
-    if (get_input_size() == 3) {
+    if (input_size() == 3) {
         set_input_is_relevant_to_shape(2);  // axes_mapping - Broadcast type
     }
-    set_output_type(0, get_input_element_type(0), result_shape);
+    set_output_type(0, input_element_type(0), result_shape);
 }
 
 shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -232,12 +232,12 @@ void op::v1::Broadcast::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_Broadcast_validate_and_infer_types);
     // m_type is deduced and not always explicitly stated, for cases where broadcast
     // has 2 inputs its always NUMPY mode
-    if (m_broadcast_spec.m_type == AutoBroadcastType::NONE && get_input_size() < 3) {
+    if (m_broadcast_spec.m_type == AutoBroadcastType::NONE && input_size() < 3) {
         m_broadcast_spec.m_type = AutoBroadcastType::NUMPY;
     }
 
     // Mocking axes_mapping input for cases that don't require it
-    if (m_broadcast_spec.m_type == AutoBroadcastType::NUMPY && get_input_size() < 3) {
+    if (m_broadcast_spec.m_type == AutoBroadcastType::NUMPY && input_size() < 3) {
         auto output = op::v0::Constant::create(element::u8, ov::StaticShape{}, {0})->output(0);
         set_argument(2, output);
     }

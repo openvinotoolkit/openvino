@@ -30,8 +30,8 @@ static shared_ptr<ov::Node> relu(const shared_ptr<ov::Node>& arg, float /* alpha
 }
 
 static shared_ptr<ov::Node> hardsigmoid(const shared_ptr<ov::Node>& arg, float alpha, float beta) {
-    const auto alpha_node = ngraph::op::Constant::create<float>(arg->get_element_type(), ngraph::Shape{}, {alpha});
-    const auto beta_node = ngraph::op::Constant::create<float>(arg->get_element_type(), ngraph::Shape{}, {beta});
+    const auto alpha_node = ngraph::op::Constant::create<float>(arg->output_element_type(0), ngraph::Shape{}, {alpha});
+    const auto beta_node = ngraph::op::Constant::create<float>(arg->output_element_type(0), ngraph::Shape{}, {beta});
 
     return make_shared<ngraph::op::HardSigmoid>(arg, alpha_node, beta_node);
 }

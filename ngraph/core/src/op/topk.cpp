@@ -181,14 +181,14 @@ bool ngraph::op::v1::TopK::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::TopK::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_TopK_validate_and_infer_types);
-    const auto& input_partial_shape = get_input_partial_shape(0);
+    const auto& input_partial_shape = input_shape(0);
     const auto input_rank = input_partial_shape.rank();
 
     NODE_VALIDATION_CHECK(this,
                           input_rank.is_dynamic() || input_rank.get_length() > 0,
                           "Input rank must be greater than 0.");
 
-    const auto& k_partial_shape = get_input_partial_shape(1);
+    const auto& k_partial_shape = input_shape(1);
     NODE_VALIDATION_CHECK(this, k_partial_shape.rank().compatible(0), "The 'K' input must be a scalar.");
 
     NODE_VALIDATION_CHECK(this,
@@ -198,7 +198,7 @@ void op::v1::TopK::validate_and_infer_types() {
 
     if (ov::op::util::is_constant(input_value(1).get_node())) {
         // Check k value
-        read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
+        read_k_from_constant_node(input_value(1).get_node_shared_ptr(), input_element_type(1));
     }
 
     ov::Shape output_shape{input_partial_shape};
@@ -228,7 +228,7 @@ void op::v1::TopK::validate_and_infer_types() {
     }
 
     set_output_size(2);
-    set_output_type(0, get_input_element_type(0), output_shape);
+    set_output_type(0, input_element_type(0), output_shape);
     set_output_type(1, m_index_element_type, output_shape);
 }
 
@@ -248,7 +248,7 @@ ov::StaticShape op::v1::TopK::compute_output_shape(const std::string& node_descr
 }
 
 void op::v1::TopK::set_axis(const int64_t axis) {
-    const auto input_rank = get_input_partial_shape(0).rank();
+    const auto input_rank = input_shape(0).rank();
     if (input_rank.is_static()) {
         m_normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
     } else {
@@ -335,11 +335,11 @@ shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_arg
 size_t op::v1::TopK::get_k() const {
     size_t k = 0;
     if (op::util::is_constant(input_value(1).get_node())) {
-        k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
+        k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(), input_element_type(1));
     }
 
-    if (k == 0 && get_input_partial_shape(0).is_static()) {
-        k = get_input_partial_shape(0).to_shape()[m_normalized_axis];
+    if (k == 0 && input_shape(0).is_static()) {
+        k = input_shape(0).to_shape()[m_normalized_axis];
     }
     return k;
 }
@@ -359,7 +359,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
     // 2. get value of k - from constant node or from HT
     size_t k = 0;
     if (op::util::is_constant(input_value(1).get_node())) {
-        k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
+        k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(), input_element_type(1));
         NGRAPH_CHECK(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
     } else {
         k = topk::read_k_from_host_tensor(inputs[1]);
@@ -388,7 +388,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
 bool op::v1::TopK::has_evaluate() const {
     NGRAPH_OP_SCOPE(v1_TopK_has_evaluate);
 
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:
@@ -401,7 +401,7 @@ bool op::v1::TopK::has_evaluate() const {
     }
 
     if (op::util::is_constant(input_value(1).get_node())) {
-        switch (get_input_element_type(1)) {
+        switch (input_element_type(1)) {
         case ngraph::element::i8:
         case ngraph::element::i32:
         case ngraph::element::i64:
@@ -410,7 +410,7 @@ bool op::v1::TopK::has_evaluate() const {
             return false;
         }
     } else {
-        switch (get_input_element_type(1)) {
+        switch (input_element_type(1)) {
         case ngraph::element::i8:
         case ngraph::element::i16:
         case ngraph::element::i32:
@@ -463,9 +463,9 @@ bool ngraph::op::v3::TopK::visit_attributes(AttributeVisitor& visitor) {
 void op::v3::TopK::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_TopK_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(1).is_integral_number(),
+                          input_element_type(1).is_integral_number(),
                           "K input has to be an integer type, which does match the provided one:",
-                          get_input_element_type(1));
+                          input_element_type(1));
     op::v1::TopK::validate_and_infer_types();
 }
 
@@ -524,7 +524,7 @@ bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
 bool op::v3::TopK::has_evaluate() const {
     NGRAPH_OP_SCOPE(v3_TopK_has_evaluate);
 
-    switch (get_input_element_type(0)) {
+    switch (input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:
@@ -537,7 +537,7 @@ bool op::v3::TopK::has_evaluate() const {
     }
 
     if (op::util::is_constant(input_value(1).get_node())) {
-        switch (get_input_element_type(1)) {
+        switch (input_element_type(1)) {
         case ngraph::element::i8:
         case ngraph::element::i32:
         case ngraph::element::i64:
@@ -546,7 +546,7 @@ bool op::v3::TopK::has_evaluate() const {
             return false;
         }
     } else {
-        switch (get_input_element_type(1)) {
+        switch (input_element_type(1)) {
         case ngraph::element::i8:
         case ngraph::element::i16:
         case ngraph::element::i32:

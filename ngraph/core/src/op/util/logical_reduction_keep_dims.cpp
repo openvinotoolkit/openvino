@@ -28,9 +28,9 @@ bool ov::op::util::LogicalReductionKeepDims::visit_attributes(AttributeVisitor& 
 void ov::op::util::LogicalReductionKeepDims::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_util_LogicalReductionKeepDims_validate_and_infer_types);
 
-    const element::Type& data_et = get_input_element_type(0);
-    const Shape& axes_shape = get_input_partial_shape(1);
-    const element::Type& axes_et = get_input_element_type(1);
+    const element::Type& data_et = input_element_type(0);
+    const Shape& axes_shape = input_shape(1);
+    const element::Type& axes_et = input_element_type(1);
 
     NODE_VALIDATION_CHECK(this, data_et.compatible(element::boolean), "Element type of data input must be boolean.");
 

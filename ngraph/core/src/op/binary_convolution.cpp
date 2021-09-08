@@ -58,9 +58,9 @@ ov::op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
 
 void ov::op::v1::BinaryConvolution::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_BinaryConvolution_validate_and_infer_types);
-    const ov::Shape& data_batch_pshape = get_input_partial_shape(0);
-    element::Type data_batch_et = get_input_element_type(0);
-    const ov::Shape& filters_pshape = get_input_partial_shape(1);
+    const ov::Shape& data_batch_pshape = input_shape(0);
+    element::Type data_batch_et = input_element_type(0);
+    const ov::Shape& filters_pshape = input_shape(1);
 
     NODE_VALIDATION_CHECK(this,
                           data_batch_et.is_real() || data_batch_et.is_integral_number(),

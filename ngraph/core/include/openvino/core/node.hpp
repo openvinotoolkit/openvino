@@ -130,19 +130,6 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     template <typename NodeType>
     friend class Output;
 
-public:
-    /// \brief Verifies that attributes and inputs are consistent and computes output shapes
-    /// and element types. Must be implemented by concrete child classes so that it
-    /// can be run any number of times.
-    ///
-    /// Throws if the node is invalid.
-    virtual void validate_and_infer_types();
-
-    // Called in constructors during transition
-    void constructor_validate_and_infer_types();
-
-    using type_info_t = DiscreteTypeInfo;
-
 protected:
     /// \brief Construct an unitialized Node
     Node() = default;
@@ -189,6 +176,18 @@ protected:
 
 public:
     virtual ~Node();
+
+    /// \brief Verifies that attributes and inputs are consistent and computes output shapes
+    /// and element types. Must be implemented by concrete child classes so that it
+    /// can be run any number of times.
+    ///
+    /// Throws if the node is invalid.
+    virtual void validate_and_infer_types();
+
+    // Called in constructors during transition
+    void constructor_validate_and_infer_types();
+
+    using type_info_t = DiscreteTypeInfo;
 
     virtual bool visit_attributes(AttributeVisitor&) {
         return false;
@@ -305,75 +304,139 @@ public:
     /// This node's control dependencies are replaced by replacement
     void transfer_control_dependents(std::shared_ptr<Node> replacement);
 
+    /// ************* Outputs ***************
+    /// \return A vector containing a handle for each of this node's outputs, in order.
+    std::vector<Output<Node>> outputs();
+
+    /// \return A vector containing a handle for each of this node's outputs, in order.
+    std::vector<Output<const Node>> outputs() const;
+
+    /// \return A handle to the `output_index`th output of this node.
+    /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
+    Output<Node> output(size_t output_index);
+
+    /// \return A handle to the `output_index`th output of this node.
+    /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
+    Output<const Node> output(size_t output_index) const;
+
+    /// Returns element type for output
+    const element::Type& output_element_type(size_t i) const;
+    /// Returns output shape
+    const Shape& output_shape(size_t i) const;
     /// Returns the number of outputs from the node.
+    size_t output_size() const;
+    descriptor::Tensor& output_tensor(size_t i) const;
+
+    /// Returns the number of outputs from the node.
+    OPENVINO_DEPRECATED("The method was deprecated! Please use output_size() instead.")
     size_t get_output_size() const;
 
     /// Returns the element type for output i
+    OPENVINO_DEPRECATED("The method was deprecated! Please use output_element_type() instead.")
     const element::Type& get_output_element_type(size_t i) const;
 
     /// Checks that there is exactly one output and returns its element type
-    // TODO: deprecate in favor of node->get_output_element_type(0) with a suitable check in
-    // the calling code, or updates to the calling code if it is making an invalid assumption
-    // of only one output.
+    OPENVINO_DEPRECATED("The method was deprecated! Please use output_element_type() instead.")
     const element::Type& get_element_type() const;
 
     /// Returns the shape for output i
+    OPENVINO_DEPRECATED("The method was deprecated! Please use output_shape() instead.")
     const StaticShape& get_output_shape(size_t i) const;
 
     /// Returns the partial shape for output i
+    OPENVINO_DEPRECATED("The method was deprecated! Please use output_shape() instead.")
     const Shape& get_output_partial_shape(size_t i) const;
 
     /// Return the output to use when converting to an Output<Node> with no index specified.
     /// Throws when not supported.
+    OPENVINO_DEPRECATED("The method was deprecated! Please use output() instead.")
     Output<const Node> get_default_output() const;
+    OPENVINO_DEPRECATED("The method was deprecated! Please use output() instead.")
     Output<Node> get_default_output();
 
     /// Returns the output of the default output, or throws if there is none
+    OPENVINO_DEPRECATED("The method was deprecated and will be removed soon!")
     virtual size_t get_default_output_index() const;
     /// Throws no default
+    OPENVINO_DEPRECATED("The method was deprecated and will be removed soon!")
     size_t no_default_index() const;
 
     /// Checks that there is exactly one output and returns its shape
-    // TODO: deprecate in favor of node->get_output_shape(0) with a suitable check in the
-    // calling code, or updates to the calling code if it is making an invalid assumption of
-    // only one output.
+    OPENVINO_DEPRECATED("The method was deprecated! Please use output_shape() instead.")
     const StaticShape& get_shape() const;
 
     /// Returns the tensor for output or input i
+    OPENVINO_DEPRECATED("The method was deprecated! Please use output_tensor() instead.")
     descriptor::Tensor& get_output_tensor(size_t i) const;
-    descriptor::Tensor& get_input_tensor(size_t i) const;
 
     /// Returns the tensor name for output i
     OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
     const std::string& get_output_tensor_name(size_t i) const;
 
+    OPENVINO_DEPRECATED("The tensor name was deprecated. Use output_tensor(i).get_target_inputs() instead.")
     std::set<Input<Node>> get_output_target_inputs(size_t i) const;
 
+    /// ************* Outputs ***************
+
+    /// ************* Inputs  ***************
+    /// \return A vector containing a handle for each of this node's inputs, in order.
+    std::vector<Input<Node>> inputs();
+
+    /// \return A vector containing a handle for each of this node's inputs, in order.
+    std::vector<Input<const Node>> inputs() const;
+
+    /// \return A vector containing the values for each input
+    std::vector<Output<Node>> input_values() const;
+
+    /// \return A handle to the `input_index`th input of this node.
+    /// \throw std::out_of_range if the node does not have at least `input_index+1` inputs.
+    Input<Node> input(size_t input_index);
+
+    /// \return A handle to the `input_index`th input of this node.
+    /// \throw std::out_of_range if the node does not have at least `input_index+1` inputs.
+    Input<const Node> input(size_t input_index) const;
+
+    Output<Node> input_value(size_t input_index) const;
+
+    size_t input_size() const;
+
+    const Shape& input_shape(size_t i) const;
+    const element::Type& input_element_type(size_t i) const;
+    descriptor::Tensor& input_tensor(size_t i) const;
+    Node* input_node_ptr(size_t index) const;
+    std::shared_ptr<Node> input_node_shared_ptr(size_t index) const;
+    Output<Node> input_source_output(size_t i) const;
+    /// Returns the tensor for nput i
+    OPENVINO_DEPRECATED("The method was deprecated! Please use input_tensor() instead.")
+    descriptor::Tensor& get_input_tensor(size_t i) const;
+
     /// Returns the number of inputs for the op
+    OPENVINO_DEPRECATED("The method was deprecated! Please use input_size() instead.")
     size_t get_input_size() const;
 
     /// Returns the element type of input i
-    // TODO: deprecate in favor of node->get_input_element_type(i)
+    OPENVINO_DEPRECATED("The method was deprecated! Please use input_element_type() instead.")
     const element::Type& get_input_element_type(size_t i) const;
 
     /// Returns the shape of input i
-    // TODO: deprecate in favor of node->get_input_shape(i)
+    OPENVINO_DEPRECATED("The method was deprecated! Please use input_shape() instead.")
     const StaticShape& get_input_shape(size_t i) const;
 
     /// Returns the partial shape of input i
-    // TODO: deprecate in favor of node->get_input_partial_shape(i)
+    OPENVINO_DEPRECATED("The method was deprecated! Please use input_shape() instead.")
     const Shape& get_input_partial_shape(size_t i) const;
 
     /// Returns the tensor name for input i
-    OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
+    OPENVINO_DEPRECATED("The tensor name was deprecated. Use input_tensor(i).get_names() instead.")
     const std::string& get_input_tensor_name(size_t i) const;
 
-    std::unordered_set<descriptor::Tensor*> liveness_new_list;
-    std::unordered_set<descriptor::Tensor*> liveness_free_list;
-
+    OPENVINO_DEPRECATED("The method was deprecated! Please use input_node_ptr() instead.")
     Node* get_input_node_ptr(size_t index) const;
+    OPENVINO_DEPRECATED("The method was deprecated! Please use input_node_shared_ptr() instead.")
     std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
+    OPENVINO_DEPRECATED("The method was deprecated! Please use input_source_output() instead.")
     Output<Node> get_input_source_output(size_t i) const;
+    /// ************* Inputs  ***************
 
 public:
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const = 0;
@@ -441,40 +504,6 @@ public:
     bool operator<(const Node& other) const {
         return m_instance_id < other.m_instance_id;
     }
-    /// \return A vector containing a handle for each of this node's inputs, in order.
-    // TODO: Rename to get_inputs()?
-    std::vector<Input<Node>> inputs();
-
-    /// \return A vector containing a handle for each of this node's inputs, in order.
-    std::vector<Input<const Node>> inputs() const;
-
-    /// \return A vector containing the values for each input
-    std::vector<Output<Node>> input_values() const;
-
-    /// \return A vector containing a handle for each of this node's outputs, in order.
-    // TODO: Rename to get_outputs()?
-    std::vector<Output<Node>> outputs();
-
-    /// \return A vector containing a handle for each of this node's outputs, in order.
-    std::vector<Output<const Node>> outputs() const;
-
-    /// \return A handle to the `input_index`th input of this node.
-    /// \throw std::out_of_range if the node does not have at least `input_index+1` inputs.
-    Input<Node> input(size_t input_index);
-
-    /// \return A handle to the `input_index`th input of this node.
-    /// \throw std::out_of_range if the node does not have at least `input_index+1` inputs.
-    Input<const Node> input(size_t input_index) const;
-
-    Output<Node> input_value(size_t input_index) const;
-
-    /// \return A handle to the `output_index`th output of this node.
-    /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
-    Output<Node> output(size_t output_index);
-
-    /// \return A handle to the `output_index`th output of this node.
-    /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
-    Output<const Node> output(size_t output_index) const;
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
