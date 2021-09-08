@@ -9,20 +9,12 @@ if(NOT ENABLE_DOCKER)
 
     add_subdirectory(snippets)
 
-    # Detect nGraph
-    find_package(ngraph QUIET
-                 PATHS "${CMAKE_BINARY_DIR}/ngraph"
-                 NO_DEFAULT_PATH)
-    if(NOT ngraph_FOUND)
-        set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
-    endif()
-
-    # Detect InferenceEngine
-    find_package(InferenceEngine QUIET
+    # Detect OpenVINO
+    find_package(OpenVINO QUIET
                  PATHS "${CMAKE_BINARY_DIR}"
                  NO_DEFAULT_PATH)
-    if(NOT InferenceEngine_FOUND)
-        set(InferenceEngine_DIR ${CMAKE_BINARY_DIR})
+    if(NOT OpenVINO_FOUND)
+        set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
     endif()
 
     if(NGRAPH_ONNX_FRONTEND_ENABLE)

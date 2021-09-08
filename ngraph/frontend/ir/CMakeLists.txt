@@ -23,7 +23,7 @@ add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_P
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
                     ADDITIONAL_INCLUDE_DIRECTORIES
-                        $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+                        $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
@@ -40,7 +40,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "FrontEnd to load and convert IR file format")
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE ngraph::frontend_manager::static
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
                                      PRIVATE ngraph::builder inference_engine_transformations
         inference_engine pugixml::static inference_engine_plugin_api)
 

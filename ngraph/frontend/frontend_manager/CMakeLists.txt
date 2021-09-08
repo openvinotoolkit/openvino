@@ -17,7 +17,7 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 # Static library
 
 add_library(${TARGET_NAME}_static STATIC ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
-add_library(ngraph::${TARGET_NAME}::static ALIAS ${TARGET_NAME}_static)
+add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME}_static)
 target_link_libraries(${TARGET_NAME}_static PRIVATE ${CMAKE_DL_LIBS} PUBLIC ngraph)
 target_include_directories(${TARGET_NAME}_static PUBLIC ${FRONTEND_INCLUDE_DIR})
 target_include_directories(${TARGET_NAME}_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -28,6 +28,7 @@ target_compile_definitions(${TARGET_NAME}_static PUBLIC USE_STATIC_FRONTEND_MANA
 
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::${TARGET_NAME} ALIAS ${TARGET_NAME})
+add_library(openvino::frontend::manager ALIAS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PUBLIC
         $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>

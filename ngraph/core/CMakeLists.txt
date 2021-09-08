@@ -74,8 +74,9 @@ target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH
                                   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
                                           ${CMAKE_CURRENT_BINARY_DIR}/include)
 
-#Add an alias so that library can be used inside the build tree, e.g. when testing
+# Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::ngraph ALIAS ngraph)
+add_library(openvino::core ALIAS ngraph)
 
 target_link_libraries(ngraph PRIVATE ${CMAKE_DL_LIBS})
 

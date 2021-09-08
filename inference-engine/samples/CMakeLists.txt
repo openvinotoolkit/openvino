@@ -33,11 +33,12 @@ endif()
 
 if(OpenVINO_SOURCE_DIR)
     # in case if samples are built from IE repo
-    set(IE_MAIN_SAMPLES_DIR ${OpenVINO_SOURCE_DIR})
-    # hint for find_package(InferenceEngine in the samples folder)
+    set(IE_MAIN_SAMPLES_DIR "${OpenVINO_SOURCE_DIR}")
+    # hint for find_package(<InferenceEngine|OpenVINO> in the samples folder)
     set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
+    set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")
     # hint for find_package(ngraph in the samples folder)
-    set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
+    set(ngraph_DIR "${CMAKE_BINARY_DIR}/ngraph")
 else()
     # in case if samples are built out of IE repo
     set(IE_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -210,12 +211,12 @@ macro(ie_add_sample)
     endif()
 
     if(c_sample)
-        set(ie_component inference_engine_c_api)
+        find_package(OpenVINO REQUIRED COMPONENTS Runtime)
+        set(ov_link_libraries openvino::runtime::c)
     else()
-        set(ie_component inference_engine)
+        find_package(InferenceEngine REQUIRED COMPONENTS inference_engine)
+        set(ov_link_libraries inference_engine)
     endif()
-
-    find_package(InferenceEngine REQUIRED COMPONENTS ${ie_component})
 
     set_target_properties(${IE_SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
                                                        COMPILE_PDB_NAME ${IE_SAMPLE_NAME})
@@ -225,7 +226,7 @@ macro(ie_add_sample)
     endif()
     target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
-    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES} ${InferenceEngine_LIBRARIES}
+    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES} ${ov_link_libraries}
                                                     ${IE_SAMPLE_DEPENDENCIES})
     if(NOT c_sample)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)

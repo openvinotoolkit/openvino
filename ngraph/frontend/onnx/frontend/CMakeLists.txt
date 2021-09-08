@@ -28,7 +28,7 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 
 # Create shared library
 add_library(onnx_ngraph_frontend SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
-add_library(ngraph::onnx_ngraph_frontend ALIAS onnx_ngraph_frontend)
+add_library(openvino::frontend::onnx ALIAS onnx_ngraph_frontend)
 
 add_clang_format_target(onnx_ngraph_frontend_clang FOR_TARGETS onnx_ngraph_frontend)
 
@@ -37,7 +37,7 @@ ov_ncc_naming_style(FOR_TARGET onnx_ngraph_frontend
                    DEFINITIONS
                        $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>
                    ADDITIONAL_INCLUDE_DIRECTORIES
-                       $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+                       $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME onnx_ngraph_frontend

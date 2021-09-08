@@ -49,13 +49,14 @@ set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIO
 
 # Create shared library
 add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
+add_library(openvino::frontend::paddlepaddle ALIAS ${TARGET_NAME})
 
 add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend_proto)
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
                     ADDITIONAL_INCLUDE_DIRECTORIES
-                        $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+                        $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
@@ -75,7 +76,7 @@ endif()
 
 link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 
-target_link_libraries(${TARGET_NAME} PRIVATE ngraph::frontend_manager::static
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
                                      PRIVATE ngraph::builder inference_engine_transformations)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
