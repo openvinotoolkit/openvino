@@ -4,6 +4,10 @@
 
 #pragma once
 
+#if defined(HAVE_GPU_DEVICE_MEM_SUPPORT)
+#    define HAVE_DEVICE_MEM_SUPPORT
+#endif
+
 #include <gflags/gflags.h>
 
 #include <iostream>
@@ -131,6 +135,12 @@ static const char progress_message[] =
 
 // @brief message for performance counters option
 static const char pc_message[] = "Optional. Report performance counters.";
+
+#ifdef HAVE_DEVICE_MEM_SUPPORT
+// @brief message for switching memory allocation type option
+static const char use_device_mem_message[] =
+    "Optional. Switch between host and device memory allocation for input and output buffers.";
+#endif
 
 #ifdef USE_OPENCV
 // @brief message for load config option
@@ -266,6 +276,11 @@ DEFINE_bool(progress, false, progress_message);
 /// @brief Define flag for showing performance counters <br>
 DEFINE_bool(pc, false, pc_message);
 
+#ifdef HAVE_DEVICE_MEM_SUPPORT
+/// @brief Define flag for switching beetwen host and device memory allocation for input and output buffers
+DEFINE_bool(use_device_mem, false, use_device_mem_message);
+#endif
+
 #ifdef USE_OPENCV
 /// @brief Define flag for loading configuration file <br>
 DEFINE_string(load_config, "", load_config_message);
@@ -339,6 +354,9 @@ static void showUsage() {
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
     std::cout << "    -enforcebf16=<true/false>     " << enforce_bf16_message << std::endl;
     std::cout << "    -pin \"YES\"/\"HYBRID_AWARE\"/\"NO\"/\"NUMA\"   " << infer_threads_pinning_message << std::endl;
+#ifdef HAVE_DEVICE_MEM_SUPPORT
+    std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
+#endif
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
     std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;
