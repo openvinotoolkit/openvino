@@ -39,6 +39,28 @@
 
 if(NOT TARGET ngraph)
     include("${CMAKE_CURRENT_LIST_DIR}/ngraphTargets.cmake")
+
+    # create targets with old names for compatibility
+    set(core ngraph)
+    set(frontend_manager frontend_manager)
+    set(frontendXonnx onnx_ngraph_frontend)
+    set(frontendXpaddlepaddle paddlepaddle_ngraph_frontend)
+
+    #foreach(target core frontend_manager frontendXonnx frontendXpaddlepaddle)
+    #    string(REPLACE "X" "::" patched_target ${target})
+    #    if(TARGET ngraph::${patched_target})
+    #        set(new_target ngraph::${target})
+    #        add_library(${new_target} INTERFACE IMPORTED)
+    #        set_target_properties(${new_target} PROPERTIES
+    #            INTERFACE_LINK_LIBRARIES ngraph::${patched_target})
+    #    endif()
+    #endforeach()
+
+    if(TARGET ngraph::core AND NOT TARGET ngraph::ngraph)
+        add_library(ngraph::ngraph INTERFACE IMPORTED)
+        set_target_properties(ngraph::ngraph PROPERTIES
+            INTERFACE_LINK_LIBRARIES ngraph::core)
+    endif()
 endif()
 
 set(ngraph_ngraph_FOUND ON)
@@ -59,6 +81,5 @@ if(ngraph_onnx_importer_FOUND)
 endif()
 
 set(ngraph_paddlepaddle_frontend_FOUND @NGRAPH_PDPD_FRONTEND_ENABLE@)
-set(ir_frontend_FOUND @IR_FRONTEND_ENABLE@)
 
 check_required_components(ngraph)
