@@ -403,37 +403,17 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
     };
 
     float worst_case = NetworkPerfStats::memThresholdUnknown;
-    float worst_case_all = NetworkPerfStats::memThresholdUnknown;
     // Traverse nGraph Function in topological order
     for (auto & node : nGraphFunc->get_ordered_ops()) {
         const auto node_name = node->get_type_info().name;
         if (std::strcmp("MatMul", node_name) && std::strcmp("Convolution", node_name)
             && std::strcmp("ConvolutionBackpropData", node_name)) {
-                int inputs_data_size_bytes = 0;
                 if (!std::strcmp("GRUSequence", node_name)
                     || !std::strcmp("TensorIterator", node_name)) {
                     NetworkPerfStats res;
                     res.maxMemTolerance = NetworkPerfStats::memThresholdUnknown;
                     return res;
                 }
-                for (int i = 0; i < node->get_input_size(); i++) {
-                    auto type = node->input_value(i).get_element_type();
-                    const bool isINT8 = isLowPrecision(type);
-                    const bool isBF16 = isHalfPrecision(type);
-                    const int data_type_size = isINT8 ? 1 : isBF16 ? 2 : 4;
-                    ngraph::Input<ngraph::Node> input = node->input(i);
-                    const auto shapeInput = input.get_shape();
-                    const auto non_const = !get_constant_from_source(node->input_value(i));
-                    const auto dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1,
-                                                               std::multiplies<int>());
-                    const auto not_amortized = non_const || (dataSizeInput * data_type_size) > L3_cache_size;
-                    inputs_data_size_bytes += not_amortized * (dataSizeInput * data_type_size);
-            }
-            // no need to track outputs, as these are inputs to some layers
-            const auto factor = memLimitedFactor(inputs_data_size_bytes, 1 /*already in bytes*/);
-            if (factor < worst_case_all) {
-                worst_case_all = factor;
-            }
             continue;
         }
         auto type1 = node->input_value(1).get_element_type(); //weights
@@ -523,7 +503,7 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
     res.ratio_compute_deconvs = total_deconvs ? static_cast<float>(compute_deconvs)/total_deconvs : 0;
     return res;
 }
-static bool hasAVX512();
+
 
 InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
@@ -548,13 +528,11 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         }
     }
 
-    // TODO: handle input precision differently - per input and not one per network...
-
     auto config = orig_config;
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
-            || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
+            || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
     auto nGraphFunc = clonedNetwork.getFunction();
     TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT);
 
@@ -603,23 +581,19 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 const auto num_streams_less_aggressive = num_cores / 2;
                 // default #streams value (most conservative)
                 const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
-                int num_streams;
+                int num_streams = default_num_streams;
                 if (NetworkToleranceForLowCache.maxMemTolerance == NetworkPerfStats::memThresholdUnknown) {
                     if ((NetworkToleranceForLowCache.ratio_compute_convs == NetworkPerfStats::ALL)
                         || (NetworkToleranceForLowCache.ratio_compute_deconvs == NetworkPerfStats::ALL)) {
                         // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
                         num_streams = num_cores;
-                    } else {
-                        // no recognized layers, falling back to the default value
-                        num_streams = default_num_streams;
-                    }
+                    }   // otherwise (no recognized layers) falling back to the default value
                 } else if (NetworkToleranceForLowCache.maxMemTolerance > memThresholdAssumeLimitedForISA) {
-                    // network is rather mem-limited, but below the ISA-specific heuristic value
+                    // network is below the ISA-specific threshold
                     num_streams = num_cores;
                 } else if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimited) {
+                    // network is below general threshold
                     num_streams = std::max(default_num_streams, num_streams_less_aggressive);
-                } else {
-                    num_streams = std::min(default_num_streams, num_streams_less_aggressive);
                 }
                 auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
                 if (num_requests != config.end())
