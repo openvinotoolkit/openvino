@@ -3,6 +3,8 @@
 
 """nGraph helper functions."""
 
+from typing import Union
+
 from ngraph.impl import Function, PartialShape
 from openvino.inference_engine import IENetwork, DataPtr, CDataPtr
 
@@ -20,7 +22,7 @@ def function_to_cnn(ng_function: Function) -> Function:
     return IENetwork(capsule)
 
 
-def partial_shape_from_data(data: [DataPtr, CDataPtr]):
+def partial_shape_from_data(data: Union[DataPtr, CDataPtr]) -> PartialShape:
     """Get nGraph PartialShape from Inference Engine Data."""
     capsule = data._get_partial_shape_capsule()
     return PartialShape.from_capsule(capsule)
