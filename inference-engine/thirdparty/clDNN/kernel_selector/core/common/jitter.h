@@ -14,7 +14,6 @@
 #include <vector>
 #include <memory>
 #include <utility>
-#include <locale>
 
 namespace kernel_selector {
 
@@ -80,10 +79,7 @@ std::string getMeanOpString(MeanOp op);
 // TODO improve to_code_string specializations
 template <typename T>
 std::string toCodeString(T val) {
-    std::stringstream ss;
-    ss.imbue(std::locale("C"));
-    ss << val;
-    return ss.str();
+    return std::to_string(val);
 }
 
 inline std::string toCodeString(const std::string& val) { return val; }
@@ -91,8 +87,6 @@ inline std::string toCodeString(const char* val) { return val; }
 inline std::string toCodeString(bool val) { return val ? "1" : "0"; }
 std::string toCodeString(float val);
 std::string toCodeString(double val);
-std::string toCodeString(uint8_t val);
-std::string toCodeString(int8_t val);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JitConstant
