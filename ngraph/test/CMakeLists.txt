@@ -49,6 +49,7 @@ set(SRC
     misc.cpp
     node_input_output.cpp
     op.cpp
+    opset.cpp
     op_eval/binary_convolution.cpp
     op_eval/bucketize.cpp
     op_eval/clamp.cpp
@@ -416,7 +417,6 @@ set(MULTI_TEST_SRC
     backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
-    backend/comparison.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/convolution_backprop.in.cpp
