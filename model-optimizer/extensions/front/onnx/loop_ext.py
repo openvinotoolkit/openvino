@@ -179,7 +179,7 @@ class LoopExtractor(FrontExtractorOp):
         # add 'internal_layer_id' attribute which is a must have attribute for the loop body node
         for idx, body_node in enumerate(body_graph.get_op_nodes()):
             body_node['internal_layer_id'] = idx
-        
+
         loop_carried_dependencies_count = len(body_graph_proto.input) - 2
         scan_outputs_count = len(body_graph_proto.output) - 1 - loop_carried_dependencies_count
 
