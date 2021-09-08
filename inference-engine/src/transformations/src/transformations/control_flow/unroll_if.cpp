@@ -26,7 +26,7 @@ bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f
         if (!if_node || transformation_callback(if_node)) {
             continue;
         }
-        Output<Node> cond {if_node->input_value(0)};
+        Output<Node> cond{ if_node->input_value(0) };
         const auto cond_is_const = ngraph::get_constant_from_source(cond);
         if (!cond_is_const) {
             continue;
@@ -49,11 +49,11 @@ bool ngraph::pass::UnrollIf::run_on_function(std::shared_ptr<ngraph::Function> f
 
             // set output name to Tensor to store it for ngraph to cnn conversion
             NGRAPH_SUPPRESS_DEPRECATED_START
-            in_value.get_tensor().set_name(op::util::create_ie_output_name(if_node->output(output_desc->m_output_index)));
+                in_value.get_tensor().set_name(op::util::create_ie_output_name(if_node->output(output_desc->m_output_index)));
             NGRAPH_SUPPRESS_DEPRECATED_END
-            for (const auto& input : if_node->output(output_desc->m_output_index).get_target_inputs()) {
-                input.replace_source_output(result->get_input_source_output(0));
-            }
+                for (const auto& input : if_node->output(output_desc->m_output_index).get_target_inputs()) {
+                    input.replace_source_output(result->get_input_source_output(0));
+                }
         }
 
         f->add_sinks(body->get_sinks());
