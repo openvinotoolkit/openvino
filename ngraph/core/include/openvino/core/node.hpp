@@ -18,14 +18,14 @@
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/check.hpp"
-#include "ngraph/deprecated.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -654,10 +654,10 @@ struct RawNodeOutput {
 
 using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
-class OPENVINO_API NodeValidationFailure : public ngraph::CheckFailure {
+class OPENVINO_API NodeValidationFailure : public ov::AssertFailure {
 public:
     NodeValidationFailure(const ngraph::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
-        : CheckFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
+        : AssertFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
 };
 }  // namespace ov
 #define NODE_VALIDATION_CHECK(node, ...) NGRAPH_CHECK_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
