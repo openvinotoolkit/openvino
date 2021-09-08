@@ -23,6 +23,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const CTensorDesc& getTensorDesc()  except +
         size_t element_size()  except +
         void allocate()
+        void setShape(const SizeVector& dims) except +
 
     cdef TBlob[Type].Ptr make_shared_blob[Type](const CTensorDesc& tensorDesc)
 
@@ -47,6 +48,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const Layout getLayout() except +
         void setLayout(Layout layout) except +
         const bool isInitialized() except +
+        bool isDynamic() except +
 
     ctypedef shared_ptr[Data] DataPtr
     ctypedef weak_ptr[Data] DataWeakPtr
@@ -178,7 +180,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         size_t getBatch() except +
         void setLayerParams(map[string, map[string, string]] params_map) except +
         void serialize(const string& path_to_xml, const string& path_to_bin) except +
-        void reshape(map[string, vector[size_t]] input_shapes) except +
+        void reshape(map[string, vector[vector[int64_t]]] input_shapes) except +
         object getFunction() except +
         void convertToOldRepresentation() except +
         string getOVNameForTensor(const string &) except +
@@ -226,3 +228,5 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef string get_version()
 
     cdef IENetwork read_network(string path_to_xml, string path_to_bin)
+
+    cdef object getPartialShape_capsule(DataPtr)
