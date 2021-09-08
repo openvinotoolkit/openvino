@@ -5,15 +5,12 @@
 #pragma once
 
 #include "ngraph/node.hpp"
+#include "openvino/op/util/elementwise_args.hpp"
 
-namespace ngraph
-{
-    namespace op
-    {
-        namespace util
-        {
-            std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
-                Node* node, const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-        }
-    } // namespace op
-} // namespace ngraph
+namespace ngraph {
+namespace op {
+namespace util {
+using ov::op::util::validate_and_infer_elementwise_args;
+}
+}  // namespace op
+}  // namespace ngraph

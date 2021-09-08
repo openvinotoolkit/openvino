@@ -21,7 +21,7 @@ typedef std::tuple<
 
 class RollLayerTest : public testing::WithParamInterface<rollParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<rollParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<rollParams>& obj);
 
 protected:
     void SetUp() override;

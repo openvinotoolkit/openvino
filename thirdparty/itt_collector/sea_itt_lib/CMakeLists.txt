@@ -36,3 +36,6 @@ elseif(WIN32)
 endif()
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
+install(TARGETS ${TARGET_NAME}
+        DESTINATION tests/sea_itt_lib COMPONENT itt_collector EXCLUDE_FROM_ALL)

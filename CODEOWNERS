@@ -44,7 +44,6 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /inference-engine/tests/functional/plugin/myriad/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
 /inference-engine/tests/unit/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
 /inference-engine/tests/unit/engines/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
-/inference-engine/tools/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
 /inference-engine/scripts/run_tests_myriad_multistick.sh  @openvinotoolkit/openvino-ie-vpu-maintainers
 
 # IE GNA:
@@ -72,9 +71,10 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 
 # Documentation
 /docs/  @openvinotoolkit/openvino-docs-maintainers
+/docs/template_plugin/ @openvinotoolkit/openvino-ie-template-maintainers
 *.md  @openvinotoolkit/openvino-docs-maintainers
 
 # Control 3d party dependencies
-*requirements*  @openvino-configuration-mgmt
-*setup.py  @openvino-configuration-mgmt
+**/*requirements*.*  @openvino-configuration-mgmt
+**/setup.py  @openvino-configuration-mgmt
 /scripts/install_dependencies/  @openvino-configuration-mgmt

@@ -14,7 +14,6 @@
 
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -144,7 +143,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 
     // concatenation axis is 1
     if (!subtractNodes.empty()) {
-        const auto subtract = std::make_shared<DequantizationSubtract>(
+        const auto subtract = std::make_shared<opset1::Subtract>(
             lastDequantization,
             NetworkHelper::toScalarIfPossible(subtractNodes.size() == 1ul ?
                 subtractNodes[0] :
@@ -155,8 +154,8 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     }
 
     if (!multiplyNodes.empty()) {
-        const auto multiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
-            DequantizationMultiply(
+        const auto multiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+            opset1::Multiply(
                 lastDequantization,
                 NetworkHelper::toScalarIfPossible(multiplyNodes.size() == 1ul ?
                     multiplyNodes[0] :
@@ -178,7 +177,7 @@ bool ConcatTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noe
 }
 
 bool ConcatTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    std::shared_ptr<opset1::Concat> concat = as_type_ptr<opset1::Concat>(layer);
+    std::shared_ptr<opset1::Concat> concat = ov::as_type_ptr<opset1::Concat>(layer);
     if (concat == nullptr) {
         return false;
     }
@@ -295,6 +294,22 @@ bool ConcatTransformation::isHandled(const TransformationContext& context, const
     }
 
     return false;
+}
+
+bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+    const auto concat = as_type_ptr<const opset1::Concat>(layer);
+    if (concat == nullptr) {
+        return false;
+    }
+
+    const auto axis = concat->get_axis();
+    const auto outputRank = concat->get_output_partial_shape(0).rank();
+    if (axis < 0 && outputRank.is_dynamic()) {
+        return false;
+    }
+
+    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outputRank);
+    return normalizedAxis == 1ul;
 }
 
 } // namespace low_precision

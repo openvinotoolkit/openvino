@@ -60,6 +60,7 @@
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
@@ -307,18 +308,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     return true;
                 });
 
-            pass_config->set_callback<ngraph::pass::ConvertNMS1ToNMS5,
-                                      ngraph::pass::ConvertNMS3ToNMS5,
-                                      ngraph::pass::ConvertNMS4ToNMS5,
-                                      ngraph::pass::ConvertNMSToNMSIEInternal>(
-                    [](const_node_ptr &node) -> bool {
-                        return node->input_value(0).get_shape().back() == 4lu &&
-                               node->input_value(0).get_shape().front() == node->input_value(1).get_shape().front() &&
-                               node->input_value(0).get_shape()[1] == node->input_value(1).get_shape().back() &&
-                               node->input_value(0).get_shape().size() == 3lu &&
-                               node->input_value(1).get_shape().size() == 3lu;
-                    });
-
             pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
                 [](const_node_ptr &node) -> bool {
                     const auto mvn = std::dynamic_pointer_cast<const ngraph::op::v6::MVN>(node);
@@ -362,6 +351,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::ConvertBroadcast3>();
             pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
             pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+            pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
             if (!config.enable_loop_unrolling) {
                 pass_config->disable<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
@@ -388,11 +378,12 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::LPT");
             using namespace ngraph::pass::low_precision;
 
-            ngraph::pass::Manager manager;
             // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
             // With this key users can work-around such issues
             if (!config.enable_fp16_for_quantized_models) {
+                ngraph::pass::Manager manager;
                 manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
+                manager.run_passes(nGraphFunc);
             }
 
             auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
@@ -614,7 +605,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
 }
 
 IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                const RemoteContext::Ptr &context,
+                                                                const IRemoteContext::Ptr &context,
                                                                 const std::map<std::string, std::string> &config) {
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
@@ -631,30 +622,28 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     return std::make_shared<CLDNNExecNetwork>(transformedNetwork, casted, conf);
 }
 
-RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
+IRemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
     // parameter map is non-empty
     std::string contextTypeStr = _StrFromParams(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
     if (GPU_PARAM_VALUE(OCL) == contextTypeStr) {
-        auto context = std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
-        return std::dynamic_pointer_cast<RemoteContext>(context);
+        return std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
     } else if (GPU_PARAM_VALUE(VA_SHARED) == contextTypeStr) {
 #ifdef _WIN32
-        auto context = std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
+        return std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
 #else
-        auto context = std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
+        return std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
 #endif
-        return std::dynamic_pointer_cast<RemoteContext>(context);
     } else {
         IE_THROW() << "Invalid remote context type" << contextTypeStr;
     }
 }
 
-RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
+IRemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
     if (nullptr == m_defaultContext) {
         m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), params, _impl->m_config));
     }
-    return std::dynamic_pointer_cast<RemoteContext>(m_defaultContext);
+    return m_defaultContext;
 }
 
 void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {

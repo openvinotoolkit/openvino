@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
+#include <memory>
+#include <util/type_prop.hpp>
 
+#include "gtest/gtest.h"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
@@ -11,16 +13,12 @@
 #include "ngraph/opsets/opset7.hpp"
 #include "util/test_tools.hpp"
 
-#include <memory>
-#include <util/type_prop.hpp>
-
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
 
-TEST(build_graph, build_simple)
-{
+TEST(build_graph, build_simple) {
     // Function with 4 parameters
     auto arg0 = make_shared<op::Parameter>(element::f32, Shape{7, 3});
     auto arg1 = make_shared<op::Parameter>(element::f32, Shape{3});
@@ -37,8 +35,7 @@ TEST(build_graph, build_simple)
     ASSERT_EQ(cluster_0->get_output_op(0)->input_value(0).get_node_shared_ptr(), dot);
 }
 
-TEST(build_graph, literal)
-{
+TEST(build_graph, literal) {
     // float scalar from a float
     // auto float0 = FloatConstant::make(3.0);
     vector<float> float_t{3.0};
@@ -57,8 +54,7 @@ TEST(build_graph, literal)
     ASSERT_EQ(int32_0->get_shape(), Shape{});
 }
 
-TEST(build_graph, tensor)
-{
+TEST(build_graph, tensor) {
     // float scalar from a float
     // auto float0 = FloatConstant::make(3.0);
     Shape shape{2, 3};
@@ -78,8 +74,7 @@ TEST(build_graph, tensor)
 }
 
 // Check functions with undeclared parameters
-TEST(build_graph, function_undeclared_parameters)
-{
+TEST(build_graph, function_undeclared_parameters) {
     // Function with 4 parameters
     auto arg0 = make_shared<op::Parameter>(element::f32, Shape{7, 3});
     auto arg1 = make_shared<op::Parameter>(element::f32, Shape{3});
@@ -90,26 +85,20 @@ TEST(build_graph, function_undeclared_parameters)
     auto dot = make_shared<op::MatMul>(arg2, arg0);
     ASSERT_EQ(dot->input_values()[0].get_node_shared_ptr(), arg2);
     ASSERT_EQ(dot->input_values()[1].get_node_shared_ptr(), arg0);
-    try
-    {
+    try {
         auto f = make_shared<Function>(dot, ParameterVector{arg0, arg1, arg3});
         f->get_ops();
         // Should have thrown, so fail if it didn't
         FAIL() << "Undeclared parameter not detected.";
-    }
-    catch (const ngraph_error& error)
-    {
+    } catch (const ngraph_error& error) {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Function references undeclared parameter"));
-    }
-    catch (...)
-    {
+    } catch (...) {
         FAIL() << "Function construction failed for unexpected reason";
     }
 }
 
 // Check no-arg construction
-TEST(build_graph, no_arg_construction)
-{
+TEST(build_graph, no_arg_construction) {
     // The ops
     // Parameters aren't converted yet
     auto arg0 = make_shared<op::Parameter>(element::f32, Shape{7});
@@ -131,8 +120,7 @@ TEST(build_graph, no_arg_construction)
     ASSERT_EQ(add1->get_output_shape(0), Shape{7});
 }
 
-TEST(build_graph, multi_output_split_dynamic)
-{
+TEST(build_graph, multi_output_split_dynamic) {
     const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     const auto axis = op::Constant::create(element::i64, Shape{}, {1});
     const auto split = make_shared<op::v1::Split>(data, axis, 2);
@@ -148,8 +136,7 @@ TEST(build_graph, multi_output_split_dynamic)
     EXPECT_EQ(abs->get_shape(), (Shape{2, 2}));
 }
 
-TEST(build_graph, function_revalidate_and_infer)
-{
+TEST(build_graph, function_revalidate_and_infer) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
     auto pattern = op::Constant::create(element::i64, Shape{6}, {1, 3, 16, 2, 2, 2});
 
@@ -169,21 +156,16 @@ TEST(build_graph, function_revalidate_and_infer)
     EXPECT_EQ(f->get_output_shape(0), (Shape{32, 12}));
 }
 
-TEST(build_graph, default_output_checks)
-{
-    try
-    {
+TEST(build_graph, default_output_checks) {
+    try {
         std::shared_ptr<Node> empty;
         auto nullout = Output<Node>(empty);
-    }
-    catch (...)
-    {
+    } catch (...) {
         FAIL() << "nullptr initialization of Output failed";
     }
 }
 
-TEST(build_graph, build_graph_with_sink)
-{
+TEST(build_graph, build_graph_with_sink) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
     auto read = make_shared<opset5::ReadValue>(init_const, "v0");
@@ -203,8 +185,7 @@ TEST(build_graph, build_graph_with_sink)
     EXPECT_EQ(nodes.size(), 8);
 }
 
-TEST(build_graph, build_graph_with_sink_output_ctor)
-{
+TEST(build_graph, build_graph_with_sink_output_ctor) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
     auto read = make_shared<opset5::ReadValue>(init_const, "v0");
@@ -215,8 +196,7 @@ TEST(build_graph, build_graph_with_sink_output_ctor)
     auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
     auto assign = make_shared<opset5::Assign>(crop, "v0");
 
-    auto f = make_shared<Function>(
-        OutputVector({pattern->output(0)}), SinkVector({assign}), ParameterVector{arg});
+    auto f = make_shared<Function>(OutputVector({pattern->output(0)}), SinkVector({assign}), ParameterVector{arg});
 
     SinkVector sinks = f->get_sinks();
     EXPECT_EQ(sinks.size(), 1);
@@ -225,8 +205,7 @@ TEST(build_graph, build_graph_with_sink_output_ctor)
     EXPECT_EQ(nodes.size(), 8);
 }
 
-TEST(build_graph, build_graph_with_add_sink)
-{
+TEST(build_graph, build_graph_with_add_sink) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
     auto read = make_shared<opset5::ReadValue>(init_const, "v0");
@@ -252,8 +231,7 @@ TEST(build_graph, build_graph_with_add_sink)
     EXPECT_EQ(nodes.size(), 8);
 }
 
-TEST(build_graph, build_graph_with_wrong_remove_sink)
-{
+TEST(build_graph, build_graph_with_wrong_remove_sink) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
     auto read = make_shared<opset5::ReadValue>(init_const, "v0");
@@ -276,8 +254,7 @@ TEST(build_graph, build_graph_with_wrong_remove_sink)
     EXPECT_EQ(nodes.size(), 5);
 }
 
-TEST(build_graph, build_graph_with_remove_sink)
-{
+TEST(build_graph, build_graph_with_remove_sink) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
     auto read = make_shared<opset5::ReadValue>(init_const, "v0");
@@ -302,8 +279,7 @@ TEST(build_graph, build_graph_with_remove_sink)
     EXPECT_EQ(nodes.size(), 3);
 }
 
-TEST(build_graph, build_graph_with_add_result)
-{
+TEST(build_graph, build_graph_with_add_result) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
     auto read = make_shared<opset5::ReadValue>(init_const, "v0");
@@ -329,8 +305,7 @@ TEST(build_graph, build_graph_with_add_result)
     EXPECT_EQ(nodes.size(), 8);
 }
 
-TEST(build_graph, build_graph_with_remove_result)
-{
+TEST(build_graph, build_graph_with_remove_result) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
     auto read = make_shared<opset5::ReadValue>(init_const, "v0");
@@ -355,8 +330,7 @@ TEST(build_graph, build_graph_with_remove_result)
     EXPECT_EQ(nodes.size(), 5);
 }
 
-TEST(build_graph, build_graph_with_add_parameter)
-{
+TEST(build_graph, build_graph_with_add_parameter) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
@@ -385,8 +359,7 @@ TEST(build_graph, build_graph_with_add_parameter)
     EXPECT_EQ(nodes.size(), 7);
 }
 
-TEST(build_graph, build_graph_with_remove_parameter)
-{
+TEST(build_graph, build_graph_with_remove_parameter) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
@@ -413,8 +386,7 @@ TEST(build_graph, build_graph_with_remove_parameter)
     EXPECT_EQ(nodes.size(), 8);
 }
 
-TEST(build_graph, build_graph_with_remove_parameter_indexing)
-{
+TEST(build_graph, build_graph_with_remove_parameter_indexing) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
@@ -446,8 +418,7 @@ TEST(build_graph, build_graph_with_remove_parameter_indexing)
     f->validate_nodes_and_infer_types();
 }
 
-TEST(build_graph, build_graph_parameters_autodetection)
-{
+TEST(build_graph, build_graph_parameters_autodetection) {
     // Function with 4 parameters
     using namespace opset7;
     auto arg0 = make_shared<Parameter>(element::f32, Shape{7, 3});
@@ -462,8 +433,7 @@ TEST(build_graph, build_graph_parameters_autodetection)
     EXPECT_EQ(f->get_parameters().size(), 2);
 }
 
-TEST(build_graph, build_graph_parameters_variables_autodetection)
-{
+TEST(build_graph, build_graph_parameters_variables_autodetection) {
     using namespace opset7;
     auto arg = make_shared<Parameter>(element::f32, Shape{2, 4});
     auto arg2 = make_shared<Parameter>(element::f32, Shape{2, 2});
@@ -491,8 +461,7 @@ TEST(build_graph, build_graph_parameters_variables_autodetection)
     EXPECT_EQ(variables.size(), 1);
 }
 
-TEST(build_graph, build_graph_variables_ctors)
-{
+TEST(build_graph, build_graph_variables_ctors) {
     using namespace opset7;
     auto arg = make_shared<Parameter>(element::f32, Shape{2, 4});
     auto arg2 = make_shared<Parameter>(element::f32, Shape{2, 2});
@@ -511,8 +480,10 @@ TEST(build_graph, build_graph_variables_ctors)
     auto res2 = make_shared<Result>(crop, "v0");
 
     {
-        auto f = make_shared<Function>(OutputVector{res, res2}, SinkVector{assign},
-                                       ParameterVector{arg, arg2}, VariableVector{variable});
+        auto f = make_shared<Function>(OutputVector{res, res2},
+                                       SinkVector{assign},
+                                       ParameterVector{arg, arg2},
+                                       VariableVector{variable});
 
         NodeVector nodes = f->get_ops();
         EXPECT_EQ(nodes.size(), 10);
@@ -524,8 +495,7 @@ TEST(build_graph, build_graph_variables_ctors)
 
     // autodetect variables
     {
-        auto f = make_shared<Function>(OutputVector{res, res2}, SinkVector{assign},
-                                         ParameterVector{arg, arg2});
+        auto f = make_shared<Function>(OutputVector{res, res2}, SinkVector{assign}, ParameterVector{arg, arg2});
         NodeVector nodes = f->get_ops();
         EXPECT_EQ(nodes.size(), 10);
         ParameterVector params = f->get_parameters();
@@ -535,8 +505,7 @@ TEST(build_graph, build_graph_variables_ctors)
     }
 }
 
-TEST(build_graph, build_graph_unregistred_variables)
-{
+TEST(build_graph, build_graph_unregistred_variables) {
     using namespace opset7;
     auto arg = make_shared<Parameter>(element::f32, Shape{2, 4});
     auto arg2 = make_shared<Parameter>(element::f32, Shape{2, 2});
@@ -557,6 +526,8 @@ TEST(build_graph, build_graph_unregistred_variables)
     auto crop = make_shared<Split>(pattern, axis, 3);
     auto res2 = make_shared<Result>(crop, "v0");
 
-    EXPECT_ANY_THROW(make_shared<Function>(OutputVector{res, res2}, SinkVector{assign, assign_2},
-                                   ParameterVector{arg, arg2}, VariableVector{variable}));
+    EXPECT_ANY_THROW(make_shared<Function>(OutputVector{res, res2},
+                                           SinkVector{assign, assign_2},
+                                           ParameterVector{arg, arg2},
+                                           VariableVector{variable}));
 }

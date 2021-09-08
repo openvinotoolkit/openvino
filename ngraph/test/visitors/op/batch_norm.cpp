@@ -3,14 +3,12 @@
 //
 
 #include "gtest/gtest.h"
-
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-
 #include "util/visitor.hpp"
 
 using namespace std;
@@ -19,14 +17,11 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 template <class T>
-class BatchNormAttrTest : public ::testing::Test
-{
-};
+class BatchNormAttrTest : public ::testing::Test {};
 
 TYPED_TEST_SUITE_P(BatchNormAttrTest);
 
-TYPED_TEST_P(BatchNormAttrTest, batch_norm_inference_op)
-{
+TYPED_TEST_P(BatchNormAttrTest, batch_norm_inference_op) {
     PartialShape in_shape{1, 10};
     PartialShape ch_shape{in_shape[1]};
     element::Type et = element::f32;
@@ -43,7 +38,7 @@ TYPED_TEST_P(BatchNormAttrTest, batch_norm_inference_op)
     const auto expected_attr_count = 1;
     NodeBuilder builder(batch_norm);
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
-    auto g_batch_norm = as_type_ptr<TypeParam>(builder.create());
+    auto g_batch_norm = ov::as_type_ptr<TypeParam>(builder.create());
     EXPECT_EQ(g_batch_norm->get_eps_value(), batch_norm->get_eps_value());
 }
 
