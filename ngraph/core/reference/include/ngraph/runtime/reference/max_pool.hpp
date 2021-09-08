@@ -142,14 +142,7 @@ void validate_max_pool_kernel_params(const size_t dims,
 ///        but at the same time it can represent pixel offsets in the filter itself (dilated or non-dilated)
 template <typename T>
 struct Coord : public std::vector<T> {
-    Coord(const Shape& pads_begin) {
-        std::vector<T>::reserve(pads_begin.size());
-        for (const auto axis_padding : pads_begin) {
-            std::vector<T>::push_back(0 - axis_padding);
-        }
-    }
-
-    Coord(const size_t dims) : std::vector<T>(dims, T{0}) {}
+    Coord() = default;
 
     Coord(std::initializer_list<T>&& values) : std::vector<T>{std::move(values)} {}
 };
@@ -167,32 +160,15 @@ bool elem_in_padding_area(const Coord<int>& kernel_position,
     return false;
 }
 
-template <typename T>
-Coord<T> kernel_position_2D(const size_t out_row,
-                            const size_t out_col,
-                            const Strides& kernel_strides,
-                            const Shape& pads_begin) {
-    Coord<T> kernel_position(2);
-
-    kernel_position[0] = out_row * kernel_strides[0] - pads_begin[0];
-    kernel_position[1] = out_col * kernel_strides[1] - pads_begin[1];
-
-    return kernel_position;
-}
-
-template <typename T>
-Coord<T> kernel_position_3D(const size_t out_channel,
-                            const size_t out_row,
-                            const size_t out_col,
-                            const Strides& kernel_strides,
-                            const Shape& pads_begin) {
-    Coord<T> kernel_position(3);
-
-    kernel_position[0] = out_channel * kernel_strides[0] - pads_begin[0];
-    kernel_position[1] = out_row * kernel_strides[1] - pads_begin[1];
-    kernel_position[2] = out_col * kernel_strides[2] - pads_begin[2];
-
-    return kernel_position;
+Coord<int> calculate_kernel_position(const Coord<size_t>& out_elem_coord,
+                                     const Strides& kernel_strides,
+                                     const Shape& pads_begin) {
+    Coord<int> top_left_corner;
+    top_left_corner.reserve(out_elem_coord.size());
+    for (size_t i = 0u; i < out_elem_coord.size(); ++i) {
+        top_left_corner[i] = out_elem_coord[i] * kernel_strides[i] - pads_begin[i];
+    }
+    return top_left_corner;
 }
 
 namespace kernel {
@@ -249,7 +225,7 @@ void max_pool_2d(const Values_t* data,
             Values_t max_elem = std::numeric_limits<Values_t>::lowest();
             Indices_t max_elem_idx = Indices_t{0};
 
-            const auto kernel_position = kernel_position_2D<int>(out_row, out_col, kernel_strides, pads_begin);
+            const auto kernel_position = calculate_kernel_position({out_row, out_col}, kernel_strides, pads_begin);
             // find the max element in the area covered by a current position of the kernel
             for (size_t kernel_row = 0; kernel_row < kernel[0]; ++kernel_row) {
                 for (size_t kernel_col = 0; kernel_col < kernel[1]; ++kernel_col) {
@@ -292,8 +268,6 @@ void max_pool_3d(const Values_t* data,
                  const size_t indices_offset) {
     validate_max_pool_kernel_params(3, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
 
-    Coord<int> kernel_position{pads_begin};
-
     // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
     size_t out_idx = 0u;
     for (size_t out_channel = 0u; out_channel < out_shape[2]; ++out_channel) {
@@ -303,7 +277,7 @@ void max_pool_3d(const Values_t* data,
                 Indices_t max_elem_idx = Indices_t{0};
 
                 const auto kernel_position =
-                    kernel_position_3D<int>(out_channel, out_row, out_col, kernel_strides, pads_begin);
+                    calculate_kernel_position({out_channel, out_row, out_col}, kernel_strides, pads_begin);
 
                 for (size_t kernel_channel = 0; kernel_channel < kernel[0]; ++kernel_channel) {
                     for (size_t kernel_row = 0; kernel_row < kernel[1]; ++kernel_row) {
