@@ -9,8 +9,8 @@
 #include <cpp/ie_cnn_network.h>
 #include <ie_input_info.hpp>
 
-#include "pyopenvino/inference_engine/ie_input_info.hpp"
-#include "pyopenvino/inference_engine/ie_network.hpp"
+#include "pyopenvino/core/ie_input_info.hpp"
+#include "pyopenvino/core/ie_network.hpp"
 
 //using PyInputsDataMap = std::map<std::string, std::shared_ptr<InferenceEngine::InputInfo>>;
 //

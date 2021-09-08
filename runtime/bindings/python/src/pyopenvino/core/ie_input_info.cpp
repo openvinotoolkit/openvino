@@ -6,7 +6,7 @@
 
 #include <pybind11/stl.h>
 #include "common.hpp"
-#include "pyopenvino/inference_engine/ie_input_info.hpp"
+#include "pyopenvino/core/ie_input_info.hpp"
 
 namespace py = pybind11;
 

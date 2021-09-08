@@ -4,7 +4,7 @@
 
 #include <ie_parameter.hpp>
 
-#include "pyopenvino/inference_engine/ie_parameter.hpp"
+#include "pyopenvino/core/ie_parameter.hpp"
 
 namespace py = pybind11;
 

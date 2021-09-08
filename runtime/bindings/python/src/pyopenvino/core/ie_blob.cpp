@@ -8,8 +8,8 @@
 #include <ie_precision.hpp>
 
 #include "ie_blob.h"
-#include "pyopenvino/inference_engine/ie_blob.hpp"
-#include "pyopenvino/inference_engine/tensor_description.hpp"
+#include "pyopenvino/core/ie_blob.hpp"
+#include "pyopenvino/core/tensor_description.hpp"
 
 namespace py = pybind11;
 

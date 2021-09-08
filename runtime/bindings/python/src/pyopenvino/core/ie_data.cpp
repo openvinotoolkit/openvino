@@ -4,7 +4,7 @@
 
 #include <ie_data.h>
 
-#include "pyopenvino/inference_engine/ie_data.hpp"
+#include "pyopenvino/core/ie_data.hpp"
 #include "common.hpp"
 #include <pybind11/stl.h>
 
