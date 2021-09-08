@@ -38,6 +38,7 @@ typedef std::tuple<
 
 class InferRequestDynamicTests : public testing::WithParamInterface<InferRequestDynamicParams>,
                                  public CommonTestUtils::TestsCommon {
+public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestDynamicParams> obj) {
         std::shared_ptr<ngraph::Function> func;
         std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
@@ -46,6 +47,11 @@ class InferRequestDynamicTests : public testing::WithParamInterface<InferRequest
         std::tie(func, inOutShapes, targetDevice, configuration) = obj.param;
         std::ostringstream result;
         result << "function=" << func->get_friendly_name() << "_";
+        result << "inOutShape=(";
+        for (const auto& inOutShape : inOutShapes) {
+            result << "(" << CommonTestUtils::vec2str(inOutShape.first) << "_" << CommonTestUtils::vec2str(inOutShape.second) << ")";
+        }
+        result << ")_";
         result << "targetDevice=" << targetDevice;
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
@@ -55,10 +61,10 @@ class InferRequestDynamicTests : public testing::WithParamInterface<InferRequest
         return result.str();
     }
 
+protected:
     void SetUp() override {
-        std::tie(function, inOutShapes, targetDevice, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(targetDevice, configuration) = this->GetParam();
+        std::tie(function, inOutShapes, targetDevice, configuration) = this->GetParam();
     }
 
     void TearDown() override {
@@ -70,7 +76,6 @@ class InferRequestDynamicTests : public testing::WithParamInterface<InferRequest
 
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> function;
-    InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
