@@ -13,20 +13,16 @@
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace set_1 {
 namespace detail {
-inline OutputVector matmul(Output<ngraph::Node> a, Output<ngraph::Node> b) {
+inline OutputVector matmul(const Output<ngraph::Node>& a, const Output<ngraph::Node>& b) {
     return {std::make_shared<default_opset::MatMul>(a, b)};
 }
 }  // namespace detail
-
+namespace set_1 {
 inline OutputVector matmul(const Node& node) {
     return {std::make_shared<default_opset::MatMul>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
 }
 }  // namespace set_1
-
 }  // namespace op
-
 }  // namespace onnx_import
-
 }  // namespace ngraph

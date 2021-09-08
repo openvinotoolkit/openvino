@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Disabled in CMakeList
-// Update to higher opset required
-
 #pragma once
 
 #include "ngraph/node.hpp"
@@ -13,7 +10,7 @@
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace set_1 {
+namespace set_10 {
 /// \brief Performs ONNX QLinearMatMul operation.
 ///
 /// \param node   The ONNX node object representing this operation.
@@ -21,11 +18,7 @@ namespace set_1 {
 /// \return The vector containing Ngraph nodes producing output of ONNX quantizied
 ///         matrix multiplication operation.
 OutputVector qlinear_matmul(const Node& node);
-
-}  // namespace set_1
-
+}  // namespace set_10
 }  // namespace op
-
 }  // namespace onnx_import
-
 }  // namespace ngraph
