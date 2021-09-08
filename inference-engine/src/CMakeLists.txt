@@ -30,8 +30,6 @@ endif()
 
 add_subdirectory(hetero_plugin)
 
-add_subdirectory(auto_plugin)
-
 add_subdirectory(multi_device)
 
 add_subdirectory(transformations)
@@ -54,5 +52,5 @@ add_custom_target(ie_libraries ALL
                           ir_frontend)
 
 if(NGRAPH_ONNX_FRONTEND_ENABLE)
-    add_dependencies(ie_libraries inference_engine_onnx_reader)
+    add_dependencies(ie_libraries onnx_ngraph_frontend)
 endif()

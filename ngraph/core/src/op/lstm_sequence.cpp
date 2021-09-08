@@ -16,8 +16,8 @@
 using namespace ngraph;
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(op::v0::LSTMSequence, "LSTMSequence", 0);
-NGRAPH_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5);
+OPENVINO_RTTI_DEFINITION(op::v0::LSTMSequence, "LSTMSequence", 0);
+OPENVINO_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5, util::RNNCellBase);
 
 op::v0::LSTMSequence::LSTMSequence()
     : Op(),
@@ -82,8 +82,8 @@ op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
           R,
           B,
           Constant::create(element::f32,
-                           Shape{(lstm_direction == LSTMSequence::direction::BIDIRECTIONAL ? 2UL : 1UL),
-                                 3UL * static_cast<size_t>(hidden_size)},
+                           StaticShape{(lstm_direction == LSTMSequence::direction::BIDIRECTIONAL ? 2UL : 1UL),
+                                       3UL * static_cast<size_t>(hidden_size)},
                            std::vector<float>{0.f}),
           hidden_size,
           lstm_direction,
@@ -291,7 +291,7 @@ shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
 
 void op::v0::LSTMSequence::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_LSTMSequence_validate_and_infer_types);
-    std::vector<ngraph::PartialShape> input_param{};
+    std::vector<ov::Shape> input_param{};
 
     auto lstm_seq_gates_count = 4;
     auto lstm_seq_peepholes_count = 3;
@@ -464,13 +464,13 @@ void op::v5::LSTMSequence::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_LSTMSequence_validate_and_infer_types);
     for (const auto& input : inputs()) {
         if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
-            set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
-            set_output_type(2, get_input_element_type(0), PartialShape::dynamic());
+            set_output_type(0, get_input_element_type(0), ov::Shape::dynamic());
+            set_output_type(1, get_input_element_type(0), ov::Shape::dynamic());
+            set_output_type(2, get_input_element_type(0), ov::Shape::dynamic());
             return;
         }
     }
-    std::vector<ngraph::PartialShape> input_param{};
+    std::vector<ov::Shape> input_param{};
 
     auto lstm_seq_gates_count = 4;
     auto merged_batch_size = Dimension::dynamic();
