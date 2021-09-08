@@ -9,13 +9,12 @@ Usage: ./scrips/get_testdata.py
 # pylint:disable=line-too-long
 
 import argparse
+import json
 import logging as log
 import os
 import shutil
 import subprocess
 import sys
-import json
-
 from distutils.dir_util import copy_tree
 from inspect import getsourcefile
 from pathlib import Path
@@ -57,7 +56,7 @@ class VirtualEnv:
     def create(self):
         """Creates virtual environment."""
         cmd = '"{executable}" -m venv {venv}'.format(executable=sys.executable,
-                                                   venv=self.get_venv_dir())
+                                                     venv=self.get_venv_dir())
         run_in_subprocess(cmd)
         self.is_created = True
 
@@ -134,7 +133,7 @@ def main():
         requirements = [
             omz_path / "tools" / "downloader" / "requirements.in",
             args.mo_tool.parent / "requirements.txt",
-            #Path(abs_path("../scripts/")) / "requirements.txt",
+            Path(abs_path("../scripts/")) / "requirements.txt",
             # args.mo_tool.parent / "requirements_dev.txt",
             omz_path / "tools" / "downloader" / "requirements-caffe2.in",
             omz_path / "tools" / "downloader" / "requirements-pytorch.in"
@@ -180,11 +179,12 @@ def main():
 
         # prepare models
         downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
-        cmd = '{downloader_path} --name {model_name}' \
+        cmd = '"{executable}" {downloader_path} --name {model_name}' \
               ' --precisions={precision}' \
               ' --num_attempts {num_attempts}' \
               ' --output_dir {models_dir}' \
-              ' --cache_dir {cache_dir}'.format(downloader_path=downloader_path, model_name=model_name,
+              ' --cache_dir {cache_dir}'.format(executable=python_executable, downloader_path=downloader_path,
+                                                model_name=model_name,
                                                 precision=precision, num_attempts=OMZ_NUM_ATTEMPTS,
                                                 models_dir=args.omz_models_out_dir, cache_dir=args.omz_cache_dir)
 
