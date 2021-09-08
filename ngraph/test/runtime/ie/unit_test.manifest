@@ -451,6 +451,7 @@ onnx_model_max_pool_3d
 onnx_model_max_pool_4d_ceil_mode
 onnx_model_max_pool_4d_dilations
 onnx_model_max_pool_4d_strides
+onnx_model_max_pool_4d_ceil_strides
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
