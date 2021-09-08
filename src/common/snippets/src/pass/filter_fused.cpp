@@ -14,11 +14,18 @@ namespace snippets {
 namespace pass {
 
 namespace {
-bool hasFusedParent(std::shared_ptr<Node> node) {
+bool hasFusedParent(std::shared_ptr<Node> node, SnippetsNodeType& FusedChainType) {
+    // todo: what if a node has > 1 parents with different fusing types?
+    const std::vector<SnippetsNodeType> supportedFusingTypes = {SnippetsNodeType::FusedWithConvolution,
+                                                                SnippetsNodeType::FusedWithMisc};
     for (const auto& input : node->inputs()) {
         const auto parent = input.get_source_output().get_node_shared_ptr();
-        if (GetSnippetsNodeType(parent) == SnippetsNodeType::Fused)
-            return true;
+        for (auto s : supportedFusingTypes) {
+            if (GetSnippetsNodeType(parent) == s) {
+                FusedChainType = s;
+                return true;
+            }
+        }
     }
     return false;
 }
@@ -91,33 +98,45 @@ bool SupportsFusingWithConvolution_Simple(std::shared_ptr<Node> node) {
     else
         return false;
 }
-bool isSutableParentForFusingSimple(std::shared_ptr<Node> node) {
+// Convolution is a special case, since it supports peculiar fusings
+bool isSuitableConvolutionParent(std::shared_ptr<Node> node) {
     const bool is_suitable_node = !!ov::as_type_ptr<ngraph::op::v1::Convolution>(node) ||
-                                 !!ov::as_type_ptr<ngraph::op::v1::GroupConvolution>(node) ||
-                                 !!ov::as_type_ptr<ngraph::op::v1::BinaryConvolution>(node) ||
-                                 !!ov::as_type_ptr<ngraph::op::v0::MVN>(node) ||
-                                 !!ov::as_type_ptr<ngraph::op::v0::NormalizeL2>(node) ||
-                                 !!ov::as_type_ptr<ngraph::op::v0::Interpolate>(node) ||
-                                 !!ov::as_type_ptr<ngraph::op::v0::LSTMCell>(node) ||
-                                 !!ov::as_type_ptr<ngraph::op::v4::LSTMCell>(node) ||
-                                 // FullyConnected has a special shape restriction
-                                 // Plus Matmul is converted to FC in convert_to_cpu_specific_opset
-                                 ( (!!ov::as_type_ptr<ngraph::op::FullyConnected>(node)
-                                    || !!ov::as_type_ptr<ngraph::op::MatMul>(node)) &&
-                                 node->input_value(0).get_shape().size() != 3);
-
+                                  !!ov::as_type_ptr<ngraph::op::v1::GroupConvolution>(node) ||
+                                  !!ov::as_type_ptr<ngraph::op::v1::BinaryConvolution>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_suitable_node && has_only_child;
 }
-
-bool isSutableChildForFusingSimple(std::shared_ptr<Node> node) {
+bool isSuitableMiscParent(std::shared_ptr<Node> node) {
+    const bool is_suitable_node = !!ov::as_type_ptr<ngraph::op::v0::MVN>(node) ||
+                                  !!ov::as_type_ptr<ngraph::op::v0::NormalizeL2>(node) ||
+                                  !!ov::as_type_ptr<ngraph::op::v0::Interpolate>(node) ||
+                                  !!ov::as_type_ptr<ngraph::op::v0::LSTMCell>(node) ||
+                                  !!ov::as_type_ptr<ngraph::op::v4::LSTMCell>(node) ||
+                                  // FullyConnected has a special shape restriction
+                                  // Plus Matmul is converted to FC in convert_to_cpu_specific_opset
+                                  ( (!!ov::as_type_ptr<ngraph::op::FullyConnected>(node)
+                                     || !!ov::as_type_ptr<ngraph::op::MatMul>(node)) &&
+                                    node->input_value(0).get_shape().size() != 3);
+    // has a single output, connected to a single child
+    const auto out = node->outputs();
+    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    return is_suitable_node && has_only_child;
+}
+bool isSuitablePoolChild(std::shared_ptr<Node> node) {
+    const bool is_suitable_node = !!ov::as_type_ptr<ngraph::op::v1::MaxPool>(node);
+    // has a single output, connected to a single child
+    const auto out = node->outputs();
+    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    return is_suitable_node && has_only_child;
+}
+bool isSuitableChildForFusingSimple(std::shared_ptr<Node> node) {
     if ( !SupportsFusingWithConvolution_Simple(node) )
         return false;
     return (getNumNonConstInputs(node) == 1);
 }
-bool isSutableChildForFusingSumActivation(std::shared_ptr<Node> node) {
+bool isSuitableChildForFusingSumActivation(std::shared_ptr<Node> node) {
     if (dynamic_cast<const ngraph::op::v1::Add *>(node.get()) == nullptr)
         return false;
     int num_non_const_inputs = 0;
@@ -135,7 +154,7 @@ SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node) {
     if (rinfo == rt.end())
         return SnippetsNodeType::NotSet;
     const int64_t type_val = ov::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get();
-    const int64_t lower_bound = static_cast<int64_t>(SnippetsNodeType::Fused);
+    const int64_t lower_bound = static_cast<int64_t>(SnippetsNodeType::FusedWithConvolution);
     const int64_t upper_bound = static_cast<int64_t>(SnippetsNodeType::SubgraphBody);
     if ((type_val < lower_bound) || (type_val > upper_bound))
         throw ngraph_error("Invalid value of SnippetsNodeType is detected.");
@@ -154,31 +173,30 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
     for (auto node : f->get_ordered_ops()) {
         if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node))
             continue;
-        if (isSutableParentForFusingSimple(node)) {
+        if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
-            SetSnippetsNodeType(node, SnippetsNodeType::Fused);
+            SetSnippetsNodeType(node, SnippetsNodeType::FusedWithConvolution);
+            continue;
+        } else if (isSuitableMiscParent(node)) {
+            SetSnippetsNodeType(node, SnippetsNodeType::FusedWithMisc);
             continue;
         }
-        if (hasFusedParent(node)) {
-            if (isSutableChildForFusingSimple(node)) {
-                // This feature is disabled to emulate FusingSimple->FusingActivationAndSum->FusingSimple
-                // todo: clean all the commented code after benchmark and analysis
-//                 // If the node is already marked, it was processed as a child activation in FusingSumActivation
-//                if (!fused_tag_is_set(node))
-                SetSnippetsNodeType(node, SnippetsNodeType::Fused);
-            } else if (isSutableChildForFusingSumActivation(node)) {
-                SetSnippetsNodeType(node, SnippetsNodeType::Fused);
+        SnippetsNodeType fusingChainType{SnippetsNodeType::NotSet};
+        if (hasFusedParent(node, fusingChainType)) {
+            if (isSuitableChildForFusingSimple(node)) {
+                SetSnippetsNodeType(node, fusingChainType);
+            } else if (isSuitableChildForFusingSumActivation(node)) {
+                SetSnippetsNodeType(node, fusingChainType);
                 // node has only 1 output, because it is Add
                 auto child_inputs = node->get_output_target_inputs(0);
                 if (child_inputs.size() == 1) {
                     auto child_node = node->get_users()[0];
                     if (SupportsFusingWithConvolution_SumActivation(child_node))
-                        SetSnippetsNodeType(child_node, SnippetsNodeType::Fused);
-//                    else {
-//                         // Tag with 0, so this node would not be processed by FusingSimple
-//                        child_rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(0));
-//                    }
+                        SetSnippetsNodeType(child_node, fusingChainType);
                 }
+            // Mimic FuseConvolutionAndSimpleOperationThroughMaxPool
+            } else if ((fusingChainType == SnippetsNodeType::FusedWithConvolution) && isSuitablePoolChild(node)) {
+                SetSnippetsNodeType(node, SnippetsNodeType::FusedWithConvolution);
             }
         }
         if (AppropriateForSubgraph(node)) {
@@ -188,7 +206,8 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
                 SetSnippetsNodeType(node, SnippetsNodeType::Ignored);
                 continue;
             }
-            if (GetSnippetsNodeType(node) == SnippetsNodeType::Fused)
+            if ((GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithMisc) ||
+                (GetSnippetsNodeType(node) == SnippetsNodeType::FusedWithConvolution))
                 continue;
             if (hasParentInStartedSubgraph (node))
                 SetSnippetsNodeType(node, SnippetsNodeType::SubgraphBody);
