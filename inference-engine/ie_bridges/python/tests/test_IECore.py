@@ -61,12 +61,10 @@ def test_load_network_wrong_device():
     assert 'Device with "BLA" name is not registered in the InferenceEngine' in str(e.value)
 
 
+@pytest.mark.ngraph_dependent_test
 def test_query_network(device):
-    ie = IECore()
-    if device == "CPU":
-        if ie.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-            pytest.skip("Can't run on ARM plugin due-to ngraph")
     import ngraph as ng
+    ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     query_res = ie.query_network(net, device)
     func_net = ng.function_from_cnn(net)
