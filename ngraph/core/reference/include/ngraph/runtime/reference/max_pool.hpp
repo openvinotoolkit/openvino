@@ -181,23 +181,16 @@ Coord<T> kernel_position_2D(const size_t out_row,
 }
 
 template <typename T>
-Coord<T> next_kernel_position_3D(Coord<T> kernel_position,
-                                 const Shape& kernel,
-                                 const Strides& kernel_strides,
-                                 const Strides& kernel_dilations,
-                                 const Shape& data_shape,
-                                 const Shape& pads_begin,
-                                 const Shape& pads_end) {
-    kernel_position[2] += kernel_strides[2];
+Coord<T> kernel_position_3D(const size_t out_channel,
+                            const size_t out_row,
+                            const size_t out_col,
+                            const Strides& kernel_strides,
+                            const Shape& pads_begin) {
+    Coord<T> kernel_position(3);
 
-    if (kernel_position[2] + (kernel[2] - 1) * kernel_dilations[2] >= data_shape[4] + pads_end[2]) {
-        kernel_position[2] = 0 - pads_begin[2];
-        kernel_position[1] += kernel_strides[1];
-        if (kernel_position[1] + (kernel[1] - 1) * kernel_dilations[1] >= data_shape[3] + pads_end[1]) {
-            kernel_position[1] = 0 - pads_begin[1];
-            kernel_position[0] += kernel_strides[0];
-        }
-    }
+    kernel_position[0] = out_channel * kernel_strides[0] - pads_begin[0];
+    kernel_position[1] = out_row * kernel_strides[1] - pads_begin[1];
+    kernel_position[2] = out_col * kernel_strides[2] - pads_begin[2];
 
     return kernel_position;
 }
@@ -280,7 +273,6 @@ void max_pool_2d(const Values_t* data,
 
             values[out_idx] = max_elem;
             indices[out_idx] = max_elem_idx + indices_offset;
-
             ++out_idx;
         }
     }
@@ -302,47 +294,46 @@ void max_pool_3d(const Values_t* data,
 
     Coord<int> kernel_position{pads_begin};
 
-    const size_t out_elems = shape_size(std::begin(out_shape) + 2, std::end(out_shape));
-
     // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
-    for (size_t out_idx = 0; out_idx < out_elems; ++out_idx) {
-        Values_t max_elem = std::numeric_limits<Values_t>::lowest();
-        Indices_t max_elem_idx = Indices_t{0};
+    size_t out_idx = 0u;
+    for (size_t out_channel = 0u; out_channel < out_shape[2]; ++out_channel) {
+        for (size_t out_row = 0u; out_row < out_shape[3]; ++out_row) {
+            for (size_t out_col = 0u; out_col < out_shape[4]; ++out_col) {
+                Values_t max_elem = std::numeric_limits<Values_t>::lowest();
+                Indices_t max_elem_idx = Indices_t{0};
 
-        for (size_t kernel_channel = 0; kernel_channel < kernel[0]; ++kernel_channel) {
-            for (size_t kernel_row = 0; kernel_row < kernel[1]; ++kernel_row) {
-                for (size_t kernel_col = 0; kernel_col < kernel[2]; ++kernel_col) {
-                    // offset from the top-left corner of the kernel for a given row and col
-                    const Coord<size_t> kernel_offset{kernel_channel * kernel_dilations[0],
-                                                      kernel_row * kernel_dilations[1],
-                                                      kernel_col * kernel_dilations[2]};
+                const auto kernel_position =
+                    kernel_position_3D<int>(out_channel, out_row, out_col, kernel_strides, pads_begin);
 
-                    // ignore the elements in the padding area
-                    if (!elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
-                        // index of the flattened tensor element under the current row & column of the kernel
-                        const size_t data_elem_index =
-                            data_shape[2] * data_shape[3] * (kernel_offset[0] + kernel_position[0]) +
-                            data_shape[3] * (kernel_offset[1] + kernel_position[1]) + kernel_offset[2] +
-                            kernel_position[2];
+                for (size_t kernel_channel = 0; kernel_channel < kernel[0]; ++kernel_channel) {
+                    for (size_t kernel_row = 0; kernel_row < kernel[1]; ++kernel_row) {
+                        for (size_t kernel_col = 0; kernel_col < kernel[2]; ++kernel_col) {
+                            // offset from the top-left corner of the kernel for a given row and col
+                            const Coord<size_t> kernel_offset{kernel_channel * kernel_dilations[0],
+                                                              kernel_row * kernel_dilations[1],
+                                                              kernel_col * kernel_dilations[2]};
 
-                        if (data[data_elem_index] > max_elem) {
-                            max_elem = data[data_elem_index];
-                            max_elem_idx = data_elem_index;
+                            // ignore the elements in the padding area
+                            if (!elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
+                                // index of the flattened tensor element under the current row & column of the kernel
+                                const size_t data_elem_index =
+                                    data_shape[2] * data_shape[3] * (kernel_offset[0] + kernel_position[0]) +
+                                    data_shape[3] * (kernel_offset[1] + kernel_position[1]) + kernel_offset[2] +
+                                    kernel_position[2];
+
+                                if (data[data_elem_index] > max_elem) {
+                                    max_elem = data[data_elem_index];
+                                    max_elem_idx = data_elem_index;
+                                }
+                            }
                         }
                     }
                 }
+                values[out_idx] = max_elem;
+                indices[out_idx] = max_elem_idx + indices_offset;
+                ++out_idx;
             }
         }
-        values[out_idx] = max_elem;
-        indices[out_idx] = max_elem_idx + indices_offset;
-
-        kernel_position = next_kernel_position_3D(kernel_position,
-                                                  kernel,
-                                                  kernel_strides,
-                                                  kernel_dilations,
-                                                  data_shape,
-                                                  pads_begin,
-                                                  pads_end);
     }
 }
 }  // namespace kernel
