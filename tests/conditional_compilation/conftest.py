@@ -200,12 +200,7 @@ def save_session_info(pytestconfig, artifacts):
 def omz_path(request):
     """Fixture function for command-line option."""
     omz_path = request.config.getoption("omz_repo", skip=True)
-    if omz_path:
-        try:
-            validate_path_arg(omz_path, is_dir=True)
-        except ValueError:
-            log.warning(f'The Open Model Zoo repository root directory'
-                        f' "{omz_path}" does not exist.')
+    validate_path_arg(omz_path, is_dir=True)
 
     return omz_path
 
