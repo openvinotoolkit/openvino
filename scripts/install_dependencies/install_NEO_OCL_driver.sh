@@ -658,7 +658,7 @@ check_current_driver()
     elif [[ $DISTRO == ubuntu ]]; then
         gfx_version=$(dpkg-query --showformat='${Version}' --show intel-opencl)
         if [[ -z "$gfx_version" ]]; then 
-            gfx_version=$(dpkg-query --showformat='${Version}' --show intel-opencl)
+            gfx_version=$(dpkg-query --showformat='${Version}' --show intel-opencl-icd)
         fi
     fi
     
