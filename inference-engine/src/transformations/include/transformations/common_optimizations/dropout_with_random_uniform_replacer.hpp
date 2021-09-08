@@ -18,7 +18,20 @@ class TRANSFORMATIONS_API DropoutWithRandomUniformReplacer;
 /**
  * @ingroup ie_transformation_common_api
  * @brief This transformation replaces possible Dropout block (in inference mode) with RandomUniform
-    to Broadcast of half-ones in a sub-graph.
+ *  to Broadcast of half-ones in a sub-graph.
+ *
+ *   Dropout block:
+ *   RandomUniform ----------> Add --->  Floor
+ *   /\        /\              /\
+ *   |         |               |
+ *  Const(0)  Const(1)        Const(1)
+ *  min_val   max_val
+ *
+ *  Resulted block:
+ *  Broadcast -------> Add ---> Floor
+ *    /\               /\
+ *    |                |
+ *  Const(0.5)      Const(1)
  *
  */
 class ngraph::pass::DropoutWithRandomUniformReplacer : public ngraph::pass::MatcherPass {
