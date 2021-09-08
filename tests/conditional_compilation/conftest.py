@@ -99,9 +99,8 @@ def pytest_generate_tests(metafunc):
             if is_omz:
                 test_id_list.append(f'{model["name"]}_{model["precision"]}')
             else:
-                model_path = model["path"]
+                test_id_list.append(model["path"].split("/")[-1])
                 model["path"] = Path(expand_env_vars(model["path"]))
-                test_id_list.append(model_path.split("/")[-1])
             model_list.append(model)
         ids = ids + ['-'.join(test_id_list)]
         params.append(pytest.param('-'.join(test_id_list), model_list), **extra_args)
