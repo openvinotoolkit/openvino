@@ -99,3 +99,5 @@ install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/paddlepaddle_frontend
         FILES_MATCHING PATTERN "*.hpp")
 
 export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")

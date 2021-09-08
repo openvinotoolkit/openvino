@@ -67,3 +67,5 @@ install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/frontend_manager
         FILES_MATCHING PATTERN "*.hpp")
 
 export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")

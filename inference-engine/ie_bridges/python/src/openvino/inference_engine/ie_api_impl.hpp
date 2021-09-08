@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include <ie_extension.h>
-
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
-#include <ie_core.hpp>
 #include <iostream>
 #include <iterator>
 #include <list>
@@ -21,6 +18,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "ie_core.hpp"
 
 #include "Python.h"
 

@@ -34,11 +34,7 @@ endif()
 if(OpenVINO_SOURCE_DIR)
     # in case if samples are built from IE repo
     set(IE_MAIN_SAMPLES_DIR "${OpenVINO_SOURCE_DIR}")
-    # hint for find_package(<InferenceEngine|OpenVINO> in the samples folder)
-    set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
     set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")
-    # hint for find_package(ngraph in the samples folder)
-    set(ngraph_DIR "${CMAKE_BINARY_DIR}/ngraph")
 else()
     # in case if samples are built out of IE repo
     set(IE_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -129,8 +125,8 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
     add_subdirectory(common/utils)
 endif()
 
-# format reader must be added after find_package(InferenceEngine) to get
-# exactly the same OpenCV_DIR path which was used for the InferenceEngine build
+# format reader must be added after find_package(OpenVINO) to get
+# exactly the same OpenCV_DIR path which was used for the OpenVINO build
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader")
     add_subdirectory(common/format_reader)
 elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wrapper")
@@ -210,12 +206,11 @@ macro(ie_add_sample)
         set(folder_name c_samples)
     endif()
 
+    find_package(OpenVINO REQUIRED COMPONENTS Runtime)
     if(c_sample)
-        find_package(OpenVINO REQUIRED COMPONENTS Runtime)
         set(ov_link_libraries openvino::runtime::c)
     else()
-        find_package(InferenceEngine REQUIRED COMPONENTS inference_engine)
-        set(ov_link_libraries inference_engine)
+        set(ov_link_libraries openvino::runtime)
     endif()
 
     set_target_properties(${IE_SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}

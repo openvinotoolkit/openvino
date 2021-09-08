@@ -4,7 +4,6 @@
 
 #include "ie_api_impl.hpp"
 
-#include "ie_iinfer_request.hpp"
 #include "ie_plugin_config.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
