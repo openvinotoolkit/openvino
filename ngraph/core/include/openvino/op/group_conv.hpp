@@ -215,8 +215,8 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return The spatial shape of the output.
-    const PartialShape get_convolution_output_shape() const;
-    void set_output_shape(const ngraph::Shape& output_shape);
+    const Shape get_convolution_output_shape() const;
+    void set_output_shape(const StaticShape& output_shape);
     /// \return The strides from the forward prop.
     const Strides& get_strides() const {
         return m_strides;

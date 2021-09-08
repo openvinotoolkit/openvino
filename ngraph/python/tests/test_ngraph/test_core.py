@@ -98,7 +98,7 @@ def test_partial_shape():
     assert list(ps.get_max_shape()) == [1, 2, 3]
     assert list(ps.get_min_shape()) == [1, 2, 3]
     assert list(ps.to_shape()) == [1, 2, 3]
-    assert repr(shape) == "<Shape{1, 2, 3}>"
+    assert repr(shape) == "<Shape: {1, 2, 3}>"
     assert repr(ps) == "<PartialShape: {1,2,3}>"
 
     ps = PartialShape([Dimension(1), Dimension(2), Dimension(3), Dimension.dynamic()])

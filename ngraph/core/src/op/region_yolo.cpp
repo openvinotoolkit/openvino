@@ -56,8 +56,8 @@ void op::RegionYolo::validate_and_infer_types() {
                           input_et);
 
     if (get_input_partial_shape(0).is_static()) {
-        Shape input_shape = get_input_partial_shape(0).to_shape();
-        Shape output_shape;
+        ov::StaticShape input_shape = get_input_partial_shape(0).to_shape();
+        ov::StaticShape output_shape;
         int end_axis = m_end_axis;
         if (m_end_axis < 0) {
             m_end_axis += input_shape.size();
@@ -83,7 +83,7 @@ void op::RegionYolo::validate_and_infer_types() {
         }
         set_output_type(0, input_et, output_shape);
     } else {
-        set_output_type(0, input_et, PartialShape::dynamic());
+        set_output_type(0, input_et, ov::Shape::dynamic());
     }
 }
 

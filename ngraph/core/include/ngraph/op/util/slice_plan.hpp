@@ -54,3 +54,5 @@ SlicePlan NGRAPH_API make_slice_plan(const Shape& input_shape,
                                      const AxisSet& shrink_axis_mask,
                                      const AxisSet& ellipsis_mask);
 }  // namespace ngraph
+
+using ngraph::make_slice_plan;

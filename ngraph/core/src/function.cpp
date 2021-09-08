@@ -305,7 +305,7 @@ const ngraph::Shape& ov::Function::get_output_shape(size_t i) const {
     return m_results.at(i)->get_shape();
 }
 
-const ov::PartialShape& ov::Function::get_output_partial_shape(size_t i) const {
+const ov::Shape& ov::Function::get_output_partial_shape(size_t i) const {
     return m_results.at(i)->get_output_partial_shape(0);
 }
 

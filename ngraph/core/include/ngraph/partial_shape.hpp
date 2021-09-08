@@ -4,10 +4,13 @@
 
 #pragma once
 
+#include "ngraph/attribute_adapter.hpp"
 #include "ngraph/dimension.hpp"
+#include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/rank.hpp"
-#include "openvino/core/partial_shape.hpp"
+#include "ngraph/shape.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ngraph {
-using ov::PartialShape;
+using PartialShape = ov::Shape;
 }  // namespace ngraph

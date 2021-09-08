@@ -16,7 +16,7 @@ ov::op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic(const Outpu
 void ov::op::util::UnaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic() {
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
     element::Type& args_et = std::get<0>(args_et_pshape);
-    PartialShape& args_pshape = std::get<1>(args_et_pshape);
+    Shape& args_pshape = std::get<1>(args_et_pshape);
 
     NODE_VALIDATION_CHECK(this,
                           args_et.is_dynamic() || args_et != element::boolean,

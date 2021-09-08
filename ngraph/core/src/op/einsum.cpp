@@ -188,7 +188,7 @@ void op::v7::Einsum::validate_and_infer_types() {
 
     // create a dictionary with dimension sizes (or ranges in case dynamic shapes) for each label
     // and check their compatibility in case repeating labels
-    unordered_map<string, PartialShape> label_to_shape;
+    unordered_map<string, ov::Shape> label_to_shape;
     label_to_shape.clear();
 
     for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
@@ -210,14 +210,14 @@ void op::v7::Einsum::validate_and_infer_types() {
                 if (label.compare("...") == 0) {
                     size_t num_broadcasted_dims = input_rank - labels.size() + 1;
                     auto current_sub_pshape =
-                        PartialShape(std::vector<Dimension>(pshape.begin() + dim_ind,
-                                                            pshape.begin() + dim_ind + num_broadcasted_dims));
+                        ov::Shape(std::vector<Dimension>(pshape.begin() + dim_ind,
+                                                         pshape.begin() + dim_ind + num_broadcasted_dims));
                     if (label_to_shape.find(label) == label_to_shape.end()) {
                         label_to_shape[label] = current_sub_pshape;
                     } else {
-                        bool is_broadcast_success = PartialShape::broadcast_merge_into(label_to_shape[label],
-                                                                                       current_sub_pshape,
-                                                                                       op::AutoBroadcastType::NUMPY);
+                        bool is_broadcast_success = ov::Shape::broadcast_merge_into(label_to_shape[label],
+                                                                                    current_sub_pshape,
+                                                                                    op::AutoBroadcastType::NUMPY);
                         NODE_VALIDATION_CHECK(this,
                                               is_broadcast_success,
                                               "Input dimensions labeled with ellipsis for Einsum "
@@ -226,13 +226,13 @@ void op::v7::Einsum::validate_and_infer_types() {
                     dim_ind += num_broadcasted_dims;
                 } else {
                     if (label_to_shape.find(label) == label_to_shape.end()) {
-                        label_to_shape[label] = PartialShape{pshape[dim_ind]};
+                        label_to_shape[label] = ov::Shape{pshape[dim_ind]};
                     } else {
                         NODE_VALIDATION_CHECK(this,
-                                              label_to_shape[label].compatible(PartialShape{pshape[label_ind]}),
+                                              label_to_shape[label].compatible(ov::Shape{pshape[label_ind]}),
                                               "Different input dimensions indicated by the same labels for Einsum "
                                               "must be compatible.");
-                        PartialShape::merge_into(label_to_shape[label], PartialShape{pshape[dim_ind]});
+                        ov::Shape::merge_into(label_to_shape[label], ov::Shape{pshape[dim_ind]});
                     }
                     ++dim_ind;
                 }
@@ -245,7 +245,7 @@ void op::v7::Einsum::validate_and_infer_types() {
                                       "not contain ellipsis.");
 
                 if (label_to_shape.find(label) == label_to_shape.end()) {
-                    label_to_shape[label] = PartialShape{Dimension::dynamic()};
+                    label_to_shape[label] = ov::Shape{Dimension::dynamic()};
                 }
             }
         }
@@ -265,7 +265,7 @@ void op::v7::Einsum::validate_and_infer_types() {
                                     label_to_shape[output_label].begin(),
                                     label_to_shape[output_label].end());
     }
-    set_output_type(0, input_type_0, PartialShape(output_pshape_vector));
+    set_output_type(0, input_type_0, ov::Shape(output_pshape_vector));
 }
 
 bool op::v7::Einsum::visit_attributes(AttributeVisitor& visitor) {

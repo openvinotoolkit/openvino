@@ -32,7 +32,7 @@ void op::Concat::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_Concat_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
 
-    PartialShape inputs_shape_scheme{PartialShape::dynamic()};
+    ov::Shape inputs_shape_scheme{ov::Shape::dynamic()};
     element::Type inputs_et{element::dynamic};
     Dimension concatenation_axis_output_dim{0};
 
@@ -40,7 +40,7 @@ void op::Concat::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               element::Type::merge(inputs_et, inputs_et, get_input_element_type(i)),
                               "Argument element types are inconsistent.");
-        PartialShape this_input_shape = get_input_partial_shape(i);
+        ov::Shape this_input_shape = get_input_partial_shape(i);
         Dimension this_input_rank = this_input_shape.rank();
         if (this_input_rank.is_static()) {
             if (get_concatenation_axis() < 0) {
@@ -66,7 +66,7 @@ void op::Concat::validate_and_infer_types() {
             this_input_shape[concat_axis] = Dimension::dynamic();
 
             NODE_VALIDATION_CHECK(this,
-                                  PartialShape::merge_into(inputs_shape_scheme, this_input_shape),
+                                  ov::Shape::merge_into(inputs_shape_scheme, this_input_shape),
                                   "Argument shapes are inconsistent; they must have the same rank, and must "
                                   "have ",
                                   "equal dimension everywhere except on the concatenation axis (axis ",
@@ -76,13 +76,13 @@ void op::Concat::validate_and_infer_types() {
             concatenation_axis_output_dim += Dimension::dynamic();
         }
     }
-    PartialShape concatenated_shape = inputs_shape_scheme;
+    ov::Shape concatenated_shape = inputs_shape_scheme;
 
     if (concatenated_shape.rank().is_static()) {
         concatenated_shape[get_concatenation_axis()] = concatenation_axis_output_dim;
         set_output_type(0, inputs_et, concatenated_shape);
     } else {
-        set_output_type(0, inputs_et, PartialShape::dynamic(concatenation_axis_output_dim));
+        set_output_type(0, inputs_et, ov::Shape::dynamic(concatenation_axis_output_dim));
     }
 }
 
@@ -95,8 +95,8 @@ shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args)
 namespace {
 bool evaluate_concat(const HostTensorVector& args, const HostTensorPtr& out, int64_t concatenation_axis) {
     std::vector<const char*> arg_bufs;
-    std::vector<Shape> arg_shapes;
-    Shape out_shape(args[0]->get_shape());
+    std::vector<ov::StaticShape> arg_shapes;
+    ov::StaticShape out_shape(args[0]->get_shape());
     out_shape[concatenation_axis] = 0;
     for (auto& input : args) {
         arg_bufs.push_back(input->get_data_ptr<char>());

@@ -5,11 +5,11 @@
 #include "openvino/core/descriptor/input.hpp"
 
 #include "ngraph/env_util.hpp"
-#include "ngraph/node.hpp"
 #include "openvino/core/descriptor/output.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-ov::descriptor::Input::Input(ngraph::Node* node, size_t index, Output& output)
+ov::descriptor::Input::Input(ov::Node* node, size_t index, Output& output)
     : m_node(node),
       m_index(index),
       m_output(&output),
@@ -19,7 +19,7 @@ ov::descriptor::Input::Input(ngraph::Node* node, size_t index, Output& output)
     output.add_input(this);
 }
 
-ov::descriptor::Input::Input(ngraph::Node* node, size_t index)
+ov::descriptor::Input::Input(ov::Node* node, size_t index)
     : m_node(node),
       m_index(index),
       m_output(nullptr),
@@ -46,7 +46,7 @@ void ov::descriptor::Input::replace_output(Output& new_output) {
     }
 }
 
-void ov::descriptor::Input::replace_output(const std::shared_ptr<ngraph::Node>& node, size_t i) {
+void ov::descriptor::Input::replace_output(const std::shared_ptr<ov::Node>& node, size_t i) {
     replace_output(node->m_outputs.at(i));
 }
 
@@ -78,11 +78,11 @@ std::shared_ptr<ov::descriptor::Tensor> ov::descriptor::Input::get_tensor_ptr() 
     return m_output->get_tensor_ptr();
 }
 
-const ngraph::Shape& ov::descriptor::Input::get_shape() const {
+const ov::StaticShape& ov::descriptor::Input::get_shape() const {
     return m_output->get_shape();
 }
 
-const ov::PartialShape& ov::descriptor::Input::get_partial_shape() const {
+const ov::Shape& ov::descriptor::Input::get_partial_shape() const {
     return m_output->get_partial_shape();
 }
 

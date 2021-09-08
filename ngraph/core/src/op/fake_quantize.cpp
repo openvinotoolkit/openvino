@@ -37,18 +37,18 @@ op::FakeQuantize::FakeQuantize(const Output<Node>& data,
 
 void op::FakeQuantize::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_FakeQuantize_validate_and_infer_types);
-    PartialShape data_pshape = get_input_partial_shape(0);
+    ov::Shape data_pshape = get_input_partial_shape(0);
 
     for (auto i = 1; i <= 4; i++) {
         if (m_auto_broadcast.m_type == op::AutoBroadcastType::NONE) {
             NODE_VALIDATION_CHECK(this,
-                                  PartialShape::merge_into(data_pshape, get_input_partial_shape(i)),
+                                  ov::Shape::merge_into(data_pshape, get_input_partial_shape(i)),
                                   "Argument shapes are inconsistent.");
         } else if (m_auto_broadcast.m_type == op::AutoBroadcastType::NUMPY ||
                    m_auto_broadcast.m_type == op::AutoBroadcastType::PDPD) {
             NODE_VALIDATION_CHECK(
                 this,
-                PartialShape::broadcast_merge_into(data_pshape, get_input_partial_shape(i), m_auto_broadcast),
+                ov::Shape::broadcast_merge_into(data_pshape, get_input_partial_shape(i), m_auto_broadcast),
                 "Argument shapes are inconsistent.");
         } else {
             NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");

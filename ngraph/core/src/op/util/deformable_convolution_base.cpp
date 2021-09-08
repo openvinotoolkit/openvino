@@ -46,9 +46,9 @@ bool ov::op::util::DeformableConvolutionBase::visit_attributes(AttributeVisitor&
 
 void ov::op::util::DeformableConvolutionBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_DeformableConvolutionBase_validate_and_infer_types);
-    const PartialShape& data_batch_pshape = get_input_partial_shape(0);
-    const PartialShape& offsets_pshape = get_input_partial_shape(1);
-    const PartialShape& filters_pshape = get_input_partial_shape(2);
+    const Shape& data_batch_pshape = get_input_partial_shape(0);
+    const Shape& offsets_pshape = get_input_partial_shape(1);
+    const Shape& filters_pshape = get_input_partial_shape(2);
 
     element::Type data_batch_et = get_input_element_type(0);
     element::Type offsets_et = get_input_element_type(1);
@@ -158,27 +158,27 @@ void ov::op::util::DeformableConvolutionBase::validate_and_infer_types() {
         }
         return new_shape;
     }(m_group);
-    PartialShape result_shape = ngraph::validate_and_infer_convolution_forward_output_shape(this,
-                                                                                            result_ps_rank,
-                                                                                            data_batch_pshape,
-                                                                                            new_filters_pshape,
-                                                                                            m_auto_pad,
-                                                                                            m_strides,
-                                                                                            m_dilations,
-                                                                                            m_pads_begin,
-                                                                                            m_pads_end);
+    Shape result_shape = ngraph::validate_and_infer_convolution_forward_output_shape(this,
+                                                                                     result_ps_rank,
+                                                                                     data_batch_pshape,
+                                                                                     new_filters_pshape,
+                                                                                     m_auto_pad,
+                                                                                     m_strides,
+                                                                                     m_dilations,
+                                                                                     m_pads_begin,
+                                                                                     m_pads_end);
 
     if (result_shape.rank().is_static() && offsets_pshape.rank().is_static()) {
-        PartialShape result_spatial_shape = [&result_shape]() {
+        Shape result_spatial_shape = [&result_shape]() {
             vector<Dimension> result_spatial_dims{result_shape};
             result_spatial_dims.erase(result_spatial_dims.begin(), result_spatial_dims.begin() + 2);
-            return PartialShape{result_spatial_dims};
+            return Shape{result_spatial_dims};
         }();
 
-        PartialShape offsets_spatial_shape = [&offsets_pshape]() {
+        Shape offsets_spatial_shape = [&offsets_pshape]() {
             vector<Dimension> offsets_spatial_dims{offsets_pshape};
             offsets_spatial_dims.erase(offsets_spatial_dims.begin(), offsets_spatial_dims.begin() + 2);
-            return PartialShape{offsets_spatial_dims};
+            return Shape{offsets_spatial_dims};
         }();
 
         NODE_VALIDATION_CHECK(this,

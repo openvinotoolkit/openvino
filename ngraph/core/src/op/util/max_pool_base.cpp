@@ -45,7 +45,7 @@ void ov::op::util::MaxPoolBase::validate_and_infer_types() {
         m_pads_end = ngraph::Shape(m_kernel.size(), 0);
     }
 
-    const PartialShape& arg_shape = get_input_partial_shape(0);
+    const Shape& arg_shape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(
         this,
@@ -74,7 +74,7 @@ void ov::op::util::MaxPoolBase::validate_and_infer_types() {
     }
 }
 
-ov::PartialShape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& dilations) {
+ov::Shape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& dilations) {
     NGRAPH_OP_SCOPE(util_MaxPoolBase_infer_output_shape);
 
     const auto& arg_shape = get_input_partial_shape(0);
@@ -90,19 +90,19 @@ ov::PartialShape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& di
         m_pads_begin = ngraph::Shape(m_pads_begin.size(), 0);
     }
 
-    auto output_shape = PartialShape::dynamic();
+    auto output_shape = Shape::dynamic();
     if (update_auto_padding_succeed) {
         CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
         CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
-        output_shape = infer_batched_pooling_forward(this,
-                                                     get_input_partial_shape(0),
-                                                     pads_begin,
-                                                     pads_end,
-                                                     m_kernel,
-                                                     m_strides,
-                                                     true,
-                                                     m_rounding_type == op::RoundingType::CEIL,
-                                                     dilations);
+        output_shape = ngraph::infer_batched_pooling_forward(this,
+                                                             get_input_partial_shape(0),
+                                                             pads_begin,
+                                                             pads_end,
+                                                             m_kernel,
+                                                             m_strides,
+                                                             true,
+                                                             m_rounding_type == op::RoundingType::CEIL,
+                                                             dilations);
     } else {
         if (arg_shape.rank().is_static()) {
             output_shape = std::vector<Dimension>(arg_shape.rank().get_max_length(), Dimension::dynamic());
@@ -118,15 +118,20 @@ ov::PartialShape ov::op::util::MaxPoolBase::infer_output_shape(const Strides& di
     return output_shape;
 }
 
-bool ov::op::util::MaxPoolBase::update_auto_padding(const PartialShape& in_shape,
+bool ov::op::util::MaxPoolBase::update_auto_padding(const Shape& in_shape,
                                                     const Strides& filter_dilations,
                                                     ngraph::Shape& new_pads_end,
                                                     ngraph::Shape& new_pads_begin) const {
     bool update_auto_padding_succeed = true;
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER) {
         CoordinateDiff pads_end, pads_begin;
-        update_auto_padding_succeed =
-            try_apply_auto_padding(in_shape, m_kernel, m_strides, filter_dilations, m_auto_pad, pads_end, pads_begin);
+        update_auto_padding_succeed = ngraph::try_apply_auto_padding(in_shape,
+                                                                     m_kernel,
+                                                                     m_strides,
+                                                                     filter_dilations,
+                                                                     m_auto_pad,
+                                                                     pads_end,
+                                                                     pads_begin);
         new_pads_end = ngraph::Shape(pads_end.begin(), pads_end.end());
         new_pads_begin = ngraph::Shape(pads_begin.begin(), pads_begin.end());
     }

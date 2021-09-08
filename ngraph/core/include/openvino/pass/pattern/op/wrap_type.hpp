@@ -25,7 +25,7 @@ public:
         const OutputVector& input_values = {})
         : Pattern(input_values, pred),
           m_wrapped_types({wrapped_type}) {
-        set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
+        set_output_type(0, element::Type_t::dynamic, Shape::dynamic());
     }
 
     explicit WrapType(
@@ -37,7 +37,7 @@ public:
         const OutputVector& input_values = {})
         : Pattern(input_values, pred),
           m_wrapped_types(std::move(wrapped_types)) {
-        set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
+        set_output_type(0, element::Type_t::dynamic, Shape::dynamic());
     }
 
     bool match_value(pattern::Matcher* matcher,

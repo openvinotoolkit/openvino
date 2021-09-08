@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/node.hpp"
 #include "ngraph/op/assign.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/read_value.hpp"
@@ -19,6 +18,7 @@
 #include "ngraph/op/sink.hpp"
 #include "ngraph/op/util/variable.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 /// A user-defined function.
@@ -97,10 +97,10 @@ public:
     const ngraph::element::Type& get_output_element_type(size_t i) const;
 
     /// Return the shape of element i
-    const ngraph::Shape& get_output_shape(size_t i) const;
+    const StaticShape& get_output_shape(size_t i) const;
 
     /// Return the partial shape of element i
-    const ngraph::PartialShape& get_output_partial_shape(size_t i) const;
+    const Shape& get_output_partial_shape(size_t i) const;
 
     /// Check that there is a single result and return it.
     std::shared_ptr<ngraph::Node> get_result() const;

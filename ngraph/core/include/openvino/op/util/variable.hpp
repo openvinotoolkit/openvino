@@ -7,7 +7,7 @@
 #include <string>
 #include <utility>
 
-#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -15,7 +15,7 @@ namespace ov {
 namespace op {
 namespace util {
 struct VariableInfo {
-    PartialShape data_shape;
+    Shape data_shape;
     element::Type data_type;
     std::string variable_id;
 
@@ -29,7 +29,7 @@ public:
     using Ptr = std::shared_ptr<Variable>;
     Variable() = default;
 
-    explicit Variable(const VariableInfo& variable_info) : m_info(variable_info) {}
+    explicit Variable(VariableInfo variable_info) : m_info(std::move(variable_info)) {}
 
     VariableInfo get_info() const {
         return m_info;
