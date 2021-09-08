@@ -49,7 +49,6 @@ void regclass_pyngraph_Node(py::module m) {
     py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>, PyNode> node(m, "Node", py::dynamic_attr());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
     node.def("get_type_info", &ngraph::Node::get_type_info);
-
     node.def(
         "__add__",
         [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
@@ -286,11 +285,8 @@ void regclass_pyngraph_Node(py::module m) {
                                (PyRTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info,
                                py::return_value_policy::reference_internal);
     node.def_property_readonly("version", &ngraph::Node::get_version);
-
     node.def_property_readonly("type_info", &ngraph::Node::get_type_info);
-
     node.def_property("friendly_name", &ngraph::Node::get_friendly_name, &ngraph::Node::set_friendly_name);
-
 
     node.def("_get_attributes", [](const std::shared_ptr<ngraph::Node>& self) {
         util::DictAttributeSerializer dict_serializer(self);
