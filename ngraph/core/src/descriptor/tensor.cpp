@@ -3,10 +3,12 @@
 //
 
 #include "openvino/core/descriptor/tensor.hpp"
+#include <mutex>
 
 #include "ngraph/node.hpp"
 
 using namespace std;
+atomic<size_t> ov::descriptor::Tensor::m_next_instance_id(0);
 
 ov::descriptor::Tensor::Tensor(const element::Type& element_type, const Shape& pshape, const std::string& name)
     : m_element_type(element_type),
@@ -90,6 +92,13 @@ const std::string& ov::descriptor::Tensor::get_name() const {
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const {
+    static std::mutex m;
+    if (m_names.empty()) {
+        std::lock_guard<std::mutex> lock(m);
+        if (m_names.empty()) {
+            const_cast<ov::descriptor::Tensor*>(this)->m_names.insert("Tensor_" + to_string(m_instance_id));
+        }
+    }
     return m_names;
 }
 

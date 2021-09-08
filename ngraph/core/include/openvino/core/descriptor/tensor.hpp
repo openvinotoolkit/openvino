@@ -97,6 +97,8 @@ protected:
     ngraph::HostTensorPtr m_lower_value, m_upper_value;
     std::string m_name;
     std::unordered_set<std::string> m_names;
+    size_t m_instance_id{m_next_instance_id.fetch_add(1)};
+    static std::atomic<size_t> m_next_instance_id;
 };
 
 OPENVINO_API
