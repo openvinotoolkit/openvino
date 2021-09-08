@@ -10,7 +10,7 @@
 #include "ipolymorph_allocator.hpp"
 
 namespace GNAPluginNS {
-namespace memory {
+namespace memory_obsolete {
 /**
  * @brief c++17 concept simulation
  */
@@ -60,5 +60,5 @@ inline PolymorphAllocator<typename T::value_type> make_polymorph(Args &&... args
 
     return PolymorphAllocator<typename T::value_type>(ipoly);
 }
-}  // namespace memory
+}  // namespace memory_obsolete
 }  // namespace GNAPluginNS

@@ -16,6 +16,7 @@
 #include <fstream>
 #include <iomanip>
 #include "gna_lib_ver_selector.hpp"
+#include "gna_allocator.hpp"
 
 namespace GNAPluginNS {
 namespace memory {
@@ -24,7 +25,8 @@ namespace memory {
  * in order to issue single allocation call and configure actual pointers in requests
  * @tparam Allocator - a GNAAllocator in case of actual HW offloads
  */
-template<class Allocator = std::allocator<uint8_t>>
+//template<class Allocator = std::allocator<uint8_t>>
+    using Allocator = GNAAllocator;
 class GNAMemory {
     std::map<rRegion, std::shared_ptr<GNAMemRequestsQueue>> _mem_queues;
     size_t _total = 0;
@@ -33,15 +35,15 @@ class GNAMemory {
     size_t _page_alignment = 1;
 
  public:
-    explicit GNAMemory(size_t pageAlignment = 1)
-        : _page_alignment(pageAlignment) {
-            _mem_queues.insert(std::make_pair(REGION_INPUTS, new GNAMemRequestsInputsQueue));
-            _mem_queues.insert(std::make_pair(REGION_OUTPUTS, new GNAMemRequestsOutputsQueue));
-            _mem_queues.insert(std::make_pair(REGION_SCRATCH, new GNAMemRequestsScratchQueue));
-            _mem_queues.insert(std::make_pair(REGION_RO, new GNAMemRequestsReadOnlyQueue));
-            _mem_queues.insert(std::make_pair(REGION_STATES, new GNAMemRequestsStatesQueue));
-            _mem_queues.insert(std::make_pair(REGION_AUTO, new GNAMemRequestsBindingsQueue));
-        }
+    //explicit GNAMemory(size_t pageAlignment = 1)
+    //    : _page_alignment(pageAlignment) {
+    //        _mem_queues.insert(std::make_pair(REGION_INPUTS, new GNAMemRequestsInputsQueue));
+    //        _mem_queues.insert(std::make_pair(REGION_OUTPUTS, new GNAMemRequestsOutputsQueue));
+    //        _mem_queues.insert(std::make_pair(REGION_SCRATCH, new GNAMemRequestsScratchQueue));
+    //        _mem_queues.insert(std::make_pair(REGION_RO, new GNAMemRequestsReadOnlyQueue));
+    //        _mem_queues.insert(std::make_pair(REGION_STATES, new GNAMemRequestsStatesQueue));
+    //        _mem_queues.insert(std::make_pair(REGION_AUTO, new GNAMemRequestsBindingsQueue));
+    //    }
 
     explicit GNAMemory(const Allocator &a, size_t pageAlignment = 1)
         : _allocator(a), _page_alignment(pageAlignment) {

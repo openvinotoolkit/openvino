@@ -7,7 +7,7 @@
 #include <cstddef>
 
 namespace GNAPluginNS {
-namespace memory {
+namespace memory_obsolete {
 
 template<class T>
 class IPolymorphAllocator {
@@ -15,5 +15,5 @@ public:
     virtual T *allocate(std::size_t n)  = 0;
     virtual void deallocate(T *p, std::size_t n)  = 0;
 };
-}  // namespace memory
+}  // namespace memory_obsolete
 }  // namespace GNAPluginNS
