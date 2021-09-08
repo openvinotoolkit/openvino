@@ -21,23 +21,13 @@
 class PyNode : public ngraph::Node {
 public:
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& inputs) const override {
-        PYBIND11_OVERRIDE_PURE(
-            std::shared_ptr<ngraph::Node>,
-            ngraph::Node,
-            clone_with_new_inputs,
-            inputs
-        );
+        PYBIND11_OVERRIDE_PURE(std::shared_ptr<ngraph::Node>, ngraph::Node, clone_with_new_inputs, inputs);
     }
 
     const type_info_t& get_type_info() const override {
-        PYBIND11_OVERRIDE_PURE(
-            type_info_t&,
-            ngraph::Node,
-            get_type_info,
-        );
+        PYBIND11_OVERRIDE_PURE(type_info_t&, ngraph::Node, get_type_info, );
     }
 };
-
 
 namespace py = pybind11;
 

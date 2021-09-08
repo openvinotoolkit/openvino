@@ -56,27 +56,21 @@ void regclass_pyngraph_DiscreteTypeInfo(py::module m) {
         },
         py::is_operator());
     discrete_type_info.def("__repr__", [](const ngraph::DiscreteTypeInfo& self) {
-           std::string name = std::string(self.name);
-           std::string version = std::to_string(self.version);
-           std::string parent_name = self.parent != nullptr ? self.parent->name  : "None";
-           std::string parent_version = self.parent != nullptr ? std::to_string(self.parent->version) : "";
+        std::string name = std::string(self.name);
+        std::string version = std::to_string(self.version);
+        std::string parent_name = self.parent != nullptr ? self.parent->name : "None";
+        std::string parent_version = self.parent != nullptr ? std::to_string(self.parent->version) : "";
 
-           return "<'" + name + version + " Parent('" + parent_name + parent_version + "')" + "'>";
-        });
+        return "<'" + name + version + " Parent('" + parent_name + parent_version + "')" + "'>";
+    });
 
-    discrete_type_info.def_property_readonly(
-        "name",
-        [](const ngraph::DiscreteTypeInfo& self) {
-            return self.name;
-        });
-    discrete_type_info.def_property_readonly(
-        "version",
-        [](const ngraph::DiscreteTypeInfo& self) {
-            return self.version;
-        });
-    discrete_type_info.def_property_readonly(
-        "parent",
-        [](const ngraph::DiscreteTypeInfo& self) {
-            return self.parent;
-        });
+    discrete_type_info.def_property_readonly("name", [](const ngraph::DiscreteTypeInfo& self) {
+        return self.name;
+    });
+    discrete_type_info.def_property_readonly("version", [](const ngraph::DiscreteTypeInfo& self) {
+        return self.version;
+    });
+    discrete_type_info.def_property_readonly("parent", [](const ngraph::DiscreteTypeInfo& self) {
+        return self.parent;
+    });
 }
