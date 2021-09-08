@@ -19,9 +19,8 @@
 #include <utility>
 #include <vector>
 
-#include "ie_core.hpp"
-
 #include "Python.h"
+#include "ie_core.hpp"
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;

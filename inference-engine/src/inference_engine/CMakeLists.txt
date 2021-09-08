@@ -360,3 +360,8 @@ install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake"
         DESTINATION ${IE_CPACK_IE_DIR}/share
         COMPONENT core_dev)
+
+install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
+              "${CMAKE_BINARY_DIR}/OpenVINOConfig-version.cmake"
+        DESTINATION ${IE_CPACK_IE_DIR}/share
+        COMPONENT core_dev)
